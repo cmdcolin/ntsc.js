@@ -214,7 +214,8 @@ export function App() {
               setFatal({ title: 'WebGPU device lost', body: m === '' ? 'The GPU device was lost.' : m, kind: 'lost' })
             engine.setImageSource(smpteBars())
             engine.setImageSourceB(smpteBars())
-            const preset = new URLSearchParams(location.search).get('set')
+            const q = new URLSearchParams(location.search)
+            const preset = q.get('set')
             if (preset !== null) {
               const patch: Partial<Controls> = {}
               for (const pair of preset.split(',')) {
@@ -224,14 +225,17 @@ export function App() {
               setValues((prev) => ({ ...prev, ...patch }))
               engine.applyControls(patch)
             }
-            const q = new URLSearchParams(location.search)
-            if (q.get('src') === 'sweep') engine.setImageSource(sweep())
+            if (q.get('src') === 'sweep') {
+              engine.setImageSource(sweep())
+              setSourceMode('sweep')
+            }
             if (q.get('src') === 'webcam') selectSource('webcam')
             const vurl = q.get('vurl')
             if (vurl !== null) {
               const v = makeVideo()
               v.src = vurl
               v.play().then(() => engine.setVideoSource(v))
+              setSourceMode('file')
             }
             if (q.has('debug')) console.log('DEBUG engine ready')
           }
@@ -328,22 +332,27 @@ export function App() {
   }
 
   const selectSource = (mode: SourceMode) => {
-    setSourceMode(mode)
-    stopVideo()
     const engine = engineRef.current
     if (engine) {
-      if (mode === 'bars') engine.setImageSource(smpteBars())
-      else if (mode === 'sweep') engine.setImageSource(sweep())
-      else if (mode === 'file') fileInputRef.current?.click()
-      else {
-        navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } }).then(
-          (stream) => {
-            const v = makeVideo()
-            v.srcObject = stream
-            v.play().then(() => engine.setVideoSource(v))
-          },
-          (e: unknown) => setError(`webcam: ${e instanceof Error ? e.message : String(e)}`),
-        )
+      // For file, wait until a file is actually picked before touching state:
+      // cancelling the OS dialog then leaves the current source untouched.
+      if (mode === 'file') {
+        fileInputRef.current?.click()
+      } else {
+        stopVideo()
+        setSourceMode(mode)
+        if (mode === 'bars') engine.setImageSource(smpteBars())
+        else if (mode === 'sweep') engine.setImageSource(sweep())
+        else {
+          navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } }).then(
+            (stream) => {
+              const v = makeVideo()
+              v.srcObject = stream
+              v.play().then(() => engine.setVideoSource(v))
+            },
+            (e: unknown) => setError(`webcam: ${e instanceof Error ? e.message : String(e)}`),
+          )
+        }
       }
     }
   }
@@ -351,6 +360,8 @@ export function App() {
   const onFile = (file: File | undefined) => {
     const engine = engineRef.current
     if (file && engine) {
+      stopVideo()
+      setSourceMode('file')
       if (file.type.startsWith('image/')) {
         createImageBitmap(file).then(
           (bmp) => engine.setImageSource(bmp, bmp.width / bmp.height),
@@ -376,20 +387,26 @@ export function App() {
   }
 
   const selectSourceB = (mode: SourceBMode) => {
-    setSourceBMode(mode)
-    stopVideoB()
     const engine = engineRef.current
     if (engine) {
-      engine.setSourceBEnabled(mode !== 'none')
-      if (mode === 'bars') engine.setImageSourceB(smpteBars())
-      else if (mode === 'sweep') engine.setImageSourceB(sweep())
-      else if (mode === 'file') fileInputBRef.current?.click()
+      if (mode === 'file') {
+        fileInputBRef.current?.click()
+      } else {
+        stopVideoB()
+        setSourceBMode(mode)
+        engine.setSourceBEnabled(mode !== 'none')
+        if (mode === 'bars') engine.setImageSourceB(smpteBars())
+        else if (mode === 'sweep') engine.setImageSourceB(sweep())
+      }
     }
   }
 
   const onFileB = (file: File | undefined) => {
     const engine = engineRef.current
     if (file && engine) {
+      stopVideoB()
+      setSourceBMode('file')
+      engine.setSourceBEnabled(true)
       if (file.type.startsWith('image/')) {
         createImageBitmap(file).then(
           (bmp) => engine.setImageSourceB(bmp),
@@ -497,7 +514,10 @@ export function App() {
               type="file"
               accept="video/*,image/*"
               style={{ display: 'none' }}
-              onChange={(e) => onFile(e.target.files?.[0])}
+              onChange={(e) => {
+                onFile(e.target.files?.[0])
+                e.target.value = '' // allow re-picking the same file
+              }}
             />
           </Section>
 
@@ -516,7 +536,10 @@ export function App() {
               type="file"
               accept="video/*,image/*"
               style={{ display: 'none' }}
-              onChange={(e) => onFileB(e.target.files?.[0])}
+              onChange={(e) => {
+                onFileB(e.target.files?.[0])
+                e.target.value = '' // allow re-picking the same file
+              }}
             />
           </Section>
 

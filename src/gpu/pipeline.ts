@@ -120,6 +120,9 @@ export class Engine {
   onStats: (fps: number) => void = () => {}
   onDeviceLost: (message: string) => void = () => {}
 
+  // Parsed once: the debug view can't change without a reload.
+  private readonly dbgView = Number(new URLSearchParams(location.search).get('dbg') ?? 0)
+
   private gpu: Gpu
   private canvas: HTMLCanvasElement
   private frame = 0
@@ -537,7 +540,7 @@ export class Engine {
       soundIre: c.soundIre,
       agc: c.agc,
       scanBeam: c.scanBeam,
-      dbgView: Number(new URLSearchParams(location.search).get('dbg') ?? 0),
+      dbgView: this.dbgView,
     }
   }
 
