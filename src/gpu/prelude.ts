@@ -32,6 +32,7 @@ export const PARAM_DEFS: readonly (readonly [string, ParamType])[] = [
   ['canvasW', 'f32'],
   ['canvasH', 'f32'],
   ['srcAspect', 'f32'],
+  ['invert', 'f32'], // source A polarity flip: negate composite (0.5 = solarized)
   // dirty mixer: source B is a second, non-genlocked composite signal
   ['bGain', 'f32'], // additive mix gain
   ['bRing', 'f32'], // ring modulation amount

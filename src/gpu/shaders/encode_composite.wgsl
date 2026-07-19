@@ -53,6 +53,11 @@ fn main(
     }
     let sc = carrier(n, P.frame);
     out = IRE_BLACK + VIDEO_RANGE * yuv[n].x + VIDEO_RANGE * (uf * sc.x + vf * sc.y);
+    // Polarity flip: swapping signal/ground on the composite line negates the
+    // voltage. Reflecting active video around the black+white midpoint inverts
+    // luma and rotates chroma 180 degrees (complementary hues) while leaving
+    // sync and burst intact, so the picture stays locked. (0.5 = solarized.)
+    out = mix(out, 2.0 * IRE_BLACK + VIDEO_RANGE - out, P.invert);
   }
   comp[n] = out;
 }

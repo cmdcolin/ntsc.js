@@ -45,6 +45,7 @@ const MAX_GENS = 4
 export const DEFAULT_CONTROLS = {
   // encoder
   encChromaMHz: 1.3,
+  invert: 0, // polarity flip on the composite line (alligator-pin swap)
   // decoder
   demodMHz: 0.6,
   chromaGain: 1,
@@ -128,6 +129,10 @@ interface Pass {
 
 export class Engine {
   readonly controls: Controls = { ...DEFAULT_CONTROLS }
+  // React reads this immutable snapshot via useSyncExternalStore; it's refreshed
+  // from `controls` on every write so the UI and the render loop never drift.
+  private snapshot: Controls = { ...DEFAULT_CONTROLS }
+  private controlListeners = new Set<() => void>()
   onStats: (fps: number) => void = () => {}
   onDeviceLost: (message: string) => void = () => {}
 
@@ -453,10 +458,39 @@ export class Engine {
   setControl(key: ControlKey, value: number): void {
     this.controls[key] = value
     if (FILTER_KEYS.has(key)) this.filtersDirty = true
+    this.emitControls()
   }
 
   applyControls(patch: Partial<Controls>): void {
-    for (const [k, v] of Object.entries(patch)) this.setControl(k as ControlKey, v)
+    for (const [k, v] of Object.entries(patch)) {
+      this.controls[k as ControlKey] = v
+      if (FILTER_KEYS.has(k)) this.filtersDirty = true
+    }
+    this.emitControls()
+  }
+
+  // useSyncExternalStore wiring: a single write path keeps React and the render
+  // loop in sync, replacing the hand-mirrored `values` copy in the UI.
+  readonly subscribeControls = (fn: () => void): (() => void) => {
+    this.controlListeners.add(fn)
+    return () => {
+      this.controlListeners.delete(fn)
+    }
+  }
+
+  readonly getControls = (): Controls => this.snapshot
+
+  private emitControls(): void {
+    this.snapshot = { ...this.controls }
+    for (const fn of this.controlListeners) fn()
+  }
+
+  // Hold-to-compare: push `next` to the render path without touching the React
+  // snapshot (so the sliders stay put), then `preview(null)` restores from it.
+  preview(next: Controls | null): void {
+    const src = next ?? this.snapshot
+    for (const k of Object.keys(this.controls) as ControlKey[]) this.controls[k] = src[k]
+    this.filtersDirty = true
   }
 
   // Patterns are drawn on the signal raster (non-square pixels): aspect is 4:3.
@@ -592,6 +626,7 @@ export class Engine {
       canvasW: this.canvas.width,
       canvasH: this.canvas.height,
       srcAspect: this.srcAspect,
+      invert: c.invert,
       chromaGain: c.chromaGain,
       burstLock: c.burstLock,
       killThresh: c.killThresh,
