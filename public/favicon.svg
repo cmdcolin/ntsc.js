@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <clipPath id="r"><rect width="32" height="32" rx="6"/></clipPath>
+    <pattern id="scan" width="1" height="3" patternUnits="userSpaceOnUse">
+      <rect width="1" height="1" fill="#000" opacity="0.28"/>
+    </pattern>
+  </defs>
+  <g clip-path="url(#r)">
+    <rect width="32" height="32" fill="#0a0a0c"/>
+    <rect x="0"      width="4.572" height="32" fill="#bfbfbf"/>
+    <rect x="4.572"  width="4.572" height="32" fill="#bfbf00"/>
+    <rect x="9.143"  width="4.572" height="32" fill="#00bfbf"/>
+    <rect x="13.715" width="4.572" height="32" fill="#00bf00"/>
+    <rect x="18.286" width="4.572" height="32" fill="#bf00bf"/>
+    <rect x="22.857" width="4.572" height="32" fill="#bf0000"/>
+    <rect x="27.429" width="4.571" height="32" fill="#0000bf"/>
+    <rect width="32" height="32" fill="url(#scan)"/>
+  </g>
+</svg>

@@ -28,10 +28,15 @@ const btnStyle: React.CSSProperties = {
   cursor: 'pointer',
 }
 
-const fsBtnStyle: React.CSSProperties = {
+const overlayBarStyle: React.CSSProperties = {
   position: 'absolute',
   top: 12,
   right: 12,
+  display: 'flex',
+  gap: 6,
+}
+
+const overlayBtnStyle: React.CSSProperties = {
   background: 'rgba(22,22,26,0.6)',
   color: '#c8c8d0',
   border: '1px solid #3a3a44',
@@ -40,6 +45,28 @@ const fsBtnStyle: React.CSSProperties = {
   fontFamily: 'monospace',
   fontSize: 11,
   cursor: 'pointer',
+}
+
+const dialogBackdropStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,0.6)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 10,
+}
+
+const dialogCardStyle: React.CSSProperties = {
+  width: 340,
+  maxWidth: '90vw',
+  background: '#16161a',
+  border: '1px solid #3a3a44',
+  borderRadius: 8,
+  padding: '18px 20px',
+  color: '#c8c8d0',
+  fontFamily: 'monospace',
+  fontSize: 11,
 }
 
 const sectionHeadStyle: React.CSSProperties = {
@@ -52,6 +79,14 @@ const sectionHeadStyle: React.CSSProperties = {
   justifyContent: 'space-between',
   alignItems: 'center',
   userSelect: 'none',
+}
+
+function GearIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+    </svg>
+  )
 }
 
 function Section(props: { title: string; children: React.ReactNode }) {
@@ -163,6 +198,7 @@ export function App() {
   const [sourceMode, setSourceMode] = useState<SourceMode>('bars')
   const [sourceBMode, setSourceBMode] = useState<SourceBMode>('bars')
   const [fullscreen, setFullscreen] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [copied, setCopied] = useState(false)
   const [renderScale, setRenderScale] = useState(1)
   const renderScaleRef = useRef(1)
@@ -455,9 +491,18 @@ export function App() {
             {error}
           </div>
         )}
-        <button style={fsBtnStyle} onClick={toggleFullscreen} title="toggle fullscreen (f)">
-          {fullscreen ? '⤢ exit' : '⛶ fullscreen'}
-        </button>
+        <div style={overlayBarStyle}>
+          <button
+            style={{ ...overlayBtnStyle, display: 'flex', alignItems: 'center' }}
+            onClick={() => setShowAdvanced(true)}
+            title="advanced settings"
+          >
+            <GearIcon />
+          </button>
+          <button style={overlayBtnStyle} onClick={toggleFullscreen} title="toggle fullscreen (f)">
+            {fullscreen ? '⤢ exit' : '⛶ fullscreen'}
+          </button>
+        </div>
         <div
           style={{
             position: 'absolute',
@@ -484,20 +529,6 @@ export function App() {
               GitHub ↗
             </a>
           </div>
-
-          <Section title="Performance">
-            <Slider
-              label="render scale"
-              unit="x"
-              min={0.25}
-              max={2}
-              step={0.05}
-              value={renderScale}
-              defaultValue={1}
-              onChange={setScale}
-            />
-            <div style={{ color: '#666', margin: '2px 0' }}>lower = faster · {res}</div>
-          </Section>
 
           <Section title="Source">
             {(['bars', 'sweep', 'file', 'webcam'] as const).map((mode) => (
@@ -580,6 +611,31 @@ export function App() {
           ))}
         </div>
       )}
+      {showAdvanced ? (
+        <div style={dialogBackdropStyle} onClick={() => setShowAdvanced(false)}>
+          <div style={dialogCardStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+              <h2 style={{ fontSize: 13, margin: 0 }}>Advanced</h2>
+              <button style={{ ...btnStyle, margin: 0 }} onClick={() => setShowAdvanced(false)}>
+                close
+              </button>
+            </div>
+            <Slider
+              label="render scale"
+              unit="x"
+              min={0.25}
+              max={2}
+              step={0.05}
+              value={renderScale}
+              defaultValue={1}
+              onChange={setScale}
+            />
+            <div style={{ color: '#666', margin: '2px 0' }}>
+              backing-store resolution · lower = faster · {res}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
