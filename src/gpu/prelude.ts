@@ -54,6 +54,7 @@ export const PARAM_DEFS: readonly (readonly [string, ParamType])[] = [
   ['chromaGain', 'f32'],
   ['burstLock', 'f32'], // 0..1: how much the decoder trusts the (degraded) burst
   ['killThresh', 'f32'], // IRE of burst amplitude below which color killer engages
+  ['svideoBleed', 'f32'], // Y/C cross-wire: chroma bled into luma (0.5 defeats the trap)
   // channel / tape
   ['soundIre', 'f32'], // 4.5 MHz sound carrier leaking past the trap, IRE
   ['agc', 'f32'], // receiver AGC action, 0 fixed gain .. 1 full

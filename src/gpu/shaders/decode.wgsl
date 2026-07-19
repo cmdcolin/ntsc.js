@@ -77,7 +77,13 @@ fn main(
   vs = vs * 2.0 * gif;
 
   let sc0 = carrier(n, P.frame);
-  let lum = comp[n] * gif - (us * sc0.x + vs * sc0.y);
+  // S-video miswire: the chroma trap normally subtracts reconstructed chroma to
+  // recover clean luma. Cross-wiring the Y and C pins bleeds the color
+  // subcarrier back into brightness — at 0.5 the trap is defeated (raw
+  // composite as luma, dot crawl everywhere), past it the chroma re-adds and
+  // the subcarrier crawls as a herringbone while colored detail smears into Y.
+  let chromaRecon = us * sc0.x + vs * sc0.y;
+  let lum = comp[n] * gif - chromaRecon * (1.0 - 2.0 * P.svideoBleed);
 
   // burst lock: hue from burst phase error, gain from burst amplitude (ACC),
   // color killer when burst is gone

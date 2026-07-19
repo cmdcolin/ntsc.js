@@ -158,6 +158,18 @@ export const PRESETS: PresetDef[] = [
       noiseIre: 2,
     },
   },
+  {
+    name: 'negative',
+    group: 'Cross-wired',
+    blurb: 'Reversed polarity on the composite line — luma and every hue flip to their complement.',
+    patch: { invert: 1 },
+  },
+  {
+    name: 's-video miswire',
+    group: 'Cross-wired',
+    blurb: 'Y and C pins cross-wired into composite: subcarrier crawls into brightness, color smears loose.',
+    patch: { svideoBleed: 0.85, chromaGain: 1.7, hHold: 0.2, noiseIre: 1.5 },
+  },
 ]
 
 export function presetControls(patch: Partial<Controls>): Controls {
@@ -166,30 +178,7 @@ export function presetControls(patch: Partial<Controls>): Controls {
 
 const CONTROL_KEYS = Object.keys(DEFAULT_CONTROLS) as ControlKey[]
 
-export function controlsEqual(a: Controls, b: Controls): boolean {
-  return CONTROL_KEYS.every((k) => a[k] === b[k])
-}
-
 // The preset whose full control-set exactly matches `values`, if any.
 export function matchPreset(values: Controls): PresetDef | undefined {
-  return PRESETS.find((p) => controlsEqual(presetControls(p.patch), values))
-}
-
-// Keys whose value would change if `patch` were applied over `values`.
-export function changedKeys(patch: Partial<Controls>, values: Controls): Set<ControlKey> {
-  const next = presetControls(patch)
-  return new Set(CONTROL_KEYS.filter((k) => next[k] !== values[k]))
-}
-
-const SLOT_KEY = 'video_feedback_slots'
-
-export function loadSlots(): Record<string, Controls> {
-  const raw = localStorage.getItem(SLOT_KEY)
-  return raw === null ? {} : (JSON.parse(raw) as Record<string, Controls>)
-}
-
-export function saveSlot(slot: number, controls: Controls): void {
-  const slots = loadSlots()
-  slots[String(slot)] = { ...controls }
-  localStorage.setItem(SLOT_KEY, JSON.stringify(slots))
+  return PRESETS.find((p) => CONTROL_KEYS.every((k) => presetControls(p.patch)[k] === values[k]))
 }

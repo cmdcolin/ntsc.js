@@ -51,6 +51,7 @@ export const DEFAULT_CONTROLS = {
   chromaGain: 1,
   burstLock: 1,
   killThresh: 2, // IRE
+  svideoBleed: 0, // Y/C miswire: bleed chroma into luma (S-video pins into composite)
   combMode: 0,
   hHold: 0.35,
   vHold: 1,
@@ -630,6 +631,7 @@ export class Engine {
       chromaGain: c.chromaGain,
       burstLock: c.burstLock,
       killThresh: c.killThresh,
+      svideoBleed: c.svideoBleed,
       combMode: c.combMode,
       hHold: c.hHold,
       vHold: c.vHold,

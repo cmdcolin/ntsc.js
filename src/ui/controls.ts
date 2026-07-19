@@ -117,6 +117,7 @@ export const GROUPS: Group[] = [
     name: 'Decoder',
     sliders: [
       { key: 'combMode', label: 'Y/C comb (0 trap, 1-2 comb)', min: 0, max: 2, step: 1, unit: '' },
+      { key: 'svideoBleed', label: 'S-video bleed (Y/C miswire)', min: 0, max: 1, step: 0.01, unit: '' },
       { key: 'demodMHz', label: 'chroma bandwidth', min: 0.15, max: 1.5, step: 0.01, unit: 'MHz' },
       { key: 'chromaGain', label: 'chroma gain', min: 0, max: 3, step: 0.01, unit: 'x' },
       { key: 'burstLock', label: 'burst lock', min: 0, max: 1, step: 0.01, unit: '' },
