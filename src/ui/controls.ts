@@ -23,6 +23,13 @@ export const GROUPS: Group[] = [
     sliders: [{ key: 'invert', label: 'invert (polarity swap)', min: 0, max: 1, step: 0.01, unit: '' }],
   },
   {
+    name: 'Cable / Wiring',
+    sliders: [
+      { key: 'polarityFlip', label: 'hard polarity (flips sync)', min: 0, max: 1, step: 0.01, unit: '' },
+      { key: 'termination', label: 'termination (-1 daisy, +1 open)', min: -1, max: 1, step: 0.01, unit: '' },
+    ],
+  },
+  {
     name: 'Camera Feedback',
     sliders: [
       { key: 'fbMix', label: 'mix', min: 0, max: 1, step: 0.01, unit: '' },

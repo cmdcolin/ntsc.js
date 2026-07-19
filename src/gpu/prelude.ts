@@ -66,6 +66,8 @@ export const PARAM_DEFS: readonly (readonly [string, ParamType])[] = [
   ['dropoutRate', 'f32'], // expected dropout events per frame
   ['dropoutLen', 'f32'], // mean dropout length, samples
   ['headSwitchNoise', 'f32'], // 0..1
+  ['polarityFlip', 'f32'], // hard signal/ground swap: negate whole composite incl. sync
+  ['termination', 'f32'], // cable termination fault: <0 double-terminated (dim), >0 open (hot + ringing)
   // feedback (camera-at-monitor)
   ['fbMix', 'f32'],
   ['fbZoom', 'f32'],

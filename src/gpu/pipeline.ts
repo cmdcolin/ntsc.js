@@ -57,6 +57,8 @@ export const DEFAULT_CONTROLS = {
   vHold: 1,
   // channel / tape
   lumaMHz: 4.2,
+  polarityFlip: 0, // hard polarity flip: negate the whole line, sync included
+  termination: 0, // cable termination fault (<0 double-terminated, >0 unterminated)
   lumaPeak: 0,
   noiseIre: 0,
   soundIre: 0,
@@ -643,6 +645,8 @@ export class Engine {
       dropoutRate: c.dropoutRate,
       dropoutLen: c.dropoutLenUs * 1e-6 * SAMPLE_RATE,
       headSwitchNoise: c.headSwitchNoise,
+      polarityFlip: c.polarityFlip,
+      termination: c.termination,
       fbMix: c.fbMix,
       fbZoom: c.fbZoom,
       fbRotate: (c.fbRotateDeg * Math.PI) / 180,

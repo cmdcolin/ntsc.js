@@ -115,5 +115,24 @@ fn main(
     out = out + P.headSwitchNoise * 25.0 * gauss(n ^ pcg(P.frame * 3121u + row + P.gen * 4423u));
   }
 
+  // Hard polarity flip: signal and ground fully swapped on the line. Unlike the
+  // clean encoder invert (active video only), this negates the whole waveform —
+  // sync tips and burst included — so the receiver's sync separator latches onto
+  // the wrong level and the picture tears and rolls while the colors invert.
+  out = mix(out, -out, P.polarityFlip);
+
+  // Cable termination fault. Correct is one 75-ohm terminator (0). An open,
+  // unterminated line (>0) reflects the wave back: the signal runs hot and each
+  // edge rings with a short round-trip echo. Daisy-chaining a second monitor
+  // double-terminates (<0), halving the signal so contrast and sync depth
+  // collapse toward a dim, barely-locking roll.
+  if (P.termination != 0.0) {
+    out = out * pow(2.0, P.termination);
+    let refl = max(P.termination, 0.0);
+    if (refl > 0.0) {
+      out = out + refl * 0.6 * comp[clampIdx(i32(n) - 5)];
+    }
+  }
+
   outBuf[n] = out;
 }

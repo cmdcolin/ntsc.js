@@ -170,6 +170,24 @@ export const PRESETS: PresetDef[] = [
     blurb: 'Y and C pins cross-wired into composite: subcarrier crawls into brightness, color smears loose.',
     patch: { svideoBleed: 0.85, chromaGain: 1.7, hHold: 0.2, noiseIre: 1.5 },
   },
+  {
+    name: 'reverse polarity',
+    group: 'Bad cables',
+    blurb: 'Signal and ground fully swapped: sync inverts too, so the picture tears and rolls as colors flip.',
+    patch: { polarityFlip: 1 },
+  },
+  {
+    name: 'no terminator',
+    group: 'Bad cables',
+    blurb: 'Unterminated line running hot — blown highlights and edges ringing from the reflected wave.',
+    patch: { termination: 0.7, agc: 0.3 },
+  },
+  {
+    name: 'daisy-chained',
+    group: 'Bad cables',
+    blurb: 'Two monitors on one line double-terminate it: dim, washed out, sync barely holding.',
+    patch: { termination: -0.8, agc: 0.5, hHold: 0.5, noiseIre: 2 },
+  },
 ]
 
 export function presetControls(patch: Partial<Controls>): Controls {
