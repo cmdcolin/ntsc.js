@@ -256,7 +256,8 @@ export function App() {
               const patch: Partial<Controls> = {}
               for (const pair of preset.split(',')) {
                 const [k, v] = pair.split(':')
-                if (k in DEFAULT_CONTROLS) patch[k as ControlKey] = Number(v)
+                const n = Number(v)
+                if (k in DEFAULT_CONTROLS && Number.isFinite(n)) patch[k as ControlKey] = n
               }
               setValues((prev) => ({ ...prev, ...patch }))
               engine.applyControls(patch)
@@ -266,6 +267,15 @@ export function App() {
               setSourceMode('sweep')
             }
             if (q.get('src') === 'webcam') selectSource('webcam')
+            // Source B (bars is the default, so only 'none'/'sweep' are serialized)
+            const srcb = q.get('srcb')
+            if (srcb === 'none') {
+              engine.setSourceBEnabled(false)
+              setSourceBMode('none')
+            } else if (srcb === 'sweep') {
+              engine.setImageSourceB(sweep())
+              setSourceBMode('sweep')
+            }
             const vurl = q.get('vurl')
             if (vurl !== null) {
               const v = makeVideo()
@@ -294,7 +304,9 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       const engine = engineRef.current
       const typing = e.target instanceof HTMLInputElement
-      if (!typing && e.key === 'f') {
+      if (e.key === 'Escape') {
+        setShowAdvanced(false)
+      } else if (!typing && e.key === 'f') {
         toggleFullscreen()
       } else if (!typing && engine && e.key >= '1' && e.key <= '8') {
         const slot = Number(e.key)
@@ -333,6 +345,7 @@ export function App() {
       .map((k) => `${k}:${+values[k].toFixed(4)}`)
     const q = [...(set.length ? [`set=${set.join(',')}`] : [])]
     if (sourceMode === 'sweep' || sourceMode === 'webcam') q.push(`src=${sourceMode}`)
+    if (sourceBMode === 'none' || sourceBMode === 'sweep') q.push(`srcb=${sourceBMode}`)
     const url = `${location.origin}${location.pathname}${q.length ? `?${q.join('&')}` : ''}`
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true)
