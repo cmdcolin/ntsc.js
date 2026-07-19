@@ -24,9 +24,7 @@ import {
 import { FILTER_STRIDE, SEC_CHROMA_BP, SEC_DEMOD, SEC_ENC_CHROMA, SEC_LUMA, SEC_UNDER, TAPS } from '../signal/filters'
 import { DOWN_PER_SAMPLE } from '../signal/linestate'
 
-type ParamType = 'f32' | 'u32'
-
-export const PARAM_DEFS: readonly (readonly [string, ParamType])[] = [
+export const PARAM_DEFS = [
   ['frame', 'u32'],
   ['gen', 'u32'], // dub generation index: decorrelates noise/dropout seeds per pass
   ['canvasW', 'f32'],
@@ -99,11 +97,15 @@ export const PARAM_DEFS: readonly (readonly [string, ParamType])[] = [
 export const PARAM_BYTES = Math.ceil((PARAM_DEFS.length * 4) / 16) * 16
 export const GEN_OFFSET = PARAM_DEFS.findIndex(([n]) => n === 'gen') * 4
 
-export function packParams(values: Record<string, number | undefined>, out: ArrayBuffer): void {
+// Union of every uniform name. Requiring a full record below makes a param
+// added to PARAM_DEFS but never supplied a compile error instead of a runtime
+// `missing param` throw.
+export type ParamName = (typeof PARAM_DEFS)[number][0]
+
+export function packParams(values: Record<ParamName, number>, out: ArrayBuffer): void {
   const dv = new DataView(out)
   PARAM_DEFS.forEach(([name, type], i) => {
     const v = values[name]
-    if (v === undefined) throw new Error(`missing param ${name}`)
     if (type === 'u32') dv.setUint32(i * 4, v >>> 0, true)
     else dv.setFloat32(i * 4, v, true)
   })

@@ -634,7 +634,7 @@ export class Engine {
     this.filtersDirty = false
   }
 
-  private uniformValues(): Record<string, number> {
+  private uniformValues() {
     const c = this.controls
     return {
       frame: this.frame,
