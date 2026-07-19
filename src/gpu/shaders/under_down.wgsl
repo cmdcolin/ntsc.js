@@ -1,0 +1,34 @@
+// VHS color-under, record side: heterodyne the chroma from fsc down to
+// 629 kHz and lowpass — the severe bandwidth loss of the color-under system.
+// lineParams.y carries the per-line heterodyne base phase (accumulated in f64
+// on the CPU; f32 cannot hold the running phase).
+
+@group(0) @binding(0) var<uniform> P: Params;
+@group(0) @binding(1) var<storage, read> filters: array<f32>;
+@group(0) @binding(2) var<storage, read> chroma: array<f32>;
+@group(0) @binding(3) var<storage, read> lineParams: array<vec4f>;
+@group(0) @binding(4) var<storage, read_write> under: array<f32>;
+
+const DOWN_PER_SAMPLE = 0.20604395604; // (fsc - f_under) / sample_rate
+
+fn cosDown(row: u32, s: f32) -> f32 {
+  return cos(lineParams[row].y + 2.0 * PI * fract(DOWN_PER_SAMPLE * s));
+}
+
+@compute @workgroup_size(64, 1, 1)
+fn main(@builtin(global_invocation_id) gid: vec3u) {
+  let s = gid.x;
+  let row = gid.y;
+  if (s >= SPL || row >= NLINES) {
+    return;
+  }
+  let n = row * SPL + s;
+  let m = i32((P.underTaps - 1u) / 2u);
+  var acc = 0.0;
+  for (var k = 0u; k < P.underTaps; k = k + 1u) {
+    let si = i32(s) + i32(k) - m;
+    let idx = clampIdx(i32(n) + i32(k) - m);
+    acc = acc + filters[SEC_UNDER * FILTER_STRIDE + k] * chroma[idx] * 2.0 * cosDown(row, f32(si));
+  }
+  under[n] = acc;
+}
