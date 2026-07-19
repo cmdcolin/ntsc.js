@@ -25,6 +25,10 @@ pnpm install
 pnpm dev
 ```
 
+`pnpm test` runs the FIR design unit tests (DC gain, passband/stopband
+response, linear-phase symmetry, filter-bank packing). CI gates deploy on
+`pnpm lint` + `pnpm test`.
+
 - **Sources**: SMPTE bars, multiburst sweep, video/image file, webcam; plus an
   independent source B for the dirty mixer.
 - **Presets**: built-ins + 8 save slots (`1`-`8` load, `shift+1`-`8` save).
