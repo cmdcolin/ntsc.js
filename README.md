@@ -1,17 +1,17 @@
 # Phosphene
 
-Live demo - https://cmdcolin.github.io/phosphene/
+**[Live demo](https://cmdcolin.github.io/phosphene/)** — needs a WebGPU-enabled browser.
 
-Needs a WebGPU-enabled browser
+Phosphene makes analog video glitches by simulating the NTSC signal path itself,
+not by drawing effects over the picture.
 
-Real-time analog video glitch as **signal-level simulation**, not image filters.
-Every frame is encoded to a physically-modeled NTSC composite waveform, degraded
-as a 1D signal, and decoded by a deliberately imperfect (but real) decoder — all
-in WebGPU compute. Dot crawl, rainbow chroma, ringing, tearing, head-switch
-bend, hue drift, and dropouts all emerge from the signal path; nothing is
-painted on. Two feedback loops re-enter the chain each frame (camera-at-monitor
-and a hardware mixer loop), and a second non-genlocked source can be dirty-mixed
-in.
+Each frame gets encoded into a real composite video waveform, mangled like it
+went through tape and RF, then decoded by an imperfect TV. Dot crawl, ringing,
+hue drift, tearing, head-switch bend, dropouts — you don't draw any of that. It
+comes out of the signal on its own, same as on the real gear. There are two
+feedback loops as well (a camera pointed at its own monitor, and a hardware-mixer
+loop), and you can dirty-mix in a second source. All in WebGPU compute shaders,
+in real time.
 
 ## Run
 
@@ -33,44 +33,62 @@ linear-phase symmetry, filter-bank packing). CI gates deploy on `pnpm lint` +
 
 ## How it works
 
-The picture is never touched as an image. Each frame the RGB source is turned
-into a real NTSC **composite waveform** — a 1D voltage signal sampled at 4×the
-color subcarrier (`4·Fsc ≈ 14.318 MHz`, 910 samples × 525 lines) — and every
-"glitch" is what happens when you damage that signal and then decode it with an
-imperfect receiver. Dot crawl, rainbow chroma, ringing, hue drift, tearing and
-dropouts are all *consequences* of the signal path, not effects painted on top.
+The picture is never handled as an image. Each frame, the RGB source is turned
+into a real NTSC composite waveform — a 1D voltage signal sampled at four times
+the color subcarrier, about 478,000 samples a frame (910 per line, 525 lines).
+Every "glitch" is just what happens when you rough that signal up and decode it
+with an imperfect receiver.
 
-Every stage is a WebGPU compute pass over a shared buffer (`src/gpu/shaders/*.wgsl`,
-orchestrated in `src/gpu/pipeline.ts`). All FIR kernels are windowed-sinc filters
-designed from real MHz specs in `src/signal/filters.ts` (luma lowpass, chroma
-bandpass at `Fsc`, demod lowpass, color-under). The waveform lives in `compA`;
-passes read and rewrite it in place.
+### If you write JavaScript, here's the shape of it
 
-The whole thing in five blocks — a signal built, damaged, and decoded, with two
-feedback loops re-entering each frame:
+That waveform is really just one big `Float32Array` — those ~478k samples —
+sitting in GPU memory (the `compA` buffer) and never coming back to the CPU. Each
+stage of the chain is a *compute pass*: picture a function that takes some
+buffers, reads that array, and writes it back, except the body runs on thousands
+of GPU cores at once, one for every sample.
+
+The CPU barely does any signal math. Once per animation frame it uploads the
+source frame to a texture, writes the current slider values into a small uniforms
+buffer, records the whole list of passes into a command buffer, and submits it.
+No `await`, nothing read back.
+
+Recording a pass is just `setPipeline`, `setBindGroup`, `dispatchWorkgroups(x, y)`.
+That dispatch is basically a 2D parallel for-loop: `y` counts the 525 lines, `x`
+counts the samples across a line (in groups of 64). A "bind group" is just the
+list of buffers a pass is wired to — its arguments.
+
+The passes hand data to each other through those shared buffers. Most read `compA`
+and overwrite it in place; a couple ping-pong through `compB`. The only thing that
+ever leaves the GPU is the final image the `present` pass draws to the canvas. So
+the pipeline really is just an ordered array of passes, each one a `.wgsl` shader
+in `src/gpu/shaders/`, wired up in `src/gpu/pipeline.ts`. The filters they run are
+windowed-sinc FIR kernels designed from real MHz specs in `src/signal/filters.ts`.
+
+### The chain
+
+Five blocks: build the signal, damage it, decode it, display. Two feedback loops
+fold back in every frame.
 
 ![Signal path — overview](docs/pipeline-simple.svg)
 
-<details>
-<summary><b>Full pass diagram</b> — every WebGPU compute pass, in order</summary>
+Same thing pass by pass, in the order they actually run (the channel block repeats
+once per dub generation):
 
 ![Signal path — detailed](docs/pipeline.svg)
-
-</details>
 
 <sup>Diagrams are Graphviz: [`docs/pipeline-simple.dot`](docs/pipeline-simple.dot),
 [`docs/pipeline.dot`](docs/pipeline.dot). Regenerate both with `pnpm run docs`
 (needs `dot` on PATH).</sup>
 
-Two feedback loops re-enter the chain each frame:
+The two feedback loops work at different points in the chain:
 
-- **Camera-at-monitor** (image domain): `compose` re-reads the *previous* decoded
-  frame with zoom / rotate / shift / gain / vignette before re-encoding — the
-  classic pointing-a-camera-at-its-own-monitor loop.
-- **Hardware mixer** (composite domain): `storePrev` captures the decoded-line
-  waveform into `compPrev`, and `fbComposite` mixes it back into this frame's
-  composite with keying and trails — feedback at signal level, so it dot-crawls
-  and smears like a real vision mixer.
+- **Camera-at-monitor** (in the image): before re-encoding, `compose` reads back
+  the *previous* decoded frame and zooms, rotates, shifts, and dims it. It's the
+  same thing as aiming a camera at the screen it's driving.
+- **Hardware mixer** (in the signal): `storePrev` stashes the decoded waveform in
+  `compPrev`, then `fbComposite` blends it back into the new frame's composite
+  with keying and trails. Feeding back at the signal level means it dot-crawls and
+  smears like a real vision mixer.
 
 | Stage | Pass(es) | What it models |
 |-------|----------|----------------|
@@ -86,12 +104,13 @@ Two feedback loops re-enter the chain each frame:
 node scripts/shot.mjs http://localhost:5199/ out.png [waitMs]
 ```
 
-Drives headed Firefox Nightly, steps frames deterministically, probes pixels,
-saves a screenshot. (Headless Chrome can't present WebGPU swap chains here.)
+Drives a headed Firefox Nightly, steps frames deterministically, probes pixels,
+and saves a screenshot. Headless Chrome can't present WebGPU swap chains here,
+which is why it's Firefox.
 
 ---
 
-This project was kicked off with [Fable](https://claude.com/). it really nailed
-the crazy complexity of the task. I had previous asked opus and it was not
-nearly this good, though it targetted python, but it really just didn't
-understand the 'signal level' ideas for making the glitches
+This project was kicked off with [Fable](https://claude.com/). It really nailed
+the crazy complexity of the task. I had previously asked Opus and it was not
+nearly this good — though it targeted Python, it really just didn't understand
+the 'signal level' ideas for making the glitches.
