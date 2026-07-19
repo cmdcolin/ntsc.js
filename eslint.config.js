@@ -5,7 +5,9 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'scripts', '**/*.mjs'] },
+  // Tests are Node-side (child_process/fs to drive naga) and run by vitest, not
+  // part of the browser tsconfig — lint and tsc both skip them.
+  { ignores: ['dist', 'node_modules', 'scripts', '**/*.mjs', '**/*.test.ts'] },
   {
     files: ['src/**/*.{ts,tsx}', 'vite.config.ts'],
     extends: [

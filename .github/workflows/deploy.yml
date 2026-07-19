@@ -28,6 +28,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      # naga (the wgpu WGSL validator) statically checks every shader in
+      # src/gpu/shaders.test.ts. Cache the compiled binary so it builds once.
+      - name: Cache naga
+        id: cache-naga
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/naga
+          key: naga-cli-30.0.0
+      - name: Install naga
+        if: steps.cache-naga.outputs.cache-hit != 'true'
+        run: cargo install naga-cli --version 30.0.0 --locked
       - run: pnpm test
 
   build:
