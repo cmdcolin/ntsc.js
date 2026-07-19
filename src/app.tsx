@@ -3,7 +3,25 @@ import { DEFAULT_CONTROLS, Engine } from './gpu/pipeline'
 import type { ControlKey, Controls } from './gpu/pipeline'
 import { smpteBars, sweep } from './sources/pattern'
 import { GROUPS } from './ui/controls'
-import { BUILTIN_PRESETS, loadSlots, presetControls, saveSlot } from './ui/presets'
+import { SYNCABLE_KEYS, SYNC_DIVISIONS, createMidi, syncedValue } from './ui/midi'
+import type { BindingMap, MidiManager, MidiStatus } from './ui/midi'
+import { changedKeys, loadSlots, matchPreset, PRESETS, presetControls, saveSlot } from './ui/presets'
+
+const LABEL_BY_KEY = new Map(GROUPS.flatMap((g) => g.sliders).map((s) => [s.key, s.label]))
+const SYNCABLE_SET = new Set<ControlKey>(SYNCABLE_KEYS)
+
+// Which rate controls are clock-locked, and to which SYNC_DIVISIONS index.
+type SyncMap = Partial<Record<ControlKey, number>>
+const SYNC_STORE = 'video_feedback_midi_sync'
+function loadSync(): SyncMap {
+  const raw = localStorage.getItem(SYNC_STORE)
+  return raw === null ? {} : (JSON.parse(raw) as SyncMap)
+}
+function omitKey(map: SyncMap, key: ControlKey): SyncMap {
+  const out: SyncMap = {}
+  for (const [k, v] of Object.entries(map)) if (k !== key) out[k as ControlKey] = v
+  return out
+}
 
 const panelStyle: React.CSSProperties = {
   width: 300,
@@ -95,12 +113,16 @@ function GearIcon() {
   )
 }
 
-function Section(props: { title: string; children: React.ReactNode }) {
+function Section(props: { title: string; children: React.ReactNode; flagged?: boolean }) {
   const [open, setOpen] = useState(true)
+  const head = props.flagged ? { ...sectionHeadStyle, borderColor: '#7fd0a0', color: '#7fd0a0' } : sectionHeadStyle
   return (
     <div>
-      <h3 style={sectionHeadStyle} onClick={() => setOpen((o) => !o)}>
-        <span>{props.title}</span>
+      <h3 style={head} onClick={() => setOpen((o) => !o)}>
+        <span>
+          {props.flagged ? '● ' : ''}
+          {props.title}
+        </span>
         <span style={{ color: '#8a8aa8', fontSize: 13 }}>{open ? '▾' : '▸'}</span>
       </h3>
       {open ? props.children : null}
@@ -140,14 +162,61 @@ function Slider(props: {
   value: number
   defaultValue: number
   onChange: (v: number) => void
+  midi?: { label: string | null; armed: boolean; onArm: () => void }
+  sync?: { label: string | null; live: boolean; onCycle: () => void }
+  highlight?: boolean
 }) {
+  const midi = props.midi
+  const sync = props.sync
+  const locked = sync?.label !== null && sync?.label !== undefined && sync.live
+  const labelStyle: React.CSSProperties = props.highlight
+    ? { display: 'block', margin: '6px 0 6px -8px', borderLeft: '2px solid #7fd0a0', paddingLeft: 6 }
+    : { display: 'block', margin: '6px 0' }
   return (
-    <label style={{ display: 'block', margin: '6px 0' }}>
+    <label style={labelStyle}>
       <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span>{props.label}</span>
+        <span style={props.highlight ? { color: '#7fd0a0' } : undefined}>{props.label}</span>
         <span style={{ color: '#7fd0a0' }}>
           {props.value.toFixed(props.step < 0.01 ? 3 : props.step < 1 ? 2 : 0)}
           {props.unit}
+          {sync ? (
+            <button
+              title={sync.label === null ? 'lock to MIDI clock' : `clock-synced (${sync.label}) — click to change`}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: sync.label === null ? '#4a4a58' : sync.live ? '#e0b040' : '#8a7a40',
+                cursor: 'pointer',
+                fontSize: 10,
+                padding: '0 0 0 6px',
+              }}
+              onClick={(e) => {
+                e.preventDefault()
+                sync.onCycle()
+              }}
+            >
+              {sync.label === null ? '♩' : `♩${sync.label}`}
+            </button>
+          ) : null}
+          {midi ? (
+            <button
+              title={midi.label === null ? 'assign a MIDI control' : `MIDI CC${midi.label} — click to relearn`}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: midi.armed ? '#e0b040' : midi.label === null ? '#4a4a58' : '#7f9fd0',
+                cursor: 'pointer',
+                fontSize: 10,
+                padding: '0 0 0 6px',
+              }}
+              onClick={(e) => {
+                e.preventDefault()
+                midi.onArm()
+              }}
+            >
+              {midi.armed ? 'learn…' : midi.label === null ? '⚟' : `CC${midi.label}`}
+            </button>
+          ) : null}
           <button
             title="reset"
             style={{
@@ -169,11 +238,12 @@ function Slider(props: {
       </span>
       <input
         type="range"
-        style={{ width: '100%' }}
+        style={{ width: '100%', opacity: locked ? 0.45 : 1 }}
         min={props.min}
         max={props.max}
         step={props.step}
         value={props.value}
+        disabled={locked}
         onChange={(e) => props.onChange(Number(e.target.value))}
       />
     </label>
@@ -209,6 +279,20 @@ export function App() {
   const [renderScale, setRenderScale] = useState(1)
   const renderScaleRef = useRef(1)
   const [res, setRes] = useState('')
+  const midiRef = useRef<MidiManager | null>(null)
+  const [midiStatus, setMidiStatus] = useState<MidiStatus>('idle')
+  const [midiBindings, setMidiBindings] = useState<BindingMap>({})
+  const [armedKey, setArmedKey] = useState<ControlKey | null>(null)
+  const [bpm, setBpm] = useState<number | null>(null)
+  const [syncMap, setSyncMap] = useState<SyncMap>(loadSync)
+  const [hoverPreset, setHoverPreset] = useState<string | null>(null)
+  const [lastPreset, setLastPreset] = useState<string | null>(null)
+  const [comparing, setComparing] = useState(false)
+  const compareRef = useRef<Controls | null>(null)
+  // Mirror the latest values so the keyboard compare handler (bound once) reads
+  // fresh state without re-binding.
+  const valuesRef = useRef(values)
+  valuesRef.current = values
 
   // Backing-store size = css size × min(dpr,2) × render scale. Lowering the
   // scale is a cheap speed lever (the present pass runs per output pixel).
@@ -233,6 +317,31 @@ export function App() {
   const applyControls = (controls: Controls) => {
     setValues(controls)
     engineRef.current?.applyControls(controls)
+    const midi = midiRef.current
+    if (midi) for (const k of Object.keys(controls) as ControlKey[]) midi.setExternal(k, controls[k])
+  }
+
+  const applyPreset = (name: string, patch: Partial<Controls>) => {
+    applyControls(presetControls(patch))
+    setLastPreset(name)
+  }
+
+  // Hold-to-compare: momentarily push the clean defaults to the engine without
+  // touching React state (sliders stay put), then restore on release.
+  const startCompare = () => {
+    const engine = engineRef.current
+    if (engine && compareRef.current === null) {
+      compareRef.current = { ...valuesRef.current }
+      engine.applyControls({ ...DEFAULT_CONTROLS })
+      setComparing(true)
+    }
+  }
+  const endCompare = () => {
+    const engine = engineRef.current
+    const saved = compareRef.current
+    if (engine && saved !== null) engine.applyControls(saved)
+    compareRef.current = null
+    setComparing(false)
   }
 
   useEffect(() => {
@@ -304,6 +413,30 @@ export function App() {
         engineRef.current = null
       }
     }
+    // Mount-once: creates the single engine and reads URL params. selectSource
+    // is stable enough for the one-shot ?src=webcam path; re-running on its
+    // identity would tear down and rebuild the engine.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // MIDI is an imperative external system; the manager lives outside React and
+  // pushes changes back in through these stable setters. Created once.
+  useEffect(() => {
+    const midi = createMidi({
+      onControl: (key, v) => {
+        setValues((prev) => ({ ...prev, [key]: v }))
+        engineRef.current?.setControl(key, v)
+      },
+      onStatus: setMidiStatus,
+      onBindings: setMidiBindings,
+      onArmed: setArmedKey,
+      onTempo: setBpm,
+    })
+    midiRef.current = midi
+    return () => {
+      midi.destroy()
+      midiRef.current = null
+    }
   }, [])
 
   useEffect(() => {
@@ -312,8 +445,11 @@ export function App() {
       const typing = e.target instanceof HTMLInputElement
       if (e.key === 'Escape') {
         setShowAdvanced(false)
+        midiRef.current?.arm(null)
       } else if (!typing && e.key === 'f') {
         toggleFullscreen()
+      } else if (!typing && e.key === 'c' && !e.repeat) {
+        startCompare()
       } else if (!typing && engine && e.key >= '1' && e.key <= '8') {
         const slot = Number(e.key)
         if (e.shiftKey) {
@@ -326,11 +462,16 @@ export function App() {
         }
       }
     }
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'c') endCompare()
+    }
     const onFs = () => setFullscreen(document.fullscreenElement !== null)
     window.addEventListener('keydown', onKey)
+    window.addEventListener('keyup', onKeyUp)
     document.addEventListener('fullscreenchange', onFs)
     return () => {
       window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keyup', onKeyUp)
       document.removeEventListener('fullscreenchange', onFs)
     }
   }, [])
@@ -338,6 +479,53 @@ export function App() {
   const setControl = (key: ControlKey, v: number) => {
     setValues((prev) => ({ ...prev, [key]: v }))
     engineRef.current?.setControl(key, v)
+    midiRef.current?.setExternal(key, v)
+  }
+
+  const armMidi = (key: ControlKey) => {
+    const midi = midiRef.current
+    if (midi) midi.arm(armedKey === key ? null : key)
+  }
+
+  const bindLabel = (key: ControlKey): string | null => {
+    const b = midiBindings[key]
+    return b === undefined ? null : String(b.controller)
+  }
+
+  const syncLabel = (key: ControlKey): string | null => {
+    const div = syncMap[key]
+    return div === undefined ? null : SYNC_DIVISIONS[div].label
+  }
+
+  // A clock-locked control's value is a pure function of tempo + division, so
+  // compute it during render instead of storing it in state.
+  const displayValue = (key: ControlKey): number => {
+    const div = syncMap[key]
+    return div !== undefined && bpm !== null ? syncedValue(key, bpm, SYNC_DIVISIONS[div].beats) : values[key]
+  }
+  const wipeRateValue = displayValue('wipeRate')
+  const bLineHzValue = displayValue('bLineHz')
+
+  // The one genuine synchronization: push each locked value to the external GPU
+  // engine (and MIDI takeover state) whenever the rendered value changes.
+  useEffect(() => {
+    engineRef.current?.setControl('wipeRate', wipeRateValue)
+    midiRef.current?.setExternal('wipeRate', wipeRateValue)
+  }, [wipeRateValue])
+  useEffect(() => {
+    engineRef.current?.setControl('bLineHz', bLineHzValue)
+    midiRef.current?.setExternal('bLineHz', bLineHzValue)
+  }, [bLineHzValue])
+
+  // Cycle a control through off → each division → off, persisting the choice.
+  const cycleSync = (key: ControlKey) => {
+    setSyncMap((prev) => {
+      const cur = prev[key]
+      const nextIdx = cur === undefined ? 0 : cur + 1
+      const next = nextIdx >= SYNC_DIVISIONS.length ? omitKey(prev, key) : { ...prev, [key]: nextIdx }
+      localStorage.setItem(SYNC_STORE, JSON.stringify(next))
+      return next
+    })
   }
 
   const setScale = (v: number) => {
@@ -480,6 +668,24 @@ export function App() {
     }
   }
 
+  const active = matchPreset(values)
+  const hoverDef = hoverPreset === null ? undefined : PRESETS.find((p) => p.name === hoverPreset)
+  const hoverKeys = hoverDef === undefined ? null : changedKeys(hoverDef.patch, values)
+  const presetGroups = PRESETS.reduce<{ name: string; defs: typeof PRESETS }[]>((acc, p) => {
+    const g = acc.find((x) => x.name === p.group)
+    if (g === undefined) acc.push({ name: p.group, defs: [p] })
+    else g.defs.push(p)
+    return acc
+  }, [])
+  const changedCount = hoverKeys === null ? 0 : hoverKeys.size
+  const presetCaption = hoverDef
+    ? `${hoverDef.blurb} · changes ${changedCount} knob${changedCount === 1 ? '' : 's'}`
+    : active
+      ? active.blurb
+      : lastPreset === null
+        ? 'hover a preset to preview what it changes; click to apply.'
+        : `modified from "${lastPreset}"`
+
   return fatal !== null ? (
     <div style={fatalWrapStyle}>
       <div style={fatalCardStyle}>
@@ -599,25 +805,128 @@ export function App() {
           </Section>
 
           <Section title="Presets">
-            {Object.entries(BUILTIN_PRESETS).map(([name, patch]) => (
-              <button key={name} style={btnStyle} onClick={() => applyControls(presetControls(patch))}>
-                {name}
-              </button>
+            {presetGroups.map((grp) => (
+              <div key={grp.name} style={{ margin: '2px 0 4px' }}>
+                <div
+                  style={{
+                    color: '#7a7a90',
+                    fontSize: 10,
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    margin: '4px 0 2px',
+                  }}
+                >
+                  {grp.name}
+                </div>
+                {grp.defs.map((p) => {
+                  const isActive = active?.name === p.name
+                  const isEdited = active === undefined && lastPreset === p.name
+                  return (
+                    <button
+                      key={p.name}
+                      title={p.blurb}
+                      style={{
+                        ...btnStyle,
+                        borderColor: isActive ? '#7fd0a0' : isEdited ? '#7f7f50' : '#3a3a44',
+                        color: isActive ? '#7fd0a0' : '#c8c8d0',
+                      }}
+                      onClick={() => applyPreset(p.name, p.patch)}
+                      onMouseEnter={() => setHoverPreset(p.name)}
+                      onMouseLeave={() => setHoverPreset((h) => (h === p.name ? null : h))}
+                    >
+                      {p.name}
+                      {isEdited ? ' •' : ''}
+                    </button>
+                  )
+                })}
+              </div>
             ))}
+            <div style={{ minHeight: 28, color: '#8a8aa8', margin: '4px 0', lineHeight: 1.4 }}>{presetCaption}</div>
+            <button
+              onPointerDown={startCompare}
+              onPointerUp={endCompare}
+              onPointerLeave={endCompare}
+              style={{ ...btnStyle, borderColor: comparing ? '#7fd0a0' : '#3a3a44', color: comparing ? '#7fd0a0' : '#c8c8d0' }}
+              title="hold to preview the clean signal, release to return (or hold C)"
+            >
+              {comparing ? 'showing clean…' : 'hold to compare'}
+            </button>
             <button
               style={{ ...btnStyle, borderColor: '#a05050' }}
-              onClick={() => applyControls({ ...DEFAULT_CONTROLS })}
+              onClick={() => {
+                applyControls({ ...DEFAULT_CONTROLS })
+                setLastPreset(null)
+              }}
             >
               reset all
             </button>
             <button style={{ ...btnStyle, borderColor: copied ? '#7fd0a0' : '#3a3a44' }} onClick={copyLink}>
               {copied ? 'copied!' : 'copy link'}
             </button>
-            <div style={{ color: '#666', margin: '4px 0' }}>keys 1-8 load slot, shift+1-8 save · f fullscreen</div>
+            <div style={{ color: '#666', margin: '4px 0' }}>hover a preset to see its effect · keys 1-8 slots · f fullscreen</div>
+          </Section>
+
+          <Section title="MIDI">
+            {midiStatus === 'idle' ? (
+              <button style={btnStyle} onClick={() => midiRef.current?.enable()}>
+                enable MIDI
+              </button>
+            ) : null}
+            {midiStatus === 'requesting' ? <div style={{ color: '#8888a0' }}>requesting access…</div> : null}
+            {midiStatus === 'unsupported' ? (
+              <div style={{ color: '#a08050' }}>Web MIDI not supported in this browser.</div>
+            ) : null}
+            {midiStatus === 'denied' ? (
+              <div style={{ color: '#a05050' }}>
+                Access denied.{' '}
+                <button style={{ ...btnStyle, margin: 0 }} onClick={() => midiRef.current?.enable()}>
+                  retry
+                </button>
+              </div>
+            ) : null}
+            {midiStatus === 'ready' ? (
+              <>
+                <div style={{ color: '#666', margin: '4px 0' }}>
+                  {armedKey === null
+                    ? 'click ⚟ on any slider, then move a knob to bind. knobs soft-take-over (no jumps).'
+                    : `learning ${LABEL_BY_KEY.get(armedKey) ?? armedKey}… move a knob (Esc to cancel)`}
+                </div>
+                {Object.entries(midiBindings).map(([key, b]) => (
+                  <div key={key} style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
+                    <span>
+                      {LABEL_BY_KEY.get(key as ControlKey) ?? key}{' '}
+                      <span style={{ color: '#7f9fd0' }}>· CC{b.controller}</span>
+                      {b.channel === 0 ? '' : <span style={{ color: '#666' }}> ch{b.channel + 1}</span>}
+                    </span>
+                    <button
+                      style={{ background: 'none', border: 'none', color: '#a05050', cursor: 'pointer', fontSize: 11 }}
+                      onClick={() => midiRef.current?.clearBinding(key as ControlKey)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {Object.keys(midiBindings).length === 0 ? null : (
+                  <button style={{ ...btnStyle, borderColor: '#a05050' }} onClick={() => midiRef.current?.clearAll()}>
+                    clear all bindings
+                  </button>
+                )}
+                <div style={{ margin: '8px 0 2px', color: bpm === null ? '#666' : '#e0b040' }}>
+                  {bpm === null ? 'clock ♩ — no signal' : `clock ♩ = ${bpm.toFixed(1)} BPM`}
+                </div>
+                <div style={{ color: '#666', margin: '0 0 2px' }}>
+                  click ♩ on a rate slider (sweep, line offset) to lock it to the beat.
+                </div>
+              </>
+            ) : null}
           </Section>
 
           {GROUPS.map((group) => (
-            <Section key={group.name} title={group.name}>
+            <Section
+              key={group.name}
+              title={group.name}
+              flagged={hoverKeys !== null && group.sliders.some((s) => hoverKeys.has(s.key))}
+            >
               {group.sliders.map((s) => (
                 <Slider
                   key={s.key}
@@ -626,9 +935,20 @@ export function App() {
                   min={s.min}
                   max={s.max}
                   step={s.step}
-                  value={values[s.key]}
+                  value={displayValue(s.key)}
                   defaultValue={DEFAULT_CONTROLS[s.key]}
                   onChange={(v) => setControl(s.key, v)}
+                  highlight={hoverKeys?.has(s.key) ?? false}
+                  midi={
+                    midiStatus === 'ready'
+                      ? { label: bindLabel(s.key), armed: armedKey === s.key, onArm: () => armMidi(s.key) }
+                      : undefined
+                  }
+                  sync={
+                    midiStatus === 'ready' && SYNCABLE_SET.has(s.key)
+                      ? { label: syncLabel(s.key), live: bpm !== null, onCycle: () => cycleSync(s.key) }
+                      : undefined
+                  }
                 />
               ))}
             </Section>
