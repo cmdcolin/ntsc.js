@@ -860,7 +860,9 @@ export function App() {
                 pick a source B above to mix a second signal in.
               </div>
             ) : (
-              AB_GROUPS.map(group => renderGroup(group, true))
+              // Open the primary B mix; collapse the alternative compositors
+              // (wipe, PiP) so enabling B doesn't unfurl every slider at once.
+              AB_GROUPS.map((group, i) => renderGroup(group, i === 0))
             )}
           </div>
 
