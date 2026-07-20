@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type { ControlKey, Controls, Engine } from '../gpu/pipeline'
 import { createMidi } from './midi'
@@ -36,18 +36,30 @@ export function useMidi(engineRef: RefObject<Engine | null>) {
 
   // The one write path for store-origin changes (slider, preset, clock sync):
   // engine renders it, MIDI drops takeover so the knob must re-catch the value.
-  const writeControl = (key: ControlKey, v: number) => {
-    engineRef.current?.setControl(key, v)
-    midiRef.current?.setExternal(key, v)
-  }
+  //
+  // Deliberately still useCallback, even though React Compiler would memoize
+  // these: App keeps writeControl in an effect dep array, and a fresh identity
+  // per render would re-fire that effect and reset soft-takeover every frame —
+  // a physical knob could never hold its catch. Correctness, not performance,
+  // so the invariant is stated here rather than inferred from compiler output.
+  const writeControl = useCallback(
+    (key: ControlKey, v: number) => {
+      engineRef.current?.setControl(key, v)
+      midiRef.current?.setExternal(key, v)
+    },
+    [engineRef],
+  )
 
-  const writeControls = (next: Controls) => {
-    engineRef.current?.applyControls(next)
-    const midi = midiRef.current
-    if (midi)
-      for (const k of Object.keys(next) as ControlKey[])
-        midi.setExternal(k, next[k])
-  }
+  const writeControls = useCallback(
+    (next: Controls) => {
+      engineRef.current?.applyControls(next)
+      const midi = midiRef.current
+      if (midi)
+        for (const k of Object.keys(next) as ControlKey[])
+          midi.setExternal(k, next[k])
+    },
+    [engineRef],
+  )
 
   return {
     status,
