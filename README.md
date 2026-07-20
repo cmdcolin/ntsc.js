@@ -1,10 +1,16 @@
 # Phosphene
 
+> A real-time **NTSC / VHS / composite-video glitch** simulator, running entirely
+> in **WebGPU** compute shaders. The artifacts fall out of a simulated analog
+> signal — they aren't filters painted over the picture.
+
 **[Live demo](https://cmdcolin.github.io/phosphene/)** — needs a WebGPU-enabled
 browser.
 
-Phosphene makes analog video glitches by simulating the NTSC signal path itself,
-not by drawing effects over the picture.
+<sub>Sometimes searched as: a VHS filter, camcorder / analog-video effect, NTSC
+emulator, composite-video or CRT glitch, datamosh-adjacent, no-input video
+feedback, or a browser video synth — for glitch-art, vaporwave, and
+analog-horror looks.</sub>
 
 Each frame gets encoded into a real composite video waveform, mangled like it
 went through tape and RF, then decoded by an imperfect TV. Dot crawl, ringing,
@@ -88,17 +94,23 @@ filters they run are windowed-sinc FIR kernels designed from real MHz specs in
 Five blocks: build the signal, damage it, decode it, display. Two feedback loops
 fold back in every frame.
 
-![Signal path — overview](docs/pipeline-simple.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/pipeline-simple-dark.svg">
+  <img alt="Signal path — overview: RGB source → encode → channel → decode → screen, with two feedback loops" src="docs/pipeline-simple-light.svg">
+</picture>
 
 Same thing pass by pass, in the order they actually run (the channel block
 repeats once per dub generation):
 
-![Signal path — detailed](docs/pipeline.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/pipeline-dark.svg">
+  <img alt="Signal path — detailed, pass by pass: encoder, channel, receiver, present" src="docs/pipeline-light.svg">
+</picture>
 
 <sup>Diagrams are Graphviz:
 [`docs/pipeline-simple.dot`](docs/pipeline-simple.dot),
-[`docs/pipeline.dot`](docs/pipeline.dot). Regenerate both with `pnpm run docs`
-(needs `dot` on PATH).</sup>
+[`docs/pipeline.dot`](docs/pipeline.dot). `pnpm run docs` regenerates both in
+light and dark variants (needs `dot` on PATH).</sup>
 
 The two feedback loops work at different points in the chain:
 
@@ -128,12 +140,29 @@ Drives a headed Firefox Nightly, steps frames deterministically, probes pixels,
 and saves a screenshot. Headless Chrome can't present WebGPU swap chains here,
 which is why it's Firefox.
 
+## Related / prior art
+
+Phosphene sits in a small family of analog-video emulators. If you like it, also
+look at:
+
+- **[ntsc-rs](https://github.com/valadaptive/ntsc-rs)** and **ntscQT** — NTSC/VHS
+  emulation for video files and OBS.
+- **[composite-video-simulator](https://github.com/joncampbell123/composite-video-simulator)**
+  — the C reference NTSC codec much of this lineage traces back to.
+- **Blargg's NTSC filters** (`nes_ntsc` / `snes_ntsc`) and **RetroArch CRT
+  shaders** (`crt-royale`, `crt-guest-advanced`) — the emulator/shader side of
+  the same idea.
+- Hardware roots: **Rutt–Etra** video synthesis, **no-input video feedback**, and
+  time-base correctors — the gear Phosphene imitates in software.
+
+What's different here: Phosphene models the whole signal _path_ end to end in
+real time — encode → tape/RF damage → imperfect decode → CRT — so the artifacts
+interact the way they do on real hardware instead of being independent filters.
+
 ---
 
-Note: This project is extensively vibecoded. It was initially prototyped with
-[Fable](https://claude.com/) which (IMO) nailed the complexity of the task. I
-had previously asked Opus and it was not nearly this good — though it targeted
-Python and static image rendering, but there, it really just didn't understand
-the 'signal level' ideas for making the glitches which was odd because I had
-previously had good experience with Opus. I bet it could be done but Fable
-basically one-shotted the initial design rendering almost perfectly.
+Note: this project is extensively vibecoded. The initial signal-path design was
+one-shotted almost perfectly by [Fable](https://claude.com/), which nailed the
+"signal level" idea behind the glitches. An earlier Opus attempt — targeting
+Python and static images — hadn't grasped that framing, which surprised me given
+how well Opus had done on other work.

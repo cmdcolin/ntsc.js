@@ -66,6 +66,6 @@ digraph phosphene {
   decode -> storePrev;
 
   // ---- feedback loops ------------------------------------------------------
-  storePrev -> fbComposite [label="  next frame\n  (mixer loop)" style=dashed color="#b8860b" fontcolor="#b8860b" constraint=false];
-  present -> compose [label="  previous frame\n  camera-at-monitor" style=dashed color="#2f7d32" fontcolor="#2f7d32" constraint=false];
+  storePrev -> fbComposite [label="  next frame\n  (mixer loop)" style=dashed color="#c8961a" fontcolor="#c8961a" constraint=false];
+  present -> compose [label="  previous frame\n  camera-at-monitor" style=dashed color="#3aa049" fontcolor="#3aa049" constraint=false];
 }

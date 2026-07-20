@@ -254,18 +254,18 @@
 <!-- storePrev&#45;&gt;fbComposite -->
 <g id="edge18" class="edge">
 <title>storePrev&#45;&gt;fbComposite</title>
-<path fill="none" stroke="#b8860b" stroke-dasharray="5,2" d="M136.02,-36.46C158.65,-42.87 184.9,-49.82 209,-55 223.07,-58.02 262.58,-55.07 273,-65 295.27,-86.2 287,-102 287,-132.75 287,-279.75 287,-279.75 287,-279.75 287,-321 301.28,-341.47 273,-371.5 269.85,-374.84 204.38,-364.17 235.75,-399 249.99,-414.82 315.09,-394.86 331,-409 352.11,-427.77 345,-442.75 345,-471 345,-623.75 345,-623.75 345,-623.75 345,-665 361.42,-687.64 331,-715.5 320.74,-724.9 219.34,-719.54 206,-723.5 195.84,-726.52 185.53,-731.24 176.1,-736.38"/>
-<polygon fill="#b8860b" stroke="#b8860b" points="174.49,-733.27 167.56,-741.29 177.98,-739.33 174.49,-733.27"/>
-<text xml:space="preserve" text-anchor="middle" x="262.38" y="-390.45" font-family="Helvetica,Arial,sans-serif" font-size="9.00" fill="#b8860b"> &#160;next frame</text>
-<text xml:space="preserve" text-anchor="middle" x="262.38" y="-380.7" font-family="Helvetica,Arial,sans-serif" font-size="9.00" fill="#b8860b"> &#160;(mixer loop)</text>
+<path fill="none" stroke="#c8961a" stroke-dasharray="5,2" d="M136.02,-36.46C158.65,-42.87 184.9,-49.82 209,-55 223.07,-58.02 262.58,-55.07 273,-65 295.27,-86.2 287,-102 287,-132.75 287,-279.75 287,-279.75 287,-279.75 287,-321 301.28,-341.47 273,-371.5 269.85,-374.84 204.38,-364.17 235.75,-399 249.99,-414.82 315.09,-394.86 331,-409 352.11,-427.77 345,-442.75 345,-471 345,-623.75 345,-623.75 345,-623.75 345,-665 361.42,-687.64 331,-715.5 320.74,-724.9 219.34,-719.54 206,-723.5 195.84,-726.52 185.53,-731.24 176.1,-736.38"/>
+<polygon fill="#c8961a" stroke="#c8961a" points="174.49,-733.27 167.56,-741.29 177.98,-739.33 174.49,-733.27"/>
+<text xml:space="preserve" text-anchor="middle" x="262.38" y="-390.45" font-family="Helvetica,Arial,sans-serif" font-size="9.00" fill="#c8961a"> &#160;next frame</text>
+<text xml:space="preserve" text-anchor="middle" x="262.38" y="-380.7" font-family="Helvetica,Arial,sans-serif" font-size="9.00" fill="#c8961a"> &#160;(mixer loop)</text>
 </g>
 <!-- present&#45;&gt;compose -->
 <g id="edge19" class="edge">
 <title>present&#45;&gt;compose</title>
-<path fill="none" stroke="#2f7d32" stroke-dasharray="5,2" d="M264.21,-36.4C275.76,-43.68 287.48,-53.23 295,-65 451.19,-309.7 412.03,-431.06 354,-715.5 333.16,-817.65 349.25,-863.85 274,-936 255.29,-953.94 188.58,-971.39 144.22,-981.39"/>
-<polygon fill="#2f7d32" stroke="#2f7d32" points="143.68,-977.93 134.67,-983.5 145.19,-984.76 143.68,-977.93"/>
-<text xml:space="preserve" text-anchor="middle" x="436.86" y="-512.08" font-family="Helvetica,Arial,sans-serif" font-size="9.00" fill="#2f7d32"> &#160;previous frame</text>
-<text xml:space="preserve" text-anchor="middle" x="436.86" y="-502.32" font-family="Helvetica,Arial,sans-serif" font-size="9.00" fill="#2f7d32"> &#160;camera&#45;at&#45;monitor</text>
+<path fill="none" stroke="#3aa049" stroke-dasharray="5,2" d="M264.21,-36.4C275.76,-43.68 287.48,-53.23 295,-65 451.19,-309.7 412.03,-431.06 354,-715.5 333.16,-817.65 349.25,-863.85 274,-936 255.29,-953.94 188.58,-971.39 144.22,-981.39"/>
+<polygon fill="#3aa049" stroke="#3aa049" points="143.68,-977.93 134.67,-983.5 145.19,-984.76 143.68,-977.93"/>
+<text xml:space="preserve" text-anchor="middle" x="436.86" y="-512.08" font-family="Helvetica,Arial,sans-serif" font-size="9.00" fill="#3aa049"> &#160;previous frame</text>
+<text xml:space="preserve" text-anchor="middle" x="436.86" y="-502.32" font-family="Helvetica,Arial,sans-serif" font-size="9.00" fill="#3aa049"> &#160;camera&#45;at&#45;monitor</text>
 </g>
 </g>
 </svg>

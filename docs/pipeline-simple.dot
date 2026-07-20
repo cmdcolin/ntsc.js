@@ -16,6 +16,6 @@ digraph phosphene_simple {
 
   src -> encode -> damage -> decode -> screen;
 
-  decode -> encode [label="  composite feedback\n  (hardware mixer)" style=dashed color="#b8860b" fontcolor="#b8860b" constraint=false];
-  screen -> src    [label="  image feedback\n  (camera-at-monitor)" style=dashed color="#2f7d32" fontcolor="#2f7d32" constraint=false];
+  decode -> encode [label="  composite feedback\n  (hardware mixer)" style=dashed color="#c8961a" fontcolor="#c8961a" constraint=false];
+  screen -> src    [label="  image feedback\n  (camera-at-monitor)" style=dashed color="#3aa049" fontcolor="#3aa049" constraint=false];
 }

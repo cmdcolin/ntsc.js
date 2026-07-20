@@ -51,9 +51,9 @@ for (const shot of SHOTS) {
       if (i % 10 === 0) await new Promise(r => setTimeout(r, 15))
     }
   }, shot.frames)
-  const path = `${outDir}/${shot.file}.png`
+  const path = `${outDir}/${shot.file}.jpg`
   if (shot.fullPage === true) {
-    await page.screenshot({ path })
+    await page.screenshot({ path, type: 'jpeg', quality: 85 })
   } else {
     // overlay buttons and the fps readout sit on top of the canvas — hide them
     await page.evaluate(() => {
@@ -63,7 +63,7 @@ for (const shot of SHOTS) {
       }
     })
     const canvas = await page.$('canvas')
-    await canvas.screenshot({ path })
+    await canvas.screenshot({ path, type: 'jpeg', quality: 85 })
   }
   console.log('saved', path, `(${shot.preset})`)
   await page.close()

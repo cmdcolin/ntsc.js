@@ -12,7 +12,7 @@
     "lint:fix": "eslint . --cache --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "docs": "dot -Tsvg docs/pipeline-simple.dot -o docs/pipeline-simple.svg && dot -Tsvg docs/pipeline.dot -o docs/pipeline.svg"
+    "docs": "dot -Tsvg docs/pipeline-simple.dot -o docs/pipeline-simple-light.svg && dot -Tsvg -Ecolor=#9aa4b2 -Efontcolor=#9aa4b2 docs/pipeline-simple.dot -o docs/pipeline-simple-dark.svg && dot -Tsvg docs/pipeline.dot -o docs/pipeline-light.svg && dot -Tsvg -Ecolor=#9aa4b2 -Efontcolor=#9aa4b2 docs/pipeline.dot -o docs/pipeline-dark.svg"
   },
   "dependencies": {
     "prettier": "^3.9.5",

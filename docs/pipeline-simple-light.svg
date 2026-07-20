@@ -60,10 +60,10 @@
 <!-- decode&#45;&gt;encode -->
 <g id="edge5" class="edge">
 <title>decode&#45;&gt;encode</title>
-<path fill="none" stroke="#b8860b" stroke-dasharray="5,2" d="M548.81,-71.2C532.11,-59.64 511.51,-47.76 490.79,-41.85 435.26,-26.01 416.76,-27.37 360.86,-41.85 341.91,-46.76 322.75,-55.86 306.01,-65.47"/>
-<polygon fill="#b8860b" stroke="#b8860b" points="304.56,-62.26 297.76,-70.39 308.14,-68.28 304.56,-62.26"/>
-<text xml:space="preserve" text-anchor="middle" x="425.83" y="-53.35" font-family="Helvetica,Arial,sans-serif" font-size="10.00" fill="#b8860b"> &#160;composite feedback</text>
-<text xml:space="preserve" text-anchor="middle" x="425.83" y="-42.85" font-family="Helvetica,Arial,sans-serif" font-size="10.00" fill="#b8860b"> &#160;(hardware mixer)</text>
+<path fill="none" stroke="#c8961a" stroke-dasharray="5,2" d="M548.81,-71.2C532.11,-59.64 511.51,-47.76 490.79,-41.85 435.26,-26.01 416.76,-27.37 360.86,-41.85 341.91,-46.76 322.75,-55.86 306.01,-65.47"/>
+<polygon fill="#c8961a" stroke="#c8961a" points="304.56,-62.26 297.76,-70.39 308.14,-68.28 304.56,-62.26"/>
+<text xml:space="preserve" text-anchor="middle" x="425.83" y="-53.35" font-family="Helvetica,Arial,sans-serif" font-size="10.00" fill="#c8961a"> &#160;composite feedback</text>
+<text xml:space="preserve" text-anchor="middle" x="425.83" y="-42.85" font-family="Helvetica,Arial,sans-serif" font-size="10.00" fill="#c8961a"> &#160;(hardware mixer)</text>
 </g>
 <!-- screen -->
 <g id="node5" class="node">
@@ -81,10 +81,10 @@
 <!-- screen&#45;&gt;src -->
 <g id="edge6" class="edge">
 <title>screen&#45;&gt;src</title>
-<path fill="none" stroke="#2f7d32" stroke-dasharray="5,2" d="M691.89,-77.53C643.76,-53.87 564.2,-18.93 490.79,-5.85 361.32,17.21 211.38,-37.23 131.42,-72.89"/>
-<polygon fill="#2f7d32" stroke="#2f7d32" points="130.13,-69.64 122.46,-76.95 133.01,-76.01 130.13,-69.64"/>
-<text xml:space="preserve" text-anchor="middle" x="425.83" y="-17.35" font-family="Helvetica,Arial,sans-serif" font-size="10.00" fill="#2f7d32"> &#160;image feedback</text>
-<text xml:space="preserve" text-anchor="middle" x="425.83" y="-6.85" font-family="Helvetica,Arial,sans-serif" font-size="10.00" fill="#2f7d32"> &#160;(camera&#45;at&#45;monitor)</text>
+<path fill="none" stroke="#3aa049" stroke-dasharray="5,2" d="M691.89,-77.53C643.76,-53.87 564.2,-18.93 490.79,-5.85 361.32,17.21 211.38,-37.23 131.42,-72.89"/>
+<polygon fill="#3aa049" stroke="#3aa049" points="130.13,-69.64 122.46,-76.95 133.01,-76.01 130.13,-69.64"/>
+<text xml:space="preserve" text-anchor="middle" x="425.83" y="-17.35" font-family="Helvetica,Arial,sans-serif" font-size="10.00" fill="#3aa049"> &#160;image feedback</text>
+<text xml:space="preserve" text-anchor="middle" x="425.83" y="-6.85" font-family="Helvetica,Arial,sans-serif" font-size="10.00" fill="#3aa049"> &#160;(camera&#45;at&#45;monitor)</text>
 </g>
 </g>
 </svg>
