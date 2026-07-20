@@ -26,9 +26,9 @@ compute shaders, in real time.
 
 |                                                                             |                                                                                |                                                                                        |
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| ![vhs](docs/gallery/vhs.jpg)                                                | ![mixer loop](docs/gallery/mixer-loop.jpg)                                     | ![fb bloom](docs/gallery/fb-bloom.jpg)                                                 |
+| ![VHS color-under chroma with head-switch wobble and dropouts](docs/gallery/vhs.jpg) | ![Composite waveform mixer-loop feedback](docs/gallery/mixer-loop.jpg)         | ![Camera-at-monitor feedback blooming through the CRT](docs/gallery/fb-bloom.jpg)      |
 | <sub>**vhs** — color-under chroma, head-switch wobble, dropouts</sub>       | <sub>**mixer loop** — the composite waveform fed back into itself</sub>        | <sub>**fb bloom** — camera-at-monitor feedback blooming through the CRT</sub>          |
-| ![dirty mix](docs/gallery/dirty-mix.jpg)                                    | ![s-video miswire](docs/gallery/svideo-miswire.jpg)                            | ![dead channel](docs/gallery/dead-channel.jpg)                                         |
+| ![Dirty mix of a second non-genlocked source beating against A](docs/gallery/dirty-mix.jpg) | ![S-video miswire: luma leaking into the chroma pin as rainbows](docs/gallery/svideo-miswire.jpg) | ![Dead channel: RF snow swallowing the signal](docs/gallery/dead-channel.jpg)          |
 | <sub>**dirty mix** — a second, non-genlocked source beating against A</sub> | <sub>**s-video miswire** — luma leaking into the chroma pin as rainbows</sub>  | <sub>**dead channel** — RF snow swallowing the last of the signal</sub>                |
 
 <sup>Regenerate with `node scripts/gallery.mjs` (dev server + Firefox Nightly
