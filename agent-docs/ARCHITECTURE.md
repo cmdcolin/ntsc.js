@@ -129,6 +129,37 @@ Almost everything is comfortably parallel. Two exceptions:
   Per-pixel horizontal scaling (H size, linearity, pincushion) would read outside
   the halo and needs the staging restructured first.
 
+## The React layer
+
+React only ever configures the engine — it never renders a frame. The render
+loop lives in `useEngine` and writes to the canvas directly, so live per-frame
+state (fps stats, resolution) reaches the overlays as **mutable refs read during
+render**, rather than re-rendering React at 60 fps.
+
+**React Compiler is on** (`vite.config.ts`, via `reactCompilerPreset` and
+`@rolldown/plugin-babel`). Don't add `useMemo`/`useCallback` — memoization is
+the compiler's job. Two consequences worth knowing:
+
+- **Four things don't compile:** `App`, `Stage`, `InputSection`, `useEngine` —
+  the ref-during-render pattern above is exactly what the compiler refuses.
+  That's the accepted trade for the render loop, and it's why
+  `react-hooks/refs` is off in `eslint.config.js`. The rest of
+  eslint-plugin-react-hooks' recommended set is on and reports bail-outs.
+- **A hook's stability can be load-bearing for a component that doesn't
+  compile.** `App` holds `writeControl` from `useMidi` in an effect dep array;
+  if that closure got a fresh identity per render the effect would re-fire
+  constantly and `midi.setExternal` would reset soft-takeover every render, so a
+  physical knob could never hold its catch. It's stable only because `useMidi`
+  itself compiles. Reshape `useMidi`/`useCapture` into something the compiler
+  bails on and that breaks silently — no type error, no lint error.
+
+To check what compiled, build unminified and look for the memo-cache preamble:
+
+```sh
+pnpm exec vite build --minify false
+grep -n "import_compiler_runtime.c)(" dist/assets/*.js   # one per compiled fn
+```
+
 ## Testing
 
 - `pnpm test` — `src/gpu/shaders.test.ts` prepends the real prelude to every
