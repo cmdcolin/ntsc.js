@@ -240,31 +240,56 @@ export function App() {
   }, [popout])
 
   useEffect(() => {
+    // Lifecycle breadcrumbs: log every transition that could precede a freeze
+    // BEFORE doing anything, so if the tab then locks up the last console line
+    // names the trigger (tab hidden/shown, browser-frozen background tab, etc).
+    const log = (m: string) => console.log(`[lifecycle] ${m}`)
     // Exiting fullscreen (and re-showing a hidden tab) can leave the browser
     // having stopped delivering rAF callbacks; re-arm the loop so the canvas
-    // doesn't stay frozen. The engine's kick() is a no-op when the loop is
-    // already healthy, and logs when it actually had to restart a stalled loop.
+    // doesn't stay frozen. kick() is a no-op when the loop is already healthy.
     const onFs = () => {
       const fs = document.fullscreenElement !== null
       setFullscreen(fs)
-      console.log(`fullscreenchange -> ${fs ? 'entered' : 'exited'}`)
+      log(`fullscreen ${fs ? 'entered' : 'exited'}`)
       engineRef.current?.kick()
     }
     const onVisible = () => {
+      log(`visibility -> ${document.visibilityState}`)
       if (document.visibilityState === 'visible') engineRef.current?.kick()
     }
+    // Regaining focus (window un-occluded / re-selected) is a prime moment for
+    // Firefox to resume a suspended refresh driver — nudge rAF right away.
+    const onFocus = () => engineRef.current?.kick()
+    // Page Lifecycle API: Firefox can freeze/discard a backgrounded tab; these
+    // fire around that, and a `freeze` as the last line points straight at it.
+    const onFreeze = () => log('freeze (tab suspended by browser)')
+    const onResume = () => {
+      log('resume (tab un-suspended)')
+      engineRef.current?.kick()
+    }
+    const onPageHide = (e: PageTransitionEvent) =>
+      log(`pagehide (persisted=${e.persisted})`)
     // Restored from bfcache: the GPUDevice captured before navigating away is
     // dead, so the canvas would render frozen. Reload to build a fresh engine.
     const onPageShow = (e: PageTransitionEvent) => {
+      log(`pageshow (persisted=${e.persisted})`)
       if (e.persisted) location.reload()
     }
     window.addEventListener('pageshow', onPageShow)
+    window.addEventListener('pagehide', onPageHide)
+    window.addEventListener('focus', onFocus)
     document.addEventListener('fullscreenchange', onFs)
     document.addEventListener('visibilitychange', onVisible)
+    document.addEventListener('freeze', onFreeze)
+    document.addEventListener('resume', onResume)
     return () => {
       window.removeEventListener('pageshow', onPageShow)
+      window.removeEventListener('pagehide', onPageHide)
+      window.removeEventListener('focus', onFocus)
       document.removeEventListener('fullscreenchange', onFs)
       document.removeEventListener('visibilitychange', onVisible)
+      document.removeEventListener('freeze', onFreeze)
+      document.removeEventListener('resume', onResume)
     }
   }, [engineRef])
 

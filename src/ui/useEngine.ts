@@ -29,7 +29,7 @@ export function useEngine() {
   const fileInputBRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
   const [fatal, setFatal] = useState<Fatal | null>(null)
-  const [stats, setStats] = useState<FrameStats>({ fps: 0, worstMs: 0 })
+  const [stats, setStats] = useState<FrameStats>({ fps: 0 })
   const [engine, setEngine] = useState<Engine | null>(null)
   const [sourceMode, setSourceMode] = useState<SourceMode>('bars')
   // Webcam/USB capture: a dialog gates the browser permission prompt, and the
@@ -43,14 +43,21 @@ export function useEngine() {
   const renderScaleRef = useRef(1)
   const [res, setRes] = useState('')
 
-  // Backing-store size = css size × min(dpr,2) × render scale. Lowering the
-  // scale is a cheap speed lever (the present pass runs per output pixel).
+  // Backing-store size = css size × min(dpr,2) × render scale, then clamped so
+  // the long edge never exceeds MAX_EDGE. The picture is a 754-wide face texture
+  // upscaled by the present pass, so past ~2560 the extra output pixels buy no
+  // detail — they just pile per-pixel present cost onto the GPU/compositor,
+  // which on a big fullscreen display is exactly when the freezes bite.
+  const MAX_EDGE = 2560
   const applyCanvasSize = () => {
     const canvas = canvasRef.current
     if (canvas) {
       const dpr = Math.min(window.devicePixelRatio, 2) * renderScaleRef.current
-      canvas.width = Math.max(1, Math.round(canvas.clientWidth * dpr))
-      canvas.height = Math.max(1, Math.round(canvas.clientHeight * dpr))
+      const w = Math.max(1, Math.round(canvas.clientWidth * dpr))
+      const h = Math.max(1, Math.round(canvas.clientHeight * dpr))
+      const clamp = Math.min(1, MAX_EDGE / Math.max(w, h))
+      canvas.width = Math.max(1, Math.round(w * clamp))
+      canvas.height = Math.max(1, Math.round(h * clamp))
       setRes(`${canvas.width}×${canvas.height}`)
     }
   }
@@ -235,6 +242,12 @@ export function useEngine() {
       // the window enters fullscreen, so the picture never stretches.
       const ro = new ResizeObserver(applyCanvasSize)
       ro.observe(canvas)
+      // A full page reload doesn't run this effect's cleanup, so the GPUDevice
+      // is abandoned rather than destroyed — and a wedged GPU then carries into
+      // the reloaded page's fresh device (why "just refresh" often fails to
+      // recover). Release it on pagehide so the reload starts GPU-clean.
+      const onPageHide = () => engineRef.current?.destroy()
+      window.addEventListener('pagehide', onPageHide)
       let disposed = false
       Engine.create(canvas).then(
         engine => {
@@ -333,6 +346,7 @@ export function useEngine() {
       return () => {
         disposed = true
         ro.disconnect()
+        window.removeEventListener('pagehide', onPageHide)
         stopVideo()
         stopVideoB()
         engineRef.current?.destroy()
