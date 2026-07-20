@@ -196,7 +196,7 @@ const SOURCE_DESC: Record<SourceMode | SourceBMode, string> = {
   'tv static': 'TV static — no-signal broadcast snow',
   'vhs static': 'VHS static — blank-tape noise',
   file: 'File… — open an image or video',
-  webcam: 'Webcam — live camera',
+  webcam: 'Webcam / USB device — camera or RCA capture',
 }
 interface Fatal {
   title: string
@@ -228,6 +228,12 @@ export function App() {
     engine === null ? getDefaultControls : engine.getControls,
   )
   const [sourceMode, setSourceMode] = useState<SourceMode>('bars')
+  // Webcam/USB capture: a dialog gates the browser permission prompt, and the
+  // device list only carries labels once that grant lands — so both stay empty
+  // until the user opts in.
+  const [askWebcam, setAskWebcam] = useState(false)
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
+  const [webcamDeviceId, setWebcamDeviceId] = useState('')
   const [sourceBMode, setSourceBMode] = useState<SourceBMode>('none')
   const [fullscreen, setFullscreen] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -569,31 +575,55 @@ export function App() {
       // cancelling the OS dialog then leaves the current source untouched.
       if (mode === 'file') {
         fileInputRef.current?.click()
+      } else if (mode === 'webcam') {
+        // Defer stopVideo/setSourceMode until the user confirms in the dialog:
+        // cancelling then leaves the current source (and its permission) alone.
+        setAskWebcam(true)
       } else {
         stopVideo()
         setSourceMode(mode)
         if (mode === 'bars') engine.setImageSource(smpteBars())
         else if (mode === 'sweep') engine.setImageSource(sweep())
         else if (mode === 'tv static') engine.setNoiseSource(1)
-        else if (mode === 'vhs static') engine.setNoiseSource(2)
-        else {
-          navigator.mediaDevices
-            .getUserMedia({ video: { width: 1280, height: 720 } })
-            .then(
-              stream => {
-                const v = makeVideo()
-                v.srcObject = stream
-                v.play()
-                  .then(() => engine.setVideoSource(v))
-                  .catch(() => {})
-              },
-              (e: unknown) =>
-                setError(
-                  `webcam: ${e instanceof Error ? e.message : String(e)}`,
-                ),
-            )
-        }
+        else engine.setNoiseSource(2)
       }
+    }
+  }
+
+  // Actually opens the device once the user confirms; deviceId '' takes the
+  // OS default, otherwise pins the chosen capture device (e.g. an RCA grabber).
+  // No resolution constraint — composite dongles deliver 720x480, so we take
+  // whatever the device negotiates rather than forcing 1280x720.
+  const startWebcam = (deviceId: string) => {
+    const engine = engineRef.current
+    if (engine) {
+      stopVideo()
+      const video = deviceId === '' ? true : { deviceId: { exact: deviceId } }
+      navigator.mediaDevices.getUserMedia({ video }).then(
+        stream => {
+          const v = makeVideo()
+          v.srcObject = stream
+          v.play()
+            .then(() => engine.setVideoSource(v))
+            .catch(() => {})
+          setSourceMode('webcam')
+          setAskWebcam(false)
+          // Capture cards weave interlaced fields, so combing shows on motion;
+          // bob-deinterlace on by default for this source (toggle in Signal A).
+          engine.setControl('deint', 1)
+          const active = stream.getVideoTracks()[0]?.getSettings().deviceId
+          setWebcamDeviceId(active ?? '')
+          // Labels populate only after this grant, so enumerate now.
+          navigator.mediaDevices
+            .enumerateDevices()
+            .then(devices =>
+              setVideoDevices(devices.filter(d => d.kind === 'videoinput')),
+            )
+            .catch(() => {})
+        },
+        (e: unknown) =>
+          setError(`capture: ${e instanceof Error ? e.message : String(e)}`),
+      )
     }
   }
 
@@ -813,6 +843,24 @@ export function App() {
                 ))}
               </select>
             </div>
+            {sourceMode === 'webcam' && videoDevices.length > 1 ? (
+              <div className={styles.inputRow}>
+                <span className={styles.tag} title="capture device">
+                  ◉
+                </span>
+                <select
+                  className={styles.select}
+                  value={webcamDeviceId}
+                  onChange={e => startWebcam(e.target.value)}
+                >
+                  {videoDevices.map((d, i) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label === '' ? `Device ${i + 1}` : d.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div className={styles.inputRow}>
               <span
                 className={styles.tag}
@@ -1034,6 +1082,36 @@ export function App() {
             <div className={styles.dim} style={{ margin: '4px 0 0' }}>
               map a hardware controller to any slider; sync rates to MIDI clock.
             </div>
+          </div>
+        </div>
+      ) : null}
+      {askWebcam ? (
+        <div className={styles.backdrop} onClick={() => setAskWebcam(false)}>
+          <div className={styles.card} onClick={e => e.stopPropagation()}>
+            <div className={styles.cardRow} style={{ marginBottom: 10 }}>
+              <h2 style={{ fontSize: 15, margin: 0 }}>Connect a video device</h2>
+              <button
+                className={styles.btn}
+                style={{ margin: 0 }}
+                onClick={() => setAskWebcam(false)}
+              >
+                close
+              </button>
+            </div>
+            <p className={styles.helpText}>
+              Feed in a live camera, or a real analog signal via a USB
+              video-capture device — plug an RCA/composite “grabber” into the
+              machine and it shows up as a camera. Your browser will ask for
+              camera permission when you continue; pick the capture device from
+              the list that appears afterward.
+            </p>
+            <button
+              className={styles.btn}
+              style={{ margin: 0 }}
+              onClick={() => startWebcam('')}
+            >
+              Continue
+            </button>
           </div>
         </div>
       ) : null}

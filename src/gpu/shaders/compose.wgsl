@@ -38,6 +38,20 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     suv.y = 0.5 + (uv.y - 0.5) * (P.srcAspect / disp);
   }
   var src = textureSampleLevel(srcTex, samp, suv, 0.0).rgb;
+  // Bob-deinterlace: a capture card weaves NTSC's two time-staggered fields
+  // into one raster, so motion combs. Rebuild the whole frame from the even
+  // field alone by interpolating between its lines — combing gone, at half the
+  // vertical resolution (authentic 240p). Landing the linear sampler on exact
+  // even-line centers keeps each field line clean; only the vertical fill lerps.
+  if (P.deint > 0.5) {
+    let sh = f32(textureDimensions(srcTex).y);
+    let sy = suv.y * sh - 0.5;
+    let e = floor(sy * 0.5) * 2.0;
+    let f = clamp((sy - e) * 0.5, 0.0, 1.0);
+    let a = textureSampleLevel(srcTex, samp, vec2f(suv.x, (e + 0.5) / sh), 0.0).rgb;
+    let b = textureSampleLevel(srcTex, samp, vec2f(suv.x, (e + 2.5) / sh), 0.0).rgb;
+    src = mix(a, b, f);
+  }
   // GPU-generated noise sources, regenerated every frame so they crawl.
   if (P.srcNoise > 0.5) {
     if (P.srcNoise < 1.5) {

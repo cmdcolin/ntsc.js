@@ -52,6 +52,8 @@ const MAX_GENS = 4
 
 // All user-facing controls, in physical units.
 export const DEFAULT_CONTROLS = {
+  // source conditioning
+  deint: 0, // bob-deinterlace source A (0 off, 1 on) — kills capture-card field combing
   // encoder
   encChromaMHz: 1.3,
   invert: 0, // polarity flip on the composite line (alligator-pin swap)
@@ -875,6 +877,7 @@ export class Engine {
       srcAspect: this.srcAspect,
       srcNoise: this.noiseSource,
       invert: c.invert,
+      deint: c.deint,
       chromaGain: c.chromaGain,
       burstLock: c.burstLock,
       killThresh: c.killThresh,

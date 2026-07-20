@@ -29,6 +29,14 @@ export const GROUPS: Group[] = [
         step: 0.01,
         unit: '',
       },
+      {
+        key: 'deint',
+        label: 'deinterlace (capture combing)',
+        min: 0,
+        max: 1,
+        step: 1,
+        unit: '',
+      },
     ],
   },
   {
