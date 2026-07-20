@@ -7,6 +7,7 @@ import {
   SYNCABLE_KEYS,
   SYNC_DIVISIONS,
   createMidi,
+  omit,
   syncedValue,
 } from './ui/midi'
 import type { BindingMap, MidiManager, MidiStatus } from './ui/midi'
@@ -36,12 +37,18 @@ function loadSync(): SyncMap {
   const raw = localStorage.getItem(SYNC_STORE)
   return raw === null ? {} : (JSON.parse(raw) as SyncMap)
 }
-function omitKey(map: SyncMap, key: ControlKey): SyncMap {
-  const out: SyncMap = {}
-  for (const [k, v] of Object.entries(map))
-    if (k !== key) out[k as ControlKey] = v
-  return out
-}
+
+// Presets grouped under their labeled headers. Derived purely from the static
+// PRESETS table, so it's computed once at module load, not every render.
+const PRESET_GROUPS = PRESETS.reduce<{ name: string; defs: typeof PRESETS }[]>(
+  (acc, p) => {
+    const g = acc.find(x => x.name === p.group)
+    if (g === undefined) acc.push({ name: p.group, defs: [p] })
+    else g.defs.push(p)
+    return acc
+  },
+  [],
+)
 
 function GearIcon() {
   return (
@@ -88,7 +95,7 @@ function Slider(props: {
 }) {
   const midi = props.midi
   const sync = props.sync
-  const locked = sync?.label !== null && sync?.label !== undefined && sync.live
+  const locked = sync?.label !== null && sync?.live === true
   return (
     <label className={styles.slider}>
       <span className={styles.sliderTop}>
@@ -480,7 +487,7 @@ export function App() {
       const nextIdx = cur === undefined ? 0 : cur + 1
       const next =
         nextIdx >= SYNC_DIVISIONS.length
-          ? omitKey(prev, key)
+          ? omit(prev, key)
           : { ...prev, [key]: nextIdx }
       localStorage.setItem(SYNC_STORE, JSON.stringify(next))
       return next
@@ -498,12 +505,14 @@ export function App() {
     const set = (Object.keys(DEFAULT_CONTROLS) as ControlKey[])
       .filter(k => controls[k] !== DEFAULT_CONTROLS[k])
       .map(k => `${k}:${+controls[k].toFixed(4)}`)
-    const q = [...(set.length ? [`set=${set.join(',')}`] : [])]
-    if (sourceMode !== 'bars' && sourceMode !== 'file')
-      q.push(`src=${sourceMode}`)
+    // URLSearchParams so values with spaces (src=tv static) get encoded.
+    const q = new URLSearchParams()
+    if (set.length) q.set('set', set.join(','))
+    if (sourceMode !== 'bars' && sourceMode !== 'file') q.set('src', sourceMode)
     if (sourceBMode === 'bars' || sourceBMode === 'sweep')
-      q.push(`srcb=${sourceBMode}`)
-    const url = `${location.origin}${location.pathname}${q.length ? `?${q.join('&')}` : ''}`
+      q.set('srcb', sourceBMode)
+    const query = q.toString()
+    const url = `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
     navigator.clipboard
       .writeText(url)
       .then(() => {
@@ -652,15 +661,6 @@ export function App() {
   }
 
   const active = matchPreset(controls)
-  const presetGroups = PRESETS.reduce<{ name: string; defs: typeof PRESETS }[]>(
-    (acc, p) => {
-      const g = acc.find(x => x.name === p.group)
-      if (g === undefined) acc.push({ name: p.group, defs: [p] })
-      else g.defs.push(p)
-      return acc
-    },
-    [],
-  )
   const presetCaption = active
     ? active.blurb
     : lastPreset === null
@@ -858,7 +858,7 @@ export function App() {
           </div>
 
           <Section title="Presets">
-            {presetGroups.map(grp => (
+            {PRESET_GROUPS.map(grp => (
               <div key={grp.name} style={{ margin: '2px 0 4px' }}>
                 <div className={styles.grpLabel}>{grp.name}</div>
                 {grp.defs.map(p => {

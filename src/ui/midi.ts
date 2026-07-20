@@ -33,8 +33,13 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v))
 }
 
-function omit(map: BindingMap, key: ControlKey): BindingMap {
-  const out: BindingMap = {}
+// Copy of a partial control map without one key. Generic so both the binding
+// map here and the sync map in app.tsx share it.
+export function omit<V>(
+  map: Partial<Record<ControlKey, V>>,
+  key: ControlKey,
+): Partial<Record<ControlKey, V>> {
+  const out: Partial<Record<ControlKey, V>> = {}
   for (const [k, v] of Object.entries(map))
     if (k !== key) out[k as ControlKey] = v
   return out
