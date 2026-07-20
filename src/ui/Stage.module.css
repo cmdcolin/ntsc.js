@@ -16,15 +16,6 @@
   color: #f66;
   font-family: var(--mono);
 }
-.stats {
-  position: absolute;
-  bottom: 8px;
-  left: 12px;
-  color: #4a4;
-  font-family: var(--mono);
-  font-size: 11px;
-}
-
 /* overlay buttons over the canvas */
 .overlayBar {
   position: absolute;

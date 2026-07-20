@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { cx } from './cx'
 import styles from './Slider.module.css'
 
@@ -16,6 +17,20 @@ export function Slider(props: {
   const midi = props.midi
   const sync = props.sync
   const locked = sync?.label !== null && sync?.live === true
+  // Track fill anchors at the default, not the left edge: bipolar controls
+  // read like a pan pot from center, and distance-from-stock shows at a glance.
+  const pct = (v: number) =>
+    Math.max(
+      0,
+      Math.min(100, ((v - props.min) / (props.max - props.min)) * 100),
+    )
+  const valuePct = pct(props.value)
+  const defPct = pct(props.defaultValue)
+  const fill: CSSProperties & Record<'--lo' | '--hi' | '--def', string> = {
+    '--lo': `${Math.min(valuePct, defPct)}%`,
+    '--hi': `${Math.max(valuePct, defPct)}%`,
+    '--def': `${defPct}%`,
+  }
   return (
     <label className={styles.slider}>
       <span className={styles.sliderTop}>
@@ -86,6 +101,7 @@ export function Slider(props: {
       <input
         type="range"
         className={styles.range}
+        style={fill}
         min={props.min}
         max={props.max}
         step={props.step}

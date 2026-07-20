@@ -153,6 +153,13 @@ export const DEFAULT_CONTROLS = {
 export type Controls = typeof DEFAULT_CONTROLS
 export type ControlKey = keyof Controls
 
+// Per-window render stats. `worstMs` is the longest single-frame gap in the
+// window — a freeze spikes it even when the averaged fps still looks healthy.
+export interface FrameStats {
+  fps: number
+  worstMs: number
+}
+
 const FILTER_KEYS: ReadonlySet<string> = new Set([
   'encChromaMHz',
   'demodMHz',
@@ -179,7 +186,7 @@ export class Engine {
   // from `controls` on every write so the UI and the render loop never drift.
   private snapshot: Controls = { ...DEFAULT_CONTROLS }
   private controlListeners = new Set<() => void>()
-  onStats: (fps: number) => void = () => {}
+  onStats: (stats: FrameStats) => void = () => {}
   onDeviceLost: (message: string) => void = () => {}
 
   // Parsed once: the debug view can't change without a reload.
@@ -198,6 +205,7 @@ export class Engine {
   private lastTime = 0
   private frameAcc = 0
   private frameCount = 0
+  private frameWorst = 0
   private rafId = 0
   private renderErrors = 0
   private profiler: GpuProfiler | null = null
@@ -952,12 +960,18 @@ export class Engine {
   private tick = (time: number): void => {
     if (this.running) {
       if (this.lastTime > 0) {
-        this.frameAcc += time - this.lastTime
+        const dt = time - this.lastTime
+        this.frameAcc += dt
+        this.frameWorst = Math.max(this.frameWorst, dt)
         this.frameCount += 1
         if (this.frameCount === 30) {
-          this.onStats(1000 / (this.frameAcc / 30))
+          this.onStats({
+            fps: 1000 / (this.frameAcc / 30),
+            worstMs: this.frameWorst,
+          })
           this.frameAcc = 0
           this.frameCount = 0
+          this.frameWorst = 0
         }
       }
       this.lastTime = time

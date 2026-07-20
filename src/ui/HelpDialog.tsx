@@ -41,11 +41,15 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
           <li>
             <b>F</b> fullscreen · <b>Esc</b> close dialogs
           </li>
+          <li>
+            <b>1–9</b> recall a scene · <b>shift+1–9</b> save the current look
+          </li>
         </ul>
         <div className={styles.helpHead}>More</div>
         <p className={styles.muted} style={{ margin: 0 }}>
-          The <b>gear</b> icon holds render scale and MIDI setup. Source code
-          and notes on{' '}
+          The <b>gear</b> icon holds render scale and MIDI setup.{' '}
+          <b>⧉ pop out</b> moves the controls into their own window — handy with
+          the stage fullscreen on a projector. Source code and notes on{' '}
           <a
             className={styles.link}
             href="https://github.com/cmdcolin/phosphene"

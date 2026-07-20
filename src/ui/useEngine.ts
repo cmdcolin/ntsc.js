@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_CONTROLS, Engine } from '../gpu/pipeline'
-import type { ControlKey, Controls } from '../gpu/pipeline'
+import type { ControlKey, Controls, FrameStats } from '../gpu/pipeline'
 import { smpteBars, sweep } from '../sources/pattern'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { Fatal } from './FatalScreen'
@@ -22,7 +22,7 @@ export function useEngine() {
   const fileInputBRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
   const [fatal, setFatal] = useState<Fatal | null>(null)
-  const [fps, setFps] = useState(0)
+  const [stats, setStats] = useState<FrameStats>({ fps: 0, worstMs: 0 })
   const [engine, setEngine] = useState<Engine | null>(null)
   const [sourceMode, setSourceMode] = useState<SourceMode>('bars')
   // Webcam/USB capture: a dialog gates the browser permission prompt, and the
@@ -237,7 +237,7 @@ export function useEngine() {
             engineRef.current = engine
             setEngine(engine)
             window.vf = engine
-            engine.onStats = setFps
+            engine.onStats = setStats
             engine.onDeviceLost = m =>
               setFatal({
                 title: 'WebGPU device lost',
@@ -322,7 +322,7 @@ export function useEngine() {
     engine,
     fatal,
     error,
-    fps,
+    stats,
     res,
     renderScale,
     setScale,

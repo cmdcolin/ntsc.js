@@ -1,14 +1,18 @@
 import type { RefObject } from 'react'
+import type { FrameStats } from '../gpu/pipeline'
 import { GearIcon } from './icons'
+import { FpsMonitor } from './FpsMonitor'
 import styles from './Stage.module.css'
 
 export function Stage(props: {
   canvasRef: RefObject<HTMLCanvasElement | null>
   error: string
-  fps: number
+  stats: FrameStats
   res: string
   fullscreen: boolean
+  poppedOut: boolean
   onToggleFullscreen: () => void
+  onPopout: () => void
   onShowHelp: () => void
   onShowAdvanced: () => void
 }) {
@@ -34,15 +38,24 @@ export function Stage(props: {
         </button>
         <button
           className={styles.overlayBtn}
+          onClick={props.onPopout}
+          title={
+            props.poppedOut
+              ? 'controls are in their own window — click to focus it'
+              : 'pop controls into their own window (for a second screen)'
+          }
+        >
+          ⧉ {props.poppedOut ? 'controls ↗' : 'pop out'}
+        </button>
+        <button
+          className={styles.overlayBtn}
           onClick={props.onToggleFullscreen}
           title="toggle fullscreen (f)"
         >
           {props.fullscreen ? '⤢ exit' : '⛶ fullscreen'}
         </button>
       </div>
-      <div className={styles.stats}>
-        {props.fps.toFixed(0)} fps · {props.res}
-      </div>
+      <FpsMonitor stats={props.stats} res={props.res} />
     </div>
   )
 }

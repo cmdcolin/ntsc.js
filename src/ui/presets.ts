@@ -236,7 +236,7 @@ export function presetControls(patch: Partial<Controls>): Controls {
   return { ...DEFAULT_CONTROLS, ...patch }
 }
 
-const CONTROL_KEYS = Object.keys(DEFAULT_CONTROLS) as ControlKey[]
+export const CONTROL_KEYS = Object.keys(DEFAULT_CONTROLS) as ControlKey[]
 
 // The preset whose full control-set exactly matches `values`, if any.
 export function matchPreset(values: Controls): PresetDef | undefined {

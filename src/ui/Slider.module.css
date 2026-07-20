@@ -12,11 +12,79 @@
   color: #7fd0a0;
   font-family: var(--mono);
 }
+/* Track fills from the *default* position (--def) out to the thumb (--lo/--hi
+   from Slider.tsx), with a faint tick marking the default. Kept minimal so it
+   still reads as a native control. */
 .range {
   width: 100%;
+  height: 14px;
+  margin: 1px 0;
+  appearance: none;
+  background: none;
 }
 .range:disabled {
   opacity: 0.45;
+}
+.range:focus-visible {
+  outline: 1px solid #5a5a68;
+  outline-offset: 1px;
+}
+.range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background:
+    linear-gradient(
+      to right,
+      transparent calc(var(--def) - 1px),
+      #55555f calc(var(--def) - 1px),
+      #55555f calc(var(--def) + 1px),
+      transparent calc(var(--def) + 1px)
+    ),
+    linear-gradient(
+      to right,
+      #26262e var(--lo),
+      #4a7a62 var(--lo),
+      #4a7a62 var(--hi),
+      #26262e var(--hi)
+    );
+}
+.range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background:
+    linear-gradient(
+      to right,
+      transparent calc(var(--def) - 1px),
+      #55555f calc(var(--def) - 1px),
+      #55555f calc(var(--def) + 1px),
+      transparent calc(var(--def) + 1px)
+    ),
+    linear-gradient(
+      to right,
+      #26262e var(--lo),
+      #4a7a62 var(--lo),
+      #4a7a62 var(--hi),
+      #26262e var(--hi)
+    );
+}
+.range::-moz-range-progress {
+  background: none;
+}
+.range::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border-radius: 50%;
+  border: none;
+  background: #b8b8c8;
+}
+.range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  background: #b8b8c8;
 }
 
 /* inline icon buttons on a slider's value line */
