@@ -5,7 +5,8 @@
 // measurements; only that tiny recurrence stays serial.
 //
 // measure[row] = (edge sample or -1000 if not found, porch - tip depth,
-//                 unused, 1 if mid-line sits at sync level)
+//                 mean active-picture level (beam load), 1 if mid-line sits at
+//                 sync level)
 
 @group(0) @binding(0) var<storage, read> comp: array<f32>;
 @group(0) @binding(1) var<storage, read_write> measure: array<vec4f>;
@@ -49,6 +50,15 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     depth = porch - tip;
   }
 
+  // Beam load: mean active-picture level on this line, i.e. how much current
+  // this line asks the tube to draw. The deflection sag in sync.wgsl integrates
+  // it — bright content physically bends the scan.
+  var load = 0.0;
+  let step = i32(ACTIVE_W / 24u);
+  for (var k = 0; k < 24; k = k + 1) {
+    load = load + comp[clampIdx(base + i32(ACTIVE_START) + k * step)];
+  }
+
   let broad = select(0.0, 1.0, levelAt(base + 200) < SLICE);
-  measure[row] = vec4f(edge, depth, 0.0, broad);
+  measure[row] = vec4f(edge, depth, load / 24.0, broad);
 }

@@ -3,9 +3,8 @@
 // vertically, and its chroma beats against the burst-locked decoder. The
 // accumulators live here in f64 and are folded into per-frame uniforms.
 
-import { LINES, SAMPLES_PER_LINE } from './constants'
+import { F_H, LINES, SAMPLES_PER_LINE } from './constants'
 
-const F_H = 4500000 / 286 // line rate, 15734.27 Hz
 const LINE_S = 1 / F_H
 
 export interface MixControls {

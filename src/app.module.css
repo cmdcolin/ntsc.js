@@ -172,6 +172,18 @@
   color: #666;
   margin: 4px 0;
 }
+/* audio input level */
+.meter {
+  height: 4px;
+  background: #26262e;
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+.meterFill {
+  height: 100%;
+  background: #7fd0a0;
+}
 .subhead {
   font-weight: 600;
   color: #9a9ab0;

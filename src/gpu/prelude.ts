@@ -74,7 +74,20 @@ export const PARAM_DEFS = [
   // decoder
   ['combMode', 'f32'], // 0 chroma trap, 1 two-line comb, 2 three-line comb
   ['hHold', 'f32'], // sync PLL gain (horizontal hold)
-  ['vHold', 'f32'], // vertical hold strength
+  ['vHold', 'f32'], // vertical oscillator pull-in gain (vertical hold lock strength)
+  ['vRollRate', 'f32'], // free-run roll velocity, lines/frame, from the v-osc detune
+  ['syncBend', 'f32'], // PLL kick at the vertical seam, samples (flagging)
+  // deflection geometry: tube-side scan distortion, downstream of the decoder,
+  // so it bends the picture without moving the burst gate or spinning hue
+  ['bendAmt', 'f32'], // horizontal displacement amplitude, samples
+  ['bendShape', 'f32'], // 0 flag, 1 skew, 2 bow, 3 sine
+  ['bendPeriod', 'f32'], // flag decay constant / sine period, screen lines
+  ['hvSag', 'f32'], // beam-current deflection sag amplitude, samples
+  ['hvRing', 'f32'], // supply damping: 0 smooth droop .. 1 ringing / chaotic
+  ['hRate', 'f32'], // horizontal oscillator free-run drift, samples/line
+  // audio patched into the deflection, one sample per line
+  ['audioBend', 'f32'], // direct horizontal displacement, samples
+  ['audioLoad', 'f32'], // audio driven into the HV tank alongside beam current
   ['chromaGain', 'f32'],
   ['burstLock', 'f32'], // 0..1: how much the decoder trusts the (degraded) burst
   ['killThresh', 'f32'], // IRE of burst amplitude below which color killer engages
@@ -162,6 +175,7 @@ const ACTIVE_START = ${ACTIVE_START}u;
 const ACTIVE_W = ${ACTIVE_WIDTH}u;
 const ACTIVE_TOP = ${ACTIVE_TOP}u;
 const ACTIVE_H = ${ACTIVE_HEIGHT}u;
+const SAG_BASE = ${LINES + 3}u; // deflection sag region of the timing buffer
 const VSYNC_FIRST = ${VSYNC_FIRST}u;
 const VSYNC_LAST = ${VSYNC_LAST}u;
 const HEAD_SWITCH_LINE = ${HEAD_SWITCH_LINE}u;
@@ -203,6 +217,13 @@ fn carrier(n: u32, frame: u32) -> vec2f {
 
 fn clampIdx(i: i32) -> u32 {
   return u32(clamp(i, 0, i32(BUF_LEN) - 1));
+}
+
+// Raster row wrap that survives negative offsets: vertical roll runs both ways
+// (the v-osc detunes either side of 60 Hz) and u32() of a negative float is
+// undefined in WGSL.
+fn wrapRow(r: i32) -> u32 {
+  return u32(((r % i32(NLINES)) + i32(NLINES)) % i32(NLINES));
 }
 
 fn pcg(v: u32) -> u32 {

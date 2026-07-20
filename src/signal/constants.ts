@@ -3,6 +3,7 @@
 // IRE) and converted to samples through these constants.
 
 export const FSC = 315e6 / 88 // color subcarrier, 3.579545... MHz
+export const F_H = 4500000 / 286 // line rate, 15734.27 Hz
 export const SAMPLE_RATE = 4 * FSC // 14.31818 MHz
 export const SAMPLES_PER_LINE = 910 // = 227.5 subcarrier cycles per line
 export const LINES = 525

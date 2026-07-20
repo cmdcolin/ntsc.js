@@ -21,7 +21,8 @@ import {
   mixTaps,
   packFilterBank,
 } from '../signal/filters'
-import { FSC } from '../signal/constants'
+import { FSC, F_H } from '../signal/constants'
+import { AudioState } from '../signal/audiostate'
 import { LineState } from '../signal/linestate'
 import type { LineStateControls } from '../signal/linestate'
 import { MixState } from '../signal/mixstate'
@@ -67,7 +68,27 @@ export const DEFAULT_CONTROLS = {
   svideoBleed: 0, // Y/C miswire: bleed chroma into luma (S-video pins into composite)
   combMode: 0,
   hHold: 0.35,
-  vHold: 1,
+  vHold: 1, // vertical hold: pull-in authority of the v-osc trigger
+  vFreqHz: 60, // free-running vertical oscillator rate; off 60 the picture rolls
+  syncBendUs: 0, // horizontal PLL kick out of vertical retrace (top-of-picture flag)
+  // deflection geometry (tube-side scan bend, downstream of the decoder)
+  bendUs: 0, // horizontal displacement amplitude
+  bendShape: 0, // 0 flag, 1 skew, 2 bow, 3 ripple
+  bendPeriod: 60, // flag decay constant / ripple period, screen lines
+  hvSagUs: 0, // beam-current deflection sag: bright content bends the scan
+  hvRing: 0.5, // supply damping: 0 smooth droop .. 1 ringing / chaotic
+  hDetuneHz: 0, // horizontal oscillator detune off nominal line rate
+  // audio patched at the yoke, one sample per line
+  audioGain: 1, // input trim after auto-normalization
+  audioBendUs: 0, // audio waveform straight into horizontal displacement
+  audioLoad: 0, // audio driven into the HV tank (rings via hvSag/hvRing)
+  // Bass onset straight onto the sag *amplitude*. Distorting all the time reads
+  // as a broken picture; keeping the tube near-clean and slamming it on the hit
+  // is what reads as the bass punching the image.
+  audioSagUs: 0,
+  // envelopes detuning the hold oscillators: transients knock sync out of lock
+  audioRoll: 0, // bass-onset envelope into the vertical oscillator (lurch per kick)
+  audioTear: 0, // level into the horizontal oscillator (tear on transients)
   // channel / tape
   lumaMHz: 4.2,
   polarityFlip: 0, // hard polarity flip: negate the whole line, sync included
@@ -200,6 +221,7 @@ export class Engine {
   private filtersDirty = true
   private running = true
   private lineState = new LineState()
+  readonly audioState = new AudioState()
   private mixState = new MixState()
   private paramScratch = new ArrayBuffer(PARAM_BYTES)
   private lastTime = 0
@@ -225,6 +247,7 @@ export class Engine {
   private lineParamsBuf: GPUBuffer
   private timingBuf: GPUBuffer
   private syncMeasureBuf: GPUBuffer
+  private audioBuf: GPUBuffer
   private persistBuf: GPUBuffer
 
   private srcTex: GPUTexture
@@ -322,13 +345,19 @@ export class Engine {
       size: LINE_PARAM_BYTES,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
+    // per-line hoff + 3 persistent scalars + a per-raster-line deflection sag
     this.timingBuf = d.createBuffer({
-      size: (LINES + 3) * 4,
+      size: (LINES * 2 + 3) * 4,
       usage: GPUBufferUsage.STORAGE,
     })
     this.syncMeasureBuf = d.createBuffer({
       size: LINES * 16,
       usage: GPUBufferUsage.STORAGE,
+    })
+    // one audio sample per line, uploaded each frame
+    this.audioBuf = d.createBuffer({
+      size: LINES * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
     // phosphor persistence state: previous displayed frame, packed rgba8
     this.persistBuf = d.createBuffer({
@@ -566,6 +595,7 @@ export class Engine {
           { buffer: this.paramsBuf },
           { buffer: this.syncMeasureBuf },
           { buffer: this.timingBuf },
+          { buffer: this.audioBuf },
         ],
         [1, 1],
       ),
@@ -591,6 +621,7 @@ export class Engine {
           { buffer: this.timingBuf },
           this.outTex.createView(),
           { buffer: this.persistBuf },
+          { buffer: this.audioBuf },
         ],
         perPixel,
       ),
@@ -823,6 +854,7 @@ export class Engine {
       this.lineParamsBuf,
       this.timingBuf,
       this.syncMeasureBuf,
+      this.audioBuf,
       this.persistBuf,
     ]
     for (const b of bufs) b.destroy()
@@ -893,6 +925,24 @@ export class Engine {
       combMode: c.combMode,
       hHold: c.hHold,
       vHold: c.vHold,
+      // beat between the free-running v-osc and the incoming field rate: a
+      // slower oscillator retraces late, so the raster start creeps down the
+      // source and the picture climbs
+      vRollRate: LINES * (60 / (c.vFreqHz - c.audioRoll * this.audioState.hit) - 1),
+      syncBend: c.syncBendUs * 1e-6 * SAMPLE_RATE,
+      bendAmt: c.bendUs * 1e-6 * SAMPLE_RATE,
+      bendShape: c.bendShape,
+      bendPeriod: c.bendPeriod,
+      hvSag:
+        (c.hvSagUs + c.audioSagUs * this.audioState.hit) * 1e-6 * SAMPLE_RATE,
+      hvRing: c.hvRing,
+      // beat between the free-running H-osc and the incoming line rate, in
+      // samples of phase gained per line
+      hRate:
+        SAMPLES_PER_LINE *
+        (F_H / (F_H + c.hDetuneHz + c.audioTear * this.audioState.level) - 1),
+      audioBend: c.audioBendUs * 1e-6 * SAMPLE_RATE,
+      audioLoad: c.audioLoad,
       noiseSigma: c.noiseIre,
       ghostDelay: c.ghostDelayUs * 1e-6 * SAMPLE_RATE,
       ghostGain: c.ghostGain,
@@ -1069,6 +1119,8 @@ export class Engine {
       0,
       this.lineState.update(lineControls, this.frame),
     )
+    if (this.audioState.active)
+      d.queue.writeBuffer(this.audioBuf, 0, this.audioState.update(c.audioGain))
     // Each extra dub generation is an independent playback pass: its own gen
     // seed (decorrelating noise and dropouts) and a fresh time-base/phase
     // walk, staged now and copied over the live buffers between generations.

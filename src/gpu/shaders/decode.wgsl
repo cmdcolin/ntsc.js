@@ -11,6 +11,7 @@
 @group(0) @binding(4) var<storage, read> timing: array<f32>;
 @group(0) @binding(5) var outTex: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(6) var<storage, read_write> persist: array<u32>;
+@group(0) @binding(7) var<storage, read> audio: array<f32>;
 
 // chroma-path source per Y/C separation mode
 fn csrc(i: u32) -> f32 {
@@ -23,6 +24,27 @@ fn csrc(i: u32) -> f32 {
   }
   let dn = comp[clampIdx(i32(i) + i32(SPL))];
   return 0.5 * comp[i] - 0.25 * (up + dn);
+}
+
+// Deflection-domain bend: distortion of the tube's own horizontal scan, so it
+// is a function of the *screen* row, not the source row. Two consequences, both
+// wanted: a rolling picture slides through a bend that stays put on the glass,
+// and because the burst gate (line_analyze) keys off sync alone, a bent yoke
+// bends the picture without spinning hue — unlike a sync error, which does.
+fn bendAt(y: f32) -> f32 {
+  let t = y / f32(ACTIVE_H);
+  let per = max(P.bendPeriod, 1.0);
+  var s = 0.0;
+  if (P.bendShape < 0.5) {
+    s = exp(-y / per); // flag: hooks the top lines, dies away down the picture
+  } else if (P.bendShape < 1.5) {
+    s = t; // skew: the whole raster leans
+  } else if (P.bendShape < 2.5) {
+    s = sin(PI * t); // bow: pinned top and bottom, bulging at the middle
+  } else {
+    s = sin(2.0 * PI * y / per); // ripple
+  }
+  return P.bendAmt * s;
 }
 
 // comb-filtered chroma source span for this workgroup's row; a whole
@@ -55,8 +77,12 @@ fn main(
   // roll wraps over the whole 525-line frame, so the VBI decodes as the
   // classic rolling black bar instead of the picture wrapping seamlessly
   let vroll = timing[525u];
-  let row = (ACTIVE_TOP + gid.y + u32(vroll)) % NLINES;
-  let hoff = i32(round(timing[row]));
+  let row = wrapRow(i32(ACTIVE_TOP + gid.y) + i32(floor(vroll)));
+  // parametric bend, the signal-driven supply sag, and audio patched straight
+  // at the yoke — all deflection-domain, all indexed by raster line
+  let ry = ACTIVE_TOP + gid.y;
+  let sag = P.hvSag * timing[SAG_BASE + ry];
+  let hoff = i32(round(timing[row] + bendAt(f32(gid.y)) + sag + P.audioBend * audio[ry]));
   let base = i32(row * SPL + ACTIVE_START + wid.x * 64u) + hoff - i32(HALO);
   for (var i = lid.x; i < TILE; i = i + 64u) {
     tile[i] = csrc(clampIdx(base + i32(i)));

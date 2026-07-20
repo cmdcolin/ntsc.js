@@ -101,6 +101,86 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'vertical hold gone',
+    group: 'Sync / Deflection',
+    blurb:
+      'Vertical oscillator detuned past its pull-in range: the picture scrolls forever, VBI bar and all, hooking sideways at every seam.',
+    patch: {
+      vFreqHz: 54,
+      vHold: 0.35,
+      syncBendUs: 7,
+      hHold: 0.2,
+      noiseIre: 2.5,
+    },
+  },
+  {
+    name: 'bent scan',
+    group: 'Sync / Deflection',
+    blurb:
+      'Deflection bowed hard across the glass — the blanking interval itself curves through the picture.',
+    patch: { bendUs: 24, bendShape: 2, syncBendUs: 4, noiseIre: 2 },
+  },
+  {
+    name: 'supply chaos',
+    group: 'Sync / Deflection',
+    blurb:
+      'Beam current bending its own scan through a ringing HV supply: geometry driven by picture content, never repeating.',
+    patch: {
+      hvSagUs: 16,
+      hvRing: 0.85,
+      bGain: 0.55,
+      bLineHz: 0.9,
+      bDetuneHz: 130,
+      bRollLps: 0.2,
+      bRing: 0.3,
+      noiseIre: 2,
+    },
+  },
+  {
+    name: 'full collapse',
+    group: 'Sync / Deflection',
+    blurb:
+      'Every deflection fault at once, feeding the mixer loop — bend, roll and beam load chasing each other frame to frame.',
+    patch: {
+      hvSagUs: 20,
+      hvRing: 0.9,
+      bendUs: 12,
+      bendShape: 2,
+      vFreqHz: 58.5,
+      vHold: 0.4,
+      syncBendUs: 6,
+      hHold: 0.18,
+      bGain: 0.6,
+      bLineHz: 0.9,
+      bDetuneHz: 130,
+      bRollLps: 0.2,
+      cfbMix: 0.45,
+      cfbLines: 3,
+      phosphor: 0.6,
+      noiseIre: 3,
+    },
+  },
+  {
+    name: 'bass smack',
+    group: 'Sync / Deflection',
+    blurb:
+      'Every kick slams the HV supply and knocks vertical hold loose, then it snaps back. Enable the microphone under Audio.',
+    patch: {
+      audioRoll: 5,
+      audioTear: 130,
+      audioLoad: 2.2,
+      // a little standing sag for character, most of it on the onset so the
+      // tube sits nearly still between hits and the kick actually lands
+      hvSagUs: 7,
+      audioSagUs: 24,
+      hvRing: 0.8,
+      vHold: 0.45,
+      hHold: 0.3,
+      phosphor: 0.5,
+      noiseIre: 2,
+    },
+  },
+  {
     name: 'mixer loop',
     group: 'Feedback loops',
     blurb: 'Composite fed back into itself — each line echoes into the next.',

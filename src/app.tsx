@@ -17,6 +17,8 @@ import { InputSection } from './ui/InputSection'
 import { PresetsSection } from './ui/PresetsSection'
 import { ScenesSection } from './ui/ScenesSection'
 import { MidiSection } from './ui/MidiSection'
+import { AudioSection } from './ui/AudioSection'
+import { useAudio } from './ui/useAudio'
 import { useEngine } from './ui/useEngine'
 import { useMidi } from './ui/useMidi'
 import { usePopout } from './ui/usePopout'
@@ -26,7 +28,8 @@ import styles from './app.module.css'
 const subscribeNever = () => () => {}
 const getDefaultControls = (): Controls => DEFAULT_CONTROLS
 
-const MAIN_GROUPS = GROUPS.filter(g => !g.ab)
+const MAIN_GROUPS = GROUPS.filter(g => g.ab !== true && g.audio !== true)
+const AUDIO_GROUP = GROUPS.find(g => g.audio === true)
 const SYNCABLE_SET = new Set<ControlKey>(SYNCABLE_KEYS)
 
 // Which rate controls are clock-locked, and to which SYNC_DIVISIONS index.
@@ -260,6 +263,8 @@ export function App() {
       .catch(() => {})
   }
 
+  const audio = useAudio(eng.engine)
+
   const query = filter.trim().toLowerCase()
   const renderGroup = (group: Group, defaultOpen: boolean) => {
     const sliders =
@@ -379,6 +384,18 @@ export function App() {
         value={filter}
         onChange={e => setFilter(e.target.value)}
       />
+      {AUDIO_GROUP === undefined ? null : (
+        <AudioSection
+          active={audio.active}
+          level={audio.level}
+          hit={audio.hit}
+          error={audio.error}
+          onEnableMic={audio.enableMic}
+          onDisable={audio.disable}
+          group={AUDIO_GROUP}
+          renderGroup={renderGroup}
+        />
+      )}
       {MAIN_GROUPS.map(group => renderGroup(group, false))}
     </>
   )

@@ -12,6 +12,9 @@ export interface SliderDef {
 export interface Group {
   name: string
   sliders: SliderDef[]
+  // Audio group: rendered inside the Audio section next to the enable button,
+  // not in the generic list.
+  audio?: boolean
   // A/B mix groups: surfaced next to the Input row when source B is on,
   // rather than buried in the generic group list at the bottom.
   ab?: boolean
@@ -570,7 +573,130 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'vHold',
-        label: 'vertical hold',
+        label: 'vertical hold (lock authority)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+      },
+      {
+        key: 'vFreqHz',
+        label: 'vertical osc (60 = locked)',
+        min: 50,
+        max: 70,
+        step: 0.05,
+        unit: 'Hz',
+      },
+      {
+        key: 'syncBendUs',
+        label: 'retrace flag (top hook)',
+        min: 0,
+        max: 12,
+        step: 0.05,
+        unit: 'us',
+      },
+      {
+        key: 'hDetuneHz',
+        label: 'horizontal osc detune',
+        min: -500,
+        max: 500,
+        step: 1,
+        unit: 'Hz',
+      },
+    ],
+  },
+  {
+    name: 'Audio',
+    audio: true,
+    sliders: [
+      {
+        key: 'audioRoll',
+        label: 'bass → vertical hold (lurch)',
+        min: 0,
+        max: 8,
+        step: 0.05,
+        unit: 'Hz',
+      },
+      {
+        key: 'audioTear',
+        label: 'level → horizontal hold (tear)',
+        min: -400,
+        max: 400,
+        step: 1,
+        unit: 'Hz',
+      },
+      {
+        key: 'audioSagUs',
+        label: 'bass → HV sag (smack, needs ring)',
+        min: 0,
+        max: 40,
+        step: 0.5,
+        unit: 'us',
+      },
+      {
+        key: 'audioBendUs',
+        label: 'waveform into deflection (literal)',
+        min: -20,
+        max: 20,
+        step: 0.1,
+        unit: 'us',
+      },
+      {
+        key: 'audioLoad',
+        label: 'audio into HV tank (needs sag)',
+        min: 0,
+        max: 3,
+        step: 0.01,
+        unit: '',
+      },
+      {
+        key: 'audioGain',
+        label: 'input trim',
+        min: 0,
+        max: 4,
+        step: 0.01,
+        unit: '',
+      },
+    ],
+  },
+  {
+    name: 'Deflection',
+    sliders: [
+      {
+        key: 'bendUs',
+        label: 'bend amount',
+        min: -30,
+        max: 30,
+        step: 0.1,
+        unit: 'us',
+      },
+      {
+        key: 'bendShape',
+        label: 'shape (0 flag, 1 skew, 2 bow, 3 ripple)',
+        min: 0,
+        max: 3,
+        step: 1,
+        unit: '',
+      },
+      {
+        key: 'bendPeriod',
+        label: 'decay / ripple period',
+        min: 4,
+        max: 480,
+        step: 1,
+        unit: 'lines',
+      },
+      {
+        key: 'hvSagUs',
+        label: 'HV sag (beam pulls scan)',
+        min: -25,
+        max: 25,
+        step: 0.1,
+        unit: 'us',
+      },
+      {
+        key: 'hvRing',
+        label: 'supply ring (0 droop, 1 chaos)',
         min: 0,
         max: 1,
         step: 0.01,
