@@ -23,7 +23,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
           RF, and CRT — rendered entirely in WebGPU compute shaders. Feed it a
           pattern, image, video, or your webcam and degrade it however you like.
         </p>
-        <div className={styles.helpHead}>Getting started</div>
+        <div className={styles.helpHead}>getting started</div>
         <ol className={styles.helpList}>
           <li>
             Pick an <b>Input</b> (A is the main source; B mixes a second in).
@@ -36,7 +36,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
             Every slider has a <b>?</b> explaining the hardware fault it models.
           </li>
         </ol>
-        <div className={styles.helpHead}>Keyboard</div>
+        <div className={styles.helpHead}>keyboard</div>
         <ul className={styles.helpList}>
           <li>
             <b>C</b> (hold) compare against the clean signal
@@ -51,7 +51,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
             <b>1–9</b> recall a scene · <b>shift+1–9</b> save the current look
           </li>
         </ul>
-        <div className={styles.helpHead}>More</div>
+        <div className={styles.helpHead}>more</div>
         <p className={styles.muted} style={{ margin: 0 }}>
           The <b>gear</b> icon holds render scale and MIDI setup.{' '}
           <b>⧉ pop out</b> moves the controls into their own window — handy with
