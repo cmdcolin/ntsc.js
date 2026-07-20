@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react'
 import type { FrameStats } from '../gpu/pipeline'
 import styles from './FpsMonitor.module.css'
 
-// Always-on rolling histogram of recent per-window fps. Each bar is one 30-frame
-// sample; a dip below the 60/30 fps reference lines shows a stall the averaged
+// Always-on rolling histogram of recent per-window fps. Each bar is one stats
+// window; a dip below the 60/30 fps reference lines shows a stall the averaged
 // number alone would smooth over. Scaled to a 65 fps ceiling so a healthy signal
 // nearly fills the bar and any shortfall reads as a visible gap at the top.
-const HISTORY = 60 // ~30 s at one sample per 30 frames
+const HISTORY = 60
 const SCALE_FPS = 65
 const GOOD_FPS = 60
 const OK_FPS = 30

@@ -193,6 +193,10 @@ export const DEFAULT_CONTROLS = {
 export type Controls = typeof DEFAULT_CONTROLS
 export type ControlKey = keyof Controls
 
+// Frames per stats window. Shorter windows update the readout more responsively;
+// ~15 frames is roughly a quarter-second at 60 fps.
+const STATS_WINDOW = 15
+
 // Per-window render stats. `worstMs` is the longest single-frame gap in the
 // window — a freeze spikes it even when the averaged fps still looks healthy.
 export interface FrameStats {
@@ -1062,9 +1066,9 @@ export class Engine {
         this.frameAcc += dt
         this.frameWorst = Math.max(this.frameWorst, dt)
         this.frameCount += 1
-        if (this.frameCount === 30) {
+        if (this.frameCount === STATS_WINDOW) {
           this.onStats({
-            fps: 1000 / (this.frameAcc / 30),
+            fps: 1000 / (this.frameAcc / STATS_WINDOW),
             worstMs: this.frameWorst,
           })
           this.frameAcc = 0
