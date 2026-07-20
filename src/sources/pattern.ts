@@ -19,7 +19,16 @@ export function sweep(): OffscreenCanvas {
       if (y < ACTIVE_HEIGHT * 0.15) {
         v = (x / ACTIVE_WIDTH) * 255 // ramp
       } else if (y < ACTIVE_HEIGHT * 0.8) {
-        const band = bands[Math.min(Math.floor((y - ACTIVE_HEIGHT * 0.15) / (ACTIVE_HEIGHT * 0.65 / bands.length)), bands.length - 1)]
+        const band =
+          bands[
+            Math.min(
+              Math.floor(
+                (y - ACTIVE_HEIGHT * 0.15) /
+                  ((ACTIVE_HEIGHT * 0.65) / bands.length),
+              ),
+              bands.length - 1,
+            )
+          ]
         // band MHz -> cycles per sample at 14.318 MHz raster
         v = 128 + 100 * Math.sin(2 * Math.PI * (band / 14.318182) * x)
       } else {
@@ -41,7 +50,15 @@ export function smpteBars(): OffscreenCanvas {
   if (!g) throw new Error('no 2d context')
   const W = ACTIVE_WIDTH
   const H = ACTIVE_HEIGHT
-  const bars = ['#c0c0c0', '#c0c000', '#00c0c0', '#00c000', '#c000c0', '#c00000', '#0000c0']
+  const bars = [
+    '#c0c0c0',
+    '#c0c000',
+    '#00c0c0',
+    '#00c000',
+    '#c000c0',
+    '#c00000',
+    '#0000c0',
+  ]
   const topH = Math.round(H * 0.67)
   const bw = W / 7
   bars.forEach((col, i) => {
@@ -49,7 +66,15 @@ export function smpteBars(): OffscreenCanvas {
     g.fillRect(Math.round(i * bw), 0, Math.ceil(bw), topH)
   })
   const castH = Math.round(H * 0.08)
-  const cast = ['#0000c0', '#131313', '#c000c0', '#131313', '#00c0c0', '#131313', '#c0c0c0']
+  const cast = [
+    '#0000c0',
+    '#131313',
+    '#c000c0',
+    '#131313',
+    '#00c0c0',
+    '#131313',
+    '#c0c0c0',
+  ]
   cast.forEach((col, i) => {
     g.fillStyle = col
     g.fillRect(Math.round(i * bw), topH, Math.ceil(bw), castH)

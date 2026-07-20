@@ -1,6 +1,7 @@
 # Phosphene
 
-**[Live demo](https://cmdcolin.github.io/phosphene/)** — needs a WebGPU-enabled browser.
+**[Live demo](https://cmdcolin.github.io/phosphene/)** — needs a WebGPU-enabled
+browser.
 
 Phosphene makes analog video glitches by simulating the NTSC signal path itself,
 not by drawing effects over the picture.
@@ -9,9 +10,9 @@ Each frame gets encoded into a real composite video waveform, mangled like it
 went through tape and RF, then decoded by an imperfect TV. Dot crawl, ringing,
 hue drift, tearing, head-switch bend, dropouts — you don't draw any of that. It
 comes out of the signal on its own, same as on the real gear. There are two
-feedback loops as well (a camera pointed at its own monitor, and a hardware-mixer
-loop), and you can dirty-mix in a second source. All in WebGPU compute shaders,
-in real time.
+feedback loops as well (a camera pointed at its own monitor, and a
+hardware-mixer loop), and you can dirty-mix in a second source. All in WebGPU
+compute shaders, in real time.
 
 ## Run
 
@@ -42,27 +43,29 @@ with an imperfect receiver.
 ### If you write JavaScript, here's the shape of it
 
 That waveform is really just one big `Float32Array` — those ~478k samples —
-sitting in GPU memory (the `compA` buffer) and never coming back to the CPU. Each
-stage of the chain is a *compute pass*: picture a function that takes some
+sitting in GPU memory (the `compA` buffer) and never coming back to the CPU.
+Each stage of the chain is a _compute pass_: picture a function that takes some
 buffers, reads that array, and writes it back, except the body runs on thousands
 of GPU cores at once, one for every sample.
 
 The CPU barely does any signal math. Once per animation frame it uploads the
-source frame to a texture, writes the current slider values into a small uniforms
-buffer, records the whole list of passes into a command buffer, and submits it.
-No `await`, nothing read back.
+source frame to a texture, writes the current slider values into a small
+uniforms buffer, records the whole list of passes into a command buffer, and
+submits it. No `await`, nothing read back.
 
-Recording a pass is just `setPipeline`, `setBindGroup`, `dispatchWorkgroups(x, y)`.
-That dispatch is basically a 2D parallel for-loop: `y` counts the 525 lines, `x`
-counts the samples across a line (in groups of 64). A "bind group" is just the
-list of buffers a pass is wired to — its arguments.
+Recording a pass is just `setPipeline`, `setBindGroup`,
+`dispatchWorkgroups(x, y)`. That dispatch is basically a 2D parallel for-loop:
+`y` counts the 525 lines, `x` counts the samples across a line (in groups of
+64). A "bind group" is just the list of buffers a pass is wired to — its
+arguments.
 
-The passes hand data to each other through those shared buffers. Most read `compA`
-and overwrite it in place; a couple ping-pong through `compB`. The only thing that
-ever leaves the GPU is the final image the `present` pass draws to the canvas. So
-the pipeline really is just an ordered array of passes, each one a `.wgsl` shader
-in `src/gpu/shaders/`, wired up in `src/gpu/pipeline.ts`. The filters they run are
-windowed-sinc FIR kernels designed from real MHz specs in `src/signal/filters.ts`.
+The passes hand data to each other through those shared buffers. Most read
+`compA` and overwrite it in place; a couple ping-pong through `compB`. The only
+thing that ever leaves the GPU is the final image the `present` pass draws to
+the canvas. So the pipeline really is just an ordered array of passes, each one
+a `.wgsl` shader in `src/gpu/shaders/`, wired up in `src/gpu/pipeline.ts`. The
+filters they run are windowed-sinc FIR kernels designed from real MHz specs in
+`src/signal/filters.ts`.
 
 ### The chain
 
@@ -71,32 +74,33 @@ fold back in every frame.
 
 ![Signal path — overview](docs/pipeline-simple.svg)
 
-Same thing pass by pass, in the order they actually run (the channel block repeats
-once per dub generation):
+Same thing pass by pass, in the order they actually run (the channel block
+repeats once per dub generation):
 
 ![Signal path — detailed](docs/pipeline.svg)
 
-<sup>Diagrams are Graphviz: [`docs/pipeline-simple.dot`](docs/pipeline-simple.dot),
+<sup>Diagrams are Graphviz:
+[`docs/pipeline-simple.dot`](docs/pipeline-simple.dot),
 [`docs/pipeline.dot`](docs/pipeline.dot). Regenerate both with `pnpm run docs`
 (needs `dot` on PATH).</sup>
 
 The two feedback loops work at different points in the chain:
 
 - **Camera-at-monitor** (in the image): before re-encoding, `compose` reads back
-  the *previous* decoded frame and zooms, rotates, shifts, and dims it. It's the
+  the _previous_ decoded frame and zooms, rotates, shifts, and dims it. It's the
   same thing as aiming a camera at the screen it's driving.
-- **Hardware mixer** (in the signal): `storePrev` stashes the decoded waveform in
-  `compPrev`, then `fbComposite` blends it back into the new frame's composite
-  with keying and trails. Feeding back at the signal level means it dot-crawls and
-  smears like a real vision mixer.
+- **Hardware mixer** (in the signal): `storePrev` stashes the decoded waveform
+  in `compPrev`, then `fbComposite` blends it back into the new frame's
+  composite with keying and trails. Feeding back at the signal level means it
+  dot-crawls and smears like a real vision mixer.
 
-| Stage | Pass(es) | What it models |
-|-------|----------|----------------|
-| Encoder | `compose`, `encodeYuv`, `encodeComposite` | RGB → YUV → composite: luma + chroma quadrature-modulated onto the `Fsc` subcarrier, sync/burst/blanking inserted |
-| Dirty mix | `encodeYuvB`, `mixB` | second non-genlocked source B mixed/wiped in, with its own hue/ring/detune |
-| Channel | `chromaExtract`, `underDown`, `channel`, `timebase` | the tape/RF path — color-under, band-limiting, noise, dropouts, ghosting, hum, head-switch bend, time-base jitter. Loops once per **dub generation** |
-| Receiver | `syncMeasure`, `sync`, `lineAnalyze`, `decode` | a real (imperfect) TV: sync recovery, per-line burst lock, comb filtering, chroma demod, color-kill |
-| Display | `present` | scanline beam profile to the canvas |
+| Stage     | Pass(es)                                            | What it models                                                                                                                                       |
+| --------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Encoder   | `compose`, `encodeYuv`, `encodeComposite`           | RGB → YUV → composite: luma + chroma quadrature-modulated onto the `Fsc` subcarrier, sync/burst/blanking inserted                                    |
+| Dirty mix | `encodeYuvB`, `mixB`                                | second non-genlocked source B mixed/wiped in, with its own hue/ring/detune                                                                           |
+| Channel   | `chromaExtract`, `underDown`, `channel`, `timebase` | the tape/RF path — color-under, band-limiting, noise, dropouts, ghosting, hum, head-switch bend, time-base jitter. Loops once per **dub generation** |
+| Receiver  | `syncMeasure`, `sync`, `lineAnalyze`, `decode`      | a real (imperfect) TV: sync recovery, per-line burst lock, comb filtering, chroma demod, color-kill                                                  |
+| Display   | `present`                                           | scanline beam profile to the canvas                                                                                                                  |
 
 ## Verification harness
 

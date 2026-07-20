@@ -1,4 +1,10 @@
-import { ACTIVE_HEIGHT, ACTIVE_WIDTH, LINES, SAMPLES_PER_LINE, SAMPLE_RATE } from '../signal/constants'
+import {
+  ACTIVE_HEIGHT,
+  ACTIVE_WIDTH,
+  LINES,
+  SAMPLES_PER_LINE,
+  SAMPLE_RATE,
+} from '../signal/constants'
 import {
   FILTER_STRIDE,
   NUM_SECTIONS,
@@ -118,7 +124,12 @@ export const DEFAULT_CONTROLS = {
 export type Controls = typeof DEFAULT_CONTROLS
 export type ControlKey = keyof Controls
 
-const FILTER_KEYS: ReadonlySet<string> = new Set(['encChromaMHz', 'demodMHz', 'lumaMHz', 'lumaPeak'])
+const FILTER_KEYS: ReadonlySet<string> = new Set([
+  'encChromaMHz',
+  'demodMHz',
+  'lumaMHz',
+  'lumaPeak',
+])
 
 // One compute dispatch in the signal chain. `when` gates the dispatch on the
 // current controls; omitted means always. Bind groups are fixed except
@@ -142,7 +153,9 @@ export class Engine {
   onDeviceLost: (message: string) => void = () => {}
 
   // Parsed once: the debug view can't change without a reload.
-  private readonly dbgView = Number(new URLSearchParams(location.search).get('dbg') ?? 0)
+  private readonly dbgView = Number(
+    new URLSearchParams(location.search).get('dbg') ?? 0,
+  )
 
   private gpu: Gpu
   private canvas: HTMLCanvasElement
@@ -213,9 +226,13 @@ export class Engine {
     this.gpu = gpu
     this.canvas = canvas
     const d = gpu.device
-    if (new URLSearchParams(location.search).has('prof')) this.profiler = GpuProfiler.create(d)
+    if (new URLSearchParams(location.search).has('prof'))
+      this.profiler = GpuProfiler.create(d)
 
-    this.paramsBuf = d.createBuffer({ size: PARAM_BYTES, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST })
+    this.paramsBuf = d.createBuffer({
+      size: PARAM_BYTES,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    })
     // per-generation param/line-param blocks, copied over the live buffers
     // between dub generations inside the frame's command stream
     this.genParamsBuf = d.createBuffer({
@@ -230,20 +247,47 @@ export class Engine {
       size: NUM_SECTIONS * FILTER_STRIDE * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
-    this.yuvBuf = d.createBuffer({ size: N * 16, usage: GPUBufferUsage.STORAGE })
-    this.yuvBBuf = d.createBuffer({ size: N * 16, usage: GPUBufferUsage.STORAGE })
-    this.compA = d.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC })
+    this.yuvBuf = d.createBuffer({
+      size: N * 16,
+      usage: GPUBufferUsage.STORAGE,
+    })
+    this.yuvBBuf = d.createBuffer({
+      size: N * 16,
+      usage: GPUBufferUsage.STORAGE,
+    })
+    this.compA = d.createBuffer({
+      size: N * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    })
     this.compB = d.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE })
-    this.compPrev = d.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST })
-    this.chromaBuf = d.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE })
-    this.underBuf = d.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE })
-    this.lineInfoBuf = d.createBuffer({ size: LINES * 16, usage: GPUBufferUsage.STORAGE })
+    this.compPrev = d.createBuffer({
+      size: N * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    })
+    this.chromaBuf = d.createBuffer({
+      size: N * 4,
+      usage: GPUBufferUsage.STORAGE,
+    })
+    this.underBuf = d.createBuffer({
+      size: N * 4,
+      usage: GPUBufferUsage.STORAGE,
+    })
+    this.lineInfoBuf = d.createBuffer({
+      size: LINES * 16,
+      usage: GPUBufferUsage.STORAGE,
+    })
     this.lineParamsBuf = d.createBuffer({
       size: LINE_PARAM_BYTES,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
-    this.timingBuf = d.createBuffer({ size: (LINES + 3) * 4, usage: GPUBufferUsage.STORAGE })
-    this.syncMeasureBuf = d.createBuffer({ size: LINES * 16, usage: GPUBufferUsage.STORAGE })
+    this.timingBuf = d.createBuffer({
+      size: (LINES + 3) * 4,
+      usage: GPUBufferUsage.STORAGE,
+    })
+    this.syncMeasureBuf = d.createBuffer({
+      size: LINES * 16,
+      usage: GPUBufferUsage.STORAGE,
+    })
 
     const texDesc = (usage: number): GPUTextureDescriptor => ({
       size: [ACTIVE_WIDTH, ACTIVE_HEIGHT],
@@ -251,20 +295,40 @@ export class Engine {
       usage,
     })
     this.srcTex = d.createTexture(
-      texDesc(GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT),
+      texDesc(
+        GPUTextureUsage.TEXTURE_BINDING |
+          GPUTextureUsage.COPY_DST |
+          GPUTextureUsage.RENDER_ATTACHMENT,
+      ),
     )
     this.srcTexB = d.createTexture(
-      texDesc(GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT),
+      texDesc(
+        GPUTextureUsage.TEXTURE_BINDING |
+          GPUTextureUsage.COPY_DST |
+          GPUTextureUsage.RENDER_ATTACHMENT,
+      ),
     )
-    this.inputTex = d.createTexture(texDesc(GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING))
-    this.outTex = d.createTexture(texDesc(GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING))
-    this.linearSamp = d.createSampler({ magFilter: 'linear', minFilter: 'linear' })
+    this.inputTex = d.createTexture(
+      texDesc(
+        GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+      ),
+    )
+    this.outTex = d.createTexture(
+      texDesc(
+        GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+      ),
+    )
+    this.linearSamp = d.createSampler({
+      magFilter: 'linear',
+      minFilter: 'linear',
+    })
 
     const module = (src: string) => {
       const m = d.createShaderModule({ code: PRELUDE + src })
-      void m.getCompilationInfo().then((info) => {
+      void m.getCompilationInfo().then(info => {
         for (const msg of info.messages) {
-          if (msg.type === 'error') console.error(`WGSL ${msg.lineNum}:${msg.linePos} ${msg.message}`)
+          if (msg.type === 'error')
+            console.error(`WGSL ${msg.lineNum}:${msg.linePos} ${msg.message}`)
         }
       })
       return m
@@ -293,7 +357,11 @@ export class Engine {
     this.presentPl = d.createRenderPipeline({
       layout: 'auto',
       vertex: { module: presentModule, entryPoint: 'vs' },
-      fragment: { module: presentModule, entryPoint: 'fs', targets: [{ format: gpu.format }] },
+      fragment: {
+        module: presentModule,
+        entryPoint: 'fs',
+        targets: [{ format: gpu.format }],
+      },
       primitive: { topology: 'triangle-list' },
     })
 
@@ -329,11 +397,21 @@ export class Engine {
     }
     this.prePasses = [
       this.composePass,
-      pass('encodeYuv', encodeYuvPl, [this.inputTex.createView(), this.linearSamp, { buffer: this.yuvBuf }], perPixel),
+      pass(
+        'encodeYuv',
+        encodeYuvPl,
+        [this.inputTex.createView(), this.linearSamp, { buffer: this.yuvBuf }],
+        perPixel,
+      ),
       pass(
         'encodeComposite',
         encodeCompositePl,
-        [{ buffer: this.paramsBuf }, { buffer: this.filterBuf }, { buffer: this.yuvBuf }, { buffer: this.compA }],
+        [
+          { buffer: this.paramsBuf },
+          { buffer: this.filterBuf },
+          { buffer: this.yuvBuf },
+          { buffer: this.compA },
+        ],
         perLine,
       ),
       pass(
@@ -346,14 +424,23 @@ export class Engine {
       pass(
         'mixB',
         mixBPl,
-        [{ buffer: this.paramsBuf }, { buffer: this.filterBuf }, { buffer: this.yuvBBuf }, { buffer: this.compA }],
+        [
+          { buffer: this.paramsBuf },
+          { buffer: this.filterBuf },
+          { buffer: this.yuvBBuf },
+          { buffer: this.compA },
+        ],
         perLine,
         bOn,
       ),
       pass(
         'fbComposite',
         fbCompositePl,
-        [{ buffer: this.paramsBuf }, { buffer: this.compPrev }, { buffer: this.compA }],
+        [
+          { buffer: this.paramsBuf },
+          { buffer: this.compPrev },
+          { buffer: this.compA },
+        ],
         perLine,
         () => c.cfbMix !== 0,
       ),
@@ -362,7 +449,11 @@ export class Engine {
       pass(
         'chromaExtract',
         chromaExtractPl,
-        [{ buffer: this.filterBuf }, { buffer: this.compA }, { buffer: this.chromaBuf }],
+        [
+          { buffer: this.filterBuf },
+          { buffer: this.compA },
+          { buffer: this.chromaBuf },
+        ],
         perLine,
       ),
       pass(
@@ -394,22 +485,40 @@ export class Engine {
       pass(
         'timebase',
         timebasePl,
-        [{ buffer: this.lineParamsBuf }, { buffer: this.compB }, { buffer: this.compA }],
+        [
+          { buffer: this.lineParamsBuf },
+          { buffer: this.compB },
+          { buffer: this.compA },
+        ],
         perLine,
       ),
     ]
     this.postPasses = [
-      pass('syncMeasure', syncMeasurePl, [{ buffer: this.compA }, { buffer: this.syncMeasureBuf }], perRow),
+      pass(
+        'syncMeasure',
+        syncMeasurePl,
+        [{ buffer: this.compA }, { buffer: this.syncMeasureBuf }],
+        perRow,
+      ),
       pass(
         'sync',
         syncPl,
-        [{ buffer: this.paramsBuf }, { buffer: this.syncMeasureBuf }, { buffer: this.timingBuf }],
+        [
+          { buffer: this.paramsBuf },
+          { buffer: this.syncMeasureBuf },
+          { buffer: this.timingBuf },
+        ],
         [1, 1],
       ),
       pass(
         'lineAnalyze',
         lineAnalyzePl,
-        [{ buffer: this.paramsBuf }, { buffer: this.compA }, { buffer: this.timingBuf }, { buffer: this.lineInfoBuf }],
+        [
+          { buffer: this.paramsBuf },
+          { buffer: this.compA },
+          { buffer: this.timingBuf },
+          { buffer: this.lineInfoBuf },
+        ],
         perRow,
       ),
       pass(
@@ -434,10 +543,17 @@ export class Engine {
       pass(
         'storePrev',
         storePrevPl,
-        [{ buffer: this.paramsBuf }, { buffer: this.compA }, { buffer: this.compPrev }],
+        [
+          { buffer: this.paramsBuf },
+          { buffer: this.compA },
+          { buffer: this.compPrev },
+        ],
         perLine,
         () => {
-          const period = c.cfbTrail > 0 ? 2 * Math.ceil((c.cfbHold + 1) / 2) : Math.round(c.cfbHold) + 1
+          const period =
+            c.cfbTrail > 0
+              ? 2 * Math.ceil((c.cfbHold + 1) / 2)
+              : Math.round(c.cfbHold) + 1
           return c.cfbMix !== 0 && this.frame % period === 0
         },
       ),
@@ -453,7 +569,7 @@ export class Engine {
 
     // reason 'destroyed' is our own destroy(); anything else is a real loss
     // (driver reset, sleep/wake, GPU hang) — stop and surface it.
-    void this.gpu.device.lost.then((info) => {
+    void this.gpu.device.lost.then(info => {
       if (this.running && info.reason !== 'destroyed') {
         this.running = false
         this.onDeviceLost(info.message)
@@ -496,7 +612,8 @@ export class Engine {
   // snapshot (so the sliders stay put), then `preview(null)` restores from it.
   preview(next: Controls | null): void {
     const src = next ?? this.snapshot
-    for (const k of Object.keys(this.controls) as ControlKey[]) this.controls[k] = src[k]
+    for (const k of Object.keys(this.controls) as ControlKey[])
+      this.controls[k] = src[k]
     this.filtersDirty = true
   }
 
@@ -505,10 +622,11 @@ export class Engine {
     this.noiseSource = 0
     this.videoEl = null
     this.ensureSrcTex(source.width, source.height, aspect)
-    this.gpu.device.queue.copyExternalImageToTexture({ source, flipY: false }, { texture: this.srcTex }, [
-      source.width,
-      source.height,
-    ])
+    this.gpu.device.queue.copyExternalImageToTexture(
+      { source, flipY: false },
+      { texture: this.srcTex },
+      [source.width, source.height],
+    )
   }
 
   setVideoSource(el: HTMLVideoElement | null): void {
@@ -538,10 +656,22 @@ export class Engine {
 
   // B is staged to raster size with a centered 4:3 cover-fit crop, so the
   // mixer shader needs no aspect handling.
-  private uploadB(source: OffscreenCanvas | ImageBitmap | HTMLVideoElement, w: number, h: number): void {
+  private uploadB(
+    source: OffscreenCanvas | ImageBitmap | HTMLVideoElement,
+    w: number,
+    h: number,
+  ): void {
     const d = this.gpu.device
-    if (w === ACTIVE_WIDTH && h === ACTIVE_HEIGHT && !(source instanceof HTMLVideoElement)) {
-      d.queue.copyExternalImageToTexture({ source, flipY: false }, { texture: this.srcTexB }, [w, h])
+    if (
+      w === ACTIVE_WIDTH &&
+      h === ACTIVE_HEIGHT &&
+      !(source instanceof HTMLVideoElement)
+    ) {
+      d.queue.copyExternalImageToTexture(
+        { source, flipY: false },
+        { texture: this.srcTexB },
+        [w, h],
+      )
     } else {
       this.stageB ??= new OffscreenCanvas(ACTIVE_WIDTH, ACTIVE_HEIGHT)
       const g = this.stageB.getContext('2d')
@@ -549,11 +679,22 @@ export class Engine {
         const wide = w / h > 4 / 3
         const sw = wide ? h * (4 / 3) : w
         const sh = wide ? h : w * (3 / 4)
-        g.drawImage(source, (w - sw) / 2, (h - sh) / 2, sw, sh, 0, 0, ACTIVE_WIDTH, ACTIVE_HEIGHT)
-        d.queue.copyExternalImageToTexture({ source: this.stageB, flipY: false }, { texture: this.srcTexB }, [
+        g.drawImage(
+          source,
+          (w - sw) / 2,
+          (h - sh) / 2,
+          sw,
+          sh,
+          0,
+          0,
           ACTIVE_WIDTH,
           ACTIVE_HEIGHT,
-        ])
+        )
+        d.queue.copyExternalImageToTexture(
+          { source: this.stageB, flipY: false },
+          { texture: this.srcTexB },
+          [ACTIVE_WIDTH, ACTIVE_HEIGHT],
+        )
       }
     }
   }
@@ -579,7 +720,10 @@ export class Engine {
       this.srcTex = this.gpu.device.createTexture({
         size: [w, h],
         format: 'rgba8unorm',
-        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+        usage:
+          GPUTextureUsage.TEXTURE_BINDING |
+          GPUTextureUsage.COPY_DST |
+          GPUTextureUsage.RENDER_ATTACHMENT,
       })
       this.composePass.bg = this.makeComposeBg()
     }
@@ -607,7 +751,8 @@ export class Engine {
       this.syncMeasureBuf,
     ]
     for (const b of bufs) b.destroy()
-    for (const t of [this.srcTex, this.srcTexB, this.inputTex, this.outTex]) t.destroy()
+    for (const t of [this.srcTex, this.srcTexB, this.inputTex, this.outTex])
+      t.destroy()
     // Frees everything else the device owns (pipelines, bind groups) and drops
     // the swap-chain configuration.
     this.gpu.device.destroy()
@@ -625,7 +770,15 @@ export class Engine {
       new Map([
         [SEC_ENC_CHROMA, lowpass(c.encChromaMHz * 1e6, TAPS.encChroma)],
         [SEC_DEMOD, lowpass(c.demodMHz * 1e6, TAPS.demod)],
-        [SEC_LUMA, lowpassPeaked(c.lumaMHz * 1e6, c.lumaPeak, c.lumaMHz * 0.75e6, TAPS.luma)],
+        [
+          SEC_LUMA,
+          lowpassPeaked(
+            c.lumaMHz * 1e6,
+            c.lumaPeak,
+            c.lumaMHz * 0.75e6,
+            TAPS.luma,
+          ),
+        ],
         [SEC_CHROMA_BP, bandpass(FSC, 0.6e6, TAPS.chromaBp)],
         [SEC_UNDER, lowpass(1.2e6, TAPS.under)],
       ]),
@@ -717,7 +870,10 @@ export class Engine {
       } catch (e) {
         this.renderErrors += 1
         if (this.renderErrors <= 3 || this.renderErrors % 120 === 0) {
-          console.error(`render error #${this.renderErrors} (loop continues):`, e)
+          console.error(
+            `render error #${this.renderErrors} (loop continues):`,
+            e,
+          )
         }
       }
       this.rafId = requestAnimationFrame(this.tick)
@@ -727,7 +883,13 @@ export class Engine {
   private render(): void {
     const d = this.gpu.device
     if (this.frame % 30 === 0 && location.search.includes('debug')) {
-      console.log('DEBUG render frame', this.frame, 'video?', this.videoEl !== null, this.videoEl?.readyState)
+      console.log(
+        'DEBUG render frame',
+        this.frame,
+        'video?',
+        this.videoEl !== null,
+        this.videoEl?.readyState,
+      )
     }
     if (this.videoEl !== null && this.videoEl.readyState >= 2) {
       const w = this.videoEl.videoWidth
@@ -741,8 +903,20 @@ export class Engine {
         if (g) {
           g.drawImage(this.videoEl, 0, 0)
           if (this.frame % 30 === 0 && location.search.includes('debug')) {
-            const px = g.getImageData(Math.floor(w / 2), Math.floor(h / 2), 1, 1).data
-            console.log('DEBUG stage px', px[0], px[1], px[2], 'video t', this.videoEl.currentTime.toFixed(2))
+            const px = g.getImageData(
+              Math.floor(w / 2),
+              Math.floor(h / 2),
+              1,
+              1,
+            ).data
+            console.log(
+              'DEBUG stage px',
+              px[0],
+              px[1],
+              px[2],
+              'video t',
+              this.videoEl.currentTime.toFixed(2),
+            )
           }
           d.queue.copyExternalImageToTexture(
             { source: this.videoStage, flipY: false },
@@ -773,7 +947,11 @@ export class Engine {
       underJitterDeg: c.underJitterDeg,
       headSwitchShiftUs: c.headSwitchShiftUs,
     }
-    d.queue.writeBuffer(this.lineParamsBuf, 0, this.lineState.update(lineControls, this.frame))
+    d.queue.writeBuffer(
+      this.lineParamsBuf,
+      0,
+      this.lineState.update(lineControls, this.frame),
+    )
     // Each extra dub generation is an independent playback pass: its own gen
     // seed (decorrelating noise and dropouts) and a fresh time-base/phase
     // walk, staged now and copied over the live buffers between generations.
@@ -782,7 +960,11 @@ export class Engine {
     for (let g = 1; g < gens; g++) {
       dv.setUint32(GEN_OFFSET, g, true)
       d.queue.writeBuffer(this.genParamsBuf, g * PARAM_BYTES, this.paramScratch)
-      d.queue.writeBuffer(this.genLineParamsBuf, g * LINE_PARAM_BYTES, this.lineState.update(lineControls, this.frame))
+      d.queue.writeBuffer(
+        this.genLineParamsBuf,
+        g * LINE_PARAM_BYTES,
+        this.lineState.update(lineControls, this.frame),
+      )
     }
 
     const enc = d.createCommandEncoder()
@@ -799,8 +981,20 @@ export class Engine {
     for (const p of this.prePasses) run(p)
     for (let g = 0; g < gens; g++) {
       if (g > 0) {
-        enc.copyBufferToBuffer(this.genParamsBuf, g * PARAM_BYTES, this.paramsBuf, 0, PARAM_BYTES)
-        enc.copyBufferToBuffer(this.genLineParamsBuf, g * LINE_PARAM_BYTES, this.lineParamsBuf, 0, LINE_PARAM_BYTES)
+        enc.copyBufferToBuffer(
+          this.genParamsBuf,
+          g * PARAM_BYTES,
+          this.paramsBuf,
+          0,
+          PARAM_BYTES,
+        )
+        enc.copyBufferToBuffer(
+          this.genLineParamsBuf,
+          g * LINE_PARAM_BYTES,
+          this.lineParamsBuf,
+          0,
+          LINE_PARAM_BYTES,
+        )
       }
       for (const p of this.loopPasses) run(p)
     }
@@ -830,8 +1024,12 @@ export class Engine {
     this.profiler?.report()
     if (this.frame < 3) {
       const f = this.frame
-      void d.popErrorScope().then((e) => e && console.error(`frame ${f} internal:`, e.message))
-      void d.popErrorScope().then((e) => e && console.error(`frame ${f} validation:`, e.message))
+      void d
+        .popErrorScope()
+        .then(e => e && console.error(`frame ${f} internal:`, e.message))
+      void d
+        .popErrorScope()
+        .then(e => e && console.error(`frame ${f} validation:`, e.message))
     }
     if (location.search.includes('debug')) {
       if (this.frame < 3) console.log('DEBUG rendered frame', this.frame)
@@ -842,7 +1040,10 @@ export class Engine {
 
   private async debugReadback(): Promise<void> {
     const d = this.gpu.device
-    const read = d.createBuffer({ size: N * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ })
+    const read = d.createBuffer({
+      size: N * 4,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    })
     const enc = d.createCommandEncoder()
     enc.copyBufferToBuffer(this.compA, 0, read, 0, N * 4)
     d.queue.submit([enc.finish()])
@@ -855,10 +1056,13 @@ export class Engine {
       max = Math.max(max, v)
     }
     const midRow = 200
-    const line = Array.from(a.slice(midRow * SAMPLES_PER_LINE, midRow * SAMPLES_PER_LINE + 200)).map((v) =>
-      Math.round(v),
+    const line = Array.from(
+      a.slice(midRow * SAMPLES_PER_LINE, midRow * SAMPLES_PER_LINE + 200),
+    ).map(v => Math.round(v))
+    console.log(
+      'DEBUG compA',
+      JSON.stringify({ min, max, line200first200: line }),
     )
-    console.log('DEBUG compA', JSON.stringify({ min, max, line200first200: line }))
     read.unmap()
     read.destroy()
   }

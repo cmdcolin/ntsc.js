@@ -11,10 +11,11 @@ export interface MidiBinding {
 
 export type BindingMap = Partial<Record<ControlKey, MidiBinding>>
 
-export type MidiStatus = 'unsupported' | 'idle' | 'requesting' | 'ready' | 'denied'
+export type MidiStatus =
+  'unsupported' | 'idle' | 'requesting' | 'ready' | 'denied'
 
 const SLIDER_BY_KEY = new Map<ControlKey, SliderDef>(
-  GROUPS.flatMap((g) => g.sliders).map((s) => [s.key, s]),
+  GROUPS.flatMap(g => g.sliders).map(s => [s.key, s]),
 )
 
 const STORE_KEY = 'video_feedback_midi'
@@ -34,7 +35,8 @@ function clamp(v: number, lo: number, hi: number): number {
 
 function omit(map: BindingMap, key: ControlKey): BindingMap {
   const out: BindingMap = {}
-  for (const [k, v] of Object.entries(map)) if (k !== key) out[k as ControlKey] = v
+  for (const [k, v] of Object.entries(map))
+    if (k !== key) out[k as ControlKey] = v
   return out
 }
 
@@ -64,7 +66,11 @@ export const SYNC_DIVISIONS: { label: string; beats: number }[] = [
 export const SYNCABLE_KEYS: ControlKey[] = ['wipeRate', 'bLineHz']
 
 // Tempo-locked value for a rate control, clamped to its slider range.
-export function syncedValue(key: ControlKey, bpm: number, beats: number): number {
+export function syncedValue(
+  key: ControlKey,
+  bpm: number,
+  beats: number,
+): number {
   const raw = bpm / 60 / beats
   const def = SLIDER_BY_KEY.get(key)
   return def ? clamp(raw, def.min, def.max) : raw
@@ -122,7 +128,8 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
     if (pulses.length > 25) pulses.shift() // ~one beat of history
     lastPulse = now
     if (pulses.length >= 7) {
-      const perPulse = (pulses[pulses.length - 1] - pulses[0]) / (pulses.length - 1)
+      const perPulse =
+        (pulses[pulses.length - 1] - pulses[0]) / (pulses.length - 1)
       const bpm = Math.round((60000 / (perPulse * 24)) * 2) / 2
       if (Number.isFinite(bpm) && bpm !== reportedBpm) {
         reportedBpm = bpm
@@ -133,7 +140,8 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
 
   const reindex = () => {
     keyByBinding.clear()
-    for (const [k, b] of Object.entries(bindings)) keyByBinding.set(bindingId(b), k as ControlKey)
+    for (const [k, b] of Object.entries(bindings))
+      keyByBinding.set(bindingId(b), k as ControlKey)
   }
   reindex()
 
@@ -145,7 +153,10 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
   const bind = (key: ControlKey, b: MidiBinding) => {
     // A CC drives one control at a time: drop whoever held this source before.
     const prev = keyByBinding.get(bindingId(b))
-    bindings = { ...(prev === undefined ? bindings : omit(bindings, prev)), [key]: b }
+    bindings = {
+      ...(prev === undefined ? bindings : omit(bindings, prev)),
+      [key]: b,
+    }
     engaged.delete(key)
     lastCc.delete(key)
     reindex()
@@ -203,7 +214,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
       } else {
         cb.onStatus('requesting')
         navigator.requestMIDIAccess().then(
-          (m) => {
+          m => {
             access = m
             cb.onStatus('ready')
             cb.onBindings({ ...bindings })
@@ -213,18 +224,19 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
             // A source that stops sending clock ticks (or is unplugged) never
             // sends 0xFC; drop the tempo once ticks go quiet.
             tempoTimer = setInterval(() => {
-              if (reportedBpm !== null && performance.now() - lastPulse > 1000) stopClock()
+              if (reportedBpm !== null && performance.now() - lastPulse > 1000)
+                stopClock()
             }, 500)
           },
           () => cb.onStatus('denied'),
         )
       }
     },
-    arm: (key) => {
+    arm: key => {
       armed = key
       cb.onArmed(key)
     },
-    clearBinding: (key) => {
+    clearBinding: key => {
       bindings = omit(bindings, key)
       reindex()
       persist()

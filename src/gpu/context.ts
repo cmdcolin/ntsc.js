@@ -22,10 +22,12 @@ export async function initGpu(canvas: HTMLCanvasElement): Promise<Gpu> {
   }
   // timestamp-query powers the optional ?prof per-pass timings
   const device = await adapter.requestDevice({
-    requiredFeatures: adapter.features.has('timestamp-query') ? ['timestamp-query'] : [],
+    requiredFeatures: adapter.features.has('timestamp-query')
+      ? ['timestamp-query']
+      : [],
   })
-  device.addEventListener('uncapturederror', (e) => {
-    console.error('WebGPU uncaptured:', (e).error.message)
+  device.addEventListener('uncapturederror', e => {
+    console.error('WebGPU uncaptured:', e.error.message)
   })
   const context = canvas.getContext('webgpu')
   if (!context) throw new Error('Could not get webgpu canvas context')

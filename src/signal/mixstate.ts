@@ -37,7 +37,8 @@ export class MixState {
     this.hShift = wrap(this.hShift + shiftPerLine * LINES, SAMPLES_PER_LINE)
     this.scPhase = wrap(this.scPhase + c.bDetuneHz * LINE_S * LINES, 1)
     this.vRoll = wrap(this.vRoll + c.bRollLps, LINES)
-    this.wipeT = c.wipeRateHz === 0 ? 0 : wrap(this.wipeT + (2 * c.wipeRateHz) / 60, 2)
+    this.wipeT =
+      c.wipeRateHz === 0 ? 0 : wrap(this.wipeT + (2 * c.wipeRateHz) / 60, 2)
     const wp = wrap(c.wipePos + this.wipeT, 2)
     return {
       wipePos: wp < 1 ? wp : 2 - wp,

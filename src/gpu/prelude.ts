@@ -21,7 +21,15 @@ import {
   VSYNC_FIRST,
   VSYNC_LAST,
 } from '../signal/constants'
-import { FILTER_STRIDE, SEC_CHROMA_BP, SEC_DEMOD, SEC_ENC_CHROMA, SEC_LUMA, SEC_UNDER, TAPS } from '../signal/filters'
+import {
+  FILTER_STRIDE,
+  SEC_CHROMA_BP,
+  SEC_DEMOD,
+  SEC_ENC_CHROMA,
+  SEC_LUMA,
+  SEC_UNDER,
+  TAPS,
+} from '../signal/filters'
 import { DOWN_PER_SAMPLE } from '../signal/linestate'
 
 export const PARAM_DEFS = [
@@ -102,7 +110,10 @@ export const GEN_OFFSET = PARAM_DEFS.findIndex(([n]) => n === 'gen') * 4
 // `missing param` throw.
 export type ParamName = (typeof PARAM_DEFS)[number][0]
 
-export function packParams(values: Record<ParamName, number>, out: ArrayBuffer): void {
+export function packParams(
+  values: Record<ParamName, number>,
+  out: ArrayBuffer,
+): void {
   const dv = new DataView(out)
   PARAM_DEFS.forEach(([name, type], i) => {
     const v = values[name]

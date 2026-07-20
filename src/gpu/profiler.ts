@@ -20,11 +20,16 @@ export class GpuProfiler {
   private sampling = false
 
   static create(device: GPUDevice): GpuProfiler | null {
-    return device.features.has('timestamp-query') ? new GpuProfiler(device) : null
+    return device.features.has('timestamp-query')
+      ? new GpuProfiler(device)
+      : null
   }
 
   private constructor(device: GPUDevice) {
-    this.querySet = device.createQuerySet({ type: 'timestamp', count: 2 * CAPACITY })
+    this.querySet = device.createQuerySet({
+      type: 'timestamp',
+      count: 2 * CAPACITY,
+    })
     this.resolveBuf = device.createBuffer({
       size: 16 * CAPACITY,
       usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
@@ -62,8 +67,20 @@ export class GpuProfiler {
 
   resolve(enc: GPUCommandEncoder): void {
     if (this.labels.length > 0) {
-      enc.resolveQuerySet(this.querySet, 0, 2 * this.labels.length, this.resolveBuf, 0)
-      enc.copyBufferToBuffer(this.resolveBuf, 0, this.readBuf, 0, 16 * this.labels.length)
+      enc.resolveQuerySet(
+        this.querySet,
+        0,
+        2 * this.labels.length,
+        this.resolveBuf,
+        0,
+      )
+      enc.copyBufferToBuffer(
+        this.resolveBuf,
+        0,
+        this.readBuf,
+        0,
+        16 * this.labels.length,
+      )
     }
   }
 
@@ -74,7 +91,9 @@ export class GpuProfiler {
       this.pending = true
       this.readBuf.mapAsync(GPUMapMode.READ).then(
         () => {
-          const t = new BigUint64Array(this.readBuf.getMappedRange(0, 16 * labels.length))
+          const t = new BigUint64Array(
+            this.readBuf.getMappedRange(0, 16 * labels.length),
+          )
           // sum repeated labels (per-generation passes) so each row and the
           // total are true per-frame costs
           const frameMs = new Map<string, number>()
@@ -84,7 +103,10 @@ export class GpuProfiler {
           })
           for (const [label, ms] of frameMs) {
             const prev = this.ema.get(label)
-            this.ema.set(label, prev === undefined ? ms : prev + 0.05 * (ms - prev))
+            this.ema.set(
+              label,
+              prev === undefined ? ms : prev + 0.05 * (ms - prev),
+            )
           }
           this.readBuf.unmap()
           this.pending = false

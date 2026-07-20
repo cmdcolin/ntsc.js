@@ -30,4 +30,4 @@ export const IRE_WHITE = 100
 export const IRE_VIDEO_RANGE = IRE_WHITE - IRE_BLACK // 92.5
 export const BURST_AMP_IRE = 20 // +-20 IRE (40 IRE p-p)
 
-export const usToSamples = (us: number) => (us * 1e-6 * SAMPLE_RATE)
+export const usToSamples = (us: number) => us * 1e-6 * SAMPLE_RATE

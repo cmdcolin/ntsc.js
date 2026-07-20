@@ -30,13 +30,25 @@ export default tseslint.config(
     rules: {
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
       // Numbers in template literals are fine here (shader prelude, debug logs).
-      '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        { allowNumber: true },
+      ],
       // `onClick={() => doThing()}` shorthand returning void is idiomatic React.
-      '@typescript-eslint/no-confusing-void-expression': ['error', { ignoreArrowShorthand: true }],
+      '@typescript-eslint/no-confusing-void-expression': [
+        'error',
+        { ignoreArrowShorthand: true },
+      ],
       // Empty arrow no-ops (`.catch(() => {})`) are a legitimate callback pattern.
-      '@typescript-eslint/no-empty-function': ['error', { allow: ['arrowFunctions'] }],
+      '@typescript-eslint/no-empty-function': [
+        'error',
+        { allow: ['arrowFunctions'] },
+      ],
     },
   },
 )

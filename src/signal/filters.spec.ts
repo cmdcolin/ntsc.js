@@ -75,7 +75,8 @@ describe('lowpassPeaked', () => {
   it('reduces to a plain lowpass when peak is zero', () => {
     const plain = lowpass(4.2e6, 49)
     const peaked = lowpassPeaked(4.2e6, 0, 3.15e6, 49)
-    for (let k = 0; k < plain.length; k++) expect(peaked[k]).toBeCloseTo(plain[k], 12)
+    for (let k = 0; k < plain.length; k++)
+      expect(peaked[k]).toBeCloseTo(plain[k], 12)
   })
 
   it('boosts high frequencies relative to the plain lowpass', () => {
@@ -96,7 +97,9 @@ describe('lowpassPeaked', () => {
 describe('filter bank packing', () => {
   it('every kernel fits within its stride slot', () => {
     for (const [name, taps] of Object.entries(TAPS)) {
-      expect(taps, `TAPS.${name} exceeds FILTER_STRIDE`).toBeLessThanOrEqual(FILTER_STRIDE)
+      expect(taps, `TAPS.${name} exceeds FILTER_STRIDE`).toBeLessThanOrEqual(
+        FILTER_STRIDE,
+      )
     }
   })
 
@@ -110,7 +113,9 @@ describe('filter bank packing', () => {
       ]),
     )
     expect(Array.from(bank.subarray(0, a.length))).toEqual(Array.from(a))
-    expect(Array.from(bank.subarray(FILTER_STRIDE, FILTER_STRIDE + b.length))).toEqual(Array.from(b))
+    expect(
+      Array.from(bank.subarray(FILTER_STRIDE, FILTER_STRIDE + b.length)),
+    ).toEqual(Array.from(b))
     // Tail of slot 0 past the kernel must stay zero (no overrun from slot 1).
     for (let k = a.length; k < FILTER_STRIDE; k++) expect(bank[k]).toBe(0)
   })

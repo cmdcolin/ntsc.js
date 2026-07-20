@@ -17,7 +17,8 @@ export function lowpass(cutoffHz: number, taps: number): Float32Array {
   let sum = 0
   for (let k = 0; k < taps; k++) {
     const n = k - m
-    const sinc = n === 0 ? 2 * fc : Math.sin(2 * Math.PI * fc * n) / (Math.PI * n)
+    const sinc =
+      n === 0 ? 2 * fc : Math.sin(2 * Math.PI * fc * n) / (Math.PI * n)
     h[k] = sinc * blackman(k, taps)
     sum += h[k]
   }
@@ -26,7 +27,11 @@ export function lowpass(cutoffHz: number, taps: number): Float32Array {
 }
 
 // Unity center gain bandpass (lowpass heterodyned to centerHz).
-export function bandpass(centerHz: number, halfWidthHz: number, taps: number): Float32Array {
+export function bandpass(
+  centerHz: number,
+  halfWidthHz: number,
+  taps: number,
+): Float32Array {
   const lp = lowpass(halfWidthHz, taps)
   const m = (taps - 1) / 2
   const w = (2 * Math.PI * centerHz) / SAMPLE_RATE
@@ -37,7 +42,12 @@ export function bandpass(centerHz: number, halfWidthHz: number, taps: number): F
 
 // Lowpass with high-frequency peaking mixed in: delta + peak*(delta - lp2).
 // Models the luma "sharpness" boost of tape decks -> edge overshoot and ringing.
-export function lowpassPeaked(cutoffHz: number, peak: number, peakHz: number, taps: number): Float32Array {
+export function lowpassPeaked(
+  cutoffHz: number,
+  peak: number,
+  peakHz: number,
+  taps: number,
+): Float32Array {
   const lp = lowpass(cutoffHz, taps)
   const lp2 = lowpass(peakHz, taps)
   const m = (taps - 1) / 2
@@ -68,7 +78,9 @@ export const SEC_CHROMA_BP = 3 // chroma extraction bandpass at fsc
 export const SEC_UNDER = 4 // color-under lowpass after down-conversion
 export const NUM_SECTIONS = 5
 
-export function packFilterBank(sections: Map<number, Float32Array>): Float32Array<ArrayBuffer> {
+export function packFilterBank(
+  sections: Map<number, Float32Array>,
+): Float32Array<ArrayBuffer> {
   const bank = new Float32Array(NUM_SECTIONS * FILTER_STRIDE)
   for (const [sec, taps] of sections) bank.set(taps, sec * FILTER_STRIDE)
   return bank

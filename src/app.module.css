@@ -6,7 +6,12 @@
   height: 100vh;
   background: #000;
   color: #c8c8d0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   font-size: 12px;
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
 }
@@ -299,7 +304,12 @@
   box-sizing: border-box;
   background: #0a0a0c;
   color: #c8c8d0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   font-size: 13px;
   line-height: 1.6;
 }

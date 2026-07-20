@@ -62,7 +62,8 @@ describe('WGSL shaders pass naga validation', () => {
     // CI installs it, so a missing binary there would silently skip the whole
     // validation — fail loudly instead of passing a green build that checked
     // nothing.
-    if (process.env.CI !== undefined) expect(hasNaga, 'naga not found on PATH in CI').toBe(true)
+    if (process.env.CI !== undefined)
+      expect(hasNaga, 'naga not found on PATH in CI').toBe(true)
   })
 
   for (const [name, src] of Object.entries(SHADERS)) {
@@ -75,7 +76,9 @@ describe('WGSL shaders pass naga validation', () => {
         execFileSync('naga', [file], { stdio: 'pipe' })
       } catch (e) {
         const err = e as { stderr?: Buffer; stdout?: Buffer }
-        expect.fail(`${name}.wgsl failed naga validation:\n${err.stderr ?? ''}${err.stdout ?? ''}`)
+        expect.fail(
+          `${name}.wgsl failed naga validation:\n${err.stderr ?? ''}${err.stdout ?? ''}`,
+        )
       }
     })
   }
