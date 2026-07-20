@@ -4,6 +4,16 @@ Goal: the electric, saturated look of a camcorder pointed at a CRT at night —
 true-black background, cores that go white-hot, colour that stays vivid at the
 clipping point instead of flattening, and trails that shift hue as they die.
 
+## Status
+
+- **Phase 1 — done** (commit `0c141f0`). Hue-preserving `gamutFit()` replaced the
+  hard clamp in `decode`; `crtCutoff`/`crtGamma`/`crtSat` beam transfer added to
+  `crt_face` (transfer → saturate → gamut-fit → bloom, bloom taps included). All
+  three params default to identity, so no existing preset or gallery asset moved.
+  Two opt-in presets shipped under a new `Phosphor / CRT` group.
+- **Phase 2 — not started.** Handoff notes inline in the Phase 2 section below.
+- **Phase 3 — not started.**
+
 The pipeline already has the *light* behaviour (bloom, halation, glow in
 `crt_face`) and persistence (in `decode`). What is missing is the tube's
 **colour transfer**: today the decoder matrixes YIQ straight to sRGB and hard
@@ -63,6 +73,42 @@ after the gamma is what gives vivid mids without posterizing.
   control between peak-hold and additive decay would give softer, more
   photographic trails; peak-hold should stay available since it is what makes
   the current strobe presets read.
+
+### Handoff — where each piece lands
+
+All three live in `decode.wgsl` around the persistence block
+(`decode.wgsl:176-188`), plus the standard param wiring (`PARAM_DEFS` in
+`prelude.ts` → `DEFAULT_CONTROLS` + `uniformValues()` in `pipeline.ts` →
+`GROUPS` in `controls.ts`; see `agent-docs/ARCHITECTURE.md` "Adding a control").
+
+- **`phosphorMode` (P22 matrix).** A discrete select, not a slider — follow the
+  existing `combMode`/`bendShape` pattern (an `f32` compared against thresholds,
+  e.g. `P.phosphorMode < 0.5`). Apply the 3×3 to `rgb` *after* the YIQ→sRGB
+  matrix (`decode.wgsl:171-175`) and *before* `gamutFit`, so the fit still
+  guarantees a valid cube. Default 0 = sRGB identity → no preset moves. Compute
+  the sRGB→P22 matrix on the CPU from P22 chromaticities and pass it in (a param
+  matrix, or hardcode a `mat3x3f` const in the shader keyed by mode). The UI has
+  no select control yet — either add one to `SliderDef`/the controls renderer, or
+  interim-ship it as a stepped slider (min 0, max 2, step 1) to avoid new UI work.
+- **`phosphorSkew`.** Replace the hard-coded `vec3f(pow(g,1.7), g, pow(g,2.4))`
+  (`decode.wgsl:184`) with skew-driven exponents, e.g.
+  `vec3f(pow(g, 1.0+P.phosphorSkew), g, pow(g, 1.0+2*P.phosphorSkew))`. Pick the
+  default so it reproduces today's 1.7/1.0/2.4 ratio exactly (skew ≈ 0.7) — that
+  keeps `strobe trails` and every other persistence preset identical. Raise the
+  `min(P.phosphor, 0.98)` ceiling (`decode.wgsl:183`) toward 0.995 and bump the
+  `phosphor` slider max in `controls.ts` to match.
+- **Peak-hold vs additive decay.** Today: `outc = max(outc, prev*decay)`
+  (`decode.wgsl:185`). Add a `phosphorDecayMix` that lerps between that `max()`
+  and an additive `outc + prev*decay` (clamp/gamut-fit the sum). Default 0 =
+  pure peak-hold → strobe presets unchanged.
+
+Risk: the persist buffer is `rgba8unorm` (`persistBuf`), so long additive trails
+will band. If they look stepped, that buffer's precision is the cause — a
+possible phase-1.5 (rgba16f) rather than a phase-2 blocker.
+
+Verify with `?preset=` + `scripts/shot.mjs` (Firefox Nightly) before/after across
+the preset list; with all new params at their defaults the captures must be
+byte-identical to Phase 1.
 
 ## Phase 3 — polish
 
