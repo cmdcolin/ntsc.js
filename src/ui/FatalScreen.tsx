@@ -16,10 +16,19 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
         <p style={{ margin: '0 0 14px' }}>{fatal.body}</p>
         {fatal.kind === 'unavailable' ? (
           <>
+            <video
+              className={styles.fatalVideo}
+              src={`${import.meta.env.BASE_URL}demo.mp4`}
+              poster={`${import.meta.env.BASE_URL}demo-poster.jpg`}
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
             <p className={shared.muted} style={{ margin: '0 0 14px' }}>
-              This app renders the entire NTSC signal path in WebGPU compute
-              shaders, so a WebGPU-capable browser with working hardware
-              acceleration is required — there is no 2D-canvas fallback.
+              Here's what it does. This app renders the entire NTSC signal path
+              in WebGPU compute shaders, so a WebGPU-capable browser with working
+              hardware acceleration is required — there is no 2D-canvas fallback.
             </p>
             <p className={shared.muted} style={{ margin: 0 }}>
               Check support at{' '}

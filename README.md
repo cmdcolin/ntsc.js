@@ -20,7 +20,10 @@ feedback loops as well (a camera pointed at its own monitor, and a
 hardware-mixer loop), and you can dirty-mix in a second source. All in WebGPU
 compute shaders, in real time.
 
-![Phosphene — mixer-loop feedback on SMPTE bars](docs/gallery/hero.jpg)
+![A photo dubbed to VHS inside the Phosphene app, alongside its full control panel](docs/gallery/hero.jpg)
+
+<sub>▶ **In motion:** [watch a 6-second clip](public/demo.mp4) · or open the
+[live demo](https://cmdcolin.github.io/phosphene/) and load your own footage.</sub>
 
 ## Gallery
 

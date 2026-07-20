@@ -30,3 +30,11 @@
   margin: 0 0 12px;
   color: #f66;
 }
+.fatalVideo {
+  display: block;
+  width: 100%;
+  margin: 0 0 16px;
+  border: 1px solid #3a3a44;
+  border-radius: 6px;
+  background: #000;
+}
