@@ -361,6 +361,7 @@ export function App() {
             value={displayValue(s.key)}
             defaultValue={DEFAULT_CONTROLS[s.key]}
             onChange={v => writeControl(s.key, v)}
+            help={s.help}
             midi={
               midiStatus === 'ready'
                 ? {

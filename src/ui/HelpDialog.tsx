@@ -32,6 +32,9 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
             Click a <b>Preset</b> for an instant look, then tweak the sliders
             below.
           </li>
+          <li>
+            Every slider has a <b>?</b> explaining the hardware fault it models.
+          </li>
         </ol>
         <div className={styles.helpHead}>Keyboard</div>
         <ul className={styles.helpList}>

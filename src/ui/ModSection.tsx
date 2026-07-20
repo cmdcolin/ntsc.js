@@ -142,6 +142,7 @@ export function ModSection(props: { engine: Engine | null }) {
                   step={0.02}
                   value={s.rateHz}
                   defaultValue={EMPTY.rateHz}
+                  help="How fast this slot's LFO cycles, in Hz. Slow rates drift the target control the way a warming-up circuit does; fast ones buzz it per-frame."
                   onChange={v => set(i, { rateHz: v })}
                 />
               )}
@@ -153,6 +154,7 @@ export function ModSection(props: { engine: Engine | null }) {
                 step={0.01}
                 value={s.depth}
                 defaultValue={EMPTY.depth}
+                help="How far the modulation swings the target, as a fraction of that control's own slider range. The resting slider position stays the centre, so presets and scenes still hold the look."
                 onChange={v => set(i, { depth: v })}
               />
             </>

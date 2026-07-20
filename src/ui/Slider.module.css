@@ -105,6 +105,18 @@
 .iconMidiSet {
   color: #7f9fd0;
 }
+/* the ? that opens this control's explainer */
+.what {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 0 0 4px;
+  font-size: 10px;
+  color: #4a4a58;
+}
+.what:hover {
+  color: #7fd0a0;
+}
 .reset {
   background: none;
   border: none;
