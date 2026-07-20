@@ -6,7 +6,7 @@ import { defineConfig } from 'vite'
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? './' : '/',
   plugins: [react()],
-  // Pinned so the screenshot harness (scripts/shot.mjs, README) has a stable
-  // URL; strictPort fails loudly instead of silently drifting to another port.
-  server: { port: 5199, strictPort: true },
+  // Preferred port for the screenshot harness (scripts/shot.mjs, README);
+  // falls back to the next free port if it's taken.
+  server: { port: 5199 },
 }))
