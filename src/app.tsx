@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { DEFAULT_CONTROLS } from './gpu/pipeline'
 import type { ControlKey, Controls } from './gpu/pipeline'
@@ -308,22 +314,45 @@ export function App() {
     })
   }
 
-  // Serialize non-default controls into the ?set= URL the loader already reads.
-  const copyLink = () => {
+  // The full look lives in the query string so a reload or shared link restores
+  // it. The managed keys (set/src/srcb) are rewritten from the live state; any
+  // other params the loader reads (iurl, iurlb, vurl, preset, debug) are left
+  // untouched so a URL-loaded source survives later edits.
+  const stateUrl = useCallback(() => {
     const set = (Object.keys(DEFAULT_CONTROLS) as ControlKey[])
       .filter(k => controls[k] !== DEFAULT_CONTROLS[k])
       .map(k => `${k}:${+controls[k].toFixed(4)}`)
     // URLSearchParams so values with spaces (src=tv static) get encoded.
-    const q = new URLSearchParams()
+    const q = new URLSearchParams(location.search)
     if (set.length) q.set('set', set.join(','))
+    else q.delete('set')
     if (eng.sourceMode !== 'bars' && eng.sourceMode !== 'file')
       q.set('src', eng.sourceMode)
+    else q.delete('src')
     if (eng.sourceBMode === 'bars' || eng.sourceBMode === 'sweep')
       q.set('srcb', eng.sourceBMode)
+    else q.delete('srcb')
     const query = q.toString()
-    const url = `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
+    return `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
+  }, [controls, eng.sourceMode, eng.sourceBMode])
+
+  // Keep the address bar current on every change (replaceState, so it doesn't
+  // flood history). Trailing-debounced: a slider drag emits a move per frame,
+  // and the browser rate-limits the history API — so coalesce to one write once
+  // the value settles. Gated on the engine existing: before it does, `controls`
+  // is the default fallback and syncing would wipe the very params the loader
+  // is about to read.
+  useEffect(() => {
+    if (eng.engine !== null) {
+      const url = stateUrl()
+      const id = setTimeout(() => history.replaceState(null, '', url), 250)
+      return () => clearTimeout(id)
+    }
+  }, [eng.engine, stateUrl])
+
+  const copyLink = () => {
     navigator.clipboard
-      .writeText(url)
+      .writeText(stateUrl())
       .then(() => {
         setCopied(true)
         setTimeout(() => setCopied(false), 1200)
