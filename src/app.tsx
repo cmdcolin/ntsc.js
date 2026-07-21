@@ -522,6 +522,7 @@ export function App() {
         fileInputBRef={eng.fileInputBRef}
         onFile={eng.onFile}
         onFileB={eng.onFileB}
+        onLoadYouTube={eng.loadYouTube}
         renderGroup={renderGroup}
       />
 
@@ -542,28 +543,9 @@ export function App() {
         onUndo={undo}
       />
 
-      <ScenesSection
-        controls={controls}
-        scenes={scenes}
-        onSave={saveScene}
-        onRecall={recallScene}
-        onClear={clearScene}
-      />
-
-      <ModSection engine={eng.engine} />
-
-      {/* MIDI only appears once enabled (from Advanced) — 99% of users never
-          wire up a controller, so it stays out of the default panel. */}
-      {midiStatus === 'ready' ? (
-        <MidiSection
-          armedKey={armedKey}
-          midiBindings={midiBindings}
-          bpm={bpm}
-          onClearBinding={clearBinding}
-          onClearAll={clearAll}
-        />
-      ) : null}
-
+      {/* The signal-path map is the panel's trunk, so it sits high — right under
+          the source and preset front door — and the filter that acts on it heads
+          it. Scenes/mod/audio/midi are occasional tools and drop below it. */}
       <input
         className={styles.filter}
         type="search"
@@ -571,18 +553,6 @@ export function App() {
         value={filter}
         onChange={e => setFilter(e.target.value)}
       />
-      {AUDIO_GROUP === undefined ? null : (
-        <AudioSection
-          active={audio.active}
-          level={audio.level}
-          hit={audio.hit}
-          error={audio.error}
-          onEnableMic={audio.enableMic}
-          onDisable={audio.disable}
-          group={AUDIO_GROUP}
-          renderGroup={renderGroup}
-        />
-      )}
       {PHASED_GROUPS.map(phase => {
         const rendered = phase.groups.map(group =>
           renderGroup(group, false, {
@@ -597,6 +567,41 @@ export function App() {
           </div>
         )
       })}
+
+      <ScenesSection
+        controls={controls}
+        scenes={scenes}
+        onSave={saveScene}
+        onRecall={recallScene}
+        onClear={clearScene}
+      />
+
+      <ModSection engine={eng.engine} />
+
+      {AUDIO_GROUP === undefined ? null : (
+        <AudioSection
+          active={audio.active}
+          level={audio.level}
+          hit={audio.hit}
+          error={audio.error}
+          onEnableMic={audio.enableMic}
+          onDisable={audio.disable}
+          group={AUDIO_GROUP}
+          renderGroup={renderGroup}
+        />
+      )}
+
+      {/* MIDI only appears once enabled (from Advanced) — 99% of users never
+          wire up a controller, so it stays out of the default panel. */}
+      {midiStatus === 'ready' ? (
+        <MidiSection
+          armedKey={armedKey}
+          midiBindings={midiBindings}
+          bpm={bpm}
+          onClearBinding={clearBinding}
+          onClearAll={clearAll}
+        />
+      ) : null}
     </>
   )
 

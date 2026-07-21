@@ -20,6 +20,12 @@ const urlName = (url: string): string => {
   return name === '' ? url : name
 }
 
+// The 11-char video id from a watch/youtu.be URL, for a compact source label.
+const ytId = (url: string): string => {
+  const u = new URL(url, location.href)
+  return u.searchParams.get('v') ?? u.pathname.slice(1)
+}
+
 declare global {
   interface Window {
     vf?: Engine
@@ -196,6 +202,39 @@ export function useEngine() {
           .then(() => engine.setVideoSource(v))
           .catch(() => {})
       }
+    }
+  }
+
+  // Fetches a YouTube clip through the dev yt-dlp bridge (vite-plugin-ytdlp),
+  // then feeds it to the same blob-backed <video> path as a picked file.
+  const loadYouTube = (url: string) => {
+    const engine = engineRef.current
+    const trimmed = url.trim()
+    if (engine && trimmed !== '') {
+      stopVideo()
+      setError('')
+      setSourceMode('file')
+      setSourceName(`youtube: ${ytId(trimmed)} — downloading…`)
+      fetch(`/yt?url=${encodeURIComponent(trimmed)}`)
+        .then(r =>
+          r.ok
+            ? r.blob()
+            : r.text().then(t => Promise.reject(new Error(t || `${r.status}`))),
+        )
+        .then(
+          blob => {
+            const v = makeVideo()
+            v.src = URL.createObjectURL(blob)
+            v.play()
+              .then(() => engine.setVideoSource(v))
+              .catch(() => {})
+            setSourceName(`youtube: ${ytId(trimmed)}`)
+          },
+          (e: unknown) => {
+            setError(`youtube: ${e instanceof Error ? e.message : String(e)}`)
+            setSourceName('')
+          },
+        )
     }
   }
 
@@ -403,5 +442,6 @@ export function useEngine() {
     fileInputBRef,
     onFile,
     onFileB,
+    loadYouTube,
   }
 }

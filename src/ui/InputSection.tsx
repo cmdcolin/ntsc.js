@@ -1,4 +1,4 @@
-import type { ReactNode, RefObject } from 'react'
+import { useState, type ReactNode, type RefObject } from 'react'
 import styles from '../app.module.css'
 import {
   SOURCE_B_MODES,
@@ -27,8 +27,10 @@ export function InputSection(props: {
   fileInputBRef: RefObject<HTMLInputElement | null>
   onFile: (file: File | undefined) => void
   onFileB: (file: File | undefined) => void
+  onLoadYouTube: (url: string) => void
   renderGroup: (group: Group, defaultOpen: boolean) => ReactNode
 }) {
+  const [yt, setYt] = useState('')
   return (
     <div>
       <div className={cx(styles.head, styles.static)}>Input</div>
@@ -55,6 +57,29 @@ export function InputSection(props: {
         <div className={styles.fileName} title={props.sourceName}>
           {props.sourceName}
         </div>
+      ) : null}
+      {import.meta.env.DEV ? (
+        <form
+          className={styles.inputRow}
+          onSubmit={e => {
+            e.preventDefault()
+            props.onLoadYouTube(yt)
+          }}
+        >
+          <span
+            className={styles.tag}
+            title="paste a YouTube URL, press Enter (dev only, via yt-dlp)"
+          >
+            ▶
+          </span>
+          <input
+            className={styles.select}
+            type="text"
+            placeholder="YouTube URL ↵"
+            value={yt}
+            onChange={e => setYt(e.target.value)}
+          />
+        </form>
       ) : null}
       {props.sourceMode === 'webcam' && props.videoDevices.length > 1 ? (
         <div className={styles.inputRow}>

@@ -14,6 +14,7 @@
     "skipLibCheck": true,
     "isolatedModules": true
   },
-  "include": ["src", "vite.config.ts"],
-  "exclude": ["src/**/*.test.ts"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }
