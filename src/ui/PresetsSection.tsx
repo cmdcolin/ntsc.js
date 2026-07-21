@@ -217,7 +217,7 @@ export function PresetsSection(props: {
         undo
       </button>
       <div className={styles.hint}>
-        click a preset, or drag it sideways to mix it in · “clean” resets
+        click and drag on buttons to partially apply · “clean” resets
         everything · hold C to compare · f for fullscreen
       </div>
       {showHelp ? (
