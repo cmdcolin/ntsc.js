@@ -12,18 +12,22 @@ export function Popover(props: {
 
   useEffect(() => {
     if (!open) return
+    const doc = wrapRef.current?.ownerDocument
+    if (doc === undefined) return
     const onPointerDown = (e: PointerEvent) => {
       if (!wrapRef.current?.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
+    doc.addEventListener('pointerdown', onPointerDown)
+    return () => doc.removeEventListener('pointerdown', onPointerDown)
   }, [open])
 
   return (
     <div className={styles.wrap} ref={wrapRef}>
       {props.trigger(() => setOpen(o => !o))}
       {open && (
-        <div className={styles.menu}>{props.children(() => setOpen(false))}</div>
+        <div className={styles.menu}>
+          {props.children(() => setOpen(false))}
+        </div>
       )}
     </div>
   )

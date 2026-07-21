@@ -1,9 +1,16 @@
 import { useState } from 'react'
 
-// Read a JSON-encoded value from localStorage, falling back when it's absent.
+// Read a JSON-encoded value from localStorage, falling back when it's absent or
+// unparseable — a corrupt or stale-schema value should reset to the default, not
+// throw out of the mount-time loaders that read it and crash the whole app.
 export function readJSON<T>(key: string, fallback: T): T {
   const raw = localStorage.getItem(key)
-  return raw === null ? fallback : (JSON.parse(raw) as T)
+  if (raw === null) return fallback
+  try {
+    return JSON.parse(raw) as T
+  } catch {
+    return fallback
+  }
 }
 
 export function writeJSON(key: string, value: unknown) {
