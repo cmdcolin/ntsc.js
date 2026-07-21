@@ -21,18 +21,28 @@ export function Section(props: {
   // Optional accessory (e.g. a ? explainer) beside the title. It must stop its
   // own clicks from bubbling, or they toggle the section.
   help?: ReactNode
+  // Controlled mode: when onToggle is supplied the parent owns open/closed
+  // (single-open phase browsing). Without it the section self-manages and
+  // persists its own state, as the Input and Audio sections still do.
+  open?: boolean
+  onToggle?: () => void
 }) {
-  const [open, setOpen] = useState(
+  const [selfOpen, setSelfOpen] = useState(
     () => loadOpenMap()[props.title] ?? props.defaultOpen ?? true,
   )
+  const open = props.onToggle === undefined ? selfOpen : props.open === true
   const shown = props.forceOpen === true || open
   const toggle = () => {
-    const next = !open
-    setOpen(next)
-    localStorage.setItem(
-      STORE,
-      JSON.stringify({ ...loadOpenMap(), [props.title]: next }),
-    )
+    if (props.onToggle === undefined) {
+      const next = !selfOpen
+      setSelfOpen(next)
+      localStorage.setItem(
+        STORE,
+        JSON.stringify({ ...loadOpenMap(), [props.title]: next }),
+      )
+    } else {
+      props.onToggle()
+    }
   }
   return (
     <div>

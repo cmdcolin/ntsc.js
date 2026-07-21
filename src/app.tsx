@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { DEFAULT_CONTROLS } from './controls'
 import type { ControlKey, Controls } from './controls'
-import { GROUPS, type Group } from './ui/controls'
+import { GROUPS, PHASES, type Group } from './ui/controls'
 import { SYNCABLE_KEYS, SYNC_DIVISIONS, omit, syncedValue } from './ui/midi'
 import {
   blendPresets,
@@ -38,8 +38,17 @@ import styles from './app.module.css'
 const subscribeNever = () => () => {}
 const getDefaultControls = (): Controls => DEFAULT_CONTROLS
 
-const MAIN_GROUPS = GROUPS.filter(g => g.ab !== true && g.audio !== true)
 const AUDIO_GROUP = GROUPS.find(g => g.audio === true)
+// The main groups arranged by signal-path phase — the spine the panel is
+// browsed along. PHASES names the stages; resolve each to its group object.
+const GROUP_BY_NAME = new Map(GROUPS.map(g => [g.name, g]))
+const PHASED_GROUPS = PHASES.map(p => ({
+  name: p.name,
+  groups: p.groups.flatMap(n => {
+    const g = GROUP_BY_NAME.get(n)
+    return g === undefined ? [] : [g]
+  }),
+}))
 // Every control that has a slider — the full set `mutate` jitters.
 const ALL_SLIDERS = GROUPS.flatMap(g => g.sliders)
 const SYNCABLE_SET = new Set<ControlKey>(SYNCABLE_KEYS)
@@ -76,6 +85,9 @@ function isTextEntry(t: EventTarget | null): boolean {
   )
 }
 
+// Which signal-path stage is expanded. Persisted so a reload keeps your place.
+const OPEN_GROUP_STORE = 'video_feedback_open_group'
+
 export function App() {
   const eng = useEngine()
   const engineRef = eng.engineRef
@@ -106,6 +118,19 @@ export function App() {
   const [lastPreset, setLastPreset] = useState<string | null>(null)
   const [comparing, setComparing] = useState(false)
   const [filter, setFilter] = useState('')
+  // Single-open browsing of the signal-path stages: only one stage's controls
+  // expand at a time, so the phase map above them stays visible. null = the map
+  // alone, which is where exploration starts.
+  const [openGroup, setOpenGroup] = useState<string | null>(() =>
+    localStorage.getItem(OPEN_GROUP_STORE),
+  )
+  const toggleGroup = (name: string) =>
+    setOpenGroup(prev => {
+      const next = prev === name ? null : name
+      if (next === null) localStorage.removeItem(OPEN_GROUP_STORE)
+      else localStorage.setItem(OPEN_GROUP_STORE, next)
+      return next
+    })
   const [scenes, setScenes] = useState<SceneMap>(loadScenes)
   // Single-level undo: the look from just before the last destructive apply
   // (preset, scene recall, or mutate), so a misclick is one keypress back.
@@ -402,7 +427,11 @@ export function App() {
   const audio = useAudio(eng.engine)
 
   const query = filter.trim().toLowerCase()
-  const renderGroup = (group: Group, defaultOpen: boolean) => {
+  const renderGroup = (
+    group: Group,
+    defaultOpen: boolean,
+    control?: { open: boolean; onToggle: () => void },
+  ) => {
     const sliders =
       query === '' || group.name.toLowerCase().includes(query)
         ? group.sliders
@@ -417,6 +446,8 @@ export function App() {
         defaultOpen={defaultOpen}
         forceOpen={query !== ''}
         dot={touched}
+        open={control?.open}
+        onToggle={control?.onToggle}
       >
         {sliders.map(s => (
           <Slider
@@ -479,8 +510,10 @@ export function App() {
 
       <InputSection
         sourceMode={eng.sourceMode}
+        sourceName={eng.sourceName}
         onSelectSource={eng.selectSource}
         sourceBMode={eng.sourceBMode}
+        sourceBName={eng.sourceBName}
         onSelectSourceB={eng.selectSourceB}
         webcamDeviceId={eng.webcamDeviceId}
         videoDevices={eng.videoDevices}
@@ -550,7 +583,20 @@ export function App() {
           renderGroup={renderGroup}
         />
       )}
-      {MAIN_GROUPS.map(group => renderGroup(group, false))}
+      {PHASED_GROUPS.map(phase => {
+        const rendered = phase.groups.map(group =>
+          renderGroup(group, false, {
+            open: openGroup === group.name,
+            onToggle: () => toggleGroup(group.name),
+          }),
+        )
+        return rendered.every(r => r === null) ? null : (
+          <div key={phase.name}>
+            <div className={styles.phaseLabel}>{phase.name}</div>
+            {rendered}
+          </div>
+        )
+      })}
     </>
   )
 

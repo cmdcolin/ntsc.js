@@ -1119,6 +1119,21 @@ export const GROUPS: Group[] = [
   },
 ]
 
+// The signal-path phases, in order — the spine the panel is browsed along.
+// Groups are named rather than flagged so this stays one compact, readable map
+// of the chain; ab (A/B mix) and audio groups are surfaced contextually next to
+// the Input row and in the Audio section, so they carry no phase.
+export const PHASES: { name: string; groups: string[] }[] = [
+  { name: 'Source', groups: ['Signal (source A)', 'Cable / Wiring'] },
+  { name: 'Feedback', groups: ['Camera Feedback', 'Mixer Loop (composite)'] },
+  {
+    name: 'Tape',
+    groups: ['Tape / Channel', 'VHS Chroma', 'VHS Tracking', 'Timebase'],
+  },
+  { name: 'Receiver', groups: ['Sync', 'Deflection', 'Decoder'] },
+  { name: 'Screen', groups: ['Display'] },
+]
+
 // Span/step lookup for the code that maps external values onto controls —
 // MIDI CC scaling, modulation depth, mutation — none of which have the group
 // walk in hand.
