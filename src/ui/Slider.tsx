@@ -1,8 +1,32 @@
-import { useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { cx } from './cx'
 import { formatValue } from './format'
 import { SliderHelpDialog } from './SliderHelpDialog'
 import styles from './Slider.module.css'
+
+// The readout's little accessory buttons (help, sync, MIDI, favorite, reset).
+// They sit inside the <label>, so each click must preventDefault or it forwards
+// to the range input and nudges the value.
+function IconButton(props: {
+  title: string
+  className: string
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      title={props.title}
+      className={props.className}
+      onClick={e => {
+        e.preventDefault()
+        props.onClick()
+      }}
+    >
+      {props.children}
+    </button>
+  )
+}
 
 export function Slider(props: {
   label: string
@@ -45,23 +69,20 @@ export function Slider(props: {
           <span>
             {props.label}
             {help === undefined ? null : (
-              <button
+              <IconButton
                 title="what does this do?"
                 className={styles.what}
-                onClick={e => {
-                  e.preventDefault()
-                  setShowHelp(true)
-                }}
+                onClick={() => setShowHelp(true)}
               >
                 ?
-              </button>
+              </IconButton>
             )}
           </span>
           <span className={styles.value}>
             {formatValue(props.value, props.step)}
             {props.unit}
             {sync ? (
-              <button
+              <IconButton
                 title={
                   sync.label === null
                     ? 'lock to MIDI clock'
@@ -72,16 +93,13 @@ export function Slider(props: {
                   sync.label !== null &&
                     (sync.live ? styles.iconOn : styles.iconSyncSet),
                 )}
-                onClick={e => {
-                  e.preventDefault()
-                  sync.onCycle()
-                }}
+                onClick={sync.onCycle}
               >
                 {sync.label === null ? '♩' : `♩${sync.label}`}
-              </button>
+              </IconButton>
             ) : null}
             {midi ? (
-              <button
+              <IconButton
                 title={
                   midi.label === null
                     ? 'assign a MIDI control'
@@ -93,45 +111,36 @@ export function Slider(props: {
                     ? styles.iconOn
                     : midi.label !== null && styles.iconMidiSet,
                 )}
-                onClick={e => {
-                  e.preventDefault()
-                  midi.onArm()
-                }}
+                onClick={midi.onArm}
               >
                 {midi.armed
                   ? 'learn…'
                   : midi.label === null
                     ? '⚟'
                     : `CC${midi.label}`}
-              </button>
+              </IconButton>
             ) : null}
             {favorite ? (
-              <button
+              <IconButton
                 title={
                   favorite.on ? 'remove from Favorites' : 'pin to Favorites'
                 }
                 className={cx(styles.icon, favorite.on && styles.iconOn)}
-                onClick={e => {
-                  e.preventDefault()
-                  favorite.onToggle()
-                }}
+                onClick={favorite.onToggle}
               >
                 {favorite.on ? '★' : '☆'}
-              </button>
+              </IconButton>
             ) : null}
-            <button
+            <IconButton
               title="reset"
               className={cx(
                 styles.reset,
                 props.value === props.defaultValue && styles.resetDef,
               )}
-              onClick={e => {
-                e.preventDefault()
-                props.onChange(props.defaultValue)
-              }}
+              onClick={() => props.onChange(props.defaultValue)}
             >
               ↺
-            </button>
+            </IconButton>
           </span>
         </span>
         <input

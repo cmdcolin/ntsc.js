@@ -42,95 +42,93 @@ export function MidiSection(props: {
 
   return (
     <Section title="MIDI">
-      <>
-        <div className={learn === null ? styles.hint : styles.amber}>{hint}</div>
+      <div className={learn === null ? styles.hint : styles.amber}>{hint}</div>
 
-        {learn === null ? (
-          <>
-            <div className={styles.midiRow}>
-              <select
-                className={styles.select}
-                value={deviceName}
-                onChange={e => setDeviceName(e.target.value)}
-              >
-                {DEVICE_PROFILES.map(d => (
-                  <option key={d.name} value={d.name}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                className={styles.btn}
-                onClick={() => props.onAutoMap(device)}
-              >
-                auto-map
-              </button>
-              <button
-                className={styles.btn}
-                onClick={() => props.onLearnSequence()}
-              >
-                learn in order
-              </button>
-            </div>
-            <div className={styles.dim} style={{ margin: '0 0 6px' }}>
-              auto-map assigns the first{' '}
-              {Math.min(device.ccs.length, TOTAL_CONTROLS)} controls to its knobs
-              by CC. learn in order works for any controller: sweep each knob
-              once, left to right. either way, set once then work from the box.
-              {bound < TOTAL_CONTROLS && bound > 0
-                ? ` ${TOTAL_CONTROLS - bound} controls have no knob; reach those on-screen or bind by hand.`
-                : ''}
-            </div>
-          </>
-        ) : (
-          <button
-            className={styles.btn}
-            style={{ margin: '0 0 6px' }}
-            onClick={() => props.onStopLearn()}
-          >
-            stop learning
-          </button>
-        )}
-
-        {Object.entries(props.midiBindings).map(([key, b]) => (
-          <div key={key} className={styles.midiRow}>
-            <span>
-              {LABEL_BY_KEY.get(key as ControlKey) ?? key}{' '}
-              <span className={styles.blue}>· CC{b.controller}</span>
-              {b.channel === 0 ? (
-                ''
-              ) : (
-                <span className={styles.dim}> ch{b.channel + 1}</span>
-              )}
-            </span>
-            <button
-              className={styles.iconX}
-              onClick={() => props.onClearBinding(key as ControlKey)}
+      {learn === null ? (
+        <>
+          <div className={styles.midiRow}>
+            <select
+              className={styles.select}
+              value={deviceName}
+              onChange={e => setDeviceName(e.target.value)}
             >
-              ×
+              {DEVICE_PROFILES.map(d => (
+                <option key={d.name} value={d.name}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className={styles.btn}
+              onClick={() => props.onAutoMap(device)}
+            >
+              auto-map
+            </button>
+            <button
+              className={styles.btn}
+              onClick={() => props.onLearnSequence()}
+            >
+              learn in order
             </button>
           </div>
-        ))}
-        {bound === 0 ? null : (
-          <button
-            className={cx(styles.btn, styles.danger)}
-            onClick={() => props.onClearAll()}
-          >
-            clear all bindings
-          </button>
-        )}
-        <div
-          className={props.bpm === null ? styles.dim : styles.amber}
-          style={{ margin: '8px 0 2px' }}
+          <div className={styles.dim} style={{ margin: '0 0 6px' }}>
+            auto-map assigns the first{' '}
+            {Math.min(device.ccs.length, TOTAL_CONTROLS)} controls to its knobs
+            by CC. learn in order works for any controller: sweep each knob
+            once, left to right. either way, set once then work from the box.
+            {bound < TOTAL_CONTROLS && bound > 0
+              ? ` ${TOTAL_CONTROLS - bound} controls have no knob; reach those on-screen or bind by hand.`
+              : ''}
+          </div>
+        </>
+      ) : (
+        <button
+          className={styles.btn}
+          style={{ margin: '0 0 6px' }}
+          onClick={() => props.onStopLearn()}
         >
-          {props.bpm === null
-            ? 'clock ♩ — no signal'
-            : `clock ♩ = ${props.bpm.toFixed(1)} BPM`}
+          stop learning
+        </button>
+      )}
+
+      {Object.entries(props.midiBindings).map(([key, b]) => (
+        <div key={key} className={styles.midiRow}>
+          <span>
+            {LABEL_BY_KEY.get(key as ControlKey) ?? key}{' '}
+            <span className={styles.blue}>· CC{b.controller}</span>
+            {b.channel === 0 ? (
+              ''
+            ) : (
+              <span className={styles.dim}> ch{b.channel + 1}</span>
+            )}
+          </span>
+          <button
+            className={styles.iconX}
+            onClick={() => props.onClearBinding(key as ControlKey)}
+          >
+            ×
+          </button>
         </div>
-        <div className={styles.dim} style={{ margin: '0 0 2px' }}>
-          click ♩ on a rate slider (sweep, line offset) to lock it to the beat.
-        </div>
-      </>
+      ))}
+      {bound === 0 ? null : (
+        <button
+          className={cx(styles.btn, styles.danger)}
+          onClick={() => props.onClearAll()}
+        >
+          clear all bindings
+        </button>
+      )}
+      <div
+        className={props.bpm === null ? styles.dim : styles.amber}
+        style={{ margin: '8px 0 2px' }}
+      >
+        {props.bpm === null
+          ? 'clock ♩ — no signal'
+          : `clock ♩ = ${props.bpm.toFixed(1)} BPM`}
+      </div>
+      <div className={styles.dim} style={{ margin: '0 0 2px' }}>
+        click ♩ on a rate slider (sweep, line offset) to lock it to the beat.
+      </div>
     </Section>
   )
 }

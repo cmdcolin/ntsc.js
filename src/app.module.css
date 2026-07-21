@@ -332,6 +332,10 @@
   border-radius: 8px;
   padding: 18px 20px;
 }
+/* focused programmatically on open (never a Tab stop), so no ring */
+.card:focus {
+  outline: none;
+}
 .cardWide {
   width: 460px;
   line-height: 1.5;

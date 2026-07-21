@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { DEFAULT_CONTROLS } from './controls'
 import { gitSha, versionLabel } from './version'
 import type { ControlKey, Controls } from './controls'
 import { GROUPS, PHASES, type Group, type SliderDef } from './ui/controls'
-import { SYNCABLE_KEYS, SYNC_DIVISIONS, omit, syncedValue } from './ui/midi'
+import { SYNCABLE_KEYS } from './ui/midi'
 import {
   blendPresets,
   controlsEqual,
@@ -31,9 +31,14 @@ import { MidiSection } from './ui/MidiSection'
 import { AudioSection } from './ui/AudioSection'
 import { VaporwaveSection } from './ui/VaporwaveSection'
 import { useAudio } from './ui/useAudio'
+import { useClockSync } from './ui/useClockSync'
 import { useEngine } from './ui/useEngine'
+import { useFavorites } from './ui/useFavorites'
 import { useMidi } from './ui/useMidi'
+import { usePageLifecycle } from './ui/usePageLifecycle'
 import { usePopout } from './ui/usePopout'
+import { useScenes } from './ui/useScenes'
+import { useShortcuts } from './ui/useShortcuts'
 import { useUrlState } from './ui/useUrlState'
 import styles from './app.module.css'
 
@@ -50,45 +55,8 @@ const AB_GROUPS = GROUPS.filter(g => g.place === 'ab')
 const ALL_SLIDERS = GROUPS.flatMap(g => g.sliders)
 const SYNCABLE_SET = new Set<ControlKey>(SYNCABLE_KEYS)
 
-// Sliders the user has pinned to the Favorites section, by control key. Stored
-// as a plain key list so a reload keeps the pins.
-const FAVORITES_STORE = 'video_feedback_favorites'
-function loadFavorites(): Set<ControlKey> {
-  const raw = localStorage.getItem(FAVORITES_STORE)
-  return new Set(raw === null ? [] : (JSON.parse(raw) as ControlKey[]))
-}
-
-// Which rate controls are clock-locked, and to which SYNC_DIVISIONS index.
-type SyncMap = Partial<Record<ControlKey, number>>
-const SYNC_STORE = 'video_feedback_midi_sync'
-function loadSync(): SyncMap {
-  const raw = localStorage.getItem(SYNC_STORE)
-  return raw === null ? {} : (JSON.parse(raw) as SyncMap)
-}
-
-// Numbered performance snapshots (slots 1–9). localStorage is the source of
-// truth so the mount-anchored key handlers never work from stale React state.
-type SceneMap = Partial<Record<string, Partial<Controls>>>
-const SCENES_STORE = 'video_feedback_scenes'
 // Stable empty weights, so a stale mix passes the same map every render.
 const NO_WEIGHTS: PresetWeights = new Map()
-function loadScenes(): SceneMap {
-  const raw = localStorage.getItem(SCENES_STORE)
-  return raw === null ? {} : (JSON.parse(raw) as SceneMap)
-}
-
-// The panel can live in the popout window, whose elements belong to a foreign
-// realm — `instanceof HTMLInputElement` is always false there — so sniff the
-// shape instead. Range sliders don't count: they should not swallow shortcuts.
-function isTextEntry(t: EventTarget | null): boolean {
-  return (
-    t !== null &&
-    'tagName' in t &&
-    t.tagName === 'INPUT' &&
-    'type' in t &&
-    t.type !== 'range'
-  )
-}
 
 // Which signal-path stage is expanded. Persisted so a reload keeps your place.
 const OPEN_GROUP_STORE = 'video_feedback_open_group'
@@ -119,11 +87,15 @@ export function App() {
     eng.engine === null ? subscribeNever : eng.engine.subscribeControls,
     eng.engine === null ? getDefaultControls : eng.engine.getControls,
   )
+  const { cycleSync, syncLabel, displayValue } = useClockSync({
+    controls,
+    bpm,
+    writeControl,
+  })
   const { popout, openPopout } = usePopout()
   const [fullscreen, setFullscreen] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const [syncMap, setSyncMap] = useState<SyncMap>(loadSync)
   const [lastPreset, setLastPreset] = useState<string | null>(null)
   const [comparing, setComparing] = useState(false)
   const [filter, setFilter] = useState('')
@@ -140,16 +112,7 @@ export function App() {
       else localStorage.setItem(OPEN_GROUP_STORE, next)
       return next
     })
-  const [scenes, setScenes] = useState<SceneMap>(loadScenes)
-  const [favorites, setFavorites] = useState<Set<ControlKey>>(loadFavorites)
-  const toggleFavorite = (key: ControlKey) =>
-    setFavorites(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      localStorage.setItem(FAVORITES_STORE, JSON.stringify([...next]))
-      return next
-    })
+  const { favorites, toggleFavorite } = useFavorites()
   // Single-level undo: the look from just before the last destructive apply
   // (preset, scene recall, or mutate), so a misclick is one keypress back.
   const [undoSnapshot, setUndoSnapshot] = useState<Controls | null>(null)
@@ -192,6 +155,11 @@ export function App() {
       setUndoSnapshot(null)
     }
   }
+  const { scenes, saveScene, recallScene, clearScene } = useScenes(
+    engineRef,
+    writeControls,
+    snapshotForUndo,
+  )
 
   const applyPreset = (name: string, patch: Partial<Controls>) => {
     if (Object.keys(patch).length === 0) {
@@ -240,29 +208,6 @@ export function App() {
     }
   }
 
-  const persistScenes = (next: SceneMap) => {
-    localStorage.setItem(SCENES_STORE, JSON.stringify(next))
-    setScenes(next)
-  }
-  const saveScene = (n: number) => {
-    const cur = engineRef.current?.getControls()
-    if (cur !== undefined) persistScenes({ ...loadScenes(), [n]: cur })
-  }
-  const recallScene = (n: number) => {
-    const scene = loadScenes()[n]
-    if (scene !== undefined) {
-      snapshotForUndo()
-      writeControls(presetControls(scene))
-    }
-  }
-  const clearScene = (n: number) => {
-    persistScenes(
-      Object.fromEntries(
-        Object.entries(loadScenes()).filter(([k]) => k !== String(n)),
-      ),
-    )
-  }
-
   // Hold-to-compare: preview the clean defaults on the render path without
   // touching the store (sliders stay put), then restore from it on release.
   const startCompare = () => {
@@ -280,163 +225,29 @@ export function App() {
   const captureName = activePreset ? activePreset.name : (lastPreset ?? 'edit')
   const capture = useCapture(eng.canvasRef, captureName)
 
-  // The keydown listener is mount-anchored (below) and must not re-subscribe on
-  // every render, so it reads the latest action closures through this ref.
-  const actionsRef = useRef({ capture, undo, undoSnapshot })
-  actionsRef.current = { capture, undo, undoSnapshot }
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const typing = isTextEntry(e.target)
-      const { capture, undo, undoSnapshot } = actionsRef.current
-      // Match letter shortcuts regardless of Shift/Caps Lock, so the hint's
-      // "hold C to compare" works whether or not C arrives capitalized.
-      const key = e.key.toLowerCase()
-      if (e.key === 'Escape') {
-        setShowAdvanced(false)
-        setShowHelp(false)
-        setFilter('')
-        disarm()
-        stopLearn()
-      } else if ((e.ctrlKey || e.metaKey) && key === 'z') {
-        if (undoSnapshot !== null) {
-          e.preventDefault()
-          undo()
-        }
-      } else if (!typing && key === 'f') {
-        toggleFullscreen()
-      } else if (!typing && key === 'c' && !e.repeat) {
-        startCompare()
-      } else if (!typing && key === 'r' && !e.repeat) {
-        capture.toggleRecord()
-      } else if (!typing && key === 's' && !e.repeat) {
-        capture.grabStill()
-      } else if (!typing) {
-        const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code)
-        if (m !== null && !e.repeat) {
-          if (e.shiftKey) saveScene(Number(m[1]))
-          else recallScene(Number(m[1]))
-        }
-      }
-    }
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'c') endCompare()
-    }
-    // Shortcuts work wherever the panel lives: main window and the popout.
-    const targets = popout === null ? [window] : [window, popout]
-    for (const t of targets) {
-      t.addEventListener('keydown', onKey)
-      t.addEventListener('keyup', onKeyUp)
-    }
-    return () => {
-      for (const t of targets) {
-        t.removeEventListener('keydown', onKey)
-        t.removeEventListener('keyup', onKeyUp)
-      }
-    }
-    // Handlers act through stable refs/setters (and localStorage for scenes);
-    // only the popout window appearing or going away changes the subscription.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [popout])
-
-  useEffect(() => {
-    // Lifecycle breadcrumbs: log every transition that could precede a freeze
-    // BEFORE doing anything, so if the tab then locks up the last console line
-    // names the trigger (tab hidden/shown, browser-frozen background tab, etc).
-    const log = (m: string) => console.log(`[lifecycle] ${m}`)
-    // Exiting fullscreen (and re-showing a hidden tab) can leave the browser
-    // having stopped delivering rAF callbacks; re-arm the loop so the canvas
-    // doesn't stay frozen. kick() is a no-op when the loop is already healthy.
-    const onFs = () => {
-      const fs = document.fullscreenElement !== null
-      setFullscreen(fs)
-      log(`fullscreen ${fs ? 'entered' : 'exited'}`)
-      engineRef.current?.kick()
-    }
-    const onVisible = () => {
-      log(`visibility -> ${document.visibilityState}`)
-      if (document.visibilityState === 'visible') engineRef.current?.kick()
-    }
-    // Regaining focus (window un-occluded / re-selected) is a prime moment for
-    // Firefox to resume a suspended refresh driver — nudge rAF right away.
-    const onFocus = () => engineRef.current?.kick()
-    // Page Lifecycle API: Firefox can freeze/discard a backgrounded tab; these
-    // fire around that, and a `freeze` as the last line points straight at it.
-    const onFreeze = () => log('freeze (tab suspended by browser)')
-    const onResume = () => {
-      log('resume (tab un-suspended)')
-      engineRef.current?.kick()
-    }
-    const onPageHide = (e: PageTransitionEvent) =>
-      log(`pagehide (persisted=${e.persisted})`)
-    // Restored from bfcache: the GPUDevice captured before navigating away is
-    // dead, so the canvas would render frozen. Reload to build a fresh engine.
-    const onPageShow = (e: PageTransitionEvent) => {
-      log(`pageshow (persisted=${e.persisted})`)
-      if (e.persisted) location.reload()
-    }
-    window.addEventListener('pageshow', onPageShow)
-    window.addEventListener('pagehide', onPageHide)
-    window.addEventListener('focus', onFocus)
-    document.addEventListener('fullscreenchange', onFs)
-    document.addEventListener('visibilitychange', onVisible)
-    document.addEventListener('freeze', onFreeze)
-    document.addEventListener('resume', onResume)
-    return () => {
-      window.removeEventListener('pageshow', onPageShow)
-      window.removeEventListener('pagehide', onPageHide)
-      window.removeEventListener('focus', onFocus)
-      document.removeEventListener('fullscreenchange', onFs)
-      document.removeEventListener('visibilitychange', onVisible)
-      document.removeEventListener('freeze', onFreeze)
-      document.removeEventListener('resume', onResume)
-    }
-  }, [engineRef])
+  useShortcuts(popout, {
+    // Dialogs close themselves (each Dialog binds Escape to its own document);
+    // here Escape just backs out of the panel's own modes.
+    onEscape: () => {
+      setFilter('')
+      disarm()
+      stopLearn()
+    },
+    onUndo: undo,
+    canUndo: undoSnapshot !== null,
+    onToggleFullscreen: toggleFullscreen,
+    onStartCompare: startCompare,
+    onEndCompare: endCompare,
+    onToggleRecord: capture.toggleRecord,
+    onGrabStill: capture.grabStill,
+    onSaveScene: saveScene,
+    onRecallScene: recallScene,
+  })
+  usePageLifecycle(engineRef, setFullscreen)
 
   const bindLabel = (key: ControlKey): string | null => {
     const b = midiBindings[key]
     return b === undefined ? null : String(b.controller)
-  }
-
-  const syncLabel = (key: ControlKey): string | null => {
-    const div = syncMap[key]
-    return div === undefined ? null : SYNC_DIVISIONS[div].label
-  }
-
-  // A clock-locked control's value is a pure function of tempo + division, so
-  // compute it during render instead of storing it in state.
-  const displayValue = (key: ControlKey): number => {
-    const div = syncMap[key]
-    return div !== undefined && bpm !== null
-      ? syncedValue(key, bpm, SYNC_DIVISIONS[div].beats)
-      : controls[key]
-  }
-  const wipeRateValue = displayValue('wipeRate')
-  const bLineHzValue = displayValue('bLineHz')
-
-  // The one genuine synchronization: push each locked value to the external GPU
-  // engine (and MIDI takeover state) whenever the rendered value changes.
-  useEffect(
-    () => writeControl('wipeRate', wipeRateValue),
-    [writeControl, wipeRateValue],
-  )
-  useEffect(
-    () => writeControl('bLineHz', bLineHzValue),
-    [writeControl, bLineHzValue],
-  )
-
-  // Cycle a control through off → each division → off, persisting the choice.
-  const cycleSync = (key: ControlKey) => {
-    setSyncMap(prev => {
-      const cur = prev[key]
-      const nextIdx = cur === undefined ? 0 : cur + 1
-      const next =
-        nextIdx >= SYNC_DIVISIONS.length
-          ? omit(prev, key)
-          : { ...prev, [key]: nextIdx }
-      localStorage.setItem(SYNC_STORE, JSON.stringify(next))
-      return next
-    })
   }
 
   const { copyLink, copied } = useUrlState({
