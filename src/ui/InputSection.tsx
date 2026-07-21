@@ -15,8 +15,10 @@ const AB_GROUPS = GROUPS.filter(g => g.ab)
 
 export function InputSection(props: {
   sourceMode: SourceMode
+  sourceName: string
   onSelectSource: (mode: SourceMode) => void
   sourceBMode: SourceBMode
+  sourceBName: string
   onSelectSourceB: (mode: SourceBMode) => void
   webcamDeviceId: string
   videoDevices: MediaDeviceInfo[]
@@ -49,6 +51,11 @@ export function InputSection(props: {
           ))}
         </select>
       </div>
+      {props.sourceMode === 'file' && props.sourceName !== '' ? (
+        <div className={styles.fileName} title={props.sourceName}>
+          {props.sourceName}
+        </div>
+      ) : null}
       {props.sourceMode === 'webcam' && props.videoDevices.length > 1 ? (
         <div className={styles.inputRow}>
           <span className={styles.tag} title="capture device">
@@ -86,6 +93,11 @@ export function InputSection(props: {
           ))}
         </select>
       </div>
+      {props.sourceBMode === 'file' && props.sourceBName !== '' ? (
+        <div className={styles.fileName} title={props.sourceBName}>
+          {props.sourceBName}
+        </div>
+      ) : null}
       <input
         ref={props.fileInputRef}
         type="file"

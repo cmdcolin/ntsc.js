@@ -13,6 +13,13 @@ const loadImage = (url: string): Promise<ImageBitmap> =>
     .then(r => r.blob())
     .then(createImageBitmap)
 
+// Last path segment of a URL, for labeling ?iurl/?vurl sources by name.
+const urlName = (url: string): string => {
+  const path = new URL(url, location.href).pathname
+  const name = decodeURIComponent(path.slice(path.lastIndexOf('/') + 1))
+  return name === '' ? url : name
+}
+
 declare global {
   interface Window {
     vf?: Engine
@@ -33,6 +40,8 @@ export function useEngine() {
   const [stats, setStats] = useState<FrameStats>({ fps: 0 })
   const [engine, setEngine] = useState<Engine | null>(null)
   const [sourceMode, setSourceMode] = useState<SourceMode>('bars')
+  // Picked/loaded filename, shown while the source is 'file'; '' otherwise.
+  const [sourceName, setSourceName] = useState('')
   // Webcam/USB capture: a dialog gates the browser permission prompt, and the
   // device list only carries labels once that grant lands — so both stay empty
   // until the user opts in.
@@ -40,6 +49,7 @@ export function useEngine() {
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
   const [webcamDeviceId, setWebcamDeviceId] = useState('')
   const [sourceBMode, setSourceBMode] = useState<SourceBMode>('none')
+  const [sourceBName, setSourceBName] = useState('')
   const [renderScale, setRenderScale] = useState(1)
   const renderScaleRef = useRef(1)
   const [res, setRes] = useState('')
@@ -120,6 +130,7 @@ export function useEngine() {
       } else {
         stopVideo()
         setSourceMode(mode)
+        setSourceName('')
         if (mode === 'bars') engine.setImageSource(smpteBars())
         else if (mode === 'sweep') engine.setImageSource(sweep())
         else if (mode === 'tv static') engine.setNoiseSource(1)
@@ -145,6 +156,7 @@ export function useEngine() {
             .then(() => engine.setVideoSource(v))
             .catch(() => {})
           setSourceMode('webcam')
+          setSourceName('')
           setAskWebcam(false)
           // Capture cards weave interlaced fields, so combing shows on motion;
           // bob-deinterlace on by default for this source (toggle in Signal A).
@@ -170,6 +182,7 @@ export function useEngine() {
     if (file && engine) {
       stopVideo()
       setSourceMode('file')
+      setSourceName(file.name)
       if (file.type.startsWith('image/')) {
         createImageBitmap(file).then(
           bmp => engine.setImageSource(bmp, bmp.width / bmp.height),
@@ -206,6 +219,7 @@ export function useEngine() {
       } else {
         stopVideoB()
         setSourceBMode(mode)
+        setSourceBName('')
         engine.setSourceBEnabled(mode !== 'none')
         if (mode === 'bars') engine.setImageSourceB(smpteBars())
         else if (mode === 'sweep') engine.setImageSourceB(sweep())
@@ -218,6 +232,7 @@ export function useEngine() {
     if (file && engine) {
       stopVideoB()
       setSourceBMode('file')
+      setSourceBName(file.name)
       engine.setSourceBEnabled(true)
       if (file.type.startsWith('image/')) {
         createImageBitmap(file).then(
@@ -315,6 +330,7 @@ export function useEngine() {
               loadImage(iurl).then(bmp => {
                 engine.setImageSource(bmp, bmp.width / bmp.height)
                 setSourceMode('file')
+                setSourceName(urlName(iurl))
               }, onImageError)
             }
             const iurlb = q.get('iurlb')
@@ -323,6 +339,7 @@ export function useEngine() {
                 engine.setImageSourceB(bmp)
                 engine.setSourceBEnabled(true)
                 setSourceBMode('file')
+                setSourceBName(urlName(iurlb))
               }, onImageError)
             }
             const vurl = q.get('vurl')
@@ -333,6 +350,7 @@ export function useEngine() {
                 .then(() => engine.setVideoSource(v))
                 .catch(() => {})
               setSourceMode('file')
+              setSourceName(urlName(vurl))
             }
             if (q.has('debug')) console.log('DEBUG engine ready')
           }
@@ -371,8 +389,10 @@ export function useEngine() {
     renderScale,
     setScale,
     sourceMode,
+    sourceName,
     selectSource,
     sourceBMode,
+    sourceBName,
     selectSourceB,
     askWebcam,
     setAskWebcam,
