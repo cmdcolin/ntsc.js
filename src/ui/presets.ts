@@ -232,6 +232,16 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'clean dissolve',
+    group: 'A/B mixing',
+    blurb:
+      'Source B genlocked to the house reference and dissolved half over A — a clean switcher mix, no beat or roll.',
+    patch: {
+      bGenlock: 1,
+      bGain: 0.5,
+    },
+  },
+  {
     name: 'dirty mix',
     group: 'A/B mixing',
     blurb:
@@ -425,6 +435,7 @@ export type PresetWeights = ReadonlyMap<string, number>
 // and 3 is not phosphor 1.5, it is a tube nobody asked for. The heaviest
 // preset that moves one of these off its default picks the mode outright.
 const ENUM_KEYS = new Set<ControlKey>([
+  'bGenlock',
   'wipeMode',
   'bendShape',
   'combMode',

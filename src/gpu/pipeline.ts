@@ -866,6 +866,7 @@ export class Engine {
       bHue: (c.bHueDeg * Math.PI) / 180,
       bVidGain: c.bVidGain,
       bInv: c.bInv,
+      bGenlock: c.bGenlock,
       wipeMode: c.wipeMode,
       wipeSoft: c.wipeSoft,
       pipMix: c.pipMix,

@@ -52,6 +52,7 @@ export const PARAM_DEFS = [
   ['bHue', 'f32'], // B proc-amp hue trim, radians
   ['bVidGain', 'f32'], // B proc-amp video gain
   ['bInv', 'f32'], // B video inversion amount (0.5 = solarized midpoint)
+  ['bGenlock', 'f32'], // 0 dirty sum, 1 clean genlocked crossfade (dissolve/wipe)
   ['wipeMode', 'f32'], // 0 off, 1 h, 2 v, 3 box, 4 diamond
   ['wipePos', 'f32'], // wipe position incl. auto-sweep (accumulated)
   ['wipeSoft', 'f32'], // wipe edge softness

@@ -352,9 +352,18 @@ export const GROUPS: Group[] = [
     ],
   },
   {
-    name: 'Dirty Mix (source B)',
+    name: 'A/B Mixer (source B)',
     ab: true,
     sliders: [
+      {
+        key: 'bGenlock',
+        label: 'genlock (0 dirty sum, 1 clean dissolve)',
+        min: 0,
+        max: 1,
+        step: 1,
+        unit: '',
+        help: "Whether source B is genlocked to the house reference. Off (0): B free-runs and is summed into the composite — a wiring fault, so its detune, roll and skew below drive fighting sync and chroma beats. On (1): B is re-encoded on A's carrier and raster and the combine becomes a clean crossfade — a production switcher dissolve, with B gain as the fader and the wipe as a clean B-replaces-A wipe. The detune/roll/skew and ring mod do nothing on this path.",
+      },
       {
         key: 'bGain',
         label: 'B gain',
@@ -362,7 +371,7 @@ export const GROUPS: Group[] = [
         max: 1.2,
         step: 0.01,
         unit: 'x',
-        help: "How much of source B is summed into the composite line. B is a second, independently encoded signal that is not genlocked to A — its sync and subcarrier free-run — so mixing it in is a wiring fault, not a clean dissolve. Everything below detunes B's timebase relative to A.",
+        help: "How much of source B reaches the composite line. With genlock off this is the level B is summed in at — a wiring fault, not a clean dissolve. With genlock on it is the crossfade fader: 0 full A, 1 full B. Everything below detunes B's timebase relative to A (dirty path only).",
       },
       {
         key: 'bRing',

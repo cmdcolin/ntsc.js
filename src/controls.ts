@@ -107,6 +107,7 @@ export const DEFAULT_CONTROLS = {
   bHueDeg: 0,
   bVidGain: 1,
   bInv: 0,
+  bGenlock: 0, // 0 dirty sum .. 1 clean genlocked crossfade (dissolve/wipe)
   wipeMode: 0,
   wipePos: 0.5,
   wipeSoft: 0.05,
