@@ -18,14 +18,6 @@
 @group(0) @binding(2) var<storage, read> yuvB: array<vec4f>;
 @group(0) @binding(3) var<storage, read_write> comp: array<f32>;
 
-// the exact-lattice carrier rotated by B's slow detune/slip phase
-fn carrierB(n: u32, delta: f32) -> vec2f {
-  let sc = carrier(n, P.frame);
-  let cd = cos(delta);
-  let sd = sin(delta);
-  return vec2f(sc.x * cd + sc.y * sd, sc.y * cd - sc.x * sd);
-}
-
 // B re-encoded on the house carrier: chroma from yuvB[bIdx] modulated onto the
 // A-locked subcarrier at output sample houseN (B's proc-amp hue trim only). This
 // is the genlocked path — used by the clean dissolve and the PiP DVE — so B
@@ -40,11 +32,7 @@ fn encodeBHouse(houseN: u32, bIdx: u32) -> f32 {
     uf = uf + h * yuvB[idx].y;
     vf = vf + h * yuvB[idx].z;
   }
-  let sc = carrierB(houseN, P.bHue);
-  // proc amp: video gain around the pedestal, continuous inversion
-  // (0.5 collapses to the solarized midpoint, 1 fully inverts)
-  let bp = IRE_BLACK + VIDEO_RANGE * (yuvB[bIdx].x + uf * sc.x + vf * sc.y) * P.bVidGain;
-  return mix(bp, 107.5 - bp, P.bInv);
+  return activeComposite(yuvB[bIdx].x, uf, vf, carrierRot(houseN, P.frame, P.bHue), P.bVidGain, P.bInv);
 }
 
 @compute @workgroup_size(64, 1, 1)
@@ -104,18 +92,11 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     // 90 degrees per sample off the lattice; the proc-amp hue trim adds on top
     let delta = P.bHue + P.bPhase0 + P.bPhaseLine * f32(row) + 0.5 * PI * frac;
 
-    // generate B's composite at (srow, su) — same structure as the encoder
-    var b = IRE_BLANK;
-    if (srow < VSYNC_FIRST || (srow > VSYNC_LAST && srow < 12u)) {
-      b = select(IRE_BLANK, IRE_SYNC, (si % 455u) < 33u);
-    } else if (srow >= VSYNC_FIRST && srow <= VSYNC_LAST) {
-      let serration = (si >= 430u && si < 498u) || si >= 880u;
-      b = select(IRE_SYNC, IRE_BLANK, serration);
-    } else if (si < SYNC_LEN) {
-      b = IRE_SYNC;
-    } else if (si >= BURST_START && si < BURST_START + BURST_LEN && srow > VSYNC_LAST + 1u) {
-      b = -BURST_AMP * carrierB(np, delta).x;
-    } else if (si >= ACTIVE_START && si < ACTIVE_START + ACTIVE_W && srow >= ACTIVE_TOP && srow < ACTIVE_TOP + ACTIVE_H) {
+    // generate B's composite at (srow, su): same shared line structure as the
+    // house encoder, but on B's detuned/slipped carrier
+    let slot = ntscLineSlot(srow, si, np, P.frame, delta);
+    var b = slot.value;
+    if (slot.picture) {
       let m = i32((ENC_CHROMA_TAPS - 1u) / 2u);
       var uf = 0.0;
       var vf = 0.0;
@@ -125,11 +106,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
         uf = uf + h * yuvB[idx].y;
         vf = vf + h * yuvB[idx].z;
       }
-      let sc = carrierB(np, delta);
-      // proc amp: video gain around the pedestal, continuous inversion
-      // (0.5 collapses to the solarized midpoint, 1 fully inverts)
-      b = IRE_BLACK + VIDEO_RANGE * (yuvB[np].x + uf * sc.x + vf * sc.y) * P.bVidGain;
-      b = mix(b, 107.5 - b, P.bInv);
+      b = activeComposite(yuvB[np].x, uf, vf, carrierRot(np, P.frame, delta), P.bVidGain, P.bInv);
     }
 
     // sum at the composite level; ring mod multiplies the two signals

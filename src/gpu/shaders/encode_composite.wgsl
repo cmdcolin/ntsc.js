@@ -27,21 +27,12 @@ fn main(
     return;
   }
   let n = row * SPL + s;
-  var out = IRE_BLANK;
 
-  if (row < VSYNC_FIRST || (row > VSYNC_LAST && row < 12u)) {
-    // equalizing pulses: narrow half-line-rate pulses flanking vsync
-    out = select(IRE_BLANK, IRE_SYNC, (s % 455u) < 33u);
-  } else if (row >= VSYNC_FIRST && row <= VSYNC_LAST) {
-    // serrated broad pulses: mostly at sync level, rising near each half-line end
-    let serration = (s >= 430u && s < 498u) || s >= 880u;
-    out = select(IRE_SYNC, IRE_BLANK, serration);
-  } else if (s < SYNC_LEN) {
-    out = IRE_SYNC;
-  } else if (s >= BURST_START && s < BURST_START + BURST_LEN && row > VSYNC_LAST + 1u) {
-    // burst at 180 degrees on the U axis: -A*sin
-    out = -BURST_AMP * carrier(n, P.frame).x;
-  } else if (s >= ACTIVE_START && s < ACTIVE_START + ACTIVE_W && row >= ACTIVE_TOP && row < ACTIVE_TOP + ACTIVE_H) {
+  // sync/blanking/burst structure is shared with the source-B generator; only
+  // active picture is filled in here, from the workgroup-tiled chroma FIR.
+  let slot = ntscLineSlot(row, s, n, P.frame, 0.0);
+  var out = slot.value;
+  if (slot.picture) {
     let m = (ENC_CHROMA_TAPS - 1u) / 2u;
     var uf = 0.0;
     var vf = 0.0;
@@ -51,13 +42,7 @@ fn main(
       uf = uf + h * uv.x;
       vf = vf + h * uv.y;
     }
-    let sc = carrier(n, P.frame);
-    out = IRE_BLACK + VIDEO_RANGE * yuv[n].x + VIDEO_RANGE * (uf * sc.x + vf * sc.y);
-    // Polarity flip: swapping signal/ground on the composite line negates the
-    // voltage. Reflecting active video around the black+white midpoint inverts
-    // luma and rotates chroma 180 degrees (complementary hues) while leaving
-    // sync and burst intact, so the picture stays locked. (0.5 = solarized.)
-    out = mix(out, 2.0 * IRE_BLACK + VIDEO_RANGE - out, P.invert);
+    out = activeComposite(yuv[n].x, uf, vf, carrier(n, P.frame), 1.0, P.invert);
   }
   comp[n] = out;
 }

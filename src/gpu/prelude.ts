@@ -230,6 +230,56 @@ fn carrier(n: u32, frame: u32) -> vec2f {
   return tab[(n + 2u * (frame & 1u)) & 3u];
 }
 
+// The exact-lattice carrier rotated by a slow phase error (a detuned source's
+// subcarrier slip, or a proc-amp hue trim). delta = 0 is the house carrier.
+fn carrierRot(n: u32, frame: u32, delta: f32) -> vec2f {
+  let sc = carrier(n, frame);
+  let cd = cos(delta);
+  let sd = sin(delta);
+  return vec2f(sc.x * cd + sc.y * sd, sc.y * cd - sc.x * sd);
+}
+
+// One NTSC line's blanking-interval structure — equalizing pulses, serrated
+// vsync, sync tip, breezeway/back porch, and 9-cycle colorburst — shared by
+// every composite generator so the raster timing lives in exactly one place.
+// (Editing the raster, e.g. the progressive->interlaced fix, then touches only
+// this.) delta rotates the burst carrier for a detuned source; picture true
+// means the sample is active video, which the caller fills in with luma + chroma.
+struct LineSlot {
+  value: f32,
+  picture: bool,
+}
+
+fn ntscLineSlot(row: u32, s: u32, n: u32, frame: u32, delta: f32) -> LineSlot {
+  var slot = LineSlot(IRE_BLANK, false);
+  if (row < VSYNC_FIRST || (row > VSYNC_LAST && row < 12u)) {
+    // equalizing pulses: narrow half-line-rate pulses flanking vsync
+    slot.value = select(IRE_BLANK, IRE_SYNC, (s % 455u) < 33u);
+  } else if (row >= VSYNC_FIRST && row <= VSYNC_LAST) {
+    // serrated broad pulses: mostly sync level, rising near each half-line end
+    let serration = (s >= 430u && s < 498u) || s >= 880u;
+    slot.value = select(IRE_SYNC, IRE_BLANK, serration);
+  } else if (s < SYNC_LEN) {
+    slot.value = IRE_SYNC;
+  } else if (s >= BURST_START && s < BURST_START + BURST_LEN && row > VSYNC_LAST + 1u) {
+    // burst at 180 degrees on the U axis: -A*sin
+    slot.value = -BURST_AMP * carrierRot(n, frame, delta).x;
+  } else if (s >= ACTIVE_START && s < ACTIVE_START + ACTIVE_W && row >= ACTIVE_TOP && row < ACTIVE_TOP + ACTIVE_H) {
+    slot.picture = true;
+  }
+  return slot;
+}
+
+// Active-picture composite sample: black pedestal plus quadrature chroma on the
+// subcarrier, with proc-amp video gain and continuous inversion (0.5 = solarized
+// midpoint, 1 = full invert; reflects active video around the black+white mid so
+// sync and burst are untouched). The chroma is pre-filtered by the caller,
+// whose FIR read differs (workgroup tile vs storage).
+fn activeComposite(y: f32, uf: f32, vf: f32, sc: vec2f, vidGain: f32, inv: f32) -> f32 {
+  let v = IRE_BLACK + VIDEO_RANGE * (y + uf * sc.x + vf * sc.y) * vidGain;
+  return mix(v, 2.0 * IRE_BLACK + VIDEO_RANGE - v, inv);
+}
+
 fn clampIdx(i: i32) -> u32 {
   return u32(clamp(i, 0, i32(BUF_LEN) - 1));
 }
