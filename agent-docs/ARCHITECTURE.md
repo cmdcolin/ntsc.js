@@ -6,7 +6,7 @@ inventory of every file.
 
 ## The premise
 
-Phosphene simulates the NTSC signal path, not the *look* of one. There is no
+Phosphene simulates the NTSC signal path, not the _look_ of one. There is no
 "VHS filter". A picture is encoded to a real composite waveform on a fixed
 raster, damaged in the ways real hardware damages a waveform, then decoded by a
 model of a TV that has to find sync in whatever it is handed. Dot crawl, rainbow
@@ -21,21 +21,22 @@ output comes from.
 
 Everything hangs off `src/signal/constants.ts`:
 
-| quantity           | value                             |
-| ------------------ | --------------------------------- |
-| sample rate        | 4 × F_SC = 14.31818 MHz           |
-| samples per line   | 910 (= 227.5 subcarrier cycles)   |
-| lines per frame    | 525                               |
-| active picture     | 754 × 480, starting at line 22    |
-| line structure     | 67-sample sync tip, burst at 78   |
+| quantity         | value                           |
+| ---------------- | ------------------------------- |
+| sample rate      | 4 × F_SC = 14.31818 MHz         |
+| samples per line | 910 (= 227.5 subcarrier cycles) |
+| lines per frame  | 525                             |
+| active picture   | 754 × 480, starting at line 22  |
+| line structure   | 67-sample sync tip, burst at 78 |
 
 The composite signal lives in flat `array<f32>` buffers of 910 × 525 samples in
 IRE units (sync −40, blank 0, black 7.5, white 100). Sample index `n = row * 910
-+ s`. Parameters are authored in **physical units** (µs, Hz, IRE) and converted
-to samples at the uniform-packing boundary — keep it that way.
+
+- s`. Parameters are authored in **physical units** (µs, Hz, IRE) and converted
+  to samples at the uniform-packing boundary — keep it that way.
 
 The model is 525 lines per frame at 60 fps, i.e. progressive. Real NTSC is
-interlaced at *field* rate with a half-line offset, which is why vertical roll
+interlaced at _field_ rate with a half-line offset, which is why vertical roll
 currently steps a whole frame at a time. That is the largest remaining
 authenticity gap.
 
@@ -62,7 +63,7 @@ effect belongs in the stage that physically causes it.
 ## The three domains
 
 The single most important distinction in this codebase, and the easiest to get
-wrong. A horizontal displacement can come from three places, and they are *not*
+wrong. A horizontal displacement can come from three places, and they are _not_
 interchangeable:
 
 1. **Signal domain** (`timebase`, `channel`) — the waveform itself is resampled.
@@ -74,7 +75,7 @@ interchangeable:
    flagging.
 3. **Deflection domain** (`bendAt`, HV sag, audio bend, all inside `decode`) —
    the tube's own scan is bent, downstream of decoding. Hue must **not** move,
-   and these are indexed by *raster line*, not source row, so a rolling picture
+   and these are indexed by _raster line_, not source row, so a rolling picture
    slides through a bend that stays put on the glass.
 
 Before adding a displacement, decide which domain causes it. Routing a geometry
@@ -97,10 +98,11 @@ fault through `timing[]` will spin hue that should have stayed put.
 ## Params are generated, not hand-written
 
 `PARAM_DEFS` in `src/gpu/prelude.ts` is the single source of truth for the
-uniform struct: **field order there is the GPU memory layout**. It generates both
-the WGSL `Params` struct and a typed `Record` that `packParams` consumes. Adding
-a param to `PARAM_DEFS` without supplying it in `Engine.uniformValues()` is a
-TypeScript error, by design — that is the guard against a silently-zero uniform.
+uniform struct: **field order there is the GPU memory layout**. It generates
+both the WGSL `Params` struct and a typed `Record` that `packParams` consumes.
+Adding a param to `PARAM_DEFS` without supplying it in `Engine.uniformValues()`
+is a TypeScript error, by design — that is the guard against a silently-zero
+uniform.
 
 Adding a control end to end:
 
@@ -124,10 +126,10 @@ Almost everything is comfortably parallel. Two exceptions:
   pass that cannot scale. Another per-line recurrence should be a parallel
   prefix-scan instead of a third loop here.
 - **`decode` stages a shared tile per row.** A workgroup covers 64 pixels of one
-  raster row and stages a contiguous span with a 32-sample halo, so the demod FIR
-  reads workgroup memory. Consequence: horizontal offsets must be **row-uniform**.
-  Per-pixel horizontal scaling (H size, linearity, pincushion) would read outside
-  the halo and needs the staging restructured first.
+  raster row and stages a contiguous span with a 32-sample halo, so the demod
+  FIR reads workgroup memory. Consequence: horizontal offsets must be
+  **row-uniform**. Per-pixel horizontal scaling (H size, linearity, pincushion)
+  would read outside the halo and needs the staging restructured first.
 
 ## The React layer
 
@@ -141,12 +143,11 @@ render**, rather than re-rendering React at 60 fps.
 the compiler's job. Two consequences worth knowing:
 
 - **Four things don't compile:** `App`, `Stage`, `InputSection`, `useEngine` —
-  the ref-during-render pattern above is exactly what the compiler refuses.
-  This is harmless in itself: a bail-out means the compiler leaves that code
-  exactly as written. It's why `react-hooks/refs` is off in
-  `eslint.config.js`; the rest of eslint-plugin-react-hooks' recommended set is
-  on and reports bail-outs.
-- **What is load-bearing is that the *producer* of a callback compiles.** `App`
+  the ref-during-render pattern above is exactly what the compiler refuses. This
+  is harmless in itself: a bail-out means the compiler leaves that code exactly
+  as written. It's why `react-hooks/refs` is off in `eslint.config.js`; the rest
+  of eslint-plugin-react-hooks' recommended set is on and reports bail-outs.
+- **What is load-bearing is that the _producer_ of a callback compiles.** `App`
   holds `writeControl` from `useMidi` in an effect dep array; if that closure
   got a fresh identity per render the effect would re-fire constantly and
   `midi.setExternal` would reset soft-takeover every render, so a physical knob
@@ -171,12 +172,12 @@ grep -n "import_compiler_runtime.c)(" dist/assets/*.js   # one per compiled fn
   enforced under CI. Plus unit tests for the pure DSP/envelope helpers.
 - **Visual verification needs Firefox Nightly on Linux**, not Chrome — see
   `CLAUDE.md`. Chrome's ANGLE/Vulkan backend reports spurious texture-allocation
-  errors that are driver artifacts. `scripts/shot.mjs` launches it with the right
-  prefs; model new harnesses on it.
+  errors that are driver artifacts. `scripts/shot.mjs` launches it with the
+  right prefs; model new harnesses on it.
 - The app exposes the engine as `window.vf`, and `?iurl=`, `?iurlb=`, `?preset=`
   and `?set=` configure a session entirely from the URL — so a harness never has
-  to click the UI. `?dbg=` selects debug views (2 waveform, 3 luma, 4 chroma,
-  5 burst state) which are the fastest way to isolate a stage.
+  to click the UI. `?dbg=` selects debug views (2 waveform, 3 luma, 4 chroma, 5
+  burst state) which are the fastest way to isolate a stage.
 - Occluded windows throttle `rAF`; call `window.vf.step()` to advance frames
   deterministically. Note that stepping in a tight loop makes the on-screen fps
   readout meaningless — measure perf with `rAF` running normally.
@@ -188,4 +189,4 @@ grep -n "import_compiler_runtime.c)(" dist/assets/*.js   # one per compiled fn
 - Never `git stash` — multiple agents share this worktree.
 - Don't create feature branches unless asked.
 - Debug by adding logging and proving a hypothesis, not by patching symptoms.
-- Comments explain *why* — the physical mechanism being modelled — not *what*.
+- Comments explain _why_ — the physical mechanism being modelled — not _what_.

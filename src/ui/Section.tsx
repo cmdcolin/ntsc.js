@@ -1,6 +1,9 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
+
 import styles from '../app.module.css'
 import { readJSON, writeJSON } from './storage'
+
+import type { ReactNode } from 'react'
 
 // Collapsed/open choices persist per title so a reload keeps your working set.
 const STORE = 'video_feedback_sections'

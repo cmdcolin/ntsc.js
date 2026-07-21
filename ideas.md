@@ -3,10 +3,10 @@ source, chroma key, and the audio-reactive path.
 
 ## Capture / deinterlace (grown out of the RCA-input work)
 
-- **Motion-adaptive deinterlace.** Current `deint` is an unconditional even-field
-  bob — halves vertical resolution even on still frames. Weave where fields
-  match (full res on static areas) and bob only where they differ (a per-pixel
-  inter-field delta metric); keeps sharpness off motion.
+- **Motion-adaptive deinterlace.** Current `deint` is an unconditional
+  even-field bob — halves vertical resolution even on still frames. Weave where
+  fields match (full res on static areas) and bob only where they differ (a
+  per-pixel inter-field delta metric); keeps sharpness off motion.
 - **Deint modes instead of on/off.** Turn the toggle into a mode select: off /
   bob (current) / blend (average both fields — ghosts on motion, keeps res) /
   weave. Blend is cheaper and some people prefer its look.
@@ -24,7 +24,7 @@ source, chroma key, and the audio-reactive path.
 
 - **Intra-line geometry.** `hSize`, `hLin` (S-correction failure stretching one
   side), pincushion. Blocked on decode's tiling: the workgroup stages one
-  contiguous 128-sample span per row, so only *row-uniform* horizontal offsets
+  contiguous 128-sample span per row, so only _row-uniform_ horizontal offsets
   are free. Non-uniform scaling within a line reads outside the halo.
 - **Vertical geometry.** `vSize` / `vLin` are nearly free by contrast — they
   only change which source row a screen row picks.
@@ -37,7 +37,7 @@ source, chroma key, and the audio-reactive path.
 
 - ~~**Halation**~~ — done. `crt_face` already adds a wide warm glass-scatter
   halo (`crtHalation` × the 15-px golden-angle tap ring, tinted `WARM`), and the
-  slider is live. What is *not* modeled is halation's dependence on beam
+  slider is live. What is _not_ modeled is halation's dependence on beam
   current: real glass scatter blooms disproportionately on peak whites, so
   keying the halo radius off local luma would read more like an old tube than
   the current fixed-radius ring.

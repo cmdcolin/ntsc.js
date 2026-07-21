@@ -45,6 +45,7 @@
     "@babel/core": "^8.0.1",
     "@eslint-react/eslint-plugin": "^5.17.1",
     "@eslint/js": "^10.0.1",
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@types/babel__core": "^7.20.5",
     "@types/node": "^26.1.1",

@@ -1,14 +1,10 @@
-import type { RefObject } from 'react'
 import styles from '../app.module.css'
-import {
-  SOURCE_B_MODES,
-  SOURCE_DESC,
-  SOURCE_MODES,
-  type SourceBMode,
-  type SourceMode,
-} from '../sources/modes'
+import { SOURCE_B_MODES, SOURCE_DESC, SOURCE_MODES } from '../sources/modes'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
+
+import type { SourceBMode, SourceMode } from '../sources/modes'
+import type { RefObject } from 'react'
 
 // The YouTube option is backed by the dev-only yt-dlp bridge, so hide it in
 // production builds where the /yt endpoint doesn't exist.

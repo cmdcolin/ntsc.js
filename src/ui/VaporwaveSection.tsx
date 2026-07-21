@@ -1,8 +1,8 @@
 import styles from '../app.module.css'
-import { cx } from './cx'
 import { Meter } from './Meter'
 import { Section } from './Section'
 import { Slider } from './Slider'
+import { cx } from './cx'
 import { REVERB_DEFAULT, SPEED_DEFAULT, VAPORWAVE_SPEED } from './useEngine'
 
 export function VaporwaveSection(props: {
@@ -20,7 +20,11 @@ export function VaporwaveSection(props: {
   onTogglePlayAudio: () => void
   onApplyPreset: () => void
 }) {
-  const speed = (label: string, value: number, onChange: (v: number) => void) => (
+  const speed = (
+    label: string,
+    value: number,
+    onChange: (v: number) => void,
+  ) => (
     <Slider
       label={label}
       unit="×"

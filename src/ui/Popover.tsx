@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
 import styles from './Popover.module.css'
+
+import type { ReactNode } from 'react'
 
 // Generic click-to-open menu anchored to its trigger. Closes on outside
 // pointerdown or when a menu item calls the close callback it's handed.

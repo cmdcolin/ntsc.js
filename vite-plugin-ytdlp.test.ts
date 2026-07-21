@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { isYouTube } from './vite-plugin-ytdlp'
 
 // The endpoint shells out to yt-dlp, so the host allowlist is the guard that

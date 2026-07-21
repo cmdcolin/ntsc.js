@@ -14,7 +14,8 @@ the two invariants that are easiest to violate:
   interchangeable, and routing a geometry fault through the sync path will spin
   hue that should have stayed put.
 - **`decode` stages a shared tile per row**, so horizontal offsets must be
-  row-uniform. Per-pixel horizontal scaling needs the staging restructured first.
+  row-uniform. Per-pixel horizontal scaling needs the staging restructured
+  first.
 
 Prefer modelling the mechanism that causes an artifact over drawing the artifact
 — that is the whole premise, and it is why mechanisms here interact for free.

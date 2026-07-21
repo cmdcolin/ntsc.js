@@ -1,6 +1,7 @@
 import { DEFAULT_CONTROLS } from '../controls'
-import type { ControlKey, Controls } from '../controls'
 import { SLIDER_BY_KEY } from './controls'
+
+import type { ControlKey, Controls } from '../controls'
 
 export interface PresetDef {
   name: string

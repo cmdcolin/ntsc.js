@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+
 import type { Engine } from '../gpu/pipeline'
 
 // Audio input state for the UI. The per-line waveform goes straight to the GPU
@@ -34,7 +35,9 @@ export function useAudio(engine: Engine | null) {
             setActive(true)
             setError(null)
           })
-          .catch((e: unknown) => setError(`microphone unavailable: ${String(e)}`))
+          .catch((e: unknown) =>
+            setError(`microphone unavailable: ${String(e)}`),
+          )
       }
     },
     disable: () => {

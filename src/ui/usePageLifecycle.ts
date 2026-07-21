@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import type { RefObject } from 'react'
+
 import type { Engine } from '../gpu/pipeline'
+import type { RefObject } from 'react'
 
 // The browser can stop delivering rAF around tab hide/show, fullscreen exit, and
 // Firefox's freeze/discard of a backgrounded tab; each of these re-arms the loop

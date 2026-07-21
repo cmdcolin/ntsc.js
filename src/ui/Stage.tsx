@@ -1,12 +1,13 @@
-import type { RefObject } from 'react'
-import type { FrameStats } from '../controls'
-import { CameraIcon, GearIcon } from './icons'
 import { FpsMonitor } from './FpsMonitor'
-import { cx } from './cx'
 import { Popover } from './Popover'
-import { usePersistedFlag } from './storage'
 import popoverStyles from './Popover.module.css'
 import styles from './Stage.module.css'
+import { cx } from './cx'
+import { CameraIcon, GearIcon } from './icons'
+import { usePersistedFlag } from './storage'
+
+import type { FrameStats } from '../controls'
+import type { RefObject } from 'react'
 
 // Persisted across reloads so a collapse sticks.
 const BAR_HIDDEN_STORE = 'phosphene_overlay_bar_hidden'
@@ -20,10 +21,7 @@ function CaptureMenu(props: {
     <Popover
       trigger={toggle => (
         <button
-          className={cx(
-            styles.overlayBtn,
-            props.recording && styles.recording,
-          )}
+          className={cx(styles.overlayBtn, props.recording && styles.recording)}
           onClick={toggle}
           title={
             props.recording

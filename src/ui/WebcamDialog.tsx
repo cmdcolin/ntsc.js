@@ -1,6 +1,6 @@
-import { cx } from './cx'
-import { Dialog } from './Dialog'
 import styles from '../app.module.css'
+import { Dialog } from './Dialog'
+import { cx } from './cx'
 
 export function WebcamDialog(props: {
   onContinue: () => void
@@ -10,8 +10,8 @@ export function WebcamDialog(props: {
     <Dialog title="Connect a video device" onClose={props.onClose}>
       <p className={styles.helpText}>
         Feed in a live camera, or a real analog signal via a USB video-capture
-        device — plug an RCA/composite “grabber” into the machine and it shows up
-        as a camera. Your browser will ask for camera permission when you
+        device — plug an RCA/composite “grabber” into the machine and it shows
+        up as a camera. Your browser will ask for camera permission when you
         continue; pick the capture device from the list that appears afterward.
       </p>
       <button

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+
 import { DEFAULT_CONTROLS } from '../controls'
+import { REVERB_DEFAULT, SPEED_DEFAULT } from './useEngine'
+
 import type { ControlKey, Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
-import { REVERB_DEFAULT, SPEED_DEFAULT } from './useEngine'
 
 interface UrlStateArgs {
   controls: Controls
@@ -52,7 +54,9 @@ export function useUrlState({
     // youtube has its own yt=/ytb= keys (the URL, not just the mode name).
     put(
       'src',
-      sourceMode !== 'bars' && sourceMode !== 'file' && sourceMode !== 'youtube',
+      sourceMode !== 'bars' &&
+        sourceMode !== 'file' &&
+        sourceMode !== 'youtube',
       sourceMode,
     )
     put('srcb', sourceBMode === 'bars' || sourceBMode === 'sweep', sourceBMode)
@@ -63,7 +67,16 @@ export function useUrlState({
     put('reverb', reverb !== REVERB_DEFAULT, String(+reverb.toFixed(4)))
     const query = q.toString()
     return `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
-  }, [controls, sourceMode, sourceBMode, ytUrlA, ytUrlB, speedA, speedB, reverb])
+  }, [
+    controls,
+    sourceMode,
+    sourceBMode,
+    ytUrlA,
+    ytUrlB,
+    speedA,
+    speedB,
+    reverb,
+  ])
 
   // Keep the address bar current on every change (replaceState, so it doesn't
   // flood history). Trailing-debounced: a slider drag emits a move per frame,

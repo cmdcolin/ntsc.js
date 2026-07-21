@@ -6,8 +6,8 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
     <Dialog title="Phosphene" wide onClose={onClose}>
       <p className={styles.helpText}>
         A real-time simulator of the analog NTSC signal path — camera, tape, RF,
-        and CRT — rendered entirely in WebGPU compute shaders. Feed it a pattern,
-        image, video, or your webcam and degrade it however you like.
+        and CRT — rendered entirely in WebGPU compute shaders. Feed it a
+        pattern, image, video, or your webcam and degrade it however you like.
       </p>
       <div className={styles.helpHead}>getting started</div>
       <ol className={styles.helpList}>

@@ -1,12 +1,12 @@
 # Ideas / backlog
 
-Things worth doing that aren't done, and things that look worth doing but
-aren't — so a future pass doesn't re-litigate them. Line numbers drift; grep the
+Things worth doing that aren't done, and things that look worth doing but aren't
+— so a future pass doesn't re-litigate them. Line numbers drift; grep the
 described feature.
 
 ## Modulation: kill the remaining naked periodic waves
 
-The premise (see ARCHITECTURE.md) is that a fault should be *mechanistic*. A
+The premise (see ARCHITECTURE.md) is that a fault should be _mechanistic_. A
 single periodic wave traced straight down the raster violates that — it reads as
 a filter effect, not a fault (the warning `signal/audiostate.ts` opens with).
 The shared home for bounded-aperiodic drift is now **`signal/noise.ts`**
@@ -39,7 +39,7 @@ with bounded-aperiodic sources"):
 - **Modulation LFOs** (`signal/modstate.ts`) — added `smooth` (value noise),
   `hold` (sample & hold), `lorenz` (strange attractor) sources.
 - **Intercarrier buzz** (`channel.wgsl`) — the 4.5 MHz sound carrier's FM is now
-  driven from `audio[row]` (it physically *is* the audio leaking past the trap),
+  driven from `audio[row]` (it physically _is_ the audio leaking past the trap),
   so it's content-driven and silence leaves a clean stationary weave.
 
 ## Not worth touching
@@ -47,9 +47,9 @@ with bounded-aperiodic sources"):
 These read like naked periodic waves but are physically correct — don't
 "aperiodic-ise" them:
 
-- **Hum fundamental** (`channel.wgsl`) — mains is a clean sine; only its *roll
-  rate* is worth drifting (above).
-- **Wipe ping-pong** (`signal/mixstate.ts`) — a switcher sweep is *deliberately*
+- **Hum fundamental** (`channel.wgsl`) — mains is a clean sine; only its _roll
+  rate_ is worth drifting (above).
+- **Wipe ping-pong** (`signal/mixstate.ts`) — a switcher sweep is _deliberately_
   periodic; that's what the hardware does.
 - **Source-B detune / roll** (`signal/mixstate.ts`) — a mistuned crystal really
   does sit at a fixed wrong frequency. The constant is the point.

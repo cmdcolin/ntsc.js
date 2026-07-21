@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import type { ControlKey } from '../controls'
+
 import styles from '../app.module.css'
-import { cx } from './cx'
-import { GROUPS } from './controls'
-import type { BindingMap, DeviceProfile, LearnState } from './midi'
-import { DEVICE_PROFILES } from './midi'
 import { Section } from './Section'
+import { GROUPS } from './controls'
+import { cx } from './cx'
+import { DEVICE_PROFILES } from './midi'
+
+import type { ControlKey } from '../controls'
+import type { BindingMap, DeviceProfile, LearnState } from './midi'
 
 const LABEL_BY_KEY = new Map(
   GROUPS.flatMap(g => g.sliders).map(s => [s.key, s.label]),

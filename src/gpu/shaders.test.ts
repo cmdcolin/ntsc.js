@@ -9,7 +9,9 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
+
 import { PRELUDE } from './prelude'
 import channel from './shaders/channel.wgsl?raw'
 import chromaExtract from './shaders/chroma_extract.wgsl?raw'

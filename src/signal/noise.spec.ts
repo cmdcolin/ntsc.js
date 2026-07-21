@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Lorenz, valueNoise, Wow } from './noise'
+
+import { Lorenz, Wow, valueNoise } from './noise'
 
 describe('valueNoise', () => {
   it('is bounded, continuous, and returns lattice points exactly', () => {

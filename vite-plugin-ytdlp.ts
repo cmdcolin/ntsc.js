@@ -9,6 +9,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
 import type { Plugin } from 'vite'
 
 // Dev-only bridge: /yt?url=<youtube link> shells out to yt-dlp, caches the
@@ -44,7 +45,7 @@ const fetchClip = (url: string): Promise<string> => {
   const running = inflight.get(key)
   return cached
     ? Promise.resolve(out)
-    : running ??
+    : (running ??
         (() => {
           const tmp = join(CACHE_DIR, `${key}.tmp.mp4`)
           const p = new Promise<string>((resolve, reject) => {
@@ -78,7 +79,7 @@ const fetchClip = (url: string): Promise<string> => {
           }).finally(() => inflight.delete(key))
           inflight.set(key, p)
           return p
-        })()
+        })())
 }
 
 export function ytdlp(): Plugin {

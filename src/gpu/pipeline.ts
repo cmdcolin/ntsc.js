@@ -1,6 +1,10 @@
+import { DEFAULT_CONTROLS } from '../controls'
+import { AudioState } from '../signal/audiostate'
 import {
   ACTIVE_HEIGHT,
   ACTIVE_WIDTH,
+  FSC,
+  F_H,
   LINES,
   SAMPLES_PER_LINE,
   SAMPLE_RATE,
@@ -21,27 +25,19 @@ import {
   mixTaps,
   packFilterBank,
 } from '../signal/filters'
-import { FSC, F_H } from '../signal/constants'
-import { AudioState } from '../signal/audiostate'
 import { LineState } from '../signal/linestate'
-import type { LineStateControls } from '../signal/linestate'
 import { MixState } from '../signal/mixstate'
 import { ModState } from '../signal/modstate'
-import { DEFAULT_CONTROLS } from '../controls'
-import type { Controls, ControlKey, FrameStats, ModSlot } from '../controls'
-import type { Gpu } from './context'
 import { initGpu } from './context'
+import { GEN_OFFSET, PARAM_BYTES, PRELUDE, packParams } from './prelude'
 import { GpuProfiler } from './profiler'
 import { RenderLoop } from './renderloop'
-import { GEN_OFFSET, PARAM_BYTES, PRELUDE, packParams } from './prelude'
 import channelSrc from './shaders/channel.wgsl?raw'
 import chromaExtractSrc from './shaders/chroma_extract.wgsl?raw'
 import composeSrc from './shaders/compose.wgsl?raw'
 import composeBSrc from './shaders/compose_b.wgsl?raw'
 import crtFaceSrc from './shaders/crt_face.wgsl?raw'
 import decodeSrc from './shaders/decode.wgsl?raw'
-import timebaseSrc from './shaders/timebase.wgsl?raw'
-import underDownSrc from './shaders/under_down.wgsl?raw'
 import encodeCompositeSrc from './shaders/encode_composite.wgsl?raw'
 import encodeYuvSrc from './shaders/encode_yuv.wgsl?raw'
 import fbCompositeSrc from './shaders/fb_composite.wgsl?raw'
@@ -51,6 +47,12 @@ import presentSrc from './shaders/present.wgsl?raw'
 import storePrevSrc from './shaders/store_prev.wgsl?raw'
 import syncSrc from './shaders/sync.wgsl?raw'
 import syncMeasureSrc from './shaders/sync_measure.wgsl?raw'
+import timebaseSrc from './shaders/timebase.wgsl?raw'
+import underDownSrc from './shaders/under_down.wgsl?raw'
+
+import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
+import type { LineStateControls } from '../signal/linestate'
+import type { Gpu } from './context'
 
 const N = SAMPLES_PER_LINE * LINES
 const LINE_PARAM_BYTES = LINES * 16

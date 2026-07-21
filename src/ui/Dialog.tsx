@@ -1,6 +1,9 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef } from 'react'
+
 import styles from '../app.module.css'
 import { cx } from './cx'
+
+import type { ReactNode } from 'react'
 
 // Shared modal shell built on the native <dialog> element: showModal() puts it
 // in the top layer (no z-index juggling), traps focus, makes the rest of the

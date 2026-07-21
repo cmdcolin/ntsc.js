@@ -7,6 +7,7 @@
 //   shot into outDir/ (gitignored) for review. Name shots to capture a subset.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+
 import puppeteer from 'puppeteer-core'
 
 const outDir = process.argv[2] ?? 'clips'
@@ -15,24 +16,68 @@ const sleep = ms => new Promise(r => setTimeout(r, ms))
 const urlFor = params => base + '?' + new URLSearchParams(params).toString()
 
 const SHOTS = [
-  { file: 'dirty-mix', warm: 90, secs: 7,
-    params: { iurl: '/sample.jpg', iurlb: '/sample-b.jpg', preset: 'dirty mix',
-      set: 'bGain:0.72,bDetuneHz:230,bLineHz:1.1,bRollLps:0.5,hHold:0.42' } },
-  { file: 'wipe-fight', warm: 90, secs: 7,
-    params: { iurl: '/sample.jpg', iurlb: '/sample-b.jpg', preset: 'wipe fight',
-      set: 'bGain:0.78,bDetuneHz:210,hHold:0.34' } },
-  { file: 'torn-signal', warm: 70, secs: 7,
-    params: { iurl: '/sample.jpg', preset: 'broadcast',
-      set: 'ghostGain:0.55,ghostDelayUs:7,noiseIre:3' } },
-  { file: 'sync-tear', warm: 70, secs: 7,
-    params: { iurl: '/sample.jpg', preset: 'vhs',
-      set: 'hHold:0.62,vHold:0.45,tbJitterNs:520,tbWowNs:1500' } },
-  { file: 'chroma-blowout', warm: 70, secs: 7,
-    params: { iurl: '/sample.jpg', preset: 'vhs',
-      set: 'chromaGain:2.9,svideoBleed:0.9,hHold:0.15' } },
-  { file: 'full-collapse', warm: 70, secs: 7,
-    params: { iurl: '/sample.jpg', preset: 'broadcast',
-      set: 'ghostGain:0.5,ghostDelayUs:6,hHold:0.5,tbWowNs:1900,chromaGain:2.1,noiseIre:4' } },
+  {
+    file: 'dirty-mix',
+    warm: 90,
+    secs: 7,
+    params: {
+      iurl: '/sample.jpg',
+      iurlb: '/sample-b.jpg',
+      preset: 'dirty mix',
+      set: 'bGain:0.72,bDetuneHz:230,bLineHz:1.1,bRollLps:0.5,hHold:0.42',
+    },
+  },
+  {
+    file: 'wipe-fight',
+    warm: 90,
+    secs: 7,
+    params: {
+      iurl: '/sample.jpg',
+      iurlb: '/sample-b.jpg',
+      preset: 'wipe fight',
+      set: 'bGain:0.78,bDetuneHz:210,hHold:0.34',
+    },
+  },
+  {
+    file: 'torn-signal',
+    warm: 70,
+    secs: 7,
+    params: {
+      iurl: '/sample.jpg',
+      preset: 'broadcast',
+      set: 'ghostGain:0.55,ghostDelayUs:7,noiseIre:3',
+    },
+  },
+  {
+    file: 'sync-tear',
+    warm: 70,
+    secs: 7,
+    params: {
+      iurl: '/sample.jpg',
+      preset: 'vhs',
+      set: 'hHold:0.62,vHold:0.45,tbJitterNs:520,tbWowNs:1500',
+    },
+  },
+  {
+    file: 'chroma-blowout',
+    warm: 70,
+    secs: 7,
+    params: {
+      iurl: '/sample.jpg',
+      preset: 'vhs',
+      set: 'chromaGain:2.9,svideoBleed:0.9,hHold:0.15',
+    },
+  },
+  {
+    file: 'full-collapse',
+    warm: 70,
+    secs: 7,
+    params: {
+      iurl: '/sample.jpg',
+      preset: 'broadcast',
+      set: 'ghostGain:0.5,ghostDelayUs:6,hHold:0.5,tbWowNs:1900,chromaGain:2.1,noiseIre:4',
+    },
+  },
 ]
 
 // One browser per clip: captureStream stalls on an occluded window, so each
@@ -64,8 +109,11 @@ async function record(shot) {
     await sleep(400)
     const dataUrl = await page.evaluate(async secs => {
       const canvas = document.querySelector('canvas')
-      const type = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
-        .find(t => window.MediaRecorder?.isTypeSupported(t))
+      const type = [
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm',
+      ].find(t => window.MediaRecorder?.isTypeSupported(t))
       const rec = new MediaRecorder(canvas.captureStream(30), {
         mimeType: type,
         videoBitsPerSecond: 12_000_000,
@@ -107,7 +155,9 @@ for (const shot of SHOTS) {
   const webm = `${outDir}/${shot.file}.webm`
   let ok = false
   for (let attempt = 0; attempt < 3 && !ok; attempt++) {
-    await record(shot).catch(e => console.log('FAIL', shot.file, String(e).slice(0, 80)))
+    await record(shot).catch(e =>
+      console.log('FAIL', shot.file, String(e).slice(0, 80)),
+    )
     ok = statSync(webm, { throwIfNoEntry: false })?.size > 500_000
   }
   if (ok) {

@@ -1,5 +1,6 @@
-import type { ControlKey } from '../controls'
 import { AUTOMAP_KEYS, SLIDER_BY_KEY } from './controls'
+
+import type { ControlKey } from '../controls'
 import type { SliderDef } from './controls'
 
 // One CC source = a (channel, controller) pair. Channel is kept so two knobs

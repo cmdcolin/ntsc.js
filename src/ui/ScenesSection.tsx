@@ -1,8 +1,9 @@
-import type { Controls } from '../controls'
 import styles from '../app.module.css'
-import { cx } from './cx'
 import { Section } from './Section'
+import { cx } from './cx'
 import { CONTROL_KEYS, presetControls } from './presets'
+
+import type { Controls } from '../controls'
 
 const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 

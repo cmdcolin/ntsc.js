@@ -154,7 +154,9 @@ export class RenderLoop {
         if (this.fallbackId === 0) this.pump()
       } else if (rafAlive && this.stalled) {
         this.stalled = false
-        console.warn(`rAF resumed at frame ${this.host.frameNo()}; leaving fallback`)
+        console.warn(
+          `rAF resumed at frame ${this.host.frameNo()}; leaving fallback`,
+        )
       }
       if (!rafAlive) this.kick() // still give rAF a chance to wake on its own
     } else {

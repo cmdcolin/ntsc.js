@@ -1,8 +1,8 @@
 # Phosphene
 
-> A real-time **NTSC / VHS / composite-video glitch** simulator, running entirely
-> in **WebGPU** compute shaders. The artifacts fall out of a simulated analog
-> signal — they aren't filters painted over the picture.
+> A real-time **NTSC / VHS / composite-video glitch** simulator, running
+> entirely in **WebGPU** compute shaders. The artifacts fall out of a simulated
+> analog signal — they aren't filters painted over the picture.
 
 **[Live demo](https://cmdcolin.github.io/phosphene/)** — needs a WebGPU-enabled
 browser.
@@ -22,20 +22,22 @@ compute shaders, in real time.
 
 [![A photo dubbed to VHS inside the Phosphene app, alongside its full control panel](docs/gallery/hero.jpg)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
 
-<sub>▶ **In motion:** [watch the 6-second clip](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
+<sub>▶ **In motion:**
+[watch the 6-second clip](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
 (or click the image above) · or open the
-[live demo](https://cmdcolin.github.io/phosphene/) and load your own footage.</sub>
+[live demo](https://cmdcolin.github.io/phosphene/) and load your own
+footage.</sub>
 
 ## Gallery
 
-|                                                                             |                                                                                |                                                                                        |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| ![A photo dubbed to VHS: color-under chroma noise, head-switch wobble, dropouts](docs/gallery/vhs.jpg) | ![Composite waveform mixer-loop feedback](docs/gallery/mixer-loop.jpg)         | ![Camera-at-monitor feedback blooming through the CRT](docs/gallery/fb-bloom.jpg)      |
-| <sub>**vhs** — a photo dubbed to tape: color-under chroma, head-switch wobble, dropouts</sub> | <sub>**mixer loop** — the composite waveform fed back into itself</sub>        | <sub>**fb bloom** — camera-at-monitor feedback blooming through the CRT</sub>          |
-| ![Dirty mix of a second non-genlocked source beating against A](docs/gallery/dirty-mix.jpg) | ![S-video miswire: luma leaking into the chroma pin as rainbows over a photo](docs/gallery/svideo-miswire.jpg) | ![Weak broadcast: RF snow creeping in over a distant outdoor scene](docs/gallery/broadcast.jpg) |
-| <sub>**dirty mix** — a second, non-genlocked source beating against A</sub> | <sub>**s-video miswire** — luma leaking into the chroma pin as rainbows</sub>  | <sub>**weak broadcast** — a distant RF signal, snow creeping in from the top</sub>     |
-| ![Negative video: a cat photo with its colors inverted to their complements](docs/gallery/negative.jpg) | ![A backlit outdoor sunset scene softened and scanlined by the tape path](docs/gallery/sunset.jpg) | ![Strobe trails: feedback smearing each frame of the cat photo into the next](docs/gallery/strobe.jpg) |
-| <sub>**negative** — polarity flipped, everything glowing in complementary colors</sub> | <sub>**faded dub** — a backlit outdoor scene worn soft by the tape path</sub>  | <sub>**strobe trails** — feedback smearing each frame into the next</sub>              |
+|                                                                                                         |                                                                                                                |                                                                                                        |
+| ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| ![A photo dubbed to VHS: color-under chroma noise, head-switch wobble, dropouts](docs/gallery/vhs.jpg)  | ![Composite waveform mixer-loop feedback](docs/gallery/mixer-loop.jpg)                                         | ![Camera-at-monitor feedback blooming through the CRT](docs/gallery/fb-bloom.jpg)                      |
+| <sub>**vhs** — a photo dubbed to tape: color-under chroma, head-switch wobble, dropouts</sub>           | <sub>**mixer loop** — the composite waveform fed back into itself</sub>                                        | <sub>**fb bloom** — camera-at-monitor feedback blooming through the CRT</sub>                          |
+| ![Dirty mix of a second non-genlocked source beating against A](docs/gallery/dirty-mix.jpg)             | ![S-video miswire: luma leaking into the chroma pin as rainbows over a photo](docs/gallery/svideo-miswire.jpg) | ![Weak broadcast: RF snow creeping in over a distant outdoor scene](docs/gallery/broadcast.jpg)        |
+| <sub>**dirty mix** — a second, non-genlocked source beating against A</sub>                             | <sub>**s-video miswire** — luma leaking into the chroma pin as rainbows</sub>                                  | <sub>**weak broadcast** — a distant RF signal, snow creeping in from the top</sub>                     |
+| ![Negative video: a cat photo with its colors inverted to their complements](docs/gallery/negative.jpg) | ![A backlit outdoor sunset scene softened and scanlined by the tape path](docs/gallery/sunset.jpg)             | ![Strobe trails: feedback smearing each frame of the cat photo into the next](docs/gallery/strobe.jpg) |
+| <sub>**negative** — polarity flipped, everything glowing in complementary colors</sub>                  | <sub>**faded dub** — a backlit outdoor scene worn soft by the tape path</sub>                                  | <sub>**strobe trails** — feedback smearing each frame into the next</sub>                              |
 
 <sup>Regenerate with `node scripts/gallery.mjs` (dev server + Firefox Nightly
 running, see below).</sup>
@@ -154,15 +156,15 @@ which is why it's Firefox.
 Phosphene sits in a small family of analog-video emulators. If you like it, also
 look at:
 
-- **[ntsc-rs](https://github.com/valadaptive/ntsc-rs)** and **ntscQT** — NTSC/VHS
-  emulation for video files and OBS.
+- **[ntsc-rs](https://github.com/valadaptive/ntsc-rs)** and **ntscQT** —
+  NTSC/VHS emulation for video files and OBS.
 - **[composite-video-simulator](https://github.com/joncampbell123/composite-video-simulator)**
   — the C reference NTSC codec much of this lineage traces back to.
 - **Blargg's NTSC filters** (`nes_ntsc` / `snes_ntsc`) and **RetroArch CRT
   shaders** (`crt-royale`, `crt-guest-advanced`) — the emulator/shader side of
   the same idea.
-- Hardware roots: **Rutt–Etra** video synthesis, **no-input video feedback**, and
-  time-base correctors — the gear Phosphene imitates in software.
+- Hardware roots: **Rutt–Etra** video synthesis, **no-input video feedback**,
+  and time-base correctors — the gear Phosphene imitates in software.
 
 What's different here: Phosphene models the whole signal _path_ end to end in
 real time — encode → tape/RF damage → imperfect decode → CRT — so the artifacts

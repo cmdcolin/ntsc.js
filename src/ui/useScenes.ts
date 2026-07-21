@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import type { RefObject } from 'react'
-import type { Controls } from '../controls'
-import type { Engine } from '../gpu/pipeline'
+
 import { presetControls } from './presets'
 import { readJSON, writeJSON } from './storage'
+
+import type { Controls } from '../controls'
+import type { Engine } from '../gpu/pipeline'
+import type { RefObject } from 'react'
 
 // Numbered performance snapshots (slots 1–9). localStorage is the source of
 // truth so the mount-anchored key handlers never work from stale React state.

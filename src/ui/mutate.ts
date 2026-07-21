@@ -1,7 +1,8 @@
 import type { Controls } from '../controls'
 import type { SliderDef } from './controls'
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.min(hi, Math.max(lo, v))
 
 // Land on the slider's step grid, so mode-select controls (step 1) resolve to
 // whole integers rather than a fractional index no shader branch expects.
@@ -22,7 +23,11 @@ export function mutate(
   const next = { ...controls }
   for (const s of sliders) {
     const jitter = (rand() * 2 - 1) * amt * (s.max - s.min)
-    next[s.key] = clamp(snap(controls[s.key] + jitter, s.min, s.step), s.min, s.max)
+    next[s.key] = clamp(
+      snap(controls[s.key] + jitter, s.min, s.step),
+      s.min,
+      s.max,
+    )
   }
   return next
 }

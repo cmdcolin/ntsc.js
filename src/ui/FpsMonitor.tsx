@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
-import type { FrameStats } from '../controls'
-import { usePersistedFlag } from './storage'
+
 import styles from './FpsMonitor.module.css'
+import { usePersistedFlag } from './storage'
+
+import type { FrameStats } from '../controls'
 
 // Always-on rolling histogram of recent per-window fps. Each bar is one stats
 // window; a dip below the 60/30 fps reference lines shows a stall the averaged

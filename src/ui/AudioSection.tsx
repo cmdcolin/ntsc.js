@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react'
 import styles from '../app.module.css'
-import { cx } from './cx'
-import type { Group } from './controls'
 import { Meter } from './Meter'
 import { Section } from './Section'
+import { cx } from './cx'
+
+import type { Group } from './controls'
+import type { ReactNode } from 'react'
 
 export function AudioSection(props: {
   active: boolean

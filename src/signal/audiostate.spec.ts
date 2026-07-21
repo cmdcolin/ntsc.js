@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { stepHit, type HitState } from './audiostate'
+
+import { stepHit } from './audiostate'
+
+import type { HitState } from './audiostate'
 
 const START: HitState = { hit: 0, lowPrev: 0, ref: 0.01 }
 
@@ -30,7 +33,11 @@ describe('bass onset envelope', () => {
 
   it('rides quiet material back up to full scale', () => {
     // a faint kick should still read near 1 once the reference decays to it
-    const s = run(Array<number>(400).fill(0).flatMap((_, i) => (i % 20 === 0 ? [0.05] : [0])))
+    const s = run(
+      Array<number>(400)
+        .fill(0)
+        .flatMap((_, i) => (i % 20 === 0 ? [0.05] : [0])),
+    )
     expect(s.ref).toBeLessThan(0.06)
   })
 

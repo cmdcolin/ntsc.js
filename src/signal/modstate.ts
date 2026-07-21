@@ -7,14 +7,7 @@
 import { Lorenz, valueNoise } from './noise'
 
 export type ModSource =
-  | 'sine'
-  | 'triangle'
-  | 'walk'
-  | 'smooth'
-  | 'hold'
-  | 'lorenz'
-  | 'level'
-  | 'hit'
+  'sine' | 'triangle' | 'walk' | 'smooth' | 'hold' | 'lorenz' | 'level' | 'hit'
 
 export interface ModWave {
   source: ModSource

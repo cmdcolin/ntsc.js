@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
-import type { Engine } from '../gpu/pipeline'
-import type { ControlKey, ModSlot } from '../controls'
-import type { ModSource } from '../signal/modstate'
-import { GROUPS, SLIDER_BY_KEY } from './controls'
+
+import styles from '../app.module.css'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
+import { GROUPS, SLIDER_BY_KEY } from './controls'
 import { readJSON, writeJSON } from './storage'
-import styles from '../app.module.css'
+
+import type { ControlKey, ModSlot } from '../controls'
+import type { Engine } from '../gpu/pipeline'
+import type { ModSource } from '../signal/modstate'
 
 // Every slider is a bend point: flatten the groups into target options. The
 // slider's range doubles as the modulation span, so depth stays meaningful

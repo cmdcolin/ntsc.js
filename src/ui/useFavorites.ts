@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import type { ControlKey } from '../controls'
+
 import { readJSON, writeJSON } from './storage'
+
+import type { ControlKey } from '../controls'
 
 // Sliders the user has pinned to the Favorites section, by control key. Stored
 // as a plain key list so a reload keeps the pins.

@@ -1,8 +1,9 @@
 import styles from '../app.module.css'
-import { cx } from './cx'
-import type { MidiStatus } from './midi'
 import { Dialog } from './Dialog'
 import { Slider } from './Slider'
+import { cx } from './cx'
+
+import type { MidiStatus } from './midi'
 
 export function AdvancedDialog(props: {
   renderScale: number

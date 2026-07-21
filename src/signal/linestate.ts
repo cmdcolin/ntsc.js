@@ -42,7 +42,8 @@ export class LineState {
         (Math.random() - 0.5) * usToSamples(c.tbJitterNs * 1e-3) * 0.7
       this.flutter *= 0.995
       // wow: quasi-periodic wander of the rotating parts, never a naked sine
-      const wow = usToSamples(c.tbWowNs * 1e-3) * this.wow.at(this.t, row / LINES)
+      const wow =
+        usToSamples(c.tbWowNs * 1e-3) * this.wow.at(this.t, row / LINES)
       const headSwitched = row >= HEAD_SWITCH_LINE
       const hs = headSwitched ? usToSamples(c.headSwitchShiftUs) : 0
 

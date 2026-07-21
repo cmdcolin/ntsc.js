@@ -1,17 +1,16 @@
-import { useRef, useState, type CSSProperties } from 'react'
-import type { Controls } from '../controls'
+import { useRef, useState } from 'react'
+
 import styles from '../app.module.css'
-import { cx } from './cx'
 import { Dialog } from './Dialog'
-import { BulbIcon } from './icons'
 import { Section } from './Section'
+import { cx } from './cx'
+import { BulbIcon } from './icons'
+import { PRESETS, matchPreset } from './presets'
 import { usePersistedFlag } from './storage'
-import {
-  matchPreset,
-  PRESETS,
-  type PresetDef,
-  type PresetWeights,
-} from './presets'
+
+import type { Controls } from '../controls'
+import type { PresetDef, PresetWeights } from './presets'
+import type { CSSProperties } from 'react'
 
 // Presets grouped under their labeled headers. Derived purely from the static
 // PRESETS table, so it's computed once at module load, not every render.
@@ -40,18 +39,19 @@ function PresetsHelpDialog(props: { onClose: () => void }) {
   return (
     <Dialog title="Presets" onClose={props.onClose}>
       <p className={styles.helpText}>
-        Each preset is a named look — a bundle of control settings that recreates
-        a particular signal fault or device. Hover one for what it does.
+        Each preset is a named look — a bundle of control settings that
+        recreates a particular signal fault or device. Hover one for what it
+        does.
       </p>
       <p className={styles.helpText}>
-        Every preset is also a fader: click to dial it fully in, or drag sideways
-        for a partial amount. Either way it layers onto what’s already there
-        rather than replacing it, and the fill shows how much is in — so stacking
-        several accumulates their faults. “clean” clears them all.
+        Every preset is also a fader: click to dial it fully in, or drag
+        sideways for a partial amount. Either way it layers onto what’s already
+        there rather than replacing it, and the fill shows how much is in — so
+        stacking several accumulates their faults. “clean” clears them all.
       </p>
       <div className={styles.muted}>
-        A mix lasts only until something else moves the look — a slider, mutate, a
-        scene — and then the fills reset, since a blended look can’t be traced
+        A mix lasts only until something else moves the look — a slider, mutate,
+        a scene — and then the fills reset, since a blended look can’t be traced
         back to exact amounts.
       </div>
     </Dialog>

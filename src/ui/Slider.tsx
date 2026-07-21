@@ -1,9 +1,12 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
-import { cx } from './cx'
-import { formatValue } from './format'
+import { useState } from 'react'
+
+import styles from './Slider.module.css'
 import { SliderHelpDialog } from './SliderHelpDialog'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
-import styles from './Slider.module.css'
+import { cx } from './cx'
+import { formatValue } from './format'
+
+import type { CSSProperties, ReactNode } from 'react'
 
 // The readout's little accessory buttons (help, sync, MIDI, favorite, reset).
 // They sit inside the <label>, so each click must preventDefault or it forwards

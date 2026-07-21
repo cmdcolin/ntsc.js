@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RefObject } from 'react'
-import type { Engine } from '../gpu/pipeline'
-import type { ControlKey, Controls } from '../controls'
+
 import { createMidi } from './midi'
+
+import type { ControlKey, Controls } from '../controls'
+import type { Engine } from '../gpu/pipeline'
 import type {
   BindingMap,
   DeviceProfile,
@@ -10,6 +11,7 @@ import type {
   MidiManager,
   MidiStatus,
 } from './midi'
+import type { RefObject } from 'react'
 
 // Owns the MIDI manager (an imperative Web MIDI subsystem living outside React)
 // and the single control-write path. Every store-origin change must reach two

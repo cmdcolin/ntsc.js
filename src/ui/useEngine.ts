@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Engine } from '../gpu/pipeline'
+
 import { DEFAULT_CONTROLS } from '../controls'
-import type { ControlKey, Controls, FrameStats } from '../controls'
+import { Engine } from '../gpu/pipeline'
 import { smpteBars, sweep } from '../sources/pattern'
-import type { SourceBMode, SourceMode } from '../sources/modes'
 import { ytId } from '../sources/youtube'
-import type { Fatal } from './FatalScreen'
 import { PRESETS, presetControls } from './presets'
+
+import type { ControlKey, Controls, FrameStats } from '../controls'
+import type { SourceBMode, SourceMode } from '../sources/modes'
+import type { Fatal } from './FatalScreen'
 
 // Load an image source from a URL, for the ?iurl / ?iurlb query params.
 const loadImage = (url: string): Promise<ImageBitmap> =>
@@ -177,7 +179,10 @@ export function useEngine() {
 
   useEffect(() => {
     if (playAudio && engine !== null) {
-      const id = window.setInterval(() => setAudioLevel(engine.audioState.hit), 100)
+      const id = window.setInterval(
+        () => setAudioLevel(engine.audioState.hit),
+        100,
+      )
       return () => {
         clearInterval(id)
         setAudioLevel(0)

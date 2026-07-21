@@ -58,7 +58,10 @@ export class AudioState {
   // Vaporwave media routing: a media element binds to one AudioContext for
   // life, so its source is created once and cached here, disconnected while
   // muted, and only evicted (releaseMedia) when the element is retired.
-  private mediaSources = new Map<HTMLMediaElement, MediaElementAudioSourceNode>()
+  private mediaSources = new Map<
+    HTMLMediaElement,
+    MediaElementAudioSourceNode
+  >()
   private media: {
     ctx: AudioContext
     analyser: AnalyserNode
@@ -140,7 +143,8 @@ export class AudioState {
       void m.ctx.resume()
       for (const src of this.mediaSources.values()) src.disconnect()
       for (const el of els) {
-        const src = this.mediaSources.get(el) ?? m.ctx.createMediaElementSource(el)
+        const src =
+          this.mediaSources.get(el) ?? m.ctx.createMediaElementSource(el)
         this.mediaSources.set(el, src)
         src.connect(m.ctx.destination)
         src.connect(m.analyser)
