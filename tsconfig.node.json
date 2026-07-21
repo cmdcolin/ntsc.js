@@ -8,9 +8,10 @@
     "strict": true,
     "skipLibCheck": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "composite": true,
     "outDir": "./node_modules/.tmp/node",
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
-  "include": ["vite.config.ts", "vite-plugin-ytdlp.ts"]
+  "include": ["vite.config.ts", "vite-plugin-ytdlp.ts", "package.json"]
 }

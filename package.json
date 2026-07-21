@@ -1,7 +1,7 @@
 {
   "name": "phosphene",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Real-time NTSC / VHS / composite-video glitch simulator in WebGPU compute shaders.",
   "license": "MIT",
   "homepage": "https://cmdcolin.github.io/phosphene/",
@@ -31,6 +31,9 @@
     "lint:fix": "eslint . --cache --fix",
     "test": "vitest run",
     "test:watch": "vitest",
+    "push:patch": "node scripts/push.mjs patch",
+    "push:minor": "node scripts/push.mjs minor",
+    "push:major": "node scripts/push.mjs major",
     "docs": "dot -Tsvg docs/pipeline-simple.dot -o docs/pipeline-simple-light.svg && dot -Tsvg -Ecolor=#9aa4b2 -Efontcolor=#9aa4b2 docs/pipeline-simple.dot -o docs/pipeline-simple-dark.svg && dot -Tsvg docs/pipeline.dot -o docs/pipeline-light.svg && dot -Tsvg -Ecolor=#9aa4b2 -Efontcolor=#9aa4b2 docs/pipeline.dot -o docs/pipeline-dark.svg"
   },
   "dependencies": {

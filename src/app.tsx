@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { DEFAULT_CONTROLS } from './controls'
+import { gitSha, versionLabel } from './version'
 import type { ControlKey, Controls } from './controls'
 import { GROUPS, PHASES, type Group, type SliderDef } from './ui/controls'
 import { SYNCABLE_KEYS, SYNC_DIVISIONS, omit, syncedValue } from './ui/midi'
@@ -519,22 +520,27 @@ export function App() {
         <button
           className={styles.brand}
           onClick={() => setShowHelp(true)}
-          title="Phosphene — what is this?"
+          title={`Phosphene ${versionLabel} (${gitSha}) — what is this?`}
           aria-label="Phosphene — what is this?"
         >
-          <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
-            <rect
-              x="1"
-              y="1"
-              width="16"
-              height="12"
-              rx="2.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.3"
-            />
-            <circle cx="9" cy="7" r="2.3" fill="currentColor" />
+          <svg width="26" height="18" viewBox="0 0 26 18" aria-hidden="true">
+            <defs>
+              <clipPath id="brandBars">
+                <rect width="26" height="18" rx="3" />
+              </clipPath>
+            </defs>
+            <g clipPath="url(#brandBars)">
+              <rect x="0" width="3.714" height="18" fill="#bfbfbf" />
+              <rect x="3.714" width="3.714" height="18" fill="#bfbf00" />
+              <rect x="7.429" width="3.714" height="18" fill="#00bfbf" />
+              <rect x="11.143" width="3.714" height="18" fill="#00bf00" />
+              <rect x="14.857" width="3.714" height="18" fill="#bf00bf" />
+              <rect x="18.571" width="3.714" height="18" fill="#bf0000" />
+              <rect x="22.286" width="3.714" height="18" fill="#0000bf" />
+            </g>
           </svg>
+          <span className={styles.wordmark}>PHOSPHENE</span>
+          <span className={styles.version}>{versionLabel}</span>
         </button>
         <a
           className={styles.link}

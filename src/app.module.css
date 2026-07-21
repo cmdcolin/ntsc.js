@@ -41,20 +41,37 @@
   gap: 6px;
   letter-spacing: 0.04em;
 }
-/* the wordmark collapsed to a small icon (also the help trigger) so the header
-   barely costs a row */
+/* color-bars glyph + wordmark + version, doubling as the help trigger */
 .brand {
   display: inline-flex;
   align-items: center;
+  gap: 7px;
   padding: 0;
   border: 0;
   background: transparent;
-  color: #7fd0a0;
   cursor: pointer;
-  line-height: 0;
+  line-height: 1;
 }
-.brand:hover {
-  color: #a8e8c4;
+.brand svg {
+  display: block;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px #ffffff1a;
+}
+.wordmark {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #e6e6e6;
+}
+.brand:hover .wordmark {
+  color: #fff;
+}
+.version {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #7f8a99;
+  font-variant-numeric: tabular-nums;
 }
 .helpBtn {
   width: 15px;
