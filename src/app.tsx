@@ -151,9 +151,20 @@ export function App() {
   }
 
   const applyPreset = (name: string, patch: Partial<Controls>) => {
-    snapshotForUndo()
-    writeControls(presetControls(patch))
-    setMix({ base: DEFAULT_CONTROLS, weights: new Map([[name, 1]]) })
+    if (Object.keys(patch).length === 0) {
+      // "clean" (the only empty patch) is the reset: wipe the mix to defaults.
+      snapshotForUndo()
+      writeControls(presetControls(patch))
+      setMix({ base: DEFAULT_CONTROLS, weights: new Map() })
+    } else {
+      // Clicking tops the preset up to full without clearing partials already
+      // dialed in — the same as dragging its slider to 100%. startMix (fired on
+      // pointer down) has already rebaselined onto the live look and snapshotted
+      // undo, so this only adds the weight.
+      const weights = new Map(mix.weights).set(name, 1)
+      writeControls(blendPresets(mix.base, weights))
+      setMix({ base: mix.base, weights })
+    }
     setLastPreset(name)
   }
 

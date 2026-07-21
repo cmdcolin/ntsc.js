@@ -52,13 +52,15 @@ function PresetsHelpDialog(props: { onClose: () => void }) {
         </div>
         <p className={styles.helpText}>
           Each preset is a named look — a bundle of control settings that
-          recreates a particular signal fault or device. Click one to apply it
-          outright; hover for what it does.
+          recreates a particular signal fault or device. Hover one for what it
+          does.
         </p>
         <p className={styles.helpText}>
-          Every preset doubles as a slider: drag it sideways to mix that look
-          part-way into the current one instead of replacing it, and the fill
-          shows how much is in. Stacking several accumulates their faults.
+          Every preset is also a fader: click to dial it fully in, or drag
+          sideways for a partial amount. Either way it layers onto what’s
+          already there rather than replacing it, and the fill shows how much is
+          in — so stacking several accumulates their faults. “clean” clears them
+          all.
         </p>
         <div className={styles.muted}>
           A mix lasts only until something else moves the look — a slider,
