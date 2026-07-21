@@ -5,8 +5,8 @@ import type { ControlKey, Controls } from './controls'
 import { GROUPS, type Group } from './ui/controls'
 import { SYNCABLE_KEYS, SYNC_DIVISIONS, omit, syncedValue } from './ui/midi'
 import {
-  CONTROL_KEYS,
   blendPresets,
+  controlsEqual,
   matchPreset,
   presetControls,
   type PresetWeights,
@@ -56,6 +56,8 @@ function loadSync(): SyncMap {
 // truth so the mount-anchored key handlers never work from stale React state.
 type SceneMap = Partial<Record<string, Partial<Controls>>>
 const SCENES_STORE = 'video_feedback_scenes'
+// Stable empty weights, so a stale mix passes the same map every render.
+const NO_WEIGHTS: PresetWeights = new Map()
 function loadScenes(): SceneMap {
   const raw = localStorage.getItem(SCENES_STORE)
   return raw === null ? {} : (JSON.parse(raw) as SceneMap)
@@ -118,6 +120,15 @@ export function App() {
   const [mix, setMix] = useState<{ base: Controls; weights: PresetWeights }>(
     () => ({ base: DEFAULT_CONTROLS, weights: new Map() }),
   )
+  // The weights only describe the look while nothing else has moved it. Once a
+  // randomize, slider, MIDI, mod, or scene recall changes the controls, "how
+  // much of preset X is in this" is unrecoverable — blendPresets sums each
+  // preset's departures, so many recipes land on the same look. So the fills
+  // are shown only while the live controls still equal what the mix produced;
+  // the instant anything diverges they read empty rather than lie, and the next
+  // drag rebaselines onto whatever is live (startMix).
+  const mixed = blendPresets(mix.base, mix.weights)
+  const liveWeights = controlsEqual(controls, mixed) ? mix.weights : NO_WEIGHTS
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
@@ -153,8 +164,7 @@ export function App() {
   const startMix = () => {
     const cur = engineRef.current?.getControls()
     if (cur !== undefined) {
-      const mixed = blendPresets(mix.base, mix.weights)
-      if (CONTROL_KEYS.some(k => cur[k] !== mixed[k])) {
+      if (!controlsEqual(cur, mixed)) {
         setMix({ base: cur, weights: new Map() })
       }
       setUndoSnapshot(cur)
@@ -474,7 +484,7 @@ export function App() {
       <PresetsSection
         controls={controls}
         lastPreset={lastPreset}
-        weights={mix.weights}
+        weights={liveWeights}
         onApplyPreset={applyPreset}
         onMixStart={startMix}
         onMix={setPresetWeight}

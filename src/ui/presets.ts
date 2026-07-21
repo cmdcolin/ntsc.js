@@ -409,11 +409,13 @@ export function presetControls(patch: Partial<Controls>): Controls {
 
 export const CONTROL_KEYS = Object.keys(DEFAULT_CONTROLS) as ControlKey[]
 
+export function controlsEqual(a: Controls, b: Controls): boolean {
+  return CONTROL_KEYS.every(k => a[k] === b[k])
+}
+
 // The preset whose full control-set exactly matches `values`, if any.
 export function matchPreset(values: Controls): PresetDef | undefined {
-  return PRESETS.find(p =>
-    CONTROL_KEYS.every(k => presetControls(p.patch)[k] === values[k]),
-  )
+  return PRESETS.find(p => controlsEqual(presetControls(p.patch), values))
 }
 
 // How much of each preset is dialed in, by preset name. Absent or 0 is off.

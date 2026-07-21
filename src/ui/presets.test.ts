@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONTROLS } from '../controls'
-import { PRESETS, blendPresets, matchPreset, presetControls } from './presets'
+import {
+  PRESETS,
+  blendPresets,
+  controlsEqual,
+  matchPreset,
+  presetControls,
+} from './presets'
 
 describe('blendPresets', () => {
   it('at full weight over defaults, reproduces the preset exactly', () => {
@@ -66,5 +72,24 @@ describe('blendPresets', () => {
       ]),
     )
     expect(piled.noiseIre).toBeLessThanOrEqual(40)
+  })
+})
+
+describe('controlsEqual', () => {
+  it('is true only when every control matches', () => {
+    const base = presetControls({ noiseIre: 7 })
+    expect(controlsEqual(base, presetControls({ noiseIre: 7 }))).toBe(true)
+    expect(controlsEqual(base, presetControls({ noiseIre: 7.1 }))).toBe(false)
+  })
+
+  // The fills stay honest: once anything moves the look off what the mix
+  // produced, controlsEqual goes false and the UI drops the weights to zero.
+  it('goes false when a look diverges from its mix', () => {
+    const base = presetControls({ ghostGain: 0.2 })
+    const weights = new Map([['vhs', 0.5]])
+    expect(controlsEqual(base, blendPresets(base, weights))).toBe(false)
+    expect(
+      controlsEqual(blendPresets(base, weights), blendPresets(base, weights)),
+    ).toBe(true)
   })
 })
