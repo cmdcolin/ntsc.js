@@ -1,4 +1,4 @@
-import type { ReactNode, RefObject } from 'react'
+import type { RefObject } from 'react'
 import styles from '../app.module.css'
 import {
   SOURCE_B_MODES,
@@ -8,10 +8,6 @@ import {
   type SourceMode,
 } from '../sources/modes'
 import { Section } from './Section'
-import { GROUPS, type Group } from './controls'
-
-// A/B mix groups live next to the Input row, shown only when B is enabled.
-const AB_GROUPS = GROUPS.filter(g => g.ab)
 
 // The YouTube option is backed by the dev-only yt-dlp bridge, so hide it in
 // production builds where the /yt endpoint doesn't exist.
@@ -40,7 +36,6 @@ export function InputSection(props: {
   fileInputBRef: RefObject<HTMLInputElement | null>
   onFile: (file: File | undefined) => void
   onFileB: (file: File | undefined) => void
-  renderGroup: (group: Group, defaultOpen: boolean) => ReactNode
 }) {
   return (
     <div>
@@ -116,9 +111,9 @@ export function InputSection(props: {
             pick a source B above to mix a second signal in.
           </div>
         ) : (
-          // Open the primary B mix; collapse the alternative compositors
-          // (wipe, PiP) so enabling B doesn't unfurl every slider at once.
-          AB_GROUPS.map((group, i) => props.renderGroup(group, i === 0))
+          <div className={styles.hint}>
+            mix controls are in the A/B Mix section below.
+          </div>
         )}
       </Section>
       {/* Hidden pickers stay mounted outside the collapsible Section, so a

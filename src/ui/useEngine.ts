@@ -4,6 +4,7 @@ import { DEFAULT_CONTROLS } from '../controls'
 import type { ControlKey, Controls, FrameStats } from '../controls'
 import { smpteBars, sweep } from '../sources/pattern'
 import type { SourceBMode, SourceMode } from '../sources/modes'
+import { ytId } from '../sources/youtube'
 import type { Fatal } from './FatalScreen'
 import { PRESETS, presetControls } from './presets'
 
@@ -27,12 +28,6 @@ const urlName = (url: string): string => {
   const path = new URL(url, location.href).pathname
   const name = decodeURIComponent(path.slice(path.lastIndexOf('/') + 1))
   return name === '' ? url : name
-}
-
-// The 11-char video id from a watch/youtu.be URL, for a compact source label.
-const ytId = (url: string): string => {
-  const u = new URL(url, location.href)
-  return u.searchParams.get('v') ?? u.pathname.slice(1)
 }
 
 // Vaporwave playback defaults, shared with VaporwaveSection so each slider's
@@ -76,6 +71,9 @@ export function useEngine() {
   const [speedB, setSpeedB] = useState(SPEED_DEFAULT)
   const [playAudio, setPlayAudio] = useState(false)
   const [reverb, setReverb] = useState(REVERB_DEFAULT)
+  // The routed audio's onset level, polled off the render loop for the panel
+  // meter (same 10 Hz cadence as the mic meter, so it never re-renders a frame).
+  const [audioLevel, setAudioLevel] = useState(0)
   const [videoA, setVideoA] = useState(false)
   const [videoB, setVideoB] = useState(false)
   // The loaded YouTube URL per slot, kept so the source round-trips through the
@@ -176,6 +174,16 @@ export function useEngine() {
     setPlayAudio(true)
     routeAudio(true, REVERB_DEFAULT)
   }
+
+  useEffect(() => {
+    if (playAudio && engine !== null) {
+      const id = window.setInterval(() => setAudioLevel(engine.audioState.hit), 100)
+      return () => {
+        clearInterval(id)
+        setAudioLevel(0)
+      }
+    }
+  }, [playAudio, engine])
 
   const stopVideo = () => {
     const v = videoRef.current
@@ -617,6 +625,7 @@ export function useEngine() {
     speedB,
     playAudio,
     reverb,
+    audioLevel,
     ytUrlA,
     ytUrlB,
     changeSpeedA,

@@ -11,6 +11,8 @@ export function VaporwaveSection(props: {
   speedB: number
   reverb: number
   playAudio: boolean
+  // The routed audio's onset level for the meter.
+  level: number
   onSpeedA: (v: number) => void
   onSpeedB: (v: number) => void
   onReverb: (v: number) => void
@@ -61,6 +63,14 @@ export function VaporwaveSection(props: {
         >
           {props.playAudio ? 'mute audio' : 'play audio out loud'}
         </button>
+        {props.playAudio ? (
+          <div className={styles.meter}>
+            <div
+              className={styles.meterFill}
+              style={{ width: `${Math.min(props.level * 100, 100).toFixed(1)}%` }}
+            />
+          </div>
+        ) : null}
       </>
     </Section>
   )

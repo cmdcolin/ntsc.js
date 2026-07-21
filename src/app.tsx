@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { DEFAULT_CONTROLS } from './controls'
 import type { ControlKey, Controls } from './controls'
-import { GROUPS, PHASES, type Group } from './ui/controls'
+import { GROUPS, PHASES, type Group, type SliderDef } from './ui/controls'
 import { SYNCABLE_KEYS, SYNC_DIVISIONS, omit, syncedValue } from './ui/midi'
 import {
   blendPresets,
@@ -40,24 +40,22 @@ import styles from './app.module.css'
 const subscribeNever = () => () => {}
 const getDefaultControls = (): Controls => DEFAULT_CONTROLS
 
-const AUDIO_GROUP = GROUPS.find(g => g.audio === true)
+const AUDIO_GROUP = GROUPS.find(g => g.place === 'audio')
 // A/B mix groups get their own section below Input when source B is on, rather
 // than swelling the Input row in place (which shoves the presets down the panel
 // and reads as if their order changed).
-const AB_GROUPS = GROUPS.filter(g => g.ab === true)
-// The main groups arranged by signal-path phase — the spine the panel is
-// browsed along. PHASES names the stages; resolve each to its group object.
-const GROUP_BY_NAME = new Map(GROUPS.map(g => [g.name, g]))
-const PHASED_GROUPS = PHASES.map(p => ({
-  name: p.name,
-  groups: p.groups.flatMap(n => {
-    const g = GROUP_BY_NAME.get(n)
-    return g === undefined ? [] : [g]
-  }),
-}))
+const AB_GROUPS = GROUPS.filter(g => g.place === 'ab')
 // Every control that has a slider — the full set `mutate` jitters.
 const ALL_SLIDERS = GROUPS.flatMap(g => g.sliders)
 const SYNCABLE_SET = new Set<ControlKey>(SYNCABLE_KEYS)
+
+// Sliders the user has pinned to the Favorites section, by control key. Stored
+// as a plain key list so a reload keeps the pins.
+const FAVORITES_STORE = 'video_feedback_favorites'
+function loadFavorites(): Set<ControlKey> {
+  const raw = localStorage.getItem(FAVORITES_STORE)
+  return new Set(raw === null ? [] : (JSON.parse(raw) as ControlKey[]))
+}
 
 // Which rate controls are clock-locked, and to which SYNC_DIVISIONS index.
 type SyncMap = Partial<Record<ControlKey, number>>
@@ -142,6 +140,15 @@ export function App() {
       return next
     })
   const [scenes, setScenes] = useState<SceneMap>(loadScenes)
+  const [favorites, setFavorites] = useState<Set<ControlKey>>(loadFavorites)
+  const toggleFavorite = (key: ControlKey) =>
+    setFavorites(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      localStorage.setItem(FAVORITES_STORE, JSON.stringify([...next]))
+      return next
+    })
   // Single-level undo: the look from just before the last destructive apply
   // (preset, scene recall, or mutate), so a misclick is one keypress back.
   const [undoSnapshot, setUndoSnapshot] = useState<Controls | null>(null)
@@ -443,6 +450,42 @@ export function App() {
   const audio = useAudio(eng.engine)
 
   const query = filter.trim().toLowerCase()
+  const renderSlider = (s: SliderDef) => (
+    <Slider
+      key={s.key}
+      label={s.label}
+      unit={s.unit}
+      min={s.min}
+      max={s.max}
+      step={s.step}
+      value={displayValue(s.key)}
+      defaultValue={DEFAULT_CONTROLS[s.key]}
+      onChange={v => writeControl(s.key, v)}
+      help={s.help}
+      favorite={{
+        on: favorites.has(s.key),
+        onToggle: () => toggleFavorite(s.key),
+      }}
+      midi={
+        midiStatus === 'ready'
+          ? {
+              label: bindLabel(s.key),
+              armed: armedKey === s.key,
+              onArm: () => toggleArm(s.key),
+            }
+          : undefined
+      }
+      sync={
+        midiStatus === 'ready' && SYNCABLE_SET.has(s.key)
+          ? {
+              label: syncLabel(s.key),
+              live: bpm !== null,
+              onCycle: () => cycleSync(s.key),
+            }
+          : undefined
+      }
+    />
+  )
   const renderGroup = (
     group: Group,
     defaultOpen: boolean,
@@ -465,38 +508,7 @@ export function App() {
         open={control?.open}
         onToggle={control?.onToggle}
       >
-        {sliders.map(s => (
-          <Slider
-            key={s.key}
-            label={s.label}
-            unit={s.unit}
-            min={s.min}
-            max={s.max}
-            step={s.step}
-            value={displayValue(s.key)}
-            defaultValue={DEFAULT_CONTROLS[s.key]}
-            onChange={v => writeControl(s.key, v)}
-            help={s.help}
-            midi={
-              midiStatus === 'ready'
-                ? {
-                    label: bindLabel(s.key),
-                    armed: armedKey === s.key,
-                    onArm: () => toggleArm(s.key),
-                  }
-                : undefined
-            }
-            sync={
-              midiStatus === 'ready' && SYNCABLE_SET.has(s.key)
-                ? {
-                    label: syncLabel(s.key),
-                    live: bpm !== null,
-                    onCycle: () => cycleSync(s.key),
-                  }
-                : undefined
-            }
-          />
-        ))}
+        {sliders.map(renderSlider)}
       </Section>
     )
   }
@@ -576,6 +588,16 @@ export function App() {
         onUndo={undo}
       />
 
+      {/* Pinned controls, gathered from wherever they live in the chain into one
+          spot near the front door. Shown only once something is starred, so it
+          costs nothing until used; ordered by the signal path, not pin order, so
+          the set stays stable as pins come and go. */}
+      {favorites.size === 0 ? null : (
+        <Section title="Favorites" defaultOpen>
+          {ALL_SLIDERS.filter(s => favorites.has(s.key)).map(renderSlider)}
+        </Section>
+      )}
+
       {/* The signal-path map is the panel's trunk, so it sits high — right under
           the source and preset front door — and the filter that acts on it heads
           it. Scenes/mod/audio/midi are occasional tools and drop below it. */}
@@ -586,7 +608,7 @@ export function App() {
         value={filter}
         onChange={e => setFilter(e.target.value)}
       />
-      {PHASED_GROUPS.map(phase => {
+      {PHASES.map(phase => {
         const rendered = phase.groups.map(group =>
           renderGroup(group, false, {
             open: openGroup === group.name,
@@ -628,6 +650,7 @@ export function App() {
           speedB={eng.speedB}
           reverb={eng.reverb}
           playAudio={eng.playAudio}
+          level={eng.audioLevel}
           onSpeedA={eng.changeSpeedA}
           onSpeedB={eng.changeSpeedB}
           onReverb={eng.changeReverb}

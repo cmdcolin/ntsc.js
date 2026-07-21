@@ -40,6 +40,7 @@ export interface Group {
 export const GROUPS: Group[] = [
   {
     name: 'Signal (source A)',
+    place: 'Source',
     sliders: [
       {
         key: 'invert',
@@ -63,6 +64,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Cable / Wiring',
+    place: 'Source',
     sliders: [
       {
         key: 'polarityFlip',
@@ -104,6 +106,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Camera Feedback',
+    place: 'Feedback',
     sliders: [
       {
         key: 'fbMix',
@@ -253,6 +256,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Mixer Loop (composite)',
+    place: 'Feedback',
     sliders: [
       {
         key: 'cfbMix',
@@ -366,7 +370,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'A/B Mixer (source B)',
-    ab: true,
+    place: 'ab',
     sliders: [
       {
         key: 'bGenlock',
@@ -453,7 +457,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Wipe (A/B)',
-    ab: true,
+    place: 'ab',
     sliders: [
       {
         key: 'wipeMode',
@@ -495,7 +499,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'PiP inset (source B)',
-    ab: true,
+    place: 'ab',
     sliders: [
       {
         key: 'pipMix',
@@ -591,6 +595,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Tape / Channel',
+    place: 'Tape',
     sliders: [
       {
         key: 'lumaMHz',
@@ -686,6 +691,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'VHS Chroma',
+    place: 'Tape',
     sliders: [
       {
         key: 'colorUnderMix',
@@ -709,6 +715,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'VHS Tracking',
+    place: 'Tape',
     sliders: [
       {
         key: 'trackAmt',
@@ -732,6 +739,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Timebase',
+    place: 'Tape',
     sliders: [
       {
         key: 'tbJitterNs',
@@ -773,6 +781,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Sync',
+    place: 'Receiver',
     sliders: [
       {
         key: 'hHold',
@@ -823,7 +832,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Audio',
-    audio: true,
+    place: 'audio',
     sliders: [
       {
         key: 'audioRoll',
@@ -892,6 +901,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Deflection',
+    place: 'Receiver',
     sliders: [
       {
         key: 'bendUs',
@@ -942,6 +952,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Decoder',
+    place: 'Receiver',
     sliders: [
       {
         key: 'combMode',
@@ -1046,6 +1057,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Display',
+    place: 'Screen',
     sliders: [
       {
         key: 'scanBeam',
@@ -1133,19 +1145,13 @@ export const GROUPS: Group[] = [
 ]
 
 // The signal-path phases, in order — the spine the panel is browsed along.
-// Groups are named rather than flagged so this stays one compact, readable map
-// of the chain; ab (A/B mix) and audio groups are surfaced contextually next to
-// the Input row and in the Audio section, so they carry no phase.
-export const PHASES: { name: string; groups: string[] }[] = [
-  { name: 'Source', groups: ['Signal (source A)', 'Cable / Wiring'] },
-  { name: 'Feedback', groups: ['Camera Feedback', 'Mixer Loop (composite)'] },
-  {
-    name: 'Tape',
-    groups: ['Tape / Channel', 'VHS Chroma', 'VHS Tracking', 'Timebase'],
-  },
-  { name: 'Receiver', groups: ['Sync', 'Deflection', 'Decoder'] },
-  { name: 'Screen', groups: ['Display'] },
-]
+// The browsable spine, derived straight from each group's `place` so a group's
+// stage lives in one spot (the group) and can't drift from a parallel list. ab
+// and audio groups carry no phase and surface contextually instead.
+export const PHASES = PHASE_ORDER.map(name => ({
+  name,
+  groups: GROUPS.filter(g => g.place === name),
+}))
 
 // Span/step lookup for the code that maps external values onto controls —
 // MIDI CC scaling, modulation depth, mutation — none of which have the group
@@ -1159,7 +1165,7 @@ export const SLIDER_BY_KEY = new Map<ControlKey, SliderDef>(
 // are controls, so its low banks should land on the always-visible spine before
 // spilling into groups that only appear in a mode.
 export const AUTOMAP_KEYS: ControlKey[] = [
-  ...GROUPS.filter(g => g.ab !== true && g.audio !== true),
-  ...GROUPS.filter(g => g.ab === true),
-  ...GROUPS.filter(g => g.audio === true),
+  ...GROUPS.filter(g => g.place !== 'ab' && g.place !== 'audio'),
+  ...GROUPS.filter(g => g.place === 'ab'),
+  ...GROUPS.filter(g => g.place === 'audio'),
 ].flatMap(g => g.sliders.map(s => s.key))

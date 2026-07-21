@@ -19,7 +19,7 @@ const CACHE_DIR = join(tmpdir(), 'phosphene-yt')
 const FORMAT =
   'bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/b[ext=mp4]/b'
 
-const isYouTube = (u: string): boolean => {
+export const isYouTube = (u: string): boolean => {
   try {
     const host = new URL(u).hostname.replace(/^www\./, '')
     return (

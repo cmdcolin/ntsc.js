@@ -15,11 +15,13 @@ export function Slider(props: {
   help?: string
   midi?: { label: string | null; armed: boolean; onArm: () => void }
   sync?: { label: string | null; live: boolean; onCycle: () => void }
+  favorite?: { on: boolean; onToggle: () => void }
 }) {
   const [showHelp, setShowHelp] = useState(false)
   const midi = props.midi
   const sync = props.sync
   const help = props.help
+  const favorite = props.favorite
   const locked = sync?.label !== null && sync?.live === true
   // Track fill anchors at the default, not the left edge: bipolar controls
   // read like a pan pot from center, and distance-from-stock shows at a glance.
@@ -102,6 +104,20 @@ export function Slider(props: {
                   : midi.label === null
                     ? '⚟'
                     : `CC${midi.label}`}
+              </button>
+            ) : null}
+            {favorite ? (
+              <button
+                title={
+                  favorite.on ? 'remove from Favorites' : 'pin to Favorites'
+                }
+                className={cx(styles.icon, favorite.on && styles.iconOn)}
+                onClick={e => {
+                  e.preventDefault()
+                  favorite.onToggle()
+                }}
+              >
+                {favorite.on ? '★' : '☆'}
               </button>
             ) : null}
             <button
