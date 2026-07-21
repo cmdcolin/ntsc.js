@@ -168,6 +168,10 @@ export function PresetsSection(props: {
         </button>
       }
     >
+      <div className={styles.hint}>
+        click and drag on buttons to partially apply · “clean” resets
+        everything · hold C to compare · f for fullscreen
+      </div>
       {PRESET_GROUPS.map(grp => (
         <div key={grp.name} style={{ margin: '2px 0 4px' }}>
           <div className={styles.grpLabel}>{grp.name}</div>
@@ -216,10 +220,6 @@ export function PresetsSection(props: {
       >
         undo
       </button>
-      <div className={styles.hint}>
-        click and drag on buttons to partially apply · “clean” resets
-        everything · hold C to compare · f for fullscreen
-      </div>
       {showHelp ? (
         <PresetsHelpDialog onClose={() => setShowHelp(false)} />
       ) : null}
