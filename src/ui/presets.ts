@@ -256,6 +256,35 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'difference key',
+    group: 'A/B mixing',
+    blurb:
+      'Source A inverted on its own bus fader and summed against B: where the two pictures agree they cancel to flat grey, where they differ the mix lights up, with a slow chroma beat riding through.',
+    patch: {
+      aGain: -1,
+      bGain: 1,
+      bLineHz: 0,
+      bDetuneHz: 30,
+      bRollLps: 0,
+      noiseIre: 1.5,
+    },
+  },
+  {
+    name: 'dirty dissolve',
+    group: 'A/B mixing',
+    blurb:
+      'A manual crossfade on the summing bus — A pulled halfway down under B — but B is still off-frequency and off-line, so the dissolve beats and rolls instead of sitting clean like the genlocked one.',
+    patch: {
+      aGain: 0.5,
+      bGain: 0.6,
+      bLineHz: 0.3,
+      bDetuneHz: 60,
+      bRollLps: 0.12,
+      hHold: 0.28,
+      noiseIre: 1.8,
+    },
+  },
+  {
     name: 'wipe fight',
     group: 'A/B mixing',
     blurb:

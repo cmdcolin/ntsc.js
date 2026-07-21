@@ -356,7 +356,8 @@ export class Engine {
     const perRow = [Math.ceil(LINES / 64), 1] as const
     const c = this.controls
     const bOn = () =>
-      this.bEnabled && (c.bGain !== 0 || c.bRing !== 0 || c.pipMix !== 0)
+      this.bEnabled &&
+      (c.bGain !== 0 || c.bRing !== 0 || c.pipMix !== 0 || c.aGain !== 1)
 
     this.composePass = {
       label: 'compose',
@@ -840,7 +841,8 @@ export class Engine {
       // beat between the free-running v-osc and the incoming field rate: a
       // slower oscillator retraces late, so the raster start creeps down the
       // source and the picture climbs
-      vRollRate: LINES * (60 / (c.vFreqHz - c.audioRoll * this.audioState.hit) - 1),
+      vRollRate:
+        LINES * (60 / (c.vFreqHz - c.audioRoll * this.audioState.hit) - 1),
       syncBend: c.syncBendUs * 1e-6 * SAMPLE_RATE,
       bendAmt: c.bendUs * 1e-6 * SAMPLE_RATE,
       bendShape: c.bendShape,
@@ -884,6 +886,7 @@ export class Engine {
       crtBloom: c.crtBloom,
       crtHalation: c.crtHalation,
       crtGlow: c.crtGlow,
+      aGain: c.aGain,
       bGain: c.bGain,
       bRing: c.bRing,
       bHue: (c.bHueDeg * Math.PI) / 180,

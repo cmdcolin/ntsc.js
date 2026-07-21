@@ -99,6 +99,7 @@ export const DEFAULT_CONTROLS = {
   cfbFilterQ: 0.5, // loop resonance selectivity
   cfbFilterBoost: 2, // added in-band loop gain once a center is set
   // dirty mixer (source B, non-genlocked)
+  aGain: 1, // A level on the summing bus, signed (negative inverts A)
   bGain: 0,
   bRing: 0,
   bLineHz: 0.15,

@@ -11,6 +11,11 @@ export interface SliderDef {
   // Say what breaks in the hardware, not what the picture looks like — the look
   // is emergent, and knowing the cause is what makes the knobs combine.
   help: string
+  // A discrete mode rather than a quantity: one label per integer value, index
+  // == value. Presence renders a toggle-button group instead of a slider and is
+  // the single source of truth for which controls blend by mode (ENUM_KEYS in
+  // presets), so min/max/step still bound the same integer for MIDI and mod.
+  choices?: string[]
 }
 
 // The signal-path stages, in the order the panel's spine is browsed. A group
@@ -380,6 +385,15 @@ export const GROUPS: Group[] = [
         step: 1,
         unit: '',
         help: "Whether source B is genlocked to the house reference. Off (0): B free-runs and is summed into the composite — a wiring fault, so its detune, roll and skew below drive fighting sync and chroma beats. On (1): B is re-encoded on A's carrier and raster and the combine becomes a clean crossfade — a production switcher dissolve, with B gain as the fader and the wipe as a clean B-replaces-A wipe. The detune/roll/skew and ring mod do nothing on this path.",
+      },
+      {
+        key: 'aGain',
+        label: 'A gain',
+        min: -1.2,
+        max: 1.2,
+        step: 0.01,
+        unit: 'x',
+        help: "A's own level on the summing bus (dirty path only). 1 is full program; pull it down to fade A out under B for a manual crossfade, or take it negative to invert A into a difference key that cancels against B. Does nothing on the genlocked clean-dissolve path, where A is implied by (1 − B gain).",
       },
       {
         key: 'bGain',
@@ -914,11 +928,12 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'bendShape',
-        label: 'shape (0 flag, 1 skew, 2 bow, 3 ripple)',
+        label: 'shape',
         min: 0,
         max: 3,
         step: 1,
         unit: '',
+        choices: ['flag', 'skew', 'bow', 'ripple'],
         help: 'How that displacement is distributed down the frame: 0 flag (a hook at the top that decays away), 1 skew (a straight lean), 2 bow (a barrel-like curve), 3 ripple (a repeating wave down the screen).',
       },
       {

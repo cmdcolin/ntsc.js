@@ -109,8 +109,9 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
       b = activeComposite(yuvB[np].x, uf, vf, carrierRot(np, P.frame, delta), P.bVidGain, P.bInv);
     }
 
-    // sum at the composite level; ring mod multiplies the two signals
-    comp[n] = a + gate * (P.bGain * b + P.bRing * a * b * 0.01);
+    // sum at the composite level; A rides its own bus fader (signed, so a
+    // negative aGain inverts A into a difference key), ring mod multiplies
+    comp[n] = P.aGain * a + gate * (P.bGain * b + P.bRing * a * b * 0.01);
   }
 
   // Picture-in-picture: source B squeezed into a positionable window and keyed
