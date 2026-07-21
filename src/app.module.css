@@ -30,8 +30,8 @@
 .titleRow {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  margin: 4px 0 10px;
+  align-items: center;
+  margin: 2px 0 4px;
 }
 .title {
   font-size: 13px;
@@ -40,6 +40,21 @@
   align-items: center;
   gap: 6px;
   letter-spacing: 0.04em;
+}
+/* the wordmark collapsed to a small icon (also the help trigger) so the header
+   barely costs a row */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #7fd0a0;
+  cursor: pointer;
+  line-height: 0;
+}
+.brand:hover {
+  color: #a8e8c4;
 }
 .helpBtn {
   width: 15px;
@@ -73,7 +88,7 @@
   font-size: 12px;
   font-weight: 600;
   color: #9a9ab0;
-  margin: 14px 0 4px;
+  margin: 10px 0 3px;
   padding: 3px 2px;
   border-bottom: 1px solid #2a2a34;
   display: flex;
@@ -106,7 +121,7 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #6f7f9a;
-  margin: 18px 0 0;
+  margin: 12px 0 2px;
 }
 
 /* control filter box */
@@ -134,7 +149,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 4px 0;
+  margin: 3px 0;
 }
 .tag {
   width: 12px;
@@ -216,14 +231,34 @@
   margin: 4px 0 2px;
 }
 .caption {
-  min-height: 28px;
+  min-height: 20px;
   color: #8a8aa8;
-  margin: 4px 0;
+  margin: 2px 0;
   line-height: 1.4;
 }
 .hint {
   color: #666;
-  margin: 4px 0;
+  margin: 3px 0;
+}
+/* a hint the user can dismiss with the × at its end */
+.dismissHint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.hintX {
+  flex-shrink: 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: #666;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.hintX:hover {
+  color: #c8c8d0;
 }
 /* audio input level */
 .meter {

@@ -489,16 +489,26 @@ export function App() {
   const panelBody = (
     <>
       <div className={styles.titleRow}>
-        <h2 className={styles.title}>
-          Phosphene
-          <button
-            className={styles.helpBtn}
-            onClick={() => setShowHelp(true)}
-            title="what is this?"
-          >
-            ?
-          </button>
-        </h2>
+        <button
+          className={styles.brand}
+          onClick={() => setShowHelp(true)}
+          title="Phosphene — what is this?"
+          aria-label="Phosphene — what is this?"
+        >
+          <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+            <rect
+              x="1"
+              y="1"
+              width="16"
+              height="12"
+              rx="2.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+            />
+            <circle cx="9" cy="7" r="2.3" fill="currentColor" />
+          </svg>
+        </button>
         <a
           className={styles.link}
           href="https://github.com/cmdcolin/phosphene"
@@ -560,9 +570,18 @@ export function App() {
             onToggle: () => toggleGroup(group.name),
           }),
         )
+        // Roll the per-group touched state up to the phase, so the collapsed
+        // spine reads as a status map — you see which phases you're in without
+        // opening any.
+        const touched = phase.groups.some(g =>
+          g.sliders.some(s => controls[s.key] !== DEFAULT_CONTROLS[s.key]),
+        )
         return rendered.every(r => r === null) ? null : (
           <div key={phase.name}>
-            <div className={styles.phaseLabel}>{phase.name}</div>
+            <div className={styles.phaseLabel}>
+              {phase.name}
+              {touched ? <span className={styles.dot}> •</span> : null}
+            </div>
             {rendered}
           </div>
         )

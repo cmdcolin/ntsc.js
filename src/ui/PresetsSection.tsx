@@ -26,6 +26,10 @@ const PRESET_GROUPS = PRESETS.reduce<{ name: string; defs: typeof PRESETS }[]>(
 // the button into a weight slider, mixing that preset onto the current look.
 const DRAG_SLOP = 4
 
+// The preset gesture hint is shown until the user dismisses it with its ×;
+// that choice persists, so it teaches once and then stops costing a row.
+const HINT_STORE = 'video_feedback_preset_hint_dismissed'
+
 // The one explainer for the whole feature (behind the ? by the section title),
 // so the compact chips carry no per-preset help of their own — each chip's blurb
 // stays on hover.
@@ -146,6 +150,13 @@ export function PresetsSection(props: {
   onUndo: () => void
 }) {
   const [showHelp, setShowHelp] = useState(false)
+  const [hintDismissed, setHintDismissed] = useState(
+    () => localStorage.getItem(HINT_STORE) === '1',
+  )
+  const dismissHint = () => {
+    localStorage.setItem(HINT_STORE, '1')
+    setHintDismissed(true)
+  }
   const active = matchPreset(props.controls)
   const presetCaption = active
     ? active.blurb
@@ -170,10 +181,22 @@ export function PresetsSection(props: {
         </button>
       }
     >
-      <div className={styles.hint}>
-        click and drag on buttons to partially apply · “clean” resets
-        everything · hold C to compare · f for fullscreen
-      </div>
+      {hintDismissed ? null : (
+        <div className={cx(styles.hint, styles.dismissHint)}>
+          <span>
+            click and drag on buttons to partially apply · “clean” resets
+            everything · hold C to compare · f for fullscreen
+          </span>
+          <button
+            className={styles.hintX}
+            title="dismiss this hint"
+            aria-label="dismiss hint"
+            onClick={dismissHint}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {PRESET_GROUPS.map(grp => (
         <div key={grp.name} style={{ margin: '2px 0 4px' }}>
           <div className={styles.grpLabel}>{grp.name}</div>

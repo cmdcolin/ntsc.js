@@ -7,7 +7,7 @@ import {
   type SourceBMode,
   type SourceMode,
 } from '../sources/modes'
-import { cx } from './cx'
+import { Section } from './Section'
 import { GROUPS, type Group } from './controls'
 
 // A/B mix groups live next to the Input row, shown only when B is enabled.
@@ -44,8 +44,8 @@ export function InputSection(props: {
 }) {
   return (
     <div>
-      <div className={cx(styles.head, styles.static)}>Input</div>
-      <div className={styles.inputRow}>
+      <Section title="Input" defaultOpen>
+        <div className={styles.inputRow}>
         <span className={styles.tag} title="main source">
           A
         </span>
@@ -111,6 +111,18 @@ export function InputSection(props: {
           {props.sourceBName}
         </div>
       ) : null}
+        {props.sourceBMode === 'none' ? (
+          <div className={styles.hint}>
+            pick a source B above to mix a second signal in.
+          </div>
+        ) : (
+          // Open the primary B mix; collapse the alternative compositors
+          // (wipe, PiP) so enabling B doesn't unfurl every slider at once.
+          AB_GROUPS.map((group, i) => props.renderGroup(group, i === 0))
+        )}
+      </Section>
+      {/* Hidden pickers stay mounted outside the collapsible Section, so a
+          collapsed Input can still fire the file dialog through its ref. */}
       <input
         ref={props.fileInputRef}
         type="file"
@@ -131,15 +143,6 @@ export function InputSection(props: {
           e.target.value = '' // allow re-picking the same file
         }}
       />
-      {props.sourceBMode === 'none' ? (
-        <div className={styles.hint}>
-          pick a source B above to mix a second signal in.
-        </div>
-      ) : (
-        // Open the primary B mix; collapse the alternative compositors
-        // (wipe, PiP) so enabling B doesn't unfurl every slider at once.
-        AB_GROUPS.map((group, i) => props.renderGroup(group, i === 0))
-      )}
     </div>
   )
 }
