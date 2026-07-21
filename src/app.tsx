@@ -289,24 +289,27 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       const typing = isTextEntry(e.target)
       const { capture, undo, undoSnapshot } = actionsRef.current
+      // Match letter shortcuts regardless of Shift/Caps Lock, so the hint's
+      // "hold C to compare" works whether or not C arrives capitalized.
+      const key = e.key.toLowerCase()
       if (e.key === 'Escape') {
         setShowAdvanced(false)
         setShowHelp(false)
         setFilter('')
         disarm()
         stopLearn()
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      } else if ((e.ctrlKey || e.metaKey) && key === 'z') {
         if (undoSnapshot !== null) {
           e.preventDefault()
           undo()
         }
-      } else if (!typing && e.key === 'f') {
+      } else if (!typing && key === 'f') {
         toggleFullscreen()
-      } else if (!typing && e.key === 'c' && !e.repeat) {
+      } else if (!typing && key === 'c' && !e.repeat) {
         startCompare()
-      } else if (!typing && e.key === 'r' && !e.repeat) {
+      } else if (!typing && key === 'r' && !e.repeat) {
         capture.toggleRecord()
-      } else if (!typing && e.key === 's' && !e.repeat) {
+      } else if (!typing && key === 's' && !e.repeat) {
         capture.grabStill()
       } else if (!typing) {
         const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code)
@@ -317,7 +320,7 @@ export function App() {
       }
     }
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'c') endCompare()
+      if (e.key.toLowerCase() === 'c') endCompare()
     }
     // Shortcuts work wherever the panel lives: main window and the popout.
     const targets = popout === null ? [window] : [window, popout]
