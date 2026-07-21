@@ -77,25 +77,35 @@ with an imperfect receiver.
 
 That waveform is really just one big `Float32Array` — those ~478k samples —
 sitting in GPU memory (the `compA` buffer) and never coming back to the CPU.
-Each stage of the chain is a _compute pass_: picture a function that takes some
-buffers, reads that array, and writes it back, except the body runs on thousands
-of GPU cores at once, one for every sample.
+In plain JS, one stage of damage would be a loop:
+
+```js
+for (let i = 0; i < signal.length; i++) out[i] = mangle(signal, i)
+```
+
+478k iterations, times a dozen stages, 60 times a second — hopeless on one CPU
+thread. WebGPU keeps the exact same idea but runs the _body_ of that loop for
+every `i` at the same time, spread across thousands of GPU cores. Each stage of
+the chain is one such pass: a small program (a `.wgsl` _shader_) that reads the
+buffer and writes it back, with the GPU supplying the `i`. There is no visible
+loop — you write only `mangle`, and the hardware fans it out over all the
+samples.
 
 The CPU barely does any signal math. Once per animation frame it uploads the
 source frame to a texture, writes the current slider values into a small
-uniforms buffer, records the whole list of passes into a command buffer, and
-submits it. No `await`, nothing read back.
+uniforms buffer, records the whole list of passes, and submits it in one go. No
+`await`, nothing read back.
 
-Recording a pass is just `setPipeline`, `setBindGroup`,
-`dispatchWorkgroups(x, y)`. That dispatch is basically a 2D parallel for-loop:
-`y` counts the 525 lines, `x` counts the samples across a line (in groups of
-64). A "bind group" is just the list of buffers a pass is wired to — its
-arguments.
+Kicking off a pass is `dispatchWorkgroups(x, y)` — basically the bounds of that
+parallel for-loop, in 2D: `y` counts the 525 lines, `x` counts the samples
+across a line (in groups of 64). A "bind group" is just the list of buffers a
+pass is wired to — its arguments.
 
 The passes hand data to each other through those shared buffers. Most read
-`compA` and overwrite it in place; a couple ping-pong through `compB`. The only
-thing that ever leaves the GPU is the final image the `present` pass draws to
-the canvas. So the pipeline really is just an ordered array of passes, each one
+`compA` and overwrite it in place; a few can't safely read and write the same
+buffer at once, so they read from `compA` and write into `compB`, then swap. The
+only thing that ever leaves the GPU is the final image the `present` pass draws
+to the canvas. So the pipeline really is just an ordered array of passes, each one
 a `.wgsl` shader in `src/gpu/shaders/`, wired up in `src/gpu/pipeline.ts`. The
 filters they run are windowed-sinc FIR kernels designed from real MHz specs in
 `src/signal/filters.ts`.
