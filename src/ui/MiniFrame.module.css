@@ -52,15 +52,13 @@
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   pointer-events: none;
 }
-/* the sweep drives the lever every frame; pulsing says "in motion" without
-   redrawing a boundary the UI cannot see */
+/* The sweep drives the lever every frame, so the drawn edge is only where the
+   ping-pong started. Marked with a dashed edge rather than an animation: this
+   sits beside a 60 fps WebGPU canvas, and a pulsing opacity costs a style
+   recalc every frame to say something a static border says just as well. */
 .swept {
-  animation: pulse 1.2s ease-in-out infinite;
-}
-@keyframes pulse {
-  50% {
-    opacity: 0.35;
-  }
+  border-style: dashed;
+  opacity: 0.6;
 }
 .side {
   position: absolute;

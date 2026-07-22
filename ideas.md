@@ -41,3 +41,42 @@ source, chroma key, and the audio-reactive path.
   current: real glass scatter blooms disproportionately on peak whites, so
   keying the halo radius off local luma would read more like an old tube than
   the current fixed-radius ring.
+
+## Patching into other apps (Max/MSP, Jitter, TouchDesigner, VJ software)
+
+Already works with no code: MIDI CC + MIDI clock in (`src/ui/midi.ts`) via a
+virtual port (IAC bus / loopMIDI); audio in via a loopback device (BlackHole),
+which reaches `audioBendUs` / `audioLoad` / `audioIre`; Jitter output in as a
+webcam through a Syphon→virtual-camera bridge; and output back out by pointing
+an OBS browser source at the page. The gaps below are what would make it feel
+like a patchable module rather than a coincidence.
+
+- **Screen capture as a source mode.** `getDisplayMedia` is unused. Picking a
+  Jitter/TouchDesigner window directly removes the Syphon→virtual-cam hop
+  entirely. Smallest change with the largest practical payoff — `useEngine`
+  already handles a `MediaStream` source, so it is mostly a new entry in
+  `sources/modes.ts` plus a picker.
+- **OSC control, via a local WebSocket bridge.** Browsers can't speak UDP, so
+  this needs a small node process doing OSC↔WebSocket. Worth it because
+  `DEFAULT_CONTROLS` is already a flat named record and `useMidi` already
+  funnels every store-origin change through one `writeControl(key, value)`:
+  a bridge lets Max address `/hHold`, `/scDetuneKHz`, `/bendUs` by name, with
+  float precision and no 128-control CC ceiling. The app side is a thin client
+  that validates the key against `ControlKey` and calls the existing write path.
+- **Bidirectional state.** Same channel in reverse — emit control changes so a
+  Max patch's UI tracks the app (and so presets/scenes can be recalled from
+  outside). Needs a loop guard on the write path.
+- **MIDI note / program-change → scene recall.** Scenes and presets exist
+  (`useScenes.ts`, `presets.ts`) but are mouse-only; note-on or PC is the
+  natural performance trigger and reuses the MIDI input already open.
+- **MIDI transport, not just clock.** `midi.ts` handles `0xF8`/`0xFC`; honouring
+  `0xFA` start / `0xFB` continue would let clock-locked rates reset phase on
+  downbeat instead of free-running from whenever the tick stream began.
+- **Live low-latency output.** WebRTC to a local peer, or NDI via a native
+  helper, for feeding the result back into Jitter without the OBS round-trip.
+  Meaningfully more work than the rest of this list; only worth it for
+  performance use.
+
+Note for anyone evaluating the reverse arrangement: Max's `jweb` embeds a web
+view but is unlikely to expose WebGPU, so hosting Phosphene inside a patch
+probably isn't viable — it wants to be a separate app you route into.

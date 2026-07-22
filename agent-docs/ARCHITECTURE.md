@@ -115,6 +115,43 @@ Adding a control end to end:
 CPU-side per-frame state (`LineState`, `MixState`, `AudioState`) lives in
 `src/signal/` and is either uploaded as a buffer or folded into uniforms.
 
+## Direct-manipulation miniatures
+
+A few controls describe a **position you can only judge on the output** — the
+PiP inset window (`pipX/Y/W/H`) and the wipe boundary (`wipePos`). Those get a
+4:3 miniature of the active picture you drag on: `src/ui/PipFrame.tsx` and
+`WipeFrame.tsx`, over shared chrome in `MiniFrame.module.css` and the pure
+geometry in `miniFrame.ts`.
+
+Step 4 above still holds without exception: **every control keeps its slider.**
+The miniature only hides the ones it duplicates, behind the group's `▸ sliders`
+toggle. That is what keeps MIDI binding, clock sync, favorites, presets, scenes
+and URL state working untouched — a miniature is another writer of a normal
+control, never the only one.
+
+Two things to respect when adding another:
+
+- **The frame is the shader's UV space** — 0..1 across the active picture, y
+  down, the same `u`/`v` the pass computes. Anything the miniature draws or maps
+  a drag through has to use the shader's own geometry. `WIPE_SHAPES` duplicates
+  the pattern generator's distance functions from `mix_b.wgsl`, so
+  `miniFrame.test.ts` pins them to the same values; change the pattern set in
+  the shader and both sides move together or the test fails.
+- **Don't draw what the engine is driving.** `wipeRate` sweeps `wipePos` inside
+  `MixState` every frame, and the UI cannot see the effective value without
+  re-rendering React at 60 fps (which the section above forbids). The frame
+  marks the lever as driven instead of drawing a stale boundary.
+
+Drags write through `writeControls` (one `applyControls`), so a gesture that
+moves four controls is one notify, not four.
+
+Nothing in a miniature may run per frame — no `rAF`, no transitions or
+animations that recalc style each tick. The panel shares a main thread with a 60
+fps canvas, and a decorative pulse measured 7 ms of style recalc per 3 s for
+information a static border carries. Measure with `page.metrics()` deltas
+(`RecalcStyleDuration`, `ScriptDuration`), not fps: the loop is vsync-capped, so
+fps stays at 60 until the budget is already gone.
+
 ## Performance shape
 
 Almost everything is comfortably parallel. Two exceptions:
