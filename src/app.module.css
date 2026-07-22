@@ -181,6 +181,22 @@
   color: #e0b040;
 }
 
+/* reveals the sliders a direct-manipulation miniature stands in for */
+.sliderToggle {
+  display: block;
+  margin: -4px 0 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  color: #6a6a78;
+}
+.sliderToggle:hover {
+  color: #a8a8b8;
+}
+
 /* control filter box */
 .filter {
   width: 100%;

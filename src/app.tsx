@@ -112,6 +112,9 @@ export function App() {
   const [lastPreset, setLastPreset] = useState<string | null>(null)
   const [comparing, setComparing] = useState(false)
   const [filter, setFilter] = useState('')
+  // The miniatures hide the geometry sliders they stand in for; this reveals
+  // them again, since that is where MIDI binding and clock sync live.
+  const [showFrameSliders, setShowFrameSliders] = useState(false)
   // Single-open browsing of the signal-path stages: only one stage's controls
   // expand at a time, so the phase map above them stays visible. null = the map
   // alone, which is where exploration starts.
@@ -383,11 +386,12 @@ export function App() {
     // the filter box brings those sliders back, MIDI and clock icons included.
     const pipFrame = group.name === PIP_GROUP && query === ''
     const wipeFrame = group.name === WIPE_GROUP && query === ''
-    const sliders = pipFrame
-      ? matched.filter(s => !PIP_BOX_KEYS.has(s.key))
-      : wipeFrame
-        ? matched.filter(s => s.key !== 'wipePos')
-        : matched
+    const sliders =
+      showFrameSliders || !(pipFrame || wipeFrame)
+        ? matched
+        : matched.filter(s =>
+            pipFrame ? !PIP_BOX_KEYS.has(s.key) : s.key !== 'wipePos',
+          )
     const touched = group.sliders.some(
       s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
     )
@@ -419,6 +423,8 @@ export function App() {
           <WipeFrame
             mode={controls.wipeMode}
             pos={controls.wipePos}
+            soft={controls.wipeSoft}
+            swept={controls.wipeRate > 0}
             inert={controls.wipeMode < 1}
             onChange={pos => writeControl('wipePos', pos)}
           />
@@ -426,19 +432,34 @@ export function App() {
         {pipFrame ? (
           <PipFrame
             inert={controls.pipMix === 0}
+            border={controls.pipBorder}
+            soft={controls.pipSoft}
             box={{
               x: controls.pipX,
               y: controls.pipY,
               w: controls.pipW,
               h: controls.pipH,
             }}
-            onChange={box => {
-              writeControl('pipX', box.x)
-              writeControl('pipY', box.y)
-              writeControl('pipW', box.w)
-              writeControl('pipH', box.h)
-            }}
+            // One write, not four: a drag moves all four at once, so the
+            // engine notifies (and React renders) once per pointer move.
+            onChange={box =>
+              writeControls({
+                ...controls,
+                pipX: box.x,
+                pipY: box.y,
+                pipW: box.w,
+                pipH: box.h,
+              })
+            }
           />
+        ) : null}
+        {pipFrame || wipeFrame ? (
+          <button
+            className={styles.sliderToggle}
+            onClick={() => setShowFrameSliders(!showFrameSliders)}
+          >
+            {showFrameSliders ? '▾ sliders' : '▸ sliders'}
+          </button>
         ) : null}
         {banners.map(({ need, n }) => (
           <button

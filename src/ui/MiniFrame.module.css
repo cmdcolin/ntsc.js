@@ -8,6 +8,9 @@
   position: relative;
   aspect-ratio: 4 / 3;
   width: 100%;
+  /* cqw units let the drawn border and soft edges stay in the shader's
+     frame-relative units at any panel width */
+  container-type: inline-size;
   border: 1px solid #3a3a48;
   border-radius: 3px;
   background: repeating-linear-gradient(0deg, #16161c 0 2px, #1b1b22 2px 4px);
@@ -49,6 +52,16 @@
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   pointer-events: none;
 }
+/* the sweep drives the lever every frame; pulsing says "in motion" without
+   redrawing a boundary the UI cannot see */
+.swept {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
 .side {
   position: absolute;
   font-size: 10px;
@@ -74,4 +87,13 @@
 .nums {
   color: var(--accent);
   font-family: var(--mono);
+}
+
+/* touch: 9px grips are a mouse target, not a finger one */
+@media (pointer: coarse) {
+  .grip {
+    width: 18px;
+    height: 18px;
+    margin: -9px 0 0 -9px;
+  }
 }

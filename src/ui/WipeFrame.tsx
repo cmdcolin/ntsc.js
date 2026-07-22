@@ -2,67 +2,22 @@ import { useState } from 'react'
 
 import styles from './MiniFrame.module.css'
 import { cx } from './cx'
-import { snapOffset, uvIn } from './miniFrame'
+import { WIPE_SHAPES, cqw, snapOffset, uvIn } from './miniFrame'
 
-import type { CSSProperties, PointerEvent } from 'react'
-
-// The B region each pattern opens, mirroring the generator in mix_b.wgsl:
-// B wins where `pos` exceeds the pattern's distance function.
-interface Shape {
-  pos: (u: number, v: number) => number
-  box: (p: number) => CSSProperties
-}
-const SHAPES = new Map<number, Shape>([
-  [
-    1,
-    {
-      pos: (u: number) => u,
-      box: p => ({ left: 0, top: 0, width: `${p * 100}%`, height: '100%' }),
-    },
-  ],
-  [
-    2,
-    {
-      pos: (_u: number, v: number) => v,
-      box: p => ({ left: 0, top: 0, width: '100%', height: `${p * 100}%` }),
-    },
-  ],
-  [
-    3,
-    {
-      pos: (u: number, v: number) =>
-        Math.max(Math.abs(u - 0.5), Math.abs(v - 0.5)) * 2,
-      box: p => ({
-        left: `${(0.5 - p / 2) * 100}%`,
-        top: `${(0.5 - p / 2) * 100}%`,
-        width: `${p * 100}%`,
-        height: `${p * 100}%`,
-      }),
-    },
-  ],
-  [
-    4,
-    {
-      pos: (u: number, v: number) => Math.abs(u - 0.5) + Math.abs(v - 0.5),
-      box: p => ({
-        left: `${(0.5 - p) * 100}%`,
-        top: `${(0.5 - p) * 100}%`,
-        width: `${p * 200}%`,
-        height: `${p * 200}%`,
-        clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
-      }),
-    },
-  ],
-])
+import type { PointerEvent } from 'react'
 
 export function WipeFrame(props: {
   mode: number
   pos: number
+  soft: number
+  // The lever is being driven by the sweep, so the drawn edge is only where
+  // the ping-pong started — say so rather than draw a boundary that lies.
+  swept: boolean
   inert: boolean
   onChange: (pos: number) => void
 }) {
   const [dragging, setDragging] = useState(false)
-  const shape = SHAPES.get(Math.round(props.mode))
+  const shape = WIPE_SHAPES.get(Math.round(props.mode))
   // The pointer sits on the wipe edge itself: whatever distance the pattern
   // reports under the cursor is the lever position that puts the boundary there.
   const set = (e: PointerEvent<HTMLDivElement>) => {
@@ -97,7 +52,14 @@ export function WipeFrame(props: {
         onPointerCancel={() => setDragging(false)}
       >
         {shape === undefined ? null : (
-          <div className={styles.region} style={shape.box(props.pos)} />
+          <div
+            className={cx(styles.region, props.swept && styles.swept)}
+            style={{
+              ...shape.region(props.pos),
+              filter:
+                props.soft === 0 ? undefined : `blur(${cqw(props.soft / 2)})`,
+            }}
+          />
         )}
         <span className={cx(styles.side, styles.sideA)}>A</span>
         {shape === undefined ? null : (
@@ -105,7 +67,9 @@ export function WipeFrame(props: {
         )}
       </div>
       <div className={styles.readout}>
-        <span>drag the boundary</span>
+        <span>
+          {props.swept ? 'sweeping — drag sets the start' : 'drag the boundary'}
+        </span>
         <span className={styles.nums}>{props.pos.toFixed(3)}</span>
       </div>
     </div>

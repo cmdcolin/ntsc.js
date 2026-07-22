@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import styles from './MiniFrame.module.css'
 import { cx } from './cx'
-import { clamp01, snapOffset } from './miniFrame'
+import { clamp01, clampSize, cqw, resizeAxis, snapOffset } from './miniFrame'
 
 import type { KeyboardEvent, PointerEvent } from 'react'
 
@@ -22,9 +22,6 @@ interface Drag {
   fh: number
   start: PipBox
 }
-
-const MIN_SIZE = 0.1
-const clampSize = (v: number) => Math.min(1, Math.max(MIN_SIZE, v))
 
 // Corner and edge grips, as (sx, sy) in {-1, 0, 1}: which edges each one moves.
 const GRIPS = [
@@ -54,16 +51,12 @@ const NUDGE = new Map([
   ['ArrowDown', { du: 0, dv: 1 }],
 ])
 
-// Move one edge while its opposite stays pinned, in the center/size parameters
-// the shader actually reads.
-const resizeAxis = (center: number, size: number, s: number, edge: number) => {
-  const pinned = center - (s * size) / 2
-  const next = clampSize(Math.abs(edge - pinned))
-  return { center: clamp01(pinned + (s * next) / 2), size: next }
-}
-
 export function PipFrame(props: {
   box: PipBox
+  // The matte border and edge softness the compositor actually draws, so the
+  // miniature shows the window as it lands rather than as a hard 1px cut.
+  border: number
+  soft: number
   inert: boolean
   onChange: (box: PipBox) => void
 }) {
@@ -74,6 +67,11 @@ export function PipFrame(props: {
     top: `${(y - h / 2) * 100}%`,
     width: `${w * 100}%`,
     height: `${h * 100}%`,
+    borderWidth: cqw(Math.max(props.border, 0.004)),
+    boxShadow:
+      props.soft === 0
+        ? undefined
+        : `0 0 ${cqw(props.soft * 2)} ${cqw(props.soft)} color-mix(in srgb, var(--accent) 45%, transparent)`,
   }
   // Grips are siblings of the window rather than children, so every draggable
   // element's parent is the frame whose pixel size converts the drag.
