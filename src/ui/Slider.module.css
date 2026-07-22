@@ -128,3 +128,24 @@
 .resetDef {
   color: var(--border);
 }
+
+/* a gated control whose prerequisite is unmet: the track dims and the note
+   below names the gate; clicking the note sets the prerequisite */
+.rangeInert {
+  opacity: 0.4;
+}
+.needs {
+  display: block;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: -2px 0 2px;
+  font: inherit;
+  font-size: 10px;
+  text-align: left;
+  color: #8a7a40;
+}
+.needs:hover {
+  color: #e0b040;
+}

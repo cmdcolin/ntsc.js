@@ -21,6 +21,15 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         <li>
           Every slider has a <b>?</b> explaining the hardware fault it models.
         </li>
+        <li>
+          The filter box searches those descriptions too — type an artifact like{' '}
+          <i>rainbow</i>, <i>ghost</i>, or <i>tear</i> to find the sliders that
+          cause it.
+        </li>
+        <li>
+          A dim <b>“inert — needs …”</b> note under a slider means another
+          control gates it; click the note to set the prerequisite.
+        </li>
       </ol>
       <div className={styles.helpHead}>keyboard</div>
       <ul className={styles.helpList}>

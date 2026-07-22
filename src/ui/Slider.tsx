@@ -45,6 +45,10 @@ export function Slider(props: {
   // group in place of the range input, still reading/writing the same number.
   choices?: string[]
   help?: string
+  // Present only while the control's prerequisite is unmet: this knob is
+  // physically inert until another control opens its path. Clicking the note
+  // sets the prerequisite.
+  needs?: { hint: string; title: string; onFix: () => void }
   midi?: { label: string | null; armed: boolean; onArm: () => void }
   sync?: { label: string | null; live: boolean; onCycle: () => void }
   favorite?: { on: boolean; onToggle: () => void }
@@ -52,6 +56,7 @@ export function Slider(props: {
   const [showHelp, setShowHelp] = useState(false)
   const midi = props.midi
   const sync = props.sync
+  const needs = props.needs
   const help = props.help
   const favorite = props.favorite
   const choices = props.choices
@@ -163,7 +168,7 @@ export function Slider(props: {
         ) : (
           <input
             type="range"
-            className={styles.range}
+            className={cx(styles.range, needs && styles.rangeInert)}
             style={fill}
             min={props.min}
             max={props.max}
@@ -174,6 +179,16 @@ export function Slider(props: {
           />
         )}
       </label>
+      {needs ? (
+        <button
+          type="button"
+          className={styles.needs}
+          title={needs.title}
+          onClick={needs.onFix}
+        >
+          inert — needs {needs.hint} · click to set
+        </button>
+      ) : null}
       {showHelp && help !== undefined ? (
         <SliderHelpDialog
           label={props.label}

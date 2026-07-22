@@ -66,6 +66,7 @@ function PresetButton(props: {
   onApply: (name: string, patch: Partial<Controls>) => void
   onMixStart: () => void
   onMix: (name: string, w: number) => void
+  onHover: (name: string | null) => void
 }) {
   // Gesture bookkeeping only — nothing here should cause a render.
   const dragRef = useRef<{ startX: number; moved: boolean } | null>(null)
@@ -82,6 +83,8 @@ function PresetButton(props: {
         props.active && styles.active,
         props.edited && styles.edited,
       )}
+      onPointerEnter={() => props.onHover(props.def.name)}
+      onPointerLeave={() => props.onHover(null)}
       onPointerDown={e => {
         e.currentTarget.setPointerCapture(e.pointerId)
         dragRef.current = { startX: e.clientX, moved: false }
@@ -133,12 +136,18 @@ export function PresetsSection(props: {
 }) {
   const [showHelp, setShowHelp] = useState(false)
   const [hintDismissed, setHintDismissed] = usePersistedFlag(HINT_STORE)
+  // The hovered preset's blurb takes over the caption line: faster to browse
+  // than the tooltip delay, and the only way touch users ever see the blurbs.
+  const [hovered, setHovered] = useState<string | null>(null)
+  const hoveredDef = PRESETS.find(p => p.name === hovered)
   const active = matchPreset(props.controls)
-  const presetCaption = active
-    ? active.blurb
-    : props.lastPreset === null
-      ? 'click a preset for an instant look, then tweak the sliders below.'
-      : `modified from "${props.lastPreset}"`
+  const presetCaption = hoveredDef
+    ? hoveredDef.blurb
+    : active
+      ? active.blurb
+      : props.lastPreset === null
+        ? 'click a preset for an instant look, then tweak the sliders below.'
+        : `modified from "${props.lastPreset}"`
 
   return (
     <Section
@@ -189,6 +198,7 @@ export function PresetsSection(props: {
               onApply={props.onApplyPreset}
               onMixStart={props.onMixStart}
               onMix={props.onMix}
+              onHover={setHovered}
             />
           ))}
         </div>

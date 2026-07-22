@@ -149,6 +149,19 @@
   color: #6f7f9a;
   margin: 12px 0 2px;
 }
+/* the stage's touched-control count; clicking opens the first touched group */
+.phaseDot {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 0 0 4px;
+  font: inherit;
+  letter-spacing: normal;
+  color: #a89850;
+}
+.phaseDot:hover {
+  color: #e0b040;
+}
 
 /* control filter box */
 .filter {

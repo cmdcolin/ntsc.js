@@ -19,7 +19,7 @@ import { Stage } from './ui/Stage'
 import { VaporwaveSection } from './ui/VaporwaveSection'
 import { WebcamDialog } from './ui/WebcamDialog'
 import { YouTubeDialog } from './ui/YouTubeDialog'
-import { GROUPS, PHASES } from './ui/controls'
+import { GROUPS, NEEDS, PHASES, SLIDER_BY_KEY } from './ui/controls'
 import { cx } from './ui/cx'
 import { SYNCABLE_KEYS } from './ui/midi'
 import { mutate } from './ui/mutate'
@@ -116,6 +116,10 @@ export function App() {
       else localStorage.setItem(OPEN_GROUP_STORE, next)
       return next
     })
+  const openGroupByName = (name: string) => {
+    localStorage.setItem(OPEN_GROUP_STORE, name)
+    setOpenGroup(name)
+  }
   const { favorites, toggleFavorite } = useFavorites()
   // Single-level undo: the look from just before the last destructive apply
   // (preset, scene recall, or mutate), so a misclick is one keypress back.
@@ -269,6 +273,18 @@ export function App() {
   const audio = useAudio(eng.engine)
 
   const query = filter.trim().toLowerCase()
+  const renderNeeds = (s: SliderDef) => {
+    const need = NEEDS[s.key]
+    if (need === undefined || need.ok(controls[need.key])) {
+      return undefined
+    }
+    const prereq = SLIDER_BY_KEY.get(need.key)
+    return {
+      hint: need.hint,
+      title: `does nothing until "${prereq?.label ?? need.key}" moves — click to set it to ${need.fix}${prereq?.unit ?? ''}`,
+      onFix: () => writeControl(need.key, need.fix),
+    }
+  }
   const renderSlider = (s: SliderDef) => (
     <Slider
       key={s.key}
@@ -282,6 +298,7 @@ export function App() {
       onChange={v => writeControl(s.key, v)}
       choices={s.choices}
       help={s.help}
+      needs={renderNeeds(s)}
       favorite={{
         on: favorites.has(s.key),
         onToggle: () => toggleFavorite(s.key),
@@ -311,10 +328,16 @@ export function App() {
     defaultOpen: boolean,
     control?: { open: boolean; onToggle: () => void },
   ) => {
+    // Match help text too, not just labels: users hunt by artifact ("rainbow",
+    // "ghost", "comb"), and the mechanism prose is where those words live.
     const sliders =
       query === '' || group.name.toLowerCase().includes(query)
         ? group.sliders
-        : group.sliders.filter(s => s.label.toLowerCase().includes(query))
+        : group.sliders.filter(
+            s =>
+              s.label.toLowerCase().includes(query) ||
+              s.help.toLowerCase().includes(query),
+          )
     const touched = group.sliders.some(
       s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
     )
@@ -332,6 +355,47 @@ export function App() {
       </Section>
     )
   }
+
+  const phaseEls = PHASES.map(phase => {
+    const rendered = phase.groups.map(group =>
+      renderGroup(group, false, {
+        open: openGroup === group.name,
+        onToggle: () => toggleGroup(group.name),
+      }),
+    )
+    // Roll the per-group touched state up to the phase, so the collapsed
+    // spine reads as a status map — you see which phases you're in without
+    // opening any. The count is a button: it jumps you into the first touched
+    // group, which is the path from "this preset looks cool" to the knobs
+    // that made it.
+    const touchedGroups = phase.groups.filter(g =>
+      g.sliders.some(s => controls[s.key] !== DEFAULT_CONTROLS[s.key]),
+    )
+    const nTouched = touchedGroups.reduce(
+      (n, g) =>
+        n +
+        g.sliders.filter(s => controls[s.key] !== DEFAULT_CONTROLS[s.key])
+          .length,
+      0,
+    )
+    return rendered.every(r => r === null) ? null : (
+      <div key={phase.name}>
+        <div className={styles.phaseLabel} title={phase.blurb}>
+          {phase.name}
+          {touchedGroups.length === 0 ? null : (
+            <button
+              className={styles.phaseDot}
+              title={`${nTouched} control${nTouched === 1 ? '' : 's'} in this stage off stock — click to see`}
+              onClick={() => openGroupByName(touchedGroups[0].name)}
+            >
+              • {nTouched}
+            </button>
+          )}
+        </div>
+        {rendered}
+      </div>
+    )
+  })
 
   const panelBody = (
     <>
@@ -429,33 +493,22 @@ export function App() {
       <input
         className={styles.filter}
         type="search"
-        placeholder="filter controls…"
+        placeholder="filter controls — try “rainbow” or “ghost”…"
+        title="matches names and descriptions, so artifact words work: rainbow, ghost, dot crawl, tear, roll…"
         value={filter}
         onChange={e => setFilter(e.target.value)}
       />
-      {PHASES.map(phase => {
-        const rendered = phase.groups.map(group =>
-          renderGroup(group, false, {
-            open: openGroup === group.name,
-            onToggle: () => toggleGroup(group.name),
-          }),
-        )
-        // Roll the per-group touched state up to the phase, so the collapsed
-        // spine reads as a status map — you see which phases you're in without
-        // opening any.
-        const touched = phase.groups.some(g =>
-          g.sliders.some(s => controls[s.key] !== DEFAULT_CONTROLS[s.key]),
-        )
-        return rendered.every(r => r === null) ? null : (
-          <div key={phase.name}>
-            <div className={styles.phaseLabel}>
-              {phase.name}
-              {touched ? <span className={styles.dot}> •</span> : null}
-            </div>
-            {rendered}
-          </div>
-        )
-      })}
+      <div className={styles.hint}>
+        the signal path, in order — hover a stage name for its role
+      </div>
+      {phaseEls}
+      {query === '' || phaseEls.some(el => el !== null) ? null : (
+        <div className={styles.hint}>
+          nothing matches “{filter.trim()}” — descriptions are searched too, so
+          artifact words like “rainbow”, “ghost”, or “tear” find the sliders
+          that cause them
+        </div>
+      )}
 
       <ScenesSection
         controls={controls}

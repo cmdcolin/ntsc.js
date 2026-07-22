@@ -1163,12 +1163,178 @@ export const GROUPS: Group[] = [
   },
 ]
 
+// A control that is physically inert until another control opens its path —
+// e.g. phase jitter rides the color-under conversion, so with color-under at 0
+// there is nothing for it to jitter. Encoding the gate as data (it used to live
+// only in the help prose) lets the panel flag the dead knob and offer the
+// prerequisite in one click, instead of letting exploration die on a slider
+// that does nothing.
+export interface SliderNeed {
+  key: ControlKey
+  ok: (v: number) => boolean
+  fix: number
+  hint: string
+}
+
+const above0 = (v: number) => v > 0
+const below1 = (v: number) => v < 1
+const nonzero = (v: number) => v !== 0
+
+const fb: SliderNeed = {
+  key: 'fbMix',
+  ok: above0,
+  fix: 0.5,
+  hint: 'mix above 0',
+}
+const cfb: SliderNeed = {
+  key: 'cfbMix',
+  ok: above0,
+  fix: 0.5,
+  hint: 'loop mix above 0',
+}
+const cfbKeyed: SliderNeed = {
+  key: 'cfbKey',
+  ok: nonzero,
+  fix: 0.6,
+  hint: 'luma key nonzero',
+}
+const dirtyPath: SliderNeed = {
+  key: 'bGenlock',
+  ok: below1,
+  fix: 0,
+  hint: 'genlock on "dirty sum"',
+}
+const wiping: SliderNeed = {
+  key: 'wipeMode',
+  ok: above0,
+  fix: 1,
+  hint: 'a wipe pattern selected',
+}
+const pip: SliderNeed = {
+  key: 'pipMix',
+  ok: above0,
+  fix: 0.7,
+  hint: 'inset key above 0',
+}
+const pipKeyed: SliderNeed = {
+  key: 'pipKey',
+  ok: nonzero,
+  fix: 0.6,
+  hint: 'luma key nonzero',
+}
+
+export const NEEDS: Partial<Record<ControlKey, SliderNeed>> = {
+  fbZoom: fb,
+  fbRotateDeg: fb,
+  fbShiftX: fb,
+  fbShiftY: fb,
+  fbGain: fb,
+  fbFocus: fb,
+  fbVign: fb,
+  fbBlack: fb,
+  fbKnee: fb,
+  cfbGain: cfb,
+  cfbDelayUs: cfb,
+  cfbLines: cfb,
+  cfbKey: cfb,
+  cfbHold: cfb,
+  cfbTrail: cfb,
+  cfbFilterMHz: cfb,
+  cfbKeyLevel: cfbKeyed,
+  cfbKeySoft: cfbKeyed,
+  cfbFilterQ: {
+    key: 'cfbFilterMHz',
+    ok: above0,
+    fix: 3.58,
+    hint: 'resonance freq above 0',
+  },
+  cfbFilterBoost: {
+    key: 'cfbFilterMHz',
+    ok: above0,
+    fix: 3.58,
+    hint: 'resonance freq above 0',
+  },
+  aGain: dirtyPath,
+  bRing: dirtyPath,
+  bLineHz: dirtyPath,
+  bDetuneHz: dirtyPath,
+  bRollLps: dirtyPath,
+  wipePos: wiping,
+  wipeSoft: wiping,
+  wipeRate: wiping,
+  pipX: pip,
+  pipY: pip,
+  pipW: pip,
+  pipH: pip,
+  pipBorder: pip,
+  pipSoft: pip,
+  pipKey: pip,
+  pipKeyLevel: pipKeyed,
+  pipKeySoft: pipKeyed,
+  dropoutLenUs: {
+    key: 'dropoutRate',
+    ok: above0,
+    fix: 10,
+    hint: 'dropouts above 0',
+  },
+  underJitterDeg: {
+    key: 'colorUnderMix',
+    ok: above0,
+    fix: 0.8,
+    hint: 'color-under above 0',
+  },
+  trackPos: {
+    key: 'trackAmt',
+    ok: above0,
+    fix: 0.4,
+    hint: 'tracking error above 0',
+  },
+  vFreqHz: {
+    key: 'vHold',
+    ok: below1,
+    fix: 0.5,
+    hint: 'vertical hold below 1',
+  },
+  scDetuneKHz: {
+    key: 'burstLock',
+    ok: below1,
+    fix: 0,
+    hint: 'burst lock below 1',
+  },
+  audioSagUs: {
+    key: 'hvRing',
+    ok: above0,
+    fix: 0.5,
+    hint: 'supply ring above 0 (in Deflection)',
+  },
+  audioLoad: {
+    key: 'audioSagUs',
+    ok: above0,
+    fix: 10,
+    hint: 'bass → HV sag above 0',
+  },
+}
+
+// One line per stage for the spine's hover text — the role of the stage in the
+// signal path, so the map explains itself without opening anything.
+const PHASE_BLURBS: Record<Phase, string> = {
+  Source:
+    'the picture becomes a composite waveform — encoder faults and bad cables live here',
+  Feedback:
+    'loops around the chain: a camera pointed at the screen, or the mixer bus patched into itself',
+  Tape: 'damage to the recorded waveform — VHS color-under, dropouts, timebase wander',
+  Receiver:
+    'a TV hunting for sync and decoding color from whatever arrives — hold, deflection, the decoder',
+  Screen: 'the tube itself — beam profile, phosphor persistence, shadow mask',
+}
+
 // The signal-path phases, in order — the spine the panel is browsed along.
 // The browsable spine, derived straight from each group's `place` so a group's
 // stage lives in one spot (the group) and can't drift from a parallel list. ab
 // and audio groups carry no phase and surface contextually instead.
 export const PHASES = PHASE_ORDER.map(name => ({
   name,
+  blurb: PHASE_BLURBS[name],
   groups: GROUPS.filter(g => g.place === name),
 }))
 
