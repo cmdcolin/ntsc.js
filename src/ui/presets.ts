@@ -82,6 +82,27 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'stuck tape',
+    group: 'Tape wear',
+    blurb:
+      'Deck jammed on pause: the head grinds one track boundary into a drifting noise bar, time crawls at a third of real speed, and phosphor trails smear what little still moves.',
+    patch: {
+      shuttleX: 0,
+      timeScale: 0.35,
+      phosphor: 0.6,
+      lumaMHz: 2.6,
+      lumaPeak: 1,
+      noiseIre: 4,
+      colorUnderMix: 1,
+      underJitterDeg: 6,
+      tbJitterNs: 300,
+      tbWowNs: 500,
+      headSwitchShiftUs: 1,
+      headSwitchNoise: 0.5,
+      hHold: 0.3,
+    },
+  },
+  {
     name: 'broadcast',
     group: 'RF / Broadcast',
     blurb:
@@ -332,8 +353,18 @@ export const PRESETS: PresetDef[] = [
     name: 's-video miswire',
     group: 'Cross-wired',
     blurb:
-      'Y and C pins cross-wired into composite: subcarrier crawls into brightness, color smears loose.',
-    patch: { svideoBleed: 0.85, chromaGain: 1.7, hHold: 0.2, noiseIre: 1.5 },
+      'S-video pins jammed into a composite jack, the chroma pin making the best contact: color glows hot through a darkened, barely-locking picture, the subcarrier herringbones through brightness, detail decodes as rainbow blocks, and the frame rolls when the shallow sync loses its grip.',
+    patch: {
+      svideoBleed: 1,
+      chromaGain: 2.6,
+      demodMHz: 1.4,
+      encChromaMHz: 2,
+      chromaTail: 0.6,
+      chromaCoarse: 2,
+      chromaPinOnly: 0.5,
+      hHold: 0.15,
+      noiseIre: 2,
+    },
   },
   {
     name: 'reverse polarity',
@@ -360,7 +391,7 @@ export const PRESETS: PresetDef[] = [
     name: 'chroma only',
     group: 'Bad cables',
     blurb:
-      'Only the chroma pin reaches the input — burst-locked color glowing on black, no luma to hold sync.',
+      'Only the chroma pin reaches the input — burst-locked color glowing on black, no luma to hold sync. The s-video miswire preset is this same patch at partial contact.',
     patch: { chromaPinOnly: 1, chromaGain: 1.4 },
   },
   {

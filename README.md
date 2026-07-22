@@ -59,11 +59,12 @@ linear-phase symmetry, filter-bank packing). CI gates deploy on `pnpm lint` +
 - **Performing**: `f` fullscreens the stage, and **⧉ pop out** moves the
   controls into their own window — project one screen, tweak from the other.
 - **URL params** (a link can fully specify a look): `?preset=name`,
-  `?set=key:value,...`, `?iurl=…`/`?iurlb=…` (image source A / B by URL),
-  `?vurl=…` (video), `?src=sweep|webcam`, `?srcb=bars|sweep`, `?dbg=1..5`,
-  `?prof` (per-pass GPU timings in the console, needs timestamp-query support).
-  A bundled `public/sample.jpg` makes `?iurl=/sample.jpg&preset=dirty%20mix`
-  reproducible out of the box.
+  `?set=key:value,...` (e.g. `?set=timeScale:0.25` — slow motion via link),
+  `?iurl=…`/`?iurlb=…` (image source A / B by URL), `?vurl=…` (video),
+  `?src=sweep|webcam`, `?srcb=bars|sweep`, `?dbg=1..5`, `?prof` (per-pass GPU
+  timings in the console, needs timestamp-query support). A bundled
+  `public/sample.jpg` makes `?iurl=/sample.jpg&preset=dirty%20mix` reproducible
+  out of the box.
 
 ## Effects
 
