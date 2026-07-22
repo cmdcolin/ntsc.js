@@ -74,6 +74,10 @@ export const PARAM_DEFS = [
   // bends the picture at an adjustable height (the "tracking" knob).
   ['trackAmt', 'f32'], // severity, 0 locked
   ['trackPos', 'f32'], // band vertical position, 0..1
+  // VHS picture search: off play speed each head sweep crosses several
+  // recorded tracks; the RF envelope nulls at every crossing.
+  ['shuttleBars', 'f32'], // track crossings per field, signed (shuttle speed - 1)
+  ['shuttlePhase', 'f32'], // crossing pattern phase, in crossings
   // decoder
   ['combMode', 'f32'], // 0 chroma trap, 1 two-line comb, 2 three-line comb
   ['hHold', 'f32'], // sync PLL gain (horizontal hold)

@@ -106,6 +106,10 @@ export class Engine {
   private modSlots: ModSlot[] = []
   // bent-crystal demod LO phase error, accumulated per frame (radians)
   private scPhase = 0
+  // picture-search crossing pattern phase, accumulated per frame (crossings)
+  private shuttlePhase = 0
+  // slow motion: sim-time owed, in frames; a step fires when it reaches 1
+  private simAcc = 0
   private paramScratch = new ArrayBuffer(PARAM_BYTES)
   private loop: RenderLoop
   private profiler: GpuProfiler | null = null
@@ -782,8 +786,10 @@ export class Engine {
   }
 
   // Manual frame step for the verification harness (rAF is throttled in
-  // occluded windows).
+  // occluded windows). Forces a full sim step regardless of timeScale so
+  // stepping stays deterministic.
   step(): void {
+    this.simAcc = 1
     this.render()
   }
 
@@ -907,6 +913,8 @@ export class Engine {
       pipKeySoft: c.pipKeySoft,
       trackAmt: c.trackAmt,
       trackPos: c.trackPos,
+      shuttleBars: c.shuttleX - 1,
+      shuttlePhase: this.shuttlePhase,
       cfbMix: c.cfbMix,
       cfbGain: c.cfbGain,
       cfbDelay: c.cfbDelayUs * 1e-6 * SAMPLE_RATE,
@@ -999,13 +1007,58 @@ export class Engine {
       (this.scPhase + loRadPerSample(detuneKHz) * N) % (2 * Math.PI)
   }
 
+  // Crossing-pattern precession: a transport servo never sits on an exact
+  // multiple of play speed, so the bars sweep rather than hold still. Wrapped
+  // far out (not at 1) so strip identities don't all reroll at once; the one
+  // reroll per wrap is invisible under the bar noise.
+  private advanceShuttle(shuttleX: number): void {
+    if (shuttleX !== 1)
+      this.shuttlePhase =
+        (this.shuttlePhase + (shuttleX - 1) * 0.0035 + 0.0008) % 1024
+  }
+
+  // Slow motion gates the whole simulation on a fractional accumulator: below
+  // 1, sim steps fire on a fraction of display frames and everything — noise,
+  // rolls, sweeps, feedback, phosphor — slows together, exactly like slowed
+  // footage of the rig. Skipped frames re-present the held picture so the
+  // canvas survives resizes; modulation still advances at display rate, so an
+  // LFO or audio envelope on timeScale warps time live.
   private render(): void {
     const restoreMod = this.applyMod()
     try {
-      this.renderFrame()
+      this.simAcc = Math.min(this.simAcc + this.controls.timeScale, 1)
+      if (this.simAcc >= 1) {
+        this.simAcc -= 1
+        this.renderFrame()
+      } else {
+        this.presentHeld()
+      }
     } finally {
       restoreMod()
     }
+  }
+
+  private presentPass(enc: GPUCommandEncoder): void {
+    const rp = enc.beginRenderPass({
+      colorAttachments: [
+        {
+          view: this.gpu.context.getCurrentTexture().createView(),
+          loadOp: 'clear',
+          storeOp: 'store',
+          clearValue: { r: 0, g: 0, b: 0, a: 1 },
+        },
+      ],
+    })
+    rp.setPipeline(this.presentPl)
+    rp.setBindGroup(0, this.presentBg)
+    rp.draw(3)
+    rp.end()
+  }
+
+  private presentHeld(): void {
+    const enc = this.gpu.device.createCommandEncoder()
+    this.presentPass(enc)
+    this.gpu.device.queue.submit([enc.finish()])
   }
 
   private renderFrame(): void {
@@ -1061,6 +1114,7 @@ export class Engine {
     if (this.filtersDirty) this.rebuildFilters()
     const c = this.controls
     this.advanceScPhase(c.scDetuneKHz)
+    this.advanceShuttle(c.shuttleX)
     const mixU = this.mixState.update({
       bLineHz: c.bLineHz,
       bDetuneHz: c.bDetuneHz,
@@ -1077,6 +1131,8 @@ export class Engine {
       headSwitchShiftUs: c.headSwitchShiftUs,
       trackAmt: c.trackAmt,
       trackPos: c.trackPos,
+      shuttleBars: c.shuttleX - 1,
+      shuttlePhase: this.shuttlePhase,
     }
     d.queue.writeBuffer(
       this.lineParamsBuf,
@@ -1134,20 +1190,7 @@ export class Engine {
     for (const p of this.postPasses) run(p)
     this.profiler?.resolve(enc)
 
-    const rp = enc.beginRenderPass({
-      colorAttachments: [
-        {
-          view: this.gpu.context.getCurrentTexture().createView(),
-          loadOp: 'clear',
-          storeOp: 'store',
-          clearValue: { r: 0, g: 0, b: 0, a: 1 },
-        },
-      ],
-    })
-    rp.setPipeline(this.presentPl)
-    rp.setBindGroup(0, this.presentBg)
-    rp.draw(3)
-    rp.end()
+    this.presentPass(enc)
 
     if (this.frame < 3) {
       d.pushErrorScope('validation')

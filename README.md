@@ -65,6 +65,23 @@ linear-phase symmetry, filter-bank packing). CI gates deploy on `pnpm lint` +
   A bundled `public/sample.jpg` makes `?iurl=/sample.jpg&preset=dirty%20mix`
   reproducible out of the box.
 
+## Effects
+
+Every effect models the hardware fault that causes an artifact, grouped by where
+in the chain it strikes. Full listing with mechanisms in
+[EFFECTS.md](EFFECTS.md).
+
+| Stage               | Effects                                                                                                                                                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Source / wiring** | polarity invert, hard polarity flip (sync too), termination fault, chroma-pin-only miswire, loose connector, bob deinterlace                                                                            |
+| **Camera feedback** | the classic camera-at-monitor loop: zoom/rotate/shift spirals, defocus, vignette, sensor s-curve, plus the CRT faceplate it photographs (bloom, halation, glow, gamma)                                  |
+| **Mixer loop**      | composite-level feedback: loop delay as hue rotation, luma keying, strobe hold, trails, a resonant filter that can self-oscillate                                                                       |
+| **A/B mix**         | a second non-genlocked source: dirty sum or clean dissolve, ring mod, subcarrier-beat rainbows, frame roll, wipes, PiP inset                                                                            |
+| **Tape / channel**  | luma band-limit, peaking, snow, ghosting, hum bar, sound-carrier buzz, dropouts, dub generations, VHS color-under + phase jitter, tracking error, shuttle picture-search bars, flutter/wow, head switch |
+| **Receiver**        | horizontal/vertical hold, retrace flag, oscillator detune, deflection bends, HV sag and supply ring, comb modes, S-video bleed, chroma demod faults, burst lock, color killer                           |
+| **Audio-reactive**  | bass into the field oscillator (lurch), level into line hold (tear), bass into HV sag (smack), the raw waveform into deflection, audio into the video input                                             |
+| **Screen**          | beam profile and bloom, reconstruction filter, phosphor primaries and persistence (tinted trails), aperture grille moiré, slow-motion time step                                                         |
+
 ## How it works
 
 The picture is never handled as an image. Each frame, the RGB source is turned
@@ -76,8 +93,8 @@ with an imperfect receiver.
 ### If you write JavaScript, here's the shape of it
 
 That waveform is really just one big `Float32Array` — those ~478k samples —
-sitting in GPU memory (the `compA` buffer) and never coming back to the CPU.
-In plain JS, one stage of damage would be a loop:
+sitting in GPU memory (the `compA` buffer) and never coming back to the CPU. In
+plain JS, one stage of damage would be a loop:
 
 ```js
 for (let i = 0; i < signal.length; i++) out[i] = mangle(signal, i)
@@ -105,10 +122,10 @@ The passes hand data to each other through those shared buffers. Most read
 `compA` and overwrite it in place; a few can't safely read and write the same
 buffer at once, so they read from `compA` and write into `compB`, then swap. The
 only thing that ever leaves the GPU is the final image the `present` pass draws
-to the canvas. So the pipeline really is just an ordered array of passes, each one
-a `.wgsl` shader in `src/gpu/shaders/`, wired up in `src/gpu/pipeline.ts`. The
-filters they run are windowed-sinc FIR kernels designed from real MHz specs in
-`src/signal/filters.ts`.
+to the canvas. So the pipeline really is just an ordered array of passes, each
+one a `.wgsl` shader in `src/gpu/shaders/`, wired up in `src/gpu/pipeline.ts`.
+The filters they run are windowed-sinc FIR kernels designed from real MHz specs
+in `src/signal/filters.ts`.
 
 ### The chain
 

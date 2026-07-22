@@ -145,6 +145,23 @@ fn main(
     }
   }
 
+  // VHS picture search: off play speed the spinning head no longer follows a
+  // single recorded track — each sweep crosses |speed-1| of them, and the RF
+  // envelope nulls at every crossing, so that many noise bars sweep the frame.
+  // The strips between bars are different tracks; their timing and color-under
+  // phase offsets ride in via lineParams like the tracking tear.
+  if (P.shuttleBars != 0.0) {
+    let ab = abs(P.shuttleBars);
+    let fx = fract(f32(row) / f32(NLINES) * ab + P.shuttlePhase);
+    let dLines = min(fx, 1.0 - fx) / ab * f32(NLINES);
+    let half = 8.0;
+    if (dLines < half) {
+      let edge = 1.0 - dLines / half;
+      let snow = 45.0 * gauss(n ^ pcg(P.frame * 24593u + row * 3u + P.gen * 389u));
+      out = mix(out, snow, clamp(edge * 1.7, 0.0, 0.95));
+    }
+  }
+
   // Loose connector: intermittent contact breaks whole bands of the picture to
   // snow and yanks the level down (taking sync with it), flickering frame to
   // frame the way a wiggled RCA plug drops in and out.

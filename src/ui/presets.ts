@@ -63,6 +63,25 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'picture search',
+    group: 'Tape wear',
+    blurb:
+      'Cue at 5x: the head crosses four tracks per sweep, noise bars sweeping the frame while the strips between them tear and rainbow.',
+    patch: {
+      shuttleX: 5,
+      lumaMHz: 2.8,
+      lumaPeak: 0.8,
+      noiseIre: 3,
+      colorUnderMix: 1,
+      underJitterDeg: 4,
+      tbJitterNs: 200,
+      headSwitchShiftUs: 0.8,
+      headSwitchNoise: 0.4,
+      hHold: 0.3,
+      demodMHz: 0.5,
+    },
+  },
+  {
     name: 'broadcast',
     group: 'RF / Broadcast',
     blurb:

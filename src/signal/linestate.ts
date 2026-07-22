@@ -24,6 +24,16 @@ export interface LineStateControls {
   headSwitchShiftUs: number // horizontal shift after the head switch point
   trackAmt: number // VHS tracking error severity
   trackPos: number // tracking band vertical position, 0..1
+  shuttleBars: number // picture-search track crossings per field (speed - 1)
+  shuttlePhase: number // crossing pattern phase, in crossings
+}
+
+// Deterministic per-segment hash: a shuttle strip keeps its timing offset for
+// as long as it persists on screen, unlike Math.random per frame.
+function hash01(v: number) {
+  let h = Math.imul(v ^ 0x9e3779b9, 0x85ebca6b)
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35)
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
 }
 
 export class LineState {
@@ -59,6 +69,26 @@ export class LineState {
             (0.6 + 0.8 * Math.random())
           : 0
 
+      // picture search: each strip between crossing bars is a different
+      // recorded track, with its own horizontal timing; lines nearest a
+      // crossing hook into the bar as the RF fades out
+      let shuttle = 0
+      let shuttleHue = 0
+      if (c.shuttleBars !== 0) {
+        const ab = Math.abs(c.shuttleBars)
+        const x = (row / LINES) * ab + c.shuttlePhase
+        const k = Math.floor(x)
+        const f = x - k
+        const dLines = (Math.min(f, 1 - f) / ab) * LINES
+        const half = 8
+        shuttle =
+          usToSamples(2.5) * (hash01(k) - 0.5) +
+          (dLines < half
+            ? usToSamples(4) * (1 - dLines / half) * (0.5 + Math.random())
+            : 0)
+        shuttleHue = 2.5 * (hash01(k ^ 0x3ac1) - 0.5)
+      }
+
       // color-under playback carrier phase for this line: exact base phase
       // (computed in f64 — f32 cannot hold it) plus accumulated jitter walk
       const globalSample = (frame * LINES + row) * SAMPLES_PER_LINE
@@ -68,9 +98,9 @@ export class LineState {
       this.underWalk *= 0.99
 
       const o = row * 4
-      this.data[o] = this.flutter + wow + hs + track
+      this.data[o] = this.flutter + wow + hs + track + shuttle
       this.data[o + 1] = base * 2 * Math.PI
-      this.data[o + 2] = this.underWalk + (headSwitched ? 0.9 : 0)
+      this.data[o + 2] = this.underWalk + (headSwitched ? 0.9 : 0) + shuttleHue
       this.data[o + 3] = Math.random()
     }
     return this.data

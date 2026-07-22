@@ -127,6 +127,7 @@ export const DEFAULT_CONTROLS = {
   // VHS tracking error
   trackAmt: 0,
   trackPos: 0.85,
+  shuttleX: 1, // transport speed as multiple of play: 0 pause, <0 review, 1 clean
   // display
   scanBeam: 0.3,
   scanBloom: 0, // beam-spot growth with beam current: bright lines fatten
@@ -137,6 +138,8 @@ export const DEFAULT_CONTROLS = {
   crtSharp: 0,
   maskAmt: 0,
   maskPitch: 3,
+  // time
+  timeScale: 1, // sim steps per display frame: everything slows together, 0 freezes
 }
 
 export type Controls = typeof DEFAULT_CONTROLS
