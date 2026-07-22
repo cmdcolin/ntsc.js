@@ -131,6 +131,7 @@ export function PresetsSection(props: {
   onCopyLink: () => void
   copied: boolean
   onMutate: () => void
+  onSurprise: () => void
   canUndo: boolean
   onUndo: () => void
 }) {
@@ -218,6 +219,13 @@ export function PresetsSection(props: {
         onClick={props.onCopyLink}
       >
         {props.copied ? 'copied!' : 'copy link'}
+      </button>
+      <button
+        className={styles.btn}
+        onClick={props.onSurprise}
+        title="stack a few random presets from different groups — a fresh look each roll, with the recipe shown in the chips above"
+      >
+        surprise me
       </button>
       <button
         className={styles.btn}

@@ -92,10 +92,8 @@ export class Engine {
   onStats: (stats: FrameStats) => void = () => {}
   onDeviceLost: (message: string) => void = () => {}
 
-  // Parsed once: the debug view can't change without a reload.
-  private readonly dbgView = Number(
-    new URLSearchParams(location.search).get('dbg') ?? 0,
-  )
+  // Initialized from ?dbg=; also switchable live via setDbgView (Advanced).
+  private dbgView = Number(new URLSearchParams(location.search).get('dbg') ?? 0)
 
   private gpu: Gpu
   private canvas: HTMLCanvasElement
@@ -950,6 +948,14 @@ export class Engine {
   // the resting one (the same takeover semantics as MIDI).
   setModSlots(slots: ModSlot[]): void {
     this.modSlots = slots
+  }
+
+  setDbgView(view: number): void {
+    this.dbgView = view
+  }
+
+  getDbgView(): number {
+    return this.dbgView
   }
 
   private applyMod(): () => void {

@@ -24,6 +24,7 @@ import { cx } from './ui/cx'
 import { SYNCABLE_KEYS } from './ui/midi'
 import { mutate } from './ui/mutate'
 import {
+  PRESETS,
   blendPresets,
   controlsEqual,
   matchPreset,
@@ -43,7 +44,7 @@ import { useUrlState } from './ui/useUrlState'
 import { gitSha, versionLabel } from './version'
 
 import type { ControlKey, Controls } from './controls'
-import type { Group, SliderDef } from './ui/controls'
+import type { Group, SliderDef, SliderNeed } from './ui/controls'
 import type { PresetWeights } from './ui/presets'
 
 // useSyncExternalStore fallbacks for the window before the async engine exists.
@@ -207,6 +208,34 @@ export function App() {
     setLastPreset(name)
   }
 
+  // A fresh look from the authored presets: one full preset plus one or two
+  // partial ones from other groups, over clean defaults. Built through the mix
+  // machinery so the chips show the recipe — each roll teaches what made it.
+  const surprise = () => {
+    const cur = engineRef.current?.getControls()
+    if (cur === undefined) {
+      return
+    }
+    setUndoSnapshot(cur)
+    const pool = PRESETS.filter(
+      p =>
+        p.group !== 'Clean' &&
+        (eng.sourceBMode !== 'none' || p.group !== 'A/B mixing'),
+    )
+    const groups = [...new Set(pool.map(p => p.group))].sort(
+      () => Math.random() - 0.5,
+    )
+    const weights = new Map<string, number>()
+    groups.slice(0, 2 + Math.floor(Math.random() * 2)).forEach((g, i) => {
+      const opts = pool.filter(p => p.group === g)
+      const p = opts[Math.floor(Math.random() * opts.length)]
+      weights.set(p.name, i === 0 ? 1 : 0.3 + Math.random() * 0.5)
+    })
+    writeControls(blendPresets(DEFAULT_CONTROLS, weights))
+    setMix({ base: DEFAULT_CONTROLS, weights })
+    setLastPreset(null)
+  }
+
   const mutateLook = () => {
     const cur = engineRef.current?.getControls()
     if (cur !== undefined) {
@@ -273,9 +302,13 @@ export function App() {
   const audio = useAudio(eng.engine)
 
   const query = filter.trim().toLowerCase()
-  const renderNeeds = (s: SliderDef) => {
+  const renderNeeds = (s: SliderDef, muted?: Set<ControlKey>) => {
     const need = NEEDS[s.key]
-    if (need === undefined || need.ok(controls[need.key])) {
+    if (
+      need === undefined ||
+      need.ok(controls[need.key]) ||
+      muted?.has(need.key) === true
+    ) {
       return undefined
     }
     const prereq = SLIDER_BY_KEY.get(need.key)
@@ -285,7 +318,7 @@ export function App() {
       onFix: () => writeControl(need.key, need.fix),
     }
   }
-  const renderSlider = (s: SliderDef) => (
+  const renderSlider = (s: SliderDef, mutedNeeds?: Set<ControlKey>) => (
     <Slider
       key={s.key}
       label={s.label}
@@ -298,7 +331,7 @@ export function App() {
       onChange={v => writeControl(s.key, v)}
       choices={s.choices}
       help={s.help}
-      needs={renderNeeds(s)}
+      needs={renderNeeds(s, mutedNeeds)}
       favorite={{
         on: favorites.has(s.key),
         onToggle: () => toggleFavorite(s.key),
@@ -341,6 +374,20 @@ export function App() {
     const touched = group.sliders.some(
       s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
     )
+    // When most of a group is dead behind the same gate (e.g. all of Mixer
+    // Loop behind loop mix), one banner beats a stack of identical per-slider
+    // notes; the notes stay only for the odd ones out.
+    const unmetCounts = new Map<ControlKey, { need: SliderNeed; n: number }>()
+    for (const s of sliders) {
+      const need = NEEDS[s.key]
+      if (need !== undefined && !need.ok(controls[need.key])) {
+        const e = unmetCounts.get(need.key)
+        if (e === undefined) unmetCounts.set(need.key, { need, n: 1 })
+        else e.n += 1
+      }
+    }
+    const banners = [...unmetCounts.values()].filter(e => e.n >= 3)
+    const mutedNeeds = new Set(banners.map(e => e.need.key))
     return sliders.length === 0 ? null : (
       <Section
         key={group.name}
@@ -351,7 +398,17 @@ export function App() {
         open={control?.open}
         onToggle={control?.onToggle}
       >
-        {sliders.map(renderSlider)}
+        {banners.map(({ need, n }) => (
+          <button
+            key={need.key}
+            className={styles.groupNeeds}
+            title={`click to set "${SLIDER_BY_KEY.get(need.key)?.label ?? need.key}" to ${need.fix}${SLIDER_BY_KEY.get(need.key)?.unit ?? ''}`}
+            onClick={() => writeControl(need.key, need.fix)}
+          >
+            {n} controls here are inert — needs {need.hint} · click to set
+          </button>
+        ))}
+        {sliders.map(s => renderSlider(s, mutedNeeds))}
       </Section>
     )
   }
@@ -473,6 +530,7 @@ export function App() {
         onCopyLink={copyLink}
         copied={copied}
         onMutate={mutateLook}
+        onSurprise={surprise}
         canUndo={undoSnapshot !== null}
         onUndo={undo}
       />
@@ -483,7 +541,9 @@ export function App() {
           the set stays stable as pins come and go. */}
       {favorites.size === 0 ? null : (
         <Section title="Favorites" defaultOpen>
-          {ALL_SLIDERS.filter(s => favorites.has(s.key)).map(renderSlider)}
+          {ALL_SLIDERS.filter(s => favorites.has(s.key)).map(s =>
+            renderSlider(s),
+          )}
         </Section>
       )}
 
@@ -607,6 +667,7 @@ export function App() {
           res={eng.res}
           midiStatus={midiStatus}
           onEnableMidi={enableMidi}
+          engine={eng.engine}
           onClose={() => setShowAdvanced(false)}
         />
       ) : null}

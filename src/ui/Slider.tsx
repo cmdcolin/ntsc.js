@@ -15,6 +15,8 @@ function IconButton(props: {
   title: string
   className: string
   onClick: () => void
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
   children: ReactNode
 }) {
   return (
@@ -22,6 +24,8 @@ function IconButton(props: {
       type="button"
       title={props.title}
       className={props.className}
+      onMouseEnter={props.onMouseEnter}
+      onMouseLeave={props.onMouseLeave}
       onClick={e => {
         e.preventDefault()
         props.onClick()
@@ -54,6 +58,9 @@ export function Slider(props: {
   favorite?: { on: boolean; onToggle: () => void }
 }) {
   const [showHelp, setShowHelp] = useState(false)
+  // Hovering the ? shows the text in place, so the help column can be skimmed
+  // slider to slider; clicking still opens the dialog (range info, touch).
+  const [hoverHelp, setHoverHelp] = useState(false)
   const midi = props.midi
   const sync = props.sync
   const needs = props.needs
@@ -86,6 +93,8 @@ export function Slider(props: {
                 title="what does this do?"
                 className={styles.what}
                 onClick={() => setShowHelp(true)}
+                onMouseEnter={() => setHoverHelp(true)}
+                onMouseLeave={() => setHoverHelp(false)}
               >
                 ?
               </IconButton>
@@ -188,6 +197,9 @@ export function Slider(props: {
         >
           inert — needs {needs.hint} · click to set
         </button>
+      ) : null}
+      {hoverHelp && !showHelp && help !== undefined ? (
+        <div className={styles.helpPop}>{help}</div>
       ) : null}
       {showHelp && help !== undefined ? (
         <SliderHelpDialog

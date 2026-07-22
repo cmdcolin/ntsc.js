@@ -1,7 +1,26 @@
 /* slider — inherits --mono (and font/color) from the .app ancestor */
 .slider {
   display: block;
+  position: relative;
   margin: 6px 0;
+}
+/* the ? icon's hover card: the same text as the dialog, skimmable in place */
+.helpPop {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 2px;
+  pointer-events: none;
+  background: #1a1a22;
+  border: 1px solid #3a3a48;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #c8c8d4;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
 }
 .sliderTop {
   display: flex;

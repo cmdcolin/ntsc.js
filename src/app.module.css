@@ -162,6 +162,24 @@
 .phaseDot:hover {
   color: #e0b040;
 }
+/* one banner for a group whose controls share an unmet gate, in place of a
+   stack of identical per-slider notes; clicking sets the prerequisite */
+.groupNeeds {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+  margin: 2px 0;
+  font: inherit;
+  font-size: 11px;
+  color: #8a7a40;
+}
+.groupNeeds:hover {
+  color: #e0b040;
+}
 
 /* control filter box */
 .filter {

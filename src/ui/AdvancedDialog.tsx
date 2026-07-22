@@ -1,9 +1,22 @@
+import { useState } from 'react'
+
 import styles from '../app.module.css'
 import { Dialog } from './Dialog'
+import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
 import { cx } from './cx'
 
+import type { Engine } from '../gpu/pipeline'
 import type { MidiStatus } from './midi'
+
+// The decode-stage taps otherwise reachable only via ?dbg= in the URL.
+const DBG_OPTIONS = [
+  { value: '0', label: 'off — decoded picture' },
+  { value: '2', label: 'composite waveform' },
+  { value: '3', label: 'luma channel' },
+  { value: '4', label: 'chroma (U/V energy)' },
+  { value: '5', label: 'burst / decoder state' },
+] as const
 
 export function AdvancedDialog(props: {
   renderScale: number
@@ -11,8 +24,10 @@ export function AdvancedDialog(props: {
   res: string
   midiStatus: MidiStatus
   onEnableMidi: () => void
+  engine: Engine | null
   onClose: () => void
 }) {
+  const [dbg, setDbg] = useState(() => String(props.engine?.getDbgView() ?? 0))
   return (
     <Dialog title="Advanced" onClose={props.onClose}>
       <Slider
@@ -27,6 +42,21 @@ export function AdvancedDialog(props: {
       />
       <div className={styles.dim} style={{ margin: '2px 0 12px' }}>
         backing-store resolution · lower = faster · {props.res}
+      </div>
+      <div className={styles.subhead}>signal tap</div>
+      <SelectRow
+        tag="◫"
+        title="view the signal mid-decode instead of the finished picture"
+        value={dbg as (typeof DBG_OPTIONS)[number]['value']}
+        options={DBG_OPTIONS}
+        onChange={v => {
+          setDbg(v)
+          props.engine?.setDbgView(Number(v))
+        }}
+      />
+      <div className={styles.dim} style={{ margin: '2px 0 12px' }}>
+        see what the TV sees: the raw waveform, or luma / chroma / burst
+        mid-decode — the fastest way to understand what a control is doing.
       </div>
       <div className={styles.subhead}>MIDI control</div>
       {props.midiStatus === 'idle' ? (
