@@ -58,6 +58,18 @@ const N = SAMPLES_PER_LINE * LINES
 const LINE_PARAM_BYTES = LINES * 16
 const MAX_GENS = 4
 
+// compose samples srcTex down to the 754x480 raster (plus a +-2 line
+// deinterlace tap), so resolution past ~2x that buys no detail. Uncapped, a
+// phone photo lands as a ~200 MB texture whose minified fetches thrash cache
+// every frame, and a 4K clip re-uploads 33 MB per frame.
+const MAX_SRC_EDGE = 1536
+
+// Long edge capped to MAX_SRC_EDGE, aspect preserved.
+const fitSrc = (w: number, h: number): [number, number] => {
+  const s = Math.min(1, MAX_SRC_EDGE / Math.max(w, h))
+  return [Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s))]
+}
+
 // Bent-crystal demod LO: how fast a detuned 3.58 MHz oscillator's phase error
 // grows, per composite sample.
 const loRadPerSample = (detuneKHz: number): number =>
@@ -91,6 +103,10 @@ export class Engine {
   private controlListeners = new Set<() => void>()
   onStats: (stats: FrameStats) => void = () => {}
   onDeviceLost: (message: string) => void = () => {}
+  // Non-fatal GPU faults (uncaptured validation/oom, e.g. an over-large source
+  // texture): surfaced to the panel banner instead of only the console, so a
+  // wedged render loop shows a reason rather than looking frozen.
+  onGpuError: (message: string) => void = () => {}
 
   // Initialized from ?dbg=; also switchable live via setDbgView (Advanced).
   private dbgView = Number(new URLSearchParams(location.search).get('dbg') ?? 0)
@@ -135,9 +151,11 @@ export class Engine {
   private srcTex: GPUTexture
   private srcAspect = 4 / 3
   private videoEl: HTMLVideoElement | null = null
-  // Firefox's copyExternalImageToTexture rejects HTMLVideoElement; stage video
-  // frames through a 2D canvas.
-  private videoStage: OffscreenCanvas | null = null
+  // Firefox's copyExternalImageToTexture rejects HTMLVideoElement, so video has
+  // to stage through a 2D canvas anyway; oversized images stage through the
+  // same one to get capped. Sized to the capped source, not the raster, so A
+  // keeps its own aspect (unlike B, which cover-fits to 4:3).
+  private stageA: OffscreenCanvas | null = null
   // source B is always staged at raster size (cover-fit on the CPU), so its
   // texture and bind groups are fixed
   private srcTexB: GPUTexture
@@ -576,6 +594,13 @@ export class Engine {
       frameNo: () => this.frame,
     })
 
+    // Faults the error scopes don't catch (they only wrap startup frames) land
+    // here — chiefly an over-large source texture on a fresh pick — so report
+    // them to the UI rather than let the loop wedge silently.
+    this.gpu.device.addEventListener('uncapturederror', e => {
+      if (e instanceof GPUUncapturedErrorEvent) this.onGpuError(e.error.message)
+    })
+
     // reason 'destroyed' is our own destroy(); anything else is a real loss
     // (driver reset, sleep/wake, GPU hang) — stop and surface it.
     void this.gpu.device.lost.then(info => {
@@ -631,12 +656,17 @@ export class Engine {
   setImageSource(source: OffscreenCanvas | ImageBitmap, aspect = 4 / 3): void {
     this.noiseSource = 0
     this.videoEl = null
-    this.ensureSrcTex(source.width, source.height, aspect)
-    this.gpu.device.queue.copyExternalImageToTexture(
-      { source, flipY: false },
-      { texture: this.srcTex },
-      [source.width, source.height],
-    )
+    const [w, h] = fitSrc(source.width, source.height)
+    this.ensureSrcTex(w, h, aspect)
+    if (w === source.width && h === source.height) {
+      this.gpu.device.queue.copyExternalImageToTexture(
+        { source, flipY: false },
+        { texture: this.srcTex },
+        [w, h],
+      )
+    } else {
+      this.uploadA(source, w, h)
+    }
   }
 
   setVideoSource(el: HTMLVideoElement | null): void {
@@ -672,6 +702,28 @@ export class Engine {
 
   setSourceBEnabled(on: boolean): void {
     this.bEnabled = on
+  }
+
+  // Scale a source down into stageA (its own aspect, capped) and upload. Used
+  // for oversized images and every video frame (the latter also because
+  // Firefox won't copy an HTMLVideoElement directly).
+  private uploadA(
+    source: OffscreenCanvas | ImageBitmap | HTMLVideoElement,
+    w: number,
+    h: number,
+  ): void {
+    if (this.stageA?.width !== w || this.stageA.height !== h) {
+      this.stageA = new OffscreenCanvas(w, h)
+    }
+    const g = this.stageA.getContext('2d')
+    if (g) {
+      g.drawImage(source, 0, 0, w, h)
+      this.gpu.device.queue.copyExternalImageToTexture(
+        { source: this.stageA, flipY: false },
+        { texture: this.srcTex },
+        [w, h],
+      )
+    }
   }
 
   // B is staged to raster size with a centered 4:3 cover-fit crop, so the
@@ -1073,36 +1125,22 @@ export class Engine {
       )
     }
     if (this.videoEl !== null && this.videoEl.readyState >= 2) {
-      const w = this.videoEl.videoWidth
-      const h = this.videoEl.videoHeight
-      if (w > 0) {
-        this.ensureSrcTex(w, h, w / h)
-        if (this.videoStage?.width !== w || this.videoStage.height !== h) {
-          this.videoStage = new OffscreenCanvas(w, h)
-        }
-        const g = this.videoStage.getContext('2d')
-        if (g) {
-          g.drawImage(this.videoEl, 0, 0)
-          if (this.frame % 30 === 0 && location.search.includes('debug')) {
-            const px = g.getImageData(
-              Math.floor(w / 2),
-              Math.floor(h / 2),
-              1,
-              1,
-            ).data
-            console.log(
-              'DEBUG stage px',
-              px[0],
-              px[1],
-              px[2],
-              'video t',
-              this.videoEl.currentTime.toFixed(2),
-            )
-          }
-          d.queue.copyExternalImageToTexture(
-            { source: this.videoStage, flipY: false },
-            { texture: this.srcTex },
-            [w, h],
+      const vw = this.videoEl.videoWidth
+      const vh = this.videoEl.videoHeight
+      if (vw > 0) {
+        const [w, h] = fitSrc(vw, vh)
+        this.ensureSrcTex(w, h, vw / vh)
+        this.uploadA(this.videoEl, w, h)
+        if (this.frame % 30 === 0 && location.search.includes('debug')) {
+          const g = this.stageA?.getContext('2d')
+          const px = g?.getImageData(w >> 1, h >> 1, 1, 1).data
+          console.log(
+            'DEBUG stage px',
+            px?.[0],
+            px?.[1],
+            px?.[2],
+            'video t',
+            this.videoEl.currentTime.toFixed(2),
           )
         }
       }

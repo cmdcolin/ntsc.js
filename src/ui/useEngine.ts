@@ -10,11 +10,28 @@ import type { ControlKey, Controls, FrameStats } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { Fatal } from './FatalScreen'
 
+// Decode an image, capping the long edge so a phone photo doesn't land as a
+// ~200 MB bitmap. The engine caps the texture too; this keeps the decode cheap.
+const MAX_DECODE_EDGE = 1536
+const decodeImage = (src: Blob | File): Promise<ImageBitmap> =>
+  createImageBitmap(src).then(bmp => {
+    const s = Math.min(1, MAX_DECODE_EDGE / Math.max(bmp.width, bmp.height))
+    return s === 1
+      ? bmp
+      : createImageBitmap(bmp, {
+          resizeWidth: Math.round(bmp.width * s),
+          resizeQuality: 'high',
+        }).then(small => {
+          bmp.close()
+          return small
+        })
+  })
+
 // Load an image source from a URL, for the ?iurl / ?iurlb query params.
 const loadImage = (url: string): Promise<ImageBitmap> =>
   fetch(url)
     .then(r => r.blob())
-    .then(createImageBitmap)
+    .then(decodeImage)
 
 // Fetch a YouTube clip as a blob through the dev yt-dlp bridge
 // (vite-plugin-ytdlp). On failure the endpoint returns the yt-dlp error text.
@@ -314,7 +331,7 @@ export function useEngine() {
       setSourceMode('file')
       setSourceName(file.name)
       if (file.type.startsWith('image/')) {
-        createImageBitmap(file).then(
+        decodeImage(file).then(
           bmp => engine.setImageSource(bmp, bmp.width / bmp.height),
           (e: unknown) =>
             setError(`image: ${e instanceof Error ? e.message : String(e)}`),
@@ -429,7 +446,7 @@ export function useEngine() {
       setSourceBName(file.name)
       engine.setSourceBEnabled(true)
       if (file.type.startsWith('image/')) {
-        createImageBitmap(file).then(
+        decodeImage(file).then(
           bmp => engine.setImageSourceB(bmp),
           (e: unknown) =>
             setError(`image: ${e instanceof Error ? e.message : String(e)}`),
@@ -468,6 +485,7 @@ export function useEngine() {
             setEngine(engine)
             window.vf = engine
             engine.onStats = setStats
+            engine.onGpuError = m => setError(`gpu: ${m}`)
             engine.onDeviceLost = m =>
               setFatal({
                 title: 'WebGPU device lost',
