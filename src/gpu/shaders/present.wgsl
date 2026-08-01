@@ -190,6 +190,9 @@ fn fs(in: VOut) -> @location(0) vec4f {
     col = col * m / (1.0 - 2.0 * maskAmt / 3.0);
   }
   // Feather the last fraction of a pixel into the bezel, so the rounded tube
-  // corners are not a staircase.
-  return vec4f(col * smoothstep(0.0, -0.008, glassDist), 1.0);
+  // corners are not a staircase. Only once the set is on show: at 1x and closer
+  // the picture meets the letterbox edge-on, as it always has, and this would
+  // otherwise soften the outer couple of pixels of every frame.
+  let feather = select(1.0, smoothstep(0.0, -0.008, glassDist), back > 0.0);
+  return vec4f(col * feather, 1.0);
 }
