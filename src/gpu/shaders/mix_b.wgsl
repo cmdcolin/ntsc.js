@@ -91,7 +91,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let su = sp - floor(sp / spl) * spl;
     let si = u32(su);
     let frac = su - f32(si);
-    let srow = (row + u32(P.bRowOff)) % NLINES;
+    let srow = wrapRow(i32(row) + i32(floor(P.bRowOff)));
     let np = srow * SPL + si;
     // subcarrier detune accumulates over lines; a fractional-sample slip is
     // 90 degrees per sample off the lattice; the proc-amp hue trim adds on top

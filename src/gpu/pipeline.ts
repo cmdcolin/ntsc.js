@@ -356,9 +356,16 @@ export class Engine {
     ] as const
     const perRow = [Math.ceil(LINES / 64), 1] as const
     const c = this.controls
+    // What mixB can actually change. The genlocked path is a crossfade against
+    // the program bus, so it reads neither the A fader nor the ring mod — a
+    // value left on either from a session on the dirty path would otherwise
+    // dispatch encodeYuvB and a full re-encode of B for a frame identical to
+    // the one A already wrote.
     const bOn = () =>
       this.sources.bEnabled &&
-      (c.bGain !== 0 || c.bRing !== 0 || c.pipMix !== 0 || c.aGain !== 1)
+      (c.bGain !== 0 ||
+        c.pipMix !== 0 ||
+        (c.bGenlock < 0.5 && (c.bRing !== 0 || c.aGain !== 1)))
 
     this.composePass = {
       label: 'compose',
@@ -475,7 +482,10 @@ export class Engine {
     ]
     // Decode's two bind groups differ only in which phosphor buffer it reads and
     // which it writes; `renderFrame` swaps them by frame parity.
-    const decodeRes = (read: GPUBuffer, write: GPUBuffer): GPUBindingResource[] => [
+    const decodeRes = (
+      read: GPUBuffer,
+      write: GPUBuffer,
+    ): GPUBindingResource[] => [
       { buffer: this.paramsBuf },
       { buffer: this.filterBuf },
       { buffer: this.compA },
