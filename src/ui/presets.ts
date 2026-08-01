@@ -1,5 +1,5 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
-import { SLIDER_BY_KEY } from './controls'
+import { SLIDER_BY_KEY, snapToStep } from './controls'
 
 import type { ControlKey, Controls } from '../controls'
 
@@ -568,13 +568,7 @@ const ENUM_KEYS = new Set<ControlKey>(
 // values the UI can actually show and `matchPreset` can compare exactly.
 function quantize(key: ControlKey, v: number): number {
   const s = SLIDER_BY_KEY.get(key)
-  return s === undefined
-    ? v
-    : Number(
-        (
-          Math.round(Math.min(s.max, Math.max(s.min, v)) / s.step) * s.step
-        ).toFixed(6),
-      )
+  return s === undefined ? v : snapToStep(s, v)
 }
 
 // Presets mix by summing their departures from default onto `baseline`, so

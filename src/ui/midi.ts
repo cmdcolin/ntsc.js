@@ -1,4 +1,4 @@
-import { AUTOMAP_KEYS, SLIDER_BY_KEY } from './controls'
+import { AUTOMAP_KEYS, SLIDER_BY_KEY, snapToStep } from './controls'
 import { zoomAtTravel } from './lens'
 import { readRecord } from './storage'
 
@@ -90,8 +90,7 @@ function ccToValue(def: SliderDef, cc: number): number {
     def.curve === 'magnifier'
       ? zoomAtTravel(cc / 127)
       : def.min + (cc / 127) * (def.max - def.min)
-  const stepped = Math.round((raw - def.min) / def.step) * def.step + def.min
-  return clamp(stepped, def.min, def.max)
+  return snapToStep(def, raw)
 }
 
 // Half a control's full span per MIDI step — the pickup tolerance for the very

@@ -1437,6 +1437,25 @@ export function sliderFor(key: ControlKey): SliderDef {
   return def
 }
 
+// A value landed on a control's own step grid and inside its range. One
+// definition, because the four call sites that need it (MIDI CC scaling, the
+// mutator, preset blending, the magnifier's curved travel) had grown two
+// conventions: half anchored the grid at `min`, half at zero. They agree only
+// because every slider's bounds happen to be multiples of its step — a control
+// that broke that would have quietly produced values the UI cannot show.
+export function snapToStep(
+  def: Pick<SliderDef, 'min' | 'max' | 'step'>,
+  value: number,
+): number {
+  const stepped =
+    def.step > 0
+      ? def.min + Math.round((value - def.min) / def.step) * def.step
+      : value
+  // Trim the float dust the multiply leaves: matchPreset compares controls with
+  // ===, so a 0.30000000000000004 reads as a look someone edited.
+  return Number(Math.min(def.max, Math.max(def.min, stepped)).toFixed(6))
+}
+
 // Controls in auto-map priority order: the signal-path spine first, then the
 // contextual A/B and audio groups. A controller has far fewer knobs than there
 // are controls, so its low banks should land on the always-visible spine before

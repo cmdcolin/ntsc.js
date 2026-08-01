@@ -3,6 +3,7 @@ import { useId, useState } from 'react'
 import styles from './Slider.module.css'
 import { SliderHelpDialog } from './SliderHelpDialog'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
+import { snapToStep } from './controls'
 import { cx } from './cx'
 import { formatValue } from './format'
 import { zoomAtTravel, zoomTravel } from './lens'
@@ -73,9 +74,7 @@ export function Slider(props: {
   // unchanged, still landing on the control's own step grid.
   const curved = props.curve === 'magnifier'
   const travel = (v: number) => zoomTravel(v)
-  const onGrid = (v: number) => Math.round(v / props.step) * props.step
-  const fromTravel = (t: number) =>
-    Math.min(props.max, Math.max(props.min, onGrid(zoomAtTravel(t))))
+  const fromTravel = (t: number) => snapToStep(props, zoomAtTravel(t))
   // Track fill anchors at the default, not the left edge: bipolar controls
   // read like a pan pot from center, and distance-from-stock shows at a glance.
   const pct = (v: number) =>
