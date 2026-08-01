@@ -528,6 +528,34 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'bent detailer',
+    group: 'Circuit bent',
+    blurb:
+      "Jumper across the enhancer's peaking coil: the stage is regenerative, so the sync pulse at the head of every line sets it ringing and the bars build across the picture into the amplifier's rails.",
+    patch: {
+      enhPeakMHz: 2.5,
+      enhPeakQ: 0.86,
+      enhPeakBoost: 0.35,
+      enhDroopUs: 120,
+      noiseIre: 1.5,
+      crtCutoff: 0.05,
+      crtGamma: 2.1,
+    },
+  },
+  {
+    name: 'false sync',
+    group: 'Circuit bent',
+    blurb:
+      "The stabilizer's sync slicer bent up into picture territory: every dark area mints pulses of its own mid-line, and the set tears wherever the image goes dark.",
+    patch: {
+      enhSync: 1,
+      enhSliceIre: 14,
+      enhClampUs: 6,
+      hHold: 0.6,
+      noiseIre: 2,
+    },
+  },
+  {
     name: 'black restore',
     group: 'Phosphor / CRT',
     blurb:

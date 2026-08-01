@@ -118,6 +118,14 @@ export const PARAM_DEFS = [
   ['termination', 'f32'], // cable termination fault: <0 double-terminated (dim), >0 open (hot + ringing)
   ['chromaPinOnly', 'f32'], // only the chroma pin fed to composite: color, no luma, no sync
   ['connectorGlitch', 'f32'], // loose connector: intermittent contact drops bands to snow
+  // bent video enhancer, inline between the deck and the set
+  ['enhClampOff', 'f32'], // clamp gate displaced off the back porch, samples
+  ['enhDroop', 'f32'], // coupling-capacitor leak per sample (0 = DC coupled)
+  ['enhPeakFc', 'f32'], // detail resonator center, cycles/sample (0 = off)
+  ['enhPeakR', 'f32'], // resonator pole radius: ring length, and past 1 it howls
+  ['enhPeakBoost', 'f32'], // resonator output mixed back into the video, IRE per IRE
+  ['enhSync', 'f32'], // sync regenerator mix, 0 bypassed
+  ['enhSlice', 'f32'], // regenerator slice level, IRE
   // feedback (camera-at-monitor)
   ['fbMix', 'f32'],
   ['fbZoom', 'f32'],

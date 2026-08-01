@@ -51,6 +51,14 @@ export const DEFAULT_CONTROLS = {
   termination: 0, // cable termination fault (<0 double-terminated, >0 unterminated)
   chromaPinOnly: 0, // only the chroma pin patched to composite (color, no luma/sync)
   connectorGlitch: 0, // loose/intermittent connector
+  // bent video enhancer, patched inline between the deck and the set
+  enhClampUs: 0, // clamp gate slid off the back porch (0 = correct)
+  enhDroopUs: 0, // coupling-capacitor time constant (0 = DC coupled, no droop)
+  enhPeakMHz: 0, // detail resonator center (0 = off)
+  enhPeakQ: 0.5, // resonator feedback: ring length, and past 0.75 it howls
+  enhPeakBoost: 0, // resonator mixed back into the video
+  enhSync: 0, // sync regenerator mix (0 = box bypassed)
+  enhSliceIre: -20, // regenerator slice level
   lumaPeak: 0,
   noiseIre: 0,
   soundIre: 0,

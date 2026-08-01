@@ -21,6 +21,7 @@ import crtFace from './shaders/crt_face.wgsl?raw'
 import decode from './shaders/decode.wgsl?raw'
 import encodeComposite from './shaders/encode_composite.wgsl?raw'
 import encodeYuv from './shaders/encode_yuv.wgsl?raw'
+import enhancer from './shaders/enhancer.wgsl?raw'
 import fbComposite from './shaders/fb_composite.wgsl?raw'
 import lineAnalyze from './shaders/line_analyze.wgsl?raw'
 import mixB from './shaders/mix_b.wgsl?raw'
@@ -40,6 +41,7 @@ const SHADERS: Record<string, string> = {
   decode,
   encode_composite: encodeComposite,
   encode_yuv: encodeYuv,
+  enhancer,
   fb_composite: fbComposite,
   line_analyze: lineAnalyze,
   mix_b: mixB,

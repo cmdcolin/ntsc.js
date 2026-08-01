@@ -104,6 +104,29 @@ into a clean switcher dissolve.
 - **Head switch** — the two-head timing mismatch and settling noise that make
   the torn hook at the bottom of every VHS frame.
 
+## Enhancer (bent)
+
+A consumer image enhancer / stabilizer patched inline between the deck and the
+set, with jumpers across three of its stages.
+
+- **Clamp gate** — the box pins one sample a line to blanking to fix black
+  level. Slide that gate off the back porch and the picture sets black level
+  instead, so brightness bounces line to line with the image; slide it onto the
+  sync tip and the whole line lifts.
+- **Clamp droop** — an undersized coupling capacitor between gates: level sags
+  back toward blanking within the line, so bright content drags a dark streak
+  behind it while vertical edges stay sharp.
+- **Detail resonance** — the peaking coil with the bend's feedback wrapped
+  around it. A real two-pole resonator, so it rings after every edge, and past
+  unity it is regenerative: the sync pulse at the head of each line sets it off
+  and the bars build left to right until they hit the amplifier's rails. A
+  composite box has no Y/C split, so parked at 3.58 the same knob boosts the
+  subcarrier and saturation climbs with detail.
+- **Sync regenerator** — the stabilizer half, restamping a clean pulse wherever
+  its slicer crosses. Bend the slice up into picture territory and dark content
+  mints pulses of its own, mid-line: the set is handed a line rate the image is
+  writing. Burst is gated out and re-inserted, so this stays a sync fault.
+
 ## Receiver
 
 - **Horizontal hold** — the PLL's pull toward sync: loose drifts and skews,

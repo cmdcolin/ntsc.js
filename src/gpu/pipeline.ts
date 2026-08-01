@@ -38,6 +38,7 @@ import composeSrc from './shaders/compose.wgsl?raw'
 import composeBSrc from './shaders/compose_b.wgsl?raw'
 import crtFaceSrc from './shaders/crt_face.wgsl?raw'
 import decodeSrc from './shaders/decode.wgsl?raw'
+import enhancerSrc from './shaders/enhancer.wgsl?raw'
 import encodeCompositeSrc from './shaders/encode_composite.wgsl?raw'
 import encodeYuvSrc from './shaders/encode_yuv.wgsl?raw'
 import fbCompositeSrc from './shaders/fb_composite.wgsl?raw'
@@ -313,6 +314,7 @@ export class Engine {
     const underDownPl = compute(underDownSrc)
     const channelPl = compute(channelSrc)
     const timebasePl = compute(timebaseSrc)
+    const enhancerPl = compute(enhancerSrc)
     const syncMeasurePl = compute(syncMeasureSrc)
     const syncPl = compute(syncSrc)
     const lineAnalyzePl = compute(lineAnalyzeSrc)
@@ -515,6 +517,20 @@ export class Engine {
       y: perPixel[1],
     }
     this.postPasses = [
+      // The enhancer is an outboard box between the deck and the set, so it
+      // sits after the last dub generation and before the receiver measures
+      // anything — the pulses it stamps are the pulses the TV has to lock to.
+      pass(
+        'enhancer',
+        enhancerPl,
+        [{ buffer: this.paramsBuf }, { buffer: this.compA }],
+        perRow,
+        () =>
+          c.enhClampUs !== 0 ||
+          c.enhDroopUs > 0 ||
+          (c.enhPeakMHz > 0 && c.enhPeakBoost > 0) ||
+          c.enhSync > 0,
+      ),
       pass(
         'syncMeasure',
         syncMeasurePl,
@@ -841,6 +857,20 @@ export class Engine {
       termination: c.termination,
       chromaPinOnly: c.chromaPinOnly,
       connectorGlitch: c.connectorGlitch,
+      enhClampOff: c.enhClampUs * 1e-6 * SAMPLE_RATE,
+      // RC leak per sample from the coupling time constant; 0 us is the
+      // DC-coupled box, which never lets the level move at all.
+      enhDroop:
+        c.enhDroopUs > 0
+          ? 1 - Math.exp(-1 / (c.enhDroopUs * 1e-6 * SAMPLE_RATE))
+          : 0,
+      enhPeakFc: (c.enhPeakMHz * 1e6) / SAMPLE_RATE,
+      // Pole radius: 0.85 rings for a handful of samples, 1.0 rings forever,
+      // and above it the stage is regenerative and climbs to the rails.
+      enhPeakR: 0.85 + 0.2 * c.enhPeakQ,
+      enhPeakBoost: c.enhPeakBoost,
+      enhSync: c.enhSync,
+      enhSlice: c.enhSliceIre,
       fbMix: c.fbMix,
       fbZoom: c.fbZoom,
       fbRotate: (c.fbRotateDeg * Math.PI) / 180,
