@@ -24,7 +24,22 @@ clipping point instead of flattening, and trails that shift hue as they die.
   8-bit store gets half-LSB dither, which also fixes a pre-existing bug where
   trails below ~25/255 quantized to a fixed point and froze as permanent ghosts.
   Presets `round tube` and `green terminal` shipped.
-- **Phase 3 — not started.**
+- **Phase 3 — partly done.** The organic-bleed half shipped: `crtSpot` (the
+  finite beam spot, spreading _all_ light rather than only over-threshold cores —
+  the horizontal counterpart to `scanBeam`, which was vertical-only), `crtGrain`
+  (granular deposit mottling emission, static in glass space and mid-tone
+  weighted), and `phosphorBleed` (lateral scatter of held light, so persistence
+  diffuses cumulatively and old light goes soft while the fresh edge stays
+  sharp). The scatter reads neighbouring pixels, so `persistBuf` became a
+  ping-pong pair — a single buffer would have handed `decode` values its own
+  dispatch was part way through overwriting, tiled on the 8×8 workgroup grid.
+  Also `crtZoom`/`crtZoomX`/`crtZoomY`, a magnifier in `present`: everything in
+  glass space (scanline gaps, grain, spot bleed, grille triads, sample
+  reconstruction) magnifies with it, which is the fastest way to see whether any
+  of the above is doing what it claims. The grille is now keyed off the glass
+  coordinate rather than the canvas so it pans and scales with the lens. Still
+  open: the two items under Phase 3 below (luma-keyed halation radius,
+  per-channel bloom radius).
 
 The pipeline already has the _light_ behaviour (bloom, halation, glow in
 `crt_face`) and persistence (in `decode`). What is missing is the tube's

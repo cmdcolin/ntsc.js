@@ -10,8 +10,19 @@
 @group(0) @binding(3) var<storage, read> lineInfo: array<vec4f>;
 @group(0) @binding(4) var<storage, read> timing: array<f32>;
 @group(0) @binding(5) var outTex: texture_storage_2d<rgba8unorm, write>;
-@group(0) @binding(6) var<storage, read_write> persist: array<u32>;
-@group(0) @binding(7) var<storage, read> audio: array<f32>;
+// Phosphor state ping-pongs: the light the screen is still holding is read from
+// one buffer and the new state written to the other, so the lateral scatter
+// below reads settled neighbours instead of a buffer this dispatch is part way
+// through overwriting.
+@group(0) @binding(6) var<storage, read> held: array<u32>;
+@group(0) @binding(7) var<storage, read_write> heldNext: array<u32>;
+@group(0) @binding(8) var<storage, read> audio: array<f32>;
+
+fn heldLight(x: i32, y: i32) -> vec3f {
+  let xc = u32(clamp(x, 0, i32(ACTIVE_W) - 1));
+  let yc = u32(clamp(y, 0, i32(ACTIVE_H) - 1));
+  return unpack4x8unorm(held[yc * ACTIVE_W + xc]).rgb;
+}
 
 // chroma-path source per Y/C separation mode
 fn csrc(i: u32) -> f32 {
@@ -236,7 +247,23 @@ fn main(
   if (P.phosphor > 0.0) {
     let p = min(P.phosphor, 0.995);
     let decay = vec3f(pow(p, 1.0 + P.phosphorSkew), p, pow(p, 1.0 + 2.0 * P.phosphorSkew));
-    let tail = unpack4x8unorm(persist[pi]).rgb * decay;
+    var glowing = heldLight(i32(gid.x), i32(gid.y));
+    // Lateral scatter in the layer: light does not leave through the grain that
+    // emitted it, it bounces sideways through the deposit and the glass, and
+    // what it scatters into is still glowing itself. So the spread is applied to
+    // the held light every frame and compounds along the tail: the freshly
+    // written edge stays sharp while old light is progressively softer and
+    // wider, instead of the trail being a stack of hard copies. Moving a
+    // fraction of the light to the four neighbours; a fraction, not a blur, so
+    // total light is conserved.
+    if (P.phosphorBleed > 0.0) {
+      let side = heldLight(i32(gid.x) - 1, i32(gid.y))
+        + heldLight(i32(gid.x) + 1, i32(gid.y))
+        + heldLight(i32(gid.x), i32(gid.y) - 1)
+        + heldLight(i32(gid.x), i32(gid.y) + 1);
+      glowing = glowing + P.phosphorBleed * (side * 0.25 - glowing);
+    }
+    let tail = glowing * decay;
     // Additive afterglow is only the light the phosphor still owes beyond what
     // the current drive sustains (a steadily driven pixel owes nothing) — the
     // subtraction keeps a static picture at unity instead of ratcheting the
@@ -250,6 +277,6 @@ fn main(
   // ghosts freeze on screen instead of fading. Half-LSB dither makes the
   // rounding unbiased, so trails decay all the way to black.
   let dith = (rand01(pcg(pi ^ (P.frame * 668265263u))) - 0.5) / 255.0;
-  persist[pi] = pack4x8unorm(vec4f(outc + vec3f(dith), 1.0));
+  heldNext[pi] = pack4x8unorm(vec4f(outc + vec3f(dith), 1.0));
   textureStore(outTex, vec2i(gid.xy), vec4f(outc, 1.0));
 }

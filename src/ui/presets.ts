@@ -452,33 +452,61 @@ export const PRESETS: PresetDef[] = [
     name: 'round tube',
     group: 'Phosphor / CRT',
     blurb:
-      'Early-60s colorimetry: the deep 1953 phosphors on an Illuminant-C white — green and red pull in, whites cool, bright lines fatten between visible scanlines.',
+      'Early-60s colorimetry: the deep 1953 phosphors on an Illuminant-C white — green and red pull in, whites cool, bright lines fatten between visible scanlines, and a soft-focus gun bleeds every sample into its neighbours.',
     patch: {
       phosphorMode: 2,
       crtCutoff: 0.06,
       crtGamma: 2.2,
+      crtSpot: 1.3,
+      crtGrain: 0.16,
       crtBloom: 0.3,
       crtHalation: 0.3,
       crtGlow: 0.15,
       scanBeam: 0.45,
       scanBloom: 0.7,
       phosphor: 0.4,
+      phosphorBleed: 0.2,
     },
   },
   {
     name: 'green terminal',
     group: 'Phosphor / CRT',
     blurb:
-      'Long-persistence mono green tube (P1 family): everything lands on one phosphor, and motion hangs as a seconds-long tail that sums like light, not paint.',
+      'Long-persistence mono green tube (P1 family): everything lands on one phosphor, and motion hangs as a seconds-long tail that sums like light, not paint — and keeps scattering sideways in the layer while it hangs, so old light goes soft and cloudy while the fresh edge stays sharp.',
     patch: {
       phosphorMode: 3,
       phosphor: 0.99,
       phosphorDecayMix: 0.35,
+      phosphorBleed: 0.35,
       crtCutoff: 0.08,
       crtGamma: 2.2,
+      crtSpot: 1.2,
+      crtGrain: 0.22,
       crtBloom: 0.5,
       scanBeam: 0.5,
       scanBloom: 0.5,
+    },
+  },
+  {
+    name: 'nose against the glass',
+    group: 'Phosphor / CRT',
+    blurb:
+      'The magnifier, wound up: close enough to see what the picture is made of — grille triads, the gaps between scan lines, the granular deposit, and the beam spot bleeding one sample into the next. Drag the magnifier x/y sliders in Screen to move around the glass.',
+    patch: {
+      crtZoom: 5,
+      // parked on a colour-bar boundary, where the beam spot's ramp from one
+      // bar into the next is the thing to look at
+      crtZoomX: 0.285,
+      crtZoomY: 0.3,
+      crtSpot: 1.4,
+      crtGrain: 0.3,
+      maskAmt: 0.55,
+      maskPitch: 3,
+      scanBeam: 0.6,
+      scanBloom: 0.45,
+      crtCutoff: 0.05,
+      crtGamma: 2.1,
+      crtGlow: 0.12,
     },
   },
   {

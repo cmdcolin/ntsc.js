@@ -12,6 +12,7 @@ import { CommandPalette } from './ui/CommandPalette'
 import { FatalScreen } from './ui/FatalScreen'
 import { HelpDialog } from './ui/HelpDialog'
 import { InputSection } from './ui/InputSection'
+import { MagnifierFrame } from './ui/MagnifierFrame'
 import { MidiSection } from './ui/MidiSection'
 import { ModSection } from './ui/ModSection'
 import { PipFrame } from './ui/PipFrame'
@@ -76,6 +77,9 @@ const NO_WEIGHTS: PresetWeights = new Map()
 const PIP_GROUP = 'PiP inset (source B)'
 const PIP_BOX_KEYS = new Set<ControlKey>(['pipX', 'pipY', 'pipW', 'pipH'])
 const WIPE_GROUP = 'Wipe (A/B)'
+const WIPE_KEYS = new Set<ControlKey>(['wipePos'])
+const ZOOM_GROUP = 'Display'
+const ZOOM_KEYS = new Set<ControlKey>(['crtZoomX', 'crtZoomY'])
 
 // Which signal-path stage, and which group inside it, are expanded. Persisted
 // so a reload keeps your place.
@@ -468,12 +472,18 @@ export function App() {
     // the filter box brings those sliders back, MIDI and clock icons included.
     const pipFrame = group.name === PIP_GROUP && query === ''
     const wipeFrame = group.name === WIPE_GROUP && query === ''
+    const zoomFrame = group.name === ZOOM_GROUP && query === ''
+    const framedKeys = pipFrame
+      ? PIP_BOX_KEYS
+      : wipeFrame
+        ? WIPE_KEYS
+        : zoomFrame
+          ? ZOOM_KEYS
+          : undefined
     const sliders =
-      showFrameSliders || !(pipFrame || wipeFrame)
+      showFrameSliders || framedKeys === undefined
         ? matched
-        : matched.filter(s =>
-            pipFrame ? !PIP_BOX_KEYS.has(s.key) : s.key !== 'wipePos',
-          )
+        : matched.filter(s => !framedKeys.has(s.key))
     const touched = group.sliders.some(
       s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
     )
@@ -491,7 +501,7 @@ export function App() {
     }
     const banners = [...unmetCounts.values()].filter(e => e.n >= 3)
     const mutedNeeds = new Set(banners.map(e => e.need.key))
-    return sliders.length === 0 && !pipFrame && !wipeFrame ? null : (
+    return sliders.length === 0 && framedKeys === undefined ? null : (
       <Section
         key={group.name}
         title={group.name}
@@ -535,14 +545,28 @@ export function App() {
             }
           />
         ) : null}
-        {pipFrame || wipeFrame ? (
+        {zoomFrame ? (
+          <MagnifierFrame
+            zoom={controls.crtZoom}
+            point={{ x: controls.crtZoomX, y: controls.crtZoomY }}
+            // One write for both axes, so aiming the lens notifies once.
+            onChange={point =>
+              writeControls({
+                ...controls,
+                crtZoomX: point.x,
+                crtZoomY: point.y,
+              })
+            }
+          />
+        ) : null}
+        {framedKeys === undefined ? null : (
           <button
             className={styles.sliderToggle}
             onClick={() => setShowFrameSliders(!showFrameSliders)}
           >
             {showFrameSliders ? '▾ sliders' : '▸ sliders'}
           </button>
-        ) : null}
+        )}
         {banners.map(({ need, n }) => (
           <button
             key={need.key}
@@ -707,7 +731,7 @@ export function App() {
         </button>
       </div>
       <div className={styles.hint}>
-        the chain the picture travels down — open a stage for its controls
+        the chain the picture travels down — click a stage for its controls
       </div>
       <SignalPath
         nodes={pathNodes}

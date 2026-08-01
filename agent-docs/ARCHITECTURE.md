@@ -93,7 +93,10 @@ fault through `timing[]` will spin hue that should have stayed put.
 - **`syncMeasureBuf`** — one `vec4f` per line from `sync_measure`:
   `(sync edge or −1000, sync depth, mean beam load, broad-pulse flag)`.
 - **`audioBuf`** — one float per line, the audio waveform at line rate.
-- **`persistBuf`** — previous displayed frame, packed `rgba8`, for phosphor.
+- **`persistBufs`** — phosphor state (the light still on the glass), packed
+  `rgba8`, ping-ponged by frame parity: `decode` reads one and writes the other,
+  because its lateral scatter reads neighbouring pixels and a single buffer would
+  hand it values the same dispatch is part way through overwriting.
 
 ## Params are generated, not hand-written
 

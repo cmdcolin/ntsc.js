@@ -150,6 +150,11 @@ Audio patched into the electronics, one sample per scan line.
 
 - **Beam profile / bloom** — spot size and its growth with beam current;
   scanlines show in shadows and close up in highlights.
+- **Beam spot** — the gun writes a smooth blob, not a square, so light from one
+  sample lands partly on its neighbours and dim picture bleeds as much as
+  highlights. Why a tube never resolves into hard pixels.
+- **Phosphor grain** — the coating is a granular deposit, so emission is mottled;
+  fixed on the glass and strongest in the mid tones.
 - **Reconstruction** — bilinear to cubic; how the sampled line becomes
   continuous light without pumping fine patterns.
 - **Phosphor primaries** — sRGB, P22/SMPTE-C, the wide 1953 NTSC set, or
@@ -157,8 +162,14 @@ Audio patched into the electronics, one sample per scan line.
 - **Phosphor persistence / trail tint / trail sum** — afterglow in the glass;
   red and blue die faster than green, and trails either peak-hold (strobe) or
   add toward white.
+- **Trail scatter** — held light bounces sideways through the layer into phosphor
+  that is still glowing, so the spread compounds along a trail: the fresh edge
+  stays sharp while old light goes wide and cloudy.
 - **Aperture grille** — the R/G/B stripe mask, with a pitch that moirés near
   small whole-pixel spacings, exactly as photographing a CRT does.
+- **Magnifier** — your eye against the glass. Everything that lives on the screen
+  rather than in the image magnifies with it: triads, scanline gaps, grain, the
+  beam spot's bleed between samples.
 - **Slow motion** — the whole rig stepped at a fraction of display rate: noise,
   rolls, sweeps, feedback and phosphor all crawl together; 0 freezes the frame.
   Pairs with the vaporwave source-speed control to slow the footage to match.

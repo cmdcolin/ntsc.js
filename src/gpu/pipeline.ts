@@ -135,7 +135,12 @@ export class Engine {
   private timingBuf: GPUBuffer
   private syncMeasureBuf: GPUBuffer
   private audioBuf: GPUBuffer
-  private persistBuf: GPUBuffer
+  // Phosphor state, ping-ponged: decode reads the light the screen is holding
+  // out of one and writes the new state into the other, so its lateral scatter
+  // sees settled neighbours rather than a buffer mid-overwrite.
+  private persistBufs: [GPUBuffer, GPUBuffer]
+  private decodePass: Pass
+  private decodeBgs: [GPUBindGroup, GPUBindGroup]
 
   // The two input slots: staging, capping, aspect and the noise generators all
   // live in there, so the chain below only sees two texture views.
@@ -235,11 +240,13 @@ export class Engine {
       size: LINES * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
-    // phosphor persistence state: previous displayed frame, packed rgba8
-    this.persistBuf = d.createBuffer({
-      size: ACTIVE_WIDTH * ACTIVE_HEIGHT * 4,
-      usage: GPUBufferUsage.STORAGE,
-    })
+    // phosphor persistence state: the light still on the glass, packed rgba8
+    const persistBuf = (): GPUBuffer =>
+      d.createBuffer({
+        size: ACTIVE_WIDTH * ACTIVE_HEIGHT * 4,
+        usage: GPUBufferUsage.STORAGE,
+      })
+    this.persistBufs = [persistBuf(), persistBuf()]
 
     const texDesc = (usage: number): GPUTextureDescriptor => ({
       size: [ACTIVE_WIDTH, ACTIVE_HEIGHT],
@@ -318,6 +325,14 @@ export class Engine {
       primitive: { topology: 'triangle-list' },
     })
 
+    const bindGroup = (
+      pl: GPUComputePipeline,
+      resources: GPUBindingResource[],
+    ): GPUBindGroup =>
+      d.createBindGroup({
+        layout: pl.getBindGroupLayout(0),
+        entries: resources.map((resource, binding) => ({ binding, resource })),
+      })
     const pass = (
       label: string,
       pl: GPUComputePipeline,
@@ -327,10 +342,7 @@ export class Engine {
     ): Pass => ({
       label,
       pl,
-      bg: d.createBindGroup({
-        layout: pl.getBindGroupLayout(0),
-        entries: resources.map((resource, binding) => ({ binding, resource })),
-      }),
+      bg: bindGroup(pl, resources),
       x,
       y,
       when,
@@ -461,6 +473,31 @@ export class Engine {
         perLine,
       ),
     ]
+    // Decode's two bind groups differ only in which phosphor buffer it reads and
+    // which it writes; `renderFrame` swaps them by frame parity.
+    const decodeRes = (read: GPUBuffer, write: GPUBuffer): GPUBindingResource[] => [
+      { buffer: this.paramsBuf },
+      { buffer: this.filterBuf },
+      { buffer: this.compA },
+      { buffer: this.lineInfoBuf },
+      { buffer: this.timingBuf },
+      this.outTex.createView(),
+      { buffer: read },
+      { buffer: write },
+      { buffer: this.audioBuf },
+    ]
+    const [pA, pB] = this.persistBufs
+    this.decodeBgs = [
+      bindGroup(decodePl, decodeRes(pA, pB)),
+      bindGroup(decodePl, decodeRes(pB, pA)),
+    ]
+    this.decodePass = {
+      label: 'decode',
+      pl: decodePl,
+      bg: this.decodeBgs[0],
+      x: perPixel[0],
+      y: perPixel[1],
+    }
     this.postPasses = [
       pass(
         'syncMeasure',
@@ -490,21 +527,7 @@ export class Engine {
         ],
         perRow,
       ),
-      pass(
-        'decode',
-        decodePl,
-        [
-          { buffer: this.paramsBuf },
-          { buffer: this.filterBuf },
-          { buffer: this.compA },
-          { buffer: this.lineInfoBuf },
-          { buffer: this.timingBuf },
-          this.outTex.createView(),
-          { buffer: this.persistBuf },
-          { buffer: this.audioBuf },
-        ],
-        perPixel,
-      ),
+      this.decodePass,
       // Photograph the decoded signal as a glowing CRT face; both the display
       // and next frame's feedback camera sample faceTex, so the loop
       // re-photographs an emissive screen rather than the raw signal buffer.
@@ -688,7 +711,7 @@ export class Engine {
       this.timingBuf,
       this.syncMeasureBuf,
       this.audioBuf,
-      this.persistBuf,
+      ...this.persistBufs,
     ]
     for (const b of bufs) b.destroy()
     for (const t of [this.inputTex, this.outTex, this.faceTex]) t.destroy()
@@ -802,6 +825,8 @@ export class Engine {
       crtCutoff: c.crtCutoff,
       crtGamma: c.crtGamma,
       crtSat: c.crtSat,
+      crtSpot: c.crtSpot,
+      crtGrain: c.crtGrain,
       crtBloom: c.crtBloom,
       crtHalation: c.crtHalation,
       crtGlow: c.crtGlow,
@@ -848,9 +873,13 @@ export class Engine {
       phosphorMode: c.phosphorMode,
       phosphorSkew: c.phosphorSkew,
       phosphorDecayMix: c.phosphorDecayMix,
+      phosphorBleed: c.phosphorBleed,
       crtSharp: c.crtSharp,
       maskAmt: c.maskAmt,
       maskPitch: c.maskPitch,
+      crtZoom: c.crtZoom,
+      crtZoomX: c.crtZoomX,
+      crtZoomY: c.crtZoomY,
       dbgView: this.dbgView,
     }
   }
@@ -1056,6 +1085,9 @@ export class Engine {
       }
       for (const p of this.loopPasses) run(p)
     }
+    // One decode dispatch per rendered frame, so frame parity is what alternates
+    // the phosphor state buffers.
+    this.decodePass.bg = this.decodeBgs[this.frame % 2]
     for (const p of this.postPasses) run(p)
     this.profiler?.resolve(enc)
 

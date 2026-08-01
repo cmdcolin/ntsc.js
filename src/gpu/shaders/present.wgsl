@@ -33,7 +33,21 @@ fn fs(in: VOut) -> @location(0) vec4f {
   if (any(abs(rel) > vec2f(1.0))) {
     return vec4f(0.0, 0.0, 0.0, 1.0);
   }
-  let tuv = rel * 0.5 + vec2f(0.5);
+  // Magnifier: move the viewer closer to the glass, about the point under the
+  // lens. Everything that lives in glass space — scanline structure, the sample
+  // reconstruction, phosphor grain, the beam spot's bleed — magnifies with it,
+  // and the grille pitch below is scaled to match, so zooming in shows the
+  // actual structure the picture is built out of rather than a blown-up image.
+  // The lens sees 1/zoom of each axis, so its centre is held far enough inside
+  // the picture that it can never look past the edge of the glass. At 1x that
+  // pins the centre to the middle and the whole expression is identity.
+  let halfView = 0.5 / P.crtZoom;
+  let lens = clamp(
+    vec2f(P.crtZoomX, P.crtZoomY),
+    vec2f(halfView),
+    vec2f(1.0 - halfView),
+  );
+  let tuv = (rel * 0.5 + vec2f(0.5) - lens) / P.crtZoom + lens;
   var col = textureSampleLevel(screenTex, samp, tuv, 0.0).rgb;
   // Horizontal Catmull-Rom reconstruction: bilinear is -6 dB at the sample
   // rate's edge, so the upscale reads mushy; the cubic keeps single-sample
@@ -63,7 +77,11 @@ fn fs(in: VOut) -> @location(0) vec4f {
   // mean transmission loss so mids hold while bright areas clip toward white —
   // the highlight desaturation a real tube's bloom gives.
   if (P.maskAmt > 0.0) {
-    let stripe = u32(fract(px.x / max(P.maskPitch, 1.5)) * 3.0);
+    // Pitch is authored in canvas pixels at 1:1, but the grille is on the glass,
+    // so key it off the glass coordinate: the triads then slide with a pan and
+    // fatten with the zoom instead of sitting on the window.
+    let gx = tuv.x * 2.0 * half.x;
+    let stripe = u32(fract(gx / max(P.maskPitch, 1.5)) * 3.0);
     var m = vec3f(1.0 - P.maskAmt);
     m[stripe] = 1.0;
     col = col * m / (1.0 - 2.0 * P.maskAmt / 3.0);

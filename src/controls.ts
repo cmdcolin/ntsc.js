@@ -82,6 +82,8 @@ export const DEFAULT_CONTROLS = {
   crtCutoff: 0, // beam cutoff, 0 = off (identity, no black crush)
   crtGamma: 1, // gun gamma, 1 = linear passthrough
   crtSat: 1, // saturation around luma, 1 = unchanged
+  crtSpot: 0.6, // beam-spot radius on the glass, active px (0 = point-sampled pixels)
+  crtGrain: 0.07, // granular phosphor deposit mottling emitted light
   crtBloom: 0,
   crtHalation: 0,
   crtGlow: 0,
@@ -135,9 +137,13 @@ export const DEFAULT_CONTROLS = {
   phosphorMode: 0, // 0 sRGB, 1 P22/SMPTE-C, 2 NTSC-1953, 3 long-persistence green
   phosphorSkew: 0.7, // R/B decay exponent skew vs green (0.7 = 1.7/1.0/2.4)
   phosphorDecayMix: 0, // 0 peak-hold trails (strobe), 1 additive light
+  phosphorBleed: 0.15, // light scattering sideways in the layer: trails soften as they age
   crtSharp: 0,
   maskAmt: 0,
   maskPitch: 3,
+  crtZoom: 1, // magnifier on the glass: 1 = whole screen
+  crtZoomX: 0.5,
+  crtZoomY: 0.5,
   // time
   timeScale: 1, // sim steps per display frame: everything slows together, 0 freezes
 }

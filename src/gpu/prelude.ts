@@ -134,6 +134,8 @@ export const PARAM_DEFS = [
   ['crtCutoff', 'f32'], // beam cutoff: drive below the knee emits no light (true black background)
   ['crtGamma', 'f32'], // gun luminance response, luminance ~ drive^gamma (expands highlights, deepens shadows)
   ['crtSat', 'f32'], // saturation around luma, applied after the beam transfer
+  ['crtSpot', 'f32'], // beam-spot radius on the glass, active pixels: spreads all light, not just highlights
+  ['crtGrain', 'f32'], // granular phosphor deposit: static mottling of emitted light
   ['crtBloom', 'f32'], // highlight bloom spread from bright phosphor cores
   ['crtHalation', 'f32'], // wide warm glass-scatter halo around highlights
   ['crtGlow', 'f32'], // phosphor black-level glow / faceplate haze
@@ -156,9 +158,13 @@ export const PARAM_DEFS = [
   ['phosphorMode', 'f32'], // tube colour identity: 0 sRGB, 1 P22/SMPTE-C, 2 NTSC-1953, 3 long-persistence green
   ['phosphorSkew', 'f32'], // R/B persistence decay exponent skew relative to G (trails die toward green)
   ['phosphorDecayMix', 'f32'], // persistence combine: 0 peak-hold (strobe) .. 1 additive light
+  ['phosphorBleed', 'f32'], // fraction of held light that scatters to the four neighbours per frame
   ['crtSharp', 'f32'], // horizontal Catmull-Rom reconstruction blend (0 bilinear)
   ['maskAmt', 'f32'], // aperture grille strength
   ['maskPitch', 'f32'], // grille triad pitch, canvas pixels
+  ['crtZoom', 'f32'], // magnification of the glass (1 = whole screen)
+  ['crtZoomX', 'f32'], // point on the glass held under the magnifier, 0..1
+  ['crtZoomY', 'f32'],
   ['dbgView', 'f32'], // 0 normal, 1 gradient (present test), 2 raw composite (encode test)
 ] as const
 
