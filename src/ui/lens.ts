@@ -30,8 +30,8 @@ const DETENT = 0.32
 // fine control sits where the useful values are: the first fifth covers 1x to
 // 1.2x, and only the last sliver goes all the way in. Below it the same curve
 // would make one notch a fifth of the way out, so pulling back is a plain linear
-// scale — the set simply gets smaller, evenly. Every route (stage slider, wheel,
-// panel slider, MIDI knob) moves on this scale, so they all feel alike.
+// scale — the set simply gets smaller, evenly. Every route (stage slider, panel
+// slider, MIDI knob) moves on this scale, so they all feel alike.
 export const zoomAtTravel = (t: number) => {
   const p = clamp01(t)
   return clampZoom(
@@ -47,9 +47,6 @@ export const zoomTravel = (zoom: number) => {
     ? (DETENT * (z - ZOOM_MIN)) / (1 - ZOOM_MIN)
     : DETENT + (1 - DETENT) * valueToTravel(1, ZOOM_MAX, z)
 }
-
-export const nudgeZoom = (zoom: number, dt: number) =>
-  zoomAtTravel(zoomTravel(zoom) + dt)
 
 // What the magnifier covers: at zoom Z the lens sees 1/Z of each axis, and the
 // shader holds its centre far enough inside the picture that it never looks past
@@ -85,26 +82,6 @@ export const glassAt = (lens: Lens, u: number, v: number) => {
     x: (u - view.x) / z + view.x,
     y: (v - view.y) / z + view.y,
   }
-}
-
-// The lens centre that keeps glass point `g` sitting at picture point `u` at a
-// new magnification: solve (u - x)/z + x = g. Below 1x the centre does not
-// matter — the shader pins it to the middle — so anything finite will do.
-export const lensKeeping = (zoom: number, u: number, g: number) =>
-  zoom <= 1 ? 0.5 : clamp01((zoom * g - u) / (zoom - 1))
-
-// Re-magnify about a point in the picture, holding whatever is under it in place
-// — the map-style gesture, so a wheel notch closes in on what you are pointing
-// at instead of on whatever happens to be centred.
-export const zoomAbout = (
-  lens: Lens,
-  u: number,
-  v: number,
-  to: number,
-): Lens => {
-  const g = glassAt(lens, u, v)
-  const zoom = clampZoom(to)
-  return { zoom, x: lensKeeping(zoom, u, g.x), y: lensKeeping(zoom, v, g.y) }
 }
 
 // Drag the glass under a fixed lens: the picture follows the pointer, so the

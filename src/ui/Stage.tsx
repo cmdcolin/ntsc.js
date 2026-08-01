@@ -8,10 +8,8 @@ import { cx } from './cx'
 import { CameraIcon, GearIcon, MenuIcon } from './icons'
 import {
   clampZoom,
-  nudgeZoom,
   panLens,
   pictureUv,
-  zoomAbout,
   zoomAtTravel,
   zoomToBox,
   zoomTravel,
@@ -20,7 +18,7 @@ import { usePersistedFlag } from './storage'
 
 import type { FrameStats } from '../controls'
 import type { Lens } from './lens'
-import type { PointerEvent, ReactNode, RefObject, WheelEvent } from 'react'
+import type { PointerEvent, ReactNode, RefObject } from 'react'
 
 // Persisted across reloads so a collapse sticks.
 const BAR_HIDDEN_STORE = 'ntscsynth_overlay_bar_hidden'
@@ -154,9 +152,6 @@ function StageMenu(props: {
 // A drag this short is a stray click, not a box — zooming to it would slam
 // straight to maximum magnification.
 const MIN_BOX = 0.02
-// One wheel notch, as a fraction of the magnifier's travel. Small: creeping in
-// from 1x is the common move, and a notch there is a couple of percent closer.
-const WHEEL_STEP = 0.03
 
 // A drag in progress. `a` is the press and `b` the pointer now, both in canvas
 // pixels — the canvas fills the stage, so they double as the marquee's layout.
@@ -183,7 +178,7 @@ function ZoomRow(props: { lens: Lens; onChange: (lens: Lens) => void }) {
     <div className={styles.zoomRow}>
       <span
         className={styles.zoomLabel}
-        title="where your eye is — scroll or drag a box on the picture to close in, drag to move around the glass, double-click to go back to 1×. Below 1× it pulls back off the set."
+        title="where your eye is — drag a box on the picture to close in, drag to move around the glass, double-click to go back to 1×. Below 1× it pulls back off the set."
       >
         ⌕
       </span>
@@ -229,9 +224,7 @@ export function Stage(props: {
   const zoomed = clampZoom(props.lens.zoom) > 1
   // Canvas pixels, and the picture UV they land on. The canvas box is what the
   // shader letterboxes inside, so this is the same 4:3 mapping present.wgsl does.
-  const at = (
-    e: PointerEvent<HTMLCanvasElement> | WheelEvent<HTMLCanvasElement>,
-  ) => {
+  const at = (e: PointerEvent<HTMLCanvasElement>) => {
     const r = e.currentTarget.getBoundingClientRect()
     const p = { x: e.clientX - r.left, y: e.clientY - r.top }
     return { p, uv: pictureUv(r, p.x, p.y) }
@@ -297,16 +290,9 @@ export function Stage(props: {
         }}
         title={
           zoomed
-            ? 'drag to move around the glass · shift-drag a box to close in · scroll to magnify · double-click to pull back'
-            : 'drag a box to zoom into it · scroll to magnify'
+            ? 'drag to move around the glass · shift-drag a box to close in · double-click to pull back'
+            : 'drag a box to zoom into it'
         }
-        onWheel={e => {
-          const { uv } = at(e)
-          const step = e.deltaY < 0 ? WHEEL_STEP : -WHEEL_STEP
-          props.onLens(
-            zoomAbout(props.lens, uv.u, uv.v, nudgeZoom(props.lens.zoom, step)),
-          )
-        }}
         onPointerDown={e => down(e)}
         onPointerMove={e => move(e)}
         onPointerUp={e => up(e)}

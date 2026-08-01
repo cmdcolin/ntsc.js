@@ -3,12 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   ZOOM_MAX,
   ZOOM_MIN,
-  glassAt,
   lensView,
-  nudgeZoom,
   panLens,
   pictureUv,
-  zoomAbout,
   zoomAtTravel,
   zoomToBox,
   zoomTravel,
@@ -41,29 +38,6 @@ describe('lensView', () => {
   })
 })
 
-describe('zoomAbout', () => {
-  it('keeps the point under the cursor in place', () => {
-    const lens = { zoom: 2, x: 0.4, y: 0.6 }
-    const before = glassAt(lens, 0.3, 0.7)
-    const after = glassAt(zoomAbout(lens, 0.3, 0.7, 3), 0.3, 0.7)
-    expect(after.x).toBeCloseTo(before.x)
-    expect(after.y).toBeCloseTo(before.y)
-  })
-  it('centres on the cursor when closing in from 1x', () => {
-    const lens = zoomAbout({ zoom: 1, x: 0.5, y: 0.5 }, 0.2, 0.8, 4)
-    expect(lens.x).toBeCloseTo(0.2)
-    expect(lens.y).toBeCloseTo(0.8)
-  })
-  it('cannot be pushed past the range', () => {
-    expect(zoomAbout({ zoom: 1, x: 0.5, y: 0.5 }, 0.5, 0.5, 0.1).zoom).toBe(
-      ZOOM_MIN,
-    )
-    expect(zoomAbout({ zoom: 11, x: 0.5, y: 0.5 }, 0.5, 0.5, 90).zoom).toBe(
-      ZOOM_MAX,
-    )
-  })
-})
-
 describe('the magnifier travel', () => {
   it('runs from pulled back to all the way in', () => {
     expect(zoomAtTravel(0)).toBe(ZOOM_MIN)
@@ -83,10 +57,6 @@ describe('the magnifier travel', () => {
     const fifth = zoomAtTravel(zoomTravel(1) + 0.2 * (1 - zoomTravel(1)))
     expect(fifth).toBeGreaterThan(1.1)
     expect(fifth).toBeLessThan(1.3)
-  })
-  it('nudges by travel, so a notch off 1x is a small step', () => {
-    expect(nudgeZoom(1, 0.03)).toBeLessThan(1.05)
-    expect(nudgeZoom(1, -0.03)).toBeGreaterThan(0.9)
   })
 })
 
