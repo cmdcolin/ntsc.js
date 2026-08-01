@@ -7,24 +7,19 @@ import type { Engine } from '../gpu/pipeline'
 // 10 Hz so a level readout never drives a re-render per frame.
 export function useAudio(engine: Engine | null) {
   const [active, setActive] = useState(false)
-  const [level, setLevel] = useState(0)
   const [hit, setHit] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let id = 0
     if (active && engine !== null) {
-      id = window.setInterval(() => {
-        setLevel(engine.audioState.level)
-        setHit(engine.audioState.hit)
-      }, 100)
+      id = window.setInterval(() => setHit(engine.audioState.hit), 100)
     }
     return () => clearInterval(id)
   }, [active, engine])
 
   return {
     active,
-    level,
     hit,
     error,
     enableMic: () => {
@@ -43,7 +38,6 @@ export function useAudio(engine: Engine | null) {
     disable: () => {
       engine?.audioState.disconnect()
       setActive(false)
-      setLevel(0)
       setHit(0)
     },
   }

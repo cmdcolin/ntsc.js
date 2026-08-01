@@ -580,8 +580,9 @@ export function App() {
             touched: touchedGroups.reduce(
               (n, g) =>
                 n +
-                g.sliders.filter(s => controls[s.key] !== DEFAULT_CONTROLS[s.key])
-                  .length,
+                g.sliders.filter(
+                  s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
+                ).length,
               0,
             ),
             onJumpTouched: () => {

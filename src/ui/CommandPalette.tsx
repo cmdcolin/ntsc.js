@@ -91,7 +91,11 @@ export function CommandPalette(props: {
   const [cursor, setCursor] = useState(0)
 
   const q = query.trim().toLowerCase()
-  const pool = [...PRESET_ITEMS, ...CONTROL_ITEMS, ...props.actions.map((action): Item => ({ kind: 'action', action }))]
+  const pool = [
+    ...PRESET_ITEMS,
+    ...CONTROL_ITEMS,
+    ...props.actions.map((action): Item => ({ kind: 'action', action })),
+  ]
   const results =
     q === ''
       ? pool.filter(it => it.kind !== 'control').slice(0, MAX_RESULTS)
