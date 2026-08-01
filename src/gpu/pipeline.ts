@@ -49,6 +49,7 @@ import syncSrc from './shaders/sync.wgsl?raw'
 import syncMeasureSrc from './shaders/sync_measure.wgsl?raw'
 import timebaseSrc from './shaders/timebase.wgsl?raw'
 import underDownSrc from './shaders/under_down.wgsl?raw'
+import { Sources } from './sources'
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { LineStateControls } from '../signal/linestate'
@@ -57,18 +58,6 @@ import type { Gpu } from './context'
 const N = SAMPLES_PER_LINE * LINES
 const LINE_PARAM_BYTES = LINES * 16
 const MAX_GENS = 4
-
-// compose samples srcTex down to the 754x480 raster (plus a +-2 line
-// deinterlace tap), so resolution past ~2x that buys no detail. Uncapped, a
-// phone photo lands as a ~200 MB texture whose minified fetches thrash cache
-// every frame, and a 4K clip re-uploads 33 MB per frame.
-const MAX_SRC_EDGE = 1536
-
-// Long edge capped to MAX_SRC_EDGE, aspect preserved.
-const fitSrc = (w: number, h: number): [number, number] => {
-  const s = Math.min(1, MAX_SRC_EDGE / Math.max(w, h))
-  return [Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s))]
-}
 
 // Bent-crystal demod LO: how fast a detuned 3.58 MHz oscillator's phase error
 // grows, per composite sample.
@@ -148,24 +137,9 @@ export class Engine {
   private audioBuf: GPUBuffer
   private persistBuf: GPUBuffer
 
-  private srcTex: GPUTexture
-  private srcAspect = 4 / 3
-  private videoEl: HTMLVideoElement | null = null
-  // Firefox's copyExternalImageToTexture rejects HTMLVideoElement, so video has
-  // to stage through a 2D canvas anyway; oversized images stage through the
-  // same one to get capped. Sized to the capped source, not the raster, so A
-  // keeps its own aspect (unlike B, which cover-fits to 4:3).
-  private stageA: OffscreenCanvas | null = null
-  // source B is always staged at raster size (cover-fit on the CPU), so its
-  // texture and bind groups are fixed
-  private srcTexB: GPUTexture
-  private videoElB: HTMLVideoElement | null = null
-  private stageB: OffscreenCanvas | null = null
-  private bEnabled = true
-  // 0 = use srcTex; 1 = TV static; 2 = VHS static. Generated in compose.wgsl.
-  private noiseSource = 0
-  // Same, for source B. Generated in compose_b.wgsl.
-  private noiseSourceB = 0
+  // The two input slots: staging, capping, aspect and the noise generators all
+  // live in there, so the chain below only sees two texture views.
+  private sources: Sources
   private inputTex: GPUTexture
   private outTex: GPUTexture
   // The decoded frame rendered as a glowing CRT face (bloom/halation/glow).
@@ -272,21 +246,14 @@ export class Engine {
       format: 'rgba8unorm',
       usage,
     })
-    this.srcTex = d.createTexture(
-      texDesc(
-        GPUTextureUsage.TEXTURE_BINDING |
-          GPUTextureUsage.COPY_DST |
-          GPUTextureUsage.RENDER_ATTACHMENT,
-      ),
-    )
-    this.srcTexB = d.createTexture(
-      texDesc(
-        GPUTextureUsage.TEXTURE_BINDING |
-          GPUTextureUsage.COPY_DST |
-          GPUTextureUsage.RENDER_ATTACHMENT |
-          GPUTextureUsage.STORAGE_BINDING,
-      ),
-    )
+    // Resizing A's texture invalidates the view compose's bind group holds, so
+    // rebuild it. Only reachable after construction, via a set*Source*.
+    this.sources = new Sources({
+      device: d,
+      onResizeA: () => {
+        this.composePass.bg = this.makeComposeBg()
+      },
+    })
     this.inputTex = d.createTexture(
       texDesc(
         GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
@@ -378,7 +345,7 @@ export class Engine {
     const perRow = [Math.ceil(LINES / 64), 1] as const
     const c = this.controls
     const bOn = () =>
-      this.bEnabled &&
+      this.sources.bEnabled &&
       (c.bGain !== 0 || c.bRing !== 0 || c.pipMix !== 0 || c.aGain !== 1)
 
     this.composePass = {
@@ -410,14 +377,14 @@ export class Engine {
       pass(
         'composeB',
         composeBPl,
-        [{ buffer: this.paramsBuf }, this.srcTexB.createView()],
+        [{ buffer: this.paramsBuf }, this.sources.viewB()],
         perTile,
-        () => bOn() && this.noiseSourceB > 0,
+        () => bOn() && this.sources.srcNoiseB > 0,
       ),
       pass(
         'encodeYuvB',
         encodeYuvPl,
-        [this.srcTexB.createView(), this.linearSamp, { buffer: this.yuvBBuf }],
+        [this.sources.viewB(), this.linearSamp, { buffer: this.yuvBBuf }],
         perPixel,
         bOn,
       ),
@@ -654,153 +621,51 @@ export class Engine {
     this.filtersDirty = true
   }
 
-  // Patterns are drawn on the signal raster (non-square pixels): aspect is 4:3.
+  // Source selection, delegated to Sources. The engine stays the public object
+  // (useEngine and the window.vf harness both drive it), but none of the
+  // staging, capping, or aspect handling lives here any more.
   setImageSource(source: OffscreenCanvas | ImageBitmap, aspect = 4 / 3): void {
-    this.noiseSource = 0
-    this.videoEl = null
-    const [w, h] = fitSrc(source.width, source.height)
-    this.ensureSrcTex(w, h, aspect)
-    if (w === source.width && h === source.height) {
-      this.gpu.device.queue.copyExternalImageToTexture(
-        { source, flipY: false },
-        { texture: this.srcTex },
-        [w, h],
-      )
-    } else {
-      this.uploadA(source, w, h)
-    }
+    this.sources.setImageSource(source, aspect)
   }
 
   setVideoSource(el: HTMLVideoElement | null): void {
-    if (el !== null) this.noiseSource = 0
-    this.videoEl = el
+    this.sources.setVideoSource(el)
   }
 
-  // Switch source A to a GPU-generated noise field (1 TV static, 2 VHS static);
-  // 0 restores the texture path. Any real image/video source clears this.
+  // A GPU-generated noise field (1 TV static, 2 VHS static); 0 restores the
+  // texture path. Any real image/video source clears it.
   setNoiseSource(kind: number): void {
-    this.noiseSource = kind
-    this.videoEl = null
+    this.sources.setNoiseSource(kind)
   }
 
   setImageSourceB(source: OffscreenCanvas | ImageBitmap): void {
-    this.noiseSourceB = 0
-    this.videoElB = null
-    this.uploadB(source, source.width, source.height)
+    this.sources.setImageSourceB(source)
   }
 
   setVideoSourceB(el: HTMLVideoElement | null): void {
-    if (el !== null) this.noiseSourceB = 0
-    this.videoElB = el
+    this.sources.setVideoSourceB(el)
   }
 
-  // Switch source B to a GPU-generated noise field (1 TV static, 2 VHS
-  // static); 0 restores the upload path. Any real image/video source clears
-  // this.
   setNoiseSourceB(kind: number): void {
-    this.noiseSourceB = kind
-    this.videoElB = null
+    this.sources.setNoiseSourceB(kind)
   }
 
   setSourceBEnabled(on: boolean): void {
-    this.bEnabled = on
+    this.sources.setSourceBEnabled(on)
   }
 
-  // Scale a source down into stageA (its own aspect, capped) and upload. Used
-  // for oversized images and every video frame (the latter also because
-  // Firefox won't copy an HTMLVideoElement directly).
-  private uploadA(
-    source: OffscreenCanvas | ImageBitmap | HTMLVideoElement,
-    w: number,
-    h: number,
-  ): void {
-    if (this.stageA?.width !== w || this.stageA.height !== h) {
-      this.stageA = new OffscreenCanvas(w, h)
-    }
-    const g = this.stageA.getContext('2d')
-    if (g) {
-      g.drawImage(source, 0, 0, w, h)
-      this.gpu.device.queue.copyExternalImageToTexture(
-        { source: this.stageA, flipY: false },
-        { texture: this.srcTex },
-        [w, h],
-      )
-    }
-  }
-
-  // B is staged to raster size with a centered 4:3 cover-fit crop, so the
-  // mixer shader needs no aspect handling.
-  private uploadB(
-    source: OffscreenCanvas | ImageBitmap | HTMLVideoElement,
-    w: number,
-    h: number,
-  ): void {
-    const d = this.gpu.device
-    if (
-      w === ACTIVE_WIDTH &&
-      h === ACTIVE_HEIGHT &&
-      !(source instanceof HTMLVideoElement)
-    ) {
-      d.queue.copyExternalImageToTexture(
-        { source, flipY: false },
-        { texture: this.srcTexB },
-        [w, h],
-      )
-    } else {
-      this.stageB ??= new OffscreenCanvas(ACTIVE_WIDTH, ACTIVE_HEIGHT)
-      const g = this.stageB.getContext('2d')
-      if (g) {
-        const wide = w / h > 4 / 3
-        const sw = wide ? h * (4 / 3) : w
-        const sh = wide ? h : w * (3 / 4)
-        g.drawImage(
-          source,
-          (w - sw) / 2,
-          (h - sh) / 2,
-          sw,
-          sh,
-          0,
-          0,
-          ACTIVE_WIDTH,
-          ACTIVE_HEIGHT,
-        )
-        d.queue.copyExternalImageToTexture(
-          { source: this.stageB, flipY: false },
-          { texture: this.srcTexB },
-          [ACTIVE_WIDTH, ACTIVE_HEIGHT],
-        )
-      }
-    }
-  }
-
-  // srcTex is the only bind group that changes when the source raster resizes.
+  // Slot A's view is the only binding that changes when its raster resizes.
   private makeComposeBg(): GPUBindGroup {
     return this.gpu.device.createBindGroup({
       layout: this.composePl.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: this.paramsBuf } },
-        { binding: 1, resource: this.srcTex.createView() },
+        { binding: 1, resource: this.sources.viewA() },
         { binding: 2, resource: this.faceTex.createView() },
         { binding: 3, resource: this.linearSamp },
         { binding: 4, resource: this.inputTex.createView() },
       ],
     })
-  }
-
-  private ensureSrcTex(w: number, h: number, aspect: number): void {
-    this.srcAspect = aspect
-    if (this.srcTex.width !== w || this.srcTex.height !== h) {
-      this.srcTex.destroy()
-      this.srcTex = this.gpu.device.createTexture({
-        size: [w, h],
-        format: 'rgba8unorm',
-        usage:
-          GPUTextureUsage.TEXTURE_BINDING |
-          GPUTextureUsage.COPY_DST |
-          GPUTextureUsage.RENDER_ATTACHMENT,
-      })
-      this.composePass.bg = this.makeComposeBg()
-    }
   }
 
   destroy(): void {
@@ -826,14 +691,8 @@ export class Engine {
       this.persistBuf,
     ]
     for (const b of bufs) b.destroy()
-    for (const t of [
-      this.srcTex,
-      this.srcTexB,
-      this.inputTex,
-      this.outTex,
-      this.faceTex,
-    ])
-      t.destroy()
+    for (const t of [this.inputTex, this.outTex, this.faceTex]) t.destroy()
+    this.sources.destroy()
     // Frees everything else the device owns (pipelines, bind groups) and drops
     // the swap-chain configuration.
     this.gpu.device.destroy()
@@ -884,9 +743,9 @@ export class Engine {
       gen: 0,
       canvasW: this.canvas.width,
       canvasH: this.canvas.height,
-      srcAspect: this.srcAspect,
-      srcNoise: this.noiseSource,
-      srcNoiseB: this.noiseSourceB,
+      srcAspect: this.sources.srcAspect,
+      srcNoise: this.sources.srcNoise,
+      srcNoiseB: this.sources.srcNoiseB,
       invert: c.invert,
       deint: c.deint,
       chromaGain: c.chromaGain,
@@ -1117,39 +976,9 @@ export class Engine {
 
   private renderFrame(): void {
     const d = this.gpu.device
+    this.sources.uploadFrames()
     if (this.frame % 30 === 0 && location.search.includes('debug')) {
-      console.log(
-        'DEBUG render frame',
-        this.frame,
-        'video?',
-        this.videoEl !== null,
-        this.videoEl?.readyState,
-      )
-    }
-    if (this.videoEl !== null && this.videoEl.readyState >= 2) {
-      const vw = this.videoEl.videoWidth
-      const vh = this.videoEl.videoHeight
-      if (vw > 0) {
-        const [w, h] = fitSrc(vw, vh)
-        this.ensureSrcTex(w, h, vw / vh)
-        this.uploadA(this.videoEl, w, h)
-        if (this.frame % 30 === 0 && location.search.includes('debug')) {
-          const g = this.stageA?.getContext('2d')
-          const px = g?.getImageData(w >> 1, h >> 1, 1, 1).data
-          console.log(
-            'DEBUG stage px',
-            px?.[0],
-            px?.[1],
-            px?.[2],
-            'video t',
-            this.videoEl.currentTime.toFixed(2),
-          )
-        }
-      }
-    }
-    const vb = this.videoElB
-    if (vb !== null && vb.readyState >= 2 && vb.videoWidth > 0) {
-      this.uploadB(vb, vb.videoWidth, vb.videoHeight)
+      console.log('DEBUG frame', this.frame, this.sources.debugInfo())
     }
     if (this.filtersDirty) this.rebuildFilters()
     const c = this.controls
