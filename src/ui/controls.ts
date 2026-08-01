@@ -828,7 +828,7 @@ export const GROUPS: Group[] = [
         max: 400,
         step: 1,
         unit: 'us',
-        help: "Time constant of the coupling capacitor between the gates, in microseconds. Short enough and the level sags back toward blanking within the line: bright content drags a dark streak behind it all the way to the right edge, and a lit area leaves the rest of its line depressed. This is the low-frequency smear of a box with an undersized cap, not a blur — vertical edges stay sharp.",
+        help: 'Time constant of the coupling capacitor between the gates, in microseconds. Short enough and the level sags back toward blanking within the line: bright content drags a dark streak behind it all the way to the right edge, and a lit area leaves the rest of its line depressed. This is the low-frequency smear of a box with an undersized cap, not a blur — vertical edges stay sharp.',
       },
       {
         key: 'enhPeakMHz',
@@ -864,7 +864,7 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.01,
         unit: '',
-        help: "The stabilizer half of the box: a sync separator slices the signal and stamps a clean 4.7 us pulse at every crossing it finds. At the standard slice the stamp lands on the real sync tip and nothing changes. This is how much of the regenerated pulse train reaches the output.",
+        help: 'The stabilizer half of the box: a sync separator slices the signal and stamps a clean 4.7 us pulse at every crossing it finds. At the standard slice the stamp lands on the real sync tip and nothing changes. This is how much of the regenerated pulse train reaches the output.',
       },
       {
         key: 'enhSliceIre',

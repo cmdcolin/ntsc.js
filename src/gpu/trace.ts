@@ -92,7 +92,7 @@ function isSession(v: unknown): v is Session {
     typeof v === 'object' &&
     v !== null &&
     'lines' in v &&
-    Array.isArray((v).lines)
+    Array.isArray(v.lines)
   )
 }
 

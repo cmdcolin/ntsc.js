@@ -71,7 +71,9 @@ export function AudioInput(props: {
       />
       <FileName name={props.name} onReopen={() => props.onSelect('file')} />
       {props.duration === 0 ? (
-        live === null ? null : <Meter audio={live} orient="h" />
+        live === null ? null : (
+          <Meter audio={live} orient="h" />
+        )
       ) : (
         <Scrub
           time={props.time}

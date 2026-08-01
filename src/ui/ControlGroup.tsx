@@ -2,12 +2,12 @@ import { useState } from 'react'
 
 import styles from '../app.module.css'
 import { DEFAULT_CONTROLS } from '../controls'
+import { useControlsApi } from './ControlsContext'
 import { MagnifierFrame } from './MagnifierFrame'
 import { PipFrame } from './PipFrame'
 import { Section } from './Section'
 import { Slider } from './Slider'
 import { WipeFrame } from './WipeFrame'
-import { useControlsApi } from './ControlsContext'
 import { NEEDS, sliderFor } from './controls'
 import { sliderMatches, useFilterQuery } from './filter'
 import { SYNCABLE_KEYS } from './midi'
@@ -109,7 +109,12 @@ function PipControl() {
       inert={controls.pipMix === 0}
       border={controls.pipBorder}
       soft={controls.pipSoft}
-      box={{ x: controls.pipX, y: controls.pipY, w: controls.pipW, h: controls.pipH }}
+      box={{
+        x: controls.pipX,
+        y: controls.pipY,
+        w: controls.pipW,
+        h: controls.pipH,
+      }}
       // One write, not four: a drag moves all four at once, so the engine
       // notifies (and React renders) once per pointer move.
       onChange={box =>

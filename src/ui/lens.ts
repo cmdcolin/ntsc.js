@@ -92,7 +92,11 @@ export const panLens = (lens: Lens, du: number, dv: number): Lens => {
   const z = clampZoom(lens.zoom)
   return z <= 1
     ? lens
-    : { zoom: lens.zoom, x: clamp01(view.x - du / z), y: clamp01(view.y - dv / z) }
+    : {
+        zoom: lens.zoom,
+        x: clamp01(view.x - du / z),
+        y: clamp01(view.y - dv / z),
+      }
 }
 
 // A dragged box on the picture becomes the new view: magnify by however much of

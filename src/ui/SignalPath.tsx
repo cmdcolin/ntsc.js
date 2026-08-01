@@ -1,7 +1,7 @@
 import styles from '../app.module.css'
 import { ControlGroup } from './ControlGroup'
-import { cx } from './cx'
 import { Accordion, NestedSections } from './Section'
+import { cx } from './cx'
 
 import type { ChainStage } from './ChainMap'
 import type { Group } from './controls'
@@ -56,11 +56,6 @@ export function SignalPath(props: {
               : `${touched} off stock`}
           </span>
         </button>
-        {props.open === null ? (
-          <div className={styles.chainCaption}>
-            every control lives at a stage — open the chain to pick one
-          </div>
-        ) : null}
       </div>
       <div className={styles.stages}>
         {shown.map(node => (

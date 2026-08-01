@@ -50,7 +50,9 @@ export function Accordion(props: {
   children: ReactNode
 }) {
   return (
-    <AccordionContext value={{ openId: props.openId, onToggle: props.onToggle }}>
+    <AccordionContext
+      value={{ openId: props.openId, onToggle: props.onToggle }}
+    >
       {props.children}
     </AccordionContext>
   )
@@ -75,8 +77,7 @@ export function Section(props: {
   const [selfOpen, setSelfOpen] = useState(
     () => getOpenMap()[props.title] ?? props.defaultOpen ?? true,
   )
-  const open =
-    accordion === null ? selfOpen : accordion.openId === props.title
+  const open = accordion === null ? selfOpen : accordion.openId === props.title
   const shown = (props.openOnFilter === true && query !== '') || open
   const toggle = () => {
     if (accordion === null) {
