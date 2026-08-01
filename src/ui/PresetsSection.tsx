@@ -5,6 +5,7 @@ import { Dialog } from './Dialog'
 import { Section } from './Section'
 import { cx } from './cx'
 import { BulbIcon } from './icons'
+import { clamp01 } from './miniFrame'
 import { PRESETS, matchPreset } from './presets'
 import { usePersistedFlag } from './storage'
 import { useRecentPresets } from './useRecentPresets'
@@ -69,11 +70,11 @@ function PresetsHelpDialog(props: { onClose: () => void }) {
         does.
       </p>
       <p className={styles.helpText}>
-        Every preset but “clean” is also a fader: click to dial it fully in,
-        or drag sideways for a partial amount. Either way it layers onto
-        what’s already there rather than replacing it, and the fill shows how
-        much is in — so stacking several accumulates their faults. “clean” is
-        a plain reset: click it to clear them all.
+        Every preset but “clean” is also a fader: click to dial it fully in, or
+        drag sideways for a partial amount. Either way it layers onto what’s
+        already there rather than replacing it, and the fill shows how much is
+        in — so stacking several accumulates their faults. “clean” is a plain
+        reset: click it to clear them all.
       </p>
       <div className={styles.muted}>
         A mix lasts only until something else moves the look — a slider, mutate,
@@ -94,17 +95,19 @@ function PresetButton(props: {
   onMix: (name: string, w: number) => void
   onHover: (name: string | null) => void
 }) {
-  // Gesture bookkeeping only — nothing here should cause a render. `anchorX` is
-  // set once the press has travelled far enough to mean a drag rather than a
-  // click, and the weight then follows the distance from *there*, starting at
-  // the weight already dialed in. Reading the pointer's absolute position across
-  // the chip instead made the result depend on where in the chip the press
-  // landed — a stray wobble during an ordinary click would teleport the mix to
-  // ~50% with nothing to say why.
+  // Gesture bookkeeping only — nothing here should cause a render. The weight
+  // is integrated one pointer step at a time, so a clamp at either end can't
+  // bank travel the weight didn't follow: run past 100%, reverse, and the fill
+  // turns with the drag instead of after paying the overshoot back. `lastX` is
+  // null until the press has travelled far enough to mean a drag rather than a
+  // click, which is also what tells pointerup which of the two it was.
+  // Reading the pointer's absolute position across the chip instead made the
+  // result depend on where in the chip the press landed — a stray wobble during
+  // an ordinary click would teleport the mix to ~50% with nothing to say why.
   const dragRef = useRef<{
-    startX: number
-    startW: number
-    anchorX: number | null
+    pressX: number
+    lastX: number | null
+    w: number
   } | null>(null)
   const fill: CSSProperties & Record<'--w', string> = {
     '--w': `${Math.round(props.weight * 100)}%`,
@@ -130,11 +133,7 @@ function PresetButton(props: {
         // onMixStart rebaselines the mix onto whatever is live, which zeroes the
         // weights when the look has drifted — and props.weight already reads 0 in
         // exactly that case, so this stays the right starting point either way.
-        dragRef.current = {
-          startX: e.clientX,
-          startW: props.weight,
-          anchorX: null,
-        }
+        dragRef.current = { pressX: e.clientX, lastX: null, w: props.weight }
         props.onMixStart()
       }}
       onPointerMove={e => {
@@ -142,22 +141,28 @@ function PresetButton(props: {
         if (d !== null) {
           // The slop is spent getting here, so the sweep starts from this point
           // rather than jumping by however far the press had already drifted.
-          const anchorX =
-            d.anchorX === null && Math.abs(e.clientX - d.startX) > DRAG_SLOP
+          const from =
+            d.lastX === null && Math.abs(e.clientX - d.pressX) > DRAG_SLOP
               ? e.clientX
-              : d.anchorX
-          if (anchorX !== null) {
-            d.anchorX = anchorX
-            const w = d.startW + (e.clientX - anchorX) / DRAG_FULL
-            props.onMix(props.def.name, Math.max(0, Math.min(1, w)))
+              : d.lastX
+          if (from !== null) {
+            d.w = clamp01(d.w + (e.clientX - from) / DRAG_FULL)
+            d.lastX = e.clientX
+            props.onMix(props.def.name, d.w)
           }
         }
       }}
       onPointerUp={() => {
         const d = dragRef.current
         dragRef.current = null
-        if (d !== null && d.anchorX === null)
+        if (d !== null && d.lastX === null)
           props.onApply(props.def.name, props.def.patch)
+      }}
+      // Keyboard activation fires a bare click with no pointer events, so the
+      // press path above never sees it. detail === 0 is what separates it from
+      // the click that trails a mouse release, which pointerup already applied.
+      onClick={e => {
+        if (e.detail === 0) props.onApply(props.def.name, props.def.patch)
       }}
       onPointerCancel={() => {
         dragRef.current = null
@@ -169,7 +174,11 @@ function PresetButton(props: {
   ) : (
     <button
       title={props.def.blurb}
-      className={cx(styles.btn, props.active && styles.active, props.edited && styles.edited)}
+      className={cx(
+        styles.btn,
+        props.active && styles.active,
+        props.edited && styles.edited,
+      )}
       onPointerEnter={() => props.onHover(props.def.name)}
       onPointerLeave={() => props.onHover(null)}
       onClick={() => props.onApply(props.def.name, props.def.patch)}
@@ -265,9 +274,7 @@ export function PresetsSection(props: {
           <span className={styles.hintIcon}>
             <BulbIcon />
           </span>
-          <span>
-            drag a preset sideways to mix it in partially
-          </span>
+          <span>drag a preset sideways to mix it in partially</span>
           <button
             className={styles.hintX}
             title="dismiss this hint"
