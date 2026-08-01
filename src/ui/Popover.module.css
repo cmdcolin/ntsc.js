@@ -1,5 +1,8 @@
+/* Flex, not block: the wrapper is a layout middleman, and a block one would let
+   the trigger shrink-wrap while its bar siblings stretch. */
 .wrap {
   position: relative;
+  display: flex;
 }
 .menu {
   position: absolute;
@@ -33,6 +36,24 @@
   background: rgba(60, 60, 70, 0.6);
 }
 .menuHint {
-  opacity: 0.5;
-  font-size: 0.85em;
+  color: var(--fg3);
+  font-size: var(--fs-sm);
+  font-family: var(--mono);
+}
+.menuLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Fixed slot so glyph and svg items line their text up on the same column. */
+.menuIcon {
+  display: flex;
+  justify-content: center;
+  width: 13px;
+  color: var(--fg3);
+}
+.menuSep {
+  height: 1px;
+  margin: 3px 4px;
+  background: var(--border);
 }

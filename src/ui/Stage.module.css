@@ -16,45 +16,50 @@
   color: #f66;
   font-family: var(--mono);
 }
-/* overlay buttons over the canvas */
+/* overlay controls over the canvas. Every direct child is one --ctl-h-tall
+   pill; nothing here is allowed to size itself off its content. */
 .overlayBar {
   position: absolute;
   top: 12px;
   right: 12px;
   display: flex;
+  align-items: start;
   gap: 6px;
 }
 .overlayBtn {
   display: flex;
   align-items: center;
-  background: rgba(22, 22, 26, 0.6);
+  gap: 6px;
+  box-sizing: border-box;
+  height: var(--ctl-h);
+  background: var(--ctl-bg);
   color: var(--fg);
   border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 4px 9px;
+  border-radius: var(--ctl-radius);
+  padding: 0 9px;
   font: inherit;
   cursor: pointer;
 }
 .overlayBtn:hover {
-  background: rgba(40, 40, 48, 0.85);
+  background: var(--ctl-bg-hover);
 }
-/* magnifier: readout and lever, so the drag/scroll gestures on the picture are
-   discoverable and reversible without hunting for the Screen sliders */
-.zoomBar {
+/* magnifier: readout and lever at the top of the stage menu, so the drag/scroll
+   gestures on the picture are discoverable and reversible without hunting for
+   the Screen sliders. Sized to the menu's own padding, not the bar's. */
+.zoomRow {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(22, 22, 26, 0.6);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 3px 7px;
+  gap: 8px;
+  padding: 4px 8px;
 }
 .zoomLabel {
-  color: #8a8a98;
+  color: var(--fg3);
   cursor: help;
 }
 .zoomRange {
-  width: 84px;
+  flex: 1;
+  min-width: 96px;
+  margin: 0;
   accent-color: var(--accent);
 }
 .zoomReset {
@@ -70,6 +75,12 @@
 .zoomReset:hover {
   text-decoration: underline;
 }
+/* magnification carried on the closed trigger — a cropped picture with nothing
+   on screen explaining it reads as a bug */
+.triggerZoom {
+  color: var(--accent);
+  font-family: var(--mono);
+}
 /* the region being chosen by a drag on the picture */
 .marquee {
   position: absolute;
@@ -82,18 +93,10 @@
   position: absolute;
   top: 12px;
   right: 12px;
-  background: rgba(22, 22, 26, 0.6);
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 2px 6px;
-  font: inherit;
-  cursor: pointer;
   opacity: 0.6;
 }
 .reopenBar:hover {
   opacity: 1;
-  background: rgba(40, 40, 48, 0.85);
 }
 /* recording: steady red so it reads at a glance on a projector */
 .recording {

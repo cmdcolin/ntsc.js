@@ -18,6 +18,14 @@
   --panel-bg: #16161a;
   /* prose wraps to 3–5 lines in a 300px panel; 1.2 is unreadable there */
   --prose-lh: 1.45;
+  /* One height for every control that can end up sitting beside another one.
+     Padding alone can't hold a row level — a control with an <input> in it, or
+     one wrapped for positioning, measures differently — so anything on the
+     overlay bar sets this height outright rather than hoping its box matches. */
+  --ctl-h: 26px;
+  --ctl-radius: 3px;
+  --ctl-bg: rgba(22, 22, 26, 0.6);
+  --ctl-bg-hover: rgba(40, 40, 48, 0.85);
 }
 
 .app {

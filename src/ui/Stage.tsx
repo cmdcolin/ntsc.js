@@ -5,73 +5,148 @@ import { Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
 import styles from './Stage.module.css'
 import { cx } from './cx'
-import { CameraIcon, GearIcon } from './icons'
+import { CameraIcon, GearIcon, MenuIcon } from './icons'
 import {
   clampZoom,
   nudgeZoom,
   panLens,
   pictureUv,
-  zoomAtTravel,
   zoomAbout,
-  zoomTravel,
+  zoomAtTravel,
   zoomToBox,
+  zoomTravel,
 } from './lens'
 import { usePersistedFlag } from './storage'
 
 import type { FrameStats } from '../controls'
 import type { Lens } from './lens'
-import type { PointerEvent, RefObject, WheelEvent } from 'react'
+import type { PointerEvent, ReactNode, RefObject, WheelEvent } from 'react'
 
 // Persisted across reloads so a collapse sticks.
 const BAR_HIDDEN_STORE = 'ntscsynth_overlay_bar_hidden'
 
-function CaptureMenu(props: {
+// Magnification, as the menu trigger and the reset button both say it.
+const zoomLabel = (lens: Lens) =>
+  `${clampZoom(lens.zoom).toFixed(2).replace(/0$/, '')}×`
+
+// One row of the stage menu. The icon sits in a fixed slot so glyphs and svgs
+// share a text column; a blank hint means the action has no shortcut.
+function MenuItem(props: {
+  icon: ReactNode
+  label: string
+  hint: string
+  onClick: () => void
+}) {
+  return (
+    <button className={popoverStyles.menuItem} onClick={() => props.onClick()}>
+      <span className={popoverStyles.menuLabel}>
+        <span className={popoverStyles.menuIcon}>{props.icon}</span>
+        {props.label}
+      </span>
+      {props.hint === '' ? null : (
+        <span className={popoverStyles.menuHint}>{props.hint}</span>
+      )}
+    </button>
+  )
+}
+
+// Everything the stage can do, behind one button — the picture is the point,
+// and a row of pills competing with it was not. Two states still have to read
+// without opening anything, so they ride on the trigger: recording (which has
+// to carry across a room) and a magnifier left anywhere but 1×, which would
+// otherwise be an unexplained crop of the picture.
+function StageMenu(props: {
   recording: boolean
+  fullscreen: boolean
+  poppedOut: boolean
+  lens: Lens
+  onLens: (lens: Lens) => void
   onGrabStill: () => void
   onToggleRecord: () => void
+  onToggleFullscreen: () => void
+  onPopout: () => void
+  onShowHelp: () => void
+  onShowAdvanced: () => void
+  onHideBar: () => void
 }) {
   return (
     <Popover
       trigger={toggle => (
         <button
           className={cx(styles.overlayBtn, props.recording && styles.recording)}
-          onClick={toggle}
+          onClick={() => toggle()}
           title={
             props.recording
-              ? 'recording — click for capture options'
-              : 'capture options (s: still, r: record)'
+              ? 'recording — click for options'
+              : 'menu (s: still, r: record, f: fullscreen)'
           }
         >
-          <CameraIcon /> {props.recording ? 'rec' : 'capture'}
+          <MenuIcon />
+          {clampZoom(props.lens.zoom) === 1 ? null : (
+            <span className={styles.triggerZoom}>{zoomLabel(props.lens)}</span>
+          )}
+          {props.recording ? '● rec' : null}
         </button>
       )}
     >
-      {close => (
-        <>
-          <button
-            className={popoverStyles.menuItem}
-            onClick={() => {
-              props.onGrabStill()
-              close()
-            }}
-          >
-            <span>◍ save still</span>
-            <span className={popoverStyles.menuHint}>s</span>
-          </button>
-          <button
-            className={popoverStyles.menuItem}
-            onClick={() => {
-              props.onToggleRecord()
-              close()
-            }}
-          >
-            <span>
-              {props.recording ? '■ stop recording' : '● start recording'}
-            </span>
-            <span className={popoverStyles.menuHint}>r</span>
-          </button>
-        </>
-      )}
+      {close => {
+        const run = (act: () => void) => () => {
+          act()
+          close()
+        }
+        return (
+          <>
+            <ZoomRow lens={props.lens} onChange={props.onLens} />
+            <div className={popoverStyles.menuSep} />
+            <MenuItem
+              icon={<CameraIcon />}
+              label="save still"
+              hint="s"
+              onClick={run(props.onGrabStill)}
+            />
+            <MenuItem
+              icon={props.recording ? '■' : '●'}
+              label={props.recording ? 'stop recording' : 'start recording'}
+              hint="r"
+              onClick={run(props.onToggleRecord)}
+            />
+            <div className={popoverStyles.menuSep} />
+            <MenuItem
+              icon={props.fullscreen ? '⤢' : '⛶'}
+              label={props.fullscreen ? 'exit fullscreen' : 'fullscreen'}
+              hint="f"
+              onClick={run(props.onToggleFullscreen)}
+            />
+            <MenuItem
+              icon="⧉"
+              label={
+                props.poppedOut ? 'focus controls window' : 'pop out controls'
+              }
+              hint=""
+              onClick={run(props.onPopout)}
+            />
+            <div className={popoverStyles.menuSep} />
+            <MenuItem
+              icon={<GearIcon />}
+              label="advanced settings"
+              hint=""
+              onClick={run(props.onShowAdvanced)}
+            />
+            <MenuItem
+              icon="?"
+              label="help / about"
+              hint=""
+              onClick={run(props.onShowHelp)}
+            />
+            <MenuItem
+              icon="×"
+              label="hide this bar"
+              hint=""
+              onClick={run(props.onHideBar)}
+            />
+          </>
+        )
+      }}
     </Popover>
   )
 }
@@ -97,13 +172,15 @@ interface Drag {
 const dragged = (d: Drag) =>
   Math.abs(d.b.x - d.a.x) + Math.abs(d.b.y - d.a.y) > 3
 
-// Zoom readout and lever for the stage: the gestures are the fast path, but
-// nothing on screen would otherwise say the magnifier exists.
-function ZoomBar(props: { lens: Lens; onChange: (lens: Lens) => void }) {
+// Zoom readout and lever, the first row of the stage menu: the gestures on the
+// picture are the fast path, but nothing would otherwise say the magnifier
+// exists. It stays put when used — a drag on the slider must not close the menu
+// out from under the hand doing it.
+function ZoomRow(props: { lens: Lens; onChange: (lens: Lens) => void }) {
   const { lens } = props
   const at = (zoom: number) => props.onChange({ ...lens, zoom })
   return (
-    <div className={styles.zoomBar}>
+    <div className={styles.zoomRow}>
       <span
         className={styles.zoomLabel}
         title="where your eye is — scroll or drag a box on the picture to close in, drag to move around the glass, double-click to go back to 1×. Below 1× it pulls back off the set."
@@ -124,7 +201,7 @@ function ZoomBar(props: { lens: Lens; onChange: (lens: Lens) => void }) {
         title="back to the picture filling the frame"
         onClick={() => at(1)}
       >
-        {`${clampZoom(lens.zoom).toFixed(2).replace(/0$/, '')}×`}
+        {zoomLabel(lens)}
       </button>
     </div>
   )
@@ -242,7 +319,7 @@ export function Stage(props: {
       {props.error !== '' && <div className={styles.error}>{props.error}</div>}
       {barHidden ? (
         <button
-          className={styles.reopenBar}
+          className={cx(styles.overlayBtn, styles.reopenBar)}
           onClick={() => setBarHidden(false)}
           title="show controls"
         >
@@ -250,52 +327,20 @@ export function Stage(props: {
         </button>
       ) : (
         <div className={styles.overlayBar}>
-          <ZoomBar lens={props.lens} onChange={props.onLens} />
-          <CaptureMenu
+          <StageMenu
             recording={props.recording}
+            fullscreen={props.fullscreen}
+            poppedOut={props.poppedOut}
+            lens={props.lens}
+            onLens={props.onLens}
             onGrabStill={props.onGrabStill}
             onToggleRecord={props.onToggleRecord}
+            onToggleFullscreen={props.onToggleFullscreen}
+            onPopout={props.onPopout}
+            onShowHelp={props.onShowHelp}
+            onShowAdvanced={props.onShowAdvanced}
+            onHideBar={() => setBarHidden(true)}
           />
-          <button
-            className={styles.overlayBtn}
-            style={{ fontWeight: 700 }}
-            onClick={props.onShowHelp}
-            title="help / about"
-          >
-            ?
-          </button>
-          <button
-            className={styles.overlayBtn}
-            onClick={props.onShowAdvanced}
-            title="advanced settings"
-          >
-            <GearIcon />
-          </button>
-          <button
-            className={styles.overlayBtn}
-            onClick={props.onPopout}
-            title={
-              props.poppedOut
-                ? 'controls are in their own window — click to focus it'
-                : 'pop controls into their own window (for a second screen)'
-            }
-          >
-            ⧉ {props.poppedOut ? 'controls ↗' : 'pop out'}
-          </button>
-          <button
-            className={styles.overlayBtn}
-            onClick={props.onToggleFullscreen}
-            title="toggle fullscreen (f)"
-          >
-            {props.fullscreen ? '⤢ exit' : '⛶ fullscreen'}
-          </button>
-          <button
-            className={styles.overlayBtn}
-            onClick={() => setBarHidden(true)}
-            title="hide controls"
-          >
-            ×
-          </button>
         </div>
       )}
       <FpsMonitor stats={props.stats} res={props.res} />
