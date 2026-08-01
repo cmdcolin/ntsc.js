@@ -28,9 +28,18 @@ const PRESET_GROUPS = PRESETS.reduce<{ name: string; defs: typeof PRESETS }[]>(
 // Click applies the preset outright; dragging sideways past a few pixels turns
 // the button into a weight slider, mixing that preset onto the current look.
 const DRAG_SLOP = 4
+// Horizontal travel for the full 0→100% sweep. A fixed distance rather than the
+// chip's own width, so a narrow chip ("clean") and a wide one ("vertical hold
+// gone") scrub at the same rate, and the drag can run past the chip's edge —
+// the pointer is captured, so it keeps tracking out there.
+const DRAG_FULL = 120
 
 // The preset gesture hint is shown until the user dismisses it with its ×;
-// that choice persists, so it teaches once and then stops costing a row.
+// that choice persists, so it teaches once and then stops costing a row. It
+// carries the drag and nothing else: it used to run four unrelated facts
+// together, which spent the row's attention four ways and let one × dismiss
+// tips the reader hadn't read. The rest are all in the help dialog, and the
+// drag is the only one nothing else on screen can show you.
 const HINT_STORE = 'video_feedback_preset_hint_dismissed'
 // Whether the full grouped catalog is unfolded below the shortlist.
 const ALL_STORE = 'video_feedback_presets_expanded'
@@ -84,8 +93,18 @@ function PresetButton(props: {
   onMix: (name: string, w: number) => void
   onHover: (name: string | null) => void
 }) {
-  // Gesture bookkeeping only — nothing here should cause a render.
-  const dragRef = useRef<{ startX: number; moved: boolean } | null>(null)
+  // Gesture bookkeeping only — nothing here should cause a render. `anchorX` is
+  // set once the press has travelled far enough to mean a drag rather than a
+  // click, and the weight then follows the distance from *there*, starting at
+  // the weight already dialed in. Reading the pointer's absolute position across
+  // the chip instead made the result depend on where in the chip the press
+  // landed — a stray wobble during an ordinary click would teleport the mix to
+  // ~50% with nothing to say why.
+  const dragRef = useRef<{
+    startX: number
+    startW: number
+    anchorX: number | null
+  } | null>(null)
   const fill: CSSProperties & Record<'--w', string> = {
     '--w': `${Math.round(props.weight * 100)}%`,
   }
@@ -103,25 +122,36 @@ function PresetButton(props: {
       onPointerLeave={() => props.onHover(null)}
       onPointerDown={e => {
         e.currentTarget.setPointerCapture(e.pointerId)
-        dragRef.current = { startX: e.clientX, moved: false }
+        // onMixStart rebaselines the mix onto whatever is live, which zeroes the
+        // weights when the look has drifted — and props.weight already reads 0 in
+        // exactly that case, so this stays the right starting point either way.
+        dragRef.current = {
+          startX: e.clientX,
+          startW: props.weight,
+          anchorX: null,
+        }
         props.onMixStart()
       }}
       onPointerMove={e => {
         const d = dragRef.current
-        if (
-          d !== null &&
-          (d.moved || Math.abs(e.clientX - d.startX) > DRAG_SLOP)
-        ) {
-          d.moved = true
-          const r = e.currentTarget.getBoundingClientRect()
-          const x = (e.clientX - r.left) / r.width
-          props.onMix(props.def.name, Math.max(0, Math.min(1, x)))
+        if (d !== null) {
+          // The slop is spent getting here, so the sweep starts from this point
+          // rather than jumping by however far the press had already drifted.
+          const anchorX =
+            d.anchorX === null && Math.abs(e.clientX - d.startX) > DRAG_SLOP
+              ? e.clientX
+              : d.anchorX
+          if (anchorX !== null) {
+            d.anchorX = anchorX
+            const w = d.startW + (e.clientX - anchorX) / DRAG_FULL
+            props.onMix(props.def.name, Math.max(0, Math.min(1, w)))
+          }
         }
       }}
       onPointerUp={() => {
         const d = dragRef.current
         dragRef.current = null
-        if (d !== null && !d.moved)
+        if (d !== null && d.anchorX === null)
           props.onApply(props.def.name, props.def.patch)
       }}
       onPointerCancel={() => {
@@ -224,8 +254,8 @@ export function PresetsSection(props: {
             <BulbIcon />
           </span>
           <span>
-            click and drag on buttons to partially apply · “clean” resets
-            everything · hold C to compare · f for fullscreen
+            drag a preset sideways to mix it in partially — the fill shows how
+            much of it is in
           </span>
           <button
             className={styles.hintX}

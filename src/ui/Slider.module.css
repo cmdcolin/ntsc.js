@@ -2,7 +2,7 @@
 .slider {
   display: block;
   position: relative;
-  margin: 6px 0;
+  margin: 9px 0;
 }
 /* the ? icon's hover card: the same text as the dialog, skimmable in place */
 .helpPop {
@@ -19,7 +19,7 @@
   padding: 6px 8px;
   font-size: 11px;
   line-height: 1.45;
-  color: #c8c8d4;
+  color: var(--fg);
   box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
 }
 .sliderTop {
@@ -37,7 +37,7 @@
 .range {
   width: 100%;
   height: 14px;
-  margin: 1px 0;
+  margin: 3px 0 0;
   appearance: none;
   background: none;
 }
@@ -61,10 +61,10 @@
     ),
     linear-gradient(
       to right,
-      #26262e var(--lo),
+      #31313c var(--lo),
       #4a7a62 var(--lo),
       #4a7a62 var(--hi),
-      #26262e var(--hi)
+      #31313c var(--hi)
     );
 }
 .range::-moz-range-track {
@@ -80,10 +80,10 @@
     ),
     linear-gradient(
       to right,
-      #26262e var(--lo),
+      #31313c var(--lo),
       #4a7a62 var(--lo),
       #4a7a62 var(--hi),
-      #26262e var(--hi)
+      #31313c var(--hi)
     );
 }
 .range::-moz-range-progress {
@@ -113,7 +113,7 @@
   cursor: pointer;
   padding: 0 0 0 6px;
   font-size: 10px;
-  color: #4a4a58;
+  color: var(--fg4);
 }
 .iconOn {
   color: #e0b040;
@@ -131,7 +131,7 @@
   cursor: pointer;
   padding: 0 0 0 4px;
   font-size: 10px;
-  color: #4a4a58;
+  color: var(--fg4);
 }
 .what:hover {
   color: var(--accent);
@@ -142,7 +142,7 @@
   cursor: pointer;
   padding: 0 0 0 5px;
   font-size: 11px;
-  color: #8888a0;
+  color: var(--fg2);
 }
 .resetDef {
   color: var(--border);
@@ -161,9 +161,9 @@
   padding: 0;
   margin: -2px 0 2px;
   font: inherit;
-  font-size: 10px;
+  font-size: 11px;
   text-align: left;
-  color: #8a7a40;
+  color: #9a8848;
 }
 .needs:hover {
   color: #e0b040;

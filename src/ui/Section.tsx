@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import styles from '../app.module.css'
+import { cx } from './cx'
 import { readRecord, writeJSON } from './storage'
 
 import type { ReactNode } from 'react'
@@ -21,6 +22,9 @@ export function Section(props: {
   // Optional accessory (e.g. a ? explainer) beside the title. It must stop its
   // own clicks from bubbling, or they toggle the section.
   help?: ReactNode
+  // A group sitting inside another section rather than at the panel's top
+  // level, styled a step quieter so the nesting is visible.
+  nested?: boolean
   // Controlled mode: when onToggle is supplied the parent owns open/closed
   // (single-open phase browsing). Without it the section self-manages and
   // persists its own state, as the Input and Audio sections still do.
@@ -43,7 +47,10 @@ export function Section(props: {
   }
   return (
     <div>
-      <h3 className={styles.head} onClick={toggle}>
+      <h3
+        className={cx(styles.head, props.nested === true && styles.headSub)}
+        onClick={() => toggle()}
+      >
         <span>
           {props.title}
           {props.dot === true ? <span className={styles.dot}> •</span> : null}

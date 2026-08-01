@@ -2,12 +2,22 @@
    Font/color inherit from .app; only numeric readouts use --mono.
    Colors live as tokens on :root so every CSS module (and the FatalScreen,
    which renders outside .app) reads one palette — retheme in one place. */
+/* Four text tiers, not twelve near-identical grays: primary reading text,
+   secondary (headers, labels-about-labels), tertiary (prose, meta), and faint
+   (icon affordances, placeholders). The floor is set by contrast on black —
+   --fg3 clears 5:1, so the explanatory prose is actually readable, which the
+   old #666 was not. Anything dimmer than --fg4 must be decoration only. */
 :root {
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
   --fg: #c8c8d0;
+  --fg2: #a6a6b8;
+  --fg3: #86869a;
+  --fg4: #62626f;
   --accent: #7fd0a0;
   --border: #3a3a44;
   --panel-bg: #16161a;
+  /* prose wraps to 3–5 lines in a 300px panel; 1.2 is unreadable there */
+  --prose-lh: 1.45;
 }
 
 .app {
@@ -111,30 +121,49 @@
   text-decoration: underline;
 }
 
-/* section header + collapse caret */
+/* Section header + collapse caret. Two levels use this: a top-level section
+   (Presets, Input, Audio) and a group nested inside one (.headSub — the stage's
+   Sync, Deflection, Display). The nested level must read as subordinate to its
+   own contents' labels, which is why it is the quieter of the two: before, both
+   levels were identical and dimmer than the sliders under them, so nesting was
+   invisible and the hierarchy read upside down. */
 .head {
   font-size: 12px;
-  font-weight: 600;
-  color: #9a9ab0;
-  margin: 10px 0 3px;
+  font-weight: 700;
+  color: var(--fg);
+  margin: 14px 0 5px;
   padding: 3px 2px;
-  border-bottom: 1px solid #2a2a34;
+  border-bottom: 1px solid #33333f;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
   user-select: none;
+  letter-spacing: 0.02em;
 }
 .head:hover {
+  color: #e6e6ee;
+}
+/* a group inside a section: same shape, one step quieter and less separated */
+.headSub {
+  font-weight: 600;
+  color: var(--fg2);
+  margin: 10px 0 3px;
+  border-bottom-color: #26262e;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.headSub:hover {
   color: var(--fg);
 }
 .static,
 .static:hover {
   cursor: default;
-  color: #9a9ab0;
+  color: var(--fg2);
 }
 .caret {
-  color: #8a8aa8;
+  color: var(--fg3);
   font-size: 13px;
 }
 /* section holds a control that's off its default */
@@ -247,7 +276,7 @@
   font-size: 10px;
   line-height: 1.25;
   text-align: left;
-  color: #6f6f82;
+  color: var(--fg3);
 }
 .mapPart:hover {
   color: var(--fg);
@@ -260,7 +289,7 @@
    the dialog has the room the panel doesn't */
 .diagramLegend {
   margin: 10px 0 0;
-  color: #8a8aa8;
+  color: var(--fg3);
 }
 .diagramLegend > div {
   margin: 4px 0;
@@ -286,26 +315,29 @@
   display: flex;
   align-items: baseline;
   gap: 2px;
-  margin: 6px 0 2px;
+  margin: 16px 0 3px;
 }
+/* The stage outranks the group headers under it, so it has to win on size as
+   well as color — at 10px it was the smallest thing on screen while naming the
+   largest division in the panel. */
 .stageName {
   padding: 0;
   border: 0;
   background: none;
   cursor: pointer;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent);
 }
 /* the stage's role, shown while it's open — the same line the diagram's box
    carries, so the panel repeats what you clicked through */
 .stageBlurb {
-  color: #666;
-  margin: 0 0 4px;
-  line-height: 1.35;
+  color: var(--fg3);
+  margin: 0 0 7px;
+  line-height: var(--prose-lh);
 }
 /* the stage's touched-control count; clicking opens the first touched group */
 .phaseDot {
@@ -349,7 +381,7 @@
   cursor: pointer;
   font: inherit;
   font-size: 11px;
-  color: #6a6a78;
+  color: var(--fg3);
 }
 .sliderToggle:hover {
   color: #a8a8b8;
@@ -393,7 +425,7 @@
   padding: 0 5px;
   border-radius: 7px;
   background: #2a2a34;
-  color: #8a8aa8;
+  color: var(--fg3);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -411,13 +443,13 @@
   border: 1px solid #2a2a34;
   border-radius: 4px;
   background: var(--panel-bg);
-  color: #6a6a78;
+  color: var(--fg3);
   font-family: var(--mono);
   font-size: 11px;
   cursor: pointer;
 }
 .paletteKey:hover {
-  border-color: #4a4a58;
+  border-color: var(--fg4);
   color: var(--fg);
 }
 .filter {
@@ -433,10 +465,10 @@
   font: inherit;
 }
 .filter::placeholder {
-  color: #55555f;
+  color: var(--fg4);
 }
 .filter:focus {
-  border-color: #4a4a58;
+  border-color: var(--fg4);
   outline: none;
 }
 /* the filter row's own top margin lives on the row */
@@ -470,7 +502,7 @@
   cursor: pointer;
 }
 .select:hover {
-  border-color: #4a4a58;
+  border-color: var(--fg4);
 }
 /* The picked file's name, aligned under the select (12px tag + 6px gap). */
 .fileName {
@@ -481,7 +513,7 @@
   border: 0;
   background: none;
   text-align: left;
-  color: #8a8aa8;
+  color: var(--fg3);
   font-family: var(--mono);
   font-size: 11px;
   overflow: hidden;
@@ -523,37 +555,45 @@
   border-color: #a05050;
 }
 .slotEmpty {
-  color: #55555f;
+  color: var(--fg4);
   border-color: #26262e;
 }
 
-/* Preset buttons double as weight sliders: drag one sideways to dial the
-   preset in partially, and the fill shows how much of it is in the mix. */
+/* Preset buttons double as weight sliders: drag one sideways to dial the preset
+   in partially, and the fill shows how much of it is in the mix. The fill can't
+   advertise the gesture (it only exists once you've already found it), and
+   `cursor: pointer` actively says "one click, one action" — so the resize cursor
+   is what carries the affordance. pan-y, not none: these chips sit near the top
+   of a scrolling panel, and swallowing vertical drags traps touch users. */
 .presetBtn {
   background: linear-gradient(
     to right,
     #3a6355 var(--w, 0%),
     #26262e var(--w, 0%)
   );
-  touch-action: none;
+  touch-action: pan-y;
+}
+.presetBtn:hover {
+  cursor: ew-resize;
 }
 
 .grpLabel {
-  color: #7a7a90;
-  font-size: 10px;
+  color: var(--fg2);
+  font-size: 11px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  margin: 4px 0 2px;
+  margin: 7px 0 3px;
 }
 .caption {
   min-height: 20px;
-  color: #8a8aa8;
-  margin: 2px 0;
-  line-height: 1.4;
+  color: var(--fg3);
+  margin: 3px 0 4px;
+  line-height: var(--prose-lh);
 }
 .hint {
-  color: #666;
-  margin: 3px 0;
+  color: var(--fg3);
+  margin: 5px 0;
+  line-height: var(--prose-lh);
 }
 /* a hint the user can dismiss with the × at its end */
 .dismissHint {
@@ -572,7 +612,7 @@
   padding: 0 2px;
   border: 0;
   background: transparent;
-  color: #666;
+  color: var(--fg3);
   font: inherit;
   font-size: 14px;
   line-height: 1;
@@ -656,7 +696,7 @@
 }
 .subhead {
   font-weight: 600;
-  color: #9a9ab0;
+  color: var(--fg2);
   margin: 0 0 4px;
 }
 
@@ -720,7 +760,7 @@
   outline: none;
 }
 .paletteInput::placeholder {
-  color: #55555f;
+  color: var(--fg4);
 }
 .paletteList {
   max-height: 46vh;
@@ -745,7 +785,7 @@
 .paletteKind {
   flex-shrink: 0;
   width: 46px;
-  color: #5d6b7a;
+  color: #7d8b9c;
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -760,7 +800,7 @@
 .paletteSub {
   flex: 1;
   min-width: 0;
-  color: #7a7a90;
+  color: var(--fg3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -768,16 +808,16 @@
 .paletteValue {
   flex-shrink: 0;
   font-family: var(--mono);
-  color: #9a9ab0;
+  color: var(--fg2);
 }
 .paletteEmpty {
   padding: 10px 14px;
-  color: #666;
+  color: var(--fg3);
 }
 .paletteFoot {
   padding: 6px 14px;
   border-top: 1px solid var(--border);
-  color: #5d5d6b;
+  color: var(--fg3);
   font-size: 11px;
 }
 
@@ -796,7 +836,7 @@
   width: 7px;
   height: 7px;
   padding: 0;
-  border: 1px solid #4a4a58;
+  border: 1px solid var(--fg4);
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
@@ -822,8 +862,9 @@
   margin: 0 0 4px;
 }
 .helpText {
-  color: #b8b8c8;
+  color: var(--fg);
   margin: 0 0 12px;
+  line-height: var(--prose-lh);
 }
 .helpLogo {
   display: block;
@@ -832,9 +873,10 @@
   margin: 0 0 12px;
 }
 .helpList {
-  color: #b8b8c8;
+  color: var(--fg);
   margin: 0 0 12px;
   padding-left: 18px;
+  line-height: var(--prose-lh);
 }
 
 /* section rows + text-color utilities */
@@ -851,10 +893,10 @@
   color: #a05050;
 }
 .muted {
-  color: #8888a0;
+  color: var(--fg2);
 }
 .dim {
-  color: #666;
+  color: var(--fg3);
 }
 .ok {
   color: var(--accent);
