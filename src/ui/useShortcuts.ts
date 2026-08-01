@@ -76,15 +76,22 @@ export function useShortcuts(popout: Window | null, handlers: Handlers) {
       if (!isTextEntry(e.target) && e.key.toLowerCase() === 'c')
         ref.current.onEndCompare()
     }
+    // Compare is a hold, and a window that loses focus mid-hold never delivers
+    // the keyup: alt-tab away with `c` down and the engine stays previewing the
+    // defaults while every slider shows the real value. End it on blur too —
+    // ending a compare that never started is already harmless.
+    const onBlur = () => ref.current.onEndCompare()
     const targets = popout === null ? [window] : [window, popout]
     for (const t of targets) {
       t.addEventListener('keydown', onKey)
       t.addEventListener('keyup', onKeyUp)
+      t.addEventListener('blur', onBlur)
     }
     return () => {
       for (const t of targets) {
         t.removeEventListener('keydown', onKey)
         t.removeEventListener('keyup', onKeyUp)
+        t.removeEventListener('blur', onBlur)
       }
     }
   }, [popout])
