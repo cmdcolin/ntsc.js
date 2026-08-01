@@ -49,6 +49,11 @@ const urlName = (url: string): string => {
   return name === '' ? url : name
 }
 
+// What a bare load (no ?preset/?set) lands on: a whisper of source B summed
+// into the composite, so the mixer is visibly doing something on arrival. Kept
+// out of DEFAULT_CONTROLS so `clean` and hold-to-compare stay truly clean.
+const LANDING_LOOK: Partial<Controls> = { bGain: 0.16 }
+
 // Vaporwave playback defaults, shared with VaporwaveSection so each slider's
 // reset point matches the initial state. VAPORWAVE_SPEED is the one-click look.
 export const SPEED_DEFAULT = 1
@@ -496,6 +501,11 @@ export function useEngine() {
             engine.setImageSourceB(smpteBars())
             engine.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
             const q = new URLSearchParams(location.search)
+            // Only a bare load lands on it: a shared link's ?set omits controls
+            // sitting at their default, so adding B here would dirty that look.
+            if (q.get('set') === null && q.get('preset') === null) {
+              engine.applyControls(LANDING_LOOK)
+            }
             const presetName = q.get('preset')
             if (presetName !== null) {
               const p = PRESETS.find(x => x.name === presetName)

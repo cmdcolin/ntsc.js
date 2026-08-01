@@ -102,7 +102,7 @@ export const DEFAULT_CONTROLS = {
   cfbFilterBoost: 2, // added in-band loop gain once a center is set
   // dirty mixer (source B, non-genlocked)
   aGain: 1, // A level on the summing bus, signed (negative inverts A)
-  bGain: 0.16,
+  bGain: 0, // defaults are the clean baseline; the landing look adds B on top
   bRing: 0,
   bLineHz: 0.15,
   bDetuneHz: 40,
