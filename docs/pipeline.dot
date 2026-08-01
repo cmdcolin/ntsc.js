@@ -1,7 +1,8 @@
-// ntscynthia signal path — mirrors the pass order in src/gpu/pipeline.ts
+// ntscythe signal path — mirrors the pass order in src/gpu/pipeline.ts
 // (prePasses -> loopPasses x dubGens -> postPasses -> present).
+// Dashed node borders mark passes that only run when their control is engaged.
 // Render: dot -Tsvg docs/pipeline.dot -o docs/pipeline.svg
-digraph ntscynthia {
+digraph ntscythe {
   rankdir=TB;
   bgcolor="transparent";
   compound=true;
@@ -19,14 +20,15 @@ digraph ntscynthia {
     label="  ①  Encoder — build the composite signal  ";
     labeljust="l"; fontsize=12; fontcolor="#334155";
     style="rounded,filled"; fillcolor="#f3f6fb"; color="#c9d4e6";
-    compose      [label="compose" fillcolor="#dbe9d8"];
+    compose      [label="compose\n+ feedback camera" fillcolor="#dbe9d8"];
     encodeYuv    [label="encodeYuv\nRGB → YUV" fillcolor="#dbe9d8"];
-    encodeComp   [label="encodeComposite\nY + chroma modulated on Fsc\n→ compA" fillcolor="#cfe3cb"];
-    encodeYuvB   [label="encodeYuvB" fillcolor="#dbe9d8"];
-    mixB         [label="mixB\ndirty mix / wipe" fillcolor="#dbe9d8"];
+    encodeComp   [label="encodeComposite\nY + chroma modulated on Fsc\nsync · burst · blanking" fillcolor="#cfe3cb"];
+    composeB     [label="composeB" fillcolor="#dbe9d8" style="rounded,filled,dashed"];
+    encodeYuvB   [label="encodeYuvB" fillcolor="#dbe9d8" style="rounded,filled,dashed"];
+    mixB         [label="mixB\ndirty mix · ring · wipe · PiP" fillcolor="#dbe9d8" style="rounded,filled,dashed"];
   }
 
-  fbComposite  [label="fbComposite\nhardware mixer loop\n+ compPrev · key · trails" fillcolor="#f6e6c8"];
+  fbComposite  [label="fbComposite\nhardware mixer loop\n+ compPrev · key · trails" fillcolor="#f6e6c8" style="rounded,filled,dashed"];
 
   // ---- channel (repeats per dub generation) --------------------------------
   subgraph cluster_ch {
@@ -34,9 +36,9 @@ digraph ntscynthia {
     labeljust="l"; fontsize=12; fontcolor="#334155";
     style="rounded,filled"; fillcolor="#fbf1f1"; color="#e6cccc";
     chromaExtract [label="chromaExtract\nbandpass chroma out" fillcolor="#f0d9d9"];
-    underDown     [label="underDown\nVHS color-under downconvert" fillcolor="#f0d9d9"];
-    channel       [label="channel\nluma LPF · noise · dropouts · ghost\nhum · head-switch · AGC → compB" fillcolor="#e9c9c9"];
-    timebase      [label="timebase\njitter / wow resample → compA" fillcolor="#f0d9d9"];
+    underDown     [label="underDown\nVHS color-under\ndownconvert" fillcolor="#f0d9d9" style="rounded,filled,dashed"];
+    channel       [label="channel\nluma LPF · noise · dropouts · ghost\nhum · head-switch · AGC" fillcolor="#e9c9c9"];
+    timebase      [label="timebase\njitter / wow resample" fillcolor="#f0d9d9"];
   }
 
   // ---- receiver ------------------------------------------------------------
@@ -44,28 +46,38 @@ digraph ntscynthia {
     label="  ③  Receiver — decode the damaged signal  ";
     labeljust="l"; fontsize=12; fontcolor="#334155";
     style="rounded,filled"; fillcolor="#f3f1fb"; color="#d4ccE6";
-    syncMeasure [label="syncMeasure" fillcolor="#e0daf3"];
-    sync        [label="sync\nrecover H/V timing" fillcolor="#e0daf3"];
+    sync        [label="syncMeasure → sync\nrecover H/V timing" fillcolor="#e0daf3"];
     lineAnalyze [label="lineAnalyze\nper-line burst phase & lock" fillcolor="#e0daf3"];
     decode      [label="decode\ncomb filter · chroma demod · color-kill\n→ RGB" fillcolor="#d3cbeb"];
   }
 
-  storePrev [label="storePrev → compPrev" fillcolor="#f6e6c8"];
+  storePrev [label="storePrev\nframe store · strobe hold" fillcolor="#f6e6c8" style="rounded,filled,dashed"];
+  crtFace   [label="crtFace\nglowing tube face\nbloom · halation · gamma" fillcolor="#dfe3ea"];
   present   [label="present\nscanline beam → canvas" fillcolor="#dfe3ea"];
 
   // ---- signal flow ---------------------------------------------------------
   srcA -> compose;
   compose -> encodeYuv -> encodeComp;
-  srcB -> encodeYuvB -> mixB -> encodeComp;
-  encodeComp -> fbComposite;
-  fbComposite -> chromaExtract [lhead=cluster_ch];
-  chromaExtract -> underDown -> channel -> timebase;
-  timebase -> syncMeasure [ltail=cluster_ch lhead=cluster_rx];
-  syncMeasure -> sync -> lineAnalyze -> decode;
-  decode -> present;
-  decode -> storePrev;
+  srcB -> composeB -> encodeYuvB -> mixB;
+  encodeComp -> mixB;
+  mixB -> fbComposite [label="  compA"];
+
+  // compA feeds the channel directly; the chroma path is a side branch that
+  // rejoins it, it is not in line with the luma.
+  fbComposite -> channel [label="  compA"];
+  fbComposite -> chromaExtract;
+  chromaExtract -> underDown;
+  chromaExtract -> channel [label="  chroma"];
+  underDown -> channel [label="  under"];
+  channel -> timebase [label="  compB"];
+  timebase -> chromaExtract [label="  repeat × dubGens" style=dashed constraint=false];
+
+  timebase -> sync [label="  compA" ltail=cluster_ch lhead=cluster_rx];
+  sync -> lineAnalyze -> decode;
+  decode -> crtFace -> present;
+  timebase -> storePrev [label="  compA — what the decoder saw"];
 
   // ---- feedback loops ------------------------------------------------------
-  storePrev -> fbComposite [label="  next frame\n  (mixer loop)" style=dashed color="#c8961a" fontcolor="#c8961a" constraint=false];
-  present -> compose [label="  previous frame\n  camera-at-monitor" style=dashed color="#3aa049" fontcolor="#3aa049" constraint=false];
+  storePrev -> fbComposite [label="  next frame · compPrev\n  (mixer loop)" style=dashed color="#c8961a" fontcolor="#c8961a" constraint=false];
+  crtFace -> compose [label="  previous frame\n  camera-at-monitor" style=dashed color="#3aa049" fontcolor="#3aa049" constraint=false];
 }

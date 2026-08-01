@@ -1,6 +1,6 @@
-// ntscynthia — the big idea in five blocks. See pipeline.dot for the real passes.
+// ntscythe — the big idea in five blocks. See pipeline.dot for the real passes.
 // Render: dot -Tsvg docs/pipeline-simple.dot -o docs/pipeline-simple.svg
-digraph ntscynthia_simple {
+digraph ntscythe_simple {
   rankdir=LR;
   bgcolor="transparent";
   fontname="Helvetica,Arial,sans-serif";
@@ -16,6 +16,6 @@ digraph ntscynthia_simple {
 
   src -> encode -> damage -> decode -> screen;
 
-  decode -> encode [label="  composite feedback\n  (hardware mixer)" style=dashed color="#c8961a" fontcolor="#c8961a" constraint=false];
+  damage -> encode [label="  composite feedback\n  (hardware mixer)" style=dashed color="#c8961a" fontcolor="#c8961a" constraint=false];
   screen -> src    [label="  image feedback\n  (camera-at-monitor)" style=dashed color="#3aa049" fontcolor="#3aa049" constraint=false];
 }
