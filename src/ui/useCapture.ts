@@ -11,7 +11,7 @@ function stamp(): string {
 
 function fileName(name: string, ext: string): string {
   const slug = name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '')
-  return `ntscsynth-${slug}-${stamp()}.${ext}`
+  return `ntscynthia-${slug}-${stamp()}.${ext}`
 }
 
 function save(blob: Blob, name: string) {

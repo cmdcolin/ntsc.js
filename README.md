@@ -1,4 +1,4 @@
-# ntscsynth
+# ntscynthia
 
 ![One NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, then the luma staircase with the chroma subcarrier riding on each bar](docs/logo.svg)
 
@@ -6,7 +6,7 @@
 > entirely in **WebGPU** compute shaders. The artifacts fall out of a simulated
 > analog signal — they aren't filters painted over the picture.
 
-**[Live demo](https://cmdcolin.github.io/ntscsynth/)** — needs a WebGPU-enabled
+**[Live demo](https://cmdcolin.github.io/ntscynthia/)** — needs a WebGPU-enabled
 browser.
 
 <sub>Sometimes searched as: a VHS filter, camcorder / analog-video effect, NTSC
@@ -22,12 +22,12 @@ feedback loops as well (a camera pointed at its own monitor, and a
 hardware-mixer loop), and you can dirty-mix in a second source. All in WebGPU
 compute shaders, in real time.
 
-[![A photo dubbed to VHS inside the ntscsynth app, alongside its full control panel](docs/gallery/hero.jpg)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
+[![A photo dubbed to VHS inside the ntscynthia app, alongside its full control panel](docs/gallery/hero.jpg)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
 
 <sub>▶ **In motion:**
 [watch the 6-second clip](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
 (or click the image above) · or open the
-[live demo](https://cmdcolin.github.io/ntscsynth/) and load your own
+[live demo](https://cmdcolin.github.io/ntscynthia/) and load your own
 footage.</sub>
 
 ## Gallery
@@ -183,7 +183,7 @@ which is why it's Firefox.
 
 ## Related / prior art
 
-ntscsynth sits in a small family of analog-video emulators. If you like it, also
+ntscynthia sits in a small family of analog-video emulators. If you like it, also
 look at:
 
 - **[ntsc-rs](https://github.com/valadaptive/ntsc-rs)** and **ntscQT** —
@@ -194,9 +194,9 @@ look at:
   shaders** (`crt-royale`, `crt-guest-advanced`) — the emulator/shader side of
   the same idea.
 - Hardware roots: **Rutt–Etra** video synthesis, **no-input video feedback**,
-  and time-base correctors — the gear ntscsynth imitates in software.
+  and time-base correctors — the gear ntscynthia imitates in software.
 
-What's different here: ntscsynth models the whole signal _path_ end to end in
+What's different here: ntscynthia models the whole signal _path_ end to end in
 real time — encode → tape/RF damage → imperfect decode → CRT — so the artifacts
 interact the way they do on real hardware instead of being independent filters.
 
