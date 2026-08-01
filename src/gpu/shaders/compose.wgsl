@@ -52,22 +52,9 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let b = textureSampleLevel(srcTex, samp, vec2f(suv.x, (e + 2.5) / sh), 0.0).rgb;
     src = mix(a, b, f);
   }
-  // GPU-generated noise sources, regenerated every frame so they crawl.
   if (P.srcNoise > 0.5) {
-    if (P.srcNoise < 1.5) {
-      // TV static: fine, full-contrast luminance snow — no-signal broadcast
-      // snow. Fed through the encoder, its high-frequency energy blooms into
-      // authentic rainbow speckle.
-      src = vec3f(rand01(pcg(gid.x + gid.y * ACTIVE_W + P.frame * 2654435761u)));
-    } else {
-      // VHS blank tape: grayer, bluish, horizontally smeared (head-scanned
-      // along the line) with a slow per-line brightness drift.
-      let line = rand01(pcg(gid.y * 2246822519u + P.frame * 40503u));
-      let fine = rand01(pcg((gid.x / 4u) + gid.y * ACTIVE_W + P.frame * 2654435761u));
-      let v = 0.32 + 0.30 * fine + 0.14 * line;
-      src = vec3f(v * 0.8, v * 0.9, v);
-    }
-  };
+    src = snowSource(P.srcNoise, gid.xy, P.frame);
+  }
 
   // transform in 4:3 aspect space so rotation doesn't shear
   let asp = vec2f(4.0 / 3.0, 1.0);

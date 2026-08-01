@@ -18,21 +18,26 @@
 @group(0) @binding(2) var<storage, read> yuvB: array<vec4f>;
 @group(0) @binding(3) var<storage, read_write> comp: array<f32>;
 
+// Encoder chroma bandlimit on B's baseband U/V, centred on sample idx — the
+// same FIR the house encoder runs, but reading storage rather than a tile,
+// since B's raster position is per-sample here and not workgroup-uniform.
+fn bChroma(idx: u32) -> vec2f {
+  let m = i32((ENC_CHROMA_TAPS - 1u) / 2u);
+  var uv = vec2f(0.0);
+  for (var k = 0u; k < ENC_CHROMA_TAPS; k = k + 1u) {
+    let h = filters[SEC_ENC_CHROMA * FILTER_STRIDE + k];
+    uv = uv + h * yuvB[clampIdx(i32(idx) + i32(k) - m)].yz;
+  }
+  return uv;
+}
+
 // B re-encoded on the house carrier: chroma from yuvB[bIdx] modulated onto the
 // A-locked subcarrier at output sample houseN (B's proc-amp hue trim only). This
 // is the genlocked path — used by the clean dissolve and the PiP DVE — so B
 // dot-crawls like real video but does not beat or roll.
 fn encodeBHouse(houseN: u32, bIdx: u32) -> f32 {
-  let m = i32((ENC_CHROMA_TAPS - 1u) / 2u);
-  var uf = 0.0;
-  var vf = 0.0;
-  for (var k = 0u; k < ENC_CHROMA_TAPS; k = k + 1u) {
-    let idx = clampIdx(i32(bIdx) + i32(k) - m);
-    let h = filters[SEC_ENC_CHROMA * FILTER_STRIDE + k];
-    uf = uf + h * yuvB[idx].y;
-    vf = vf + h * yuvB[idx].z;
-  }
-  return activeComposite(yuvB[bIdx].x, uf, vf, carrierRot(houseN, P.frame, P.bHue), P.bVidGain, P.bInv);
+  let uv = bChroma(bIdx);
+  return activeComposite(yuvB[bIdx].x, uv.x, uv.y, carrierRot(houseN, P.frame, P.bHue), P.bVidGain, P.bInv);
 }
 
 @compute @workgroup_size(64, 1, 1)
@@ -97,16 +102,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let slot = ntscLineSlot(srow, si, np, P.frame, delta);
     var b = slot.value;
     if (slot.picture) {
-      let m = i32((ENC_CHROMA_TAPS - 1u) / 2u);
-      var uf = 0.0;
-      var vf = 0.0;
-      for (var k = 0u; k < ENC_CHROMA_TAPS; k = k + 1u) {
-        let idx = clampIdx(i32(np) + i32(k) - m);
-        let h = filters[SEC_ENC_CHROMA * FILTER_STRIDE + k];
-        uf = uf + h * yuvB[idx].y;
-        vf = vf + h * yuvB[idx].z;
-      }
-      b = activeComposite(yuvB[np].x, uf, vf, carrierRot(np, P.frame, delta), P.bVidGain, P.bInv);
+      let uv = bChroma(np);
+      b = activeComposite(yuvB[np].x, uv.x, uv.y, carrierRot(np, P.frame, delta), P.bVidGain, P.bInv);
     }
 
     // sum at the composite level; A rides its own bus fader (signed, so a

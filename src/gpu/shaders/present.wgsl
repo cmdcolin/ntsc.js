@@ -158,7 +158,7 @@ fn fs(in: VOut) -> @location(0) vec4f {
     let p1 = textureSampleLevel(screenTex, samp, vec2f(x1 / w, tuv.y), 0.0).rgb;
     let p2 = textureSampleLevel(screenTex, samp, vec2f((x1 + 1.0) / w, tuv.y), 0.0).rgb;
     let p3 = textureSampleLevel(screenTex, samp, vec2f((x1 + 2.0) / w, tuv.y), 0.0).rgb;
-    let sharp = p1 + 0.5 * t * (p2 - p0 + t * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3 + t * (3.0 * (p1 - p2) + p3 - p0)));
+    let sharp = catmull3(p0, p1, p2, p3, t);
     col = mix(col, clamp(sharp, vec3f(0.0), vec3f(1.0)), P.crtSharp);
   }
   // Scanline and grille structure can only be drawn while a line still covers

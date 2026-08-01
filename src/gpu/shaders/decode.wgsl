@@ -149,13 +149,6 @@ fn main(
   let s = ACTIVE_START + gid.x;
   let n = clampIdx(i32(row * SPL + s) + hoff);
 
-  if (P.dbgView == 2.0) {
-    let sn = (u32(f32(gid.x) / f32(ACTIVE_W) * f32(SPL))) + row * SPL;
-    let gray = (comp[sn] + 40.0) / 140.0;
-    textureStore(outTex, vec2i(gid.xy), vec4f(vec3f(gray), 1.0));
-    return;
-  }
-
   // Chroma reconstruction lattice: at coarse > 1 the demod runs only at every
   // coarse-th sample and pixels between get linear interpolation — the digital
   // decoder's chroma-upsampling error. Interpolated U/V re-attach to the wrong
@@ -206,19 +199,6 @@ fn main(
   let se = sin(e + ev);
   let ur = (us * ce + vs * se) * g;
   let vr = (-us * se + vs * ce) * g;
-
-  if (P.dbgView == 3.0) {
-    textureStore(outTex, vec2i(gid.xy), vec4f(vec3f((lum - IRE_BLACK) / VIDEO_RANGE), 1.0));
-    return;
-  }
-  if (P.dbgView == 4.0) {
-    textureStore(outTex, vec2i(gid.xy), vec4f(abs(us) / 40.0, abs(vs) / 40.0, 0.0, 1.0));
-    return;
-  }
-  if (P.dbgView == 5.0) {
-    textureStore(outTex, vec2i(gid.xy), vec4f(li.z / 40.0, abs(e) / PI, g / 2.0, 1.0));
-    return;
-  }
 
   let yn = (lum - IRE_BLACK) / VIDEO_RANGE;
   let un = ur / VIDEO_RANGE;
@@ -278,5 +258,20 @@ fn main(
   // rounding unbiased, so trails decay all the way to black.
   let dith = (rand01(pcg(pi ^ (P.frame * 668265263u))) - 0.5) / 255.0;
   heldNext[pi] = pack4x8unorm(vec4f(outc + vec3f(dith), 1.0));
-  textureStore(outTex, vec2i(gid.xy), vec4f(outc, 1.0));
+
+  // Debug views substitute what is displayed, not what is decoded: the
+  // persistence state above is still carried, so switching a view on and off
+  // does not leave the ping-pong buffer holding a frame from two frames back.
+  var shown = outc;
+  if (P.dbgView == 2.0) {
+    let sn = (u32(f32(gid.x) / f32(ACTIVE_W) * f32(SPL))) + row * SPL;
+    shown = vec3f((comp[sn] + 40.0) / 140.0);
+  } else if (P.dbgView == 3.0) {
+    shown = vec3f((lum - IRE_BLACK) / VIDEO_RANGE);
+  } else if (P.dbgView == 4.0) {
+    shown = vec3f(abs(us) / 40.0, abs(vs) / 40.0, 0.0);
+  } else if (P.dbgView == 5.0) {
+    shown = vec3f(li.z / 40.0, abs(e) / PI, g / 2.0);
+  }
+  textureStore(outTex, vec2i(gid.xy), vec4f(shown, 1.0));
 }

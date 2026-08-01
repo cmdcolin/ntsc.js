@@ -329,18 +329,16 @@ fn luma(c: vec3f) -> f32 {
 // just far enough to re-enter the cube, so hue is preserved and a real tube's
 // saturated highlights stay electric. In-gamut colours are returned unchanged.
 fn gamutFit(c: vec3f) -> vec3f {
-  let l = clamp(luma(c), 0.0, 1.0);
-  let d = c - vec3f(luma(c));
-  var s = 1.0;
-  for (var i = 0; i < 3; i = i + 1) {
-    let di = d[i];
-    if (di > 1e-5) {
-      s = min(s, (1.0 - l) / di);
-    } else if (di < -1e-5) {
-      s = min(s, -l / di);
-    }
-  }
-  return clamp(vec3f(l) + max(s, 0.0) * d, vec3f(0.0), vec3f(1.0));
+  let y = luma(c);
+  let l = clamp(y, 0.0, 1.0);
+  let d = c - vec3f(y);
+  let moves = abs(d) > vec3f(1e-5);
+  // how much of d each channel has left before it hits 0 or 1; a channel that
+  // barely moves along the chroma axis constrains nothing
+  let room = select(vec3f(l), vec3f(1.0 - l), d > vec3f(0.0));
+  let reach = select(vec3f(1.0), room / max(abs(d), vec3f(1e-5)), moves);
+  let s = clamp(min(reach.x, min(reach.y, reach.z)), 0.0, 1.0);
+  return clamp(vec3f(l) + s * d, vec3f(0.0), vec3f(1.0));
 }
 
 // Catmull-Rom fractional-delay read. Linear interpolation is -6 dB at fsc for
@@ -348,5 +346,29 @@ fn gamutFit(c: vec3f) -> vec3f {
 // flat past fsc. t = 0 returns p1 exactly.
 fn catmull(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
   return p1 + 0.5 * t * (p2 - p0 + t * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3 + t * (3.0 * (p1 - p2) + p3 - p0)));
+}
+
+// Same curve on a colour, for the display-side horizontal reconstruction.
+fn catmull3(p0: vec3f, p1: vec3f, p2: vec3f, p3: vec3f, t: f32) -> vec3f {
+  return p1 + 0.5 * t * (p2 - p0 + t * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3 + t * (3.0 * (p1 - p2) + p3 - p0)));
+}
+
+// The GPU-generated no-signal sources, shared by A (compose) and B (compose_b)
+// so the two cannot drift apart. Regenerated every frame, so they crawl.
+// Below 1.5 is broadcast snow: fine, full-contrast luminance noise whose
+// high-frequency energy blooms into rainbow speckle through the encoder. Above
+// it is blank VHS tape: grayer, bluish, smeared along the head's scan with a
+// slow per-line brightness drift.
+fn snowSource(mode: f32, xy: vec2u, frame: u32) -> vec3f {
+  var out: vec3f;
+  if (mode < 1.5) {
+    out = vec3f(rand01(pcg(xy.x + xy.y * ACTIVE_W + frame * 2654435761u)));
+  } else {
+    let line = rand01(pcg(xy.y * 2246822519u + frame * 40503u));
+    let fine = rand01(pcg((xy.x / 4u) + xy.y * ACTIVE_W + frame * 2654435761u));
+    let v = 0.32 + 0.30 * fine + 0.14 * line;
+    out = vec3f(v * 0.8, v * 0.9, v);
+  }
+  return out;
 }
 `
