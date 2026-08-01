@@ -26,9 +26,9 @@ export async function initGpu(canvas: HTMLCanvasElement): Promise<Gpu> {
       ? ['timestamp-query']
       : [],
   })
-  device.addEventListener('uncapturederror', e => {
-    console.error('WebGPU uncaptured:', e.error.message)
-  })
+  // No uncapturederror handler here: Engine registers one that also surfaces
+  // the fault in the panel banner, and two listeners logged every GPU error
+  // twice — which reads as two faults when hunting a wedged frame.
   const context = canvas.getContext('webgpu')
   if (!context) throw new Error('Could not get webgpu canvas context')
   const format = navigator.gpu.getPreferredCanvasFormat()
