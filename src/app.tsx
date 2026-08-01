@@ -46,8 +46,8 @@ import { gitSha, versionLabel } from './version'
 
 import type { Controls } from './controls'
 import type { PaletteAction } from './ui/CommandPalette'
-import type { PathNode } from './ui/SignalPath'
 import type { ControlsApi } from './ui/ControlsContext'
+import type { PathNode } from './ui/SignalPath'
 
 // useSyncExternalStore fallbacks for the window before the async engine exists.
 const subscribeNever = () => () => {}
@@ -347,6 +347,10 @@ export function App() {
         fileInputBRef={eng.fileInputBRef}
         onFile={eng.onFile}
         onFileB={eng.onFileB}
+        pendingFileA={eng.pendingFileA}
+        pendingFileB={eng.pendingFileB}
+        onReopenFileA={() => eng.reopenFileA()}
+        onReopenFileB={() => eng.reopenFileB()}
         audioInput={
           <AudioInput
             mode={audio.mode}
@@ -368,7 +372,11 @@ export function App() {
       {eng.sourceBMode === 'none' || abGroups.length === 0 ? null : (
         <Section title="A/B Mix" defaultOpen={false} openOnFilter>
           {abGroups.map((group, i) => (
-            <ControlGroup key={group.name} group={group} defaultOpen={i === 0} />
+            <ControlGroup
+              key={group.name}
+              group={group}
+              defaultOpen={i === 0}
+            />
           ))}
         </Section>
       )}

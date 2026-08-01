@@ -1,6 +1,6 @@
 import styles from '../app.module.css'
 import { SOURCE_B_MODES, SOURCE_DESC, SOURCE_MODES } from '../sources/modes'
-import { FileName } from './FileName'
+import { FileName, ReopenFile } from './FileName'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 
@@ -37,6 +37,12 @@ export function InputSection(props: {
   fileInputBRef: RefObject<HTMLInputElement | null>
   onFile: (file: File | undefined) => void
   onFileB: (file: File | undefined) => void
+  // Last session's file for each slot when it needs a click to come back, '' when
+  // there is nothing waiting.
+  pendingFileA: string
+  pendingFileB: string
+  onReopenFileA: () => void
+  onReopenFileB: () => void
   // Audio in is a source too, so its picker sits with A and B rather than in
   // the Audio section, which keeps only the knobs it drives. Its helper line
   // comes in separately: all three pickers stack first, then the hints.
@@ -59,6 +65,10 @@ export function InputSection(props: {
             onReopen={() => props.onSelectSource(props.sourceMode)}
           />
         ) : null}
+        <ReopenFile
+          name={props.pendingFileA}
+          onReopen={() => props.onReopenFileA()}
+        />
         {props.sourceMode === 'webcam' && props.videoDevices.length > 1 ? (
           <SelectRow
             tag="◉"
@@ -84,6 +94,10 @@ export function InputSection(props: {
             onReopen={() => props.onSelectSourceB(props.sourceBMode)}
           />
         ) : null}
+        <ReopenFile
+          name={props.pendingFileB}
+          onReopen={() => props.onReopenFileB()}
+        />
         {props.audioInput}
         <div className={styles.hint}>
           {props.sourceBMode === 'none'

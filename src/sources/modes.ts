@@ -3,6 +3,7 @@ export const SOURCE_MODES = [
   'sweep',
   'tv static',
   'vhs static',
+  'cat',
   'file',
   'youtube',
   'webcam',
@@ -13,6 +14,7 @@ export const SOURCE_B_MODES = [
   'sweep',
   'tv static',
   'vhs static',
+  'cat',
   'file',
   'youtube',
 ] as const
@@ -26,6 +28,7 @@ export const SOURCE_DESC: Record<SourceMode | SourceBMode, string> = {
   sweep: 'Sweep — frequency zone plate',
   'tv static': 'TV static — no-signal broadcast snow',
   'vhs static': 'VHS static — blank-tape noise',
+  cat: 'Tama station master — bundled photo, no file to pick',
   file: 'File… — open an image or video',
   youtube: 'YouTube… — fetch a URL via yt-dlp',
   webcam: 'Webcam / USB device — camera or RCA capture',

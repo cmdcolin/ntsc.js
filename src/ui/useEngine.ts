@@ -6,6 +6,13 @@ import { reportPreviousTrace, trace } from '../gpu/trace'
 import { smpteBars, sweep } from '../sources/pattern'
 import { ytId } from '../sources/youtube'
 import {
+  canPickHandle,
+  clearStash,
+  pickHandle,
+  readStash,
+  stashFile,
+} from './fileStash'
+import {
   REVERB_DEFAULT,
   SPEED_DEFAULT,
   VAPORWAVE_SPEED,
@@ -17,8 +24,10 @@ import { playStream, playUrl, stopSlot } from './videoSlot'
 import type { FrameStats } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { Fatal } from './FatalScreen'
+import type { PickedFileHandle, StashSlot, Stashed } from './fileStash'
 import type { SessionParams } from './urlParams'
 import type { VideoSlot } from './videoSlot'
+import type { RefObject } from 'react'
 
 // Capped to the same long edge the engine's texture is, and for the same
 // reason — past it the raster cannot show the detail. Doing it here too keeps
@@ -38,7 +47,13 @@ const decodeImage = (src: Blob | File): Promise<ImageBitmap> =>
         })
   })
 
-// Load an image source from a URL, for the ?iurl / ?iurlb query params.
+// The one photograph the app ships with, offered as a source in its own right:
+// the patterns show what a mechanism does to a known signal, a real picture
+// shows what the look does to a face-sized subject — and it needs no file pick.
+const CAT_URL = `${import.meta.env.BASE_URL}sample.jpg`
+
+// Load an image source from a URL, for the ?iurl / ?iurlb query params and the
+// bundled cat.
 const loadImage = (url: string): Promise<ImageBitmap> =>
   fetch(url)
     .then(r => r.blob())
@@ -78,6 +93,11 @@ export function useEngine() {
   const [sourceMode, setSourceMode] = useState<SourceMode>('bars')
   // Picked/loaded filename, shown while the source is 'file'; '' otherwise.
   const [sourceName, setSourceName] = useState('')
+  // Last session's file, remembered as a disk handle whose read permission the
+  // reload dropped: it cannot be reopened without a gesture, so the slot holds
+  // it here and the panel offers the click (see fileStash.ts).
+  const [pendingA, setPendingA] = useState<Stashed | null>(null)
+  const [pendingB, setPendingB] = useState<Stashed | null>(null)
   // Webcam/USB capture: a dialog gates the browser permission prompt, and the
   // device list only carries labels once that grant lands — so both stay empty
   // until the user opts in.
@@ -231,13 +251,20 @@ export function useEngine() {
   const stopVideo = () => stopSlot(slotA)
   const stopVideoB = () => stopSlot(slotB)
 
-  // The generated sources either slot can show. Both slots offer the same four,
-  // which is why the mode name alone picks one.
+  // The built-in sources either slot can show, picked by mode name alone since
+  // both slots offer the same set. Four are synthesised on the spot; the cat is
+  // a bundled file, so it lands a fetch later — the slot keeps showing whatever
+  // it had until then, exactly like the ?iurl path.
   const showGenerated = (slot: VideoSlot, mode: SourceMode | SourceBMode) => {
     if (mode === 'bars') slot.setImage(smpteBars())
     else if (mode === 'sweep') slot.setImage(sweep())
     else if (mode === 'tv static') slot.setNoise(1)
     else if (mode === 'vhs static') slot.setNoise(2)
+    else if (mode === 'cat')
+      loadImage(CAT_URL).then(
+        bmp => slot.setImage(bmp, bmp.width / bmp.height),
+        (e: unknown) => setError(`image: ${reason(e)}`),
+      )
   }
 
   // Decode a still into a slot. A passes the source's own aspect so compose
@@ -247,6 +274,115 @@ export function useEngine() {
       bmp => slot.setImage(bmp, bmp.width / bmp.height),
       (e: unknown) => setError(`image: ${reason(e)}`),
     )
+  }
+
+  // A picked (or reopened) file into a slot: stills decode, everything else
+  // plays from a blob url.
+  const showFile = (slot: VideoSlot, file: File) => {
+    if (file.type.startsWith('image/')) showImage(slot, file)
+    else playUrl(slot, URL.createObjectURL(file))
+  }
+
+  // A file becomes the slot's source: the same steps whether it was just
+  // picked, reopened from last session, or re-granted by a click.
+  const adoptFileA = (file: File) => {
+    stopVideo()
+    setSourceMode('file')
+    setSourceName(file.name)
+    showFile(slotA, file)
+  }
+  const adoptFileB = (file: File) => {
+    stopVideoB()
+    setSourceBMode('file')
+    setSourceBName(file.name)
+    engineRef.current?.setSourceBEnabled(true)
+    showFile(slotB, file)
+  }
+
+  // Keep / drop what lets a slot reopen its file after a reload (fileStash.ts).
+  // Never a banner: the source is loaded and playing either way, and all that is
+  // lost is getting it back next session.
+  const keepFile = (
+    key: StashSlot,
+    file: File,
+    handle: PickedFileHandle | undefined,
+  ) => {
+    stashFile(key, file, handle).then(
+      kept => {
+        if (!kept) console.log('DEBUG stash skipped, too large', file.name)
+      },
+      (e: unknown) => console.log('DEBUG stash failed', reason(e)),
+    )
+  }
+  const dropFile = (key: StashSlot) => {
+    if (key === 'a') setPendingA(null)
+    else setPendingB(null)
+    clearStash(key).catch((e: unknown) =>
+      console.log('DEBUG unstash failed', reason(e)),
+    )
+  }
+
+  // What the slot held last session, put back. A copied stash opens straight
+  // away; a disk handle whose read permission died with the page needs a click,
+  // so it is parked in `pending` for the caption to offer instead.
+  const reopenStashed = (
+    key: StashSlot,
+    park: (stashed: Stashed) => void,
+    adopt: (file: File) => void,
+  ) => {
+    readStash(key).then(
+      stashed => {
+        if (stashed !== null) {
+          if (stashed.needsGesture) park(stashed)
+          else
+            stashed.open().then(adopt, (e: unknown) => {
+              console.log('DEBUG stash reopen failed', reason(e))
+              dropFile(key)
+            })
+        }
+      },
+      (e: unknown) => console.log('DEBUG stash read failed', reason(e)),
+    )
+  }
+
+  // The click the parked handle was waiting for. requestPermission runs on the
+  // gesture's transient activation, which is why `open` is called with nothing
+  // awaited in front of it.
+  const reopenPending = (
+    key: StashSlot,
+    pending: Stashed | null,
+    adopt: (file: File) => void,
+  ) => {
+    if (pending !== null)
+      pending.open().then(
+        file => {
+          if (key === 'a') setPendingA(null)
+          else setPendingB(null)
+          adopt(file)
+        },
+        (e: unknown) => setError(`reopen ${pending.name}: ${reason(e)}`),
+      )
+  }
+
+  // Picking a file. Chromium's picker hands back a handle worth remembering, so
+  // prefer it; without one the hidden <input> is the only way in. Either way a
+  // cancelled dialog leaves the current source untouched.
+  const pickFile = (
+    key: StashSlot,
+    input: RefObject<HTMLInputElement | null>,
+    adopt: (file: File) => void,
+  ) => {
+    if (canPickHandle())
+      pickHandle().then(
+        picked => {
+          if (picked !== null) {
+            adopt(picked.file)
+            keepFile(key, picked.file, picked.handle)
+          }
+        },
+        (e: unknown) => setError(`open: ${reason(e)}`),
+      )
+    else input.current?.click()
   }
 
   // Download a clip and hand it to the slot. What differs between A and B —
@@ -281,7 +417,7 @@ export function useEngine() {
       // For file, wait until a file is actually picked before touching state:
       // cancelling the OS dialog then leaves the current source untouched.
       if (mode === 'file') {
-        fileInputRef.current?.click()
+        pickFile('a', fileInputRef, adoptFileA)
       } else if (mode === 'webcam') {
         // Defer stopVideo/setSourceMode until the user confirms in the dialog:
         // cancelling then leaves the current source (and its permission) alone.
@@ -293,6 +429,7 @@ export function useEngine() {
         stopVideo()
         setSourceMode(mode)
         setSourceName('')
+        dropFile('a')
         showGenerated(slotA, mode)
       }
     }
@@ -313,6 +450,7 @@ export function useEngine() {
           setSourceMode('webcam')
           setSourceName('')
           setAskWebcam(false)
+          dropFile('a')
           // Capture cards weave interlaced fields, so combing shows on motion;
           // bob-deinterlace on by default for this source (toggle in Signal A).
           engine.setControl('deint', 1)
@@ -331,27 +469,24 @@ export function useEngine() {
     }
   }
 
+  // The hidden <input> path, so a browser without the handle picker still loads
+  // files — its pick carries no handle, so the stash falls back to a copy.
   const onFile = (file: File | undefined) => {
     if (file && engineRef.current) {
-      stopVideo()
-      setSourceMode('file')
-      setSourceName(file.name)
-      if (file.type.startsWith('image/')) showImage(slotA, file)
-      else playUrl(slotA, URL.createObjectURL(file))
+      adoptFileA(file)
+      keepFile('a', file, undefined)
     }
   }
 
   const onFileB = (file: File | undefined) => {
-    const engine = engineRef.current
-    if (file && engine) {
-      stopVideoB()
-      setSourceBMode('file')
-      setSourceBName(file.name)
-      engine.setSourceBEnabled(true)
-      if (file.type.startsWith('image/')) showImage(slotB, file)
-      else playUrl(slotB, URL.createObjectURL(file))
+    if (file && engineRef.current) {
+      adoptFileB(file)
+      keepFile('b', file, undefined)
     }
   }
+
+  const reopenFileA = () => reopenPending('a', pendingA, adoptFileA)
+  const reopenFileB = () => reopenPending('b', pendingB, adoptFileB)
 
   // Both slots feed the clip through the same blob-backed <video> path as a
   // picked file; only the mode bookkeeping differs, and B's enable flag.
@@ -361,6 +496,7 @@ export function useEngine() {
       stopVideo()
       setError('')
       setSourceMode('youtube')
+      dropFile('a')
       downloadYouTube(slotA, trimmed, setSourceName, () => {})
     }
   }
@@ -373,6 +509,7 @@ export function useEngine() {
       setError('')
       setSourceBMode('youtube')
       engine.setSourceBEnabled(true)
+      dropFile('b')
       downloadYouTube(slotB, trimmed, setSourceBName, () => {
         setSourceBMode('none')
         engine.setSourceBEnabled(false)
@@ -385,13 +522,14 @@ export function useEngine() {
     if (engine) {
       setError('') // entry for every B change (incl. file dialog); clear once
       if (mode === 'file') {
-        fileInputBRef.current?.click()
+        pickFile('b', fileInputBRef, adoptFileB)
       } else if (mode === 'youtube') {
         setAskYouTube('b')
       } else {
         stopVideoB()
         setSourceBMode(mode)
         setSourceBName('')
+        dropFile('b')
         engine.setSourceBEnabled(mode !== 'none')
         showGenerated(slotB, mode)
       }
@@ -447,6 +585,22 @@ export function useEngine() {
     setReverb(params.vapor.reverb)
     if (params.yt !== null) loadYouTube(params.yt)
     if (params.ytb !== null) loadYouTubeB(params.ytb)
+    // Whatever the link did not speak for, the slot's own last pick fills —
+    // reopened from the stashed copy, after the vaporwave settings above, since
+    // a new element reads its playback rate at creation. A link that *does* name
+    // the slot wins and the stash goes with it: leaving it would resurrect a
+    // file the user has moved on from on the next bare load.
+    const linkNamesA =
+      params.src !== null ||
+      params.iurl !== null ||
+      params.vurl !== null ||
+      params.yt !== null
+    const linkNamesB =
+      params.srcb !== null || params.iurlb !== null || params.ytb !== null
+    if (linkNamesA) dropFile('a')
+    else reopenStashed('a', setPendingA, adoptFileA)
+    if (linkNamesB) dropFile('b')
+    else reopenStashed('b', setPendingB, adoptFileB)
     if (params.debug) console.log('DEBUG engine ready')
   }
 
@@ -559,6 +713,11 @@ export function useEngine() {
     fileInputBRef,
     onFile,
     onFileB,
+    // '' unless last session's file is waiting on a click to re-grant read.
+    pendingFileA: pendingA === null ? '' : pendingA.name,
+    pendingFileB: pendingB === null ? '' : pendingB.name,
+    reopenFileA,
+    reopenFileB,
     loadYouTube,
     loadYouTubeB,
     askYouTube,
