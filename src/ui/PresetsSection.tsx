@@ -241,7 +241,7 @@ export function PresetsSection(props: {
         <div>{PRESETS.filter(p => picked.has(p.name)).map(renderButton)}</div>
       )}
       <button
-        className={styles.moreBtn}
+        className={cx(styles.barBtn, showAll && styles.barBtnOn)}
         title={
           showAll
             ? 'fold the catalog back to your shortlist'
@@ -249,7 +249,9 @@ export function PresetsSection(props: {
         }
         onClick={() => setShowAll(!showAll)}
       >
-        {showAll ? '▾' : '▸'} all {PRESETS.length} presets
+        <span className={styles.barCaret}>{showAll ? '▾' : '▸'}</span>
+        {showAll ? 'hide the preset catalog' : 'browse all presets'}
+        <span className={styles.barCount}>{PRESETS.length}</span>
       </button>
       {showAll
         ? PRESET_GROUPS.map(grp => (

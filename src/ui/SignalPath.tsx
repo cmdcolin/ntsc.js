@@ -1,55 +1,86 @@
-import styles from '../app.module.css'
-import { cx } from './cx'
+import { useState } from 'react'
 
+import styles from '../app.module.css'
+import { ChainMap } from './ChainMap'
+import { Dialog } from './Dialog'
+
+import type { ChainStage } from './ChainMap'
 import type { ReactNode } from 'react'
 
-export interface PathNode {
-  name: string
-  blurb: string
-  // Controls in this stage sitting off their stock value.
-  touched: number
+// A stage as the panel needs it: what the diagram draws, plus its controls.
+export interface PathNode extends ChainStage {
   // Opens the stage at its first touched group.
   onJumpTouched: () => void
   // The stage's group sections, rendered only while it's open.
   body: ReactNode
 }
 
-// The signal path drawn as what it is: a chain the picture travels down, one
-// node per stage, wired top to bottom. Only the open stage unfolds its groups,
-// so the whole chain stays on screen instead of scrolling past as a flat list
-// of sixteen headers.
+// The signal path, navigated from the block diagram: the dialog picks a stage,
+// and only that stage's groups render below — so the panel holds the knobs you
+// are using rather than a flat list of sixteen headers.
 export function SignalPath(props: {
   nodes: PathNode[]
-  // null = the bare chain, which is where exploration starts. Ignored while a
+  // null = no stage picked, which is where exploration starts. Ignored while a
   // filter is live: then every stage with a match shows at once.
   open: string | null
   expandAll: boolean
   onOpen: (name: string) => void
 }) {
+  const [showDiagram, setShowDiagram] = useState(false)
+  const shown = props.nodes.filter(
+    n => props.expandAll || props.open === n.name,
+  )
+  const touched = props.nodes.reduce((n, node) => n + node.touched, 0)
   return (
-    <div className={styles.spine}>
-      {props.nodes.map((node, i) => {
-        const open = props.expandAll || props.open === node.name
-        return (
-          <div
-            key={node.name}
-            className={cx(
-              styles.spineRow,
-              open && styles.spineRowOn,
-              i === props.nodes.length - 1 && styles.spineLast,
-            )}
-          >
-            <span
-              className={cx(
-                styles.spineNode,
-                open && styles.spineNodeOn,
-                node.touched > 0 && styles.spineNodeTouched,
-              )}
-            />
-            <div className={styles.spineHead}>
+    <>
+      <button
+        className={styles.barBtn}
+        title="the whole chain as a block diagram — a box per stage, wired in the order the picture travels, with every effect it can apply"
+        onClick={() => setShowDiagram(true)}
+      >
+        <span className={styles.barGlyph}>⧉</span>
+        chain diagram
+        <span className={styles.barCount}>
+          {props.open === null
+            ? `${props.nodes.length} stages`
+            : props.open.toLowerCase()}
+        </span>
+      </button>
+      {showDiagram ? (
+        <Dialog title="Signal chain" wide onClose={() => setShowDiagram(false)}>
+          <ChainMap
+            stages={props.nodes}
+            open={props.open}
+            onOpen={name => {
+              props.onOpen(name)
+              setShowDiagram(false)
+            }}
+          />
+          <div className={styles.muted}>
+            the picture travels left to right; feedback returns the end of the
+            chain to its middle. click a stage — or one of its effects — to open
+            it in the panel.
+            {touched === 0
+              ? ''
+              : ` amber marks the ${touched} controls you have off stock.`}
+          </div>
+          <div className={styles.diagramLegend}>
+            {props.nodes.map(node => (
+              <div key={node.name}>
+                <span className={styles.diagramLegendName}>{node.name}</span>
+                {node.blurb}
+              </div>
+            ))}
+          </div>
+        </Dialog>
+      ) : null}
+      <div className={styles.stages}>
+        {shown.map(node => (
+          <div key={node.name} className={styles.stageRow}>
+            <div className={styles.stageHead}>
               <button
-                className={cx(styles.spineName, open && styles.spineNameOn)}
-                title={node.blurb}
+                className={styles.stageName}
+                title={`${node.blurb} — click to fold this stage`}
                 onClick={() => props.onOpen(node.name)}
               >
                 {node.name}
@@ -64,15 +95,11 @@ export function SignalPath(props: {
                 </button>
               )}
             </div>
-            {open ? (
-              <>
-                <div className={styles.spineBlurb}>{node.blurb}</div>
-                {node.body}
-              </>
-            ) : null}
+            <div className={styles.stageBlurb}>{node.blurb}</div>
+            {node.body}
           </div>
-        )
-      })}
-    </div>
+        ))}
+      </div>
+    </>
   )
 }

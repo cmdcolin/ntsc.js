@@ -593,26 +593,29 @@ export function App() {
         onToggle: () => toggleGroup(group.name),
       }),
     )
-    const touchedGroups = phase.groups.filter(g =>
-      g.sliders.some(s => controls[s.key] !== DEFAULT_CONTROLS[s.key]),
-    )
+    // What the stage can do to the picture, group by group — the diagram lists
+    // these under the stage's box, and each one opens there.
+    const parts = phase.groups.map(group => ({
+      name: group.name,
+      touched: group.sliders.filter(
+        s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
+      ).length,
+      onOpen: () => {
+        setPhase(phase.name)
+        openGroupByName(group.name)
+      },
+    }))
     return rendered.every(r => r === null)
       ? []
       : [
           {
             name: phase.name,
             blurb: phase.blurb,
-            touched: touchedGroups.reduce(
-              (n, g) =>
-                n +
-                g.sliders.filter(
-                  s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
-                ).length,
-              0,
-            ),
+            parts,
+            touched: parts.reduce((n, p) => n + p.touched, 0),
             onJumpTouched: () => {
-              setPhase(phase.name)
-              openGroupByName(touchedGroups[0].name)
+              const first = parts.find(p => p.touched > 0)
+              if (first !== undefined) first.onOpen()
             },
             body: rendered,
           },
@@ -731,7 +734,8 @@ export function App() {
         </button>
       </div>
       <div className={styles.hint}>
-        the chain the picture travels down — click a stage for its controls
+        every control lives at a stage of the chain — open the diagram to pick
+        one
       </div>
       <SignalPath
         nodes={pathNodes}
