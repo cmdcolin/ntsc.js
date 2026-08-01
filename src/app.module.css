@@ -734,17 +734,38 @@
 .hintX:hover {
   color: var(--fg);
 }
-/* audio input level */
+/* audio input level — green until it is loud, red as it approaches clipping */
 .meter {
+  position: relative;
   height: 4px;
-  background: #26262e;
+  background: linear-gradient(to right, #3ac06a, #cfc046 62%, #e0503c);
   border-radius: 2px;
   overflow: hidden;
   margin: 6px 0;
 }
-.meterFill {
+/* vertical twin, sat beside the scrub slider so it fills bottom-up */
+.meterV {
+  position: relative;
+  flex-shrink: 0;
+  width: 4px;
+  height: 14px;
+  background: linear-gradient(to top, #3ac06a, #cfc046 62%, #e0503c);
+  border-radius: 2px;
+  overflow: hidden;
+}
+/* unlit remainder, eating back from the loud end; starts covering the whole
+   track so the bar reads empty until the first frame writes a level */
+.meterUnlitH {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 100%;
+  background: #26262e;
+}
+.meterUnlitV {
+  position: absolute;
+  inset: 0 0 auto 0;
   height: 100%;
-  background: var(--accent);
+  background: #26262e;
 }
 /* transport for a loaded audio file — same indent as .fileName, and the track
    fills in accent like the meter so it reads as playback, not as a knob */

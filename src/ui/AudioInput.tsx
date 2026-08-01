@@ -4,8 +4,9 @@ import { Meter } from './Meter'
 import { SelectRow } from './SelectRow'
 import { AUDIO_DESC, AUDIO_MODES } from './useAudio'
 
+import type { AudioState } from '../signal/audiostate'
 import type { AudioMode } from './useAudio'
-import type { CSSProperties, RefObject } from 'react'
+import type { CSSProperties, ReactNode, RefObject } from 'react'
 
 const OPTIONS = AUDIO_MODES.map(m => ({ value: m, label: AUDIO_DESC[m] }))
 
@@ -17,6 +18,7 @@ const clock = (s: number) =>
 function Scrub(props: {
   time: number
   duration: number
+  meter: ReactNode
   onSeek: (time: number) => void
 }) {
   const fill: CSSProperties & Record<'--p', string> = {
@@ -34,6 +36,7 @@ function Scrub(props: {
         value={Math.min(props.time, props.duration)}
         onChange={e => props.onSeek(Number(e.target.value))}
       />
+      {props.meter}
       <span className={styles.scrubTime}>
         {clock(props.time)} / {clock(props.duration)}
       </span>
@@ -48,7 +51,7 @@ function Scrub(props: {
 export function AudioInput(props: {
   mode: AudioMode
   name: string
-  hit: number
+  audioState: AudioState | null
   time: number
   duration: number
   fileInputRef: RefObject<HTMLInputElement | null>
@@ -56,6 +59,7 @@ export function AudioInput(props: {
   onFile: (file: File | undefined) => void
   onSeek: (time: number) => void
 }) {
+  const live = props.mode === 'off' ? null : props.audioState
   return (
     <>
       <SelectRow
@@ -66,14 +70,16 @@ export function AudioInput(props: {
         onChange={props.onSelect}
       />
       <FileName name={props.name} onReopen={() => props.onSelect('file')} />
-      {props.duration === 0 ? null : (
+      {props.duration === 0 ? (
+        live === null ? null : <Meter audio={live} orient="h" />
+      ) : (
         <Scrub
           time={props.time}
           duration={props.duration}
+          meter={live === null ? null : <Meter audio={live} orient="v" />}
           onSeek={props.onSeek}
         />
       )}
-      {props.mode === 'off' ? null : <Meter level={props.hit} />}
       <input
         ref={props.fileInputRef}
         type="file"

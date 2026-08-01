@@ -91,9 +91,6 @@ export function useEngine() {
   const [speedB, setSpeedB] = useState(SPEED_DEFAULT)
   const [playAudio, setPlayAudio] = useState(false)
   const [reverb, setReverb] = useState(REVERB_DEFAULT)
-  // The routed audio's onset level, polled off the render loop for the panel
-  // meter (same 10 Hz cadence as the mic meter, so it never re-renders a frame).
-  const [audioLevel, setAudioLevel] = useState(0)
   const [videoA, setVideoA] = useState(false)
   const [videoB, setVideoB] = useState(false)
   // The loaded YouTube URL per slot, kept so the source round-trips through the
@@ -198,19 +195,6 @@ export function useEngine() {
     setPlayAudio(true)
     routeAudio(true, REVERB_DEFAULT)
   }
-
-  useEffect(() => {
-    if (playAudio && engine !== null) {
-      const id = window.setInterval(
-        () => setAudioLevel(engine.audioState.hit),
-        100,
-      )
-      return () => {
-        clearInterval(id)
-        setAudioLevel(0)
-      }
-    }
-  }, [playAudio, engine])
 
   // The two slots, as data. Everything below that touches a <video> goes
   // through one of these, so the A and B paths are the same code reading a
@@ -585,7 +569,6 @@ export function useEngine() {
     speedB,
     playAudio,
     reverb,
-    audioLevel,
     ytUrlA,
     ytUrlB,
     changeSpeedA,

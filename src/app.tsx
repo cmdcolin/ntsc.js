@@ -351,7 +351,7 @@ export function App() {
           <AudioInput
             mode={audio.mode}
             name={audio.name}
-            hit={audio.hit}
+            audioState={audio.audioState}
             time={audio.time}
             duration={audio.duration}
             fileInputRef={audio.fileInputRef}
@@ -443,7 +443,7 @@ export function App() {
               speedB={eng.speedB}
               reverb={eng.reverb}
               playAudio={eng.playAudio}
-              level={eng.audioLevel}
+              audioState={eng.engine === null ? null : eng.engine.audioState}
               onSpeedA={eng.changeSpeedA}
               onSpeedB={eng.changeSpeedB}
               onReverb={eng.changeReverb}

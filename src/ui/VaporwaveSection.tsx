@@ -5,6 +5,8 @@ import { Slider } from './Slider'
 import { cx } from './cx'
 import { REVERB_DEFAULT, SPEED_DEFAULT, VAPORWAVE_SPEED } from './urlParams'
 
+import type { AudioState } from '../signal/audiostate'
+
 export function VaporwaveSection(props: {
   videoA: boolean
   videoB: boolean
@@ -12,8 +14,8 @@ export function VaporwaveSection(props: {
   speedB: number
   reverb: number
   playAudio: boolean
-  // The routed audio's onset level for the meter.
-  level: number
+  // The live analyser the meter reads the routed audio's onsets off.
+  audioState: AudioState | null
   onSpeedA: (v: number) => void
   onSpeedB: (v: number) => void
   onReverb: (v: number) => void
@@ -63,7 +65,9 @@ export function VaporwaveSection(props: {
       >
         {props.playAudio ? 'mute audio' : 'play audio out loud'}
       </button>
-      {props.playAudio ? <Meter level={props.level} /> : null}
+      {props.playAudio && props.audioState !== null ? (
+        <Meter audio={props.audioState} orient="h" />
+      ) : null}
     </Section>
   )
 }

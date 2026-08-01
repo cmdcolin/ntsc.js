@@ -12,12 +12,13 @@ export const AUDIO_DESC: Record<AudioMode, string> = {
 }
 
 // Audio input state for the UI. The per-line waveform goes straight to the GPU
-// each frame without touching React; only the meter comes back here, polled at
-// 10 Hz so a level readout never drives a re-render per frame.
+// each frame without touching React, and so does the level: the meter reads
+// engine.audioState itself every animation frame. Only the transport readout
+// comes back through state, polled at 10 Hz — a clock ticking in tenths does not
+// need a re-render per frame, an onset envelope does.
 export function useAudio(engine: Engine | null) {
   const [mode, setMode] = useState<AudioMode>('off')
   const [name, setName] = useState('')
-  const [hit, setHit] = useState(0)
   const [error, setError] = useState<string | null>(null)
   // Transport readout for a file source; duration stays 0 until metadata lands.
   const [play, setPlay] = useState({ time: 0, duration: 0 })
@@ -29,7 +30,6 @@ export function useAudio(engine: Engine | null) {
     let id = 0
     if (mode !== 'off' && engine !== null) {
       id = window.setInterval(() => {
-        setHit(engine.audioState.hit)
         const el = elRef.current
         if (el !== null) {
           setPlay({
@@ -52,7 +52,6 @@ export function useAudio(engine: Engine | null) {
     engine?.audioState.disconnect()
     setMode('off')
     setName('')
-    setHit(0)
     setPlay({ time: 0, duration: 0 })
   }
 
@@ -86,7 +85,7 @@ export function useAudio(engine: Engine | null) {
   return {
     mode,
     name,
-    hit,
+    audioState: engine === null ? null : engine.audioState,
     error,
     time: play.time,
     duration: play.duration,
