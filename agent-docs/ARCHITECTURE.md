@@ -95,8 +95,8 @@ fault through `timing[]` will spin hue that should have stayed put.
 - **`audioBuf`** — one float per line, the audio waveform at line rate.
 - **`persistBufs`** — phosphor state (the light still on the glass), packed
   `rgba8`, ping-ponged by frame parity: `decode` reads one and writes the other,
-  because its lateral scatter reads neighbouring pixels and a single buffer would
-  hand it values the same dispatch is part way through overwriting.
+  because its lateral scatter reads neighbouring pixels and a single buffer
+  would hand it values the same dispatch is part way through overwriting.
 
 ## Params are generated, not hand-written
 
@@ -130,10 +130,10 @@ geometry in `miniFrame.ts` (`lens.ts` for the magnifier).
 The magnifier is also driven straight on the output: `Stage.tsx` turns a wheel
 into `zoomAbout`, a drag into `panLens` or `zoomToBox`, and a double-click into
 1x. All of it goes through `lens.ts`, which mirrors the transform in
-`present.wgsl` — including the clamp that stops the lens looking past the edge of
-the glass, so the miniature draws where the shader actually looks. That mirroring
-is the thing to keep honest: change the transform in the shader and `lens.ts`
-moves with it, or `lens.test.ts` starts lying.
+`present.wgsl` — including the clamp that stops the lens looking past the edge
+of the glass, so the miniature draws where the shader actually looks. That
+mirroring is the thing to keep honest: change the transform in the shader and
+`lens.ts` moves with it, or `lens.test.ts` starts lying.
 
 Step 4 above still holds without exception: **every control keeps its slider.**
 The miniature only hides the ones it duplicates, behind the group's `▸ sliders`
@@ -196,15 +196,15 @@ the compiler's job. Two consequences worth knowing:
   is harmless in itself: a bail-out means the compiler leaves that code exactly
   as written. It's why `react-hooks/refs` is off in `eslint.config.js`; the rest
   of eslint-plugin-react-hooks' recommended set is on and reports bail-outs.
-- **What is load-bearing is that the _producer_ of a callback compiles.** `App`
-  holds `writeControl` from `useMidi` in an effect dep array; if that closure
-  got a fresh identity per render the effect would re-fire constantly and
-  `midi.setExternal` would reset soft-takeover every render, so a physical knob
-  could never hold its catch. Since the hand-written `useCallback` is gone, the
-  only thing keeping it stable is `useMidi` compiling. Note the consumer's own
-  status is irrelevant — a compiled consumer still re-fires on a changed
-  identity. Reshape `useMidi`/`useCapture` into something the compiler bails on
-  and this breaks silently: no type error, no lint error.
+- **What is load-bearing is that a callback held in a dep array keeps its
+  identity.** `useClockSync` holds `writeControl` from `useMidi` in an effect
+  dep array; if that closure got a fresh identity per render the effect would
+  re-fire constantly and `midi.setExternal` would reset soft-takeover every
+  render, so a physical knob could never hold its catch. `useMidi` therefore
+  keeps hand-written `useCallback`s (`useMidi.ts:57`) rather than trusting the
+  compiler — the invariant is correctness, so it is stated at the definition
+  instead of inferred from build output. Note the consumer's own status is
+  irrelevant: a compiled consumer still re-fires on a changed identity.
 
 To check what compiled, build unminified and look for the memo-cache preamble:
 
