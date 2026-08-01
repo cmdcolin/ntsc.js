@@ -27,7 +27,12 @@ const WARM = vec3f(1.0, 0.62, 0.38);
 // untouched.
 fn beam(c: vec3f) -> vec3f {
   var d = max(c - vec3f(P.crtCutoff), vec3f(0.0)) / max(1.0 - P.crtCutoff, 1e-3);
-  d = pow(max(d, vec3f(0.0)), vec3f(P.crtGamma));
+  // Every tap below goes through this, so a linear gun is worth branching
+  // around: three pow() times 16-48 taps per pixel, all to return the input.
+  // The param is uniform, so the branch is free.
+  if (P.crtGamma != 1.0) {
+    d = pow(d, vec3f(P.crtGamma));
+  }
   let l = luma(d);
   return mix(vec3f(l), d, P.crtSat);
 }

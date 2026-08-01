@@ -15,9 +15,27 @@
 @group(0) @binding(6) var<storage, read_write> outBuf: array<f32>;
 @group(0) @binding(7) var<storage, read> audio: array<f32>;
 
-fn cosUp(row: u32, s: f32) -> f32 {
+// Up-convert and re-bandpass in one folded pass. The bandpass is linear-phase,
+// so a tap d either side of centre shares one coefficient, and the heterodyne
+// phase there is the centre phase rotated -/+ d steps:
+//
+//   x[-d]cos(t - dS) + x[+d]cos(t + dS)
+//     = cos t cos dS (x[-d] + x[+d]) + sin t sin dS (x[-d] - x[+d])
+//
+// so one phasor walked outward covers both halves, and the kernel costs half
+// the coefficient loads and no per-tap cos().
+const UP_STEP = 2.0 * PI * DOWN_PER_SAMPLE;
+
+fn upPhasor(row: u32, s: f32) -> vec2f {
   let lp = lineParams[row];
-  return cos(lp.y + lp.z + 2.0 * PI * fract(DOWN_PER_SAMPLE * s));
+  let th = lp.y + lp.z + 2.0 * PI * fract(DOWN_PER_SAMPLE * s);
+  return vec2f(cos(th), sin(th));
+}
+
+fn stepPhasor(p: vec2f) -> vec2f {
+  let c = cos(UP_STEP);
+  let s = sin(UP_STEP);
+  return vec2f(p.x * c - p.y * s, p.x * s + p.y * c);
 }
 
 var<workgroup> tileLc: array<f32, TILE>; // luma-path source: comp - chroma
@@ -48,21 +66,28 @@ fn main(
   }
   let n = row * SPL + s;
 
-  // luma through the channel FIR
+  // luma through the channel FIR, folded on the kernel's symmetry
   let ml = (LUMA_TAPS - 1u) / 2u;
-  var luma = 0.0;
-  for (var k = 0u; k < LUMA_TAPS; k = k + 1u) {
-    luma = luma + filters[SEC_LUMA * FILTER_STRIDE + k] * tileLc[lid.x + HALO + k - ml];
+  let cl = lid.x + HALO;
+  var luma = filters[SEC_LUMA * FILTER_STRIDE + ml] * tileLc[cl];
+  for (var k = 0u; k < ml; k = k + 1u) {
+    luma = luma + filters[SEC_LUMA * FILTER_STRIDE + k] * (tileLc[cl + k - ml] + tileLc[cl + ml - k]);
   }
 
   // chroma: crossfade direct <-> color-under playback (up-convert + bandpass)
   var chr = chroma[n];
   if (P.colorUnderMix > 0.0) {
     let mb = (CHROMA_BP_TAPS - 1u) / 2u;
-    var up = 0.0;
-    for (var k = 0u; k < CHROMA_BP_TAPS; k = k + 1u) {
-      let si = i32(s) + i32(k) - i32(mb);
-      up = up + filters[SEC_CHROMA_BP * FILTER_STRIDE + k] * tileUn[lid.x + HALO + k - mb] * 2.0 * cosUp(row, f32(si));
+    let cb = lid.x + HALO;
+    let ph = upPhasor(row, f32(s));
+    var w = vec2f(1.0, 0.0); // (cos dS, sin dS), walked outward from d = 0
+    var up = filters[SEC_CHROMA_BP * FILTER_STRIDE + mb] * tileUn[cb] * 2.0 * ph.x;
+    for (var d = 1u; d <= mb; d = d + 1u) {
+      w = stepPhasor(w);
+      let lo = tileUn[cb - d];
+      let hi = tileUn[cb + d];
+      up = up + filters[SEC_CHROMA_BP * FILTER_STRIDE + mb - d] * 2.0
+        * (ph.x * w.x * (lo + hi) + ph.y * w.y * (lo - hi));
     }
     chr = mix(chr, up, P.colorUnderMix);
   }

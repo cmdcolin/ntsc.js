@@ -24,10 +24,14 @@ fn main(
   if (s >= SPL) {
     return;
   }
+  // Folded on the kernel's own symmetry (every bank section but the demod is
+  // linear-phase): mirrored taps share one coefficient, halving the multiplies
+  // and the coefficient loads.
   let m = (CHROMA_BP_TAPS - 1u) / 2u;
-  var acc = 0.0;
-  for (var k = 0u; k < CHROMA_BP_TAPS; k = k + 1u) {
-    acc = acc + filters[SEC_CHROMA_BP * FILTER_STRIDE + k] * tile[lid.x + HALO + k - m];
+  let c = lid.x + HALO;
+  var acc = filters[SEC_CHROMA_BP * FILTER_STRIDE + m] * tile[c];
+  for (var k = 0u; k < m; k = k + 1u) {
+    acc = acc + filters[SEC_CHROMA_BP * FILTER_STRIDE + k] * (tile[c + k - m] + tile[c + m - k]);
   }
   chroma[row * SPL + s] = acc;
 }

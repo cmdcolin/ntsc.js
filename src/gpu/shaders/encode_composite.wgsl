@@ -33,15 +33,15 @@ fn main(
   let slot = ntscLineSlot(row, s, n, P.frame, 0.0);
   var out = slot.value;
   if (slot.picture) {
+    // folded on the kernel's symmetry: mirrored taps share one coefficient
     let m = (ENC_CHROMA_TAPS - 1u) / 2u;
-    var uf = 0.0;
-    var vf = 0.0;
-    for (var k = 0u; k < ENC_CHROMA_TAPS; k = k + 1u) {
-      let h = filters[SEC_ENC_CHROMA * FILTER_STRIDE + k];
-      let uv = tileUV[lid.x + HALO + k - m];
-      uf = uf + h * uv.x;
-      vf = vf + h * uv.y;
+    let c = lid.x + HALO;
+    var uv = filters[SEC_ENC_CHROMA * FILTER_STRIDE + m] * tileUV[c];
+    for (var k = 0u; k < m; k = k + 1u) {
+      uv = uv + filters[SEC_ENC_CHROMA * FILTER_STRIDE + k] * (tileUV[c + k - m] + tileUV[c + m - k]);
     }
+    let uf = uv.x;
+    let vf = uv.y;
     out = activeComposite(yuv[n].x, uf, vf, carrier(n, P.frame), 1.0, P.invert);
   }
   comp[n] = out;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { SAMPLE_RATE } from './constants'
+import { FSC, SAMPLE_RATE } from './constants'
 import {
   FILTER_STRIDE,
   TAPS,
@@ -94,6 +94,28 @@ describe('lowpassPeaked', () => {
     let sum = 0
     for (const v of h) sum += v
     expect(sum).toBeCloseTo(1, 6)
+  })
+})
+
+// chroma_extract, channel (luma and the color-under up-convert),
+// encode_composite, mix_b and under_down all fold mirrored taps onto a single
+// coefficient. That halves the coefficient loads, and it is exact only while
+// the kernel in that bank slot stays linear-phase.
+describe('the bank sections the shader loops fold', () => {
+  it('are symmetric, as the folded loops assume', () => {
+    expect(isSymmetric(lowpass(1.3e6, TAPS.encChroma))).toBe(true)
+    expect(isSymmetric(lowpassPeaked(2.8e6, 0.8, 2.1e6, TAPS.luma))).toBe(true)
+    expect(isSymmetric(bandpass(FSC, 0.6e6, TAPS.chromaBp))).toBe(true)
+    expect(isSymmetric(lowpass(1.2e6, TAPS.under))).toBe(true)
+  })
+
+  it('exclude the demod kernel, whose causal tail is asymmetric', () => {
+    const demod = mixTaps(
+      lowpass(0.6e6, TAPS.demod),
+      lowpassCausal(0.6e6, TAPS.demod),
+      0.5,
+    )
+    expect(isSymmetric(demod)).toBe(false)
   })
 })
 

@@ -23,10 +23,12 @@
 // since B's raster position is per-sample here and not workgroup-uniform.
 fn bChroma(idx: u32) -> vec2f {
   let m = i32((ENC_CHROMA_TAPS - 1u) / 2u);
-  var uv = vec2f(0.0);
-  for (var k = 0u; k < ENC_CHROMA_TAPS; k = k + 1u) {
-    let h = filters[SEC_ENC_CHROMA * FILTER_STRIDE + k];
-    uv = uv + h * yuvB[clampIdx(i32(idx) + i32(k) - m)].yz;
+  let i = i32(idx);
+  // folded on the kernel's symmetry: mirrored taps share one coefficient
+  var uv = filters[SEC_ENC_CHROMA * FILTER_STRIDE + u32(m)] * yuvB[clampIdx(i)].yz;
+  for (var k = 0; k < m; k = k + 1) {
+    uv = uv + filters[SEC_ENC_CHROMA * FILTER_STRIDE + u32(k)]
+      * (yuvB[clampIdx(i + k - m)].yz + yuvB[clampIdx(i + m - k)].yz);
   }
   return uv;
 }
