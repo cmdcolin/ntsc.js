@@ -1,0 +1,49 @@
+# git-cliff ~ configuration file
+# https://git-cliff.org/docs/configuration
+#
+# Commit messages here don't follow the Conventional Commits format (no
+# feat:/fix: prefixes), so this config skips type-based grouping and just
+# lists each release's commits in order.
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to ntscythe are documented here.
+"""
+body = """
+
+{% if version %}\
+    {% if previous.version %}\
+        ## [{{ version | trim_start_matches(pat="v") }}](https://github.com/cmdcolin/ntscythe/compare/{{ previous.version }}...{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+    {% else %}\
+        ## [{{ version | trim_start_matches(pat="v") }}](https://github.com/cmdcolin/ntscythe/releases/tag/{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+    {% endif %}\
+{% else %}\
+    ## [Unreleased]
+{% endif %}\
+{% for commit in commits %}\
+    - [`{{ commit.id | truncate(length=7, end="") }}`](https://github.com/cmdcolin/ntscythe/commit/{{ commit.id }}) {{ commit.message | split(pat="\n") | first | trim }}
+{% endfor %}
+"""
+trim = true
+footer = ""
+
+[git]
+conventional_commits = false
+filter_unconventional = false
+require_conventional = false
+split_commits = false
+commit_preprocessors = []
+protect_breaking_commits = false
+commit_parsers = [
+    { message = "^Release v", skip = true },
+]
+filter_commits = false
+fail_on_unmatched_commit = false
+link_parsers = []
+use_branch_tags = false
+topo_order = false
+topo_order_commits = true
+sort_commits = "oldest"
+recurse_submodules = false

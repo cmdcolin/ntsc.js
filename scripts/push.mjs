@@ -1,5 +1,8 @@
 // Bump the version, tag it, and push — the version is stamped into the build
-// (vite.config.ts `define`) and shown in the sidebar header.
+// (vite.config.ts `define`) and shown in the sidebar header. `pnpm version`
+// also runs the package.json "version" lifecycle script, which regenerates
+// CHANGELOG.md via git-cliff (see cliff.toml) and folds it into the same
+// release commit.
 // Usage: node scripts/push.mjs <patch|minor|major>   (via pnpm push:{patch,…})
 
 import { execSync } from 'node:child_process'
