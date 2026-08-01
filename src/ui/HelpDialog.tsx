@@ -4,7 +4,7 @@ import { Dialog } from './Dialog'
 
 export function HelpDialog({ onClose }: { onClose: () => void }) {
   return (
-    <Dialog title="ntscsynth" wide onClose={onClose}>
+    <Dialog title="ntscsynth" size="prose" onClose={onClose}>
       <img
         className={styles.helpLogo}
         src={logoUrl}

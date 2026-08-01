@@ -12,14 +12,21 @@ import type { CSSProperties } from 'react'
 // The svg holds the boxes and the wiring, in viewBox units; the effect lists are
 // html in a grid of the same column count, so they line up under their box at
 // whatever width the dialog gives us.
-const W = 272
-const H = 44
-const MID_Y = 28
-const BOX_H = 18
+//
+// Nothing here is a pixel: the svg stretches to the card, so a unit is worth
+// (card width / W) px and every size below is really a ratio. W is what sets the
+// scale — at 426 units in the ~850px diagram card a unit is ~2px, which puts the
+// 8-unit stage label at ~16px, a size you read rather than squint at.
+const W = 426
+const H = 55
+const MID_Y = 34
+const BOX_H = 20
 // Gap between boxes, leaving room for the wire and its arrowhead.
-const GAP = 10
+const GAP = 14
 // The loop-back arc's apex, above the row of boxes.
-const ARC_Y = 3
+const ARC_Y = 4
+// Half-height of the wire's direction chevrons and the loop's arrowhead.
+const HEAD = 3.4
 
 export interface ChainStage {
   name: Phase
@@ -79,7 +86,7 @@ export function ChainMap(props: {
             />
             <path
               className={cx(styles.mapLoopHead, loop.lit && styles.mapLoopOn)}
-              d={`M${loop.to - 2.6} ${top - 4}L${loop.to} ${top}L${loop.to + 2.6} ${top - 4}Z`}
+              d={`M${loop.to - HEAD} ${top - HEAD * 1.5}L${loop.to} ${top}L${loop.to + HEAD} ${top - HEAD * 1.5}Z`}
             />
           </>
         )}
@@ -87,7 +94,7 @@ export function ChainMap(props: {
           <path
             key={props.stages[i].name}
             className={styles.mapArrow}
-            d={`M${(c + centers[i + 1]) / 2 - 2} ${MID_Y - 2.6}l2.6 2.6-2.6 2.6`}
+            d={`M${(c + centers[i + 1]) / 2 - HEAD / 2} ${MID_Y - HEAD}l${HEAD} ${HEAD}l${-HEAD} ${HEAD}`}
           />
         ))}
         {props.stages.map((stage, i) => (
@@ -116,12 +123,12 @@ export function ChainMap(props: {
               y={top}
               width={boxW}
               height={BOX_H}
-              rx="2.5"
+              rx="3"
             />
             <text
               className={styles.mapLabel}
               x={centers[i]}
-              y={MID_Y + 2.7}
+              y={MID_Y + 2.9}
               textAnchor="middle"
             >
               {stage.name}

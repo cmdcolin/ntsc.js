@@ -6,10 +6,10 @@
 }
 .button {
   flex: 1;
-  padding: 3px 4px;
+  padding: 4px 5px;
   font-family: var(--mono);
-  font-size: 10px;
-  color: #8888a0;
+  font-size: var(--fs-xs);
+  color: var(--fg2);
   background: #26262e;
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -17,7 +17,7 @@
 }
 .button:hover:not(:disabled) {
   color: var(--accent);
-  border-color: #55555f;
+  border-color: #63637a;
 }
 .button:disabled {
   opacity: 0.45;

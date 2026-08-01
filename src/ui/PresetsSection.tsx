@@ -62,7 +62,7 @@ const SHORTLIST_MAX = 8
 // stays on hover.
 function PresetsHelpDialog(props: { onClose: () => void }) {
   return (
-    <Dialog title="Presets" onClose={props.onClose}>
+    <Dialog title="Presets" size="prose" onClose={props.onClose}>
       <p className={styles.helpText}>
         Each preset is a named look — a bundle of control settings that
         recreates a particular signal fault or device. Hover one for what it

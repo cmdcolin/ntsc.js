@@ -15,7 +15,7 @@
     'Segoe UI',
     Roboto,
     sans-serif;
-  font-size: 13px;
+  font-size: var(--fs);
   line-height: 1.6;
 }
 .fatalCard {
@@ -26,7 +26,7 @@
   padding: 24px 28px;
 }
 .fatalTitle {
-  font-size: 18px;
+  font-size: var(--fs-xl);
   margin: 0 0 12px;
   color: #f66;
 }

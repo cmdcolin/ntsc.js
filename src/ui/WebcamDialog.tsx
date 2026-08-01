@@ -7,7 +7,7 @@ export function WebcamDialog(props: {
   onClose: () => void
 }) {
   return (
-    <Dialog title="Connect a video device" onClose={props.onClose}>
+    <Dialog title="Connect a video device" size="prose" onClose={props.onClose}>
       <p className={styles.helpText}>
         Feed in a live camera, or a real analog signal via a USB video-capture
         device — plug an RCA/composite “grabber” into the machine and it shows

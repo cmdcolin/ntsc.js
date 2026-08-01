@@ -13,6 +13,7 @@ export function YouTubeDialog(props: {
   return (
     <Dialog
       title={`Load a YouTube video into source ${props.slot.toUpperCase()}`}
+      size="prose"
       onClose={props.onClose}
     >
       <p className={styles.helpText}>

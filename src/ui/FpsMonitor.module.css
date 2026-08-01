@@ -8,9 +8,9 @@
   align-items: center;
 }
 .readout {
-  color: #4a4;
+  color: #6ec98a;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-sm);
 }
 .graph {
   width: 60px;
@@ -21,14 +21,14 @@
 .dismiss {
   background: none;
   border: none;
-  color: #666;
-  font-size: 13px;
+  color: var(--fg4);
+  font-size: var(--fs-md);
   line-height: 1;
   padding: 0 2px;
   cursor: pointer;
 }
 .dismiss:hover {
-  color: #aaa;
+  color: var(--fg);
 }
 .reopen {
   position: absolute;

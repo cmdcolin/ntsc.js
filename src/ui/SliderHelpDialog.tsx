@@ -18,7 +18,7 @@ export function SliderHelpDialog(props: {
   const fmt = (v: number) =>
     `${formatValue(v, props.step)}${props.unit === '' ? '' : ` ${props.unit}`}`
   return (
-    <Dialog title={props.label} wide onClose={props.onClose}>
+    <Dialog title={props.label} size="prose" onClose={props.onClose}>
       <p className={styles.helpText}>{props.help}</p>
       <div className={styles.muted}>
         range {fmt(props.min)} … {fmt(props.max)} · default{' '}

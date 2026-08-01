@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 
 import styles from '../app.module.css'
 import { ChainMap } from './ChainMap'
@@ -48,7 +48,11 @@ export function SignalPath(props: {
         </span>
       </button>
       {showDiagram ? (
-        <Dialog title="Signal chain" wide onClose={() => setShowDiagram(false)}>
+        <Dialog
+          title="Signal chain"
+          size="diagram"
+          onClose={() => setShowDiagram(false)}
+        >
           <ChainMap
             stages={props.nodes}
             open={props.open}
@@ -67,10 +71,10 @@ export function SignalPath(props: {
           </div>
           <div className={styles.diagramLegend}>
             {props.nodes.map(node => (
-              <div key={node.name}>
+              <Fragment key={node.name}>
                 <span className={styles.diagramLegendName}>{node.name}</span>
-                {node.blurb}
-              </div>
+                <span>{node.blurb}</span>
+              </Fragment>
             ))}
           </div>
         </Dialog>

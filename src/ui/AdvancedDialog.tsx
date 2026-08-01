@@ -29,7 +29,7 @@ export function AdvancedDialog(props: {
 }) {
   const [dbg, setDbg] = useState(() => String(props.engine?.getDbgView() ?? 0))
   return (
-    <Dialog title="Advanced" onClose={props.onClose}>
+    <Dialog title="Advanced" size="form" onClose={props.onClose}>
       <Slider
         label="render scale"
         unit="x"

@@ -4,19 +4,32 @@
    which renders outside .app) reads one palette — retheme in one place. */
 /* Four text tiers, not twelve near-identical grays: primary reading text,
    secondary (headers, labels-about-labels), tertiary (prose, meta), and faint
-   (icon affordances, placeholders). The floor is set by contrast on black —
-   --fg3 clears 5:1, so the explanatory prose is actually readable, which the
-   old #666 was not. Anything dimmer than --fg4 must be decoration only. */
+   (icon affordances, placeholders). The floor is set by contrast on the panel —
+   --fg3 clears 8:1, so the explanatory prose reads at a glance rather than
+   asking to be leaned into. Anything dimmer than --fg4 must be decoration only.
+
+   One type scale, so "the whole UI is too small" is a six-line edit rather than
+   a sweep over sixty declarations. --fs-xs is the floor: nothing sets a size
+   below it, and the only raw px size left in the app is .mapLabel, which is in
+   svg user units rather than pixels. Sizes are px, not em, because these nest
+   (a button in a row in a section) and relative units compound into sizes
+   nobody chose. */
 :root {
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
-  --fg: #c8c8d0;
-  --fg2: #a6a6b8;
-  --fg3: #86869a;
-  --fg4: #62626f;
+  --fg: #e6e6ee;
+  --fg2: #c6c6d6;
+  --fg3: #a6a6ba;
+  --fg4: #85859a;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
   --accent: #7fd0a0;
-  --border: #3a3a44;
+  --border: #44444f;
   --panel-bg: #16161a;
-  /* prose wraps to 3–5 lines in a 300px panel; 1.2 is unreadable there */
+  /* prose wraps to 3–5 lines in a panel this narrow; 1.2 is unreadable there */
   --prose-lh: 1.45;
   /* One height for every control that can end up sitting beside another one.
      Padding alone can't hold a row level — a control with an <input> in it, or
@@ -40,11 +53,13 @@
     'Segoe UI',
     Roboto,
     sans-serif;
-  font-size: 12px;
+  font-size: var(--fs);
 }
 
+/* Wide enough that a slider's label and its value share a line at --fs; at
+   300px the labels were wrapping as soon as the type stopped being tiny. */
 .panel {
-  width: 300px;
+  width: 332px;
   overflow-y: auto;
   padding: 10px 14px;
   flex-shrink: 0;
@@ -61,7 +76,7 @@
   margin: 2px 0 4px;
 }
 .title {
-  font-size: 13px;
+  font-size: var(--fs-md);
   margin: 0;
   display: flex;
   align-items: center;
@@ -87,31 +102,31 @@
   box-shadow: 0 0 0 1px #ffffff1a;
 }
 .wordmark {
-  font-size: 12px;
+  font-size: var(--fs);
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #e6e6e6;
+  color: #f2f2f6;
 }
 .brand:hover .wordmark {
   color: #fff;
 }
 .version {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: #7f8a99;
+  color: var(--fg3);
   font-variant-numeric: tabular-nums;
 }
 .helpBtn {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   padding: 0;
-  border: 1px solid #4a4a4a;
+  border: 1px solid var(--fg4);
   border-radius: 50%;
   background: transparent;
-  color: #9a9a9a;
+  color: var(--fg3);
   font: inherit;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
@@ -122,7 +137,7 @@
 }
 .link {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   text-decoration: none;
 }
 .link:hover {
@@ -136,12 +151,12 @@
    levels were identical and dimmer than the sliders under them, so nesting was
    invisible and the hierarchy read upside down. */
 .head {
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--fg);
   margin: 14px 0 5px;
   padding: 3px 2px;
-  border-bottom: 1px solid #33333f;
+  border-bottom: 1px solid #3c3c4a;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -150,33 +165,28 @@
   letter-spacing: 0.02em;
 }
 .head:hover {
-  color: #e6e6ee;
+  color: #fff;
 }
 /* a group inside a section: same shape, one step quieter and less separated */
 .headSub {
   font-weight: 600;
   color: var(--fg2);
   margin: 10px 0 3px;
-  border-bottom-color: #26262e;
+  border-bottom-color: #2e2e38;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: var(--fs-sm);
 }
 .headSub:hover {
   color: var(--fg);
 }
-.static,
-.static:hover {
-  cursor: default;
-  color: var(--fg2);
-}
 .caret {
   color: var(--fg3);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 /* section holds a control that's off its default */
 .dot {
-  color: #a89850;
+  color: #ceba64;
 }
 
 /* The chain diagram (ChainMap), shown in its own dialog: one labeled box per
@@ -193,23 +203,23 @@
 .mapArrow {
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.2;
+  stroke-width: 1;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .mapWire {
-  color: #2e2e3a;
+  color: #4c4c60;
 }
 /* the dashes that travel the wire — the signal, moving the way the picture
    does */
 .mapFlow {
-  color: #3f6a58;
-  stroke-dasharray: 3 9;
+  color: #58997c;
+  stroke-dasharray: 5 14;
   animation: mapFlow 1.1s linear infinite;
 }
 @keyframes mapFlow {
   to {
-    stroke-dashoffset: -12;
+    stroke-dashoffset: -19;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -218,30 +228,30 @@
   }
 }
 .mapArrow {
-  color: #43435a;
+  color: #5a5a74;
 }
 .mapLoop {
-  color: #2e2e3a;
+  color: #4c4c60;
 }
 .mapLoopHead {
   fill: currentColor;
   stroke: none;
-  color: #2e2e3a;
+  color: #4c4c60;
 }
 /* feedback is only in the picture once it's dialed in, so the return path
    lights up rather than always reading as live */
 .mapLoopOn {
-  color: #3f6a58;
+  color: #58997c;
 }
 .mapNode {
-  color: #6f7f9a;
+  color: #96a8c6;
   cursor: pointer;
 }
 .mapNode:hover {
-  color: #9fb4d0;
+  color: #cadcf6;
 }
 .mapNodeTouched {
-  color: #a89850;
+  color: #ceba64;
 }
 .mapNodeOn {
   color: var(--accent);
@@ -257,11 +267,13 @@
 .mapNodeOn .mapBox {
   fill: #1f2a24;
 }
+/* In viewBox units, so it scales with the diagram: the box is 20 units tall and
+   the label 8, the same ratio at any dialog width. */
 .mapLabel {
   fill: currentColor;
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
@@ -270,44 +282,45 @@
 .mapParts {
   display: grid;
   grid-template-columns: repeat(var(--cols), 1fr);
-  gap: 0 4px;
+  gap: 0 10px;
   align-items: start;
+  margin-top: 4px;
 }
 .mapPart {
   display: block;
   width: 100%;
-  padding: 1px 0;
+  padding: 3px 0;
   border: 0;
   background: none;
   cursor: pointer;
   font: inherit;
-  font-size: 10px;
-  line-height: 1.25;
+  line-height: var(--prose-lh);
   text-align: left;
-  color: var(--fg3);
+  color: var(--fg2);
 }
 .mapPart:hover {
   color: var(--fg);
+  text-decoration: underline;
 }
 /* something in this group is off stock — the same amber the panel uses */
 .mapPartOn {
-  color: #a89850;
+  color: #ceba64;
 }
-/* what each stage does, under the diagram — the tooltips laid out flat, since
-   the dialog has the room the panel doesn't */
+/* what each stage does, under the diagram — the tooltips laid out flat as a
+   definition list, since the dialog has the room the panel doesn't */
 .diagramLegend {
-  margin: 10px 0 0;
-  color: var(--fg3);
-}
-.diagramLegend > div {
-  margin: 4px 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 14px;
+  row-gap: 7px;
+  margin: 14px 0 0;
+  color: var(--fg2);
+  line-height: var(--prose-lh);
 }
 .diagramLegendName {
-  margin-right: 5px;
-  color: #9fb4d0;
-  font-size: 10px;
+  color: #b8cdea;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -334,7 +347,7 @@
   background: none;
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -355,10 +368,10 @@
   padding: 0 0 0 4px;
   font: inherit;
   letter-spacing: normal;
-  color: #a89850;
+  color: #ceba64;
 }
 .phaseDot:hover {
-  color: #e0b040;
+  color: #e8c464;
 }
 /* one banner for a group whose controls share an unmet gate, in place of a
    stack of identical per-slider notes; clicking sets the prerequisite */
@@ -372,11 +385,11 @@
   padding: 2px 0;
   margin: 2px 0;
   font: inherit;
-  font-size: 11px;
-  color: #8a7a40;
+  font-size: var(--fs-sm);
+  color: #b6a058;
 }
 .groupNeeds:hover {
-  color: #e0b040;
+  color: #e8c464;
 }
 
 /* reveals the sliders a direct-manipulation miniature stands in for */
@@ -388,11 +401,11 @@
   border: none;
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--fg3);
 }
 .sliderToggle:hover {
-  color: #a8a8b8;
+  color: var(--fg);
 }
 /* the only route from the preset shortlist to the rest of the catalog, so it
    reads a step brighter than the miniatures' slider reveal */
@@ -405,16 +418,16 @@
   gap: 6px;
   width: 100%;
   margin: 5px 0 3px;
-  padding: 5px 8px;
+  padding: 6px 9px;
   border: 1px solid var(--border);
   border-radius: 3px;
   background: #1e1e26;
-  color: #a2a2b8;
+  color: var(--fg2);
   font: inherit;
   cursor: pointer;
 }
 .barBtn:hover {
-  border-color: #5a5a68;
+  border-color: #63637a;
   color: var(--fg);
 }
 .barBtnOn {
@@ -422,19 +435,19 @@
   color: var(--fg);
 }
 .barCaret {
-  font-size: 9px;
-  color: #7f8a99;
+  font-size: var(--fs-xs);
+  color: var(--fg3);
 }
 .barGlyph {
-  color: #7f8a99;
+  color: var(--fg3);
 }
 .barCount {
   margin-left: auto;
-  padding: 0 5px;
+  padding: 1px 6px;
   border-radius: 7px;
-  background: #2a2a34;
+  background: #2e2e3a;
   color: var(--fg3);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -448,12 +461,12 @@
 .paletteKey {
   flex-shrink: 0;
   padding: 0 7px;
-  border: 1px solid #2a2a34;
+  border: 1px solid #33333f;
   border-radius: 4px;
   background: var(--panel-bg);
   color: var(--fg3);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 .paletteKey:hover {
@@ -465,11 +478,10 @@
   min-width: 0;
   box-sizing: border-box;
   background: var(--panel-bg);
-  color: #d8d8e0;
-  border: 1px solid #2a2a34;
+  color: var(--fg);
+  border: 1px solid #33333f;
   border-radius: 4px;
   padding: 4px 8px;
-  margin: 12px 0 0;
   font: inherit;
 }
 .filter::placeholder {
@@ -478,10 +490,6 @@
 .filter:focus {
   border-color: var(--fg4);
   outline: none;
-}
-/* the filter row's own top margin lives on the row */
-.filterRow .filter {
-  margin: 0;
 }
 
 /* input dropdowns */
@@ -492,17 +500,17 @@
   margin: 3px 0;
 }
 .tag {
-  width: 12px;
+  width: 13px;
   flex-shrink: 0;
-  color: #7f9fd0;
+  color: #9dbcea;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs);
   font-weight: 700;
 }
 .select {
   flex: 1;
   background: #20202a;
-  color: #d8d8e0;
+  color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 5px 8px;
@@ -512,18 +520,18 @@
 .select:hover {
   border-color: var(--fg4);
 }
-/* The picked file's name, aligned under the select (12px tag + 6px gap). */
+/* The picked file's name, aligned under the select (13px tag + 6px gap). */
 .fileName {
   display: block;
   width: 100%;
-  margin: -1px 0 4px 18px;
+  margin: -1px 0 4px 19px;
   padding: 0;
   border: 0;
   background: none;
   text-align: left;
   color: var(--fg3);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -540,13 +548,13 @@
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 3px;
-  padding: 3px 8px;
+  padding: 4px 9px;
   margin: 2px 3px 2px 0;
   font: inherit;
   cursor: pointer;
 }
 .btn:hover {
-  border-color: #5a5a68;
+  border-color: #63637a;
 }
 /* a .btn standing alone (dialog actions, close) rather than in a flowing row */
 .btnFlush {
@@ -564,7 +572,7 @@
 }
 .slotEmpty {
   color: var(--fg4);
-  border-color: #26262e;
+  border-color: #2e2e38;
 }
 
 /* Preset buttons double as weight sliders: drag one sideways to dial the preset
@@ -587,19 +595,19 @@
 
 .grpLabel {
   color: var(--fg2);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   margin: 7px 0 3px;
 }
 .caption {
   min-height: 20px;
-  color: var(--fg3);
+  color: var(--fg2);
   margin: 3px 0 4px;
   line-height: var(--prose-lh);
 }
 .hint {
-  color: var(--fg3);
+  color: var(--fg2);
   margin: 5px 0;
   line-height: var(--prose-lh);
 }
@@ -622,7 +630,7 @@
   background: transparent;
   color: var(--fg3);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-lg);
   line-height: 1;
   cursor: pointer;
 }
@@ -647,13 +655,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 2px 0 4px 18px;
+  margin: 2px 0 4px 19px;
 }
 .scrubTime {
   flex-shrink: 0;
   color: var(--fg3);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 .scrub {
@@ -723,16 +731,27 @@
   background: rgba(0, 0, 0, 0.6);
 }
 .card {
-  width: 340px;
+  width: 360px;
   max-width: 90vw;
   background: var(--panel-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 18px 20px;
+  padding: 20px 24px;
+  line-height: var(--prose-lh);
 }
+/* prose dialogs (help, a control's explainer): a measure that stays under ~80
+   characters at --fs, so the text is read rather than scanned */
 .cardWide {
-  width: 460px;
-  line-height: 1.5;
+  width: 540px;
+  line-height: 1.55;
+}
+/* the chain diagram: the svg scales to the card, so the card's width *is* the
+   diagram's size. Wide enough that a stage label fills its box legibly and each
+   stage's effect list gets its own column without wrapping every entry. */
+.cardDiagram {
+  width: 900px;
+  max-width: 94vw;
+  line-height: 1.55;
 }
 
 /* command palette: a search box over one flat list of presets, controls and
@@ -745,7 +764,7 @@
   margin-bottom: auto;
 }
 .paletteCard {
-  width: 520px;
+  width: 560px;
   max-width: 92vw;
   background: var(--panel-bg);
   border: 1px solid var(--border);
@@ -760,9 +779,9 @@
   border: 0;
   border-bottom: 1px solid var(--border);
   background: transparent;
-  color: #d8d8e0;
+  color: var(--fg);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-lg);
 }
 .paletteInput:focus {
   outline: none;
@@ -779,7 +798,7 @@
   align-items: baseline;
   gap: 8px;
   width: 100%;
-  padding: 5px 14px;
+  padding: 6px 14px;
   border: 0;
   background: transparent;
   color: var(--fg);
@@ -792,9 +811,9 @@
 }
 .paletteKind {
   flex-shrink: 0;
-  width: 46px;
-  color: #7d8b9c;
-  font-size: 10px;
+  width: 54px;
+  color: var(--fg3);
+  font-size: var(--fs-xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -826,33 +845,9 @@
   padding: 6px 14px;
   border-top: 1px solid var(--border);
   color: var(--fg3);
-  font-size: 11px;
+  font-size: var(--fs-sm);
 }
 
-/* first-visit tour: step dots on the left, back/next on the right */
-.tourFoot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 14px;
-}
-.tourDots {
-  display: flex;
-  gap: 6px;
-}
-.tourDot {
-  width: 7px;
-  height: 7px;
-  padding: 0;
-  border: 1px solid var(--fg4);
-  border-radius: 50%;
-  background: transparent;
-  cursor: pointer;
-}
-.tourDotOn {
-  border-color: var(--accent);
-  background: var(--accent);
-}
 .cardRow {
   display: flex;
   justify-content: space-between;
@@ -860,11 +855,11 @@
   margin-bottom: 8px;
 }
 .h2 {
-  font-size: 13px;
+  font-size: var(--fs-lg);
   margin: 0;
 }
 .helpHead {
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--accent);
   margin: 0 0 4px;
@@ -897,8 +892,8 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 11px;
-  color: #a05050;
+  font-size: var(--fs-sm);
+  color: #d87878;
 }
 .muted {
   color: var(--fg2);
@@ -910,14 +905,26 @@
   color: var(--accent);
 }
 .warn {
-  color: #a08050;
+  color: #cba065;
 }
 .err {
-  color: #a05050;
+  color: #e08484;
 }
 .blue {
-  color: #7f9fd0;
+  color: #9dbcea;
 }
 .amber {
-  color: #e0b040;
+  color: #e8c464;
+}
+
+/* a preset group in the unfolded catalog */
+.presetGroup {
+  margin: 2px 0 4px;
+}
+/* MIDI section notes: the setup line under the buttons, and the clock readout */
+.midiNote {
+  margin: 0 0 6px;
+}
+.midiClock {
+  margin: 8px 0 2px;
 }

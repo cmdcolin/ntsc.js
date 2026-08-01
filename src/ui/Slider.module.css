@@ -14,11 +14,11 @@
   margin-top: 2px;
   pointer-events: none;
   background: #1a1a22;
-  border: 1px solid #3a3a48;
+  border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 6px 8px;
-  font-size: 11px;
-  line-height: 1.45;
+  padding: 7px 9px;
+  font-size: var(--fs-sm);
+  line-height: var(--prose-lh);
   color: var(--fg);
   box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
 }
@@ -112,17 +112,17 @@
   border: none;
   cursor: pointer;
   padding: 0 0 0 6px;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--fg4);
 }
 .iconOn {
-  color: #e0b040;
+  color: #e8c464;
 }
 .iconSyncSet {
-  color: #8a7a40;
+  color: #b6a058;
 }
 .iconMidiSet {
-  color: #7f9fd0;
+  color: #9dbcea;
 }
 /* the ? that opens this control's explainer */
 .what {
@@ -130,7 +130,7 @@
   border: none;
   cursor: pointer;
   padding: 0 0 0 4px;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--fg4);
 }
 .what:hover {
@@ -141,11 +141,13 @@
   border: none;
   cursor: pointer;
   padding: 0 0 0 5px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--fg2);
 }
+/* the control is already at its default, so the arrow is a placeholder holding
+   the row's width — visible enough to find, quiet enough to ignore */
 .resetDef {
-  color: var(--border);
+  color: #4e4e5c;
 }
 
 /* a gated control whose prerequisite is unmet: the track dims and the note
@@ -161,10 +163,10 @@
   padding: 0;
   margin: -2px 0 2px;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   text-align: left;
-  color: #9a8848;
+  color: #c0a95e;
 }
 .needs:hover {
-  color: #e0b040;
+  color: #e8c464;
 }
