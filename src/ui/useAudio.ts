@@ -19,6 +19,8 @@ export function useAudio(engine: Engine | null) {
   const [name, setName] = useState('')
   const [hit, setHit] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  // Transport readout for a file source; duration stays 0 until metadata lands.
+  const [play, setPlay] = useState({ time: 0, duration: 0 })
   const fileInputRef = useRef<HTMLInputElement>(null)
   // The playing file, held to pause it and free its blob URL on the next pick.
   const elRef = useRef<HTMLAudioElement | null>(null)
@@ -26,7 +28,16 @@ export function useAudio(engine: Engine | null) {
   useEffect(() => {
     let id = 0
     if (mode !== 'off' && engine !== null) {
-      id = window.setInterval(() => setHit(engine.audioState.hit), 100)
+      id = window.setInterval(() => {
+        setHit(engine.audioState.hit)
+        const el = elRef.current
+        if (el !== null) {
+          setPlay({
+            time: el.currentTime,
+            duration: Number.isFinite(el.duration) ? el.duration : 0,
+          })
+        }
+      }, 100)
     }
     return () => clearInterval(id)
   }, [mode, engine])
@@ -42,6 +53,7 @@ export function useAudio(engine: Engine | null) {
     setMode('off')
     setName('')
     setHit(0)
+    setPlay({ time: 0, duration: 0 })
   }
 
   const enableMic = () => {
@@ -76,9 +88,20 @@ export function useAudio(engine: Engine | null) {
     name,
     hit,
     error,
+    time: play.time,
+    duration: play.duration,
     active: mode !== 'off',
     fileInputRef,
     onFile: playFile,
+    // Scrubbing moves the readout at once, so the thumb doesn't snap back and
+    // wait out the poll interval.
+    seek: (time: number) => {
+      const el = elRef.current
+      if (el !== null) {
+        el.currentTime = time
+        setPlay(p => ({ ...p, time }))
+      }
+    },
     // Picking 'file' only opens the dialog; state moves once a file is actually
     // chosen, so cancelling leaves whatever is playing alone.
     select: (next: AudioMode) => {

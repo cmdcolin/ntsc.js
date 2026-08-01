@@ -6,7 +6,7 @@ import markUrl from '../docs/mark.svg'
 import styles from './app.module.css'
 import { DEFAULT_CONTROLS } from './controls'
 import { AdvancedDialog } from './ui/AdvancedDialog'
-import { AudioInput } from './ui/AudioInput'
+import { AudioHint, AudioInput } from './ui/AudioInput'
 import { AudioSection } from './ui/AudioSection'
 import { CommandPalette } from './ui/CommandPalette'
 import { FatalScreen } from './ui/FatalScreen'
@@ -685,12 +685,15 @@ export function App() {
             mode={audio.mode}
             name={audio.name}
             hit={audio.hit}
-            error={audio.error}
+            time={audio.time}
+            duration={audio.duration}
             fileInputRef={audio.fileInputRef}
             onSelect={audio.select}
             onFile={audio.onFile}
+            onSeek={audio.seek}
           />
         }
+        audioHint={<AudioHint mode={audio.mode} error={audio.error} />}
       />
 
       {/* Collapsed by default: source B is on out of the box, and ten mixer

@@ -38,8 +38,10 @@ export function InputSection(props: {
   onFile: (file: File | undefined) => void
   onFileB: (file: File | undefined) => void
   // Audio in is a source too, so its picker sits with A and B rather than in
-  // the Audio section, which keeps only the knobs it drives.
+  // the Audio section, which keeps only the knobs it drives. Its helper line
+  // comes in separately: all three pickers stack first, then the hints.
   audioInput: ReactNode
+  audioHint: ReactNode
 }) {
   return (
     <div>
@@ -82,6 +84,7 @@ export function InputSection(props: {
             onReopen={() => props.onSelectSourceB(props.sourceBMode)}
           />
         ) : null}
+        {props.audioInput}
         {props.sourceBMode === 'none' ? (
           <div className={styles.hint}>
             pick a source B above to mix a second signal in.
@@ -91,7 +94,7 @@ export function InputSection(props: {
             mix controls are in the A/B Mix section below.
           </div>
         )}
-        {props.audioInput}
+        {props.audioHint}
       </Section>
       {/* Hidden pickers stay mounted outside the collapsible Section, so a
           collapsed Input can still fire the file dialog through its ref. */}
