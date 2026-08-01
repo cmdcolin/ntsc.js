@@ -54,8 +54,20 @@ fn main(
     tileLc[i] = comp[ci] - chroma[ci];
   }
   if (P.colorUnderMix > 0.0) {
+    // Noise inside the color-under path, ahead of the up-conversion. VHS lays
+    // chroma on a 629 kHz carrier with far less headroom than the luma FM, so
+    // the two have nothing like the same SNR — and this noise still has to come
+    // back through the narrow chroma bandpass, which turns it into slow
+    // blotches of wrong hue instead of the fine grain luma gets. Seeded on the
+    // global sample index so overlapping workgroup halos agree on it.
+    let cns = pcg(P.frame * 1103515245u + P.gen * 88888933u);
     for (var i = lid.x; i < TILE; i = i + 64u) {
-      tileUn[i] = under[clampIdx(base + i32(i))];
+      let ci = clampIdx(base + i32(i));
+      var v = under[ci];
+      if (P.chromaNoise > 0.0) {
+        v = v + P.chromaNoise * gauss(ci ^ cns);
+      }
+      tileUn[i] = v;
     }
   }
   workgroupBarrier();
@@ -97,6 +109,32 @@ fn main(
   // vertical or horizontal lock.
   var out = luma * (1.0 - P.chromaPinOnly) + chr;
 
+  // Analog premium-channel scrambling, applied at the head-end so everything
+  // below it in this file is damage the cable adds on top. The scrambler lifts
+  // the carrier during the horizontal sync interval; after envelope detection
+  // that is the sync tip pulled up toward blanking, and a set with no decoder
+  // box has nothing left to slice a line start out of. Past half depth the tip
+  // clears the separator's -20 IRE level entirely and horizontal lock is gone.
+  //
+  // Only the line-rate gate is modelled, which is why the frame stays roughly
+  // framed: the broad vertical pulses are far wider than the gate, so their
+  // bodies still read as sync level mid-line and the vertical oscillator keeps
+  // triggering. An unauthorized premium channel sheared and pumped rather than
+  // tumbling, and that is the mechanism behind it.
+  if (P.scramble > 0.0 && (P.scrambleMode < 0.5 || P.scrambleMode > 1.5 || (row & 1u) == 0u)) {
+    if (s < SYNC_LEN) {
+      out = mix(out, IRE_BLANK, P.scramble);
+    }
+    // SSAVI: Zenith suppressed sync *and* inverted the video, so the picture
+    // that leaks through is a negative as well as an unstable one. Burst sits
+    // in the back porch and is left alone, so hue survives the inversion.
+    let picture = s >= ACTIVE_START && s < ACTIVE_START + ACTIVE_W
+      && row >= ACTIVE_TOP && row < ACTIVE_TOP + ACTIVE_H;
+    if (P.scrambleMode > 1.5 && picture) {
+      out = mix(out, 2.0 * IRE_BLACK + VIDEO_RANGE - out, P.scramble);
+    }
+  }
+
   // multipath ghost of the pre-channel signal
   if (P.ghostGain != 0.0) {
     let gpos = f32(n) - P.ghostDelay;
@@ -113,8 +151,16 @@ fn main(
   }
 
   // 60 Hz hum: one cycle per field, slowly rolling
-  if (P.humAmp > 0.0) {
-    out = out + P.humAmp * sin(2.0 * PI * (f32(row) / f32(NLINES) + f32(P.frame) * 0.0037));
+  if (P.humAmp > 0.0 || P.humMod > 0.0) {
+    let ph = 2.0 * PI * (f32(row) / f32(NLINES) + f32(P.frame) * 0.0037);
+    out = out + P.humAmp * sin(ph);
+    // Hum modulation: the same mains ripple, but inside the supply of an
+    // amplifier in the signal path rather than on a ground loop, so it moves
+    // the stage's *gain* instead of adding to its output. Rectified supplies
+    // ripple mostly at 120 Hz with a 60 Hz asymmetry from the uneven half.
+    // Sync scales along with the picture, so depth breathes and the receiver's
+    // AGC and horizontal hold pump with the brightness rather than ignoring it.
+    out = out * (1.0 + P.humMod * (0.6 * sin(2.0 * ph) + 0.4 * sin(ph)));
   }
 
   // Audio patched straight into the video line — the classic bend. Sampled at

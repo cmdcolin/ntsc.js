@@ -110,7 +110,9 @@ export const PARAM_DEFS = [
   ['ghostDelay', 'f32'], // samples
   ['ghostGain', 'f32'],
   ['humAmp', 'f32'], // IRE
+  ['humMod', 'f32'], // supply-ripple gain modulation depth (multiplies, sync included)
   ['colorUnderMix', 'f32'], // 0 direct chroma .. 1 full VHS color-under path
+  ['chromaNoise', 'f32'], // noise injected into the color-under signal, IRE rms
   ['dropoutRate', 'f32'], // expected dropout events per frame
   ['dropoutLen', 'f32'], // mean dropout length, samples
   ['headSwitchNoise', 'f32'], // 0..1
@@ -118,6 +120,8 @@ export const PARAM_DEFS = [
   ['termination', 'f32'], // cable termination fault: <0 double-terminated (dim), >0 open (hot + ringing)
   ['chromaPinOnly', 'f32'], // only the chroma pin fed to composite: color, no luma, no sync
   ['connectorGlitch', 'f32'], // loose connector: intermittent contact drops bands to snow
+  ['scramble', 'f32'], // head-end sync suppression depth: sync tip lifted toward blanking
+  ['scrambleMode', 'f32'], // 0 gated, 1 line-alternate, 2 SSAVI (suppression + video inversion)
   // bent video enhancer, inline between the deck and the set
   ['enhClampOff', 'f32'], // clamp gate displaced off the back porch, samples
   ['enhDroop', 'f32'], // coupling-capacitor leak per sample (0 = DC coupled)

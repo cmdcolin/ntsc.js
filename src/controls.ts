@@ -51,6 +51,9 @@ export const DEFAULT_CONTROLS = {
   termination: 0, // cable termination fault (<0 double-terminated, >0 unterminated)
   chromaPinOnly: 0, // only the chroma pin patched to composite (color, no luma/sync)
   connectorGlitch: 0, // loose/intermittent connector
+  // analog premium-channel scrambling, applied at the head-end
+  scramble: 0, // sync-tip suppression depth (0 = in the clear)
+  scrambleMode: 0, // 0 gated (every line), 1 line-alternate, 2 SSAVI (+ video inversion)
   // bent video enhancer, patched inline between the deck and the set
   enhClampUs: 0, // clamp gate slid off the back porch (0 = correct)
   enhDroopUs: 0, // coupling-capacitor time constant (0 = DC coupled, no droop)
@@ -66,7 +69,9 @@ export const DEFAULT_CONTROLS = {
   ghostDelayUs: 0,
   ghostGain: 0,
   humAmp: 0,
+  humMod: 0, // mains ripple inside a line amp's supply: hum that multiplies, not adds
   colorUnderMix: 0,
+  chromaNoiseIre: 0, // noise inside the color-under path, before up-conversion
   underJitterDeg: 0,
   dropoutRate: 0,
   dropoutLenUs: 5,

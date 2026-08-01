@@ -17,6 +17,14 @@ chain they damage, same as the control panel.
   luma or sync, floating color over an unlocked black raster.
 - **Loose connector** — intermittent contact; bands of snow cut in and out and
   take sync with them when they land on a sync tip.
+- **Cable scrambling** — the head-end lifting the carrier over each sync pulse
+  so a set with no decoder box has nothing to slice a line start out of. Partial
+  suppression only fools the AGC, which washes the picture out; past the
+  slicer's level the line oscillator is left free-running and the raster shears
+  at whatever rate the set's own h-osc keeps. Line-alternate is corrected half
+  the time and zigzags instead; SSAVI inverts the video on top, and since burst
+  is in the back porch the negative keeps its hue. Vertical stays framed: the
+  broad pulses are wider than the line-rate gate.
 - **Bob deinterlace** — rebuilds frames from one field to kill capture-card
   combing, at the cost of half the vertical detail.
 
@@ -83,6 +91,9 @@ into a clean switcher dissolve.
   right of everything.
 - **Hum bar** — ground-loop mains hum, a soft bright bar drifting up the
   picture.
+- **Hum modulation** — the same ripple inside an amplifier's supply instead, so
+  it moves that stage's gain: the picture pumps and saturates in bands, and
+  because sync is scaled too the AGC and hold chase it.
 - **Sound carrier** — 4.5 MHz intercarrier sound past its trap: visible
   herringbone buzz.
 - **Dropouts** — shed oxide; the head reads nothing for a moment, leaving white
@@ -93,6 +104,10 @@ into a clean switcher dissolve.
   collapses and smears sideways while luma stays sharp.
 - **Color-under phase jitter** — per-line phase error in that conversion: hue
   wanders line to line into a colored venetian-blind texture.
+- **Chroma noise** — noise on the 629 kHz carrier itself, which has far less
+  headroom than the luma FM. It comes back through the narrow chroma bandpass,
+  so it lands as slow smears of wrong hue rather than grain: why VHS colour is
+  blotchy while its luma is merely noisy.
 - **Tracking error** — the head reading off-track: a band of noise the picture
   tears and bends through, parked where you set it.
 - **Shuttle (picture search)** — off play speed each head sweep crosses several

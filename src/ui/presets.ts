@@ -50,6 +50,7 @@ export const PRESETS: PresetDef[] = [
       lumaPeak: 1.4,
       noiseIre: 7,
       colorUnderMix: 1,
+      chromaNoiseIre: 9,
       underJitterDeg: 10,
       tbJitterNs: 400,
       tbWowNs: 900,
@@ -140,6 +141,33 @@ export const PRESETS: PresetDef[] = [
       ghostDelayUs: 6,
       ghostGain: 0.3,
       humAmp: 8,
+    },
+  },
+  {
+    name: 'scrambled channel',
+    group: 'RF / Broadcast',
+    blurb:
+      'Premium channel with no decoder box: sync suppressed at the head-end, so every line lands at its own offset and the AGC winds up chasing a tip that is not there.',
+    patch: {
+      scramble: 0.55,
+      hDetuneHz: 18,
+      agc: 0.3,
+      hHold: 0.45,
+      noiseIre: 2,
+    },
+  },
+  {
+    name: 'ssavi',
+    group: 'RF / Broadcast',
+    blurb:
+      "Zenith's system, undecoded: suppression plus video inversion, a shearing negative with the colour still in it.",
+    patch: {
+      scramble: 0.85,
+      scrambleMode: 2,
+      hDetuneHz: 20,
+      agc: 0.4,
+      hHold: 0.5,
+      noiseIre: 2.5,
     },
   },
   {

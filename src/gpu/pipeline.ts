@@ -849,7 +849,9 @@ export class Engine {
       ghostDelay: c.ghostDelayUs * 1e-6 * SAMPLE_RATE,
       ghostGain: c.ghostGain,
       humAmp: c.humAmp,
+      humMod: c.humMod,
       colorUnderMix: c.colorUnderMix,
+      chromaNoise: c.chromaNoiseIre,
       dropoutRate: c.dropoutRate,
       dropoutLen: c.dropoutLenUs * 1e-6 * SAMPLE_RATE,
       headSwitchNoise: c.headSwitchNoise,
@@ -857,6 +859,8 @@ export class Engine {
       termination: c.termination,
       chromaPinOnly: c.chromaPinOnly,
       connectorGlitch: c.connectorGlitch,
+      scramble: c.scramble,
+      scrambleMode: c.scrambleMode,
       enhClampOff: c.enhClampUs * 1e-6 * SAMPLE_RATE,
       // RC leak per sample from the coupling time constant; 0 us is the
       // DC-coupled box, which never lets the level move at all.

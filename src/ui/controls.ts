@@ -114,6 +114,31 @@ export const GROUPS: Group[] = [
     ],
   },
   {
+    name: 'Cable Scrambling',
+    place: 'Source',
+    sliders: [
+      {
+        key: 'scramble',
+        label: 'sync suppression',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: 'How hard the head-end suppresses sync on a premium channel. The scrambler lifts the carrier during each sync pulse, so a set without a decoder box has a shallow tip — or none at all — to find the start of a line in. Under about half depth the tip still clears the slicer and the set merely mismeasures it, so the AGC over-compensates and the picture washes out bright. Past that the tip is gone and the line oscillator is left free-running, so what the picture does next is whatever the h-osc detune below says its own rate is — a set sitting exactly on 15.734 kHz coasts through the gap almost cleanly. Vertical stays roughly framed either way: the broad vertical pulses are wider than the line-rate gate, so the frame shears instead of tumbling.',
+      },
+      {
+        key: 'scrambleMode',
+        label: 'system',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['gated', 'alternate', 'ssavi'],
+        help: "Which scrambling system. Gated suppresses every line, so the oscillator free-runs the whole way down and the raster shears continuously. Alternate suppresses every other line, so the flywheel is hauled back half the time and the drift between corrections comes out as a ragged line-pair zigzag on every vertical edge — it tolerates far more h-osc detune before it stops being a picture. SSAVI is Zenith's: suppression plus inversion of the active video, so what does leak through is a negative. Burst sits in the back porch and is untouched, so hue survives the inversion.",
+      },
+    ],
+  },
+  {
     name: 'Camera Feedback',
     place: 'Feedback',
     sliders: [
@@ -672,6 +697,15 @@ export const GROUPS: Group[] = [
         help: 'Mains hum riding on the video from a ground loop — 60 Hz on the signal, in IRE. Because it is not quite locked to the field rate it appears as a soft bright bar drifting slowly up the picture.',
       },
       {
+        key: 'humMod',
+        label: 'hum modulation',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "The same mains ripple, but in the supply of an amplifier the signal passes through — a failing line amp — so it moves that stage's gain instead of adding to its output. The picture pumps and its colour saturates and fades in bands rather than just brightening, and because sync is scaled along with everything else the depth breathes: the receiver's AGC and horizontal hold end up chasing the hum. Mostly 120 Hz, from the rectified supply.",
+      },
+      {
         key: 'soundIre',
         label: 'sound carrier',
         min: 0,
@@ -721,6 +755,15 @@ export const GROUPS: Group[] = [
         step: 0.01,
         unit: '',
         help: "VHS cannot record 3.58 MHz colour, so it heterodynes chroma down to 629 kHz, records it under the luma, and converts it back on playback. Raising this routes colour through that path: it collapses colour bandwidth to a fraction of luma's, which is why VHS colour smears sideways for many pixels while edges stay sharp.",
+      },
+      {
+        key: 'chromaNoiseIre',
+        label: 'chroma noise',
+        min: 0,
+        max: 30,
+        step: 0.1,
+        unit: 'IRE',
+        help: 'Noise on the colour-under carrier itself, before it is converted back up. The 629 kHz chroma carrier gets a fraction of the headroom the luma FM does, so its signal-to-noise is far worse — which is why VHS colour is blotchy while its luma is merely grainy. This noise has to come back through the narrow chroma bandpass, so it arrives as slow smears of wrong hue rather than the fine speckle the noise slider gives. Needs colour-under raised to do anything.',
       },
       {
         key: 'underJitterDeg',
