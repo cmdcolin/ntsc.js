@@ -91,7 +91,12 @@ export class Engine {
   private snapshot: Controls = { ...DEFAULT_CONTROLS }
   private controlListeners = new Set<() => void>()
   onStats: (stats: FrameStats) => void = () => {}
+  // Two different failures, deliberately kept apart because they call for
+  // opposite advice: the device told us it was lost (driver reset, sleep/wake —
+  // a reload usually recovers), versus submitted work that never completes
+  // (the GPU process is wedged, and it outlives this page).
   onDeviceLost: (message: string) => void = () => {}
+  onHang: () => void = () => {}
   // Non-fatal GPU faults (uncaptured validation/oom, e.g. an over-large source
   // texture): surfaced to the panel banner instead of only the console, so a
   // wedged render loop shows a reason rather than looking frozen.
@@ -117,6 +122,7 @@ export class Engine {
   private simAcc = 0
   private paramScratch = new ArrayBuffer(PARAM_BYTES)
   private loop: RenderLoop
+  private destroyed = false
   private profiler: GpuProfiler | null = null
 
   private paramsBuf: GPUBuffer
@@ -590,7 +596,7 @@ export class Engine {
       device: this.gpu.device,
       render: () => this.render(),
       onStats: s => this.onStats(s),
-      onDeviceLost: m => this.onDeviceLost(m),
+      onHang: () => this.onHang(),
       frameNo: () => this.frame,
     })
 
@@ -701,34 +707,42 @@ export class Engine {
     })
   }
 
+  // Idempotent, and deliberately keyed off its own flag rather than
+  // `loop.running`: a loop stopped by the hang watchdog or by device loss is
+  // precisely when the device most needs releasing, and gating on `running`
+  // turned teardown into a no-op in exactly that case — so the HMR dispose hook
+  // and the pagehide handler both silently leaked a whole GPUDevice, which is
+  // what stacks up until Firefox's WebGPU wedges the tab.
   destroy(): void {
-    if (!this.loop.running) return
-    this.loop.stop()
-    const bufs = [
-      this.paramsBuf,
-      this.genParamsBuf,
-      this.genLineParamsBuf,
-      this.filterBuf,
-      this.yuvBuf,
-      this.yuvBBuf,
-      this.compA,
-      this.compB,
-      this.compPrev,
-      this.chromaBuf,
-      this.underBuf,
-      this.lineInfoBuf,
-      this.lineParamsBuf,
-      this.timingBuf,
-      this.syncMeasureBuf,
-      this.audioBuf,
-      ...this.persistBufs,
-    ]
-    for (const b of bufs) b.destroy()
-    for (const t of [this.inputTex, this.outTex, this.faceTex]) t.destroy()
-    this.sources.destroy()
-    // Frees everything else the device owns (pipelines, bind groups) and drops
-    // the swap-chain configuration.
-    this.gpu.device.destroy()
+    if (!this.destroyed) {
+      this.destroyed = true
+      this.loop.stop()
+      const bufs = [
+        this.paramsBuf,
+        this.genParamsBuf,
+        this.genLineParamsBuf,
+        this.filterBuf,
+        this.yuvBuf,
+        this.yuvBBuf,
+        this.compA,
+        this.compB,
+        this.compPrev,
+        this.chromaBuf,
+        this.underBuf,
+        this.lineInfoBuf,
+        this.lineParamsBuf,
+        this.timingBuf,
+        this.syncMeasureBuf,
+        this.audioBuf,
+        ...this.persistBufs,
+      ]
+      for (const b of bufs) b.destroy()
+      for (const t of [this.inputTex, this.outTex, this.faceTex]) t.destroy()
+      this.sources.destroy()
+      // Frees everything else the device owns (pipelines, bind groups) and drops
+      // the swap-chain configuration.
+      this.gpu.device.destroy()
+    }
   }
 
   // Manual frame step for the verification harness (rAF is throttled in
@@ -898,6 +912,11 @@ export class Engine {
   // that can leave the browser having stopped delivering rAF callbacks.
   kick(): void {
     this.loop.kick()
+  }
+
+  // Frame counter, for the diagnostic recorder and the verification harness.
+  frameNo(): number {
+    return this.frame
   }
 
   // Bender's modulation: LFOs / random walks / audio envelopes wiggle controls

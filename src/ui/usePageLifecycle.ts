@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 
+import { trace } from '../gpu/trace'
+
 import type { Engine } from '../gpu/pipeline'
 import type { RefObject } from 'react'
 
@@ -13,7 +15,11 @@ export function usePageLifecycle(
   onFullscreenChange: (fullscreen: boolean) => void,
 ) {
   useEffect(() => {
-    const log = (m: string) => console.log(`[lifecycle] ${m}`)
+    const log = (m: string) => {
+      trace.add('lifecycle', m)
+      trace.flush(true)
+      console.log(`[lifecycle] ${m}`)
+    }
     const onFs = () => {
       const fs = document.fullscreenElement !== null
       onFullscreenChange(fs)
@@ -24,7 +30,11 @@ export function usePageLifecycle(
       log(`visibility -> ${document.visibilityState}`)
       if (document.visibilityState === 'visible') engineRef.current?.kick()
     }
-    const onFocus = () => engineRef.current?.kick()
+    const onFocus = () => {
+      log('focus')
+      engineRef.current?.kick()
+    }
+    const onBlur = () => log('blur')
     const onFreeze = () => log('freeze (tab suspended by browser)')
     const onResume = () => {
       log('resume (tab un-suspended)')
@@ -39,6 +49,7 @@ export function usePageLifecycle(
     window.addEventListener('pageshow', onPageShow)
     window.addEventListener('pagehide', onPageHide)
     window.addEventListener('focus', onFocus)
+    window.addEventListener('blur', onBlur)
     document.addEventListener('fullscreenchange', onFs)
     document.addEventListener('visibilitychange', onVisible)
     document.addEventListener('freeze', onFreeze)
@@ -47,6 +58,7 @@ export function usePageLifecycle(
       window.removeEventListener('pageshow', onPageShow)
       window.removeEventListener('pagehide', onPageHide)
       window.removeEventListener('focus', onFocus)
+      window.removeEventListener('blur', onBlur)
       document.removeEventListener('fullscreenchange', onFs)
       document.removeEventListener('visibilitychange', onVisible)
       document.removeEventListener('freeze', onFreeze)

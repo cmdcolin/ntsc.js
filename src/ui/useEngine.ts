@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { CONTROL_KEYS } from '../controls'
 import { Engine } from '../gpu/pipeline'
+import { reportPreviousTrace, trace } from '../gpu/trace'
 import { smpteBars, sweep } from '../sources/pattern'
 import { ytId } from '../sources/youtube'
 import { PRESETS, presetControls } from './presets'
@@ -136,6 +137,10 @@ export function useEngine() {
       const clamp = Math.min(1, MAX_EDGE / Math.max(w, h))
       canvas.width = Math.max(1, Math.round(w * clamp))
       canvas.height = Math.max(1, Math.round(h * clamp))
+      // Every one of these reconfigures the WebGPU swapchain, so the trace wants
+      // them: a wedge that follows a resize storm looks very different from one
+      // that arrives out of a quiet stretch.
+      trace.add('resize', `${canvas.width}x${canvas.height}`)
       setRes(`${canvas.width}×${canvas.height}`)
     }
   }
@@ -469,6 +474,8 @@ export function useEngine() {
   useEffect(() => {
     const canvas = canvasRef.current
     if (canvas) {
+      // Whatever the last session managed to write before it wedged.
+      reportPreviousTrace()
       applyCanvasSize()
       // Keep the drawing buffer matched to the element as the panel hides or
       // the window enters fullscreen, so the picture never stretches.
@@ -478,9 +485,16 @@ export function useEngine() {
       // is abandoned rather than destroyed — and a wedged GPU then carries into
       // the reloaded page's fresh device (why "just refresh" often fails to
       // recover). Release it on pagehide so the reload starts GPU-clean.
-      const onPageHide = () => engineRef.current?.destroy()
-      window.addEventListener('pagehide', onPageHide)
+      // Also latch `disposed`: pagehide can land while Engine.create is still
+      // in flight, when there is no engine to destroy yet but a GPUDevice has
+      // already been handed out. The create callback below then releases it
+      // instead of leaving it to the page teardown.
       let disposed = false
+      const onPageHide = () => {
+        disposed = true
+        engineRef.current?.destroy()
+      }
+      window.addEventListener('pagehide', onPageHide)
       Engine.create(canvas).then(
         engine => {
           if (disposed) {
@@ -490,12 +504,27 @@ export function useEngine() {
             setEngine(engine)
             window.vf = engine
             engine.onStats = setStats
-            engine.onGpuError = m => setError(`gpu: ${m}`)
-            engine.onDeviceLost = m =>
+            engine.onGpuError = m => {
+              trace.add('gpuError', m.slice(0, 120))
+              trace.flush(true)
+              setError(`gpu: ${m}`)
+            }
+            engine.onDeviceLost = m => {
+              trace.add('deviceLost', m.slice(0, 120))
+              trace.flush(true)
               setFatal({
                 title: 'WebGPU device lost',
                 body: m === '' ? 'The GPU device was lost.' : m,
                 kind: 'lost',
+              })
+            }
+            // Not a lost device: the device never reported anything, it just
+            // stopped completing submitted work — so don't title it as one.
+            engine.onHang = () =>
+              setFatal({
+                title: 'The GPU stopped responding',
+                body: 'Submitted work stopped completing, so the picture would be frozen even though the app is still running.',
+                kind: 'hung',
               })
             engine.setImageSource(smpteBars())
             engine.setImageSourceB(smpteBars())
