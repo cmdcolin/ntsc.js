@@ -92,6 +92,41 @@ describe('LineState', () => {
     expect(peak).toBeGreaterThan(step * 190) // and it does reach the plateau
   })
 
+  it('runs the wow clock on frames, not on dub generations', () => {
+    // The engine calls update() once per dub generation, all within one frame.
+    // Wall time must advance once regardless, or wow runs at dubGens times its
+    // rate; and generation 0 must land identically either way, since the second
+    // deck is a different transport and cannot reach back into the first.
+    const wowy = { ...CLEAN, tbWowNs: 900 }
+    const single = new LineState(mid)
+    single.update(wowy, 0)
+    const plain = offsets(single.update(wowy, 1))
+
+    const dubbed = new LineState(mid)
+    dubbed.update(wowy, 0)
+    dubbed.update(wowy, 0) // generation 2 of the same frame
+    const withDub = offsets(dubbed.update(wowy, 1))
+
+    expect(withDub).toEqual(plain)
+    expect(plain.some(v => v !== 0)).toBe(true)
+  })
+
+  it('gives each dub generation its own transport', () => {
+    // Same instant, different deck: the generations must wander independently,
+    // or their offsets sum coherently into one deeper wobble. Needs a rand that
+    // actually varies — a constant one makes every transport identical by
+    // construction, which is the thing under test.
+    let seed = 1
+    const lcg = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648
+      return seed / 2147483648
+    }
+    const ls = new LineState(lcg)
+    const gen0 = offsets(ls.update({ ...CLEAN, tbWowNs: 900 }, 0))
+    const gen1 = offsets(ls.update({ ...CLEAN, tbWowNs: 900 }, 0))
+    expect(gen1).not.toEqual(gen0)
+  })
+
   it('alternates the color-under base phase 180 deg line to line', () => {
     // update() hands back its live internal buffer, so each frame is copied
     // before the next call overwrites it.

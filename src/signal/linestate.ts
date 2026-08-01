@@ -41,28 +41,43 @@ export class LineState {
   private flutter = 0
   private underWalk = 0
   private t = 0
-  private wow: Wow
+  private lastFrame = -1
+  private gen = 0
+  // One transport per dub generation. A dub is a second deck playing the same
+  // instant, so the generations must not share a wow — sharing one makes every
+  // generation wander the same way and their offsets sum coherently, which is a
+  // deeper wobble rather than the independent wander of another machine.
+  private wows: Wow[] = []
 
   // `rand` is injectable, like ModState's and Wow's, so the per-line geometry
   // (shuttle strips, the tracking-band tear, the flutter walk) can be pinned in
   // tests instead of only ever being eyeballed.
-  constructor(private rand: () => number = Math.random) {
-    this.wow = new Wow(rand)
-  }
+  constructor(private rand: () => number = Math.random) {}
 
   // Returns the live `data` buffer, not a copy — consume it (upload, read)
   // before calling again, since the next frame overwrites it in place.
+  //
+  // Called once per dub generation within a frame, so `frame` is what marks
+  // wall time passing: a second deck reading the same instant does not make the
+  // scanner spin faster. Advancing `t` per call instead ran wow at dubGens
+  // times its rate — 4x at the top of the range.
   update(c: LineStateControls, frame: number): Float32Array<ArrayBuffer> {
-    this.t += 1 / 60
-    this.wow.advance(1 / 60)
+    if (frame === this.lastFrame) {
+      this.gen += 1
+    } else {
+      this.lastFrame = frame
+      this.gen = 0
+      this.t += 1 / 60
+    }
+    const wow = this.wowFor(this.gen)
+    wow.advance(1 / 60)
     for (let row = 0; row < LINES; row++) {
       // flutter: random walk with a restoring pull, advanced per line
       this.flutter +=
         (this.rand() - 0.5) * usToSamples(c.tbJitterNs * 1e-3) * 0.7
       this.flutter *= 0.995
       // wow: quasi-periodic wander of the rotating parts, never a naked sine
-      const wow =
-        usToSamples(c.tbWowNs * 1e-3) * this.wow.at(this.t, row / LINES)
+      const wander = usToSamples(c.tbWowNs * 1e-3) * wow.at(this.t, row / LINES)
       const headSwitched = row >= HEAD_SWITCH_LINE
       const hs = headSwitched ? usToSamples(c.headSwitchShiftUs) : 0
 
@@ -107,12 +122,17 @@ export class LineState {
       this.underWalk *= 0.99
 
       const o = row * 4
-      this.data[o] = this.flutter + wow + hs + track + shuttle
+      this.data[o] = this.flutter + wander + hs + track + shuttle
       this.data[o + 1] = base * 2 * Math.PI
       this.data[o + 2] = this.underWalk + (headSwitched ? 0.9 : 0) + shuttleHue
       this.data[o + 3] = this.rand()
     }
     return this.data
+  }
+
+  private wowFor(gen: number): Wow {
+    while (this.wows.length <= gen) this.wows.push(new Wow(this.rand))
+    return this.wows[gen]
   }
 }
 
