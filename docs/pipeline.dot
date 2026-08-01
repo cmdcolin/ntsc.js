@@ -1,7 +1,7 @@
-// Phosphene signal path — mirrors the pass order in src/gpu/pipeline.ts
+// ntscsynth signal path — mirrors the pass order in src/gpu/pipeline.ts
 // (prePasses -> loopPasses x dubGens -> postPasses -> present).
 // Render: dot -Tsvg docs/pipeline.dot -o docs/pipeline.svg
-digraph phosphene {
+digraph ntscsynth {
   rankdir=TB;
   bgcolor="transparent";
   compound=true;

@@ -61,15 +61,17 @@
   cursor: pointer;
   line-height: 1;
 }
-.brand svg {
+.brandMark {
   display: block;
-  border-radius: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
   box-shadow: 0 0 0 1px #ffffff1a;
 }
 .wordmark {
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
   color: #e6e6e6;
 }
 .brand:hover .wordmark {
@@ -416,6 +418,12 @@
 }
 .helpText {
   color: #b8b8c8;
+  margin: 0 0 12px;
+}
+.helpLogo {
+  display: block;
+  width: 100%;
+  height: auto;
   margin: 0 0 12px;
 }
 .helpList {

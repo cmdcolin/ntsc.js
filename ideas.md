@@ -59,8 +59,8 @@ like a patchable module rather than a coincidence.
 - **OSC control, via a local WebSocket bridge.** Browsers can't speak UDP, so
   this needs a small node process doing OSC↔WebSocket. Worth it because
   `DEFAULT_CONTROLS` is already a flat named record and `useMidi` already
-  funnels every store-origin change through one `writeControl(key, value)`:
-  a bridge lets Max address `/hHold`, `/scDetuneKHz`, `/bendUs` by name, with
+  funnels every store-origin change through one `writeControl(key, value)`: a
+  bridge lets Max address `/hHold`, `/scDetuneKHz`, `/bendUs` by name, with
   float precision and no 128-control CC ceiling. The app side is a thin client
   that validates the key against `ControlKey` and calls the existing write path.
 - **Bidirectional state.** Same channel in reverse — emit control changes so a
@@ -78,5 +78,5 @@ like a patchable module rather than a coincidence.
   performance use.
 
 Note for anyone evaluating the reverse arrangement: Max's `jweb` embeds a web
-view but is unlikely to expose WebGPU, so hosting Phosphene inside a patch
+view but is unlikely to expose WebGPU, so hosting ntscsynth inside a patch
 probably isn't viable — it wants to be a separate app you route into.

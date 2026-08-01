@@ -1,4 +1,4 @@
-# Phosphene architecture
+# ntscsynth architecture
 
 Orientation for someone (or something) about to change this codebase. It covers
 the shape of the system and the invariants that are easy to violate, not an
@@ -6,7 +6,7 @@ inventory of every file.
 
 ## The premise
 
-Phosphene simulates the NTSC signal path, not the _look_ of one. There is no
+ntscsynth simulates the NTSC signal path, not the _look_ of one. There is no
 "VHS filter". A picture is encoded to a real composite waveform on a fixed
 raster, damaged in the ways real hardware damages a waveform, then decoded by a
 model of a TV that has to find sync in whatever it is handed. Dot crawl, rainbow

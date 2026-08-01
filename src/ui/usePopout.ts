@@ -11,9 +11,9 @@ export function usePopout() {
     if (popout !== null) {
       popout.focus()
     } else {
-      const w = window.open('', 'phosphene_controls', 'width=340,height=900')
+      const w = window.open('', 'ntscsynth_controls', 'width=340,height=900')
       if (w !== null) {
-        w.document.title = 'Phosphene — controls'
+        w.document.title = 'ntscsynth — controls'
         w.document.body.style.margin = '0'
         // Mirror the app's styles (Vite dev injects <style>; prod links CSS).
         for (const el of document.querySelectorAll('style')) {

@@ -1,4 +1,4 @@
-# Phosphene
+# ntscsynth
 
 Real-time NTSC signal-path simulator rendered entirely in WebGPU compute
 shaders.

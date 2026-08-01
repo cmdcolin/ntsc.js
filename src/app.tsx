@@ -2,6 +2,7 @@ import { useState, useSyncExternalStore } from 'react'
 
 import { createPortal } from 'react-dom'
 
+import markUrl from '../docs/mark.svg'
 import styles from './app.module.css'
 import { DEFAULT_CONTROLS } from './controls'
 import { AdvancedDialog } from './ui/AdvancedDialog'
@@ -523,31 +524,16 @@ export function App() {
         <button
           className={styles.brand}
           onClick={() => setShowHelp(true)}
-          title={`Phosphene ${versionLabel} (${gitSha}) — what is this?`}
-          aria-label="Phosphene — what is this?"
+          title={`ntscsynth ${versionLabel} (${gitSha}) — what is this?`}
+          aria-label="ntscsynth — what is this?"
         >
-          <svg width="26" height="18" viewBox="0 0 26 18" aria-hidden="true">
-            <defs>
-              <clipPath id="brandBars">
-                <rect width="26" height="18" rx="3" />
-              </clipPath>
-            </defs>
-            <g clipPath="url(#brandBars)">
-              <rect x="0" width="3.714" height="18" fill="#bfbfbf" />
-              <rect x="3.714" width="3.714" height="18" fill="#bfbf00" />
-              <rect x="7.429" width="3.714" height="18" fill="#00bfbf" />
-              <rect x="11.143" width="3.714" height="18" fill="#00bf00" />
-              <rect x="14.857" width="3.714" height="18" fill="#bf00bf" />
-              <rect x="18.571" width="3.714" height="18" fill="#bf0000" />
-              <rect x="22.286" width="3.714" height="18" fill="#0000bf" />
-            </g>
-          </svg>
-          <span className={styles.wordmark}>PHOSPHENE</span>
+          <img className={styles.brandMark} src={markUrl} alt="" />
+          <span className={styles.wordmark}>ntscsynth</span>
           <span className={styles.version}>{versionLabel}</span>
         </button>
         <a
           className={styles.link}
-          href="https://github.com/cmdcolin/phosphene"
+          href="https://github.com/cmdcolin/ntscsynth"
           target="_blank"
           rel="noreferrer"
         >

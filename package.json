@@ -1,13 +1,13 @@
 {
-  "name": "phosphene",
+  "name": "ntscsynth",
   "private": true,
   "version": "0.2.1",
   "description": "Real-time NTSC / VHS / composite-video glitch simulator in WebGPU compute shaders.",
   "license": "MIT",
-  "homepage": "https://cmdcolin.github.io/phosphene/",
+  "homepage": "https://cmdcolin.github.io/ntscsynth/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cmdcolin/phosphene.git"
+    "url": "https://github.com/cmdcolin/ntscsynth.git"
   },
   "keywords": [
     "webgpu",
@@ -34,6 +34,7 @@
     "push:patch": "node scripts/push.mjs patch",
     "push:minor": "node scripts/push.mjs minor",
     "push:major": "node scripts/push.mjs major",
+    "logo": "node scripts/logo.mjs",
     "docs": "dot -Tsvg docs/pipeline-simple.dot -o docs/pipeline-simple-light.svg && dot -Tsvg -Ecolor=#9aa4b2 -Efontcolor=#9aa4b2 docs/pipeline-simple.dot -o docs/pipeline-simple-dark.svg && dot -Tsvg docs/pipeline.dot -o docs/pipeline-light.svg && dot -Tsvg -Ecolor=#9aa4b2 -Efontcolor=#9aa4b2 docs/pipeline.dot -o docs/pipeline-dark.svg"
   },
   "dependencies": {

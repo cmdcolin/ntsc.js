@@ -19,7 +19,7 @@ function barColor(fps: number): string {
 }
 
 // Persisted across reloads so a dismissal sticks.
-const HIDDEN_STORE = 'phosphene_fps_hidden'
+const HIDDEN_STORE = 'ntscsynth_fps_hidden'
 
 function draw(canvas: HTMLCanvasElement, history: number[]) {
   const dpr = Math.min(window.devicePixelRatio, 2)

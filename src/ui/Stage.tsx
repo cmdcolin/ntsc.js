@@ -10,7 +10,7 @@ import type { FrameStats } from '../controls'
 import type { RefObject } from 'react'
 
 // Persisted across reloads so a collapse sticks.
-const BAR_HIDDEN_STORE = 'phosphene_overlay_bar_hidden'
+const BAR_HIDDEN_STORE = 'ntscsynth_overlay_bar_hidden'
 
 function CaptureMenu(props: {
   recording: boolean

@@ -1,9 +1,15 @@
+import logoUrl from '../../docs/logo.svg'
 import styles from '../app.module.css'
 import { Dialog } from './Dialog'
 
 export function HelpDialog({ onClose }: { onClose: () => void }) {
   return (
-    <Dialog title="Phosphene" wide onClose={onClose}>
+    <Dialog title="ntscsynth" wide onClose={onClose}>
+      <img
+        className={styles.helpLogo}
+        src={logoUrl}
+        alt="One NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, then the luma staircase with the chroma subcarrier riding on each bar"
+      />
       <p className={styles.helpText}>
         A real-time simulator of the analog NTSC signal path — camera, tape, RF,
         and CRT — rendered entirely in WebGPU compute shaders. Feed it a
@@ -53,7 +59,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         fullscreen on a projector. Source code and notes on{' '}
         <a
           className={styles.link}
-          href="https://github.com/cmdcolin/phosphene"
+          href="https://github.com/cmdcolin/ntscsynth"
           target="_blank"
           rel="noreferrer"
         >
