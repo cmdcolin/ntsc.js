@@ -739,6 +739,10 @@ export class Engine {
       for (const b of bufs) b.destroy()
       for (const t of [this.inputTex, this.outTex, this.faceTex]) t.destroy()
       this.sources.destroy()
+      // The audio graph is not the device's, so nothing above releases it — and
+      // a mic left open keeps the browser's recording indicator lit long after
+      // the picture is gone.
+      this.audioState.close()
       // Frees everything else the device owns (pipelines, bind groups) and drops
       // the swap-chain configuration.
       this.gpu.device.destroy()
@@ -1073,6 +1077,9 @@ export class Engine {
     // walk, staged now and copied over the live buffers between generations.
     const gens = Math.min(Math.max(Math.round(c.dubGens), 1), MAX_GENS)
     const dv = new DataView(this.paramScratch)
+    // Slot 0 is this frame's own params, staged so the loop below can put them
+    // back before the receiver runs (see the restore after it).
+    if (gens > 1) d.queue.writeBuffer(this.genParamsBuf, 0, this.paramScratch)
     for (let g = 1; g < gens; g++) {
       dv.setUint32(GEN_OFFSET, g, true)
       d.queue.writeBuffer(this.genParamsBuf, g * PARAM_BYTES, this.paramScratch)
@@ -1113,6 +1120,20 @@ export class Engine {
         )
       }
       for (const p of this.loopPasses) run(p)
+    }
+    // Put the frame's own params back. The loop above leaves `paramsBuf` holding
+    // the LAST generation's copy, so every pass below would read gen = gens-1 —
+    // harmless only for as long as nothing down here touches `P.gen`, which is
+    // not an invariant anyone reading `decode` could be expected to know. The
+    // receiver is not a tape generation; give it the frame it is decoding.
+    if (gens > 1) {
+      enc.copyBufferToBuffer(
+        this.genParamsBuf,
+        0,
+        this.paramsBuf,
+        0,
+        PARAM_BYTES,
+      )
     }
     // One decode dispatch per rendered frame, so frame parity is what alternates
     // the phosphor state buffers.

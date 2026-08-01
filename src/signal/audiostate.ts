@@ -211,6 +211,21 @@ export class AudioState {
     this.stream = null
   }
 
+  // Give the whole graph back, for good — the owner is going away. Distinct
+  // from disconnect(), which is "input off" and deliberately keeps the context
+  // so the clips still on screen stay adoptable. Nothing called this before, so
+  // an engine torn down with the mic live (a hot reload, or the component
+  // unmounting) left the browser recording into a graph no one was reading.
+  close(): void {
+    this.disconnect()
+    void this.graph?.ctx.close()
+    this.graph = null
+    // Every source belonged to the closed context, so none can be reused; a
+    // later routeMedia must build fresh ones against a fresh context.
+    this.mediaSources = new WeakMap()
+    this.routed = []
+  }
+
   // Resample the most recent field's worth of audio down to one sample per
   // line, normalized against a slowly-decaying peak so any input level is
   // usable without riding a gain slider.
