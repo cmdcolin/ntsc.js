@@ -121,10 +121,19 @@ CPU-side per-frame state (`LineState`, `MixState`, `AudioState`) lives in
 ## Direct-manipulation miniatures
 
 A few controls describe a **position you can only judge on the output** — the
-PiP inset window (`pipX/Y/W/H`) and the wipe boundary (`wipePos`). Those get a
-4:3 miniature of the active picture you drag on: `src/ui/PipFrame.tsx` and
-`WipeFrame.tsx`, over shared chrome in `MiniFrame.module.css` and the pure
-geometry in `miniFrame.ts`.
+PiP inset window (`pipX/Y/W/H`), the wipe boundary (`wipePos`), and where the
+magnifier is aimed (`crtZoomX/Y`). Those get a 4:3 miniature of the active
+picture you drag on: `src/ui/PipFrame.tsx`, `WipeFrame.tsx` and
+`MagnifierFrame.tsx`, over shared chrome in `MiniFrame.module.css` and the pure
+geometry in `miniFrame.ts` (`lens.ts` for the magnifier).
+
+The magnifier is also driven straight on the output: `Stage.tsx` turns a wheel
+into `zoomAbout`, a drag into `panLens` or `zoomToBox`, and a double-click into
+1x. All of it goes through `lens.ts`, which mirrors the transform in
+`present.wgsl` — including the clamp that stops the lens looking past the edge of
+the glass, so the miniature draws where the shader actually looks. That mirroring
+is the thing to keep honest: change the transform in the shader and `lens.ts`
+moves with it, or `lens.test.ts` starts lying.
 
 Step 4 above still holds without exception: **every control keeps its slider.**
 The miniature only hides the ones it duplicates, behind the group's `▸ sliders`

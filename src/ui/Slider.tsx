@@ -5,6 +5,7 @@ import { SliderHelpDialog } from './SliderHelpDialog'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
 import { cx } from './cx'
 import { formatValue } from './format'
+import { zoomAtTravel, zoomTravel } from './lens'
 
 import type { CSSProperties, ReactNode } from 'react'
 
@@ -48,6 +49,7 @@ export function Slider(props: {
   // A discrete control: one label per integer value. Renders a toggle-button
   // group in place of the range input, still reading/writing the same number.
   choices?: string[]
+  curve?: 'magnifier'
   help?: string
   // Present only while the control's prerequisite is unmet: this knob is
   // physically inert until another control opens its path. Clicking the note
@@ -70,12 +72,23 @@ export function Slider(props: {
   // Live clock first: it narrows away the undefined case, so the division check
   // isn't comparing `null` against a value that may not exist.
   const locked = sync?.live === true && sync.label !== null
+  // A curved control puts the range input on a 0..1 travel and converts, so the
+  // fine end of the scale gets the room. The value it reads and writes is
+  // unchanged, still landing on the control's own step grid.
+  const curved = props.curve === 'magnifier'
+  const travel = (v: number) => zoomTravel(v)
+  const onGrid = (v: number) => Math.round(v / props.step) * props.step
+  const fromTravel = (t: number) =>
+    Math.min(props.max, Math.max(props.min, onGrid(zoomAtTravel(t))))
   // Track fill anchors at the default, not the left edge: bipolar controls
   // read like a pan pot from center, and distance-from-stock shows at a glance.
   const pct = (v: number) =>
     Math.max(
       0,
-      Math.min(100, ((v - props.min) / (props.max - props.min)) * 100),
+      Math.min(
+        100,
+        (curved ? travel(v) : (v - props.min) / (props.max - props.min)) * 100,
+      ),
     )
   const valuePct = pct(props.value)
   const defPct = pct(props.defaultValue)
@@ -181,12 +194,18 @@ export function Slider(props: {
             type="range"
             className={cx(styles.range, needs && styles.rangeInert)}
             style={fill}
-            min={props.min}
-            max={props.max}
-            step={props.step}
-            value={props.value}
+            min={curved ? 0 : props.min}
+            max={curved ? 1 : props.max}
+            step={curved ? 0.002 : props.step}
+            value={curved ? travel(props.value) : props.value}
             disabled={locked}
-            onChange={e => props.onChange(Number(e.target.value))}
+            onChange={e =>
+              props.onChange(
+                curved
+                  ? fromTravel(Number(e.target.value))
+                  : Number(e.target.value),
+              )
+            }
           />
         )}
       </label>

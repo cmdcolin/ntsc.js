@@ -38,6 +38,46 @@
 .overlayBtn:hover {
   background: rgba(40, 40, 48, 0.85);
 }
+/* magnifier: readout and lever, so the drag/scroll gestures on the picture are
+   discoverable and reversible without hunting for the Screen sliders */
+.zoomBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(22, 22, 26, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 3px 7px;
+}
+.zoomLabel {
+  color: #8a8a98;
+  cursor: help;
+}
+.zoomRange {
+  width: 84px;
+  accent-color: var(--accent);
+}
+.zoomReset {
+  min-width: 34px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-family: var(--mono);
+  cursor: pointer;
+}
+.zoomReset:hover {
+  text-decoration: underline;
+}
+/* the region being chosen by a drag on the picture */
+.marquee {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  pointer-events: none;
+}
 .reopenBar {
   position: absolute;
   top: 12px;

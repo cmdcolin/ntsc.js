@@ -103,13 +103,3 @@ const pc = (v: number) => `${v * 100}%`
 // Frame-relative lengths, so the soft edges and matte border drawn on the
 // miniature stay in the shader's units whatever width the panel is.
 export const cqw = (v: number) => `${v * 100}cqw`
-
-// What the magnifier is looking at: at zoom Z the lens covers 1/Z of each axis,
-// and present.wgsl holds its centre far enough inside the picture that it never
-// looks past the glass. Same clamp here, so the miniature draws where the shader
-// actually looks rather than where the raw control says.
-export const lensView = (zoom: number, x: number, y: number) => {
-  const size = 1 / Math.max(zoom, 1)
-  const inset = (v: number) => Math.min(1 - size / 2, Math.max(size / 2, v))
-  return { size, x: inset(x), y: inset(y) }
-}

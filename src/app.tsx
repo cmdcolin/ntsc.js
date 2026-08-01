@@ -427,6 +427,7 @@ export function App() {
       defaultValue={DEFAULT_CONTROLS[s.key]}
       onChange={v => writeControl(s.key, v)}
       choices={s.choices}
+      curve={s.curve}
       help={s.help}
       needs={renderNeeds(s, mutedNeeds)}
       favorite={{
@@ -820,6 +821,20 @@ export function App() {
         fullscreen={fullscreen}
         poppedOut={popout !== null}
         recording={capture.recording}
+        lens={{
+          zoom: controls.crtZoom,
+          x: controls.crtZoomX,
+          y: controls.crtZoomY,
+        }}
+        // One write for all three, so a gesture notifies the engine once.
+        onLens={lens =>
+          writeControls({
+            ...controls,
+            crtZoom: lens.zoom,
+            crtZoomX: lens.x,
+            crtZoomY: lens.y,
+          })
+        }
         onToggleRecord={capture.toggleRecord}
         onGrabStill={capture.grabStill}
         onToggleFullscreen={toggleFullscreen}

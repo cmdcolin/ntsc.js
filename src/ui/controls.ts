@@ -16,6 +16,10 @@ export interface SliderDef {
   // the single source of truth for which controls blend by mode (ENUM_KEYS in
   // presets), so min/max/step still bound the same integer for MIDI and mod.
   choices?: string[]
+  // How the travel maps onto the value. Omitted is linear; 'magnifier' is the
+  // two-sided view-fraction scale in lens.ts, which puts the fine control where
+  // the useful magnifications are and keeps a detent at 1x.
+  curve?: 'magnifier'
 }
 
 // The signal-path stages, in the order the panel's spine is browsed. A group
@@ -1198,11 +1202,15 @@ export const GROUPS: Group[] = [
       {
         key: 'crtZoom',
         label: 'magnifier',
-        min: 1,
+        min: 0.25,
         max: 12,
-        step: 0.1,
+        step: 0.01,
+        // Creeping in slightly is the common move; going all the way to the
+        // grille is the rare one, so it gets the last sliver of travel. Pulling
+        // back off the set lives below the detent at 1x.
+        curve: 'magnifier',
         unit: '×',
-        help: 'Puts your eye up against the glass. Everything that lives on the screen rather than in the image magnifies with it — scanline structure, the beam spot bleeding between samples, phosphor grain, the grille triads — so this is the way to see what the picture is actually built out of.',
+        help: 'Where your eye is. Past 1× it goes up against the glass, and everything that lives on the screen rather than in the image magnifies with it — scanline structure, the beam spot bleeding between samples, phosphor grain, the grille triads — so this is the way to see what the picture is actually built out of. Below 1× it pulls back off the set instead: the tube stops filling the frame, its face swells the way a real faceplate does, and the cabinet holding it comes out of the dark.',
       },
       {
         key: 'crtZoomX',
@@ -1421,8 +1429,18 @@ export const SLIDER_BY_KEY = new Map<ControlKey, SliderDef>(
 // contextual A/B and audio groups. A controller has far fewer knobs than there
 // are controls, so its low banks should land on the always-visible spine before
 // spilling into groups that only appear in a mode.
-export const AUTOMAP_KEYS: ControlKey[] = [
+// Controls that move where you are looking rather than what the signal does.
+// Still bindable, but they rank last: a knob spent on the magnifier is a knob not
+// spent on the picture.
+const VIEW_KEYS = new Set<ControlKey>(['crtZoom', 'crtZoomX', 'crtZoomY'])
+
+const automapOrder = [
   ...GROUPS.filter(g => g.place !== 'ab' && g.place !== 'audio'),
   ...GROUPS.filter(g => g.place === 'ab'),
   ...GROUPS.filter(g => g.place === 'audio'),
 ].flatMap(g => g.sliders.map(s => s.key))
+
+export const AUTOMAP_KEYS: ControlKey[] = [
+  ...automapOrder.filter(k => !VIEW_KEYS.has(k)),
+  ...automapOrder.filter(k => VIEW_KEYS.has(k)),
+]

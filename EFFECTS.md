@@ -167,9 +167,12 @@ Audio patched into the electronics, one sample per scan line.
   stays sharp while old light goes wide and cloudy.
 - **Aperture grille** — the R/G/B stripe mask, with a pitch that moirés near
   small whole-pixel spacings, exactly as photographing a CRT does.
-- **Magnifier** — your eye against the glass. Everything that lives on the screen
-  rather than in the image magnifies with it: triads, scanline gaps, grain, the
-  beam spot's bleed between samples.
+- **Magnifier** — where your eye is. Past 1× it goes against the glass, and
+  everything that lives on the screen rather than in the image magnifies with it:
+  triads, scanline gaps, grain, the beam spot's bleed between samples. Below 1× it
+  pulls back off the set instead — the faceplate bulges the way a real one does,
+  and the cabinet holding it comes out of the dark. Scroll or drag a box on the
+  picture to close in, drag to move around the glass, double-click for 1×.
 - **Slow motion** — the whole rig stepped at a fraction of display rate: noise,
   rolls, sweeps, feedback and phosphor all crawl together; 0 freezes the frame.
   Pairs with the vaporwave source-speed control to slow the footage to match.

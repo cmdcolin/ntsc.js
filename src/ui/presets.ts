@@ -488,6 +488,24 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'across the room',
+    group: 'Phosphor / CRT',
+    blurb:
+      'The magnifier wound the other way: pulled back far enough that the tube stops being the whole world and turns into an object — a little set with its face bulging out at you, glowing into a dark room. Drag the magnifier past 1× to walk back toward it.',
+    patch: {
+      crtZoom: 0.42,
+      crtCutoff: 0.07,
+      crtGamma: 2.2,
+      crtBloom: 0.45,
+      crtHalation: 0.35,
+      crtGlow: 0.2,
+      crtSpot: 1,
+      crtGrain: 0.14,
+      phosphor: 0.3,
+      phosphorBleed: 0.2,
+    },
+  },
+  {
     name: 'nose against the glass',
     group: 'Phosphor / CRT',
     blurb:

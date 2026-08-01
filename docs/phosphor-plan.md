@@ -36,9 +36,23 @@ clipping point instead of flattening, and trails that shift hue as they die.
   Also `crtZoom`/`crtZoomX`/`crtZoomY`, a magnifier in `present`: everything in
   glass space (scanline gaps, grain, spot bleed, grille triads, sample
   reconstruction) magnifies with it, which is the fastest way to see whether any
-  of the above is doing what it claims. The grille is now keyed off the glass
-  coordinate rather than the canvas so it pans and scales with the lens. Still
-  open: the two items under Phase 3 below (luma-keyed halation radius,
+  of the above is doing what it claims. Driven by wheel/drag/marquee on the stage
+  and by a miniature in the panel, all through `src/ui/lens.ts`, which mirrors the
+  shader's transform. Two fixes fell out: the grille is keyed off the glass
+  coordinate rather than the canvas, so it pans and scales with the lens; and
+  scanlines and mask fade out once a line covers less than a screen pixel, which
+  also fixed pre-existing moire on short windows.
+
+  Below 1x the magnifier pulls back off the set: the faceplate takes a barrel
+  warp (sample pushed *out* with radius — pushing it in stretches the rim, which
+  reads as a dished screen, and that sign error is easy to make), its corners
+  round, and a cabinet lit only by spill from the nearest point on the glass comes
+  out of the dark. The cabinet is the one piece of deliberate illustration in the
+  codebase rather than a mechanism: it is inert, nothing else in the pipeline
+  knows it exists, and it is gated entirely behind zoom < 1. If it ever gets in
+  the way, deleting `cabinet()` and the `back` term costs nothing else.
+
+  Still open: the two items under Phase 3 below (luma-keyed halation radius,
   per-channel bloom radius).
 
 The pipeline already has the _light_ behaviour (bloom, halation, glow in

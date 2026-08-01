@@ -1,4 +1,5 @@
 import { AUTOMAP_KEYS, SLIDER_BY_KEY } from './controls'
+import { zoomAtTravel } from './lens'
 import { readRecord } from './storage'
 
 import type { ControlKey } from '../controls'
@@ -81,9 +82,14 @@ export function omit<V>(
   return out
 }
 
-// A 0..127 CC value → a stepped control value in the slider's range.
+// A 0..127 CC value → a stepped control value in the slider's range. A curved
+// control maps through its own travel, so a knob feels like its on-screen slider
+// rather than racing through the useful end of the scale.
 function ccToValue(def: SliderDef, cc: number): number {
-  const raw = def.min + (cc / 127) * (def.max - def.min)
+  const raw =
+    def.curve === 'magnifier'
+      ? zoomAtTravel(cc / 127)
+      : def.min + (cc / 127) * (def.max - def.min)
   const stepped = Math.round((raw - def.min) / def.step) * def.step + def.min
   return clamp(stepped, def.min, def.max)
 }

@@ -2,7 +2,8 @@ import { useState } from 'react'
 
 import styles from './MiniFrame.module.css'
 import { cx } from './cx'
-import { clamp01, lensView, snapOffset, uvIn } from './miniFrame'
+import { lensView } from './lens'
+import { clamp01, snapOffset, uvIn } from './miniFrame'
 
 import type { KeyboardEvent, PointerEvent } from 'react'
 
@@ -54,7 +55,7 @@ export function MagnifierFrame(props: {
         tabIndex={0}
         title={
           inert
-            ? 'magnification is 1× — the whole screen is already in view'
+            ? 'nothing to aim — the whole screen is in view at 1× and below'
             : 'click or drag to aim the magnifier · arrows nudge · alt drags off the guides'
         }
         onPointerDown={e => {
@@ -83,9 +84,15 @@ export function MagnifierFrame(props: {
         />
       </div>
       <div className={styles.readout}>
-        <span>{inert ? 'raise magnification to zoom in' : 'aim the lens'}</span>
+        <span>
+          {props.zoom < 1
+            ? 'pulled back off the set'
+            : inert
+              ? 'raise magnification to aim'
+              : 'aim the lens'}
+        </span>
         <span className={styles.nums}>
-          {`x ${view.x.toFixed(2)} y ${view.y.toFixed(2)} · ${props.zoom.toFixed(1)}×`}
+          {`x ${view.x.toFixed(2)} y ${view.y.toFixed(2)} · ${props.zoom.toFixed(2).replace(/0$/, '')}×`}
         </span>
       </div>
     </div>
