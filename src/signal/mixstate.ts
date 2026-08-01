@@ -7,6 +7,8 @@ import { F_H, LINES, SAMPLES_PER_LINE } from './constants'
 
 const LINE_S = 1 / F_H
 
+const wrap = (x: number, m: number) => ((x % m) + m) % m
+
 export interface MixControls {
   bLineHz: number // B line-frequency offset
   bDetuneHz: number // B subcarrier detune
@@ -31,7 +33,6 @@ export class MixState {
   private wipeT = 0
 
   update(c: MixControls): MixUniforms {
-    const wrap = (x: number, m: number) => ((x % m) + m) % m
     const shiftPerLine = (c.bLineHz / F_H) * SAMPLES_PER_LINE
     this.hShift = wrap(this.hShift + shiftPerLine * LINES, SAMPLES_PER_LINE)
     this.scPhase = wrap(this.scPhase + c.bDetuneHz * LINE_S * LINES, 1)

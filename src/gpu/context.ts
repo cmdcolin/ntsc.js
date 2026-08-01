@@ -8,7 +8,7 @@ export class WebGpuUnavailableError extends Error {}
 
 export async function initGpu(canvas: HTMLCanvasElement): Promise<Gpu> {
   // the types say navigator.gpu always exists; browsers without WebGPU disagree
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // oxlint-disable-next-line typescript/no-unnecessary-condition
   if (!navigator.gpu) {
     throw new WebGpuUnavailableError(
       'This browser has no WebGPU support. Try a recent Chrome, Edge, or Firefox — check caniuse.com/webgpu for current support.',

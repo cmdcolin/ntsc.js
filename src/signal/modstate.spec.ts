@@ -13,6 +13,8 @@ const step = (
   return out
 }
 
+const spread = (a: number[]) => Math.max(...a) - Math.min(...a)
+
 describe('ModState', () => {
   it('sine reaches +1 a quarter cycle in and is periodic', () => {
     const m = new ModState()
@@ -83,7 +85,6 @@ describe('ModState', () => {
     const vals = Array.from({ length: 400 }, () => m.update(wave, 0, 0)[0])
     expect(Math.max(...vals.map(Math.abs))).toBeLessThanOrEqual(1)
     // never settles: the second half keeps moving as much as the first
-    const spread = (a: number[]) => Math.max(...a) - Math.min(...a)
     expect(spread(vals.slice(200))).toBeGreaterThan(0.3)
   })
 

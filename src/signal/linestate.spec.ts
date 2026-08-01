@@ -21,6 +21,7 @@ const CLEAN: LineStateControls = {
 const mid = () => 0.5
 const offsets = (data: Float32Array) =>
   Array.from({ length: LINES }, (_, row) => data[row * 4])
+const phase = (data: Float32Array, row: number) => data[row * 4 + 1]
 
 describe('LineState', () => {
   it('leaves every line untouched with a clean transport', () => {
@@ -131,7 +132,6 @@ describe('LineState', () => {
     // update() hands back its live internal buffer, so each frame is copied
     // before the next call overwrites it.
     const ls = new LineState(mid)
-    const phase = (data: Float32Array, row: number) => data[row * 4 + 1]
     const f0 = Float32Array.from(ls.update(CLEAN, 0))
     // 187.5 heterodyne cycles per line puts consecutive lines a half cycle
     // apart — the color-under counterpart of the subcarrier's line alternation.

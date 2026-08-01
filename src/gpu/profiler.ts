@@ -112,7 +112,10 @@ export class GpuProfiler {
           this.pending = false
           this.samples += 1
           if (this.samples % 30 === 0) {
-            const rows = [...this.ema.entries()].sort((a, b) => b[1] - a[1])
+            const rows = this.ema
+              .entries()
+              .toArray()
+              .toSorted((a, b) => b[1] - a[1])
             const total = rows.reduce((sum, [, v]) => sum + v, 0)
             console.log(
               `GPU compute ${total.toFixed(2)} ms/frame\n${rows.map(([l, v]) => `  ${l.padEnd(16)} ${v.toFixed(3)}`).join('\n')}`,

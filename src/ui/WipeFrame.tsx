@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
-import styles from './MiniFrame.module.css'
 import { cx } from './cx'
 import { WIPE_SHAPES, cqw, snapOffset, uvIn } from './miniFrame'
+import styles from './MiniFrame.module.css'
 
 import type { PointerEvent } from 'react'
 

@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react'
 
 import styles from '../app.module.css'
-import { Dialog } from './Dialog'
-import { Section } from './Section'
 import { cx } from './cx'
+import { Dialog } from './Dialog'
 import { BulbIcon } from './icons'
 import { clamp01 } from './miniFrame'
 import { PRESETS, matchPreset } from './presets'
+import { Section } from './Section'
 import { usePersistedFlag } from './storage'
 import { useRecentPresets } from './useRecentPresets'
 

@@ -7,7 +7,14 @@
 import { Lorenz, valueNoise } from './noise'
 
 export type ModSource =
-  'sine' | 'triangle' | 'walk' | 'smooth' | 'hold' | 'lorenz' | 'level' | 'hit'
+  | 'sine'
+  | 'triangle'
+  | 'walk'
+  | 'smooth'
+  | 'hold'
+  | 'lorenz'
+  | 'level'
+  | 'hit'
 
 export interface ModWave {
   // Stable identity of the routing this wave belongs to. The caller compacts

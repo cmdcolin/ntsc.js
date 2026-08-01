@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 
 import type { RefObject } from 'react'
 
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
 // yyyymmdd-hhmmss, so saved files sort chronologically and never collide.
 function stamp(): string {
   const d = new Date()
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+  return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
 }
 
 function fileName(name: string, ext: string): string {

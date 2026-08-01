@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": false,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "arrowParens": "avoid",
+  "proseWrap": "always",
+  "printWidth": 80,
+  "sortImports": {
+    "groups": ["react", "external", ["parent", "sibling", "index"], "type"],
+    "customGroups": [
+      { "groupName": "react", "elementNamePattern": ["^react$"] }
+    ]
+  },
+  "sortPackageJson": false,
+  "ignorePatterns": ["pnpm-lock.yaml", "CHANGELOG.md"]
+}

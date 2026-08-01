@@ -1,7 +1,7 @@
 import styles from '../app.module.css'
-import { Section } from './Section'
 import { cx } from './cx'
 import { controlsEqual, presetControls } from './presets'
+import { Section } from './Section'
 
 import type { Controls } from '../controls'
 

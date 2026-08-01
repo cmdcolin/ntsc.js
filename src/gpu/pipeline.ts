@@ -85,6 +85,14 @@ interface Pass {
   when?: () => boolean
 }
 
+const NOOP = () => {}
+
+const texDesc = (usage: number): GPUTextureDescriptor => ({
+  size: [ACTIVE_WIDTH, ACTIVE_HEIGHT],
+  format: 'rgba8unorm',
+  usage,
+})
+
 export class Engine {
   readonly controls: Controls = { ...DEFAULT_CONTROLS }
   // React reads this immutable snapshot via useSyncExternalStore; it's refreshed
@@ -255,11 +263,6 @@ export class Engine {
       })
     this.persistBufs = [persistBuf(), persistBuf()]
 
-    const texDesc = (usage: number): GPUTextureDescriptor => ({
-      size: [ACTIVE_WIDTH, ACTIVE_HEIGHT],
-      format: 'rgba8unorm',
-      usage,
-    })
     // Resizing A's texture invalidates the view compose's bind group holds, so
     // rebuild it. Only reachable after construction, via a set*Source*.
     this.sources = new Sources({
@@ -993,7 +996,7 @@ export class Engine {
   }
 
   private applyMod(): () => void {
-    let restore: () => void = () => {}
+    let restore: () => void = NOOP
     if (this.modSlots.length > 0) {
       const vals = this.modState.update(
         this.modSlots,

@@ -5,11 +5,6 @@
 // time. Naga is a Rust binary; if it isn't on PATH the suite skips locally but
 // CI installs it, so the check is enforced there.
 
-import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { describe, expect, it } from 'vitest'
 
 import { PRELUDE } from './prelude'
@@ -31,6 +26,11 @@ import sync from './shaders/sync.wgsl?raw'
 import syncMeasure from './shaders/sync_measure.wgsl?raw'
 import timebase from './shaders/timebase.wgsl?raw'
 import underDown from './shaders/under_down.wgsl?raw'
+
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const SHADERS: Record<string, string> = {
   channel,

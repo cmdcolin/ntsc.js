@@ -69,6 +69,8 @@ export function useUrlState({
   // flood history). Trailing-debounced: a slider drag emits a move per frame,
   // and the browser rate-limits the history API — so coalesce to one write once
   // the value settles.
+  // An effect's cleanup return is conditional by nature (React's own documented pattern).
+  // oxlint-disable-next-line typescript/consistent-return
   useEffect(() => {
     if (engineReady) {
       const url = stateUrl()

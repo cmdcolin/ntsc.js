@@ -328,14 +328,14 @@ export function useEngine() {
   const reopenStashed = (
     key: StashSlot,
     park: (stashed: Stashed) => void,
-    adopt: (file: File) => void,
+    onFile: (file: File) => void,
   ) => {
     readStash(key).then(
       stashed => {
         if (stashed !== null) {
           if (stashed.needsGesture) park(stashed)
           else
-            stashed.open().then(adopt, (e: unknown) => {
+            stashed.open().then(onFile, (e: unknown) => {
               console.log('DEBUG stash reopen failed', reason(e))
               dropFile(key)
             })
@@ -351,14 +351,14 @@ export function useEngine() {
   const reopenPending = (
     key: StashSlot,
     pending: Stashed | null,
-    adopt: (file: File) => void,
+    onFile: (file: File) => void,
   ) => {
     if (pending !== null)
       pending.open().then(
         file => {
           if (key === 'a') setPendingA(null)
           else setPendingB(null)
-          adopt(file)
+          onFile(file)
         },
         (e: unknown) => setError(`reopen ${pending.name}: ${reason(e)}`),
       )
@@ -370,13 +370,13 @@ export function useEngine() {
   const pickFile = (
     key: StashSlot,
     input: RefObject<HTMLInputElement | null>,
-    adopt: (file: File) => void,
+    onFile: (file: File) => void,
   ) => {
     if (canPickHandle())
       pickHandle().then(
         picked => {
           if (picked !== null) {
-            adopt(picked.file)
+            onFile(picked.file)
             keepFile(key, picked.file, picked.handle)
           }
         },
@@ -409,8 +409,8 @@ export function useEngine() {
   }
 
   const selectSource = (mode: SourceMode) => {
-    const engine = engineRef.current
-    if (engine) {
+    const current = engineRef.current
+    if (current) {
       // Every source change starts here (file picks too — the file dialog is
       // only opened from this handler), so clear any stale failure banner once.
       setError('')
@@ -440,8 +440,8 @@ export function useEngine() {
   // No resolution constraint — composite dongles deliver 720x480, so we take
   // whatever the device negotiates rather than forcing 1280x720.
   const startWebcam = (deviceId: string) => {
-    const engine = engineRef.current
-    if (engine) {
+    const current = engineRef.current
+    if (current) {
       stopVideo()
       const video = deviceId === '' ? true : { deviceId: { exact: deviceId } }
       navigator.mediaDevices.getUserMedia({ video }).then(
@@ -453,7 +453,7 @@ export function useEngine() {
           dropFile('a')
           // Capture cards weave interlaced fields, so combing shows on motion;
           // bob-deinterlace on by default for this source (toggle in Signal A).
-          engine.setControl('deint', 1)
+          current.setControl('deint', 1)
           const active = stream.getVideoTracks()[0]?.getSettings().deviceId
           setWebcamDeviceId(active ?? '')
           // Labels populate only after this grant, so enumerate now.
@@ -502,24 +502,24 @@ export function useEngine() {
   }
 
   const loadYouTubeB = (url: string) => {
-    const engine = engineRef.current
+    const current = engineRef.current
     const trimmed = url.trim()
-    if (engine && trimmed !== '') {
+    if (current && trimmed !== '') {
       stopVideoB()
       setError('')
       setSourceBMode('youtube')
-      engine.setSourceBEnabled(true)
+      current.setSourceBEnabled(true)
       dropFile('b')
       downloadYouTube(slotB, trimmed, setSourceBName, () => {
         setSourceBMode('none')
-        engine.setSourceBEnabled(false)
+        current.setSourceBEnabled(false)
       })
     }
   }
 
   const selectSourceB = (mode: SourceBMode) => {
-    const engine = engineRef.current
-    if (engine) {
+    const current = engineRef.current
+    if (current) {
       setError('') // entry for every B change (incl. file dialog); clear once
       if (mode === 'file') {
         pickFile('b', fileInputBRef, adoptFileB)
@@ -530,7 +530,7 @@ export function useEngine() {
         setSourceBMode(mode)
         setSourceBName('')
         dropFile('b')
-        engine.setSourceBEnabled(mode !== 'none')
+        current.setSourceBEnabled(mode !== 'none')
         showGenerated(slotB, mode)
       }
     }
@@ -540,8 +540,8 @@ export function useEngine() {
   // and tested (urlParams.ts); what is left here is only the applying, in the
   // one order that matters: the vaporwave settings land before any clip loads,
   // since a new element reads its playback rate off vaporRef at creation.
-  const restoreSession = (engine: Engine, params: SessionParams) => {
-    engine.applyControls(params.controls)
+  const restoreSession = (eng: Engine, params: SessionParams) => {
+    eng.applyControls(params.controls)
     if (params.src === 'webcam') {
       selectSource('webcam')
     } else if (params.src !== null) {
@@ -549,7 +549,7 @@ export function useEngine() {
       setSourceMode(params.src)
     }
     if (params.srcb !== null) {
-      engine.setSourceBEnabled(params.srcb !== 'none')
+      eng.setSourceBEnabled(params.srcb !== 'none')
       showGenerated(slotB, params.srcb)
       setSourceBMode(params.srcb)
     }
@@ -566,7 +566,7 @@ export function useEngine() {
       const url = params.iurlb
       loadImage(url).then(bmp => {
         slotB.setImage(bmp)
-        engine.setSourceBEnabled(true)
+        eng.setSourceBEnabled(true)
         setSourceBMode('file')
         setSourceBName(urlName(url))
       }, imageError)
@@ -604,6 +604,8 @@ export function useEngine() {
     if (params.debug) console.log('DEBUG engine ready')
   }
 
+  // An effect's cleanup return is conditional by nature (React's own documented pattern).
+  // oxlint-disable-next-line typescript/consistent-return
   useEffect(() => {
     const canvas = canvasRef.current
     if (canvas) {
@@ -629,20 +631,20 @@ export function useEngine() {
       }
       window.addEventListener('pagehide', onPageHide)
       Engine.create(canvas).then(
-        engine => {
+        created => {
           if (disposed) {
-            engine.destroy()
+            created.destroy()
           } else {
-            engineRef.current = engine
-            setEngine(engine)
-            window.vf = engine
-            engine.onStats = setStats
-            engine.onGpuError = m => {
+            engineRef.current = created
+            setEngine(created)
+            window.vf = created
+            created.onStats = setStats
+            created.onGpuError = m => {
               trace.add('gpuError', m.slice(0, 120))
               trace.flush(true)
               setError(`gpu: ${m}`)
             }
-            engine.onDeviceLost = m => {
+            created.onDeviceLost = m => {
               trace.add('deviceLost', m.slice(0, 120))
               trace.flush(true)
               setFatal({
@@ -653,16 +655,16 @@ export function useEngine() {
             }
             // Not a lost device: the device never reported anything, it just
             // stopped completing submitted work — so don't title it as one.
-            engine.onHang = () =>
+            created.onHang = () =>
               setFatal({
                 title: 'The GPU stopped responding',
                 body: 'Submitted work stopped completing, so the picture would be frozen even though the app is still running.',
                 kind: 'hung',
               })
-            engine.setImageSource(smpteBars())
-            engine.setImageSourceB(smpteBars())
-            engine.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
-            restoreSession(engine, parseSessionParams(location.search))
+            created.setImageSource(smpteBars())
+            created.setImageSourceB(smpteBars())
+            created.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
+            restoreSession(created, parseSessionParams(location.search))
           }
         },
         (e: unknown) =>
@@ -685,7 +687,7 @@ export function useEngine() {
     // Mount-once: creates the single engine and reads URL params. selectSource
     // is stable enough for the one-shot ?src=webcam path; re-running on its
     // identity would tear down and rebuild the engine.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react/exhaustive-deps
   }, [])
 
   return {

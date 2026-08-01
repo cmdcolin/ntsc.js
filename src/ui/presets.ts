@@ -635,9 +635,11 @@ export function blendPresets(
   baseline: Controls,
   weights: PresetWeights,
 ): Controls {
-  const active = [...weights]
+  const active = weights
+    .entries()
     .filter(([, w]) => w > 0)
-    .sort(([, a], [, b]) => b - a)
+    .toArray()
+    .toSorted(([, a], [, b]) => b - a)
     .flatMap(([name, w]) => {
       const def = PRESETS.find(p => p.name === name)
       return def === undefined ? [] : [{ w, full: presetControls(def.patch) }]

@@ -1,3 +1,5 @@
+import puppeteer from 'puppeteer-core'
+
 // Capture the README's motion clips. Each shot is fully declarative: the URL
 // alone (?iurl / ?iurlb / ?preset / ?set) specifies the source image(s), preset,
 // and param overrides, so nothing here uploads files or clicks the UI.
@@ -7,8 +9,6 @@
 //   shot into outDir/ (gitignored) for review. Name shots to capture a subset.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
-
-import puppeteer from 'puppeteer-core'
 
 const outDir = process.argv[2] ?? 'clips'
 const base = process.argv[3] ?? 'http://localhost:5199/'

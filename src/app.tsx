@@ -1,5 +1,4 @@
 import { useState, useSyncExternalStore } from 'react'
-
 import { createPortal } from 'react-dom'
 
 import markUrl from '../docs/mark.svg'
@@ -11,24 +10,21 @@ import { AudioSection } from './ui/AudioSection'
 import { ChainDialog } from './ui/ChainDialog'
 import { CommandPalette } from './ui/CommandPalette'
 import { ControlGroup, ControlSlider } from './ui/ControlGroup'
+import { AB_GROUPS, ALL_SLIDERS, AUDIO_GROUPS, PHASES } from './ui/controls'
 import { ControlsContext } from './ui/ControlsContext'
+import { cx } from './ui/cx'
 import { FatalScreen } from './ui/FatalScreen'
+import { FilterContext, groupMatches, sliderMatches } from './ui/filter'
 import { HelpDialog } from './ui/HelpDialog'
 import { InputSection } from './ui/InputSection'
 import { MidiSection } from './ui/MidiSection'
 import { ModSection } from './ui/ModSection'
+import { matchPreset } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
 import { ScenesSection } from './ui/ScenesSection'
 import { Section } from './ui/Section'
 import { SignalPath } from './ui/SignalPath'
 import { Stage } from './ui/Stage'
-import { VaporwaveSection } from './ui/VaporwaveSection'
-import { WebcamDialog } from './ui/WebcamDialog'
-import { YouTubeDialog } from './ui/YouTubeDialog'
-import { AB_GROUPS, ALL_SLIDERS, AUDIO_GROUPS, PHASES } from './ui/controls'
-import { cx } from './ui/cx'
-import { FilterContext, groupMatches, sliderMatches } from './ui/filter'
-import { matchPreset } from './ui/presets'
 import { useAudio } from './ui/useAudio'
 import { useCapture } from './ui/useCapture'
 import { useClockSync } from './ui/useClockSync'
@@ -42,6 +38,9 @@ import { usePopout } from './ui/usePopout'
 import { useScenes } from './ui/useScenes'
 import { useShortcuts } from './ui/useShortcuts'
 import { useUrlState } from './ui/useUrlState'
+import { VaporwaveSection } from './ui/VaporwaveSection'
+import { WebcamDialog } from './ui/WebcamDialog'
+import { YouTubeDialog } from './ui/YouTubeDialog'
 import { gitSha, versionLabel } from './version'
 
 import type { Controls } from './controls'
@@ -52,6 +51,14 @@ import type { PathNode } from './ui/SignalPath'
 // useSyncExternalStore fallbacks for the window before the async engine exists.
 const subscribeNever = () => () => {}
 const getDefaultControls = (): Controls => DEFAULT_CONTROLS
+
+const toggleFullscreen = () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {})
+  } else {
+    document.documentElement.requestFullscreen().catch(() => {})
+  }
+}
 
 export function App() {
   const eng = useEngine()
@@ -101,14 +108,6 @@ export function App() {
     writeControls,
     sourceBOn: eng.sourceBMode !== 'none',
   })
-
-  const toggleFullscreen = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {})
-    } else {
-      document.documentElement.requestFullscreen().catch(() => {})
-    }
-  }
 
   const { scenes, saveScene, recallScene, clearScene } = useScenes(
     engineRef,

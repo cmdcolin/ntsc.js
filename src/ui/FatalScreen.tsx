@@ -1,6 +1,6 @@
 import shared from '../app.module.css'
-import styles from './FatalScreen.module.css'
 import { cx } from './cx'
+import styles from './FatalScreen.module.css'
 
 export interface Fatal {
   title: string

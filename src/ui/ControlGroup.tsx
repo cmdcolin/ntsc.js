@@ -2,19 +2,19 @@ import { useState } from 'react'
 
 import styles from '../app.module.css'
 import { DEFAULT_CONTROLS } from '../controls'
+import { NEEDS, sliderFor } from './controls'
 import { useControlsApi } from './ControlsContext'
+import { sliderMatches, useFilterQuery } from './filter'
 import { MagnifierFrame } from './MagnifierFrame'
+import { SYNCABLE_KEYS } from './midi'
 import { PipFrame } from './PipFrame'
 import { Section } from './Section'
 import { Slider } from './Slider'
 import { WipeFrame } from './WipeFrame'
-import { NEEDS, sliderFor } from './controls'
-import { sliderMatches, useFilterQuery } from './filter'
-import { SYNCABLE_KEYS } from './midi'
 
 import type { ControlKey } from '../controls'
-import type { ControlsApi } from './ControlsContext'
 import type { Group, SliderDef, SliderNeed } from './controls'
+import type { ControlsApi } from './ControlsContext'
 import type { ReactElement } from 'react'
 
 const SYNCABLE_SET = new Set<ControlKey>(SYNCABLE_KEYS)

@@ -51,7 +51,11 @@ export interface LearnState {
 }
 
 export type MidiStatus =
-  'unsupported' | 'idle' | 'requesting' | 'ready' | 'denied'
+  | 'unsupported'
+  | 'idle'
+  | 'requesting'
+  | 'ready'
+  | 'denied'
 
 const STORE_KEY = 'video_feedback_midi'
 
@@ -78,6 +82,7 @@ export function omit<V>(
 ): Partial<Record<ControlKey, V>> {
   const out: Partial<Record<ControlKey, V>> = {}
   for (const [k, v] of Object.entries(map))
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries widens to string; map's keys are already ControlKey
     if (k !== key) out[k as ControlKey] = v
   return out
 }
@@ -156,6 +161,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
   let bindings = loadBindings()
   let armed: ControlKey | null = null
   let access: MIDIAccess | null = null
+  let onStateChange: (() => void) | null = null
   // Active learn-in-order sweep: the spine of keys to fill, how far along we
   // are, and the knob sources already claimed (so one knob's stream of messages
   // binds a single control, not the whole row).
@@ -202,6 +208,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
   const reindex = () => {
     keyByBinding.clear()
     for (const [k, b] of Object.entries(bindings))
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries widens to string; bindings' keys are already ControlKey
       keyByBinding.set(bindingId(b), k as ControlKey)
   }
   reindex()
@@ -309,7 +316,8 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
             cb.onBindings({ ...bindings })
             listen(m)
             // New devices plugged in after grant still get wired up.
-            m.onstatechange = () => listen(m)
+            onStateChange = () => listen(m)
+            m.addEventListener('statechange', onStateChange)
             // A source that stops sending clock ticks (or is unplugged) never
             // sends 0xFC; drop the tempo once ticks go quiet.
             tempoTimer = setInterval(() => {
@@ -375,7 +383,8 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
       if (tempoTimer !== null) clearInterval(tempoTimer)
       if (access) {
         for (const input of access.inputs.values()) input.onmidimessage = null
-        access.onstatechange = null
+        if (onStateChange)
+          access.removeEventListener('statechange', onStateChange)
       }
     },
   }

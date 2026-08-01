@@ -194,8 +194,10 @@ the compiler's job. Two consequences worth knowing:
 - **Four things don't compile:** `App`, `Stage`, `InputSection`, `useEngine` —
   the ref-during-render pattern above is exactly what the compiler refuses. This
   is harmless in itself: a bail-out means the compiler leaves that code exactly
-  as written. It's why `react-hooks/refs` is off in `eslint.config.js`; the rest
-  of eslint-plugin-react-hooks' recommended set is on and reports bail-outs.
+  as written. oxlint's `react` plugin (`.oxlintrc.json`) has no rule equivalent
+  to eslint-plugin-react-hooks' `refs` (which used to flag this on principle),
+  so there's nothing to suppress; `react/rules-of-hooks` and
+  `react/exhaustive-deps` still run and report real bail-outs.
 - **What is load-bearing is that a callback held in a dep array keeps its
   identity.** `useClockSync` holds `writeControl` from `useMidi` in an effect
   dep array; if that closure got a fresh identity per render the effect would

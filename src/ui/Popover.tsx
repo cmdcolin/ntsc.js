@@ -13,15 +13,20 @@ export function Popover(props: {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
 
+  // An effect's cleanup return is conditional by nature (React's own documented pattern).
+  // oxlint-disable-next-line typescript/consistent-return
   useEffect(() => {
-    if (!open) return
     const doc = wrapRef.current?.ownerDocument
-    if (doc === undefined) return
-    const onPointerDown = (e: PointerEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false)
+    if (open && doc !== undefined) {
+      const onPointerDown = (e: PointerEvent) => {
+        const inside =
+          e.target instanceof Node &&
+          (wrapRef.current?.contains(e.target) ?? false)
+        if (!inside) setOpen(false)
+      }
+      doc.addEventListener('pointerdown', onPointerDown)
+      return () => doc.removeEventListener('pointerdown', onPointerDown)
     }
-    doc.addEventListener('pointerdown', onPointerDown)
-    return () => doc.removeEventListener('pointerdown', onPointerDown)
   }, [open])
 
   return (

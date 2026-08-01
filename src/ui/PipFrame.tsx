@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
-import styles from './MiniFrame.module.css'
 import { cx } from './cx'
 import { clamp01, clampSize, cqw, resizeAxis, snapOffset } from './miniFrame'
+import styles from './MiniFrame.module.css'
 
 import type { KeyboardEvent, PointerEvent } from 'react'
 

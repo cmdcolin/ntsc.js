@@ -1,9 +1,9 @@
 import { useState } from 'react'
 
-import styles from './MiniFrame.module.css'
 import { cx } from './cx'
 import { lensView } from './lens'
 import { clamp01, snapOffset, uvIn } from './miniFrame'
+import styles from './MiniFrame.module.css'
 
 import type { KeyboardEvent, PointerEvent } from 'react'
 

@@ -1,11 +1,24 @@
 import styles from '../app.module.css'
+import { cx } from './cx'
 import { Meter } from './Meter'
 import { Section } from './Section'
 import { Slider } from './Slider'
-import { cx } from './cx'
 import { REVERB_DEFAULT, SPEED_DEFAULT, VAPORWAVE_SPEED } from './urlParams'
 
 import type { AudioState } from '../signal/audiostate'
+
+const speed = (label: string, value: number, onChange: (v: number) => void) => (
+  <Slider
+    label={label}
+    unit="×"
+    min={0.25}
+    max={1.5}
+    step={0.01}
+    value={value}
+    defaultValue={SPEED_DEFAULT}
+    onChange={onChange}
+  />
+)
 
 export function VaporwaveSection(props: {
   videoA: boolean
@@ -22,22 +35,6 @@ export function VaporwaveSection(props: {
   onTogglePlayAudio: () => void
   onApplyPreset: () => void
 }) {
-  const speed = (
-    label: string,
-    value: number,
-    onChange: (v: number) => void,
-  ) => (
-    <Slider
-      label={label}
-      unit="×"
-      min={0.25}
-      max={1.5}
-      step={0.01}
-      value={value}
-      defaultValue={SPEED_DEFAULT}
-      onChange={onChange}
-    />
-  )
   return (
     <Section title="Vaporwave" dot={props.playAudio}>
       <div className={styles.hint}>

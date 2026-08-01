@@ -20,6 +20,7 @@ function parseStored(key: string): unknown {
 // readRecord below, which check the shape the call site actually depends on.
 export function readJSON<T>(key: string, fallback: T): T {
   const v = parseStored(key)
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see doc comment above
   return v === undefined ? fallback : (v as T)
 }
 
@@ -28,6 +29,7 @@ export function readJSON<T>(key: string, fallback: T): T {
 // it. Element types are still trusted — this closes the crash, not every lie.
 export function readArray<T>(key: string, fallback: T[]): T[] {
   const v = parseStored(key)
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see doc comment above
   return Array.isArray(v) ? (v as T[]) : fallback
 }
 
@@ -36,7 +38,8 @@ export function readArray<T>(key: string, fallback: T[]): T[] {
 export function readRecord<T extends object>(key: string, fallback: T): T {
   const v = parseStored(key)
   return typeof v === 'object' && v !== null && !Array.isArray(v)
-    ? (v as T)
+    ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see doc comment above
+      (v as T)
     : fallback
 }
 

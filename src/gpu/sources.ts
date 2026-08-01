@@ -54,6 +54,11 @@ export interface SourcesHost {
   onResizeA: () => void
 }
 
+const probe = (el: HTMLVideoElement | null) =>
+  el === null
+    ? null
+    : { ready: el.readyState, time: Number(el.currentTime.toFixed(2)) }
+
 export class Sources {
   private host: SourcesHost
 
@@ -198,10 +203,6 @@ export class Sources {
     videoB: { ready: number; time: number } | null
     stagedPixelA: number[] | null
   } {
-    const probe = (el: HTMLVideoElement | null) =>
-      el === null
-        ? null
-        : { ready: el.readyState, time: Number(el.currentTime.toFixed(2)) }
     const stage = this.stageA
     let stagedPixelA: number[] | null = null
     if (stage !== null) {

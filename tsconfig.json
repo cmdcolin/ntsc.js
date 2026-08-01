@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "es2023.array", "esnext.iterator"],
     "types": ["@webgpu/types", "vite/client"],
     "module": "ESNext",
     "moduleResolution": "bundler",

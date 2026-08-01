@@ -102,7 +102,7 @@ export function CommandPalette(props: {
       : pool
           .map(it => ({ it, s: score(q, itemName(it), itemProse(it)) }))
           .filter(r => r.s >= 0)
-          .sort((a, b) => b.s - a.s)
+          .toSorted((a, b) => b.s - a.s)
           .slice(0, MAX_RESULTS)
           .map(r => r.it)
 

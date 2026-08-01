@@ -1,7 +1,7 @@
 import styles from '../app.module.css'
 import { ControlGroup } from './ControlGroup'
-import { Accordion, NestedSections } from './Section'
 import { cx } from './cx'
+import { Accordion, NestedSections } from './Section'
 
 import type { ChainStage } from './ChainMap'
 import type { Group } from './controls'

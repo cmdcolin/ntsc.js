@@ -1,12 +1,12 @@
 import { useId, useState } from 'react'
 
-import styles from './Slider.module.css'
-import { SliderHelpDialog } from './SliderHelpDialog'
-import { ToggleButtonGroup } from './ToggleButtonGroup'
 import { snapToStep } from './controls'
 import { cx } from './cx'
 import { formatValue } from './format'
 import { zoomAtTravel, zoomTravel } from './lens'
+import styles from './Slider.module.css'
+import { SliderHelpDialog } from './SliderHelpDialog'
+import { ToggleButtonGroup } from './ToggleButtonGroup'
 
 import type { CSSProperties, ReactNode } from 'react'
 
@@ -73,7 +73,6 @@ export function Slider(props: {
   // fine end of the scale gets the room. The value it reads and writes is
   // unchanged, still landing on the control's own step grid.
   const curved = props.curve === 'magnifier'
-  const travel = (v: number) => zoomTravel(v)
   const fromTravel = (t: number) => snapToStep(props, zoomAtTravel(t))
   // Track fill anchors at the default, not the left edge: bipolar controls
   // read like a pan pot from center, and distance-from-stock shows at a glance.
@@ -82,7 +81,8 @@ export function Slider(props: {
       0,
       Math.min(
         100,
-        (curved ? travel(v) : (v - props.min) / (props.max - props.min)) * 100,
+        (curved ? zoomTravel(v) : (v - props.min) / (props.max - props.min)) *
+          100,
       ),
     )
   const valuePct = pct(props.value)
@@ -201,7 +201,7 @@ export function Slider(props: {
             min={curved ? 0 : props.min}
             max={curved ? 1 : props.max}
             step={curved ? 0.002 : props.step}
-            value={curved ? travel(props.value) : props.value}
+            value={curved ? zoomTravel(props.value) : props.value}
             disabled={locked}
             onChange={e =>
               props.onChange(

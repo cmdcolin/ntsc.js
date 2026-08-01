@@ -1,5 +1,5 @@
-import styles from './ToggleButtonGroup.module.css'
 import { cx } from './cx'
+import styles from './ToggleButtonGroup.module.css'
 
 // A discrete control: one button per option, index == value. Writes the same
 // number a slider would, so MIDI, mod and presets treat it identically.

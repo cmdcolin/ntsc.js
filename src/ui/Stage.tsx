@@ -1,10 +1,7 @@
 import { useState } from 'react'
 
-import { FpsMonitor } from './FpsMonitor'
-import { Popover } from './Popover'
-import popoverStyles from './Popover.module.css'
-import styles from './Stage.module.css'
 import { cx } from './cx'
+import { FpsMonitor } from './FpsMonitor'
 import { CameraIcon, ChainIcon, GearIcon, MenuIcon } from './icons'
 import {
   clampZoom,
@@ -14,6 +11,9 @@ import {
   zoomToBox,
   zoomTravel,
 } from './lens'
+import { Popover } from './Popover'
+import popoverStyles from './Popover.module.css'
+import styles from './Stage.module.css'
 import { usePersistedFlag } from './storage'
 
 import type { FrameStats } from '../controls'
@@ -177,13 +177,21 @@ interface Drag {
 const dragged = (d: Drag) =>
   Math.abs(d.b.x - d.a.x) + Math.abs(d.b.y - d.a.y) > 3
 
+// Canvas pixels, and the picture UV they land on. The canvas box is what the
+// shader letterboxes inside, so this is the same 4:3 mapping present.wgsl does.
+const at = (e: PointerEvent<HTMLCanvasElement>) => {
+  const r = e.currentTarget.getBoundingClientRect()
+  const p = { x: e.clientX - r.left, y: e.clientY - r.top }
+  return { p, uv: pictureUv(r, p.x, p.y) }
+}
+
 // Zoom readout and lever, the first row of the stage menu: the gestures on the
 // picture are the fast path, but nothing would otherwise say the magnifier
 // exists. It stays put when used — a drag on the slider must not close the menu
 // out from under the hand doing it.
 function ZoomRow(props: { lens: Lens; onChange: (lens: Lens) => void }) {
   const { lens } = props
-  const at = (zoom: number) => props.onChange({ ...lens, zoom })
+  const setZoom = (zoom: number) => props.onChange({ ...lens, zoom })
   return (
     <div className={styles.zoomRow}>
       <span
@@ -199,12 +207,12 @@ function ZoomRow(props: { lens: Lens; onChange: (lens: Lens) => void }) {
         max={1}
         step={0.002}
         value={zoomTravel(lens.zoom)}
-        onChange={e => at(zoomAtTravel(Number(e.target.value)))}
+        onChange={e => setZoom(zoomAtTravel(Number(e.target.value)))}
       />
       <button
         className={styles.zoomReset}
         title="back to the picture filling the frame"
-        onClick={() => at(1)}
+        onClick={() => setZoom(1)}
       >
         {zoomLabel(lens)}
       </button>
@@ -233,13 +241,6 @@ export function Stage(props: {
   const [barHidden, setBarHidden] = usePersistedFlag(BAR_HIDDEN_STORE)
   const [drag, setDrag] = useState<Drag | null>(null)
   const zoomed = clampZoom(props.lens.zoom) > 1
-  // Canvas pixels, and the picture UV they land on. The canvas box is what the
-  // shader letterboxes inside, so this is the same 4:3 mapping present.wgsl does.
-  const at = (e: PointerEvent<HTMLCanvasElement>) => {
-    const r = e.currentTarget.getBoundingClientRect()
-    const p = { x: e.clientX - r.left, y: e.clientY - r.top }
-    return { p, uv: pictureUv(r, p.x, p.y) }
-  }
   // Box first: a drag with nothing magnified yet, or one held with shift, picks
   // the region to look at. Once you are already in close a plain drag pushes the
   // glass around under a fixed lens instead, which is what you then want.

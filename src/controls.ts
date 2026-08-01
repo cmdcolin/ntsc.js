@@ -168,6 +168,7 @@ export type ControlKey = keyof Controls
 // packing, the URL mirror, MIDI takeover, preset comparison). Lives here beside
 // the schema so those callers share one list instead of each re-deriving it —
 // `Object.keys` widens to string, so this is the one place that narrows it.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see comment above
 export const CONTROL_KEYS = Object.keys(DEFAULT_CONTROLS) as ControlKey[]
 
 export interface FrameStats {

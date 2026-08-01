@@ -1,10 +1,10 @@
 import { useState } from 'react'
 
 import styles from '../app.module.css'
+import { cx } from './cx'
 import { Dialog } from './Dialog'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
-import { cx } from './cx'
 
 import type { Engine } from '../gpu/pipeline'
 import type { MidiStatus } from './midi'
@@ -18,6 +18,16 @@ const DBG_OPTIONS = [
   { value: '5', label: 'burst / decoder state' },
 ] as const
 
+type DbgValue = (typeof DBG_OPTIONS)[number]['value']
+
+// getDbgView() can report any number ?dbg= was set to, not just one of the
+// options above — fall back to 'off' rather than asserting an unrecognized one.
+function dbgValue(view: number | undefined): DbgValue {
+  const s = String(view ?? 0)
+  const found = DBG_OPTIONS.find(o => o.value === s)
+  return found ? found.value : '0'
+}
+
 export function AdvancedDialog(props: {
   renderScale: number
   onScaleChange: (v: number) => void
@@ -27,7 +37,7 @@ export function AdvancedDialog(props: {
   engine: Engine | null
   onClose: () => void
 }) {
-  const [dbg, setDbg] = useState(() => String(props.engine?.getDbgView() ?? 0))
+  const [dbg, setDbg] = useState(() => dbgValue(props.engine?.getDbgView()))
   return (
     <Dialog title="Advanced" size="form" onClose={props.onClose}>
       <Slider
@@ -47,7 +57,7 @@ export function AdvancedDialog(props: {
       <SelectRow
         tag="◫"
         title="view the signal mid-decode instead of the finished picture"
-        value={dbg as (typeof DBG_OPTIONS)[number]['value']}
+        value={dbg}
         options={DBG_OPTIONS}
         onChange={v => {
           setDbg(v)

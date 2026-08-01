@@ -1,10 +1,10 @@
 import { useState } from 'react'
 
 import styles from '../app.module.css'
-import { Section } from './Section'
 import { ALL_SLIDERS, sliderFor } from './controls'
 import { cx } from './cx'
 import { DEVICE_PROFILES } from './midi'
+import { Section } from './Section'
 
 import type { ControlKey } from '../controls'
 import type { BindingMap, DeviceProfile, LearnState } from './midi'

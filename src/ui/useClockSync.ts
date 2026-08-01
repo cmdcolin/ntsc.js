@@ -16,6 +16,7 @@ const loadSync = (): SyncMap => {
   const stored = readRecord<SyncMap>(SYNC_STORE, {})
   const out: SyncMap = {}
   for (const [k, div] of Object.entries(stored))
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries widens to string; stored's keys are already ControlKey
     if (div >= 0 && div < SYNC_DIVISIONS.length) out[k as ControlKey] = div
   return out
 }
@@ -58,7 +59,7 @@ export function useClockSync(args: {
   const lockedDep = `${locked.join(',')}=${lockedValues.join(',')}`
   useEffect(() => {
     locked.forEach((key, i) => writeControl(key, lockedValues[i]))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react/exhaustive-deps
   }, [writeControl, lockedDep])
 
   // Cycle a control through off → each division → off, persisting the choice.

@@ -1,6 +1,6 @@
 import styles from '../app.module.css'
-import { Dialog } from './Dialog'
 import { cx } from './cx'
+import { Dialog } from './Dialog'
 
 export function WebcamDialog(props: {
   onContinue: () => void

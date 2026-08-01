@@ -1,0 +1,52 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "options": {
+    "typeAware": true
+  },
+  "env": {
+    "browser": true
+  },
+  "ignorePatterns": ["dist", "scripts", "**/*.mjs", "**/*.test.ts"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    // Vite's automatic JSX runtime never needs React in scope.
+    "react/react-in-jsx-scope": "off",
+    // Render-prop callbacks (e.g. Popover's `trigger`) are values, not components.
+    "react/no-unstable-nested-components": ["error", { "allowAsProps": true }],
+    "typescript/restrict-template-expressions": [
+      "error",
+      { "allowNumber": true }
+    ],
+    "typescript/no-confusing-void-expression": [
+      "error",
+      { "ignoreArrowShorthand": true }
+    ],
+    "no-empty-function": ["error", { "allow": ["arrowFunctions"] }]
+  },
+  "overrides": [
+    {
+      "files": ["src/version.ts"],
+      "rules": {
+        // __APP_VERSION__/__GIT_SHA__ are Vite `define` globals (vite.config.ts) — the
+        // dangling underscores are the convention, not a naming choice to fix.
+        "no-underscore-dangle": "off"
+      }
+    },
+    {
+      "files": ["src/ui/fileStash.ts"],
+      "rules": {
+        // IndexedDB's request/transaction objects are one-shot: assigning
+        // onerror/onabort/onsuccess is the idiomatic (and MDN-documented) style,
+        // not a lingering listener addEventListener would meaningfully improve.
+        "unicorn/prefer-add-event-listener": "off"
+      }
+    }
+  ]
+}

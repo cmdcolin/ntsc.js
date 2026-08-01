@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
 import styles from '../app.module.css'
-import { Dialog } from './Dialog'
 import { cx } from './cx'
+import { Dialog } from './Dialog'
 
 export function YouTubeDialog(props: {
   slot: 'a' | 'b'

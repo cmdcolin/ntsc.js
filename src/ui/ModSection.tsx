@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 
 import styles from '../app.module.css'
+import { GROUPS, SLIDER_BY_KEY } from './controls'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
-import { GROUPS, SLIDER_BY_KEY } from './controls'
 import { readArray, writeJSON } from './storage'
 
 import type { ControlKey, ModSlot } from '../controls'
@@ -88,7 +88,7 @@ export function ModSection(props: { engine: Engine | null }) {
       </div>
       {slots.map((s, i) => (
         // Slots are positional identities (slot 1..4), so the index IS the key.
-        // eslint-disable-next-line @eslint-react/no-array-index-key
+        // oxlint-disable-next-line react/no-array-index-key
         <div key={i}>
           <SelectRow
             tag={String(i + 1)}

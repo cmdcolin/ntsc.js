@@ -103,7 +103,7 @@ export function useMix(args: {
         p =>
           p.group !== 'Clean' && (args.sourceBOn || p.group !== 'A/B mixing'),
       )
-      const groups = [...new Set(pool.map(p => p.group))].sort(
+      const groups = [...new Set(pool.map(p => p.group))].toSorted(
         () => Math.random() - 0.5,
       )
       const next = new Map<string, number>()

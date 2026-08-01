@@ -1,3 +1,5 @@
+import type { Plugin } from 'vite'
+
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
@@ -9,8 +11,6 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-
-import type { Plugin } from 'vite'
 
 // Dev-only bridge: /yt?url=<youtube link> shells out to yt-dlp, caches the
 // clip in a temp dir, and serves it as an mp4 the app's <video> path can play.
