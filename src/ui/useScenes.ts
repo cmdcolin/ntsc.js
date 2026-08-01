@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { presetControls } from './presets'
-import { readJSON, writeJSON } from './storage'
+import { readRecord, writeJSON } from './storage'
 
 import type { Controls } from '../controls'
 import type { Engine } from '../gpu/pipeline'
@@ -11,7 +11,7 @@ import type { RefObject } from 'react'
 // truth so the mount-anchored key handlers never work from stale React state.
 export type SceneMap = Partial<Record<string, Partial<Controls>>>
 const SCENES_STORE = 'video_feedback_scenes'
-const loadScenes = () => readJSON<SceneMap>(SCENES_STORE, {})
+const loadScenes = () => readRecord<SceneMap>(SCENES_STORE, {})
 
 export function useScenes(
   engineRef: RefObject<Engine | null>,

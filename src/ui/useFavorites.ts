@@ -1,13 +1,13 @@
 import { useState } from 'react'
 
-import { readJSON, writeJSON } from './storage'
+import { readArray, writeJSON } from './storage'
 
 import type { ControlKey } from '../controls'
 
 // Sliders the user has pinned to the Favorites section, by control key. Stored
 // as a plain key list so a reload keeps the pins.
 const FAVORITES_STORE = 'video_feedback_favorites'
-const loadFavorites = () => new Set(readJSON<ControlKey[]>(FAVORITES_STORE, []))
+const loadFavorites = () => new Set(readArray<ControlKey>(FAVORITES_STORE, []))
 
 export function useFavorites() {
   const [favorites, setFavorites] = useState<Set<ControlKey>>(loadFavorites)

@@ -1,14 +1,14 @@
 import { useState } from 'react'
 
 import styles from '../app.module.css'
-import { readJSON, writeJSON } from './storage'
+import { readRecord, writeJSON } from './storage'
 
 import type { ReactNode } from 'react'
 
 // Collapsed/open choices persist per title so a reload keeps your working set.
 const STORE = 'video_feedback_sections'
 type OpenMap = Partial<Record<string, boolean>>
-const loadOpenMap = () => readJSON<OpenMap>(STORE, {})
+const loadOpenMap = () => readRecord<OpenMap>(STORE, {})
 
 export function Section(props: {
   title: string

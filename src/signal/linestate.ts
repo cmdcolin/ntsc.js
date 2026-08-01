@@ -41,15 +41,24 @@ export class LineState {
   private flutter = 0
   private underWalk = 0
   private t = 0
-  private wow = new Wow()
+  private wow: Wow
 
+  // `rand` is injectable, like ModState's and Wow's, so the per-line geometry
+  // (shuttle strips, the tracking-band tear, the flutter walk) can be pinned in
+  // tests instead of only ever being eyeballed.
+  constructor(private rand: () => number = Math.random) {
+    this.wow = new Wow(rand)
+  }
+
+  // Returns the live `data` buffer, not a copy — consume it (upload, read)
+  // before calling again, since the next frame overwrites it in place.
   update(c: LineStateControls, frame: number): Float32Array<ArrayBuffer> {
     this.t += 1 / 60
     this.wow.advance(1 / 60)
     for (let row = 0; row < LINES; row++) {
       // flutter: random walk with a restoring pull, advanced per line
       this.flutter +=
-        (Math.random() - 0.5) * usToSamples(c.tbJitterNs * 1e-3) * 0.7
+        (this.rand() - 0.5) * usToSamples(c.tbJitterNs * 1e-3) * 0.7
       this.flutter *= 0.995
       // wow: quasi-periodic wander of the rotating parts, never a naked sine
       const wow =
@@ -66,7 +75,7 @@ export class LineState {
         c.trackAmt > 0 && trackDist < trackHalf
           ? usToSamples(6 * c.trackAmt) *
             (1 - trackDist / trackHalf) *
-            (0.6 + 0.8 * Math.random())
+            (0.6 + 0.8 * this.rand())
           : 0
 
       // picture search: each strip between crossing bars is a different
@@ -84,7 +93,7 @@ export class LineState {
         shuttle =
           usToSamples(2.5) * (hash01(k) - 0.5) +
           (dLines < half
-            ? usToSamples(4) * (1 - dLines / half) * (0.5 + Math.random())
+            ? usToSamples(4) * (1 - dLines / half) * (0.5 + this.rand())
             : 0)
         shuttleHue = 2.5 * (hash01(k ^ 0x3ac1) - 0.5)
       }
@@ -94,14 +103,14 @@ export class LineState {
       const globalSample = (frame * LINES + row) * SAMPLES_PER_LINE
       const base = (DOWN_PER_SAMPLE * globalSample) % 1
       this.underWalk +=
-        (Math.random() - 0.5) * ((c.underJitterDeg * Math.PI) / 180)
+        (this.rand() - 0.5) * ((c.underJitterDeg * Math.PI) / 180)
       this.underWalk *= 0.99
 
       const o = row * 4
       this.data[o] = this.flutter + wow + hs + track + shuttle
       this.data[o + 1] = base * 2 * Math.PI
       this.data[o + 2] = this.underWalk + (headSwitched ? 0.9 : 0) + shuttleHue
-      this.data[o + 3] = Math.random()
+      this.data[o + 3] = this.rand()
     }
     return this.data
   }

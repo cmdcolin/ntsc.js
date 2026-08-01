@@ -1,14 +1,24 @@
 import { useEffect, useState } from 'react'
 
 import { SYNCABLE_KEYS, SYNC_DIVISIONS, omit, syncedValue } from './midi'
-import { readJSON, writeJSON } from './storage'
+import { readRecord, writeJSON } from './storage'
 
 import type { ControlKey, Controls } from '../controls'
 
 // Which rate controls are clock-locked, and to which SYNC_DIVISIONS index.
 type SyncMap = Partial<Record<ControlKey, number>>
 const SYNC_STORE = 'video_feedback_midi_sync'
-const loadSync = () => readJSON<SyncMap>(SYNC_STORE, {})
+
+// Drop any lock whose division a shortened SYNC_DIVISIONS no longer has: every
+// read below indexes straight into that list, so a stale index would throw on
+// the first render rather than degrade to unlocked.
+const loadSync = (): SyncMap => {
+  const stored = readRecord<SyncMap>(SYNC_STORE, {})
+  const out: SyncMap = {}
+  for (const [k, div] of Object.entries(stored))
+    if (div >= 0 && div < SYNC_DIVISIONS.length) out[k as ControlKey] = div
+  return out
+}
 
 // Clock lock: a locked rate control's value is a pure function of tempo and
 // division, so it's derived during render rather than stored. This owns the map

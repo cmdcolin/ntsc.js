@@ -1,5 +1,5 @@
 import { AUTOMAP_KEYS, SLIDER_BY_KEY } from './controls'
-import { readJSON } from './storage'
+import { readRecord } from './storage'
 
 import type { ControlKey } from '../controls'
 import type { SliderDef } from './controls'
@@ -54,11 +54,11 @@ export type MidiStatus =
 
 const STORE_KEY = 'video_feedback_midi'
 
-// Through readJSON, not a bare JSON.parse: this runs inside useMidi's mount
+// Through readRecord, not a bare JSON.parse: this runs inside useMidi's mount
 // effect, so a corrupt or stale-schema value would throw out of it and take the
 // whole app down with no way back but clearing storage by hand.
 function loadBindings(): BindingMap {
-  return readJSON<BindingMap>(STORE_KEY, {})
+  return readRecord<BindingMap>(STORE_KEY, {})
 }
 
 function bindingId(b: MidiBinding): string {

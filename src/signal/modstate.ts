@@ -10,19 +10,33 @@ export type ModSource =
   'sine' | 'triangle' | 'walk' | 'smooth' | 'hold' | 'lorenz' | 'level' | 'hit'
 
 export interface ModWave {
+  // Stable identity of the routing this wave belongs to. The caller compacts
+  // its slot list before handing it over (an off or zero-depth slot is dropped),
+  // so position is NOT identity: keyed by index, enabling slot 1 would hand
+  // slot 2's accumulated phase over to it and restart slot 2 from zero — a
+  // running LFO visibly jumps, and a Lorenz slot re-enters elsewhere on the
+  // attractor.
+  id: number
   source: ModSource
   rateHz: number
 }
 
 const DT = 1 / 60
 
+// Per-routing oscillator state, continuous across frames.
+interface WaveState {
+  phase: number
+  clock: number // unwrapped cycle count, for the aperiodic sources
+  walk: number
+  dest: number
+  held: number
+  lorenz: Lorenz
+}
+
 export class ModState {
-  private phase: number[] = []
-  private clock: number[] = [] // unwrapped cycle count, for the aperiodic sources
-  private walk: number[] = []
-  private dest: number[] = []
-  private held: number[] = []
-  private lorenz: Lorenz[] = []
+  // Keyed by ModWave.id, not position. A slot switched off keeps its state, so
+  // switching it back on resumes rather than restarting.
+  private waveState = new Map<number, WaveState>()
 
   // One value per wave: LFOs are bipolar [-1, 1] (a hand wiggling around the
   // resting setting), audio followers unipolar [0, 1] (a push off it).
@@ -32,19 +46,23 @@ export class ModState {
     hit: number,
     rand: () => number = Math.random,
   ): number[] {
-    while (this.phase.length < waves.length) {
-      this.phase.push(0)
-      this.clock.push(0)
-      this.walk.push(0)
-      this.dest.push(rand() * 2 - 1)
-      this.held.push(rand() * 2 - 1)
-      this.lorenz.push(new Lorenz())
-    }
-    return waves.map((w, i) => {
-      const prev = this.phase[i]
+    return waves.map(w => {
+      let s = this.waveState.get(w.id)
+      if (s === undefined) {
+        s = {
+          phase: 0,
+          clock: 0,
+          walk: 0,
+          dest: rand() * 2 - 1,
+          held: rand() * 2 - 1,
+          lorenz: new Lorenz(),
+        }
+        this.waveState.set(w.id, s)
+      }
+      const prev = s.phase
       const ph = (prev + w.rateHz * DT) % 1
-      this.phase[i] = ph
-      this.clock[i] += w.rateHz * DT
+      s.phase = ph
+      s.clock += w.rateHz * DT
       const wrapped = ph < prev // one source cycle completed this frame
       let v: number
       if (w.source === 'sine') {
@@ -55,24 +73,22 @@ export class ModState {
         // a new destination once per cycle, slewed toward — the aimless drift
         // of a hand resting on a bend point rather than a periodic wave
         if (wrapped) {
-          this.dest[i] = rand() * 2 - 1
+          s.dest = rand() * 2 - 1
         }
-        v =
-          this.walk[i] +
-          (this.dest[i] - this.walk[i]) * Math.min(1, 5 * w.rateHz * DT)
-        this.walk[i] = v
+        v = s.walk + (s.dest - s.walk) * Math.min(1, 5 * w.rateHz * DT)
+        s.walk = v
       } else if (w.source === 'smooth') {
         // interpolated value noise: a gentler, more organic drift than walk
-        v = valueNoise(this.clock[i], i)
+        v = valueNoise(s.clock, w.id)
       } else if (w.source === 'hold') {
         // sample & hold: a fresh random step latched once per cycle, held flat
         if (wrapped) {
-          this.held[i] = rand() * 2 - 1
+          s.held = rand() * 2 - 1
         }
-        v = this.held[i]
+        v = s.held
       } else if (w.source === 'lorenz') {
         // strange-attractor coordinate: aperiodic but structured
-        v = this.lorenz[i].step(w.rateHz * DT)
+        v = s.lorenz.step(w.rateHz * DT)
       } else {
         v = w.source === 'level' ? level : hit
       }

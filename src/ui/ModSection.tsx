@@ -5,7 +5,7 @@ import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
 import { GROUPS, SLIDER_BY_KEY } from './controls'
-import { readJSON, writeJSON } from './storage'
+import { readArray, writeJSON } from './storage'
 
 import type { ControlKey, ModSlot } from '../controls'
 import type { Engine } from '../gpu/pipeline'
@@ -43,7 +43,7 @@ const N_SLOTS = 4
 const MOD_STORE = 'video_feedback_mod'
 
 function loadSlots(): UiSlot[] {
-  const stored = readJSON<UiSlot[]>(MOD_STORE, [])
+  const stored = readArray<UiSlot>(MOD_STORE, [])
   const valid = stored.filter(
     s => s.target === '' || SLIDER_BY_KEY.has(s.target),
   )
@@ -55,11 +55,14 @@ function loadSlots(): UiSlot[] {
 export function ModSection(props: { engine: Engine | null }) {
   const [slots, setSlots] = useState<UiSlot[]>(loadSlots)
 
-  const active = slots.flatMap((s): ModSlot[] => {
+  // The slot index rides along as `id`: this list is compacted (off and
+  // zero-depth slots drop out), so ModState cannot use position as identity —
+  // enabling one slot would otherwise hand it a neighbour's running phase.
+  const active = slots.flatMap((s, i): ModSlot[] => {
     const def = s.target === '' ? undefined : SLIDER_BY_KEY.get(s.target)
     return def === undefined || s.depth === 0
       ? []
-      : [{ ...s, target: def.key, min: def.min, max: def.max }]
+      : [{ ...s, id: i, target: def.key, min: def.min, max: def.max }]
   })
 
   // Push the active routings to the render loop. The engine applies them per
