@@ -7,6 +7,7 @@ import { cx } from './cx'
 import { BulbIcon } from './icons'
 import { PRESETS, matchPreset } from './presets'
 import { usePersistedFlag } from './storage'
+import { useRecentPresets } from './useRecentPresets'
 
 import type { Controls } from '../controls'
 import type { PresetDef, PresetWeights } from './presets'
@@ -31,6 +32,21 @@ const DRAG_SLOP = 4
 // The preset gesture hint is shown until the user dismisses it with its ×;
 // that choice persists, so it teaches once and then stops costing a row.
 const HINT_STORE = 'video_feedback_preset_hint_dismissed'
+// Whether the full grouped catalog is unfolded below the shortlist.
+const ALL_STORE = 'video_feedback_presets_expanded'
+
+// The shortlist a first visit opens on: one memorable look per family, so the
+// row spans the range of the thing before you've used it enough to have
+// habits. Recents displace these as they accumulate.
+const STARTERS = [
+  'vhs',
+  'broadcast',
+  'vertical hold gone',
+  'mixer loop',
+  'rainbow storm',
+  'neon tube',
+]
+const SHORTLIST_MAX = 8
 
 // The one explainer for the whole feature (behind the ? by the section title),
 // so the compact chips carry no per-preset help of their own — each chip's blurb
@@ -137,6 +153,8 @@ export function PresetsSection(props: {
 }) {
   const [showHelp, setShowHelp] = useState(false)
   const [hintDismissed, setHintDismissed] = usePersistedFlag(HINT_STORE)
+  const [showAll, setShowAll] = usePersistedFlag(ALL_STORE)
+  const { recent, noteUse } = useRecentPresets()
   // The hovered preset's blurb takes over the caption line: faster to browse
   // than the tooltip delay, and the only way touch users ever see the blurbs.
   const [hovered, setHovered] = useState<string | null>(null)
@@ -149,6 +167,39 @@ export function PresetsSection(props: {
       : props.lastPreset === null
         ? 'click a preset for an instant look, then tweak the sliders below.'
         : `modified from "${props.lastPreset}"`
+
+  // The shortlist: the reset, whatever is currently dialed into the mix (so a
+  // "surprise me" recipe stays legible with the catalog folded), then recents,
+  // topped up from the starters. Rendered in table order rather than pick
+  // order, so a chip doesn't move under the pointer as habits shift.
+  const picked = new Set<string>()
+  for (const name of [
+    'clean',
+    ...[...props.weights].filter(([, w]) => w > 0).map(([n]) => n),
+    ...recent,
+    ...STARTERS,
+  ]) {
+    if (picked.size < SHORTLIST_MAX) picked.add(name)
+  }
+  const renderButton = (p: PresetDef) => (
+    <PresetButton
+      key={p.name}
+      def={p}
+      weight={props.weights.get(p.name) ?? 0}
+      active={active?.name === p.name}
+      edited={active === undefined && props.lastPreset === p.name}
+      onApply={(name, patch) => {
+        noteUse(name)
+        props.onApplyPreset(name, patch)
+      }}
+      onMixStart={props.onMixStart}
+      onMix={(name, w) => {
+        noteUse(name)
+        props.onMix(name, w)
+      }}
+      onHover={setHovered}
+    />
+  )
 
   return (
     <Section
@@ -186,24 +237,28 @@ export function PresetsSection(props: {
           </button>
         </div>
       )}
-      {PRESET_GROUPS.map(grp => (
-        <div key={grp.name} style={{ margin: '2px 0 4px' }}>
-          <div className={styles.grpLabel}>{grp.name}</div>
-          {grp.defs.map(p => (
-            <PresetButton
-              key={p.name}
-              def={p}
-              weight={props.weights.get(p.name) ?? 0}
-              active={active?.name === p.name}
-              edited={active === undefined && props.lastPreset === p.name}
-              onApply={props.onApplyPreset}
-              onMixStart={props.onMixStart}
-              onMix={props.onMix}
-              onHover={setHovered}
-            />
-          ))}
-        </div>
-      ))}
+      {showAll ? null : (
+        <div>{PRESETS.filter(p => picked.has(p.name)).map(renderButton)}</div>
+      )}
+      <button
+        className={styles.moreBtn}
+        title={
+          showAll
+            ? 'fold the catalog back to your shortlist'
+            : 'every preset, grouped by the kind of fault it models'
+        }
+        onClick={() => setShowAll(!showAll)}
+      >
+        {showAll ? '▾' : '▸'} all {PRESETS.length} presets
+      </button>
+      {showAll
+        ? PRESET_GROUPS.map(grp => (
+            <div key={grp.name} style={{ margin: '2px 0 4px' }}>
+              <div className={styles.grpLabel}>{grp.name}</div>
+              {grp.defs.map(renderButton)}
+            </div>
+          ))
+        : null}
       <div className={styles.caption}>{presetCaption}</div>
       <button
         onPointerDown={props.onStartCompare}

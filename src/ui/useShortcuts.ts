@@ -15,6 +15,7 @@ function isTextEntry(t: EventTarget | null): boolean {
 
 interface Handlers {
   onEscape: () => void
+  onPalette: () => void
   onUndo: () => void
   canUndo: boolean
   onToggleFullscreen: () => void
@@ -42,6 +43,11 @@ export function useShortcuts(popout: Window | null, handlers: Handlers) {
       const key = e.key.toLowerCase()
       if (e.key === 'Escape') {
         h.onEscape()
+      } else if ((e.ctrlKey || e.metaKey) && key === 'k') {
+        // Reachable while typing too: the filter box is the most likely place
+        // to be when you decide you wanted the palette instead.
+        e.preventDefault()
+        h.onPalette()
       } else if ((e.ctrlKey || e.metaKey) && key === 'z') {
         if (h.canUndo) {
           e.preventDefault()
@@ -63,8 +69,12 @@ export function useShortcuts(popout: Window | null, handlers: Handlers) {
         }
       }
     }
+    // Same text-entry guard as the keydown side: without it, typing a "c" in the
+    // filter box ends a compare that was never started, and each keystroke costs
+    // a full filter-bank rebuild on the next frame.
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'c') ref.current.onEndCompare()
+      if (!isTextEntry(e.target) && e.key.toLowerCase() === 'c')
+        ref.current.onEndCompare()
     }
     const targets = popout === null ? [window] : [window, popout]
     for (const t of targets) {

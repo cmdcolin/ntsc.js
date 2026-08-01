@@ -142,14 +142,85 @@
   color: #a89850;
 }
 
-/* signal-path phase divider: the spine above each run of stage sections */
-.phaseLabel {
+/* The signal path drawn as a chain: a rail down the left with one node per
+   stage, wired top to bottom in the order the picture travels. Each row draws
+   its own segment of the rail, so adjacent rows join into one continuous line
+   and an open stage's controls sit alongside it. */
+.spine {
+  margin: 4px 0 0;
+}
+.spineRow {
+  position: relative;
+  padding: 0 0 2px 18px;
+}
+.spineRow::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #38384a;
+}
+/* the open stage's run of the rail is lit, so an unfolded stack of sliders
+   still reads as one branch of the chain rather than a loose section */
+.spineRowOn::before {
+  background: linear-gradient(#38384a 0 9px, #3f6a58 9px);
+}
+/* the chain ends at the last node rather than running on into the sections
+   below it */
+.spineLast::before {
+  bottom: auto;
+  height: 13px;
+}
+.spineNode {
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 9px;
+  height: 9px;
+  box-sizing: border-box;
+  border: 1px solid #4a4a58;
+  border-radius: 50%;
+  background: var(--panel-bg);
+}
+.spineNodeTouched {
+  border-color: #a89850;
+}
+.spineNodeOn {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.spineHead {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin: 6px 0 2px;
+}
+.spineName {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #6f7f9a;
-  margin: 12px 0 2px;
+}
+.spineName:hover {
+  color: #9fb4d0;
+}
+.spineNameOn {
+  color: var(--accent);
+}
+/* the stage's role, shown while it's open — the same line the node's tooltip
+   carries, so the map explains itself once you're in it */
+.spineBlurb {
+  color: #666;
+  margin: 0 0 4px;
+  line-height: 1.35;
 }
 /* the stage's touched-control count; clicking opens the first touched group */
 .phaseDot {
@@ -198,10 +269,47 @@
 .sliderToggle:hover {
   color: #a8a8b8;
 }
+/* the only route from the preset shortlist to the rest of the catalog, so it
+   reads a step brighter than the miniatures' slider reveal */
+.moreBtn {
+  display: block;
+  margin: 3px 0 2px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: #8a8aa8;
+}
+.moreBtn:hover {
+  color: var(--fg);
+}
 
-/* control filter box */
+/* control filter box, with the palette key beside it */
+.filterRow {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  margin: 12px 0 0;
+}
+.paletteKey {
+  flex-shrink: 0;
+  padding: 0 7px;
+  border: 1px solid #2a2a34;
+  border-radius: 4px;
+  background: var(--panel-bg);
+  color: #6a6a78;
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+}
+.paletteKey:hover {
+  border-color: #4a4a58;
+  color: var(--fg);
+}
 .filter {
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   background: var(--panel-bg);
   color: #d8d8e0;
@@ -217,6 +325,10 @@
 .filter:focus {
   border-color: #4a4a58;
   outline: none;
+}
+/* the filter row's own top margin lives on the row */
+.filterRow .filter {
+  margin: 0;
 }
 
 /* input dropdowns */
@@ -399,6 +511,125 @@
 .cardWide {
   width: 460px;
   line-height: 1.5;
+}
+
+/* command palette: a search box over one flat list of presets, controls and
+   actions. Sits high in the viewport rather than centered (the UA centers a
+   modal <dialog> with `margin: auto`; pinning the top margin overrides only the
+   vertical half), so the results grow downward into empty space instead of
+   pushing the box around as the list shrinks. */
+.paletteModal {
+  margin-top: 10vh;
+  margin-bottom: auto;
+}
+.paletteCard {
+  width: 520px;
+  max-width: 92vw;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.paletteInput {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: #d8d8e0;
+  font: inherit;
+  font-size: 13px;
+}
+.paletteInput:focus {
+  outline: none;
+}
+.paletteInput::placeholder {
+  color: #55555f;
+}
+.paletteList {
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.paletteRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.paletteRowOn {
+  background: #22303a;
+}
+.paletteKind {
+  flex-shrink: 0;
+  width: 46px;
+  color: #5d6b7a;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.paletteName {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.paletteRowOn .paletteName {
+  color: var(--accent);
+}
+.paletteSub {
+  flex: 1;
+  min-width: 0;
+  color: #7a7a90;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.paletteValue {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  color: #9a9ab0;
+}
+.paletteEmpty {
+  padding: 10px 14px;
+  color: #666;
+}
+.paletteFoot {
+  padding: 6px 14px;
+  border-top: 1px solid var(--border);
+  color: #5d5d6b;
+  font-size: 11px;
+}
+
+/* first-visit tour: step dots on the left, back/next on the right */
+.tourFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+.tourDots {
+  display: flex;
+  gap: 6px;
+}
+.tourDot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 1px solid #4a4a58;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+.tourDotOn {
+  border-color: var(--accent);
+  background: var(--accent);
 }
 .cardRow {
   display: flex;

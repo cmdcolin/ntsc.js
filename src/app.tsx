@@ -7,6 +7,7 @@ import styles from './app.module.css'
 import { DEFAULT_CONTROLS } from './controls'
 import { AdvancedDialog } from './ui/AdvancedDialog'
 import { AudioSection } from './ui/AudioSection'
+import { CommandPalette } from './ui/CommandPalette'
 import { FatalScreen } from './ui/FatalScreen'
 import { HelpDialog } from './ui/HelpDialog'
 import { InputSection } from './ui/InputSection'
@@ -16,6 +17,7 @@ import { PipFrame } from './ui/PipFrame'
 import { PresetsSection } from './ui/PresetsSection'
 import { ScenesSection } from './ui/ScenesSection'
 import { Section } from './ui/Section'
+import { SignalPath } from './ui/SignalPath'
 import { Slider } from './ui/Slider'
 import { Stage } from './ui/Stage'
 import { VaporwaveSection } from './ui/VaporwaveSection'
@@ -47,6 +49,8 @@ import { useUrlState } from './ui/useUrlState'
 import { gitSha, versionLabel } from './version'
 
 import type { ControlKey, Controls } from './controls'
+import type { PaletteAction } from './ui/CommandPalette'
+import type { PathNode } from './ui/SignalPath'
 import type { Group, SliderDef, SliderNeed } from './ui/controls'
 import type { PresetWeights } from './ui/presets'
 
@@ -72,8 +76,10 @@ const PIP_GROUP = 'PiP inset (source B)'
 const PIP_BOX_KEYS = new Set<ControlKey>(['pipX', 'pipY', 'pipW', 'pipH'])
 const WIPE_GROUP = 'Wipe (A/B)'
 
-// Which signal-path stage is expanded. Persisted so a reload keeps your place.
+// Which signal-path stage, and which group inside it, are expanded. Persisted
+// so a reload keeps your place.
 const OPEN_GROUP_STORE = 'video_feedback_open_group'
+const OPEN_PHASE_STORE = 'video_feedback_open_phase'
 
 export function App() {
   const eng = useEngine()
@@ -110,6 +116,7 @@ export function App() {
   const [fullscreen, setFullscreen] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [showPalette, setShowPalette] = useState(false)
   const [lastPreset, setLastPreset] = useState<string | null>(null)
   const [comparing, setComparing] = useState(false)
   const [filter, setFilter] = useState('')
@@ -132,6 +139,27 @@ export function App() {
   const openGroupByName = (name: string) => {
     localStorage.setItem(OPEN_GROUP_STORE, name)
     setOpenGroup(name)
+  }
+  // Which stage of the chain is unfolded. Only one at a time, so the whole
+  // signal path stays on screen instead of scrolling past as a flat list.
+  const [openPhase, setOpenPhase] = useState<string | null>(() =>
+    localStorage.getItem(OPEN_PHASE_STORE),
+  )
+  const setPhase = (name: string | null) => {
+    if (name === null) localStorage.removeItem(OPEN_PHASE_STORE)
+    else localStorage.setItem(OPEN_PHASE_STORE, name)
+    setOpenPhase(name)
+  }
+  // Opening a stage opens its first group too, so reaching a knob stays one
+  // click deep rather than two.
+  const togglePhase = (name: string) => {
+    if (openPhase === name) {
+      setPhase(null)
+    } else {
+      setPhase(name)
+      const first = PHASES.find(p => p.name === name)?.groups[0]
+      if (first !== undefined) openGroupByName(first.name)
+    }
   }
   const { favorites, toggleFavorite } = useFavorites()
   // Single-level undo: the look from just before the last destructive apply
@@ -282,6 +310,7 @@ export function App() {
       disarm()
       stopLearn()
     },
+    onPalette: () => setShowPalette(true),
     onUndo: undo,
     canUndo: undoSnapshot !== null,
     onToggleFullscreen: toggleFullscreen,
@@ -312,6 +341,57 @@ export function App() {
   })
 
   const audio = useAudio(eng.engine)
+
+  // Everything the palette can run that isn't a preset or a control. Hold-to-
+  // compare is deliberately absent: it's a gesture, not a command.
+  const paletteActions: PaletteAction[] = [
+    { name: 'surprise me', blurb: 'stack a few random presets', run: surprise },
+    {
+      name: 'mutate',
+      blurb: 'jitter every control around the current look',
+      run: mutateLook,
+    },
+    {
+      name: 'undo',
+      blurb: 'restore the look from before the last preset, scene, or mutate',
+      run: undo,
+    },
+    {
+      name: 'copy link',
+      blurb: 'put this look on the clipboard as a URL',
+      run: copyLink,
+    },
+    {
+      name: 'record clip',
+      blurb: 'start or stop recording the stage',
+      run: capture.toggleRecord,
+    },
+    {
+      name: 'save still',
+      blurb: 'download the current frame as a png',
+      run: capture.grabStill,
+    },
+    {
+      name: 'fullscreen',
+      blurb: 'give the picture the whole screen',
+      run: toggleFullscreen,
+    },
+    {
+      name: 'pop out controls',
+      blurb: 'move this panel into its own window',
+      run: openPopout,
+    },
+    {
+      name: 'advanced settings',
+      blurb: 'render scale and MIDI setup',
+      run: () => setShowAdvanced(true),
+    },
+    {
+      name: 'help',
+      blurb: 'what this is, the keys, and the tour',
+      run: () => setShowHelp(true),
+    },
+  ]
 
   const query = filter.trim().toLowerCase()
   const renderNeeds = (s: SliderDef, muted?: Set<ControlKey>) => {
@@ -477,45 +557,40 @@ export function App() {
     )
   }
 
-  const phaseEls = PHASES.map(phase => {
+  // Roll the per-group touched state up to the phase, so the chain reads as a
+  // status map — you see which stages you're in without opening any. The count
+  // is a button: it jumps into the first touched group, which is the path from
+  // "this preset looks cool" to the knobs that made it.
+  const pathNodes = PHASES.flatMap((phase): PathNode[] => {
     const rendered = phase.groups.map(group =>
       renderGroup(group, false, {
         open: openGroup === group.name,
         onToggle: () => toggleGroup(group.name),
       }),
     )
-    // Roll the per-group touched state up to the phase, so the collapsed
-    // spine reads as a status map — you see which phases you're in without
-    // opening any. The count is a button: it jumps you into the first touched
-    // group, which is the path from "this preset looks cool" to the knobs
-    // that made it.
     const touchedGroups = phase.groups.filter(g =>
       g.sliders.some(s => controls[s.key] !== DEFAULT_CONTROLS[s.key]),
     )
-    const nTouched = touchedGroups.reduce(
-      (n, g) =>
-        n +
-        g.sliders.filter(s => controls[s.key] !== DEFAULT_CONTROLS[s.key])
-          .length,
-      0,
-    )
-    return rendered.every(r => r === null) ? null : (
-      <div key={phase.name}>
-        <div className={styles.phaseLabel} title={phase.blurb}>
-          {phase.name}
-          {touchedGroups.length === 0 ? null : (
-            <button
-              className={styles.phaseDot}
-              title={`${nTouched} control${nTouched === 1 ? '' : 's'} in this stage off stock — click to see`}
-              onClick={() => openGroupByName(touchedGroups[0].name)}
-            >
-              • {nTouched}
-            </button>
-          )}
-        </div>
-        {rendered}
-      </div>
-    )
+    return rendered.every(r => r === null)
+      ? []
+      : [
+          {
+            name: phase.name,
+            blurb: phase.blurb,
+            touched: touchedGroups.reduce(
+              (n, g) =>
+                n +
+                g.sliders.filter(s => controls[s.key] !== DEFAULT_CONTROLS[s.key])
+                  .length,
+              0,
+            ),
+            onJumpTouched: () => {
+              setPhase(phase.name)
+              openGroupByName(touchedGroups[0].name)
+            },
+            body: rendered,
+          },
+        ]
   })
 
   const panelBody = (
@@ -541,31 +616,9 @@ export function App() {
         </a>
       </div>
 
-      <InputSection
-        sourceMode={eng.sourceMode}
-        sourceName={eng.sourceName}
-        onSelectSource={eng.selectSource}
-        sourceBMode={eng.sourceBMode}
-        sourceBName={eng.sourceBName}
-        onSelectSourceB={eng.selectSourceB}
-        webcamDeviceId={eng.webcamDeviceId}
-        videoDevices={eng.videoDevices}
-        onStartWebcam={eng.startWebcam}
-        fileInputRef={eng.fileInputRef}
-        fileInputBRef={eng.fileInputBRef}
-        onFile={eng.onFile}
-        onFileB={eng.onFileB}
-      />
-
-      {eng.sourceBMode === 'none' ? null : (
-        <Section title="A/B Mix" defaultOpen>
-          {/* Primary mixer open, alternative compositors (wipe, PiP) collapsed,
-              so enabling B surfaces the mix controls without unfurling every
-              slider at once. */}
-          {AB_GROUPS.map((group, i) => renderGroup(group, i === 0))}
-        </Section>
-      )}
-
+      {/* The front door goes first: a look is one click, and everything below
+          is for adjusting the look you picked. Input is a set-once control and
+          reads fine in second place. */}
       <PresetsSection
         controls={controls}
         lastPreset={lastPreset}
@@ -584,6 +637,30 @@ export function App() {
         onUndo={undo}
       />
 
+      <InputSection
+        sourceMode={eng.sourceMode}
+        sourceName={eng.sourceName}
+        onSelectSource={eng.selectSource}
+        sourceBMode={eng.sourceBMode}
+        sourceBName={eng.sourceBName}
+        onSelectSourceB={eng.selectSourceB}
+        webcamDeviceId={eng.webcamDeviceId}
+        videoDevices={eng.videoDevices}
+        onStartWebcam={eng.startWebcam}
+        fileInputRef={eng.fileInputRef}
+        fileInputBRef={eng.fileInputBRef}
+        onFile={eng.onFile}
+        onFileB={eng.onFileB}
+      />
+
+      {/* Collapsed by default: source B is on out of the box, and ten mixer
+          sliders unfurled here is what used to push the presets off screen. */}
+      {eng.sourceBMode === 'none' ? null : (
+        <Section title="A/B Mix" defaultOpen={false} forceOpen={query !== ''}>
+          {AB_GROUPS.map((group, i) => renderGroup(group, i === 0))}
+        </Section>
+      )}
+
       {/* Pinned controls, gathered from wherever they live in the chain into one
           spot near the front door. Shown only once something is starred, so it
           costs nothing until used; ordered by the signal path, not pin order, so
@@ -599,19 +676,33 @@ export function App() {
       {/* The signal-path map is the panel's trunk, so it sits high — right under
           the source and preset front door — and the filter that acts on it heads
           it. Scenes/mod/audio/midi are occasional tools and drop below it. */}
-      <input
-        className={styles.filter}
-        type="search"
-        placeholder="filter controls — try “rainbow” or “ghost”…"
-        title="matches names and descriptions, so artifact words work: rainbow, ghost, dot crawl, tear, roll…"
-        value={filter}
-        onChange={e => setFilter(e.target.value)}
-      />
-      <div className={styles.hint}>
-        the signal path, in order — hover a stage name for its role
+      <div className={styles.filterRow}>
+        <input
+          className={styles.filter}
+          type="search"
+          placeholder="filter controls — try “rainbow” or “ghost”…"
+          title="matches names and descriptions, so artifact words work: rainbow, ghost, dot crawl, tear, roll…"
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+        />
+        <button
+          className={styles.paletteKey}
+          title="jump to any preset, control, or action by name"
+          onClick={() => setShowPalette(true)}
+        >
+          ⌘K
+        </button>
       </div>
-      {phaseEls}
-      {query === '' || phaseEls.some(el => el !== null) ? null : (
+      <div className={styles.hint}>
+        the chain the picture travels down — open a stage for its controls
+      </div>
+      <SignalPath
+        nodes={pathNodes}
+        open={openPhase}
+        expandAll={query !== ''}
+        onOpen={togglePhase}
+      />
+      {query === '' || pathNodes.length > 0 ? null : (
         <div className={styles.hint}>
           nothing matches “{filter.trim()}” — descriptions are searched too, so
           artifact words like “rainbow”, “ghost”, or “tear” find the sliders
@@ -649,13 +740,13 @@ export function App() {
       {AUDIO_GROUP === undefined ? null : (
         <AudioSection
           active={audio.active}
-          level={audio.level}
           hit={audio.hit}
           error={audio.error}
           onEnableMic={audio.enableMic}
           onDisable={audio.disable}
           group={AUDIO_GROUP}
           renderGroup={renderGroup}
+          forceOpen={query !== ''}
         />
       )}
 
@@ -738,6 +829,17 @@ export function App() {
         />
       ) : null}
       {showHelp ? <HelpDialog onClose={() => setShowHelp(false)} /> : null}
+      {showPalette ? (
+        <CommandPalette
+          controls={controls}
+          actions={paletteActions}
+          onApplyPreset={applyPreset}
+          onMixStart={startMix}
+          onWriteControl={writeControl}
+          onRevealControl={setFilter}
+          onClose={() => setShowPalette(false)}
+        />
+      ) : null}
     </div>
   )
 }

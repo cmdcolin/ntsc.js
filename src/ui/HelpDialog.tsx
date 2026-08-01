@@ -18,11 +18,17 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
       <div className={styles.helpHead}>getting started</div>
       <ol className={styles.helpList}>
         <li>
+          Click a <b>Preset</b> for an instant look — or drag one sideways to
+          mix it in partially, stacking its faults onto what’s already there.
+        </li>
+        <li>
           Pick an <b>Input</b> (A is the main source; B mixes a second in).
         </li>
         <li>
-          Click a <b>Preset</b> for an instant look, then tweak the sliders
-          below.
+          Below that is the path itself — <b>source</b>, <b>feedback</b>,{' '}
+          <b>tape</b>, <b>receiver</b>, <b>screen</b>, wired in the order the
+          signal travels. Open a stage to reach its controls; the dot beside one
+          counts what you’ve moved there.
         </li>
         <li>
           Every slider has a <b>?</b> explaining the hardware fault it models.
@@ -39,6 +45,10 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
       </ol>
       <div className={styles.helpHead}>keyboard</div>
       <ul className={styles.helpList}>
+        <li>
+          <b>⌘K</b> / <b>Ctrl+K</b> jump to any preset, control, or action by
+          name; <b>←→</b> nudges a control from the list
+        </li>
         <li>
           <b>C</b> (hold) compare against the clean signal
         </li>

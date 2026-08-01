@@ -8,16 +8,18 @@ import type { ReactNode } from 'react'
 
 export function AudioSection(props: {
   active: boolean
-  level: number
   hit: number
   error: string | null
   onEnableMic: () => void
   onDisable: () => void
   group: Group
   renderGroup: (group: Group, defaultOpen: boolean) => ReactNode
+  // A live filter reaches in here too, so a match isn't hidden behind a
+  // collapsed section.
+  forceOpen: boolean
 }) {
   return (
-    <Section title="Audio" dot={props.active}>
+    <Section title="Audio" dot={props.active} forceOpen={props.forceOpen}>
       <div className={styles.hint}>
         the top two knobs detune the hold oscillators, so sound knocks sync out
         of lock and the picture lurches and tears back — start there. the
