@@ -1,18 +1,12 @@
-# ntscynthia
+# ntscythe
 
 ![One NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, then the luma staircase with the chroma subcarrier riding on each bar](docs/logo.svg)
 
 > A real-time **NTSC / VHS / composite-video glitch** simulator, running
-> entirely in **WebGPU** compute shaders. The artifacts fall out of a simulated
-> analog signal — they aren't filters painted over the picture.
+> entirely in **WebGPU** compute shaders
 
-**[Live demo](https://cmdcolin.github.io/ntscynthia/)** — needs a WebGPU-enabled
+**[Live demo](https://cmdcolin.github.io/ntscythe/)** — needs a WebGPU-enabled
 browser.
-
-<sub>Sometimes searched as: a VHS filter, camcorder / analog-video effect, NTSC
-emulator, composite-video or CRT glitch, datamosh-adjacent, no-input video
-feedback, or a browser video synth — for glitch-art, vaporwave, and
-analog-horror looks.</sub>
 
 Each frame gets encoded into a real composite video waveform, mangled like it
 went through tape and RF, then decoded by an imperfect TV. Dot crawl, ringing,
@@ -22,12 +16,12 @@ feedback loops as well (a camera pointed at its own monitor, and a
 hardware-mixer loop), and you can dirty-mix in a second source. All in WebGPU
 compute shaders, in real time.
 
-[![A photo dubbed to VHS inside the ntscynthia app, alongside its full control panel](docs/gallery/hero.jpg)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
+[![A photo dubbed to VHS inside the ntscythe app, alongside its full control panel](docs/gallery/hero.jpg)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
 
 <sub>▶ **In motion:**
 [watch the 6-second clip](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
 (or click the image above) · or open the
-[live demo](https://cmdcolin.github.io/ntscynthia/) and load your own
+[live demo](https://cmdcolin.github.io/ntscythe/) and load your own
 footage.</sub>
 
 ## Gallery
@@ -132,8 +126,8 @@ in `src/signal/filters.ts`.
 
 ### The chain
 
-Five blocks: build the signal, damage it, decode it, display. Two feedback loops
-fold back in every frame.
+Five blocks: source, encode, damage, decode, display. Two feedback loops fold
+back in every frame.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/pipeline-simple-dark.svg">
@@ -148,28 +142,31 @@ repeats once per dub generation):
   <img alt="Signal path — detailed, pass by pass: encoder, channel, receiver, present" src="docs/pipeline-light.svg">
 </picture>
 
-<sup>Diagrams are Graphviz:
-[`docs/pipeline-simple.dot`](docs/pipeline-simple.dot),
+<sup>Dashed boxes are passes that only run when their control is engaged.
+Diagrams are Graphviz: [`docs/pipeline-simple.dot`](docs/pipeline-simple.dot),
 [`docs/pipeline.dot`](docs/pipeline.dot). `pnpm run docs` regenerates both in
 light and dark variants (needs `dot` on PATH).</sup>
 
 The two feedback loops work at different points in the chain:
 
 - **Camera-at-monitor** (in the image): before re-encoding, `compose` reads back
-  the _previous_ decoded frame and zooms, rotates, shifts, and dims it. It's the
-  same thing as aiming a camera at the screen it's driving.
-- **Hardware mixer** (in the signal): `storePrev` stashes the decoded waveform
-  in `compPrev`, then `fbComposite` blends it back into the new frame's
-  composite with keying and trails. Feeding back at the signal level means it
-  dot-crawls and smears like a real vision mixer.
+  the _previous_ frame's CRT face — `crtFace`'s glowing tube, the same texture
+  the canvas shows — and zooms, rotates, shifts, and dims it. It's the same
+  thing as aiming a camera at the screen it's driving, and it photographs an
+  emissive screen rather than the raw decoder output.
+- **Hardware mixer** (in the signal): `storePrev` stashes the waveform the
+  decoder _saw_ — damaged composite, straight off `timebase` — in `compPrev`,
+  then `fbComposite` blends it back into the next frame's composite with keying
+  and trails. Feeding back at the signal level means it dot-crawls and smears
+  like a real vision mixer.
 
 | Stage     | Pass(es)                                            | What it models                                                                                                                                       |
 | --------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Encoder   | `compose`, `encodeYuv`, `encodeComposite`           | RGB → YUV → composite: luma + chroma quadrature-modulated onto the `Fsc` subcarrier, sync/burst/blanking inserted                                    |
-| Dirty mix | `encodeYuvB`, `mixB`                                | second non-genlocked source B mixed/wiped in, with its own hue/ring/detune                                                                           |
+| Dirty mix | `composeB`, `encodeYuvB`, `mixB`                    | second non-genlocked source B mixed/wiped into the finished composite, with its own hue/ring/detune                                                  |
 | Channel   | `chromaExtract`, `underDown`, `channel`, `timebase` | the tape/RF path — color-under, band-limiting, noise, dropouts, ghosting, hum, head-switch bend, time-base jitter. Loops once per **dub generation** |
 | Receiver  | `syncMeasure`, `sync`, `lineAnalyze`, `decode`      | a real (imperfect) TV: sync recovery, per-line burst lock, comb filtering, chroma demod, color-kill                                                  |
-| Display   | `present`                                           | scanline beam profile to the canvas                                                                                                                  |
+| Display   | `crtFace`, `present`                                | the lit tube face — bloom, halation, gamma — then the scanline beam profile to the canvas                                                            |
 
 ## Verification harness
 
@@ -183,7 +180,7 @@ which is why it's Firefox.
 
 ## Related / prior art
 
-ntscynthia sits in a small family of analog-video emulators. If you like it, also
+ntscythe sits in a small family of analog-video emulators. If you like it, also
 look at:
 
 - **[ntsc-rs](https://github.com/valadaptive/ntsc-rs)** and **ntscQT** —
@@ -194,16 +191,14 @@ look at:
   shaders** (`crt-royale`, `crt-guest-advanced`) — the emulator/shader side of
   the same idea.
 - Hardware roots: **Rutt–Etra** video synthesis, **no-input video feedback**,
-  and time-base correctors — the gear ntscynthia imitates in software.
+  and time-base correctors — the gear ntscythe imitates in software.
 
-What's different here: ntscynthia models the whole signal _path_ end to end in
+What's different here: ntscythe models the whole signal _path_ end to end in
 real time — encode → tape/RF damage → imperfect decode → CRT — so the artifacts
 interact the way they do on real hardware instead of being independent filters.
 
 ---
 
 Note: this project is extensively vibecoded. The initial signal-path design was
-one-shotted almost perfectly by [Fable](https://claude.com/), which nailed the
-"signal level" idea behind the glitches. An earlier Opus attempt — targeting
-Python and static images — hadn't grasped that framing, which surprised me given
-how well Opus had done on other work.
+one-shotted by [Fable](https://claude.com/), which nailed the "signal level"
+idea behind the glitches.

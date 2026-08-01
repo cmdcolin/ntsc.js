@@ -4,7 +4,7 @@ import { Dialog } from './Dialog'
 
 export function HelpDialog({ onClose }: { onClose: () => void }) {
   return (
-    <Dialog title="ntscynthia" size="prose" onClose={onClose}>
+    <Dialog title="ntscythe" size="prose" onClose={onClose}>
       <img
         className={styles.helpLogo}
         src={logoUrl}
@@ -69,7 +69,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         fullscreen on a projector. Source code and notes on{' '}
         <a
           className={styles.link}
-          href="https://github.com/cmdcolin/ntscynthia"
+          href="https://github.com/cmdcolin/ntscythe"
           target="_blank"
           rel="noreferrer"
         >

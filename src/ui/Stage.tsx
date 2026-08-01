@@ -21,7 +21,7 @@ import type { Lens } from './lens'
 import type { PointerEvent, ReactNode, RefObject } from 'react'
 
 // Persisted across reloads so a collapse sticks.
-const BAR_HIDDEN_STORE = 'ntscynthia_overlay_bar_hidden'
+const BAR_HIDDEN_STORE = 'ntscythe_overlay_bar_hidden'
 
 // Magnification, as the menu trigger and the reset button both say it.
 const zoomLabel = (lens: Lens) =>

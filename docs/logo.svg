@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 210" width="720" height="210" role="img" aria-label="ntscynthia — one NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, and the descending luma staircase with chroma subcarrier on each bar">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 210" width="720" height="210" role="img" aria-label="ntscythe — one NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, and the descending luma staircase with chroma subcarrier on each bar">
   <defs>
     <filter id="glow" x="-4%" y="-8%" width="108%" height="116%">
       <feGaussianBlur stdDeviation="2.2" result="blur"/>
