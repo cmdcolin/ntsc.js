@@ -22,7 +22,7 @@ import { ACTIVE_HEIGHT, ACTIVE_WIDTH } from '../signal/constants'
 // deinterlace tap), so resolution past ~2x that buys no detail. Uncapped, a
 // phone photo lands as a ~200 MB texture whose minified fetches thrash cache
 // every frame, and a 4K clip re-uploads 33 MB per frame.
-const MAX_SRC_EDGE = 1536
+export const MAX_SRC_EDGE = 1536
 
 // Long edge capped to MAX_SRC_EDGE, aspect preserved.
 export const fitSrc = (w: number, h: number): [number, number] => {

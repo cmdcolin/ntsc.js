@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { Engine } from '../gpu/pipeline'
+import { MAX_SRC_EDGE } from '../gpu/sources'
 import { reportPreviousTrace, trace } from '../gpu/trace'
 import { smpteBars, sweep } from '../sources/pattern'
 import { ytId } from '../sources/youtube'
@@ -19,13 +20,13 @@ import type { Fatal } from './FatalScreen'
 import type { SessionParams } from './urlParams'
 import type { VideoSlot } from './videoSlot'
 
-// The long edge a decoded still is capped to, so a phone photo doesn't land as
-// a ~200 MB bitmap. Sources caps the texture as well; this keeps the *decode*
-// cheap, which is the part that happens before the engine ever sees it.
-const MAX_DECODE_EDGE = 1536
+// Capped to the same long edge the engine's texture is, and for the same
+// reason — past it the raster cannot show the detail. Doing it here too keeps
+// the *decode* cheap, which happens before the engine ever sees the bitmap, so
+// a phone photo never lands as a ~200 MB one.
 const decodeImage = (src: Blob | File): Promise<ImageBitmap> =>
   createImageBitmap(src).then(bmp => {
-    const s = Math.min(1, MAX_DECODE_EDGE / Math.max(bmp.width, bmp.height))
+    const s = Math.min(1, MAX_SRC_EDGE / Math.max(bmp.width, bmp.height))
     return s === 1
       ? bmp
       : createImageBitmap(bmp, {
