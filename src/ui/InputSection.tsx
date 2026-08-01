@@ -85,15 +85,11 @@ export function InputSection(props: {
           />
         ) : null}
         {props.audioInput}
-        {props.sourceBMode === 'none' ? (
-          <div className={styles.hint}>
-            pick a source B above to mix a second signal in.
-          </div>
-        ) : (
-          <div className={styles.hint}>
-            mix controls are in the A/B Mix section below.
-          </div>
-        )}
+        <div className={styles.hint}>
+          {props.sourceBMode === 'none'
+            ? 'pick a source B to mix a second signal in.'
+            : 'mix controls are in A/B Mix below.'}
+        </div>
         {props.audioHint}
       </Section>
       {/* Hidden pickers stay mounted outside the collapsible Section, so a

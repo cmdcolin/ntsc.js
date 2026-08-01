@@ -237,12 +237,8 @@ export function PresetsSection(props: {
       help={
         <button
           className={styles.helpBtn}
-          style={{ marginLeft: 6 }}
           title="what are presets?"
-          onClick={e => {
-            e.stopPropagation()
-            setShowHelp(true)
-          }}
+          onClick={() => setShowHelp(true)}
         >
           ?
         </button>
@@ -254,8 +250,7 @@ export function PresetsSection(props: {
             <BulbIcon />
           </span>
           <span>
-            drag a preset sideways to mix it in partially — the fill shows how
-            much of it is in
+            drag a preset sideways to mix it in partially
           </span>
           <button
             className={styles.hintX}
@@ -285,7 +280,7 @@ export function PresetsSection(props: {
       </button>
       {showAll
         ? PRESET_GROUPS.map(grp => (
-            <div key={grp.name} style={{ margin: '2px 0 4px' }}>
+            <div key={grp.name} className={styles.presetGroup}>
               <div className={styles.grpLabel}>{grp.name}</div>
               {grp.defs.map(renderButton)}
             </div>

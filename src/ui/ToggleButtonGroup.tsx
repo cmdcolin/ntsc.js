@@ -2,8 +2,7 @@ import styles from './ToggleButtonGroup.module.css'
 import { cx } from './cx'
 
 // A discrete control: one button per option, index == value. Writes the same
-// number a slider would, so MIDI, mod and presets treat it identically. Lives
-// inside a <label>, so each click preventDefaults or it forwards to the label.
+// number a slider would, so MIDI, mod and presets treat it identically.
 export function ToggleButtonGroup(props: {
   label: string
   options: string[]
@@ -21,10 +20,7 @@ export function ToggleButtonGroup(props: {
           aria-checked={props.value === i}
           className={cx(styles.button, props.value === i && styles.on)}
           disabled={props.disabled}
-          onClick={e => {
-            e.preventDefault()
-            props.onChange(i)
-          }}
+          onClick={() => props.onChange(i)}
         >
           {opt}
         </button>

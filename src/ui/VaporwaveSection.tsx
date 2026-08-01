@@ -39,9 +39,8 @@ export function VaporwaveSection(props: {
   return (
     <Section title="Vaporwave" dot={props.playAudio}>
       <div className={styles.hint}>
-        slow the clip down — the pitch drops with it, the classic screwed sound.
-        play the audio out loud and it also drives the reactive artifacts. 0.66×
-        is the one.
+        slow the clip down and the pitch drops with it — the screwed sound.
+        played out loud it also drives the reactive artifacts.
       </div>
       <button className={styles.btn} onClick={props.onApplyPreset}>
         {VAPORWAVE_SPEED}× vaporwave

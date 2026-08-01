@@ -1,8 +1,7 @@
 import styles from '../app.module.css'
-import { CONTROL_KEYS } from '../controls'
 import { Section } from './Section'
 import { cx } from './cx'
-import { presetControls } from './presets'
+import { controlsEqual, presetControls } from './presets'
 
 import type { Controls } from '../controls'
 
@@ -21,10 +20,9 @@ export function ScenesSection(props: {
     <Section title="Scenes" defaultOpen={false}>
       {SLOTS.map(n => {
         const scene = props.scenes[n]
-        const full = scene === undefined ? undefined : presetControls(scene)
         const isActive =
-          full !== undefined &&
-          CONTROL_KEYS.every(k => full[k] === props.controls[k])
+          scene !== undefined &&
+          controlsEqual(presetControls(scene), props.controls)
         return (
           <button
             key={n}

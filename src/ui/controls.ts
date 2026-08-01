@@ -1418,12 +1418,24 @@ export const PHASES = PHASE_ORDER.map(name => ({
   groups: GROUPS.filter(g => g.place === name),
 }))
 
+// Every control, in signal-path order. The one flattening of GROUPS.
+export const ALL_SLIDERS = GROUPS.flatMap(g => g.sliders)
+
 // Span/step lookup for the code that maps external values onto controls —
 // MIDI CC scaling, modulation depth, mutation — none of which have the group
 // walk in hand.
 export const SLIDER_BY_KEY = new Map<ControlKey, SliderDef>(
-  GROUPS.flatMap(g => g.sliders).map(s => [s.key, s]),
+  ALL_SLIDERS.map(s => [s.key, s]),
 )
+
+// Every control has exactly one slider (controls.test.ts holds that), so the
+// lookup is total: callers get a SliderDef, not a maybe they have to paper over
+// with the control key as a stand-in label.
+export function sliderFor(key: ControlKey): SliderDef {
+  const def = SLIDER_BY_KEY.get(key)
+  if (def === undefined) throw new Error(`no slider defined for ${key}`)
+  return def
+}
 
 // Controls in auto-map priority order: the signal-path spine first, then the
 // contextual A/B and audio groups. A controller has far fewer knobs than there
@@ -1439,6 +1451,10 @@ const automapOrder = [
   ...GROUPS.filter(g => g.place === 'ab'),
   ...GROUPS.filter(g => g.place === 'audio'),
 ].flatMap(g => g.sliders.map(s => s.key))
+
+// The groups that surface contextually rather than on the signal-path spine.
+export const AB_GROUPS = GROUPS.filter(g => g.place === 'ab')
+export const AUDIO_GROUPS = GROUPS.filter(g => g.place === 'audio')
 
 export const AUTOMAP_KEYS: ControlKey[] = [
   ...automapOrder.filter(k => !VIEW_KEYS.has(k)),

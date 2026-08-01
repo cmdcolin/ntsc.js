@@ -83,8 +83,8 @@ export function ModSection(props: { engine: Engine | null }) {
   return (
     <Section title="Modulation" defaultOpen={false} dot={active.length > 0}>
       <div className={styles.hint}>
-        the bender&apos;s other hand: LFOs, drift, and the audio envelope
-        wiggling any control around its slider setting.
+        LFOs, drift and the audio envelope wiggling any control around its
+        slider setting.
       </div>
       {slots.map((s, i) => (
         // Slots are positional identities (slot 1..4), so the index IS the key.

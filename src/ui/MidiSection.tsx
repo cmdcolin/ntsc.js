@@ -2,18 +2,12 @@ import { useState } from 'react'
 
 import styles from '../app.module.css'
 import { Section } from './Section'
-import { GROUPS } from './controls'
+import { ALL_SLIDERS, sliderFor } from './controls'
 import { cx } from './cx'
 import { DEVICE_PROFILES } from './midi'
 
 import type { ControlKey } from '../controls'
 import type { BindingMap, DeviceProfile, LearnState } from './midi'
-
-const LABEL_BY_KEY = new Map(
-  GROUPS.flatMap(g => g.sliders).map(s => [s.key, s.label]),
-)
-
-const TOTAL_CONTROLS = GROUPS.flatMap(g => g.sliders).length
 
 export function MidiSection(props: {
   armedKey: ControlKey | null
@@ -29,18 +23,17 @@ export function MidiSection(props: {
   const [deviceName, setDeviceName] = useState(DEVICE_PROFILES[0].name)
   const device =
     DEVICE_PROFILES.find(d => d.name === deviceName) ?? DEVICE_PROFILES[0]
-  const bound = Object.keys(props.midiBindings).length
+  // Walked in signal-path order rather than bind order, so a row doesn't move
+  // under the pointer as bindings come and go.
+  const bound = ALL_SLIDERS.filter(s => props.midiBindings[s.key] !== undefined)
   const { learn, armedKey } = props
-  const nextKey = learn?.nextKey ?? null
-  const learnLabel =
-    nextKey === null ? '' : (LABEL_BY_KEY.get(nextKey) ?? nextKey)
 
   const hint =
     learn !== null
-      ? `turn a knob for: ${learnLabel} — ${learn.done}/${learn.total} bound (Esc to stop)`
+      ? `turn a knob${learn.nextKey === null ? '' : ` for: ${sliderFor(learn.nextKey).label}`} — ${learn.done}/${learn.total} bound (Esc to stop)`
       : armedKey === null
-        ? 'click ⚟ on any slider, then move a knob to bind. knobs soft-take-over (no jumps).'
-        : `learning ${LABEL_BY_KEY.get(armedKey) ?? armedKey}… move a knob (Esc to cancel)`
+        ? 'click ⚟ on any slider, then move a knob to bind.'
+        : `learning ${sliderFor(armedKey).label}… move a knob (Esc to cancel)`
 
   return (
     <Section title="MIDI">
@@ -73,46 +66,45 @@ export function MidiSection(props: {
               learn in order
             </button>
           </div>
-          <div className={styles.dim} style={{ margin: '0 0 6px' }}>
-            auto-map assigns the first{' '}
-            {Math.min(device.ccs.length, TOTAL_CONTROLS)} controls to its knobs
-            by CC. learn in order works for any controller: sweep each knob
-            once, left to right. either way, set once then work from the box.
-            {bound < TOTAL_CONTROLS && bound > 0
-              ? ` ${TOTAL_CONTROLS - bound} controls have no knob; reach those on-screen or bind by hand.`
+          <div className={cx(styles.dim, styles.midiNote)}>
+            auto-map takes the first{' '}
+            {Math.min(device.ccs.length, ALL_SLIDERS.length)} controls by CC;
+            learn in order works on any controller — sweep each knob once, left
+            to right.
+            {bound.length < ALL_SLIDERS.length && bound.length > 0
+              ? ` ${ALL_SLIDERS.length - bound.length} controls have no knob.`
               : ''}
           </div>
         </>
       ) : (
         <button
-          className={styles.btn}
-          style={{ margin: '0 0 6px' }}
+          className={cx(styles.btn, styles.midiNote)}
           onClick={() => props.onStopLearn()}
         >
           stop learning
         </button>
       )}
 
-      {Object.entries(props.midiBindings).map(([key, b]) => (
-        <div key={key} className={styles.midiRow}>
-          <span>
-            {LABEL_BY_KEY.get(key as ControlKey) ?? key}{' '}
-            <span className={styles.blue}>· CC{b.controller}</span>
-            {b.channel === 0 ? (
-              ''
-            ) : (
-              <span className={styles.dim}> ch{b.channel + 1}</span>
-            )}
-          </span>
-          <button
-            className={styles.iconX}
-            onClick={() => props.onClearBinding(key as ControlKey)}
-          >
-            ×
-          </button>
-        </div>
-      ))}
-      {bound === 0 ? null : (
+      {bound.map(s => {
+        const b = props.midiBindings[s.key]
+        return b === undefined ? null : (
+          <div key={s.key} className={styles.midiRow}>
+            <span>
+              {s.label} <span className={styles.blue}>· CC{b.controller}</span>
+              {b.channel === 0 ? null : (
+                <span className={styles.dim}> ch{b.channel + 1}</span>
+              )}
+            </span>
+            <button
+              className={styles.iconX}
+              onClick={() => props.onClearBinding(s.key)}
+            >
+              ×
+            </button>
+          </div>
+        )
+      })}
+      {bound.length === 0 ? null : (
         <button
           className={cx(styles.btn, styles.danger)}
           onClick={() => props.onClearAll()}
@@ -121,15 +113,17 @@ export function MidiSection(props: {
         </button>
       )}
       <div
-        className={props.bpm === null ? styles.dim : styles.amber}
-        style={{ margin: '8px 0 2px' }}
+        className={cx(
+          props.bpm === null ? styles.dim : styles.amber,
+          styles.midiClock,
+        )}
       >
         {props.bpm === null
           ? 'clock ♩ — no signal'
           : `clock ♩ = ${props.bpm.toFixed(1)} BPM`}
       </div>
-      <div className={styles.dim} style={{ margin: '0 0 2px' }}>
-        click ♩ on a rate slider (sweep, line offset) to lock it to the beat.
+      <div className={styles.dim}>
+        click ♩ on a rate slider to lock it to the beat.
       </div>
     </Section>
   )

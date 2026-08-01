@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 
 import styles from './Slider.module.css'
 import { SliderHelpDialog } from './SliderHelpDialog'
@@ -10,8 +10,6 @@ import { zoomAtTravel, zoomTravel } from './lens'
 import type { CSSProperties, ReactNode } from 'react'
 
 // The readout's little accessory buttons (help, sync, MIDI, favorite, reset).
-// They sit inside the <label>, so each click must preventDefault or it forwards
-// to the range input and nudges the value.
 function IconButton(props: {
   title: string
   className: string
@@ -27,10 +25,7 @@ function IconButton(props: {
       className={props.className}
       onMouseEnter={props.onMouseEnter}
       onMouseLeave={props.onMouseLeave}
-      onClick={e => {
-        e.preventDefault()
-        props.onClick()
-      }}
+      onClick={() => props.onClick()}
     >
       {props.children}
     </button>
@@ -59,6 +54,7 @@ export function Slider(props: {
   sync?: { label: string | null; live: boolean; onCycle: () => void }
   favorite?: { on: boolean; onToggle: () => void }
 }) {
+  const inputId = useId()
   const [showHelp, setShowHelp] = useState(false)
   // Hovering the ? shows the text in place, so the help column can be skimmed
   // slider to slider; clicking still opens the dialog (range info, touch).
@@ -99,10 +95,18 @@ export function Slider(props: {
   }
   return (
     <div className={styles.slider}>
-      <label>
+      {/* The label names the input beside it rather than wrapping it: with the
+          accessory buttons inside a wrapping <label>, every one of their clicks
+          forwarded to the range input and nudged the value, so each button (and
+          each toggle option) had to preventDefault to stay harmless. */}
+      <div>
         <span className={styles.sliderTop}>
           <span>
-            {props.label}
+            {choices ? (
+              props.label
+            ) : (
+              <label htmlFor={inputId}>{props.label}</label>
+            )}
             {help === undefined ? null : (
               <IconButton
                 title="what does this do?"
@@ -191,6 +195,7 @@ export function Slider(props: {
           />
         ) : (
           <input
+            id={inputId}
             type="range"
             className={cx(styles.range, needs && styles.rangeInert)}
             style={fill}
@@ -208,7 +213,7 @@ export function Slider(props: {
             }
           />
         )}
-      </label>
+      </div>
       {needs ? (
         <button
           type="button"

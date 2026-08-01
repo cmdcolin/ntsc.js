@@ -1,24 +1,32 @@
 import { Fragment, useState } from 'react'
 
 import styles from '../app.module.css'
-import { ChainMap } from './ChainMap'
+import { ChainMap, ChainParts } from './ChainMap'
+import { ControlGroup } from './ControlGroup'
+import { cx } from './cx'
 import { Dialog } from './Dialog'
-import { NestedSections } from './Section'
+import { Accordion, NestedSections } from './Section'
 
 import type { ChainStage } from './ChainMap'
-import type { ReactNode } from 'react'
+import type { Group } from './controls'
 
-// A stage as the panel needs it: what the diagram draws, plus its controls.
+// A stage as the panel needs it: what the diagram draws, plus its groups as
+// data. Only the open stage builds sections — building all five to throw four
+// away cost every control write a rebuild of all 121 rows.
 export interface PathNode extends ChainStage {
   // Opens the stage at its first touched group.
   onJumpTouched: () => void
-  // The stage's group sections, rendered only while it's open.
-  body: ReactNode
+  groups: Group[]
 }
 
-// The signal path, navigated from the block diagram: the dialog picks a stage,
+// The signal path, navigated from the block diagram: the diagram picks a stage,
 // and only that stage's groups render below — so the panel holds the knobs you
 // are using rather than a flat list of sixteen headers.
+//
+// The diagram is the panel's trunk, so a copy of it is always on screen at the
+// head of the path rather than parked behind a button: it is both the map and
+// the only way in, and a grey bar reading "chain diagram" was neither found nor
+// understood. The dialog is the same drawing with room for the effect lists.
 export function SignalPath(props: {
   nodes: PathNode[]
   // null = no stage picked, which is where exploration starts. Ignored while a
@@ -26,6 +34,9 @@ export function SignalPath(props: {
   open: string | null
   expandAll: boolean
   onOpen: (name: string) => void
+  // Which group inside the open stage is unfolded — one at a time.
+  openGroup: string | null
+  onOpenGroup: (name: string) => void
 }) {
   const [showDiagram, setShowDiagram] = useState(false)
   const shown = props.nodes.filter(
@@ -34,33 +45,54 @@ export function SignalPath(props: {
   const touched = props.nodes.reduce((n, node) => n + node.touched, 0)
   return (
     <>
-      <button
-        className={styles.barBtn}
-        title="the whole chain as a block diagram — a box per stage, wired in the order the picture travels, with every effect it can apply"
-        onClick={() => setShowDiagram(true)}
-      >
-        <span className={styles.barGlyph}>⧉</span>
-        chain diagram
-        <span className={styles.barCount}>
-          {props.open === null
-            ? `${props.nodes.length} stages`
-            : props.open.toLowerCase()}
-        </span>
-      </button>
+      <div className={styles.chainStrip}>
+        <div className={styles.chainHead}>
+          <span className={styles.chainTitle}>the chain</span>
+          <span className={styles.chainMeta}>
+            {touched === 0
+              ? `${props.nodes.length} stages`
+              : `${touched} off stock`}
+          </span>
+          <button
+            className={styles.chainExpand}
+            title="the whole chain, big — every stage with the effects it can apply"
+            onClick={() => setShowDiagram(true)}
+          >
+            expand ⤢
+          </button>
+        </div>
+        <div className={styles.chainScreen}>
+          <ChainMap
+            stages={props.nodes}
+            open={props.open}
+            size="strip"
+            onOpen={name => props.onOpen(name)}
+          />
+        </div>
+        {props.open === null ? (
+          <div className={styles.chainCaption}>
+            click a stage to open its controls
+          </div>
+        ) : null}
+      </div>
       {showDiagram ? (
         <Dialog
           title="Signal chain"
           size="diagram"
           onClose={() => setShowDiagram(false)}
         >
-          <ChainMap
-            stages={props.nodes}
-            open={props.open}
-            onOpen={name => {
-              props.onOpen(name)
-              setShowDiagram(false)
-            }}
-          />
+          <div className={cx(styles.chainScreen, styles.chainScreenBig)}>
+            <ChainMap
+              stages={props.nodes}
+              open={props.open}
+              size="card"
+              onOpen={name => {
+                props.onOpen(name)
+                setShowDiagram(false)
+              }}
+            />
+          </div>
+          <ChainParts stages={props.nodes} />
           <div className={styles.muted}>
             the picture travels left to right; feedback returns the end of the
             chain to its middle. click a stage — or one of its effects — to open
@@ -101,7 +133,13 @@ export function SignalPath(props: {
               )}
             </div>
             <div className={styles.stageBlurb}>{node.blurb}</div>
-            <NestedSections>{node.body}</NestedSections>
+            <NestedSections>
+              <Accordion openId={props.openGroup} onToggle={props.onOpenGroup}>
+                {node.groups.map(group => (
+                  <ControlGroup key={group.name} group={group} />
+                ))}
+              </Accordion>
+            </NestedSections>
           </div>
         ))}
       </div>

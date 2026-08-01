@@ -54,3 +54,15 @@ export function usePersistedFlag(key: string) {
   }
   return [on, set] as const
 }
+
+// A nullable string persisted across reloads — null clears the key, so absent
+// and "nothing selected" are the same state rather than two.
+export function usePersistedString(key: string) {
+  const [value, setValue] = useState(() => localStorage.getItem(key))
+  const set = (next: string | null) => {
+    setValue(next)
+    if (next === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, next)
+  }
+  return [value, set] as const
+}

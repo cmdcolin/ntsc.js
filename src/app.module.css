@@ -158,9 +158,8 @@
   padding: 3px 2px;
   border-bottom: 1px solid #3c3c4a;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  cursor: pointer;
+  gap: 6px;
   user-select: none;
   letter-spacing: 0.02em;
 }
@@ -180,6 +179,26 @@
 .headSub:hover {
   color: var(--fg);
 }
+/* The header's own toggle: a real button, so a section collapses from the
+   keyboard and reports aria-expanded. It carries the heading's type rather than
+   setting its own, and any accessory (the ? explainer) sits beside it in .head
+   so its clicks are its own. */
+.headBtn {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 .caret {
   color: var(--fg3);
   font-size: var(--fs-md);
@@ -189,14 +208,100 @@
   color: #ceba64;
 }
 
-/* The chain diagram (ChainMap), shown in its own dialog: one labeled box per
-   stage, wired left to right, with the signal travelling the wire and feedback
-   looping back over the top. Box, label, and wire all take currentColor, so one
-   rule per state (idle / touched / open) colors a whole stage. */
+/* The strip at the head of the signal path: the diagram kept on screen, where
+   it is both the map of the chain and the way into every control. It used to be
+   a grey "chain diagram" bar, which read as a footnote to the thing it was
+   actually the front door of. */
+.chainStrip {
+  margin: 10px 0 4px;
+}
+.chainHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+.chainTitle {
+  color: var(--fg3);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.chainMeta {
+  color: var(--fg4);
+  font-size: var(--fs-xs);
+}
+.chainExpand {
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid #33333f;
+  border-radius: 3px;
+  background: none;
+  color: var(--fg3);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.chainExpand:hover {
+  border-color: #63637a;
+  color: var(--fg);
+}
+.chainCaption {
+  margin: 4px 0 0;
+  color: var(--fg4);
+  font-size: var(--fs-xs);
+}
+
+/* The face the chain is drawn on: a dark plate with a green bloom behind the
+   wire and the scanlines of the thing this app simulates. Decoration only — the
+   overlay never takes a click off the boxes on top of it. */
+.chainScreen {
+  position: relative;
+  overflow: hidden;
+  padding: 5px 7px 3px;
+  border: 1px solid #2c2c38;
+  border-radius: 5px;
+  background:
+    radial-gradient(
+      92% 130% at 50% 52%,
+      rgba(88, 153, 124, 0.17) 0%,
+      rgba(88, 153, 124, 0) 68%
+    ),
+    linear-gradient(#15151b, #101014);
+}
+.chainScreen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0 1px,
+    transparent 1px 3px
+  );
+}
+/* the dialog copy has room to sit the diagram in from the edges */
+.chainScreenBig {
+  padding: 18px 20px 12px;
+  border-radius: 7px;
+}
+
+/* The chain diagram (ChainMap): one labeled box per stage, wired left to right,
+   with the signal travelling the wire and feedback looping back over the top.
+   Box, label, and wire all take currentColor, so one rule per state (idle /
+   touched / open) colors a whole stage. Drawn twice — the strip at the head of
+   the panel and the full dialog — off the one set of rules below. */
 .map {
   display: block;
   width: 100%;
   margin: 2px 0 0;
+  /* the bloom filter paints outside the path it is on, and the svg viewport
+     would otherwise crop it flat against the edge */
+  overflow: visible;
+}
+.mapStrip {
+  margin: 0;
 }
 .mapWire,
 .mapLoop,
@@ -222,9 +327,26 @@
     stroke-dashoffset: -19;
   }
 }
+/* a second, sparser train at its own speed and its own period — one dash
+   pattern reads as a marching-ants border, two read as something travelling.
+   The offset has to close exactly one period or the loop visibly jumps. */
+.mapFlowFast {
+  color: #a6ecc6;
+  stroke-dasharray: 2 40;
+  animation: mapFlowFast 2.4s linear infinite;
+}
+@keyframes mapFlowFast {
+  to {
+    stroke-dashoffset: -42;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .mapFlow {
     animation: none;
+  }
+  /* only means anything while it moves, so it goes rather than freezes */
+  .mapFlowFast {
+    display: none;
   }
 }
 .mapArrow {
@@ -246,6 +368,7 @@
 .mapNode {
   color: #96a8c6;
   cursor: pointer;
+  transition: color 0.12s ease;
 }
 .mapNode:hover {
   color: #cadcf6;
@@ -256,16 +379,39 @@
 .mapNodeOn {
   color: var(--accent);
 }
+/* Tinted with the stage's own color rather than a flat gray, so a box reads as
+   a lit module and not as an empty outline — which is what the strip's boxes
+   look like, their names hanging underneath instead of sitting inside. */
 .mapBox {
-  fill: #1c1c24;
+  fill: color-mix(in srgb, currentColor 13%, #14141b);
   stroke: currentColor;
   stroke-width: 1;
 }
 .mapNode:hover .mapBox {
-  fill: #24242e;
+  fill: color-mix(in srgb, currentColor 22%, #14141b);
 }
 .mapNodeOn .mapBox {
-  fill: #1f2a24;
+  fill: color-mix(in srgb, currentColor 26%, #14141b);
+  stroke-width: 1.4;
+}
+/* a stage carrying edits, marked on the box itself — takes the stage's color,
+   so it is amber when touched and accent once that stage is the open one */
+.mapDot {
+  fill: currentColor;
+  stroke: none;
+}
+/* The card keeps its boxes dark because the stage name sits on top of the fill
+   and has to stay legible. The strip hangs its names underneath, so nothing is
+   riding the fill and the box can be a solid block — which is the whole
+   difference between reading as a module and reading as an empty outline. */
+.mapStrip .mapBox {
+  fill: color-mix(in srgb, currentColor 34%, #14141b);
+}
+.mapStrip .mapNode:hover .mapBox {
+  fill: color-mix(in srgb, currentColor 52%, #14141b);
+}
+.mapStrip .mapNodeOn .mapBox {
+  fill: color-mix(in srgb, currentColor 60%, #14141b);
 }
 /* In viewBox units, so it scales with the diagram: the box is 20 units tall and
    the label 8, the same ratio at any dialog width. */
@@ -275,6 +421,14 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+/* The strip hangs its labels under the boxes, so they are sized against the
+   whole 85-unit column rather than the 71-unit box — which is what buys them
+   ~11px at panel width instead of the ~8px that fitting inside would force.
+   Letter-spacing goes: the longest name needs those units back. */
+.mapLabelUnder {
+  font-size: 14px;
+  letter-spacing: 0;
 }
 
 /* what each stage can do, in a column under its box — same column count as the
