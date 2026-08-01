@@ -592,9 +592,6 @@
   font-size: var(--fs-xs);
   color: var(--fg3);
 }
-.barGlyph {
-  color: var(--fg3);
-}
 .barCount {
   margin-left: auto;
   padding: 1px 6px;
