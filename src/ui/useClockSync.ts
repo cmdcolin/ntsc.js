@@ -47,14 +47,19 @@ export function useClockSync(args: {
   // engine (and MIDI takeover state) whenever the rendered value changes. Driven
   // off SYNCABLE_KEYS rather than one effect per key, so adding a key there
   // can't leave a control that shows the ♩ lock but never reaches the engine.
-  const syncedValues = SYNCABLE_KEYS.map(k => displayValue(k))
+  //
+  // Only the locked ones: an unlocked key's displayValue IS the live control, so
+  // writing it back is a no-op that still drops its MIDI soft-takeover — a knob
+  // on wipeRate losing its catch every time the *other* syncable key moved.
+  const locked = SYNCABLE_KEYS.filter(k => syncMap[k] !== undefined)
+  const lockedValues = locked.map(k => displayValue(k))
   // The joined values are the dep, not the array: a fresh array identity every
   // render would re-fire this and reset MIDI soft-takeover constantly.
-  const syncedDep = syncedValues.join(',')
+  const lockedDep = `${locked.join(',')}=${lockedValues.join(',')}`
   useEffect(() => {
-    SYNCABLE_KEYS.forEach((key, i) => writeControl(key, syncedValues[i]))
+    locked.forEach((key, i) => writeControl(key, lockedValues[i]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [writeControl, syncedDep])
+  }, [writeControl, lockedDep])
 
   // Cycle a control through off → each division → off, persisting the choice.
   const cycleSync = (key: ControlKey) => {
