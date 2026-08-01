@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
-import { REVERB_DEFAULT, SPEED_DEFAULT } from './useEngine'
+import { REVERB_DEFAULT, SPEED_DEFAULT } from './urlParams'
 
 import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
@@ -59,7 +59,15 @@ export function useUrlState({
         sourceMode !== 'youtube',
       sourceMode,
     )
-    put('srcb', sourceBMode === 'sweep' || sourceBMode === 'none', sourceBMode)
+    // Same rule as `src` above, so B's generated sources survive a shared link
+    // too — bars is B's default, and file/youtube carry their own url params.
+    put(
+      'srcb',
+      sourceBMode !== 'bars' &&
+        sourceBMode !== 'file' &&
+        sourceBMode !== 'youtube',
+      sourceBMode,
+    )
     put('yt', sourceMode === 'youtube' && ytUrlA !== '', ytUrlA)
     put('ytb', sourceBMode === 'youtube' && ytUrlB !== '', ytUrlB)
     put('speeda', speedA !== SPEED_DEFAULT, String(+speedA.toFixed(4)))
