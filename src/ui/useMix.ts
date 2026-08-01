@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { DEFAULT_CONTROLS } from '../controls'
-import { ALL_SLIDERS } from './controls'
+import { ALL_SLIDERS, VIEW_KEYS } from './controls'
 import { mutate } from './mutate'
 import { PRESETS, blendPresets, controlsEqual, presetControls } from './presets'
 
@@ -10,6 +10,10 @@ import type { PresetWeights } from './presets'
 
 // Stable empty weights, so a stale mix passes the same map every render.
 const NO_WEIGHTS: PresetWeights = new Map()
+
+// Mutate jitters the signal path, not where you're looking at it: the
+// magnifier's zoom/pan stay put so a mutate never yanks the view.
+const MUTATE_SLIDERS = ALL_SLIDERS.filter(s => !VIEW_KEYS.has(s.key))
 
 // The look and how it got here: the preset mix, and one step of undo for the
 // destructive applies (preset, scene recall, mutate, surprise). The engine owns
@@ -113,7 +117,7 @@ export function useMix(args: {
       setLastPreset(null)
     },
     mutateLook: () => {
-      apply(mutate(controls, ALL_SLIDERS))
+      apply(mutate(controls, MUTATE_SLIDERS))
       setLastPreset(null)
     },
   }

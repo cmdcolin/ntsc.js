@@ -1463,7 +1463,11 @@ export function snapToStep(
 // Controls that move where you are looking rather than what the signal does.
 // Still bindable, but they rank last: a knob spent on the magnifier is a knob not
 // spent on the picture.
-const VIEW_KEYS = new Set<ControlKey>(['crtZoom', 'crtZoomX', 'crtZoomY'])
+export const VIEW_KEYS = new Set<ControlKey>([
+  'crtZoom',
+  'crtZoomX',
+  'crtZoomY',
+])
 
 const automapOrder = [
   ...GROUPS.filter(g => g.place !== 'ab' && g.place !== 'audio'),
