@@ -3,6 +3,7 @@ import { useState } from 'react'
 import styles from '../app.module.css'
 import { ChainMap } from './ChainMap'
 import { Dialog } from './Dialog'
+import { NestedSections } from './Section'
 
 import type { ChainStage } from './ChainMap'
 import type { ReactNode } from 'react'
@@ -96,7 +97,7 @@ export function SignalPath(props: {
               )}
             </div>
             <div className={styles.stageBlurb}>{node.blurb}</div>
-            {node.body}
+            <NestedSections>{node.body}</NestedSections>
           </div>
         ))}
       </div>

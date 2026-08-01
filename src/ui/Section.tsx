@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { createContext, use, useState } from 'react'
 
 import styles from '../app.module.css'
 import { cx } from './cx'
@@ -11,6 +11,19 @@ const STORE = 'video_feedback_sections'
 type OpenMap = Partial<Record<string, boolean>>
 const loadOpenMap = () => readRecord<OpenMap>(STORE, {})
 
+// Whether a section sits under something that already named a division of the
+// panel — another section, or a stage heading. It's a structural fact, so it's
+// read from the tree rather than asked of every call site: passing it by hand
+// meant one forgotten prop rendered a group at the same rank as its parent,
+// which is the flat look this is meant to break up.
+const NestedContext = createContext(false)
+
+// For a heading that owns sections without being one itself — SignalPath's
+// stage names, which outrank the groups rendered beneath them.
+export function NestedSections(props: { children: ReactNode }) {
+  return <NestedContext value={true}>{props.children}</NestedContext>
+}
+
 export function Section(props: {
   title: string
   children: ReactNode
@@ -22,15 +35,13 @@ export function Section(props: {
   // Optional accessory (e.g. a ? explainer) beside the title. It must stop its
   // own clicks from bubbling, or they toggle the section.
   help?: ReactNode
-  // A group sitting inside another section rather than at the panel's top
-  // level, styled a step quieter so the nesting is visible.
-  nested?: boolean
   // Controlled mode: when onToggle is supplied the parent owns open/closed
   // (single-open phase browsing). Without it the section self-manages and
   // persists its own state, as the Input and Audio sections still do.
   open?: boolean
   onToggle?: () => void
 }) {
+  const nested = use(NestedContext)
   const [selfOpen, setSelfOpen] = useState(
     () => loadOpenMap()[props.title] ?? props.defaultOpen ?? true,
   )
@@ -48,7 +59,7 @@ export function Section(props: {
   return (
     <div>
       <h3
-        className={cx(styles.head, props.nested === true && styles.headSub)}
+        className={cx(styles.head, nested && styles.headSub)}
         onClick={() => toggle()}
       >
         <span>
@@ -58,7 +69,7 @@ export function Section(props: {
         </span>
         <span className={styles.caret}>{shown ? '▾' : '▸'}</span>
       </h3>
-      {shown ? props.children : null}
+      {shown ? <NestedSections>{props.children}</NestedSections> : null}
     </div>
   )
 }
