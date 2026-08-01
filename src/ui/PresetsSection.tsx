@@ -69,10 +69,11 @@ function PresetsHelpDialog(props: { onClose: () => void }) {
         does.
       </p>
       <p className={styles.helpText}>
-        Every preset is also a fader: click to dial it fully in, or drag
-        sideways for a partial amount. Either way it layers onto what’s already
-        there rather than replacing it, and the fill shows how much is in — so
-        stacking several accumulates their faults. “clean” clears them all.
+        Every preset but “clean” is also a fader: click to dial it fully in,
+        or drag sideways for a partial amount. Either way it layers onto
+        what’s already there rather than replacing it, and the fill shows how
+        much is in — so stacking several accumulates their faults. “clean” is
+        a plain reset: click it to clear them all.
       </p>
       <div className={styles.muted}>
         A mix lasts only until something else moves the look — a slider, mutate,
@@ -108,7 +109,11 @@ function PresetButton(props: {
   const fill: CSSProperties & Record<'--w', string> = {
     '--w': `${Math.round(props.weight * 100)}%`,
   }
-  return (
+  // "clean" is the reset (an empty patch): blendPresets can never mix it in at
+  // any weight, so the drag-to-mix gesture is dead for it — plain click only,
+  // hence no resize cursor advertising a gesture that does nothing.
+  const mixable = Object.keys(props.def.patch).length > 0
+  return mixable ? (
     <button
       title={`${props.def.blurb} — drag sideways to mix it in partially`}
       style={fill}
@@ -157,6 +162,17 @@ function PresetButton(props: {
       onPointerCancel={() => {
         dragRef.current = null
       }}
+    >
+      {props.def.name}
+      {props.edited ? ' •' : ''}
+    </button>
+  ) : (
+    <button
+      title={props.def.blurb}
+      className={cx(styles.btn, props.active && styles.active, props.edited && styles.edited)}
+      onPointerEnter={() => props.onHover(props.def.name)}
+      onPointerLeave={() => props.onHover(null)}
+      onClick={() => props.onApply(props.def.name, props.def.patch)}
     >
       {props.def.name}
       {props.edited ? ' •' : ''}
