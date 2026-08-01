@@ -6,6 +6,7 @@ import markUrl from '../docs/mark.svg'
 import styles from './app.module.css'
 import { DEFAULT_CONTROLS } from './controls'
 import { AdvancedDialog } from './ui/AdvancedDialog'
+import { AudioInput } from './ui/AudioInput'
 import { AudioSection } from './ui/AudioSection'
 import { CommandPalette } from './ui/CommandPalette'
 import { FatalScreen } from './ui/FatalScreen'
@@ -652,6 +653,17 @@ export function App() {
         fileInputBRef={eng.fileInputBRef}
         onFile={eng.onFile}
         onFileB={eng.onFileB}
+        audioInput={
+          <AudioInput
+            mode={audio.mode}
+            name={audio.name}
+            hit={audio.hit}
+            error={audio.error}
+            fileInputRef={audio.fileInputRef}
+            onSelect={audio.select}
+            onFile={audio.onFile}
+          />
+        }
       />
 
       {/* Collapsed by default: source B is on out of the box, and ten mixer
@@ -741,10 +753,6 @@ export function App() {
       {AUDIO_GROUP === undefined ? null : (
         <AudioSection
           active={audio.active}
-          hit={audio.hit}
-          error={audio.error}
-          onEnableMic={audio.enableMic}
-          onDisable={audio.disable}
           group={AUDIO_GROUP}
           renderGroup={renderGroup}
           forceOpen={query !== ''}

@@ -1,17 +1,11 @@
 import styles from '../app.module.css'
-import { Meter } from './Meter'
 import { Section } from './Section'
-import { cx } from './cx'
 
 import type { Group } from './controls'
 import type { ReactNode } from 'react'
 
 export function AudioSection(props: {
   active: boolean
-  hit: number
-  error: string | null
-  onEnableMic: () => void
-  onDisable: () => void
   group: Group
   renderGroup: (group: Group, defaultOpen: boolean) => ReactNode
   // A live filter reaches in here too, so a match isn't hidden behind a
@@ -21,21 +15,12 @@ export function AudioSection(props: {
   return (
     <Section title="Audio" dot={props.active} forceOpen={props.forceOpen}>
       <div className={styles.hint}>
-        the top two knobs detune the hold oscillators, so sound knocks sync out
-        of lock and the picture lurches and tears back — start there. the
-        waveform knob is the literal patch-at-the-yoke version: honest, but a
-        steady tone just traces a steady shape.
+        pick a mic or a file under Input, then start with the top two knobs:
+        they detune the hold oscillators, so sound knocks sync out of lock and
+        the picture lurches and tears back. the waveform knob is the literal
+        patch-at-the-yoke version: honest, but a steady tone just traces a
+        steady shape.
       </div>
-      <button
-        className={cx(styles.btn, props.active ? styles.danger : undefined)}
-        onClick={props.active ? props.onDisable : props.onEnableMic}
-      >
-        {props.active ? 'stop audio' : 'use microphone'}
-      </button>
-      {props.error === null ? null : (
-        <div className={styles.hint}>{props.error}</div>
-      )}
-      {props.active ? <Meter level={props.hit} /> : null}
       {props.renderGroup(props.group, true)}
     </Section>
   )

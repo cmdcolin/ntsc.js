@@ -103,6 +103,18 @@ export class AudioState {
     this.stream = stream
   }
 
+  // A picked audio/video file: heard through the speakers and analysed, so a
+  // track drives the same sync and deflection knobs the mic does. The element
+  // binds to this context for life, so a later disconnect() retires it — the
+  // caller creates a fresh element per pick rather than re-adopting one.
+  enableElement(el: HTMLMediaElement): void {
+    this.connect(ctx => {
+      const src = ctx.createMediaElementSource(el)
+      src.connect(ctx.destination)
+      return src
+    })
+  }
+
   // A short decaying-noise impulse — a plausible hall tail for the reverb send.
   private impulse(ctx: AudioContext): AudioBuffer {
     const len = Math.floor(ctx.sampleRate * 2.5)

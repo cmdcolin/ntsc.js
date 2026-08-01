@@ -1,10 +1,11 @@
 import styles from '../app.module.css'
 import { SOURCE_B_MODES, SOURCE_DESC, SOURCE_MODES } from '../sources/modes'
+import { FileName } from './FileName'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 
 import type { SourceBMode, SourceMode } from '../sources/modes'
-import type { RefObject } from 'react'
+import type { ReactNode, RefObject } from 'react'
 
 // The YouTube option is backed by the dev-only yt-dlp bridge, so hide it in
 // production builds where the /yt endpoint doesn't exist.
@@ -22,22 +23,6 @@ const B_OPTIONS = B_MODES.map(m => ({ value: m, label: SOURCE_DESC[m] }))
 const namedMode = (m: SourceMode | SourceBMode): boolean =>
   m === 'file' || m === 'youtube'
 
-// Clicking the caption re-fires the source handler, reopening the file picker
-// (or YouTube URL dialog) — the native <select> can't re-emit onChange for the
-// already-selected option, so re-picking the same source lives here.
-function FileName({ name, onReopen }: { name: string; onReopen: () => void }) {
-  return name === '' ? null : (
-    <button
-      type="button"
-      className={styles.fileName}
-      title={`${name} — click to change`}
-      onClick={() => onReopen()}
-    >
-      {name}
-    </button>
-  )
-}
-
 export function InputSection(props: {
   sourceMode: SourceMode
   sourceName: string
@@ -52,6 +37,9 @@ export function InputSection(props: {
   fileInputBRef: RefObject<HTMLInputElement | null>
   onFile: (file: File | undefined) => void
   onFileB: (file: File | undefined) => void
+  // Audio in is a source too, so its picker sits with A and B rather than in
+  // the Audio section, which keeps only the knobs it drives.
+  audioInput: ReactNode
 }) {
   return (
     <div>
@@ -103,6 +91,7 @@ export function InputSection(props: {
             mix controls are in the A/B Mix section below.
           </div>
         )}
+        {props.audioInput}
       </Section>
       {/* Hidden pickers stay mounted outside the collapsible Section, so a
           collapsed Input can still fire the file dialog through its ref. */}
