@@ -5,7 +5,7 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 import pkg from './package.json' with { type: 'json' }
-import { ytdlp } from './vite-plugin-ytdlp'
+import { ytdlp } from './vite-plugin-ytdlp.ts'
 
 function gitSha() {
   try {

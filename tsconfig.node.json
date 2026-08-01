@@ -9,6 +9,8 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "emitDeclarationOnly": true,
     "composite": true,
     "outDir": "./node_modules/.tmp/node",
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
