@@ -237,8 +237,14 @@ ${paramStruct}
 // 180-degree line alternation, 525 lines gives the frame alternation, both
 // automatically via n mod 4.
 fn carrier(n: u32, frame: u32) -> vec2f {
-  var tab = array<vec2f, 4>(vec2f(0.0, 1.0), vec2f(1.0, 0.0), vec2f(0.0, -1.0), vec2f(-1.0, 0.0));
-  return tab[(n + 2u * (frame & 1u)) & 3u];
+  let j = (n + 2u * (frame & 1u)) & 3u;
+  let odd = j & 1u;
+  // the lattice is (0,1) (1,0) (0,-1) (-1,0): bit 0 picks the axis, bit 1 the
+  // sign. Same four values the table held, without a dynamically indexed
+  // local array. (Quadrants 2 and 3 produce a -0.0 where the table had +0.0;
+  // these are only ever multiplied and summed, where the two are identical.)
+  let sign = 1.0 - f32(j & 2u);
+  return vec2f(f32(odd) * sign, f32(1u - odd) * sign);
 }
 
 // The exact-lattice carrier rotated by a slow phase error (a detuned source's
