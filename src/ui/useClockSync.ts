@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { SYNC_DIVISIONS, omit, syncedValue } from './midi'
+import { SYNCABLE_KEYS, SYNC_DIVISIONS, omit, syncedValue } from './midi'
 import { readJSON, writeJSON } from './storage'
 
 import type { ControlKey, Controls } from '../controls'
@@ -34,17 +34,17 @@ export function useClockSync(args: {
   }
 
   // The one genuine synchronization: push each locked value to the external GPU
-  // engine (and MIDI takeover state) whenever the rendered value changes.
-  const wipeRateValue = displayValue('wipeRate')
-  const bLineHzValue = displayValue('bLineHz')
-  useEffect(
-    () => writeControl('wipeRate', wipeRateValue),
-    [writeControl, wipeRateValue],
-  )
-  useEffect(
-    () => writeControl('bLineHz', bLineHzValue),
-    [writeControl, bLineHzValue],
-  )
+  // engine (and MIDI takeover state) whenever the rendered value changes. Driven
+  // off SYNCABLE_KEYS rather than one effect per key, so adding a key there
+  // can't leave a control that shows the ♩ lock but never reaches the engine.
+  const syncedValues = SYNCABLE_KEYS.map(k => displayValue(k))
+  // The joined values are the dep, not the array: a fresh array identity every
+  // render would re-fire this and reset MIDI soft-takeover constantly.
+  const syncedDep = syncedValues.join(',')
+  useEffect(() => {
+    SYNCABLE_KEYS.forEach((key, i) => writeControl(key, syncedValues[i]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writeControl, syncedDep])
 
   // Cycle a control through off → each division → off, persisting the choice.
   const cycleSync = (key: ControlKey) => {

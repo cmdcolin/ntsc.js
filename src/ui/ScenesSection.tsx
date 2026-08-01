@@ -1,7 +1,8 @@
 import styles from '../app.module.css'
+import { CONTROL_KEYS } from '../controls'
 import { Section } from './Section'
 import { cx } from './cx'
-import { CONTROL_KEYS, presetControls } from './presets'
+import { presetControls } from './presets'
 
 import type { Controls } from '../controls'
 

@@ -1,4 +1,4 @@
-import { DEFAULT_CONTROLS } from '../controls'
+import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { AudioState } from '../signal/audiostate'
 import {
   ACTIVE_HEIGHT,
@@ -620,9 +620,12 @@ export class Engine {
   }
 
   applyControls(patch: Partial<Controls>): void {
-    for (const [k, v] of Object.entries(patch)) {
-      this.controls[k as ControlKey] = v
-      if (FILTER_KEYS.has(k)) this.filtersDirty = true
+    for (const k of CONTROL_KEYS) {
+      const v = patch[k]
+      if (v !== undefined) {
+        this.controls[k] = v
+        if (FILTER_KEYS.has(k)) this.filtersDirty = true
+      }
     }
     this.emitControls()
   }
@@ -647,8 +650,7 @@ export class Engine {
   // snapshot (so the sliders stay put), then `preview(null)` restores from it.
   preview(next: Controls | null): void {
     const src = next ?? this.snapshot
-    for (const k of Object.keys(this.controls) as ControlKey[])
-      this.controls[k] = src[k]
+    for (const k of CONTROL_KEYS) this.controls[k] = src[k]
     this.filtersDirty = true
   }
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { RefObject } from 'react'
 
@@ -63,6 +63,17 @@ export function useCapture(
   )
   const rafRef = useRef(0)
   const [recording, setRecording] = useState(false)
+
+  // The recorder and its rAF pump are browser objects that outlive React, so a
+  // teardown mid-recording would leave both running forever. Stopping (rather
+  // than discarding) also flushes the clip to disk instead of losing it.
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(rafRef.current)
+      recRef.current?.rec.stop()
+    },
+    [],
+  )
 
   const grabStill = () => {
     const canvas = canvasRef.current

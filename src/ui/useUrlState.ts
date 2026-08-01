@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { REVERB_DEFAULT, SPEED_DEFAULT } from './useEngine'
 
-import type { ControlKey, Controls } from '../controls'
+import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 
 interface UrlStateArgs {
@@ -43,9 +43,9 @@ export function useUrlState({
   // the live state; any other params the loader reads (iurl, iurlb, vurl,
   // preset, debug) are left untouched so a URL-loaded source survives edits.
   const stateUrl = useCallback(() => {
-    const set = (Object.keys(DEFAULT_CONTROLS) as ControlKey[])
-      .filter(k => controls[k] !== DEFAULT_CONTROLS[k])
-      .map(k => `${k}:${+controls[k].toFixed(4)}`)
+    const set = CONTROL_KEYS.filter(
+      k => controls[k] !== DEFAULT_CONTROLS[k],
+    ).map(k => `${k}:${+controls[k].toFixed(4)}`)
     // URLSearchParams so values with spaces (src=tv static) get encoded.
     const q = new URLSearchParams(location.search)
     const put = (key: string, on: boolean, value: string) =>

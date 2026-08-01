@@ -1,4 +1,5 @@
 import { AUTOMAP_KEYS, SLIDER_BY_KEY } from './controls'
+import { readJSON } from './storage'
 
 import type { ControlKey } from '../controls'
 import type { SliderDef } from './controls'
@@ -53,9 +54,11 @@ export type MidiStatus =
 
 const STORE_KEY = 'video_feedback_midi'
 
+// Through readJSON, not a bare JSON.parse: this runs inside useMidi's mount
+// effect, so a corrupt or stale-schema value would throw out of it and take the
+// whole app down with no way back but clearing storage by hand.
 function loadBindings(): BindingMap {
-  const raw = localStorage.getItem(STORE_KEY)
-  return raw === null ? {} : (JSON.parse(raw) as BindingMap)
+  return readJSON<BindingMap>(STORE_KEY, {})
 }
 
 function bindingId(b: MidiBinding): string {
@@ -234,10 +237,15 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
       const mapped = ccToValue(def, cc)
       const cur = current.get(key)
       const last = lastCc.get(key)
+      // Three cases: nothing to catch yet; a first message with no previous CC
+      // to have crossed, so accept if it lands close enough; otherwise the knob
+      // has swept through the live value.
       const crossed =
-        cur === undefined || last === undefined
-          ? cur === undefined || Math.abs(mapped - cur) <= epsilon(def)
-          : (last - cur) * (mapped - cur) <= 0
+        cur === undefined
+          ? true
+          : last === undefined
+            ? Math.abs(mapped - cur) <= epsilon(def)
+            : (last - cur) * (mapped - cur) <= 0
       if (crossed) engaged.add(key)
       lastCc.set(key, mapped)
       if (engaged.has(key)) {

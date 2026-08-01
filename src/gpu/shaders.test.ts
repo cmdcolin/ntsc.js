@@ -6,7 +6,7 @@
 // CI installs it, so the check is enforced there.
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -16,6 +16,7 @@ import { PRELUDE } from './prelude'
 import channel from './shaders/channel.wgsl?raw'
 import chromaExtract from './shaders/chroma_extract.wgsl?raw'
 import compose from './shaders/compose.wgsl?raw'
+import composeB from './shaders/compose_b.wgsl?raw'
 import crtFace from './shaders/crt_face.wgsl?raw'
 import decode from './shaders/decode.wgsl?raw'
 import encodeComposite from './shaders/encode_composite.wgsl?raw'
@@ -34,6 +35,7 @@ const SHADERS: Record<string, string> = {
   channel,
   chroma_extract: chromaExtract,
   compose,
+  compose_b: composeB,
   crt_face: crtFace,
   decode,
   encode_composite: encodeComposite,
@@ -68,6 +70,16 @@ describe('WGSL shaders pass naga validation', () => {
     // nothing.
     if (process.env.CI !== undefined)
       expect(hasNaga, 'naga not found on PATH in CI').toBe(true)
+  })
+
+  it('covers every shader on disk', () => {
+    // The map above is hand-kept, so a new .wgsl silently goes unvalidated —
+    // exactly how compose_b escaped. Pin it to the directory instead.
+    const shaderDir = new URL('./shaders/', import.meta.url)
+    const onDisk = readdirSync(shaderDir)
+      .filter(f => f.endsWith('.wgsl'))
+      .map(f => f.replace(/\.wgsl$/, ''))
+    expect(Object.keys(SHADERS).sort()).toEqual(onDisk.sort())
   })
 
   for (const [name, src] of Object.entries(SHADERS)) {

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { CONTROL_KEYS } from '../controls'
 import { Engine } from '../gpu/pipeline'
 import { smpteBars, sweep } from '../sources/pattern'
 import { ytId } from '../sources/youtube'
 import { PRESETS, presetControls } from './presets'
 
-import type { ControlKey, Controls, FrameStats } from '../controls'
+import type { Controls, FrameStats } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { Fatal } from './FatalScreen'
 
@@ -507,8 +507,8 @@ export function useEngine() {
               for (const pair of setParam.split(',')) {
                 const [k, v] = pair.split(':')
                 const n = Number(v)
-                if (k in DEFAULT_CONTROLS && Number.isFinite(n))
-                  patch[k as ControlKey] = n
+                const key = CONTROL_KEYS.find(c => c === k)
+                if (key !== undefined && Number.isFinite(n)) patch[key] = n
               }
               engine.applyControls(patch)
             }

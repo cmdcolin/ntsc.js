@@ -1,4 +1,4 @@
-import { DEFAULT_CONTROLS } from '../controls'
+import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { SLIDER_BY_KEY } from './controls'
 
 import type { ControlKey, Controls } from '../controls'
@@ -496,8 +496,6 @@ export const PRESETS: PresetDef[] = [
 export function presetControls(patch: Partial<Controls>): Controls {
   return { ...DEFAULT_CONTROLS, ...patch }
 }
-
-export const CONTROL_KEYS = Object.keys(DEFAULT_CONTROLS) as ControlKey[]
 
 export function controlsEqual(a: Controls, b: Controls): boolean {
   return CONTROL_KEYS.every(k => a[k] === b[k])

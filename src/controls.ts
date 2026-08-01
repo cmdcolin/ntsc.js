@@ -145,6 +145,12 @@ export const DEFAULT_CONTROLS = {
 export type Controls = typeof DEFAULT_CONTROLS
 export type ControlKey = keyof Controls
 
+// Every control key, for the code that has to walk the whole record (uniform
+// packing, the URL mirror, MIDI takeover, preset comparison). Lives here beside
+// the schema so those callers share one list instead of each re-deriving it —
+// `Object.keys` widens to string, so this is the one place that narrows it.
+export const CONTROL_KEYS = Object.keys(DEFAULT_CONTROLS) as ControlKey[]
+
 export interface FrameStats {
   fps: number
 }

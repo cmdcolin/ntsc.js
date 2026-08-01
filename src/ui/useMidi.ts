@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { CONTROL_KEYS } from '../controls'
 import { createMidi } from './midi'
 
 import type { ControlKey, Controls } from '../controls'
@@ -65,9 +66,7 @@ export function useMidi(engineRef: RefObject<Engine | null>) {
     (next: Controls) => {
       engineRef.current?.applyControls(next)
       const midi = midiRef.current
-      if (midi)
-        for (const k of Object.keys(next) as ControlKey[])
-          midi.setExternal(k, next[k])
+      if (midi) for (const k of CONTROL_KEYS) midi.setExternal(k, next[k])
     },
     [engineRef],
   )

@@ -67,7 +67,9 @@ export function Slider(props: {
   const help = props.help
   const favorite = props.favorite
   const choices = props.choices
-  const locked = sync?.label !== null && sync?.live === true
+  // Live clock first: it narrows away the undefined case, so the division check
+  // isn't comparing `null` against a value that may not exist.
+  const locked = sync?.live === true && sync.label !== null
   // Track fill anchors at the default, not the left edge: bipolar controls
   // read like a pan pot from center, and distance-from-stock shows at a glance.
   const pct = (v: number) =>

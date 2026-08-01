@@ -920,7 +920,7 @@ export const GROUPS: Group[] = [
         max: 4,
         step: 0.01,
         unit: '',
-        help: 'Input trim on the incoming audio before any of the routings above see it. Set it so the level meter is moving through most of its range, then dial the individual destinations.',
+        help: 'Input trim on the waveform routings — into deflection and into video in — which is how hard the raw sound drives the geometry and the composite line. The envelope routings (the two hold oscillators and HV sag) normalize against a decaying peak instead, so they ride any input level on their own and this trim does not move them, or the meter above.',
       },
     ],
   },

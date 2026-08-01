@@ -8,7 +8,9 @@ export function usePopout() {
   const [popout, setPopout] = useState<Window | null>(null)
 
   const openPopout = () => {
-    if (popout !== null) {
+    // `closed` too: if the window went away without firing pagehide, the stale
+    // handle sticks around and focus() is a no-op, leaving no way to reopen.
+    if (popout !== null && !popout.closed) {
       popout.focus()
     } else {
       const w = window.open('', 'ntscsynth_controls', 'width=340,height=900')
