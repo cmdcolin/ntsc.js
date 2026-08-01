@@ -1,18 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { CONTROL_KEYS } from '../controls'
 import { Engine } from '../gpu/pipeline'
 import { reportPreviousTrace, trace } from '../gpu/trace'
 import { smpteBars, sweep } from '../sources/pattern'
 import { ytId } from '../sources/youtube'
-import { PRESETS, presetControls } from './presets'
+import {
+  REVERB_DEFAULT,
+  SPEED_DEFAULT,
+  VAPORWAVE_SPEED,
+  parseSessionParams,
+  urlName,
+} from './urlParams'
+import { playStream, playUrl, stopSlot } from './videoSlot'
 
-import type { Controls, FrameStats } from '../controls'
+import type { FrameStats } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { Fatal } from './FatalScreen'
+import type { SessionParams } from './urlParams'
+import type { VideoSlot } from './videoSlot'
 
-// Decode an image, capping the long edge so a phone photo doesn't land as a
-// ~200 MB bitmap. The engine caps the texture too; this keeps the decode cheap.
+// The long edge a decoded still is capped to, so a phone photo doesn't land as
+// a ~200 MB bitmap. Sources caps the texture as well; this keeps the *decode*
+// cheap, which is the part that happens before the engine ever sees it.
 const MAX_DECODE_EDGE = 1536
 const decodeImage = (src: Blob | File): Promise<ImageBitmap> =>
   createImageBitmap(src).then(bmp => {
@@ -43,23 +52,8 @@ const fetchYouTube = (url: string): Promise<Blob> =>
       : r.text().then(t => Promise.reject(new Error(t || `${r.status}`))),
   )
 
-// Last path segment of a URL, for labeling ?iurl/?vurl sources by name.
-const urlName = (url: string): string => {
-  const path = new URL(url, location.href).pathname
-  const name = decodeURIComponent(path.slice(path.lastIndexOf('/') + 1))
-  return name === '' ? url : name
-}
-
-// What a bare load (no ?preset/?set) lands on: a whisper of source B summed
-// into the composite, so the mixer is visibly doing something on arrival. Kept
-// out of DEFAULT_CONTROLS so `clean` and hold-to-compare stay truly clean.
-const LANDING_LOOK: Partial<Controls> = { bGain: 0.16 }
-
-// Vaporwave playback defaults, shared with VaporwaveSection so each slider's
-// reset point matches the initial state. VAPORWAVE_SPEED is the one-click look.
-export const SPEED_DEFAULT = 1
-export const REVERB_DEFAULT = 0.3
-export const VAPORWAVE_SPEED = 0.66
+const reason = (e: unknown): string =>
+  e instanceof Error ? e.message : String(e)
 
 declare global {
   interface Window {
@@ -105,8 +99,8 @@ export function useEngine() {
   // query string (a refresh or shared link restores the clip).
   const [ytUrlA, setYtUrlA] = useState('')
   const [ytUrlB, setYtUrlB] = useState('')
-  // makeVideo stamps the current playback config onto each new element, but it
-  // runs inside async fetch callbacks and the mount-time restore, where the
+  // Each new element is stamped with the current playback config, but that
+  // happens inside async fetch callbacks and the mount-time restore, where the
   // state it would close over is stale; this mirror always holds the latest.
   const vaporRef = useRef({
     speedA: SPEED_DEFAULT,
@@ -217,54 +211,80 @@ export function useEngine() {
     }
   }, [playAudio, engine])
 
-  const stopVideo = () => {
-    const v = videoRef.current
-    if (v) {
-      v.pause()
-      if (v.srcObject instanceof MediaStream)
-        v.srcObject.getTracks().forEach(t => t.stop())
-      v.srcObject = null
-      if (v.src.startsWith('blob:')) URL.revokeObjectURL(v.src)
-      v.removeAttribute('src')
-      videoRef.current = null
-      engineRef.current?.audioState.releaseMedia(v)
-    }
-    setVideoA(false)
-    setYtUrlA('')
-    engineRef.current?.setVideoSource(null)
+  // The two slots, as data. Everything below that touches a <video> goes
+  // through one of these, so the A and B paths are the same code reading a
+  // different descriptor rather than two near-copies drifting apart.
+  const adopt = () =>
+    routeAudio(vaporRef.current.playAudio, vaporRef.current.reverb)
+  const slotA: VideoSlot = {
+    ref: videoRef,
+    rate: () => vaporRef.current.speedA,
+    attach: el => engineRef.current?.setVideoSource(el),
+    // Only A keeps its own aspect — B is staged to the raster with a 4:3 crop,
+    // so its shader needs no aspect at all (see gpu/sources.ts).
+    setImage: (source, aspect) =>
+      engineRef.current?.setImageSource(source, aspect),
+    setNoise: kind => engineRef.current?.setNoiseSource(kind),
+    setLive: setVideoA,
+    setYtUrl: setYtUrlA,
+    onError: setError,
+    release: el => engineRef.current?.audioState.releaseMedia(el),
+    adopt,
+  }
+  const slotB: VideoSlot = {
+    ref: videoBRef,
+    rate: () => vaporRef.current.speedB,
+    attach: el => engineRef.current?.setVideoSourceB(el),
+    setImage: source => engineRef.current?.setImageSourceB(source),
+    setNoise: kind => engineRef.current?.setNoiseSourceB(kind),
+    setLive: setVideoB,
+    setYtUrl: setYtUrlB,
+    onError: setError,
+    release: el => engineRef.current?.audioState.releaseMedia(el),
+    adopt,
+  }
+  const stopVideo = () => stopSlot(slotA)
+  const stopVideoB = () => stopSlot(slotB)
+
+  // The generated sources either slot can show. Both slots offer the same four,
+  // which is why the mode name alone picks one.
+  const showGenerated = (slot: VideoSlot, mode: SourceMode | SourceBMode) => {
+    if (mode === 'bars') slot.setImage(smpteBars())
+    else if (mode === 'sweep') slot.setImage(sweep())
+    else if (mode === 'tv static') slot.setNoise(1)
+    else if (mode === 'vhs static') slot.setNoise(2)
   }
 
-  const makeVideo = (
-    ref: React.RefObject<HTMLVideoElement | null> = videoRef,
-  ): HTMLVideoElement => {
-    const v = document.createElement('video')
-    v.muted = true
-    v.loop = true
-    v.playsInline = true
-    v.addEventListener('error', () => {
-      setError(
-        `video error: ${v.error?.message ?? 'unknown'} (code ${v.error?.code ?? '?'})`,
-      )
-      console.log('DEBUG video error', v.error?.code, v.error?.message)
-    })
-    v.addEventListener('playing', () =>
-      console.log('DEBUG video playing', v.videoWidth, v.videoHeight),
+  // Decode a still into a slot. A passes the source's own aspect so compose
+  // letterboxes it; B ignores the argument.
+  const showImage = (slot: VideoSlot, src: Blob | File) => {
+    decodeImage(src).then(
+      bmp => slot.setImage(bmp, bmp.width / bmp.height),
+      (e: unknown) => setError(`image: ${reason(e)}`),
     )
-    const isB = ref === videoBRef
-    // preservesPitch off means slowing the rate drops the pitch — the whole
-    // point. defaultPlaybackRate too, or loading the src resets playbackRate to
-    // 1. muted stays true until routeMedia adopts the element for output.
-    const rate = isB ? vaporRef.current.speedB : vaporRef.current.speedA
-    v.preservesPitch = false
-    v.defaultPlaybackRate = rate
-    v.playbackRate = rate
-    ref.current = v
-    if (isB) setVideoB(true)
-    else setVideoA(true)
-    // A fresh clip is a new element the audio graph hasn't adopted; re-route so
-    // it's captured (and slowed audio keeps playing) when playback audio is on.
-    routeAudio(vaporRef.current.playAudio, vaporRef.current.reverb)
-    return v
+  }
+
+  // Download a clip and hand it to the slot. What differs between A and B —
+  // the mode enum, B's enable flag — stays with the callers below.
+  const downloadYouTube = (
+    slot: VideoSlot,
+    url: string,
+    label: (text: string) => void,
+    onFail: () => void,
+  ) => {
+    slot.setYtUrl(url)
+    label(`youtube: ${ytId(url)} — downloading…`)
+    fetchYouTube(url).then(
+      blob => {
+        playUrl(slot, URL.createObjectURL(blob))
+        label(`youtube: ${ytId(url)}`)
+      },
+      (e: unknown) => {
+        setError(`youtube: ${reason(e)}`)
+        label('')
+        onFail()
+      },
+    )
   }
 
   const selectSource = (mode: SourceMode) => {
@@ -288,10 +308,7 @@ export function useEngine() {
         stopVideo()
         setSourceMode(mode)
         setSourceName('')
-        if (mode === 'bars') engine.setImageSource(smpteBars())
-        else if (mode === 'sweep') engine.setImageSource(sweep())
-        else if (mode === 'tv static') engine.setNoiseSource(1)
-        else engine.setNoiseSource(2)
+        showGenerated(slotA, mode)
       }
     }
   }
@@ -307,11 +324,7 @@ export function useEngine() {
       const video = deviceId === '' ? true : { deviceId: { exact: deviceId } }
       navigator.mediaDevices.getUserMedia({ video }).then(
         stream => {
-          const v = makeVideo()
-          v.srcObject = stream
-          v.play()
-            .then(() => engine.setVideoSource(v))
-            .catch(() => {})
+          playStream(slotA, stream)
           setSourceMode('webcam')
           setSourceName('')
           setAskWebcam(false)
@@ -328,59 +341,42 @@ export function useEngine() {
             )
             .catch(() => {})
         },
-        (e: unknown) =>
-          setError(`capture: ${e instanceof Error ? e.message : String(e)}`),
+        (e: unknown) => setError(`capture: ${reason(e)}`),
       )
     }
   }
 
   const onFile = (file: File | undefined) => {
-    const engine = engineRef.current
-    if (file && engine) {
+    if (file && engineRef.current) {
       stopVideo()
       setSourceMode('file')
       setSourceName(file.name)
-      if (file.type.startsWith('image/')) {
-        decodeImage(file).then(
-          bmp => engine.setImageSource(bmp, bmp.width / bmp.height),
-          (e: unknown) =>
-            setError(`image: ${e instanceof Error ? e.message : String(e)}`),
-        )
-      } else {
-        const v = makeVideo()
-        v.src = URL.createObjectURL(file)
-        v.play()
-          .then(() => engine.setVideoSource(v))
-          .catch(() => {})
-      }
+      if (file.type.startsWith('image/')) showImage(slotA, file)
+      else playUrl(slotA, URL.createObjectURL(file))
     }
   }
 
-  // Both A and B feed the clip through the same blob-backed <video> path as a
-  // picked file; the only difference is which slot's setters they drive.
-  const loadYouTube = (url: string) => {
+  const onFileB = (file: File | undefined) => {
     const engine = engineRef.current
+    if (file && engine) {
+      stopVideoB()
+      setSourceBMode('file')
+      setSourceBName(file.name)
+      engine.setSourceBEnabled(true)
+      if (file.type.startsWith('image/')) showImage(slotB, file)
+      else playUrl(slotB, URL.createObjectURL(file))
+    }
+  }
+
+  // Both slots feed the clip through the same blob-backed <video> path as a
+  // picked file; only the mode bookkeeping differs, and B's enable flag.
+  const loadYouTube = (url: string) => {
     const trimmed = url.trim()
-    if (engine && trimmed !== '') {
+    if (engineRef.current && trimmed !== '') {
       stopVideo()
       setError('')
       setSourceMode('youtube')
-      setYtUrlA(trimmed)
-      setSourceName(`youtube: ${ytId(trimmed)} — downloading…`)
-      fetchYouTube(trimmed).then(
-        blob => {
-          const v = makeVideo()
-          v.src = URL.createObjectURL(blob)
-          v.play()
-            .then(() => engine.setVideoSource(v))
-            .catch(() => {})
-          setSourceName(`youtube: ${ytId(trimmed)}`)
-        },
-        (e: unknown) => {
-          setError(`youtube: ${e instanceof Error ? e.message : String(e)}`)
-          setSourceName('')
-        },
-      )
+      downloadYouTube(slotA, trimmed, setSourceName, () => {})
     }
   }
 
@@ -391,40 +387,12 @@ export function useEngine() {
       stopVideoB()
       setError('')
       setSourceBMode('youtube')
-      setYtUrlB(trimmed)
-      setSourceBName(`youtube: ${ytId(trimmed)} — downloading…`)
       engine.setSourceBEnabled(true)
-      fetchYouTube(trimmed).then(
-        blob => {
-          const v = makeVideo(videoBRef)
-          v.src = URL.createObjectURL(blob)
-          v.play()
-            .then(() => engine.setVideoSourceB(v))
-            .catch(() => {})
-          setSourceBName(`youtube: ${ytId(trimmed)}`)
-        },
-        (e: unknown) => {
-          setError(`youtube: ${e instanceof Error ? e.message : String(e)}`)
-          setSourceBName('')
-          setSourceBMode('none')
-          engine.setSourceBEnabled(false)
-        },
-      )
+      downloadYouTube(slotB, trimmed, setSourceBName, () => {
+        setSourceBMode('none')
+        engine.setSourceBEnabled(false)
+      })
     }
-  }
-
-  const stopVideoB = () => {
-    const v = videoBRef.current
-    if (v) {
-      v.pause()
-      if (v.src.startsWith('blob:')) URL.revokeObjectURL(v.src)
-      v.removeAttribute('src')
-      videoBRef.current = null
-      engineRef.current?.audioState.releaseMedia(v)
-    }
-    setVideoB(false)
-    setYtUrlB('')
-    engineRef.current?.setVideoSourceB(null)
   }
 
   const selectSourceB = (mode: SourceBMode) => {
@@ -440,35 +408,61 @@ export function useEngine() {
         setSourceBMode(mode)
         setSourceBName('')
         engine.setSourceBEnabled(mode !== 'none')
-        if (mode === 'bars') engine.setImageSourceB(smpteBars())
-        else if (mode === 'sweep') engine.setImageSourceB(sweep())
-        else if (mode === 'tv static') engine.setNoiseSourceB(1)
-        else if (mode === 'vhs static') engine.setNoiseSourceB(2)
+        showGenerated(slotB, mode)
       }
     }
   }
 
-  const onFileB = (file: File | undefined) => {
-    const engine = engineRef.current
-    if (file && engine) {
-      stopVideoB()
-      setSourceBMode('file')
-      setSourceBName(file.name)
-      engine.setSourceBEnabled(true)
-      if (file.type.startsWith('image/')) {
-        decodeImage(file).then(
-          bmp => engine.setImageSourceB(bmp),
-          (e: unknown) =>
-            setError(`image: ${e instanceof Error ? e.message : String(e)}`),
-        )
-      } else {
-        const v = makeVideo(videoBRef)
-        v.src = URL.createObjectURL(file)
-        v.play()
-          .then(() => engine.setVideoSourceB(v))
-          .catch(() => {})
-      }
+  // Put a parsed link on the freshly-created engine. The parsing itself is pure
+  // and tested (urlParams.ts); what is left here is only the applying, in the
+  // one order that matters: the vaporwave settings land before any clip loads,
+  // since a new element reads its playback rate off vaporRef at creation.
+  const restoreSession = (engine: Engine, params: SessionParams) => {
+    engine.applyControls(params.controls)
+    if (params.src === 'webcam') {
+      selectSource('webcam')
+    } else if (params.src !== null) {
+      showGenerated(slotA, params.src)
+      setSourceMode(params.src)
     }
+    if (params.srcb !== null) {
+      engine.setSourceBEnabled(params.srcb !== 'none')
+      showGenerated(slotB, params.srcb)
+      setSourceBMode(params.srcb)
+    }
+    const imageError = (e: unknown) => setError(`image: ${reason(e)}`)
+    if (params.iurl !== null) {
+      const url = params.iurl
+      loadImage(url).then(bmp => {
+        slotA.setImage(bmp, bmp.width / bmp.height)
+        setSourceMode('file')
+        setSourceName(urlName(url))
+      }, imageError)
+    }
+    if (params.iurlb !== null) {
+      const url = params.iurlb
+      loadImage(url).then(bmp => {
+        slotB.setImage(bmp)
+        engine.setSourceBEnabled(true)
+        setSourceBMode('file')
+        setSourceBName(urlName(url))
+      }, imageError)
+    }
+    if (params.vurl !== null) {
+      playUrl(slotA, params.vurl)
+      setSourceMode('file')
+      setSourceName(urlName(params.vurl))
+    }
+    // Audio is left off however the link arrived: browsers block unmuted
+    // autoplay without a gesture, so a restored clip must load muted and the
+    // user re-enables sound with one click on the panel toggle.
+    vaporRef.current = { ...params.vapor, playAudio: false }
+    setSpeedA(params.vapor.speedA)
+    setSpeedB(params.vapor.speedB)
+    setReverb(params.vapor.reverb)
+    if (params.yt !== null) loadYouTube(params.yt)
+    if (params.ytb !== null) loadYouTubeB(params.ytb)
+    if (params.debug) console.log('DEBUG engine ready')
   }
 
   useEffect(() => {
@@ -529,104 +523,7 @@ export function useEngine() {
             engine.setImageSource(smpteBars())
             engine.setImageSourceB(smpteBars())
             engine.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
-            const q = new URLSearchParams(location.search)
-            // Only a bare load lands on it: a shared link's ?set omits controls
-            // sitting at their default, so adding B here would dirty that look.
-            if (q.get('set') === null && q.get('preset') === null) {
-              engine.applyControls(LANDING_LOOK)
-            }
-            const presetName = q.get('preset')
-            if (presetName !== null) {
-              const p = PRESETS.find(x => x.name === presetName)
-              if (p) engine.applyControls(presetControls(p.patch))
-            }
-            const setParam = q.get('set')
-            if (setParam !== null) {
-              const patch: Partial<Controls> = {}
-              for (const pair of setParam.split(',')) {
-                const [k, v] = pair.split(':')
-                const n = Number(v)
-                const key = CONTROL_KEYS.find(c => c === k)
-                if (key !== undefined && Number.isFinite(n)) patch[key] = n
-              }
-              engine.applyControls(patch)
-            }
-            if (q.get('src') === 'sweep') {
-              engine.setImageSource(sweep())
-              setSourceMode('sweep')
-            }
-            if (q.get('src') === 'tv static') {
-              engine.setNoiseSource(1)
-              setSourceMode('tv static')
-            }
-            if (q.get('src') === 'vhs static') {
-              engine.setNoiseSource(2)
-              setSourceMode('vhs static')
-            }
-            if (q.get('src') === 'webcam') selectSource('webcam')
-            // Source B (bars by default; ?srcb= overrides to sweep or off)
-            const srcb = q.get('srcb')
-            if (srcb === 'sweep') {
-              engine.setImageSourceB(sweep())
-              engine.setSourceBEnabled(true)
-              setSourceBMode('sweep')
-            } else if (srcb === 'none') {
-              engine.setSourceBEnabled(false)
-              setSourceBMode('none')
-            }
-            const onImageError = (e: unknown) =>
-              setError(`image: ${e instanceof Error ? e.message : String(e)}`)
-            const iurl = q.get('iurl')
-            if (iurl !== null) {
-              loadImage(iurl).then(bmp => {
-                engine.setImageSource(bmp, bmp.width / bmp.height)
-                setSourceMode('file')
-                setSourceName(urlName(iurl))
-              }, onImageError)
-            }
-            const iurlb = q.get('iurlb')
-            if (iurlb !== null) {
-              loadImage(iurlb).then(bmp => {
-                engine.setImageSourceB(bmp)
-                engine.setSourceBEnabled(true)
-                setSourceBMode('file')
-                setSourceBName(urlName(iurlb))
-              }, onImageError)
-            }
-            const vurl = q.get('vurl')
-            if (vurl !== null) {
-              const v = makeVideo()
-              v.src = vurl
-              v.play()
-                .then(() => engine.setVideoSource(v))
-                .catch(() => {})
-              setSourceMode('file')
-              setSourceName(urlName(vurl))
-            }
-            // Vaporwave + YouTube round-trip: apply the speeds/reverb before
-            // loading, so the restored clips (makeVideo reads vaporRef) start
-            // already slowed. Audio is left off — browsers block unmuted
-            // autoplay without a gesture, so the clip must load muted; the user
-            // re-enables sound with one click on the panel toggle.
-            const num = (key: string, fallback: number) => {
-              const raw = q.get(key)
-              const n = raw === null ? fallback : Number(raw)
-              return Number.isFinite(n) ? n : fallback
-            }
-            vaporRef.current = {
-              speedA: num('speeda', SPEED_DEFAULT),
-              speedB: num('speedb', SPEED_DEFAULT),
-              reverb: num('reverb', REVERB_DEFAULT),
-              playAudio: false,
-            }
-            setSpeedA(vaporRef.current.speedA)
-            setSpeedB(vaporRef.current.speedB)
-            setReverb(vaporRef.current.reverb)
-            const yt = q.get('yt')
-            if (yt !== null) loadYouTube(yt)
-            const ytb = q.get('ytb')
-            if (ytb !== null) loadYouTubeB(ytb)
-            if (q.has('debug')) console.log('DEBUG engine ready')
+            restoreSession(engine, parseSessionParams(location.search))
           }
         },
         (e: unknown) =>

@@ -3,7 +3,7 @@ import { Meter } from './Meter'
 import { Section } from './Section'
 import { Slider } from './Slider'
 import { cx } from './cx'
-import { REVERB_DEFAULT, SPEED_DEFAULT, VAPORWAVE_SPEED } from './useEngine'
+import { REVERB_DEFAULT, SPEED_DEFAULT, VAPORWAVE_SPEED } from './urlParams'
 
 export function VaporwaveSection(props: {
   videoA: boolean
