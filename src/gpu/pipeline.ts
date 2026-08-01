@@ -597,6 +597,7 @@ export class Engine {
       render: () => this.render(),
       onStats: s => this.onStats(s),
       onHang: () => this.onHang(),
+      recover: () => this.recoverSurface(),
       frameNo: () => this.frame,
     })
 
@@ -916,6 +917,22 @@ export class Engine {
   // that can leave the browser having stopped delivering rAF callbacks.
   kick(): void {
     this.loop.kick()
+  }
+
+  // Rebuild the swapchain when the loop has run out of gentler options. A tab
+  // that comes back from a long hidden stretch can be left holding a surface
+  // the compositor no longer paints, and re-requesting rAF cannot fix that —
+  // the traces show rAF delivering a couple of callbacks and then stopping for
+  // good. Reconfiguring hands back a fresh swapchain, which is the one thing
+  // this side of the boundary can still do about it.
+  private recoverSurface(): void {
+    if (!this.destroyed) {
+      this.gpu.context.configure({
+        device: this.gpu.device,
+        format: this.gpu.format,
+        alphaMode: 'opaque',
+      })
+    }
   }
 
   // Frame counter, for the diagnostic recorder and the verification harness.

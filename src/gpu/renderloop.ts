@@ -44,6 +44,11 @@ export interface RenderLoopHost {
   // completes. Whether that is a lost device is the owner's call, and the
   // wording shown to the user is the UI's; neither belongs here.
   onHang: () => void
+  // Last-ditch recovery, once per stall, when rAF has not come back on its own.
+  // Re-requesting rAF is not enough — a trace caught it delivering three
+  // callbacks after a hidden stretch and then stopping for good — so the owner
+  // gets a chance to rebuild the presentation surface instead.
+  recover: () => void
   // Current frame number, for log breadcrumbs only.
   frameNo: () => number
 }
@@ -187,10 +192,15 @@ export class RenderLoop {
     const within = performance.now() - this.stallSince < FALLBACK_BUDGET_MS
     if (!within && !this.gaveUp) {
       this.gaveUp = true
-      trace.add('fallbackGaveUp', `frame ${this.host.frameNo()}`)
+      // One attempt at rebuilding the surface on the way out. If it works the
+      // next delivered rAF clears the stall, so a `resume` following this line
+      // in the trace is the proof; nothing following it means the surface was
+      // not what was stuck.
+      this.host.recover()
+      trace.add('fallbackGaveUp', `frame ${this.host.frameNo()}, tried recover`)
       trace.flush(true)
       console.warn(
-        `rAF still not delivering after ${FALLBACK_BUDGET_MS}ms; stopping the fallback rather than submitting frames nothing is compositing`,
+        `rAF still not delivering after ${FALLBACK_BUDGET_MS}ms; rebuilt the presentation surface and stopped the fallback rather than submitting frames nothing is compositing`,
       )
     }
     return within
@@ -292,8 +302,15 @@ export class RenderLoop {
         this.kick() // still give rAF a chance to wake on its own
       }
     } else {
-      this.lastRafTicks = this.rafTicks // keep baseline fresh so refocus isn't a false stall
-      this.stalled = false // unfocused throttling is expected; let the fallback stop
+      // Only the baseline is refreshed, so refocusing isn't read as a stall.
+      // The stall flag deliberately survives: a recorded trace showed a visible
+      // unfocused window delivering 93 rAF callbacks in a single 2s beat, so
+      // losing focus is not throttling and is no reason to call a stall over.
+      // Clearing it here used to stand the fallback down mid-stall the moment
+      // the user clicked away — with rAF still flat at 0/beat — which is
+      // exactly when the picture most needed it. rAF actually being delivered
+      // is the only thing that clears a stall now, and `tick` does that.
+      this.lastRafTicks = this.rafTicks
     }
     if (this.probing) return
     this.probing = true

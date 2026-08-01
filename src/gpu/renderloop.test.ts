@@ -21,6 +21,7 @@ function harness() {
   const rafCbs = new Map<number, FrameRequestCallback>()
   const workDone: (() => void)[] = []
   let hangs = 0
+  let recoveries = 0
 
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
     rafSeq += 1
@@ -56,6 +57,9 @@ function harness() {
     onHang: () => {
       hangs += 1
     },
+    recover: () => {
+      recoveries += 1
+    },
     frameNo: () => frames,
   })
 
@@ -63,6 +67,7 @@ function harness() {
     loop,
     hangs: () => hangs,
     frames: () => frames,
+    recoveries: () => recoveries,
     // Deliver every rAF callback the loop has outstanding.
     deliverRaf: (time: number) => {
       const cbs = [...rafCbs.values()]
@@ -184,12 +189,51 @@ describe('RenderLoop', () => {
     expect(h.frames()).toBe(1)
   })
 
-  it('treats an unfocused window as throttled rather than stalled', async () => {
+  it('does not declare a stall against an unfocused window', async () => {
     const h = harness()
     h.setFocused(false)
     h.loop.start()
     await vi.advanceTimersByTimeAsync(WATCHDOG_MS * 2)
     expect(h.frames()).toBe(0)
+  })
+
+  it('keeps bridging a stall when the window loses focus mid-stall', async () => {
+    const h = harness()
+    h.loop.start()
+    await vi.advanceTimersByTimeAsync(WATCHDOG_MS)
+    expect(h.frames()).toBe(1)
+
+    // A visible unfocused window is not throttled — a trace caught one running
+    // 93 rAF callbacks in a 2s beat — so clicking away mid-stall must not stand
+    // the fallback down while rAF is still flat. Let a whole watchdog tick land
+    // while unfocused, which is where the stall used to be cleared, and only
+    // then release the frame the pump is waiting on.
+    h.setFocused(false)
+    await vi.advanceTimersByTimeAsync(WATCHDOG_MS)
+    const before = h.frames()
+
+    h.completeGpu()
+    await vi.advanceTimersByTimeAsync(FALLBACK_MS)
+    expect(h.frames()).toBeGreaterThan(before)
+  })
+
+  it('tries to rebuild the surface once when it gives up', async () => {
+    const h = harness()
+    h.loop.start()
+    await vi.advanceTimersByTimeAsync(WATCHDOG_MS)
+    expect(h.recoveries()).toBe(0)
+
+    for (let t = 0; t < FALLBACK_BUDGET_MS; t += FALLBACK_MS) {
+      h.completeGpu()
+      await vi.advanceTimersByTimeAsync(FALLBACK_MS)
+    }
+    expect(h.recoveries()).toBe(1)
+
+    // Once per stall. Reconfiguring a stuck surface over and over is the
+    // hammering the budget exists to stop.
+    h.completeGpu()
+    await vi.advanceTimersByTimeAsync(WATCHDOG_MS * 3)
+    expect(h.recoveries()).toBe(1)
   })
 
   it('re-enters the fallback after a restart', async () => {
