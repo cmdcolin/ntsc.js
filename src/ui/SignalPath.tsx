@@ -1,10 +1,6 @@
-import { Fragment, useState } from 'react'
-
 import styles from '../app.module.css'
-import { ChainMap, ChainParts } from './ChainMap'
 import { ControlGroup } from './ControlGroup'
 import { cx } from './cx'
-import { Dialog } from './Dialog'
 import { Accordion, NestedSections } from './Section'
 
 import type { ChainStage } from './ChainMap'
@@ -23,10 +19,10 @@ export interface PathNode extends ChainStage {
 // and only that stage's groups render below — so the panel holds the knobs you
 // are using rather than a flat list of sixteen headers.
 //
-// The diagram is the panel's trunk, so a copy of it is always on screen at the
-// head of the path rather than parked behind a button: it is both the map and
-// the only way in, and a grey bar reading "chain diagram" was neither found nor
-// understood. The dialog is the same drawing with room for the effect lists.
+// The diagram lives in its own dialog (ChainDialog), where it has the room to
+// be read. What sits here is the door to it — and the same door is in the stage
+// menu, since it is the only way into any control and one entry point buried in
+// the panel was not enough to find.
 export function SignalPath(props: {
   nodes: PathNode[]
   // null = no stage picked, which is where exploration starts. Ignored while a
@@ -37,8 +33,8 @@ export function SignalPath(props: {
   // Which group inside the open stage is unfolded — one at a time.
   openGroup: string | null
   onOpenGroup: (name: string) => void
+  onShowChain: () => void
 }) {
-  const [showDiagram, setShowDiagram] = useState(false)
   const shown = props.nodes.filter(
     n => props.expandAll || props.open === n.name,
   )
@@ -46,71 +42,26 @@ export function SignalPath(props: {
   return (
     <>
       <div className={styles.chainStrip}>
-        <div className={styles.chainHead}>
-          <span className={styles.chainTitle}>the chain</span>
-          <span className={styles.chainMeta}>
+        <button
+          className={styles.btn}
+          title="the whole chain as a rack of modules — a block per stage, patched in the order the picture travels, with every effect it can apply"
+          onClick={() => props.onShowChain()}
+        >
+          signal chain
+          <span
+            className={cx(styles.chainMeta, touched > 0 && styles.chainMetaOn)}
+          >
             {touched === 0
               ? `${props.nodes.length} stages`
               : `${touched} off stock`}
           </span>
-          <button
-            className={styles.chainExpand}
-            title="the whole chain, big — every stage with the effects it can apply"
-            onClick={() => setShowDiagram(true)}
-          >
-            expand ⤢
-          </button>
-        </div>
-        <div className={styles.chainScreen}>
-          <ChainMap
-            stages={props.nodes}
-            open={props.open}
-            size="strip"
-            onOpen={name => props.onOpen(name)}
-          />
-        </div>
+        </button>
         {props.open === null ? (
           <div className={styles.chainCaption}>
-            click a stage to open its controls
+            every control lives at a stage — open the chain to pick one
           </div>
         ) : null}
       </div>
-      {showDiagram ? (
-        <Dialog
-          title="Signal chain"
-          size="diagram"
-          onClose={() => setShowDiagram(false)}
-        >
-          <div className={cx(styles.chainScreen, styles.chainScreenBig)}>
-            <ChainMap
-              stages={props.nodes}
-              open={props.open}
-              size="card"
-              onOpen={name => {
-                props.onOpen(name)
-                setShowDiagram(false)
-              }}
-            />
-          </div>
-          <ChainParts stages={props.nodes} />
-          <div className={styles.muted}>
-            the picture travels left to right; feedback returns the end of the
-            chain to its middle. click a stage — or one of its effects — to open
-            it in the panel.
-            {touched === 0
-              ? ''
-              : ` amber marks the ${touched} controls you have off stock.`}
-          </div>
-          <div className={styles.diagramLegend}>
-            {props.nodes.map(node => (
-              <Fragment key={node.name}>
-                <span className={styles.diagramLegendName}>{node.name}</span>
-                <span>{node.blurb}</span>
-              </Fragment>
-            ))}
-          </div>
-        </Dialog>
-      ) : null}
       <div className={styles.stages}>
         {shown.map(node => (
           <div key={node.name} className={styles.stageRow}>

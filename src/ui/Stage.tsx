@@ -5,7 +5,7 @@ import { Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
 import styles from './Stage.module.css'
 import { cx } from './cx'
-import { CameraIcon, GearIcon, MenuIcon } from './icons'
+import { CameraIcon, ChainIcon, GearIcon, MenuIcon } from './icons'
 import {
   clampZoom,
   panLens,
@@ -65,6 +65,7 @@ function StageMenu(props: {
   onPopout: () => void
   onShowHelp: () => void
   onShowAdvanced: () => void
+  onShowChain: () => void
   onHideBar: () => void
 }) {
   return (
@@ -95,6 +96,15 @@ function StageMenu(props: {
         return (
           <>
             <ZoomRow lens={props.lens} onChange={props.onLens} />
+            <div className={popoverStyles.menuSep} />
+            {/* the way into every control, so it heads the menu rather than
+                sitting with the save/record housekeeping below */}
+            <MenuItem
+              icon={<ChainIcon />}
+              label="signal chain"
+              hint=""
+              onClick={run(props.onShowChain)}
+            />
             <div className={popoverStyles.menuSep} />
             <MenuItem
               icon={<CameraIcon />}
@@ -218,6 +228,7 @@ export function Stage(props: {
   onPopout: () => void
   onShowHelp: () => void
   onShowAdvanced: () => void
+  onShowChain: () => void
 }) {
   const [barHidden, setBarHidden] = usePersistedFlag(BAR_HIDDEN_STORE)
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -325,6 +336,7 @@ export function Stage(props: {
             onPopout={props.onPopout}
             onShowHelp={props.onShowHelp}
             onShowAdvanced={props.onShowAdvanced}
+            onShowChain={props.onShowChain}
             onHideBar={() => setBarHidden(true)}
           />
         </div>

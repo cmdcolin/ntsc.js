@@ -8,6 +8,7 @@ import { DEFAULT_CONTROLS } from './controls'
 import { AdvancedDialog } from './ui/AdvancedDialog'
 import { AudioHint, AudioInput } from './ui/AudioInput'
 import { AudioSection } from './ui/AudioSection'
+import { ChainDialog } from './ui/ChainDialog'
 import { CommandPalette } from './ui/CommandPalette'
 import { ControlGroup, ControlSlider } from './ui/ControlGroup'
 import { ControlsContext } from './ui/ControlsContext'
@@ -87,6 +88,9 @@ export function App() {
   const [fullscreen, setFullscreen] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  // The chain diagram is reachable from the panel and from the stage menu, so
+  // its open state sits here rather than inside either one.
+  const [showChain, setShowChain] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
   const [comparing, setComparing] = useState(false)
   const [filter, setFilter] = useState('')
@@ -408,6 +412,7 @@ export function App() {
         onOpen={nav.togglePhase}
         openGroup={nav.openGroup}
         onOpenGroup={nav.toggleGroup}
+        onShowChain={() => setShowChain(true)}
       />
       {!filtering || pathNodes.length > 0 ? null : (
         <div className={styles.hint}>
@@ -514,6 +519,7 @@ export function App() {
         onPopout={openPopout}
         onShowHelp={() => setShowHelp(true)}
         onShowAdvanced={() => setShowAdvanced(true)}
+        onShowChain={() => setShowChain(true)}
       />
       {fullscreen || popout !== null ? null : (
         <div className={styles.panel}>{panel}</div>
@@ -555,6 +561,14 @@ export function App() {
         />
       ) : null}
       {showHelp ? <HelpDialog onClose={() => setShowHelp(false)} /> : null}
+      {showChain ? (
+        <ChainDialog
+          stages={pathNodes}
+          open={nav.openPhase}
+          onOpen={nav.togglePhase}
+          onClose={() => setShowChain(false)}
+        />
+      ) : null}
       {showPalette ? (
         <CommandPalette
           controls={controls}
