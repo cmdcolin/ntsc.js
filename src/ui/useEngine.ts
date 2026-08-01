@@ -110,7 +110,7 @@ export function useEngine() {
   })
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
   const [webcamDeviceId, setWebcamDeviceId] = useState('')
-  const [sourceBMode, setSourceBMode] = useState<SourceBMode>('none')
+  const [sourceBMode, setSourceBMode] = useState<SourceBMode>('bars')
   const [sourceBName, setSourceBName] = useState('')
   const [renderScale, setRenderScale] = useState(1)
   const renderScaleRef = useRef(1)
@@ -493,7 +493,8 @@ export function useEngine() {
                 kind: 'lost',
               })
             engine.setImageSource(smpteBars())
-            engine.setSourceBEnabled(false) // B is off by default; opt in via the B dropdown
+            engine.setImageSourceB(smpteBars())
+            engine.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
             const q = new URLSearchParams(location.search)
             const presetName = q.get('preset')
             if (presetName !== null) {
@@ -524,16 +525,15 @@ export function useEngine() {
               setSourceMode('vhs static')
             }
             if (q.get('src') === 'webcam') selectSource('webcam')
-            // Source B (off by default, so only an enabled mode is serialized)
+            // Source B (bars by default; ?srcb= overrides to sweep or off)
             const srcb = q.get('srcb')
-            if (srcb === 'bars') {
-              engine.setImageSourceB(smpteBars())
-              engine.setSourceBEnabled(true)
-              setSourceBMode('bars')
-            } else if (srcb === 'sweep') {
+            if (srcb === 'sweep') {
               engine.setImageSourceB(sweep())
               engine.setSourceBEnabled(true)
               setSourceBMode('sweep')
+            } else if (srcb === 'none') {
+              engine.setSourceBEnabled(false)
+              setSourceBMode('none')
             }
             const onImageError = (e: unknown) =>
               setError(`image: ${e instanceof Error ? e.message : String(e)}`)

@@ -59,7 +59,7 @@ export function useUrlState({
         sourceMode !== 'youtube',
       sourceMode,
     )
-    put('srcb', sourceBMode === 'bars' || sourceBMode === 'sweep', sourceBMode)
+    put('srcb', sourceBMode === 'sweep' || sourceBMode === 'none', sourceBMode)
     put('yt', sourceMode === 'youtube' && ytUrlA !== '', ytUrlA)
     put('ytb', sourceBMode === 'youtube' && ytUrlB !== '', ytUrlB)
     put('speeda', speedA !== SPEED_DEFAULT, String(+speedA.toFixed(4)))
