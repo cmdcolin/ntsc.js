@@ -28,5 +28,10 @@ export default defineConfig(({ command }) => ({
   },
   // Preferred port for the screenshot harness (scripts/shot.mjs, README);
   // falls back to the next free port if it's taken.
-  server: { port: 5199 },
+  //
+  // forwardConsole patches console.* to relay logs to the dev server, which
+  // reports every message at the patch site inside Vite's client instead of
+  // where it was logged. The render loop's whole diagnostic story is console
+  // breadcrumbs, so the real source location is worth more than the relay.
+  server: { port: 5199, forwardConsole: false },
 }))

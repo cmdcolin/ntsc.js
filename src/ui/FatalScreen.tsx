@@ -5,7 +5,12 @@ import { cx } from './cx'
 export interface Fatal {
   title: string
   body: string
-  kind: 'unavailable' | 'lost'
+  // 'lost' is a device the driver took away — reloading rebuilds it and works.
+  // 'hung' is a GPU process that stopped completing work; it outlives the page,
+  // so a reload lands on the same wedged process. Offering the same button for
+  // both is what made the old screen tell the user not to reload next to a
+  // reload button.
+  kind: 'unavailable' | 'lost' | 'hung'
 }
 
 export function FatalScreen({ fatal }: { fatal: Fatal }) {
@@ -43,6 +48,19 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
               </a>
               .
             </p>
+          </>
+        ) : fatal.kind === 'hung' ? (
+          <>
+            <p style={{ margin: '0 0 14px' }}>
+              Close this browser tab and open the app again.
+            </p>
+            <p className={shared.muted} style={{ margin: '0 0 14px' }}>
+              The GPU process is shared across tabs and outlives this page, so
+              reloading usually lands on the same wedged one.
+            </p>
+            <button className={shared.btn} onClick={() => location.reload()}>
+              reload anyway
+            </button>
           </>
         ) : (
           <button
