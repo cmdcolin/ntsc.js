@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
-import { REVERB_DEFAULT, SPEED_DEFAULT } from './urlParams'
+import { writeSessionParams } from './urlParams'
 
 import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
@@ -39,40 +38,20 @@ export function useUrlState({
 }: UrlStateArgs) {
   const [copied, setCopied] = useState(false)
 
-  // The managed keys (set/src/srcb, yt*/speed*/reverb/audio) are rewritten from
-  // the live state; any other params the loader reads (iurl, iurlb, vurl,
-  // preset, debug) are left untouched so a URL-loaded source survives edits.
+  // The whole query-string rule lives in urlParams beside the parser that has
+  // to read it back; what is left here is the browser half — which params are
+  // already on the address bar, and where the link points.
   const stateUrl = useCallback(() => {
-    const set = CONTROL_KEYS.filter(
-      k => controls[k] !== DEFAULT_CONTROLS[k],
-    ).map(k => `${k}:${+controls[k].toFixed(4)}`)
-    // URLSearchParams so values with spaces (src=tv static) get encoded.
-    const q = new URLSearchParams(location.search)
-    const put = (key: string, on: boolean, value: string) =>
-      on ? q.set(key, value) : q.delete(key)
-    put('set', set.length > 0, set.join(','))
-    // youtube has its own yt=/ytb= keys (the URL, not just the mode name).
-    put(
-      'src',
-      sourceMode !== 'bars' &&
-        sourceMode !== 'file' &&
-        sourceMode !== 'youtube',
+    const q = writeSessionParams(new URLSearchParams(location.search), {
+      controls,
       sourceMode,
-    )
-    // Same rule as `src` above, so B's generated sources survive a shared link
-    // too — bars is B's default, and file/youtube carry their own url params.
-    put(
-      'srcb',
-      sourceBMode !== 'bars' &&
-        sourceBMode !== 'file' &&
-        sourceBMode !== 'youtube',
       sourceBMode,
-    )
-    put('yt', sourceMode === 'youtube' && ytUrlA !== '', ytUrlA)
-    put('ytb', sourceBMode === 'youtube' && ytUrlB !== '', ytUrlB)
-    put('speeda', speedA !== SPEED_DEFAULT, String(+speedA.toFixed(4)))
-    put('speedb', speedB !== SPEED_DEFAULT, String(+speedB.toFixed(4)))
-    put('reverb', reverb !== REVERB_DEFAULT, String(+reverb.toFixed(4)))
+      ytUrlA,
+      ytUrlB,
+      speedA,
+      speedB,
+      reverb,
+    })
     const query = q.toString()
     return `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
   }, [

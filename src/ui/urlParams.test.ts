@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_CONTROLS } from '../controls'
-import { PRESETS } from './presets'
+import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
+import { ALL_SLIDERS } from './controls'
+import { mutate } from './mutate'
+import { PRESETS, presetControls } from './presets'
 import {
   LANDING_LOOK,
   REVERB_DEFAULT,
   SPEED_DEFAULT,
   parseSessionParams,
+  writeSessionParams,
 } from './urlParams'
+
+import type { SessionState } from './urlParams'
 
 const vhs = PRESETS.find(p => p.name === 'vhs')
 
@@ -81,5 +87,102 @@ describe('session params', () => {
     expect(p.iurl).toBe('http://x/a b.png')
     expect(p.yt).toBe('https://y/?v=1')
     expect(p.iurlb).toBe(null)
+  })
+})
+
+// The two halves of the contract, back to back. Everything below asks the same
+// question — does what the writer emits survive the reader — because the one
+// real bug this pair has produced was exactly that: ?srcb= wrote two of B's
+// modes while the reader accepted four, so a shared link quietly downgraded
+// source B to bars. Nothing caught it, because each half read fine alone.
+const state = (over: Partial<SessionState> = {}): SessionState => ({
+  controls: DEFAULT_CONTROLS,
+  sourceMode: 'bars',
+  sourceBMode: 'bars',
+  ytUrlA: '',
+  ytUrlB: '',
+  speedA: SPEED_DEFAULT,
+  speedB: SPEED_DEFAULT,
+  reverb: REVERB_DEFAULT,
+  ...over,
+})
+
+const roundTrip = (s: SessionState) =>
+  parseSessionParams(`?${writeSessionParams(new URLSearchParams(), s)}`)
+
+describe('session round trip', () => {
+  it('returns every look it was given, exactly', () => {
+    // Presets cover the authored looks; a mutated one covers the odd values a
+    // session actually lands on, where 4-decimal rounding could bite. It does
+    // not: the finest slider step in the schema is 0.001.
+    const looks = [
+      DEFAULT_CONTROLS,
+      ...PRESETS.map(p => presetControls(p.patch)),
+      mutate(presetControls(PRESETS[3].patch), ALL_SLIDERS, 0.4, () => 0.37),
+    ]
+    for (const controls of looks) {
+      const back = roundTrip(state({ controls }))
+      expect(presetControls(back.controls)).toEqual(controls)
+    }
+  })
+
+  it('returns every source mode a link can carry', () => {
+    for (const sourceMode of SOURCE_MODES) {
+      const back = roundTrip(state({ sourceMode, ytUrlA: 'https://y/?v=1' }))
+      // file has nothing to name and youtube travels as its url instead
+      if (sourceMode === 'bars' || sourceMode === 'file') {
+        expect(back.src).toBe(null)
+      } else if (sourceMode === 'youtube') {
+        expect(back.src).toBe(null)
+        expect(back.yt).toBe('https://y/?v=1')
+      } else {
+        expect(back.src).toBe(sourceMode)
+      }
+    }
+  })
+
+  it('returns every source B mode a link can carry', () => {
+    for (const sourceBMode of SOURCE_B_MODES) {
+      const back = roundTrip(state({ sourceBMode, ytUrlB: 'https://y/?v=2' }))
+      if (sourceBMode === 'bars' || sourceBMode === 'file') {
+        expect(back.srcb).toBe(null)
+      } else if (sourceBMode === 'youtube') {
+        expect(back.srcb).toBe(null)
+        expect(back.ytb).toBe('https://y/?v=2')
+      } else {
+        expect(back.srcb).toBe(sourceBMode)
+      }
+    }
+  })
+
+  it('returns the playback settings', () => {
+    const back = roundTrip(state({ speedA: 0.66, speedB: 1.5, reverb: 0.8 }))
+    expect(back.vapor).toEqual({ speedA: 0.66, speedB: 1.5, reverb: 0.8 })
+  })
+
+  it('leaves the params it does not manage alone', () => {
+    // A link-loaded source has to survive the user then touching a slider.
+    const q = writeSessionParams(
+      new URLSearchParams('?iurl=http://x/a.png&debug=1&set=humAmp:9'),
+      state({ controls: { ...DEFAULT_CONTROLS, noiseIre: 4 } }),
+    )
+    expect(q.get('iurl')).toBe('http://x/a.png')
+    expect(q.get('debug')).toBe('1')
+    // ...but a managed key is rewritten from live state, not merged with it
+    expect(q.get('set')).toBe('noiseIre:4')
+  })
+
+  it('drops a managed key once its value returns to stock', () => {
+    const q = writeSessionParams(
+      new URLSearchParams('?set=noiseIre:4&speeda=0.5&src=sweep'),
+      state(),
+    )
+    expect(q.get('speeda')).toBe(null)
+    expect(q.get('src')).toBe(null)
+    // ...except `set`, which stays as an empty marker: a stock look is a look
+    // the link is asserting, and no query at all means a first arrival instead.
+    expect(q.get('set')).toBe('')
+    expect(parseSessionParams('?set=').controls).toEqual({})
+    expect(parseSessionParams('').controls).toEqual(LANDING_LOOK)
   })
 })

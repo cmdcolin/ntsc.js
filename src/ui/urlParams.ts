@@ -6,7 +6,7 @@
 // It is also what `scripts/shot.mjs` and every verification harness drive the
 // app with, so a silent change here breaks them with no test to say so.
 
-import { CONTROL_KEYS } from '../controls'
+import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { PRESETS, presetControls } from './presets'
 
@@ -104,6 +104,69 @@ export function parseSessionParams(search: string): SessionParams {
     },
     debug: q.has('debug'),
   }
+}
+
+// Everything a session serializes back out. The mirror image of what
+// parseSessionParams reads, and deliberately in the same file: these are two
+// halves of one contract, and while they lived apart they drifted — ?srcb=
+// wrote only two of B's modes while the reader was happy to take four, so
+// sharing a link with B on static handed the reader bars.
+export interface SessionState {
+  controls: Controls
+  sourceMode: SourceMode
+  sourceBMode: SourceBMode
+  ytUrlA: string
+  ytUrlB: string
+  speedA: number
+  speedB: number
+  reverb: number
+}
+
+// The value a link records for a control: 4 decimals is lossless, since the
+// finest slider step in the schema is 0.001.
+const short = (v: number): string => String(+v.toFixed(4))
+
+// Rewrite the managed keys from live state, leaving every other param alone —
+// the loader also reads iurl, iurlb, vurl, preset and debug, and a URL-loaded
+// source has to survive the user then touching a slider.
+export function writeSessionParams(
+  existing: URLSearchParams,
+  state: SessionState,
+): URLSearchParams {
+  const q = new URLSearchParams(existing)
+  const put = (key: string, on: boolean, value: string) =>
+    on ? q.set(key, value) : q.delete(key)
+  const set = CONTROL_KEYS.filter(
+    k => state.controls[k] !== DEFAULT_CONTROLS[k],
+  ).map(k => `${k}:${short(state.controls[k])}`)
+  // Always emitted, even empty. A link is a statement about a session, so
+  // `?set=` — this look is stock — has to stay distinguishable from no query at
+  // all, which is someone arriving for the first time and getting the landing
+  // look. Without the marker, copying a link while on `clean` handed the reader
+  // source B mixed in rather than the clean picture on screen.
+  q.set('set', set.join(','))
+  // A mode is worth recording when the reader would accept it back; youtube
+  // carries its own yt=/ytb= key (the URL, not just the mode name).
+  put(
+    'src',
+    SRC_MODES.some(m => m === state.sourceMode),
+    state.sourceMode,
+  )
+  put(
+    'srcb',
+    SRCB_MODES.some(m => m === state.sourceBMode),
+    state.sourceBMode,
+  )
+  put('yt', state.sourceMode === 'youtube' && state.ytUrlA !== '', state.ytUrlA)
+  put(
+    'ytb',
+    state.sourceBMode === 'youtube' && state.ytUrlB !== '',
+    state.ytUrlB,
+  )
+  put('speeda', state.speedA !== SPEED_DEFAULT, short(state.speedA))
+  put('speedb', state.speedB !== SPEED_DEFAULT, short(state.speedB))
+  put('reverb', state.reverb !== REVERB_DEFAULT, short(state.reverb))
+  return q
 }
 
 // Last path segment of a URL, for labeling ?iurl/?vurl sources by name.
