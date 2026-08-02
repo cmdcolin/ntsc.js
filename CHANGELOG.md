@@ -4,267 +4,277 @@ All notable changes to ntscythe are documented here.
 
 ## [Unreleased]
 
-### Other Changes
-- [`f89cfb3`](https://github.com/cmdcolin/ntscythe/commit/f89cfb372dcb3b56a1e3f7360a2bfc044401454c) Set up git-cliff and backfill CHANGELOG.md
+### Features
+- [`b601c46`](https://github.com/cmdcolin/ntscythe/commit/b601c464fab7ce4020092de46a2eeb157edb7d9a) Suppress sync at the head-end, and noise the color-under carrier
+
+### Refactor
+- [`644e526`](https://github.com/cmdcolin/ntscythe/commit/644e526a221f04bc1b54bfd56d64fdc6bef4072b) Group changelog by type, keep messages verbatim
+- [`c5ee354`](https://github.com/cmdcolin/ntscythe/commit/c5ee354ec984183ddb4ab6cbcbdb47597db6f11d) simplify changelog config now that history uses real type prefixes
+
+### Chores
+- [`788ccbb`](https://github.com/cmdcolin/ntscythe/commit/788ccbba2913246cc3b7c183075d447bdac6640a) Set up git-cliff and backfill CHANGELOG.md
+- [`73a42b9`](https://github.com/cmdcolin/ntscythe/commit/73a42b9ed1a1a3fc982acb654daca970c6663b02) Convert linting and formatting to oxlint and oxfmt
 
 ## [0.6.0](https://github.com/cmdcolin/ntscythe/compare/v0.5.0...v0.6.0) - 2026-08-01
 
-### Style
-- [`4561a5d`](https://github.com/cmdcolin/ntscythe/commit/4561a5d3e1b7bc39de3b899fbaaff9c82e275d37) Format and remove signal path note
+### Features
+- [`8e586a4`](https://github.com/cmdcolin/ntscythe/commit/8e586a48a179e4b4ce2a025e1a84daf6d642915e) Bend the enhancer's other three stages, not just its peaking coil
 
-### Other Changes
-- [`23639f2`](https://github.com/cmdcolin/ntscythe/commit/23639f26fb42cce60e22aae756fb8c4b4486d3af) Fold the signal-path FIRs on their own symmetry
-- [`5261a61`](https://github.com/cmdcolin/ntscythe/commit/5261a61d409e984ba2f56af8627b4cac1beaa4fd) Bend the enhancer's other three stages, not just its peaking coil
+### Refactor
+- [`f9fd196`](https://github.com/cmdcolin/ntscythe/commit/f9fd1962926ecf875b2272daad64af408c66533f) Fold the signal-path FIRs on their own symmetry
+
+### Style
+- [`0c08584`](https://github.com/cmdcolin/ntscythe/commit/0c08584ed4781eb3446464983f40fc64321e34a2) Format and remove signal path note
 
 ## [0.5.0](https://github.com/cmdcolin/ntscythe/compare/v0.4.0...v0.5.0) - 2026-08-01
 
 ### Features
-- [`6cf15b5`](https://github.com/cmdcolin/ntscythe/commit/6cf15b5d513aa1358e46bc9b44ba11e25408bfe7) Let the panel breathe, and make a preset drag mean one thing
-- [`1831534`](https://github.com/cmdcolin/ntscythe/commit/18315347c87a5962fbaa52ba2189e68eac58ed24) Let the eye move: magnify the glass, or pull back off the set
-- [`cd124f7`](https://github.com/cmdcolin/ntscythe/commit/cd124f7ea9813335281670941e9c3cc13c821d4e) Let a debug view watch the decoder without interrupting it
-- [`1448eaa`](https://github.com/cmdcolin/ntscythe/commit/1448eaadda901fdcf4213b8a6481bbe458ff61ef) Let the audio meter keep up with the kick it is showing
+- [`eafa87b`](https://github.com/cmdcolin/ntscythe/commit/eafa87b4d99e9e6282c48a4f5c392e09830605ab) Audio in from a file, picked alongside the other sources
+- [`0b71687`](https://github.com/cmdcolin/ntscythe/commit/0b716874fb3b2eb039845557a9137488c4787380) Bleed the beam spot into the phosphor, and let the tail scatter
+- [`b2065ac`](https://github.com/cmdcolin/ntscythe/commit/b2065ac4c9e3090bccad1901361b6b2695c7f1a8) Draw the signal chain as a block diagram
+- [`8898b48`](https://github.com/cmdcolin/ntscythe/commit/8898b48fc5ca574f3c9b8d7e3b66d58190d8ea7a) Stack the three input pickers, and scrub a loaded audio file
+- [`99481b2`](https://github.com/cmdcolin/ntscythe/commit/99481b2cfa4e7a9f11a1fbf2e062806b4929f6cf) Let the panel breathe, and make a preset drag mean one thing
+- [`94ce579`](https://github.com/cmdcolin/ntscythe/commit/94ce5798472199a4a6cf928655336cd13b541bdd) Let the eye move: magnify the glass, or pull back off the set
+- [`d4f77bd`](https://github.com/cmdcolin/ntscythe/commit/d4f77bd900bc79cb3920b1cbec3fc5b4b463815d) Let a debug view watch the decoder without interrupting it
+- [`16e0998`](https://github.com/cmdcolin/ntscythe/commit/16e0998074da79f65ac3bf9208c5815c9df188c9) Give useEngine two collaborators instead of two copies of everything
+- [`13267d2`](https://github.com/cmdcolin/ntscythe/commit/13267d20de8b694813b62b5bb238289da30dd17e) Let the audio meter keep up with the kick it is showing
+- [`981e909`](https://github.com/cmdcolin/ntscythe/commit/981e909befc12b279957f3d2251b2912b6693f98) Bring back the file a source slot held last session
 
 ### Fixes
-- [`b715345`](https://github.com/cmdcolin/ntscythe/commit/b7153452acc2dd305c6626062052ccecfe7816f7) Keep the landing look out of the clean baseline
-- [`49fd3c4`](https://github.com/cmdcolin/ntscythe/commit/49fd3c4fa42ec1e609019d6702627215f853ba2e) Keep the tube-face feather off the picture at 1x
-- [`bcdd8f1`](https://github.com/cmdcolin/ntscythe/commit/bcdd8f161ea4007e5a4964d5a4236449f93b6e16) Stop making the reader lean in: one type scale, four brighter grays
-- [`4293311`](https://github.com/cmdcolin/ntscythe/commit/4293311f47e5057c4224537a9cc9cae2c5b0dec0) Stop dispatching source B for a fader the genlocked path never reads
-- [`5e1e61f`](https://github.com/cmdcolin/ntscythe/commit/5e1e61f35cae1f240ff2647cec8e1b6c9f2f607a) Patch the chain like a rack, and put its door where it will be found
-- [`809a984`](https://github.com/cmdcolin/ntscythe/commit/809a9849fb5c433dabf83b0c9cdbb8bd4e8c6a5e) Keep one audio context, so the mic stops stranding the video slots
-- [`06d70cc`](https://github.com/cmdcolin/ntscythe/commit/06d70ccd8e9d9bbcd7dea12cd89a91ff41f43a99) Report each GPU fault once
-- [`d5f0f5a`](https://github.com/cmdcolin/ntscythe/commit/d5f0f5a88b7af9501401de9ccb0213b1f611338b) Correct the architecture note on what keeps writeControl stable
-- [`23566cf`](https://github.com/cmdcolin/ntscythe/commit/23566cf71c9c7e49d03295afc33f0bc04e564a1c) Bound the rAF fallback and record why the tab froze
-- [`e907520`](https://github.com/cmdcolin/ntscythe/commit/e907520f20670992ae1a4c52dc76aec1328a01fb) Correct the signal-path diagrams against the actual pass graph
-- [`660a9b2`](https://github.com/cmdcolin/ntscythe/commit/660a9b2d1347312b5f97694c85a65fe8c3b9fb14) Keep a preset drag's pointer from running ahead of its weight
-- [`135f0f5`](https://github.com/cmdcolin/ntscythe/commit/135f0f5d57f744e19d87be2f992970eb421ea913) Cap the decode at the same edge the texture is capped to
-- [`0642a0c`](https://github.com/cmdcolin/ntscythe/commit/0642a0ccb962e1d7d4210ea124a5b765f906f986) Keep bridging a stall through a blur, and rebuild the surface before giving up
-- [`a619b77`](https://github.com/cmdcolin/ntscythe/commit/a619b77213c3e881ad012a97df27567fa2a97016) Keep mutate off the magnifier's zoom and pan
+- [`6e370a7`](https://github.com/cmdcolin/ntscythe/commit/6e370a79c64f369c79014174cb545204eb648e52) Keep the landing look out of the clean baseline
+- [`50beca1`](https://github.com/cmdcolin/ntscythe/commit/50beca1925ab61fe3cdcc8504f415dd792cf6ec6) Keep the tube-face feather off the picture at 1x
+- [`676d2ba`](https://github.com/cmdcolin/ntscythe/commit/676d2baee98196d17d274f860ae55286d034cd3b) Stop making the reader lean in: one type scale, four brighter grays
+- [`4b5b114`](https://github.com/cmdcolin/ntscythe/commit/4b5b1149884eabe5bc3dc0bc9f599b9cfb95a7b3) Stop dispatching source B for a fader the genlocked path never reads
+- [`de90a91`](https://github.com/cmdcolin/ntscythe/commit/de90a91d46e60f96416f54feca7bb40e725b01d8) Patch the chain like a rack, and put its door where it will be found
+- [`993bacd`](https://github.com/cmdcolin/ntscythe/commit/993bacdacc7205beba128893b31d510816f616aa) Run the tape wow clock on frames, not on dub generations
+- [`6ae1ea0`](https://github.com/cmdcolin/ntscythe/commit/6ae1ea093a9098b2fe030cfe9f31b17df9172121) Keep one audio context, so the mic stops stranding the video slots
+- [`c289099`](https://github.com/cmdcolin/ntscythe/commit/c28909963df9e4065c0c4f82011b969a942c9d69) Push only the clock-locked rates to the engine
+- [`bd8def3`](https://github.com/cmdcolin/ntscythe/commit/bd8def3bcfab00dd77fcb415bd0043418a008533) End hold-to-compare when the window loses focus
+- [`0b4c573`](https://github.com/cmdcolin/ntscythe/commit/0b4c57363a831c1e833a561f5558624304001c72) Report each GPU fault once
+- [`8b0deea`](https://github.com/cmdcolin/ntscythe/commit/8b0deea6dfdb091deac130823ba723c39a54fc61) Correct the architecture note on what keeps writeControl stable
+- [`6f05223`](https://github.com/cmdcolin/ntscythe/commit/6f052230bc22968443732475e41c08c2b099d8a1) Bound the rAF fallback and record why the tab froze
+- [`f910646`](https://github.com/cmdcolin/ntscythe/commit/f910646faf33327eec2e6685c0ee7246c4435bb7) Correct the signal-path diagrams against the actual pass graph
+- [`f53ee7a`](https://github.com/cmdcolin/ntscythe/commit/f53ee7ae0585efee768999977473acf7f0355aad) Keep a preset drag's pointer from running ahead of its weight
+- [`833bdcc`](https://github.com/cmdcolin/ntscythe/commit/833bdcce03867bd2ebc6afcd5029e89abc1bda09) Cap the decode at the same edge the texture is capped to
+- [`7e4d705`](https://github.com/cmdcolin/ntscythe/commit/7e4d70591bd8d5a2f990278d2d9e4cba211aa1a8) Keep bridging a stall through a blur, and rebuild the surface before giving up
+- [`e51f25b`](https://github.com/cmdcolin/ntscythe/commit/e51f25ba77692683d4af28971a39a5f8438b1bec) Keep mutate off the magnifier's zoom and pan
+- [`701b4a8`](https://github.com/cmdcolin/ntscythe/commit/701b4a83f3d74725c2e281508d3e0695b138b5ab) Hanged state
 
 ### Refactor
-- [`143c26a`](https://github.com/cmdcolin/ntscythe/commit/143c26acd2a867cc95f1c8632f8807691b5a0d5f) Drop the glyph rule the chain diagram's old bar button left behind
-- [`ac16831`](https://github.com/cmdcolin/ntscythe/commit/ac16831abbd727a99cfd5b279e56f90fdf9b8236) Remove scroll-to-zoom from the stage
-- [`02573fd`](https://github.com/cmdcolin/ntscythe/commit/02573fd8b193ad2501bd13cec9492d7b1b4300b3) Make the clean preset a plain reset, not a fader
-- [`2181dac`](https://github.com/cmdcolin/ntscythe/commit/2181dac4e867f42804b8610a01b0b6609bbb77a0) Rename
+- [`54bb307`](https://github.com/cmdcolin/ntscythe/commit/54bb307cbc503e820263f8c9d4b461d15570d24d) Rank a section by where it sits, and name the audio one for what it does
+- [`8eb60eb`](https://github.com/cmdcolin/ntscythe/commit/8eb60eb949dc935c7a3ea3e5ee429b88a47256cf) Fold the stage controls into one menu, and hold the bar level
+- [`41578da`](https://github.com/cmdcolin/ntscythe/commit/41578dab529b729b587fee7d3480d687a527ed94) Build the six rows you can see, not all 121 every time
+- [`51b8d28`](https://github.com/cmdcolin/ntscythe/commit/51b8d28b0d84ef4d798ae7ece8010b1696954d17) Compute the subcarrier lattice instead of looking it up
+- [`151758c`](https://github.com/cmdcolin/ntscythe/commit/151758c3aab8bd542e3f4d6a013e075688dc9d76) Drop the glyph rule the chain diagram's old bar button left behind
+- [`c257d82`](https://github.com/cmdcolin/ntscythe/commit/c257d82f1b96cfde5880c32a7d7b0bee2ccdeb14) Remove scroll-to-zoom from the stage
+- [`1b35c73`](https://github.com/cmdcolin/ntscythe/commit/1b35c734601485a687e8f8994b14bc1880210d76) Make the clean preset a plain reset, not a fader
+- [`888391e`](https://github.com/cmdcolin/ntscythe/commit/888391e63bb05fa17c7443c4183d88696e726a1d) Snap values onto a control's grid in one place, not four
+- [`c977966`](https://github.com/cmdcolin/ntscythe/commit/c9779663dec3e75c6d53e15ad16fb902ef08df61) Round-trip source B's generated modes through the query string
+- [`d430f71`](https://github.com/cmdcolin/ntscythe/commit/d430f71f0fe30726cfc7cd88d441d9f315d3481c) Hand back two things the engine was holding onto
+- [`55e5704`](https://github.com/cmdcolin/ntscythe/commit/55e57048b07c1609e1081aabfc671a680c8ab476) Put the link writer beside the reader, and pin the round trip
 
-### Other Changes
-- [`1687509`](https://github.com/cmdcolin/ntscythe/commit/16875098a195e1f50b838514c7a715bb72b217a1) Audio in from a file, picked alongside the other sources
-- [`7fdf139`](https://github.com/cmdcolin/ntscythe/commit/7fdf1390fd6d37e4dcf103d2b4ede802c7f1a417) Bleed the beam spot into the phosphor, and let the tail scatter
-- [`4cd710a`](https://github.com/cmdcolin/ntscythe/commit/4cd710a2583754ad88e9701b43f43bfce2305f20) Draw the signal chain as a block diagram
-- [`7c50be2`](https://github.com/cmdcolin/ntscythe/commit/7c50be2e1f4d86208c606833ab4f4ccf255c0b9d) Stack the three input pickers, and scrub a loaded audio file
-- [`4fc73fd`](https://github.com/cmdcolin/ntscythe/commit/4fc73fd2283d7910af6114642026e38f6f624b4b) Rank a section by where it sits, and name the audio one for what it does
-- [`95322b8`](https://github.com/cmdcolin/ntscythe/commit/95322b8cd4d58db1d10e6e8fd754fc99098524dd) Fold the stage controls into one menu, and hold the bar level
-- [`e4403f8`](https://github.com/cmdcolin/ntscythe/commit/e4403f8b6b6e387168b5d122452865b679507b4b) Build the six rows you can see, not all 121 every time
-- [`e941d6c`](https://github.com/cmdcolin/ntscythe/commit/e941d6c2bc406f90574c9a5a13afc948aa989694) Compute the subcarrier lattice instead of looking it up
-- [`72af5ca`](https://github.com/cmdcolin/ntscythe/commit/72af5cad60b503771482f3ddea5e68fac7cba637) Run the tape wow clock on frames, not on dub generations
-- [`6b95b76`](https://github.com/cmdcolin/ntscythe/commit/6b95b76ff8517e3e3baa1280e053a357338b2dde) Snap values onto a control's grid in one place, not four
-- [`9181e26`](https://github.com/cmdcolin/ntscythe/commit/9181e2693af64241353fcb8e2be8fc9715e83d0e) Push only the clock-locked rates to the engine
-- [`4246145`](https://github.com/cmdcolin/ntscythe/commit/42461456564ae2aea8459ca05680a5012b17042d) End hold-to-compare when the window loses focus
-- [`07d2937`](https://github.com/cmdcolin/ntscythe/commit/07d2937ed2b282fd52fe6ba512453b149c8dec2b) App rename to ntscythe
-- [`e0872a0`](https://github.com/cmdcolin/ntscythe/commit/e0872a0c3470e1de6c45e7d4c3011745822e9c74) Give useEngine two collaborators instead of two copies of everything
-- [`97f2669`](https://github.com/cmdcolin/ntscythe/commit/97f26693fde2d9e74a38b66e2f3c1127adb4fa56) Round-trip source B's generated modes through the query string
-- [`6884784`](https://github.com/cmdcolin/ntscythe/commit/6884784d69fda11a40834632f08806addcaea7d2) Hand back two things the engine was holding onto
-- [`e56f88c`](https://github.com/cmdcolin/ntscythe/commit/e56f88c568a43fc85e81972169aa15312211d47a) Put the link writer beside the reader, and pin the round trip
-- [`e7f4368`](https://github.com/cmdcolin/ntscythe/commit/e7f4368b15115f103d155b57a32f850d46e54e82) Bring back the file a source slot held last session
-- [`2b5e643`](https://github.com/cmdcolin/ntscythe/commit/2b5e6431a8062f24f72fb2d901569fc885085bce) Hanged state
+### Chores
+- [`fe587bd`](https://github.com/cmdcolin/ntscythe/commit/fe587bdd0d0ff219314fb9239d02db3fad3d52a2) Rename
+- [`76e7895`](https://github.com/cmdcolin/ntscythe/commit/76e7895295497fdbf8c55a32fbf262db3301bcb2) App rename to ntscythe
 
 ## [0.4.0](https://github.com/cmdcolin/ntscythe/compare/v0.3.0...v0.4.0) - 2026-08-01
 
 ### Features
-- [`8e8d2df`](https://github.com/cmdcolin/ntscythe/commit/8e8d2df0fec053b24efc3826a81c4305e3b4592a) Add .ts extension to vite plugin import for native config loader
+- [`3fa9950`](https://github.com/cmdcolin/ntscythe/commit/3fa995045f8a093435b550609a2ec784c1e5b102) Add .ts extension to vite plugin import for native config loader
 
 ### Fixes
-- [`2a72ebb`](https://github.com/cmdcolin/ntscythe/commit/2a72ebb24b99f3d6d7b4ccff7409d3ea4df77c6f) Fix silent-failure gaps in shader validation, storage, and clock sync
+- [`b974dcb`](https://github.com/cmdcolin/ntscythe/commit/b974dcbdd15017ac53261cb38e1a6ec5435ac222) Fix silent-failure gaps in shader validation, storage, and clock sync
 
 ### Refactor
-- [`c8e5f23`](https://github.com/cmdcolin/ntscythe/commit/c8e5f230aa990ef6fe57fd8d7029e517423a2c34) Extract source-texture management out of the engine
+- [`3cfe107`](https://github.com/cmdcolin/ntscythe/commit/3cfe107aad13b1fceff4bf6e8672cf67f4caa387) Lead the panel with presets; draw the signal path as a chain
+- [`f2d05e7`](https://github.com/cmdcolin/ntscythe/commit/f2d05e791162a7db1f7736f08546faea84042d46) Key mod state by slot, guard stored shapes, cover the per-line state
+- [`4401647`](https://github.com/cmdcolin/ntscythe/commit/44016474e2d042e71a030064935039114563aa33) Extract source-texture management out of the engine
 
-### Other Changes
-- [`93a3211`](https://github.com/cmdcolin/ntscythe/commit/93a32113476768d13bd1eb4ed2af0333dc265f74) Lead the panel with presets; draw the signal path as a chain
-- [`ee2ac5b`](https://github.com/cmdcolin/ntscythe/commit/ee2ac5b55e625b0cd2afc683ecc068762c9fcb27) Key mod state by slot, guard stored shapes, cover the per-line state
-- [`179993d`](https://github.com/cmdcolin/ntscythe/commit/179993d0aae44792d8471a9877f067cd0eddd5fd) Re-title app
-- [`8073e40`](https://github.com/cmdcolin/ntscythe/commit/8073e4062c01169e0cc1898b82743ddcfd38d2ef) Small audio tweak
+### Chores
+- [`b7854ed`](https://github.com/cmdcolin/ntscythe/commit/b7854ed75aaa40fd142e68638621c71707b432b0) Re-title app
+- [`cb698a2`](https://github.com/cmdcolin/ntscythe/commit/cb698a23325959e0274483e7aca5f507a9aea724) Small audio tweak
 
 ## [0.3.0](https://github.com/cmdcolin/ntscythe/compare/v0.2.1...v0.3.0) - 2026-08-01
 
+### Features
+- [`9d022f0`](https://github.com/cmdcolin/ntscythe/commit/9d022f09f9b1855ff1b97c9c81d24ab26f48dd19) Re-pick a loaded source by clicking its filename caption
+
 ### Fixes
-- [`ba01ffe`](https://github.com/cmdcolin/ntscythe/commit/ba01ffee5e15d1bbee87582476daf8ea168057fc) Cap custom source resolution so large pictures/videos don't freeze
+- [`1558f33`](https://github.com/cmdcolin/ntscythe/commit/1558f33cd6755e37ffc866aa68c0a7f1329af6ae) Cap custom source resolution so large pictures/videos don't freeze
 
 ### Refactor
-- [`58f8c73`](https://github.com/cmdcolin/ntscythe/commit/58f8c739a044bca5ae34970a038c05aebf315a62) Rename to ntscsynth; add a waveform logo, mark, and favicon
-- [`d2dc6ee`](https://github.com/cmdcolin/ntscythe/commit/d2dc6eeaeb61cc86a8cfc73a942ad69c7b53c652) Default to bGain 0.16 with source B on bars
+- [`0453eb9`](https://github.com/cmdcolin/ntscythe/commit/0453eb983de3955691689766ad2cd84200bf0ed2) Rename to ntscsynth; add a waveform logo, mark, and favicon
+- [`31ce519`](https://github.com/cmdcolin/ntscythe/commit/31ce5199ea3e0d140efcb015f12739385f1c1451) Default to bGain 0.16 with source B on bars
 
 ### Documentation
-- [`890e90c`](https://github.com/cmdcolin/ntscythe/commit/890e90c6eef6bef4e57d79a3a48e885c003fab38) Document the miniature pattern; drop the swept-wipe pulse animation
+- [`f179170`](https://github.com/cmdcolin/ntscythe/commit/f179170fea242eecc18a276ef4cf30b1969f0e2e) Document the miniature pattern; drop the swept-wipe pulse animation
 
 ### Chores
-- [`4ad71ca`](https://github.com/cmdcolin/ntscythe/commit/4ad71ca02e92142de3e6e82dd7835f96ad882a8e) Bump deps
-
-### Other Changes
-- [`9f61a6c`](https://github.com/cmdcolin/ntscythe/commit/9f61a6c24a4829407ff4413a75a30a3231c42cb2) Re-pick a loaded source by clicking its filename caption
+- [`c4d7e1f`](https://github.com/cmdcolin/ntscythe/commit/c4d7e1fbae4007d878930cd110526470058f1706) Bump deps
 
 ## [0.2.1](https://github.com/cmdcolin/ntscythe/compare/v0.2.0...v0.2.1) - 2026-07-22
 
-### Other Changes
-- [`49a98a4`](https://github.com/cmdcolin/ntscythe/commit/49a98a49265f36822205bcd1a9bc31d83e4f4288) Direct-manipulation miniatures for the PiP inset and A/B wipe
-- [`7673fdb`](https://github.com/cmdcolin/ntscythe/commit/7673fdb0d276d586edcc17cbb35098e25c26ef3e) Miniature follow-ups: shared math with tests, soft edges, slider toggle
-- [`5984aeb`](https://github.com/cmdcolin/ntscythe/commit/5984aeb13a2c716b9bb28f59ef98fa890fe84dc2) Dramatic s-video miswire, stuck tape preset, slow-mo URL example
+### Features
+- [`001cfec`](https://github.com/cmdcolin/ntscythe/commit/001cfec9e9b8b04564178c53fcbce45a855dd468) Direct-manipulation miniatures for the PiP inset and A/B wipe
+- [`fe47b88`](https://github.com/cmdcolin/ntscythe/commit/fe47b88d15c202401fba585156974c918bcc18c3) Miniature follow-ups: shared math with tests, soft edges, slider toggle
+- [`1fbd75f`](https://github.com/cmdcolin/ntscythe/commit/1fbd75f7a841d8ca983c54a120bebcc2bcd9569a) Dramatic s-video miswire, stuck tape preset, slow-mo URL example
 
 ## [0.2.0](https://github.com/cmdcolin/ntscythe/compare/v0.1.2...v0.2.0) - 2026-07-22
 
 ### Features
-- [`c5570cf`](https://github.com/cmdcolin/ntscythe/commit/c5570cf81f0c506b685f3b148e5a3097e5ca659e) Add signed A-gain fader to the A/B summing bus
-- [`c548e2b`](https://github.com/cmdcolin/ntscythe/commit/c548e2bca42d3918415fed0d968816a2f2ff0bee) Surface gated controls, artifact search, and preset blurbs
+- [`0681be2`](https://github.com/cmdcolin/ntscythe/commit/0681be2c8111466d454f3f18f95205ebece761ce) Add signed A-gain fader to the A/B summing bus
+- [`30f4b10`](https://github.com/cmdcolin/ntscythe/commit/30f4b10c5bfbc7983c708dfa43eb03d1cfb7cdcc) Surface gated controls, artifact search, and preset blurbs
+- [`aedbe30`](https://github.com/cmdcolin/ntscythe/commit/aedbe30ea0b01027ab03eae50d0d0a8f70e3f553) VHS shuttle picture search, slow-motion time scale, effects listing
 
 ### Fixes
-- [`42a9720`](https://github.com/cmdcolin/ntscythe/commit/42a972052f15b9a85086c235e53f8f699b991923) Harden localStorage reads and scope Popover to its own document
+- [`3d2a20a`](https://github.com/cmdcolin/ntscythe/commit/3d2a20ada2be1861cd9ec03835443b46ce80c842) Grab the still inside a frame so Chrome captures pixels
+- [`f990f3a`](https://github.com/cmdcolin/ntscythe/commit/f990f3ae27d60938f75c07fcb763d4043bdb93e6) Harden localStorage reads and scope Popover to its own document
 
 ### Refactor
-- [`068a761`](https://github.com/cmdcolin/ntscythe/commit/068a7618da7ba7d95e6381a29a84b1183ab9b1dd) Drop version-number guesses from WebGPU-unavailable copy
-- [`a7dfb40`](https://github.com/cmdcolin/ntscythe/commit/a7dfb4074a16e7b7f01f89a1c8f51ac05b56a3c9) Extract shared UI primitives, move to CSS var theming, add capture popover
+- [`3f22d7d`](https://github.com/cmdcolin/ntscythe/commit/3f22d7d3aa348789f04995f52d37958b40606c2f) Drop version-number guesses from WebGPU-unavailable copy
+- [`dc68e19`](https://github.com/cmdcolin/ntscythe/commit/dc68e19374397c01c9544a9d9452f238dd531296) Extract shared UI primitives, move to CSS var theming, add capture popover
+- [`ccfd307`](https://github.com/cmdcolin/ntscythe/commit/ccfd307d61cf9cd16cb529d47470376b8b30f5ce) Decompose App into focused hooks; add Dialog a11y and helper tests
+- [`0ed4f47`](https://github.com/cmdcolin/ntscythe/commit/0ed4f47532ba026465318c441f3d246fa2ecabc5) Render discrete controls as toggle groups, not sliders
+- [`63be364`](https://github.com/cmdcolin/ntscythe/commit/63be364d7cab2df8c006fa76db603da5657971e7) Rebuild Dialog on the native <dialog> element
+- [`2b326a9`](https://github.com/cmdcolin/ntscythe/commit/2b326a90dfdc9f33f6708fcfa25aad8b1fbd3929) Group inert banners, hover help, surprise me, live signal taps
+
+### Documentation
+- [`3c13cf3`](https://github.com/cmdcolin/ntscythe/commit/3c13cf36a00f9a808680392227f178af94c97adc) Clarify WebGPU processing in README for JS readers
 
 ### Chores
-- [`9b030d6`](https://github.com/cmdcolin/ntscythe/commit/9b030d67c27902e5efb2d40e76a2da029cb3a9c2) Bump deps
-
-### Other Changes
-- [`189e1df`](https://github.com/cmdcolin/ntscythe/commit/189e1dfa9e2ac1448cf4500997437cd2ace7bd8e) Grab the still inside a frame so Chrome captures pixels
-- [`1e49e26`](https://github.com/cmdcolin/ntscythe/commit/1e49e2632f2e642880eb4a3a5adfeebadb1b7137) Decompose App into focused hooks; add Dialog a11y and helper tests
-- [`481a2b7`](https://github.com/cmdcolin/ntscythe/commit/481a2b76b21887a06c89f836f5cd8ddb4d6af270) Render discrete controls as toggle groups, not sliders
-- [`7d657ca`](https://github.com/cmdcolin/ntscythe/commit/7d657ca14966bbfd5e3f2c15b7d38181a921000a) Rebuild Dialog on the native <dialog> element
-- [`2d5221a`](https://github.com/cmdcolin/ntscythe/commit/2d5221a31bc7587e859e4b7731724c5d1a16b10b) Prettier config
-- [`d92b76f`](https://github.com/cmdcolin/ntscythe/commit/d92b76f52dac277e85424303d6b465a3fa10fccb) Clarify WebGPU processing in README for JS readers
-- [`81cbbf8`](https://github.com/cmdcolin/ntscythe/commit/81cbbf82ae13f5ec817c9b3af2c5ef6f44711649) Group inert banners, hover help, surprise me, live signal taps
-- [`f8f99dc`](https://github.com/cmdcolin/ntscythe/commit/f8f99dc91f1452ea75cc1976ef56ddc055750882) VHS shuttle picture search, slow-motion time scale, effects listing
+- [`77cf3bb`](https://github.com/cmdcolin/ntscythe/commit/77cf3bba77d7c91eaae48b99e2aa3afce59f6a94) Prettier config
+- [`7d66d64`](https://github.com/cmdcolin/ntscythe/commit/7d66d64ce1b42b0d9923a8b2d386fc23683505b3) Bump deps
 
 ## [0.1.2](https://github.com/cmdcolin/ntscythe/compare/v0.1.1...v0.1.2) - 2026-07-21
 
 ### Features
-- [`0fecdb8`](https://github.com/cmdcolin/ntscythe/commit/0fecdb811b284201c7e808941949fe65df5c1a46) Add a lightbulb icon to the presets hint
+- [`1d2f36f`](https://github.com/cmdcolin/ntscythe/commit/1d2f36fa3874bd03876813596617faf927f26eb3) Add a lightbulb icon to the presets hint
 
-### Other Changes
-- [`46ea91a`](https://github.com/cmdcolin/ntscythe/commit/46ea91a1eb9c94035fbfb4fa868eacf2ee76d654) Match letter shortcuts case-insensitively
+### Fixes
+- [`272be4b`](https://github.com/cmdcolin/ntscythe/commit/272be4b07f234633f4961a0c19da57f5fe3675d1) Match letter shortcuts case-insensitively
 
 ## [0.1.1](https://github.com/cmdcolin/ntscythe/releases/tag/v0.1.1) - 2026-07-21
 
 ### Features
-- [`780796f`](https://github.com/cmdcolin/ntscythe/commit/780796fe65cacfaef20620e7495f686c69aa94fe) Add prettier dependency, drop obsolete package.json pnpm field
-- [`71c0bc3`](https://github.com/cmdcolin/ntscythe/commit/71c0bc341dca2246a9071542c3d770902c706ab6) Add GitHub link to panel header
-- [`87f5276`](https://github.com/cmdcolin/ntscythe/commit/87f527684e2965dd3cb10980cfc1d074cfbe4d4a) Add typescript-eslint (strict-type-checked) + lint scripts
-- [`5b157b1`](https://github.com/cmdcolin/ntscythe/commit/5b157b11e818694e70251513fbb365a115cc7244) Add FIR filter unit tests; gate deploy on lint + test
-- [`a58deb0`](https://github.com/cmdcolin/ntscythe/commit/a58deb07b33d75ccb09d09fc2a3f638185a32774) Wire MIDI + clock-sync controls into the panel
-- [`d22ecee`](https://github.com/cmdcolin/ntscythe/commit/d22ecee1ec39448e2dd82d51a35c53c644643039) Surface A/B mix controls next to the Input row when source B is on
-- [`3ebd7fe`](https://github.com/cmdcolin/ntscythe/commit/3ebd7fe3f6ac55e1f0dfca30dc94944d5bd53bb1) Add composite polarity-flip (color invert) on source A
-- [`1703625`](https://github.com/cmdcolin/ntscythe/commit/1703625b0931412a69d952aafa677e65fd008b1a) Add S-video Y/C miswire (cross-wire) decoder effect
-- [`6d73bd7`](https://github.com/cmdcolin/ntscythe/commit/6d73bd729fc06deae1336b680d0b1954d6b0fd25) Add cable wiring faults: hard polarity flip + termination
-- [`897bc16`](https://github.com/cmdcolin/ntscythe/commit/897bc1690215bce58b329652e888370975845cd4) Add chroma-pin-only feed and loose-connector faults
-- [`d9c708c`](https://github.com/cmdcolin/ntscythe/commit/d9c708c541ef31ed885f74d5e7328ae19adaf9a7) Add TV-static and VHS-static noise sources
-- [`359c439`](https://github.com/cmdcolin/ntscythe/commit/359c439f1667645ba656414e6e920e0e7f1040a5) Add positionable picture-in-picture inset for source B
-- [`99794f1`](https://github.com/cmdcolin/ntscythe/commit/99794f19fed17fd0587d1516ef214c5f69b86b03) Add VHS tracking-error band and luma-keyed PiP inset
-- [`8eba929`](https://github.com/cmdcolin/ntscythe/commit/8eba929221937d4d46df904d71aee914e9cca2c2) Add CRT-faceplate pass for a real camera-at-monitor feedback path
-- [`5dd4d64`](https://github.com/cmdcolin/ntscythe/commit/5dd4d640c39cfacbb7fa32376ebdc6861bb9060a) Add USB/RCA capture-device input and source deinterlace
-- [`a896e51`](https://github.com/cmdcolin/ntscythe/commit/a896e518ecf747653e52db9b8fcb747b3d45464a) Add eslint-react (recommended-typescript) to the lint config
-- [`3c4e600`](https://github.com/cmdcolin/ntscythe/commit/3c4e600447ce2cee11b0c4ca7d906c6b7e4d7e58) Add popout controls, scene slots, control filter, anchored slider fill, frame-stats monitor
-- [`f950acb`](https://github.com/cmdcolin/ntscythe/commit/f950acbaa93825e384071def9c345f036773f498) Add package metadata and descriptive gallery alt text
-- [`8587d62`](https://github.com/cmdcolin/ntscythe/commit/8587d624aa1c614ebd2b378b24d9348f412274b9) Add motion demo: cat hero, and a clip on the no-WebGPU screen
-- [`e44dafa`](https://github.com/cmdcolin/ntscythe/commit/e44dafa2a9eeaf35d065b536150cf3b3d035b867) Add declarative URL loading (?iurl/?iurlb/?preset) + sample images
-- [`0c141f0`](https://github.com/cmdcolin/ntscythe/commit/0c141f0cba25d45b95630a6b281d4c98abce7ee8) Add CRT beam transfer and hue-preserving gamut fit (phosphor plan phase 1)
-- [`fb8fe49`](https://github.com/cmdcolin/ntscythe/commit/fb8fe4991e73cce07dbc75b6c65be29ddc82d7ba) Add capture (still/clip), mutate, and single-level undo to the UI
-- [`631468f`](https://github.com/cmdcolin/ntscythe/commit/631468f46a485124fe93de0fac93c06a7a4d8ba6) Let the dev server fall back to another port instead of failing
-- [`fa6f894`](https://github.com/cmdcolin/ntscythe/commit/fa6f8942cc3448272ac6f0701911913b92740748) Let the brand name stand alone, explain it behind a ? icon
-- [`b8e4c16`](https://github.com/cmdcolin/ntscythe/commit/b8e4c164d4f0f069a28783b91192cb9454cb8199) Add a clean genlocked A/B mixer alongside the dirty sum
-- [`39efe13`](https://github.com/cmdcolin/ntscythe/commit/39efe1372cd02c4fd0434dedfa334b82dac81274) Add agent-docs/IDEAS.md — modulation backlog
-- [`bef375f`](https://github.com/cmdcolin/ntscythe/commit/bef375f8e2478581669ccd67d79d63e50a8e5655) Add TV/VHS static as a source B option
-- [`2979335`](https://github.com/cmdcolin/ntscythe/commit/29793355ec90b727c905936736eb8512a7a336ff) Add a vaporwave playback panel: slow video + pitch-dropped audio
-- [`befcdcf`](https://github.com/cmdcolin/ntscythe/commit/befcdcf129d4a62ee38b915a4b0e8d6be0c81363) Add MIDI auto-map and learn-in-order bulk binding
-- [`1f25733`](https://github.com/cmdcolin/ntscythe/commit/1f25733ddc2646d6d66cc150e8bf2616c1af39f0) Add Favorites pinning and place-based panel groups; wire vaporwave meter
-- [`69a1f2e`](https://github.com/cmdcolin/ntscythe/commit/69a1f2e007dd102fd22b66fcc50aa60acfe14a42) Add build-stamped version and a color-bars sidebar logo
+- [`5a9fc45`](https://github.com/cmdcolin/ntscythe/commit/5a9fc4595f77672479d27a0b93db2976ca80a3e4) NTSC signal-path simulator: dirty mixing, mixer-loop feedback, camera model, RF/AGC
+- [`abe72cb`](https://github.com/cmdcolin/ntscythe/commit/abe72cbd419c711c6fb4915cc6282691a40a54be) Mixer wipes, B-bus proc amp, frame-store strobe/trails
+- [`a9e13ba`](https://github.com/cmdcolin/ntscythe/commit/a9e13bad3e85ac263e529b790b25f4025302e008) WebGPU-unavailable error screen, resource cleanup, GitHub Pages deploy
+- [`3ba3382`](https://github.com/cmdcolin/ntscythe/commit/3ba3382854c75be652d8f5b20ff64d1ea021fc74) Collapsible panel sections, fullscreen toggle, Camera Feedback rename
+- [`f1c3817`](https://github.com/cmdcolin/ntscythe/commit/f1c381776b515b35392e21456aa27b82672d8fec) Add prettier dependency, drop obsolete package.json pnpm field
+- [`9a3830f`](https://github.com/cmdcolin/ntscythe/commit/9a3830fdb70bff6a930e9828a96933648b513fa8) Device-loss recovery UI, shareable copy-link, adjustable render scale
+- [`0d7c845`](https://github.com/cmdcolin/ntscythe/commit/0d7c845b0c1ce79556826aa5f1526a5c7dcad348) Add GitHub link to panel header
+- [`15edcb6`](https://github.com/cmdcolin/ntscythe/commit/15edcb6afb24f158d2d412dcdbb73d3be91f38d1) Favicon + advanced-settings dialog for render scale
+- [`a83f566`](https://github.com/cmdcolin/ntscythe/commit/a83f566c2383e9e8e0ba416c2777073458911231) Add typescript-eslint (strict-type-checked) + lint scripts
+- [`786d046`](https://github.com/cmdcolin/ntscythe/commit/786d046e3d35cfee6fc72e6747e0c80777b76040) Add FIR filter unit tests; gate deploy on lint + test
+- [`71f778b`](https://github.com/cmdcolin/ntscythe/commit/71f778bfda0f951f7143c7e7ee2e7af686891bee) Presets: grouped picker with descriptions, active state, hover-diff, hold-to-compare
+- [`2ed84dd`](https://github.com/cmdcolin/ntscythe/commit/2ed84dd07c5181ac99ed56dcf9faac91f24a43d2) Wire MIDI + clock-sync controls into the panel
+- [`b640bd6`](https://github.com/cmdcolin/ntscythe/commit/b640bd6030d4b981159361cea6f8895d15376b5a) Surface A/B mix controls next to the Input row when source B is on
+- [`b395402`](https://github.com/cmdcolin/ntscythe/commit/b395402522c801d6e3b01c8c7b2964e3530491a9) Add composite polarity-flip (color invert) on source A
+- [`91360f6`](https://github.com/cmdcolin/ntscythe/commit/91360f6be5182b3edb1e74344ccf50e80fa1d770) Add S-video Y/C miswire (cross-wire) decoder effect
+- [`1026e87`](https://github.com/cmdcolin/ntscythe/commit/1026e87dc1825e3de5605bcf4f80bc2611417827) Add cable wiring faults: hard polarity flip + termination
+- [`f448d64`](https://github.com/cmdcolin/ntscythe/commit/f448d64b6e025eb61855cbc3777b148d145e8920) Add chroma-pin-only feed and loose-connector faults
+- [`41ace12`](https://github.com/cmdcolin/ntscythe/commit/41ace1269eeaaa8d5425a4e41fa4befdd124eb39) Add TV-static and VHS-static noise sources
+- [`e011ab7`](https://github.com/cmdcolin/ntscythe/commit/e011ab720949aa3d6b9f7798daaade4ed2f9871b) Add positionable picture-in-picture inset for source B
+- [`d44f31b`](https://github.com/cmdcolin/ntscythe/commit/d44f31b2f9e21df4cb2bc55a5f9b47af03fa6b10) Add VHS tracking-error band and luma-keyed PiP inset
+- [`556bc78`](https://github.com/cmdcolin/ntscythe/commit/556bc787b4e27c1969d0fee70f2aeba83451975a) Add CRT-faceplate pass for a real camera-at-monitor feedback path
+- [`7927a2b`](https://github.com/cmdcolin/ntscythe/commit/7927a2bc0192d4c5048306cb12fbc2eb45cb000d) Add USB/RCA capture-device input and source deinterlace
+- [`a11d809`](https://github.com/cmdcolin/ntscythe/commit/a11d8093e53e81b526ac90181575c504fe8971b0) Add eslint-react (recommended-typescript) to the lint config
+- [`0df1c4b`](https://github.com/cmdcolin/ntscythe/commit/0df1c4bab279ba7f75b941d44646ababc92389c9) Add popout controls, scene slots, control filter, anchored slider fill, frame-stats monitor
+- [`c951c69`](https://github.com/cmdcolin/ntscythe/commit/c951c69ec48719534451b946d55ac13a80756067) Add package metadata and descriptive gallery alt text
+- [`7cf0c5b`](https://github.com/cmdcolin/ntscythe/commit/7cf0c5b763d511850339aa43cd46e2177a1ea081) Add motion demo: cat hero, and a clip on the no-WebGPU screen
+- [`9c40a8c`](https://github.com/cmdcolin/ntscythe/commit/9c40a8c4be62d85ddb3755a4913d71bdebc57559) Add declarative URL loading (?iurl/?iurlb/?preset) + sample images
+- [`cbf6a2f`](https://github.com/cmdcolin/ntscythe/commit/cbf6a2f6aff2ca3f25639c37261b0effb7f8cabb) Model the hold oscillators, deflection geometry, and audio drive
+- [`79916db`](https://github.com/cmdcolin/ntscythe/commit/79916db98fe14eb1fab0eb2f211cd798c79d3184) Add CRT beam transfer and hue-preserving gamut fit (phosphor plan phase 1)
+- [`4cfebf5`](https://github.com/cmdcolin/ntscythe/commit/4cfebf5f4bc0e4bc2df532260f89e29dc6051444) Phosphor identity (plan phase 2), deflection glide, and circuit-bent controls
+- [`3dceb78`](https://github.com/cmdcolin/ntscythe/commit/3dceb78027238f0006669ed00a9b4f03379b59fe) Add capture (still/clip), mutate, and single-level undo to the UI
+- [`4fa1b2b`](https://github.com/cmdcolin/ntscythe/commit/4fa1b2bd77d546a4a450c3810118c4e6941b92db) Let the dev server fall back to another port instead of failing
+- [`cebc4df`](https://github.com/cmdcolin/ntscythe/commit/cebc4dfb98fbec1dd0825edac033d3b11c893563) Enable React Compiler
+- [`5e8842b`](https://github.com/cmdcolin/ntscythe/commit/5e8842b4dc1396331dc467a1ef3c5c6e4e0bcc22) Mirror app state to the URL continuously
+- [`1c6ebc4`](https://github.com/cmdcolin/ntscythe/commit/1c6ebc4c5a43a86d0e1eed7eabb4077b800d679c) Let the brand name stand alone, explain it behind a ? icon
+- [`feefad5`](https://github.com/cmdcolin/ntscythe/commit/feefad58566f321d817e6db90f941d2e6bb6f68c) Add a clean genlocked A/B mixer alongside the dirty sum
+- [`61e2093`](https://github.com/cmdcolin/ntscythe/commit/61e209389ea2147ae59a1e8636f0f2196c1597f8) Feedback control
+- [`dd1bafd`](https://github.com/cmdcolin/ntscythe/commit/dd1bafd7f8847941e71d854e2b1799c8e335882d) feat: useEngine.ts — added sourceName / sourceBName state, set alongside the existing sourceMode/sourceBMode:
+- [`1dee106`](https://github.com/cmdcolin/ntscythe/commit/1dee106d5c50697b017f0f5d568b305912533f27) Add agent-docs/IDEAS.md — modulation backlog
+- [`b466828`](https://github.com/cmdcolin/ntscythe/commit/b466828b6dbcf39593ccfe3bdce7d519f17c180c) Load YouTube clips in dev via a yt-dlp Vite middleware
+- [`9555052`](https://github.com/cmdcolin/ntscythe/commit/955505208fd29fd1872750e9de3fea3e4fb5b02a) Add TV/VHS static as a source B option
+- [`b97c6dd`](https://github.com/cmdcolin/ntscythe/commit/b97c6dd6b7e7f119960aa07667cdec5f2d714b6c) Add a vaporwave playback panel: slow video + pitch-dropped audio
+- [`2104b23`](https://github.com/cmdcolin/ntscythe/commit/2104b233cf1a38c587b10fcf1e9d8394be1beaa3) Add MIDI auto-map and learn-in-order bulk binding
+- [`4a5c875`](https://github.com/cmdcolin/ntscythe/commit/4a5c875dec78050ac4f4fa48bc152259a129a270) Add Favorites pinning and place-based panel groups; wire vaporwave meter
+- [`edb9e85`](https://github.com/cmdcolin/ntscythe/commit/edb9e85bfe53d5247f078ff5f113ac55a7930ae4) Add build-stamped version and a color-bars sidebar logo
 
 ### Fixes
-- [`fc4fd03`](https://github.com/cmdcolin/ntscythe/commit/fc4fd03ac277349e710e3efc964e162e7ea8c69e) Fix source-select UI bugs; parse dbg param once
-- [`3c82daa`](https://github.com/cmdcolin/ntscythe/commit/3c82daa67f7c1d68852d127ac3a8a10498a65a8d) Keep render loop alive when a frame throws
-- [`43f61f8`](https://github.com/cmdcolin/ntscythe/commit/43f61f8596aa9d16131f79e061a9a64d081a75f3) Fix sticky error banner and slider swallowing f/c shortcuts
-- [`64f62e0`](https://github.com/cmdcolin/ntscythe/commit/64f62e0a212f5faeaddbe7ea80e82df9199222e0) Fix broken README gallery and boost discoverability
-- [`af2edf7`](https://github.com/cmdcolin/ntscythe/commit/af2edf727d4ca0c61c47f38eb147551c089b3351) Harden the render loop against post-transition freezes
-- [`c083e38`](https://github.com/cmdcolin/ntscythe/commit/c083e385cb979a820dad25877bcdc1559ebeb313) Keep the render loop alive across rAF suspension, GPU hangs, and reloads
-- [`35684bb`](https://github.com/cmdcolin/ntscythe/commit/35684bb27d48ed8609bca33fdef51bff0e1ddee8) Correct what the compiler bail-outs actually risk
-- [`fed9b24`](https://github.com/cmdcolin/ntscythe/commit/fed9b24bb5c84961251ac97e7ed660c812d9e923) Keep useCallback on the MIDI write path
+- [`78c67f2`](https://github.com/cmdcolin/ntscythe/commit/78c67f2fb9060ba807f3273689fa476ad85acc92) Fix source-select UI bugs; parse dbg param once
+- [`d7ed424`](https://github.com/cmdcolin/ntscythe/commit/d7ed424544e764dd5944031a26c2ad50996cb52f) Escape closes the advanced-settings dialog
+- [`5218192`](https://github.com/cmdcolin/ntscythe/commit/521819202acc8cd79b954243afaf7a8398a9d37c) Keep render loop alive when a frame throws
+- [`acfd425`](https://github.com/cmdcolin/ntscythe/commit/acfd425059af36bdd641372cb35456c5f46fc6ba) Fix sticky error banner and slider swallowing f/c shortcuts
+- [`fa79a8c`](https://github.com/cmdcolin/ntscythe/commit/fa79a8c40d24ac33920f4061d341059b7cebe50b) Fix broken README gallery and boost discoverability
+- [`28881ff`](https://github.com/cmdcolin/ntscythe/commit/28881ffecf7f8c6f8c33bd79812636f4aa80491e) Harden the render loop against post-transition freezes
+- [`761eae5`](https://github.com/cmdcolin/ntscythe/commit/761eae56bc1f7f43e3279bc73d3d14d3010c27d5) Keep the render loop alive across rAF suspension, GPU hangs, and reloads
+- [`b866f5a`](https://github.com/cmdcolin/ntscythe/commit/b866f5a25cfe9d3071d8894dd01c86f3fc03ab64) Correct what the compiler bail-outs actually risk
+- [`201911d`](https://github.com/cmdcolin/ntscythe/commit/201911d3b7fd40dbe5eecbd2cd68eba267b74170) Keep useCallback on the MIDI write path
+
+### Performance
+- [`6fc572b`](https://github.com/cmdcolin/ntscythe/commit/6fc572b702fc83bb45963bd765dc9566342e248d) Const-fold FIR tap counts; shared-memory tiling for convolution passes
 
 ### Refactor
-- [`6a6701a`](https://github.com/cmdcolin/ntscythe/commit/6a6701afe0d156d2825a86c1a50e615ef22ea7d9) Simplify presets: drop hidden slots, hover-diff, and redundant reset
-- [`83d11a9`](https://github.com/cmdcolin/ntscythe/commit/83d11a9a55aa50dfb28292e310ab81d445b6881d) Default source B to off
-- [`ca314d3`](https://github.com/cmdcolin/ntscythe/commit/ca314d366dfee0bbc6eaff8b034411bf7ea9208b) Type packParams to require every uniform at compile time
-- [`ef5bb08`](https://github.com/cmdcolin/ntscythe/commit/ef5bb08708b97bfc1de17b3f6a84c4e830019d4e) Simplify sidebar: fix copy-link encoding, dedup omit, hoist preset groups
-- [`72d1e51`](https://github.com/cmdcolin/ntscythe/commit/72d1e51a5afc2d9dd936ac9a1cb97c9d56311f90) Collapse the alternative B compositors by default
-- [`a1dbe2b`](https://github.com/cmdcolin/ntscythe/commit/a1dbe2b89047a48f678e2a9dc2b78234df578efa) Split app.tsx into per-component files and engine/MIDI hooks
-- [`3dd7b73`](https://github.com/cmdcolin/ntscythe/commit/3dd7b73726a95d645b377f3d48e9cc8406d89001) Make the fps monitor an always-on rolling histogram
-- [`73cb267`](https://github.com/cmdcolin/ntscythe/commit/73cb26746c9fcd474b972e0b9b0f56f16565ae30) Make the fps monitor update faster and take less width
-- [`a789d92`](https://github.com/cmdcolin/ntscythe/commit/a789d92011f58888efb53de8e8d7e43bbb447bdb) Simplify the modulation panel
-- [`9e438e4`](https://github.com/cmdcolin/ntscythe/commit/9e438e4e8301d27f6bc51bd27062393478419bcf) Make the fps monitor minimal and let both overlays be dismissed
-- [`fea654c`](https://github.com/cmdcolin/ntscythe/commit/fea654c1900e6f018375c581e755bf3ab3b10567) Drop manual memoization now that the compiler does it
-- [`cfa9d04`](https://github.com/cmdcolin/ntscythe/commit/cfa9d0403f787e0d166c2bb35a3a14a0be249f00) Drop preset-mix fills to zero once the look diverges
-- [`808054e`](https://github.com/cmdcolin/ntscythe/commit/808054e8648ee012c8ba4a36617ea5fb8ca512de) Make preset mixing an explicit slider per preset
-- [`21b2a0a`](https://github.com/cmdcolin/ntscythe/commit/21b2a0aadb3b687eb454e018bbdcda1348771edd) Make clicking a preset layer in at full, not reset the mix
-- [`ba373ed`](https://github.com/cmdcolin/ntscythe/commit/ba373ed49dfeb23baab9c812f1468ddc96d2adae) Replace periodic modulators with bounded-aperiodic sources
-- [`95cb4bd`](https://github.com/cmdcolin/ntscythe/commit/95cb4bd547379283a7eb7788887bff22a8c0f507) Make YouTube a source-mode selector with a URL dialog for A and B
-- [`95e05fc`](https://github.com/cmdcolin/ntscythe/commit/95e05fc5845e38e4c27ccd518183033502fbf924) Reclaim panel vertical space; make the spine a status map
-- [`4be584a`](https://github.com/cmdcolin/ntscythe/commit/4be584a6aa5c0c3fe6fe4bfd9c42ba48028f7bb7) Dedupe NTSC composite assembly into shared prelude helpers
+- [`4f48c2b`](https://github.com/cmdcolin/ntscythe/commit/4f48c2b434da2c80eeca919c2c319a8aa85e62d0) Inject exact DOWN_PER_SAMPLE; dedupe compose bind group
+- [`49226bd`](https://github.com/cmdcolin/ntscythe/commit/49226bdefb0836b580c169d0a22195a1734d5559) Sidebar redesign: sans font, source dropdowns, CSS modules
+- [`eb96f79`](https://github.com/cmdcolin/ntscythe/commit/eb96f79d179567e53007147e04ab8d010c667da9) Simplify presets: drop hidden slots, hover-diff, and redundant reset
+- [`a9c392c`](https://github.com/cmdcolin/ntscythe/commit/a9c392ceafec8a2a985236383517f8b393c58b84) Default source B to off
+- [`8e806a7`](https://github.com/cmdcolin/ntscythe/commit/8e806a78f514be1ce4eb164effb43118579c4bf6) Type packParams to require every uniform at compile time
+- [`4d9f7ba`](https://github.com/cmdcolin/ntscythe/commit/4d9f7bacc1b222c092be0b56edfc340f79534de2) Simplify sidebar: fix copy-link encoding, dedup omit, hoist preset groups
+- [`6a2f6d5`](https://github.com/cmdcolin/ntscythe/commit/6a2f6d522e43043e8f8334bc19925d178ed5fed3) DRY up error-banner clearing to the two source entry points
+- [`0c552a5`](https://github.com/cmdcolin/ntscythe/commit/0c552a5fc6f3f3f0f7ffb6c6c4b74f7bdf31bbfb) Collapse the alternative B compositors by default
+- [`625c879`](https://github.com/cmdcolin/ntscythe/commit/625c879d71eccb2c764ed0d79cf5d2300a25cb54) Split app.tsx into per-component files and engine/MIDI hooks
+- [`78fde86`](https://github.com/cmdcolin/ntscythe/commit/78fde86179cee7e884bc7c3ba5928bf0c9e82845) Make the fps monitor an always-on rolling histogram
+- [`9986fe5`](https://github.com/cmdcolin/ntscythe/commit/9986fe52b32fb188d7c319ea0a105e5a735d6eca) Make the fps monitor update faster and take less width
+- [`92f0aea`](https://github.com/cmdcolin/ntscythe/commit/92f0aea841da899dd0a5ae320de9d961d6f1655d) Simplify the modulation panel
+- [`321e678`](https://github.com/cmdcolin/ntscythe/commit/321e6784852b67ddee876e6bf6d84e15653b7f67) Make the fps monitor minimal and let both overlays be dismissed
+- [`472e881`](https://github.com/cmdcolin/ntscythe/commit/472e8817ba9afa234ff55307acd2be3e6f497a16) Drop manual memoization now that the compiler does it
+- [`30ca70b`](https://github.com/cmdcolin/ntscythe/commit/30ca70bf688092b9c905c2a21b844e505a7fa914) Drop preset-mix fills to zero once the look diverges
+- [`9289344`](https://github.com/cmdcolin/ntscythe/commit/928934434a64191b6d9a443215255e84b57c11cb) Make preset mixing an explicit slider per preset
+- [`b96f3f4`](https://github.com/cmdcolin/ntscythe/commit/b96f3f43710b7cd3a27effa027a71a6b22222673) Return presets to compact chips, with one section explainer
+- [`eb0b63a`](https://github.com/cmdcolin/ntscythe/commit/eb0b63a2516e156ff7cfe6d4e15a29e6b0c07ec1) Move the preset hint above the chips
+- [`16a7de7`](https://github.com/cmdcolin/ntscythe/commit/16a7de7a51768f05b72b309149f4ca232ef8c387) Make clicking a preset layer in at full, not reset the mix
+- [`c96fced`](https://github.com/cmdcolin/ntscythe/commit/c96fced7baf4f7c3bd15fba076bde2dacc9f7310) Organize controls into signal-path phases with single-open browsing
+- [`0700e26`](https://github.com/cmdcolin/ntscythe/commit/0700e2636bcc0dfc584abca6f1ce51883d7be3fe) Replace periodic modulators with bounded-aperiodic sources
+- [`99b8602`](https://github.com/cmdcolin/ntscythe/commit/99b86028c302ec69441f99631876c31eea861d6f) Make YouTube a source-mode selector with a URL dialog for A and B
+- [`a6811fb`](https://github.com/cmdcolin/ntscythe/commit/a6811fbb1ee453888e706cec1aac9afe6ba78c57) Reclaim panel vertical space; make the spine a status map
+- [`d0f2206`](https://github.com/cmdcolin/ntscythe/commit/d0f2206956af5a8b51f976138cfdd1803eeb75c3) Dedupe NTSC composite assembly into shared prelude helpers
 
 ### Documentation
-- [`1f79a14`](https://github.com/cmdcolin/ntscythe/commit/1f79a14efdfd78f189fce9128307749f23c15b3f) Trim README, note it was written with Fable
-- [`ab4e378`](https://github.com/cmdcolin/ntscythe/commit/ab4e3780ee4dd7d1e548bc4255b182a94aa51f62) Update README.md
-- [`dc6aba6`](https://github.com/cmdcolin/ntscythe/commit/dc6aba6f8e493c84eab79a7c7f609189d92f2470) README: add deploy status badge
-- [`6e52675`](https://github.com/cmdcolin/ntscythe/commit/6e52675021c8b515873ab3f0148f937b32af5b73) README: document the signal path with Graphviz diagrams
-- [`568c421`](https://github.com/cmdcolin/ntscythe/commit/568c42185805fdbcae80d8e039cd2e0a5b1e9e43) docs: mark phosphor plan phase 1 done, add phase 2 handoff
-- [`e2490b5`](https://github.com/cmdcolin/ntscythe/commit/e2490b56d3df5b23675be460e8ee96bd5bfc9369) Document the React layer and the compiler's sharp edge
+- [`a787853`](https://github.com/cmdcolin/ntscythe/commit/a787853f1b326a9fdeb2a380ddf9dfa75cb04905) Trim README, note it was written with Fable
+- [`6b8055e`](https://github.com/cmdcolin/ntscythe/commit/6b8055eae2839fff4bbc988dfe5027179a7823f1) Update README.md
+- [`e4008ed`](https://github.com/cmdcolin/ntscythe/commit/e4008ed977d5a86626a7cb2b91b1b2db86ebcad1) README: add deploy status badge
+- [`f1dab28`](https://github.com/cmdcolin/ntscythe/commit/f1dab28c55dcb2006bdd8c89e3d612474f4631a3) README: document the signal path with Graphviz diagrams
+- [`8366036`](https://github.com/cmdcolin/ntscythe/commit/8366036bf850f229062c966f8e76eaa6ac362bd4) Rewrite README how-it-works for a plainer voice
+- [`a208d61`](https://github.com/cmdcolin/ntscythe/commit/a208d61771409c3b09d4419228d31455ed041065) Gallery
+- [`d7146e4`](https://github.com/cmdcolin/ntscythe/commit/d7146e43a4ce01fcb9f9b04d2bd0e8ba8630fa05) Gallery: real photos through the pipeline instead of just test bars
+- [`59a6cb0`](https://github.com/cmdcolin/ntscythe/commit/59a6cb07a6d48a8de1e6091203ac6084daef4803) Gallery: add a third row (negative, faded dub, strobe trails)
+- [`8e61a20`](https://github.com/cmdcolin/ntscythe/commit/8e61a202e36b9ff02813dccd5e7e56f08e9a5cc9) CLAUDE.md: point at the architecture doc
+- [`c94300b`](https://github.com/cmdcolin/ntscythe/commit/c94300bbeedcc16d3300dd9f88a7659da9f15c0b) mark phosphor plan phase 1 done, add phase 2 handoff
+- [`3339e1d`](https://github.com/cmdcolin/ntscythe/commit/3339e1de9e9401d5d04e1865f9707f7883409e94) Explain every slider with a ? icon and a dialog
+- [`61587a6`](https://github.com/cmdcolin/ntscythe/commit/61587a68bc36d2eecc5f0795cf9f4561dc59b061) Document the React layer and the compiler's sharp edge
+- [`01a87ed`](https://github.com/cmdcolin/ntscythe/commit/01a87ed9aaf036559eb7527e869a4444d806d2bb) Summary
+- [`941dcd6`](https://github.com/cmdcolin/ntscythe/commit/941dcd640fb888dc10a9b808469d26ad0ea7afa2) Record that the preset-mix recipe is deliberately not persisted
+- [`e61324d`](https://github.com/cmdcolin/ntscythe/commit/e61324de0541d3379d303ceb4b2f9b33183f7088) Spell out the drag-to-partially-apply gesture in the preset hint
 
 ### Style
-- [`3cb0f17`](https://github.com/cmdcolin/ntscythe/commit/3cb0f17155f374465dbc2a5da5b75f23af9b0244) Format
+- [`b05fa95`](https://github.com/cmdcolin/ntscythe/commit/b05fa955fa453414125681f91b863487637f5020) Box sidebar section headers so the collapse caret is clearly associated
+- [`7b3b585`](https://github.com/cmdcolin/ntscythe/commit/7b3b585a9bae037359ff26488416665c00053abe) Format
+- [`b489508`](https://github.com/cmdcolin/ntscythe/commit/b4895083acd0b9d9abacb1fc66aad9b5832762c6) Lowercase the about dialog's section heads
 
 ### Tests
-- [`91721ba`](https://github.com/cmdcolin/ntscythe/commit/91721ba800f253b07b8b9f4a0f8700bb336a40ed) Validate WGSL shaders with naga in CI
+- [`8f730b4`](https://github.com/cmdcolin/ntscythe/commit/8f730b4ceee9f9909326e4ce1b2ef4b75a758ec1) Validate WGSL shaders with naga in CI
+- [`11106db`](https://github.com/cmdcolin/ntscythe/commit/11106dba317bb61afe9a7ed90580ad4468185840) Fail shot.mjs on dead frames and page errors
 
 ### Chores
-- [`6ee4a7f`](https://github.com/cmdcolin/ntscythe/commit/6ee4a7f8326d2b137459559fe55cc0bf9daf42b5) CI: auto-deploy to GitHub Pages on push to main
-- [`69e56ee`](https://github.com/cmdcolin/ntscythe/commit/69e56eeebc9fe998f5937fce86edf53dd8a41cac) CI: pin pnpm 11 to match repo workspace config
-
-### Other Changes
-- [`0f1af2f`](https://github.com/cmdcolin/ntscythe/commit/0f1af2f9d6fef09250becd1b49c304fc08348477) NTSC signal-path simulator: dirty mixing, mixer-loop feedback, camera model, RF/AGC
-- [`3d29f1d`](https://github.com/cmdcolin/ntscythe/commit/3d29f1d5d99e357f198c854724780300c46fc571) Mixer wipes, B-bus proc amp, frame-store strobe/trails
-- [`bca3195`](https://github.com/cmdcolin/ntscythe/commit/bca3195d9c7d9c3c8efe381629ddfa47f9373823) WebGPU-unavailable error screen, resource cleanup, GitHub Pages deploy
-- [`0244f73`](https://github.com/cmdcolin/ntscythe/commit/0244f73842e20622706d2db52d5c36b14a6a8161) Collapsible panel sections, fullscreen toggle, Camera Feedback rename
-- [`3954047`](https://github.com/cmdcolin/ntscythe/commit/39540471d423018fc72d93ae593a898585bbde9f) Device-loss recovery UI, shareable copy-link, adjustable render scale
-- [`2cc524e`](https://github.com/cmdcolin/ntscythe/commit/2cc524e81799016a8d4d2927cd29bfae449c8855) Name the app "Phosphene"
-- [`d5e3b4f`](https://github.com/cmdcolin/ntscythe/commit/d5e3b4f21eba8764730a2d904ab8ad27e808d1df) Favicon + advanced-settings dialog for render scale
-- [`c9d1f15`](https://github.com/cmdcolin/ntscythe/commit/c9d1f1599e74363778eeb27a04ac6980418b207c) Escape closes the advanced-settings dialog
-- [`200f70a`](https://github.com/cmdcolin/ntscythe/commit/200f70aae8598fba42b5b9d1f94ce76b2b0b39d6) Inject exact DOWN_PER_SAMPLE; dedupe compose bind group
-- [`56ff7bb`](https://github.com/cmdcolin/ntscythe/commit/56ff7bb9178a2275cb927006f7206e4b80454360) Relative build base; update URLs for phosphene repo rename
-- [`c180eec`](https://github.com/cmdcolin/ntscythe/commit/c180eec5871d68170827037df16a45b342d45232) Box sidebar section headers so the collapse caret is clearly associated
-- [`a6ecd0d`](https://github.com/cmdcolin/ntscythe/commit/a6ecd0d592b3e715416fc2bf79d48aaa3a14f8ea) Const-fold FIR tap counts; shared-memory tiling for convolution passes
-- [`f9a92bc`](https://github.com/cmdcolin/ntscythe/commit/f9a92bceca097ec8a4855cec29dd69591b4b63dd) Ignore .eslintcache
-- [`5bd3fc0`](https://github.com/cmdcolin/ntscythe/commit/5bd3fc07afe0a75dfc8698170d9c39be4746d72c) Rm silly philosophy :)
-- [`25d7b4b`](https://github.com/cmdcolin/ntscythe/commit/25d7b4b2b9727e15bb6dc76920357c2b90956836) Presets: grouped picker with descriptions, active state, hover-diff, hold-to-compare
-- [`f88e6e0`](https://github.com/cmdcolin/ntscythe/commit/f88e6e0e581f2beae652591424834fd3d4644289) Sidebar redesign: sans font, source dropdowns, CSS modules
-- [`0dfe606`](https://github.com/cmdcolin/ntscythe/commit/0dfe606de7eed2c0b38b02aac859f7333697638f) Rewrite README how-it-works for a plainer voice
-- [`ade6e99`](https://github.com/cmdcolin/ntscythe/commit/ade6e993c29b2b4267b4f373803cffd7a2064b1c) Fail shot.mjs on dead frames and page errors
-- [`b5ca8a7`](https://github.com/cmdcolin/ntscythe/commit/b5ca8a7614ae131fb0a7a2181f62f8efd6555ed3) DRY up error-banner clearing to the two source entry points
-- [`3937bf6`](https://github.com/cmdcolin/ntscythe/commit/3937bf6b8256b22f74ee9a3243abbc7a97da9f2a) Gallery
-- [`e0dff6c`](https://github.com/cmdcolin/ntscythe/commit/e0dff6c8b4c72c575b4744d2013a6994050cd96e) Use fb-bloom for OG and add GitHub social-preview image
-- [`1191f88`](https://github.com/cmdcolin/ntscythe/commit/1191f884814276b1640db5e930cb12007d38fcc8) Gallery: real photos through the pipeline instead of just test bars
-- [`754357f`](https://github.com/cmdcolin/ntscythe/commit/754357fb4251f61559edfde998d0b2fc04cc7ae4) Gallery: add a third row (negative, faded dub, strobe trails)
-- [`8fbab1e`](https://github.com/cmdcolin/ntscythe/commit/8fbab1ef3f3336e72427544185a25a566f7a8476) clips.mjs: output mp4 directly for review
-- [`42a7fa5`](https://github.com/cmdcolin/ntscythe/commit/42a7fa55119119a969c27076deb58a02841337e6) Model the hold oscillators, deflection geometry, and audio drive
-- [`a0e93d0`](https://github.com/cmdcolin/ntscythe/commit/a0e93d0d48a693a82bba565e33f40d4bfbd74c95) CLAUDE.md: point at the architecture doc
-- [`57d84b7`](https://github.com/cmdcolin/ntscythe/commit/57d84b7c80d371a559c9bebfc8249974add6715c) Phosphor identity (plan phase 2), deflection glide, and circuit-bent controls
-- [`b856370`](https://github.com/cmdcolin/ntscythe/commit/b85637065bec72a43ff90247b8dbde144b41609e) Enable React Compiler
-- [`6777e79`](https://github.com/cmdcolin/ntscythe/commit/6777e79f1c6f4e394c2f19a4d35e12643b46ef93) Explain every slider with a ? icon and a dialog
-- [`150a9c3`](https://github.com/cmdcolin/ntscythe/commit/150a9c307c13bfd448567b022696d2ad2ddaaf3f) Mirror app state to the URL continuously
-- [`35e1d43`](https://github.com/cmdcolin/ntscythe/commit/35e1d43333d8e2218513c9c2a1ee5e8e4c7d3adf) Lowercase the about dialog's section heads
-- [`4c5c16b`](https://github.com/cmdcolin/ntscythe/commit/4c5c16b945fcbf296f56842e00ce6c6400f1f518) Summary
-- [`8010080`](https://github.com/cmdcolin/ntscythe/commit/8010080f6fefa22cfd6c4acdf0e1f3bba256b492) Record that the preset-mix recipe is deliberately not persisted
-- [`7fd6e0d`](https://github.com/cmdcolin/ntscythe/commit/7fd6e0de32df1bbceec2694f806a21cc244e66e0) Return presets to compact chips, with one section explainer
-- [`1486727`](https://github.com/cmdcolin/ntscythe/commit/148672776673da7359d349b284bd4033f00aa4d6) Spell out the drag-to-partially-apply gesture in the preset hint
-- [`a59a465`](https://github.com/cmdcolin/ntscythe/commit/a59a4650f70b38145e92128a5aa7722033837ab4) Move the preset hint above the chips
-- [`d0613bd`](https://github.com/cmdcolin/ntscythe/commit/d0613bd521b76795d7bd418a5df021f514c6a251) Feedback control
-- [`a038d7e`](https://github.com/cmdcolin/ntscythe/commit/a038d7e1c07c4045108c772fe8af0b2087b02cdc) useEngine.ts — added sourceName / sourceBName state, set alongside the existing sourceMode/sourceBMode:
-- [`d35f00b`](https://github.com/cmdcolin/ntscythe/commit/d35f00b3434f2e600f46a44fecd2a9e4d63e5d26) Organize controls into signal-path phases with single-open browsing
-- [`e1ea78e`](https://github.com/cmdcolin/ntscythe/commit/e1ea78ec4ac40f76a9182dba9e9a5b42a50c172f) Load YouTube clips in dev via a yt-dlp Vite middleware
+- [`6c19578`](https://github.com/cmdcolin/ntscythe/commit/6c19578f401a95c27696a1e56c2a25fba55bb1e4) Name the app "Phosphene"
+- [`468a010`](https://github.com/cmdcolin/ntscythe/commit/468a0103abba46cc1938a84f83c33124186d7f18) Relative build base; update URLs for phosphene repo rename
+- [`8c42930`](https://github.com/cmdcolin/ntscythe/commit/8c4293037db5f2337797606caaade08bb14d6abf) CI: auto-deploy to GitHub Pages on push to main
+- [`8897212`](https://github.com/cmdcolin/ntscythe/commit/88972122218fbae187fea1e461dab87fc62ba91a) CI: pin pnpm 11 to match repo workspace config
+- [`664ff97`](https://github.com/cmdcolin/ntscythe/commit/664ff973366507faaaf43e28276e6f519a2dedf6) Ignore .eslintcache
+- [`19c4b76`](https://github.com/cmdcolin/ntscythe/commit/19c4b764dfd16e5a8c0bf14b92ca75ae07fe7bb2) Rm silly philosophy :)
+- [`6816d78`](https://github.com/cmdcolin/ntscythe/commit/6816d78eede0a13c81627f85459987b59ba08115) Use fb-bloom for OG and add GitHub social-preview image
+- [`8accd40`](https://github.com/cmdcolin/ntscythe/commit/8accd409ecf0d3721a9de1317783a626d5795c87) clips.mjs: output mp4 directly for review
 
