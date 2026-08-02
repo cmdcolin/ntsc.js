@@ -30,7 +30,6 @@ import { MixState } from '../signal/mixstate'
 import { ModState } from '../signal/modstate'
 import { initGpu } from './context'
 import { GEN_OFFSET, PARAM_BYTES, PRELUDE, packParams } from './prelude'
-import { GpuProfiler } from './profiler'
 import { RenderLoop } from './renderloop'
 import channelSrc from './shaders/channel.wgsl?raw'
 import chromaExtractSrc from './shaders/chroma_extract.wgsl?raw'
@@ -136,7 +135,6 @@ export class Engine {
   private paramScratch = new ArrayBuffer(PARAM_BYTES)
   private loop: RenderLoop
   private destroyed = false
-  private profiler: GpuProfiler | null = null
 
   private paramsBuf: GPUBuffer
   private genParamsBuf: GPUBuffer
@@ -191,9 +189,6 @@ export class Engine {
     this.gpu = gpu
     this.canvas = canvas
     const d = gpu.device
-    if (new URLSearchParams(location.search).has('prof'))
-      this.profiler = GpuProfiler.create(d)
-
     this.paramsBuf = d.createBuffer({
       size: PARAM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -1150,10 +1145,9 @@ export class Engine {
     }
 
     const enc = d.createCommandEncoder()
-    this.profiler?.begin()
     const run = (p: Pass) => {
       if (p.when === undefined || p.when()) {
-        const cp = enc.beginComputePass(this.profiler?.passDescriptor(p.label))
+        const cp = enc.beginComputePass()
         cp.setPipeline(p.pl)
         cp.setBindGroup(0, p.bg)
         cp.dispatchWorkgroups(p.x, p.y)
@@ -1198,7 +1192,6 @@ export class Engine {
     // the phosphor state buffers.
     this.decodePass.bg = this.decodeBgs[this.frame % 2]
     for (const p of this.postPasses) run(p)
-    this.profiler?.resolve(enc)
 
     this.presentPass(enc)
 
@@ -1207,7 +1200,6 @@ export class Engine {
       d.pushErrorScope('internal')
     }
     d.queue.submit([enc.finish()])
-    this.profiler?.report()
     if (this.frame < 3) {
       const f = this.frame
       void d

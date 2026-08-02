@@ -20,12 +20,7 @@ export async function initGpu(canvas: HTMLCanvasElement): Promise<Gpu> {
       'WebGPU is present but no GPU adapter is available — usually a blocklisted GPU/driver or hardware acceleration disabled. In Firefox try gfx.webgpu.ignore-blocklist; in Chrome enable hardware acceleration.',
     )
   }
-  // timestamp-query powers the optional ?prof per-pass timings
-  const device = await adapter.requestDevice({
-    requiredFeatures: adapter.features.has('timestamp-query')
-      ? ['timestamp-query']
-      : [],
-  })
+  const device = await adapter.requestDevice()
   // No uncapturederror handler here: Engine registers one that also surfaces
   // the fault in the panel banner, and two listeners logged every GPU error
   // twice — which reads as two faults when hunting a wedged frame.

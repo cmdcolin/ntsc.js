@@ -129,7 +129,6 @@ A link specifies a look — **copy link** in the app writes one.
 | `?src=` / `?srcb=`   | source kind for A / B                        |
 | `?dbg=1..5`          | scope views (composite, luma, chroma, burst) |
 | `?surprise`          | roll a random preset stack on load           |
-| `?prof`              | per-pass GPU timings                         |
 
 Example: `?iurl=/sample.jpg&preset=dirty%20mix`
 
