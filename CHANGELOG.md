@@ -2,6 +2,17 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.7.4](https://github.com/cmdcolin/ntsc.js/compare/v0.7.3...v0.7.4) - 2026-08-02
+
+### Features
+- *(ui)* [`0d8729d`](https://github.com/cmdcolin/ntsc.js/commit/0d8729d669fa441e24575e0ce6f146168900aab4) bundled example clips for source A and B
+
+### Fixes
+- *(ui)* [`5489d83`](https://github.com/cmdcolin/ntsc.js/commit/5489d839e7e75a30cb01ffc65ded4a626ac594c3) don't hijack ctrl/cmd+r as the record shortcut
+
+### Other Changes
+- [`3a2ff6a`](https://github.com/cmdcolin/ntsc.js/commit/3a2ff6a82c79b73dd8aee068b70eb455eed9d2b6) Shorthand
+
 ## [0.7.3](https://github.com/cmdcolin/ntsc.js/compare/v0.7.2...v0.7.3) - 2026-08-02
 
 ### Fixes
