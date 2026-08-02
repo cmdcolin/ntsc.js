@@ -1,6 +1,6 @@
-// ntscenery — the big idea in five blocks. See pipeline.dot for the real passes.
+// ntsc.js — the big idea in five blocks. See pipeline.dot for the real passes.
 // Render: dot -Tsvg docs/pipeline-simple.dot -o docs/pipeline-simple.svg
-digraph ntscenery_simple {
+digraph ntsc.js_simple {
   rankdir=LR;
   bgcolor="transparent";
   fontname="Helvetica,Arial,sans-serif";

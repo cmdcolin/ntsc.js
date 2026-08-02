@@ -5,7 +5,7 @@ import ui from './ui.module.css'
 
 export function HelpDialog({ onClose }: { onClose: () => void }) {
   return (
-    <Dialog title="ntscenery" size="prose" onClose={onClose}>
+    <Dialog title="ntsc.js" size="prose" onClose={onClose}>
       <img
         className={dlg.helpLogo}
         src={logoUrl}
@@ -68,7 +68,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         The{' '}
         <a
           className={ui.link}
-          href="https://cmdcolin.github.io/ntscenery/guide/"
+          href="https://cmdcolin.github.io/ntsc.js/guide/"
           target="_blank"
           rel="noreferrer"
         >
@@ -80,7 +80,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         notes on{' '}
         <a
           className={ui.link}
-          href="https://github.com/cmdcolin/ntscenery"
+          href="https://github.com/cmdcolin/ntsc.js"
           target="_blank"
           rel="noreferrer"
         >

@@ -1,13 +1,13 @@
 {
-  "name": "ntscenery",
+  "name": "ntsc.js",
   "private": true,
   "version": "0.7.0",
   "description": "Real-time NTSC / VHS / composite-video glitch simulator in WebGPU compute shaders.",
   "license": "MIT",
-  "homepage": "https://cmdcolin.github.io/ntscenery/",
+  "homepage": "https://cmdcolin.github.io/ntsc.js/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cmdcolin/ntscenery.git"
+    "url": "https://github.com/cmdcolin/ntsc.js.git"
   },
   "keywords": [
     "webgpu",

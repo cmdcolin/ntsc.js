@@ -78,7 +78,7 @@ Needs Firefox Nightly, ImageMagick, ffmpeg (clips) and pngquant (optional).
 ## Docs site
 
 `pnpm guide` (also run by `pnpm build`) renders the reader-facing markdown into
-`dist/guide/`, which Pages serves at `/ntscenery/guide/`. Markdown stays the
+`dist/guide/`, which Pages serves at `/ntsc.js/guide/`. Markdown stays the
 source of truth and stays readable on GitHub; the builder only adds the nav, the
 live links, and styling. To add a page, add it to `PAGES` in
 [`../scripts/build-guide.mjs`](../scripts/build-guide.mjs).
@@ -99,7 +99,7 @@ ffmpeg -version     # only needed when no single-file mp4 exists at 720p
 ```
 
 Clips are capped at 720p (the chain downscales to 480 lines anyway) and cached
-in `$TMPDIR/ntscenery-yt` keyed by URL, so a reload replays instantly. The first
+in `$TMPDIR/ntsc.js-yt` keyed by URL, so a reload replays instantly. The first
 load takes as long as the download; failures come back as the yt-dlp error.
 
 ## URL parameters

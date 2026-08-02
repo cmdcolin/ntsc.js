@@ -57,7 +57,7 @@ const S3_PREFIX = 's3://cmdcolinphotos/phosphene/'
 const CLIP_BASE = 'https://cmdcolinphotos.s3.amazonaws.com/phosphene/'
 // Where a figure's "open this in the app" link points: the same params this
 // shot was captured with, against the deployed build.
-const LIVE_BASE = 'https://cmdcolin.github.io/ntscenery/'
+const LIVE_BASE = 'https://cmdcolin.github.io/ntsc.js/'
 
 // Captured at 2x so the images stay sharp on a HiDPI screen; JPEG shots are
 // then fit to this width, which is still ~2x the column any doc renders them in.
@@ -73,8 +73,8 @@ const DIFF_GATE = 0.01
 // hints remember being dismissed — so without a seed, every shot would show
 // whichever state the last one happened to leave behind.
 const SEED = {
-  ntscenery_overlay_bar_hidden: '0',
-  ntscenery_fps_hidden: '0',
+  ntsc.js_overlay_bar_hidden: '0',
+  ntsc.js_fps_hidden: '0',
   video_feedback_preset_hint_dismissed: '0',
   video_feedback_presets_expanded: '0',
   video_feedback_recent_presets: '[]',
@@ -771,7 +771,7 @@ async function ensureServer() {
   throw new Error(`no dev server at ${base}`)
 }
 
-const tmpDir = mkdtempSync(join(tmpdir(), 'ntscenery-docshots-'))
+const tmpDir = mkdtempSync(join(tmpdir(), 'ntsc.js-docshots-'))
 const shots = SPECS.filter(s => only.length === 0 || only.includes(s.name))
 if (shots.length === 0) {
   console.error(`no specs match ${only.join(' ')}`)

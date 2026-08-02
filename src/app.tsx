@@ -297,15 +297,15 @@ export function App() {
         <button
           className={styles.brand}
           onClick={() => setShowHelp(true)}
-          title={`ntscenery ${versionLabel} (${gitSha}) — what is this?`}
-          aria-label="ntscenery — what is this?"
+          title={`ntsc.js ${versionLabel} (${gitSha}) — what is this?`}
+          aria-label="ntsc.js — what is this?"
         >
           <img
             className={styles.brandMark}
             src={`${import.meta.env.BASE_URL}favicon.svg`}
             alt=""
           />
-          <span className={styles.wordmark}>ntscenery</span>
+          <span className={styles.wordmark}>ntsc.js</span>
           <span className={styles.version}>{versionLabel}</span>
         </button>
         {/* Sits in the masthead rather than over the bottom-left of the
@@ -319,7 +319,7 @@ export function App() {
         ) : null}
         <a
           className={ui.link}
-          href="https://github.com/cmdcolin/ntscenery"
+          href="https://github.com/cmdcolin/ntsc.js"
           target="_blank"
           rel="noreferrer"
         >

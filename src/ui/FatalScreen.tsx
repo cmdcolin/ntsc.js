@@ -38,11 +38,11 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
             <p className={ui.muted} style={{ margin: 0 }}>
               <a
                 className={ui.link}
-                href="https://github.com/cmdcolin/ntscenery"
+                href="https://github.com/cmdcolin/ntsc.js"
                 target="_blank"
                 rel="noreferrer"
               >
-                github.com/cmdcolin/ntscenery
+                github.com/cmdcolin/ntsc.js
               </a>
               {' · '}
               <a

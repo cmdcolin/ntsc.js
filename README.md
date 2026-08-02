@@ -1,12 +1,12 @@
-# ntscenery
+# ntsc.js
 
 ![One NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, then the luma staircase with the chroma subcarrier riding on each bar](docs/logo.svg)
 
 > A real-time NTSC / VHS / composite-video glitch simulator, running entirely in
 > WebGPU compute shaders
 
-**[Live demo](https://cmdcolin.github.io/ntscenery/)** ·
-**[Documentation](https://cmdcolin.github.io/ntscenery/guide/)**
+**[Live demo](https://cmdcolin.github.io/ntsc.js/)** ·
+**[Documentation](https://cmdcolin.github.io/ntsc.js/guide/)**
 
 The demo needs a WebGPU-enabled browser.
 
@@ -22,7 +22,7 @@ their own, the same as they do on real gear.
 <sub>▶ **In motion:**
 [watch the 7-second clip](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo-v2.mp4)
 (or click the image above) · or open the
-[live demo](https://cmdcolin.github.io/ntscenery/) and load your own
+[live demo](https://cmdcolin.github.io/ntsc.js/) and load your own
 footage.</sub>
 
 ## Features
@@ -70,7 +70,7 @@ there. Details in
 
 ## Docs
 
-### 📖 [Read the docs site →](https://cmdcolin.github.io/ntscenery/guide/)
+### 📖 [Read the docs site →](https://cmdcolin.github.io/ntsc.js/guide/)
 
 Every figure there links to the live session that produced it — click through
 and move the sliders yourself.
@@ -103,7 +103,7 @@ There are a few other analog-video emulators worth a look:
   shaders** (`crt-royale`, `crt-guest-advanced`) — the emulator/shader side of
   the same idea.
 
-The difference here is that ntscenery models the whole signal path end to end in
+The difference here is that ntsc.js models the whole signal path end to end in
 real time (encode → tape/RF damage → imperfect decode → CRT), so the artifacts
 interact the way they do on real hardware rather than stacking up as independent
 filters.

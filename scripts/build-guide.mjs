@@ -36,7 +36,7 @@ const PAGES = [
 
 // Markdown link -> where it goes on the site. Anything else that ends in .md is
 // a contributor doc with no page here, so it goes to the repo.
-const REPO = 'https://github.com/cmdcolin/ntscenery/blob/main/'
+const REPO = 'https://github.com/cmdcolin/ntsc.js/blob/main/'
 const LINKS = new Map([
   ['USER-GUIDE.md', 'index.html'],
   ['HOW-IT-WORKS.md', 'how-it-works.html'],
@@ -112,7 +112,7 @@ const page = (body, title, current) => `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} — ntscenery</title>
+<title>${title} — ntsc.js</title>
 <link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <style>
 :root {
@@ -177,7 +177,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 40px 0; }
 </head>
 <body>
 <header>
-  <span class="brand">ntscenery</span>
+  <span class="brand">ntsc.js</span>
   ${PAGES.map(p => `<a class="${p.out === current ? 'on' : ''}" href="${p.out}">${p.nav}</a>`).join('\n  ')}
   <a class="app" href="../">open the app ↗</a>
 </header>

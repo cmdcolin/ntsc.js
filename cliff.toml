@@ -11,15 +11,15 @@
 header = """
 # Changelog
 
-All notable changes to ntscenery are documented here.
+All notable changes to ntsc.js are documented here.
 """
 body = """
 
 {% if version %}\
     {% if previous.version %}\
-        ## [{{ version | trim_start_matches(pat="v") }}](https://github.com/cmdcolin/ntscenery/compare/{{ previous.version }}...{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+        ## [{{ version | trim_start_matches(pat="v") }}](https://github.com/cmdcolin/ntsc.js/compare/{{ previous.version }}...{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
     {% else %}\
-        ## [{{ version | trim_start_matches(pat="v") }}](https://github.com/cmdcolin/ntscenery/releases/tag/{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+        ## [{{ version | trim_start_matches(pat="v") }}](https://github.com/cmdcolin/ntsc.js/releases/tag/{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
     {% endif %}\
 {% else %}\
     ## [Unreleased]
@@ -28,7 +28,7 @@ body = """
 ### {{ group | striptags | trim }}
 {% for commit in commits %}\
 - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
-[`{{ commit.id | truncate(length=7, end="") }}`](https://github.com/cmdcolin/ntscenery/commit/{{ commit.id }}) \
+[`{{ commit.id | truncate(length=7, end="") }}`](https://github.com/cmdcolin/ntsc.js/commit/{{ commit.id }}) \
 {% if commit.breaking %}[**breaking**] {% endif %}\
 {{ commit.message | split(pat="\n") | first | trim }}
 {% endfor %}\

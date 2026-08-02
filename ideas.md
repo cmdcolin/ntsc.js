@@ -78,5 +78,5 @@ like a patchable module rather than a coincidence.
   performance use.
 
 Note for anyone evaluating the reverse arrangement: Max's `jweb` embeds a web
-view but is unlikely to expose WebGPU, so hosting ntscenery inside a patch
+view but is unlikely to expose WebGPU, so hosting ntsc.js inside a patch
 probably isn't viable — it wants to be a separate app you route into.
