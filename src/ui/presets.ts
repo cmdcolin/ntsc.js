@@ -611,6 +611,26 @@ export function matchPreset(values: Controls): PresetDef | undefined {
 // How much of each preset is dialed in, by preset name. Absent or 0 is off.
 export type PresetWeights = ReadonlyMap<string, number>
 
+// A fresh recipe: one full preset plus one or two partial ones from other
+// groups, so a roll crosses families instead of deepening one. Shared by the
+// "surprise me" button and by `?surprise` on a link, which is how the docs
+// harness fills a gallery without clicking anything.
+export function randomPresetMix(sourceBOn: boolean): PresetWeights {
+  const pool = PRESETS.filter(
+    p => p.group !== 'Clean' && (sourceBOn || p.group !== 'A/B mixing'),
+  )
+  const groups = [...new Set(pool.map(p => p.group))].toSorted(
+    () => Math.random() - 0.5,
+  )
+  const weights = new Map<string, number>()
+  groups.slice(0, 2 + Math.floor(Math.random() * 2)).forEach((g, i) => {
+    const opts = pool.filter(p => p.group === g)
+    const p = opts[Math.floor(Math.random() * opts.length)]
+    weights.set(p.name, i === 0 ? 1 : 0.3 + Math.random() * 0.5)
+  })
+  return weights
+}
+
 // Controls holding a mode rather than a quantity: halfway between phosphor 0
 // and 3 is not phosphor 1.5, it is a tube nobody asked for. The heaviest
 // preset that moves one of these off its default picks the mode outright.

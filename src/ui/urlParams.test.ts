@@ -56,6 +56,15 @@ describe('session params', () => {
     expect(parseSessionParams('?preset=no-such-preset').controls).toEqual({})
   })
 
+  it('asks for a roll, and keeps the landing look out of it', () => {
+    // The roll itself is applied by the caller; a link asking for one is not a
+    // bare load, so the landing look must not land underneath it.
+    const p = parseSessionParams('?surprise')
+    expect(p.surprise).toBe(true)
+    expect(p.controls).toEqual({})
+    expect(parseSessionParams('').surprise).toBe(false)
+  })
+
   it('drops control keys it does not recognise', () => {
     const p = parseSessionParams('?set=noiseIre:3,noSuchKnob:5,humAmp:nope')
     expect(p.controls).toEqual({ noiseIre: 3 })
@@ -169,6 +178,17 @@ describe('session round trip', () => {
     expect(q.get('iurl')).toBe('http://x/a.png')
     expect(q.get('debug')).toBe('1')
     // ...but a managed key is rewritten from live state, not merged with it
+    expect(q.get('set')).toBe('noiseIre:4')
+  })
+
+  it('drops ?surprise once the roll it asked for has happened', () => {
+    // The address bar is rewritten from live state, and by then ?set= holds the
+    // rolled look; leaving the flag on would reroll over it on every open.
+    const q = writeSessionParams(
+      new URLSearchParams('?surprise'),
+      state({ controls: { ...DEFAULT_CONTROLS, noiseIre: 4 } }),
+    )
+    expect(q.has('surprise')).toBe(false)
     expect(q.get('set')).toBe('noiseIre:4')
   })
 

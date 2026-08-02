@@ -3,7 +3,12 @@ import { useState } from 'react'
 import { DEFAULT_CONTROLS } from '../controls'
 import { ALL_SLIDERS, VIEW_KEYS } from './controls'
 import { mutate } from './mutate'
-import { PRESETS, blendPresets, controlsEqual, presetControls } from './presets'
+import {
+  blendPresets,
+  controlsEqual,
+  presetControls,
+  randomPresetMix,
+} from './presets'
 
 import type { Controls } from '../controls'
 import type { PresetWeights } from './presets'
@@ -99,20 +104,14 @@ export function useMix(args: {
     // partial ones from other groups, over clean defaults. Built through the mix
     // machinery so the chips show the recipe — each roll teaches what made it.
     surprise: () => {
-      const pool = PRESETS.filter(
-        p =>
-          p.group !== 'Clean' && (args.sourceBOn || p.group !== 'A/B mixing'),
-      )
-      const groups = [...new Set(pool.map(p => p.group))].toSorted(
-        () => Math.random() - 0.5,
-      )
-      const next = new Map<string, number>()
-      groups.slice(0, 2 + Math.floor(Math.random() * 2)).forEach((g, i) => {
-        const opts = pool.filter(p => p.group === g)
-        const p = opts[Math.floor(Math.random() * opts.length)]
-        next.set(p.name, i === 0 ? 1 : 0.3 + Math.random() * 0.5)
-      })
-      apply(blendPresets(DEFAULT_CONTROLS, next))
+      const next = randomPresetMix(args.sourceBOn)
+      // Where you are looking is yours, not part of the roll — same rule
+      // mutate follows. A roll that reached "across the room" otherwise pulled
+      // the picture back into a little set in a dark room, which reads as the
+      // app having done something wrong rather than as a new look.
+      const blended = blendPresets(DEFAULT_CONTROLS, next)
+      for (const key of VIEW_KEYS) blended[key] = controls[key]
+      apply(blended)
       setMix({ base: DEFAULT_CONTROLS, weights: next })
       setLastPreset(null)
     },

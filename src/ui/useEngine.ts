@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { DEFAULT_CONTROLS } from '../controls'
 import { Engine } from '../gpu/pipeline'
 import { MAX_SRC_EDGE } from '../gpu/sources'
 import { reportPreviousTrace, trace } from '../gpu/trace'
@@ -12,6 +13,7 @@ import {
   readStash,
   stashFile,
 } from './fileStash'
+import { blendPresets, randomPresetMix } from './presets'
 import {
   REVERB_DEFAULT,
   SPEED_DEFAULT,
@@ -541,6 +543,13 @@ export function useEngine() {
   // one order that matters: the vaporwave settings land before any clip loads,
   // since a new element reads its playback rate off vaporRef at creation.
   const restoreSession = (eng: Engine, params: SessionParams) => {
+    // `?surprise` arrives on a rolled look rather than the landing one. The
+    // link's own controls go on top, so `?surprise&set=noiseIre:9` is a roll
+    // with that one knob pinned. Source B is not up yet at this point, so the
+    // roll stays out of the A/B group either way.
+    if (params.surprise) {
+      eng.applyControls(blendPresets(DEFAULT_CONTROLS, randomPresetMix(false)))
+    }
     eng.applyControls(params.controls)
     if (params.src === 'webcam') {
       selectSource('webcam')

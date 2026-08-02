@@ -47,6 +47,9 @@ export interface SessionParams {
   ytb: string | null
   vapor: { speedA: number; speedB: number; reverb: number }
   debug: boolean
+  // `?surprise` — roll a random preset stack on load, the same one the button
+  // rolls. Layered under ?preset/?set, so an explicit control still wins.
+  surprise: boolean
 }
 
 // `key:value` pairs against the control schema. Anything unrecognised or
@@ -80,7 +83,7 @@ export function parseSessionParams(search: string): SessionParams {
   // Gated on the *params*, not on the lookup: a link naming a preset that has
   // since been retired asked for that preset and got nothing, which is not the
   // same as asking for nothing and getting the landing look.
-  const bare = setParam === null && presetName === null
+  const bare = setParam === null && presetName === null && !q.has('surprise')
   const preset = PRESETS.find(p => p.name === presetName)
   return {
     controls: {
@@ -103,6 +106,7 @@ export function parseSessionParams(search: string): SessionParams {
       reverb: num('reverb', REVERB_DEFAULT),
     },
     debug: q.has('debug'),
+    surprise: q.has('surprise'),
   }
 }
 
@@ -145,6 +149,10 @@ export function writeSessionParams(
   // look. Without the marker, copying a link while on `clean` handed the reader
   // source B mixed in rather than the clean picture on screen.
   q.set('set', set.join(','))
+  // A one-shot instruction, not part of the look: once the roll has happened,
+  // `?set=` above IS what it rolled. Leaving it on would make the link reroll
+  // over its own recorded look every time someone opened it.
+  q.delete('surprise')
   // A mode is worth recording when the reader would accept it back; youtube
   // carries its own yt=/ytb= key (the URL, not just the mode name).
   put(
