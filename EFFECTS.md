@@ -5,6 +5,17 @@ artifact itself — dot crawl, rainbowing, tearing, rolling and hue drift emerge
 from the signal path on their own. Effects are grouped here by the stage of the
 chain they damage, same as the control panel.
 
+- [Source / wiring](#source--wiring) — polarity, termination, miswires, loose
+  contacts
+- [Camera feedback](#camera-feedback) — a camera pointed at its own monitor
+- [Mixer loop](#mixer-loop) — composite-level feedback through a vision mixer
+- [A/B mix (source B)](#ab-mix-source-b) — a second, non-genlocked source
+- [Tape / channel](#tape--channel) — the VHS and RF path
+- [Enhancer (bent)](#enhancer-bent) — a misused picture enhancer
+- [Receiver](#receiver) — sync, deflection, comb filtering, chroma demod
+- [Audio-reactive](#audio-reactive) — audio driving the analog faults
+- [Screen](#screen) — beam, phosphor, grille
+
 ## Source / wiring
 
 - **Polarity invert** — the composite waveform negated after the encoder; full

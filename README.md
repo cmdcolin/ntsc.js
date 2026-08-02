@@ -11,12 +11,9 @@ browser.
 Each frame gets encoded into a real composite video waveform, mangled like it
 went through tape and RF, then decoded by an imperfect TV. Dot crawl, ringing,
 hue drift, tearing, head-switch bend, dropouts — you don't draw any of that. It
-comes out of the signal on its own, same as on the real gear. There are two
-feedback loops as well (a camera pointed at its own monitor, and a
-hardware-mixer loop), and you can dirty-mix in a second source. All in WebGPU
-compute shaders, in real time.
+comes out of the signal on its own, same as on the real gear.
 
-[![A photo dubbed to VHS inside the ntscythe app, alongside its full control panel](docs/gallery/hero.jpg)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
+[![A photo dubbed to VHS inside the ntscythe app, alongside its full control panel](img/1.png)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
 
 <sub>▶ **In motion:**
 [watch the 6-second clip](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
@@ -24,32 +21,22 @@ compute shaders, in real time.
 [live demo](https://cmdcolin.github.io/ntscythe/) and load your own
 footage.</sub>
 
-![](img/1.png)
-
 ## Features
 
-- **Controls** — ~150 in 18 groups, each a hardware fault rather than a drawn
-  artifact ([EFFECTS.md](EFFECTS.md)).
-- **Sources** — bars, sweep, TV/VHS static, bundled photo, image/video file,
-  webcam or capture device, [YouTube](#youtube-source-dev-server-only). Source B
-  takes all but webcam.
-- **Presets** — 40+ built-ins, 9 scene slots (`1`–`9` recall, `shift+1`–`9`
-  save), surprise-me, mutate, `ctrl+z` undo.
-- **Keys** — `ctrl+k` palette, hold `c` to compare against clean, `f`
-  fullscreen, `r` record webm, `s` save png; **⧉ pop out** gives the controls
-  their own window.
-- **Modulation** — LFOs, random walk, sample-and-hold, Lorenz or audio
-  level/onset onto any slider.
-- **Audio in** — mic or file into field lurch, line tear, HV sag, deflection and
-  the video input; playback speed and reverb.
-- **MIDI** — per-control learn, whole-device automap, soft takeover, clock lock
-  for rate controls.
-- **URL params** — a link specifies a look (**copy link** writes one):
-  `?preset=`, `?set=key:value,...`, `?iurl=`/`?iurlb=` (image A/B), `?vurl=`,
-  `?src=`, `?srcb=`, `?dbg=1..5`, `?prof`. Bundled sample:
-  `?iurl=/sample.jpg&preset=dirty%20mix`.
-- **Diagnostics** — scope views (composite, luma, chroma, burst), render scale,
-  FPS, chain map, per-pass GPU timings with `?prof`.
+- ~150 controls in 18 groups, each a hardware fault rather than a drawn artifact
+- Sources: bars, sweep, TV/VHS static, bundled photo, image/video file, webcam
+  or capture device, YouTube (dev server only) — plus a second source to mix in
+- Two feedback loops: a camera pointed at its own monitor, and a hardware-mixer
+  loop in the signal
+- 40+ presets, 9 scene slots, surprise-me, mutate, undo
+- Modulation: LFOs, random walk, sample-and-hold, Lorenz or audio level/onset
+  onto any slider
+- Audio in: mic or file into field lurch, line tear, HV sag, deflection and the
+  video input
+- MIDI: per-control learn, whole-device automap, soft takeover, clock lock
+- Record webm, save png, pop the controls out into their own window
+- Shareable links that carry a whole look (`?preset=`, `?set=`, `?iurl=`, …)
+- Diagnostics: scope views, render scale, FPS, chain map, per-pass GPU timings
 
 ## Run
 
@@ -58,144 +45,15 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm test` runs the FIR design unit tests (DC gain, passband/stopband response,
-linear-phase symmetry, filter-bank packing). CI gates deploy on `pnpm lint` +
-`pnpm test`.
+## Docs
 
-### YouTube source (dev server only)
-
-The **YouTube…** source fetches `/yt?url=…`, a Vite middleware
-([`vite-plugin-ytdlp.ts`](vite-plugin-ytdlp.ts)) that shells out to `yt-dlp` and
-serves the clip back as an mp4. It's `apply: 'serve'`, so it exists under
-`pnpm dev` only — the deployed build has no server to shell out from, and the
-option does nothing there.
-
-Setup is just the binaries on `PATH`:
-
-```
-yt-dlp --version    # pipx install yt-dlp, or your package manager
-ffmpeg -version     # only needed when no single-file mp4 exists at 720p
-```
-
-Clips are capped at 720p (the chain downscales to 480 lines anyway) and cached
-in `$TMPDIR/ntscythe-yt` keyed by URL, so a reload replays instantly. The first
-load takes as long as the download; failures come back as the yt-dlp error.
-
-## Effects
-
-Every effect models the hardware fault that causes an artifact, grouped by where
-in the chain it strikes. Full listing with mechanisms in
-[EFFECTS.md](EFFECTS.md).
-
-| Stage               | Effects                                                                                                                                                                                                 |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Source / wiring** | polarity invert, hard polarity flip (sync too), termination fault, chroma-pin-only miswire, loose connector, bob deinterlace                                                                            |
-| **Camera feedback** | the classic camera-at-monitor loop: zoom/rotate/shift spirals, defocus, vignette, sensor s-curve, plus the CRT faceplate it photographs (bloom, halation, glow, gamma)                                  |
-| **Mixer loop**      | composite-level feedback: loop delay as hue rotation, luma keying, strobe hold, trails, a resonant filter that can self-oscillate                                                                       |
-| **A/B mix**         | a second non-genlocked source: dirty sum or clean dissolve, ring mod, subcarrier-beat rainbows, frame roll, wipes, PiP inset                                                                            |
-| **Tape / channel**  | luma band-limit, peaking, snow, ghosting, hum bar, sound-carrier buzz, dropouts, dub generations, VHS color-under + phase jitter, tracking error, shuttle picture-search bars, flutter/wow, head switch |
-| **Receiver**        | horizontal/vertical hold, retrace flag, oscillator detune, deflection bends, HV sag and supply ring, comb modes, S-video bleed, chroma demod faults, burst lock, color killer                           |
-| **Audio-reactive**  | bass into the field oscillator (lurch), level into line hold (tear), bass into HV sag (smack), the raw waveform into deflection, audio into the video input                                             |
-| **Screen**          | beam profile and bloom, reconstruction filter, phosphor primaries and persistence (tinted trails), aperture grille moiré, slow-motion time step                                                         |
-
-## How it works
-
-The picture is never handled as an image. Each frame, the RGB source is turned
-into a real NTSC composite waveform — a 1D voltage signal sampled at four times
-the color subcarrier, about 478,000 samples a frame (910 per line, 525 lines).
-Every "glitch" is just what happens when you rough that signal up and decode it
-with an imperfect receiver.
-
-### If you write JavaScript, here's the shape of it
-
-That waveform is really just one big `Float32Array` — those ~478k samples —
-sitting in GPU memory (the `compA` buffer) and never coming back to the CPU. In
-plain JS, one stage of damage would be a loop:
-
-```js
-for (let i = 0; i < signal.length; i++) out[i] = mangle(signal, i)
-```
-
-478k iterations, times a dozen stages, 60 times a second — hopeless on one CPU
-thread. WebGPU keeps the exact same idea but runs the _body_ of that loop for
-every `i` at the same time, spread across thousands of GPU cores. Each stage of
-the chain is one such pass: a small program (a `.wgsl` _shader_) that reads the
-buffer and writes it back, with the GPU supplying the `i`. There is no visible
-loop — you write only `mangle`, and the hardware fans it out over all the
-samples.
-
-The CPU barely does any signal math. Once per animation frame it uploads the
-source frame to a texture, writes the current slider values into a small
-uniforms buffer, records the whole list of passes, and submits it in one go. No
-`await`, nothing read back.
-
-Kicking off a pass is `dispatchWorkgroups(x, y)` — basically the bounds of that
-parallel for-loop, in 2D: `y` counts the 525 lines, `x` counts the samples
-across a line (in groups of 64). A "bind group" is just the list of buffers a
-pass is wired to — its arguments.
-
-The passes hand data to each other through those shared buffers. Most read
-`compA` and overwrite it in place; a few can't safely read and write the same
-buffer at once, so they read from `compA` and write into `compB`, then swap. The
-only thing that ever leaves the GPU is the final image the `present` pass draws
-to the canvas. So the pipeline really is just an ordered array of passes, each
-one a `.wgsl` shader in `src/gpu/shaders/`, wired up in `src/gpu/pipeline.ts`.
-The filters they run are windowed-sinc FIR kernels designed from real MHz specs
-in `src/signal/filters.ts`.
-
-### The chain
-
-Five blocks: source, encode, damage, decode, display. Two feedback loops fold
-back in every frame.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/pipeline-simple-dark.svg">
-  <img alt="Signal path — overview: RGB source → encode → channel → decode → screen, with two feedback loops" src="docs/pipeline-simple-light.svg">
-</picture>
-
-Same thing pass by pass, in the order they actually run (the channel block
-repeats once per dub generation):
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/pipeline-dark.svg">
-  <img alt="Signal path — detailed, pass by pass: encoder, channel, receiver, present" src="docs/pipeline-light.svg">
-</picture>
-
-<sup>Dashed boxes are passes that only run when their control is engaged.
-Diagrams are Graphviz: [`docs/pipeline-simple.dot`](docs/pipeline-simple.dot),
-[`docs/pipeline.dot`](docs/pipeline.dot). `pnpm run docs` regenerates both in
-light and dark variants (needs `dot` on PATH).</sup>
-
-The two feedback loops work at different points in the chain:
-
-- **Camera-at-monitor** (in the image): before re-encoding, `compose` reads back
-  the _previous_ frame's CRT face — `crtFace`'s glowing tube, the same texture
-  the canvas shows — and zooms, rotates, shifts, and dims it. It's the same
-  thing as aiming a camera at the screen it's driving, and it photographs an
-  emissive screen rather than the raw decoder output.
-- **Hardware mixer** (in the signal): `storePrev` stashes the waveform the
-  decoder _saw_ — damaged composite, straight off `timebase` — in `compPrev`,
-  then `fbComposite` blends it back into the next frame's composite with keying
-  and trails. Feeding back at the signal level means it dot-crawls and smears
-  like a real vision mixer.
-
-| Stage     | Pass(es)                                            | What it models                                                                                                                                       |
-| --------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Encoder   | `compose`, `encodeYuv`, `encodeComposite`           | RGB → YUV → composite: luma + chroma quadrature-modulated onto the `Fsc` subcarrier, sync/burst/blanking inserted                                    |
-| Dirty mix | `composeB`, `encodeYuvB`, `mixB`                    | second non-genlocked source B mixed/wiped into the finished composite, with its own hue/ring/detune                                                  |
-| Channel   | `chromaExtract`, `underDown`, `channel`, `timebase` | the tape/RF path — color-under, band-limiting, noise, dropouts, ghosting, hum, head-switch bend, time-base jitter. Loops once per **dub generation** |
-| Receiver  | `syncMeasure`, `sync`, `lineAnalyze`, `decode`      | a real (imperfect) TV: sync recovery, per-line burst lock, comb filtering, chroma demod, color-kill                                                  |
-| Display   | `crtFace`, `present`                                | the lit tube face — bloom, halation, gamma — then the scanline beam profile to the canvas                                                            |
-
-## Verification harness
-
-```
-node scripts/shot.mjs http://localhost:5199/ out.png [waitMs]
-```
-
-Drives a headed Firefox Nightly, steps frames deterministically, probes pixels,
-and saves a screenshot. Headless Chrome can't present WebGPU swap chains here,
-which is why it's Firefox.
+- [**EFFECTS.md**](EFFECTS.md) — every effect and the hardware fault it models
+- [**docs/HOW-IT-WORKS.md**](docs/HOW-IT-WORKS.md) — the signal path, pass by
+  pass, with diagrams
+- [**docs/DEVELOPMENT.md**](docs/DEVELOPMENT.md) — build, test, screenshot
+  harness, YouTube source, URL params
+- [**agent-docs/ARCHITECTURE.md**](agent-docs/ARCHITECTURE.md) — pass graph,
+  buffer layouts, adding a control end to end
 
 ## Related / prior art
 
@@ -212,7 +70,7 @@ look at:
 - Hardware roots: **Rutt–Etra** video synthesis, **no-input video feedback**,
   and time-base correctors — the gear ntscythe imitates in software.
 
-What's different here: ntscythe models the whole signal _path_ end to end in
+What's different here: ntscythe models the whole signal _path_ end-to-end in
 real time — encode → tape/RF damage → imperfect decode → CRT — so the artifacts
 interact the way they do on real hardware instead of being independent filters.
 
