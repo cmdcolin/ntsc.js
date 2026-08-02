@@ -2,6 +2,11 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.7.1](https://github.com/cmdcolin/ntsc.js/compare/v0.7.0...v0.7.1) - 2026-08-02
+
+### Other Changes
+- [`63f728d`](https://github.com/cmdcolin/ntsc.js/commit/63f728d85013cc08a9fcbb2a0115e401a1c72d06) Rename ntsc.js
+
 ## [0.7.0](https://github.com/cmdcolin/ntsc.js/compare/v0.6.2...v0.7.0) - 2026-08-02
 
 ### Features
@@ -44,7 +49,7 @@ All notable changes to ntsc.js are documented here.
 - [`a55b867`](https://github.com/cmdcolin/ntsc.js/commit/a55b8672a9a48a66dddd3e8e67d60b87374f3346) note that it works on a phone
 
 ### Other Changes
-- [`c704e2f`](https://github.com/cmdcolin/ntsc.js/commit/c704e2f4f77839c89569ca373df97036614d2c15) Rename to ntsc.js
+- [`c704e2f`](https://github.com/cmdcolin/ntsc.js/commit/c704e2f4f77839c89569ca373df97036614d2c15) Rename to ntscenery
 
 ## [0.6.2](https://github.com/cmdcolin/ntsc.js/compare/v0.6.1...v0.6.2) - 2026-08-02
 
