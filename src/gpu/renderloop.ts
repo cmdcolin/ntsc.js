@@ -70,7 +70,7 @@ export class RenderLoop {
   private lastTime = 0
   private frameAcc = 0
   private frameCount = 0
-  private renderGen = 0
+  private gens = { render: 0, probe: 0 }
   private renderErrors = 0
   private watchdogId = 0
   private hangStrikes = 0
@@ -80,7 +80,6 @@ export class RenderLoop {
   // Second rAF chain, counting only. See startProbe.
   private probeTicks = 0
   private lastProbeTicks = 0
-  private probeGen = 0
   private stalled = false
   private fallbackId = 0
   private pumping = false
@@ -122,38 +121,50 @@ export class RenderLoop {
     this.watchdogId = window.setInterval(this.watchdog, WATCHDOG_MS)
   }
 
-  // A second rAF chain that does nothing but count. It re-arms itself from
-  // inside its own callback and is never cancelled, never kicked, never touched
-  // by the stall logic — so it cannot be broken by this class's bookkeeping.
+  // Both rAF chains run on this, and it is where the loop's central invariant
+  // lives: nothing is ever cancelled.
   //
-  // That is the whole point. When the picture stalls, `rafTicks` going flat has
-  // two possible causes and no way to tell them apart: the document is getting
-  // no rAF at all, or the render chain specifically was dropped (a cancelled id
-  // never re-requested, a throw before the re-arm) while the document ticks on
-  // fine. Those call for opposite fixes — one is a browser bug to report, the
-  // other is ours to fix — so the stall line records both counters and the next
-  // trace settles it.
+  // cancelAnimationFrame is the only operation that can leave this class with no
+  // request outstanding, and it used to run on every visibility and focus
+  // transition — exactly when the browser is suspending and resuming its refresh
+  // driver, and exactly where a trace caught eight hidden/visible flips followed
+  // by rAF never being delivered again. Cancel-then-request has to be atomic
+  // against a driver doing its own bookkeeping underneath, and nothing says it
+  // is. A chain retires itself instead: on its next callback it finds the loop
+  // stopped, or a newer generation of its own kind, and simply declines to
+  // re-arm. Starting one can therefore only ever *add*, never subtract.
   //
-  // The generation guard keeps a restart from leaving two chains counting: a
-  // callback outstanding across stop()/start() sees a stale gen and retires.
-  private startProbe(): void {
-    this.probeGen += 1
-    const gen = this.probeGen
-    const step = (): void => {
-      if (this.live && gen === this.probeGen) {
-        this.probeTicks += 1
+  // `body` runs after the re-arm, never before, so a synchronous throw in it
+  // (getCurrentTexture during a fullscreen transition, a React setState in
+  // onStats) cannot leave the loop un-scheduled — the classic "canvas froze,
+  // controls look dead" hang.
+  private startChain(kind: 'render' | 'probe', body: (time: number) => void) {
+    const gen = (this.gens[kind] += 1)
+    const step = (time: number): void => {
+      if (this.live && gen === this.gens[kind]) {
         requestAnimationFrame(step)
+        body(time)
       }
     }
     requestAnimationFrame(step)
   }
 
+  // A chain that does nothing but count, never kicked and never touched by the
+  // stall logic. When the picture stalls, `rafTicks` going flat has two possible
+  // causes that want opposite fixes — the document is getting no rAF at all
+  // (browser bug) or only the render chain was dropped (ours) — and this is what
+  // tells them apart.
+  private startProbe(): void {
+    this.startChain('probe', () => {
+      this.probeTicks += 1
+    })
+  }
+
   stop(): void {
     trace.add('stop', `frame ${this.host.frameNo()}`)
     trace.flush(true)
-    // No cancelAnimationFrame: `live` retires both chains on their next
-    // callback, at a cost of one no-op call each, and never cancelling is the
-    // whole reason the chains are generation-tagged.
+    // No cancelAnimationFrame: dropping `live` retires both chains on their next
+    // callback, at a cost of one no-op call each. See startChain.
     this.live = false
     this.stalled = false
     this.pumping = false
@@ -162,46 +173,23 @@ export class RenderLoop {
     this.fallbackId = 0
   }
 
-  // The render chain, generation-tagged and self-re-arming exactly like the
-  // probe, and — the point of it — never cancelled.
-  //
-  // cancelAnimationFrame is the single operation that can leave this loop with
-  // no request outstanding, and kick() used to run it on every visibility and
-  // focus transition: precisely when the browser is suspending and resuming its
-  // refresh driver, and precisely where a trace caught eight hidden/visible
-  // flips followed by rAF never being delivered again. Cancel-then-request has
-  // to be atomic against a driver doing its own bookkeeping underneath, and
-  // there is no reason to assume it is. Starting a new generation instead can
-  // only ever *add* a chain; the superseded one retires on its own next
-  // callback, so a run of kicks collapses back to one live chain by the next
-  // delivered frame and no path through here ever reaches zero.
   private startRender(): void {
-    this.renderGen += 1
-    const gen = this.renderGen
-    const step = (time: number): void => {
-      if (this.live && gen === this.renderGen) {
-        // Re-arm FIRST, before any work. A synchronous throw below (e.g.
-        // getCurrentTexture during a fullscreen/visibility transition, or a
-        // React setState in onStats) then can't leave the loop un-scheduled —
-        // the classic "canvas froze, controls look dead" hang after fullscreen.
-        requestAnimationFrame(step)
-        this.rafTicks += 1 // proof rAF is being delivered (watchdog reads it)
-        if (this.stalled) {
-          // Leave the fallback the instant rAF returns rather than waiting for
-          // the watchdog, otherwise both drivers run frames for up to
-          // WATCHDOG_MS and double the submission rate on a device that just
-          // demonstrated it was struggling.
-          this.stalled = false
-          this.setGaveUp(false)
-          trace.add('resume', `frame ${this.host.frameNo()}`)
-          console.warn(
-            `rAF resumed at frame ${this.host.frameNo()}; leaving fallback`,
-          )
-        }
-        this.runFrame(time)
+    this.startChain('render', time => {
+      this.rafTicks += 1 // proof rAF is being delivered (watchdog reads it)
+      if (this.stalled) {
+        // Leave the fallback the instant rAF returns rather than waiting for the
+        // watchdog, otherwise both drivers run frames for up to WATCHDOG_MS and
+        // double the submission rate on a device that just demonstrated it was
+        // struggling.
+        this.stalled = false
+        this.setGaveUp(false)
+        trace.add('resume', `frame ${this.host.frameNo()}`)
+        console.warn(
+          `rAF resumed at frame ${this.host.frameNo()}; leaving fallback`,
+        )
       }
-    }
-    requestAnimationFrame(step)
+      this.runFrame(time)
+    })
   }
 
   // One frame: stats + render, shared by the rAF loop and the setTimeout
@@ -315,9 +303,8 @@ export class RenderLoop {
   }
 
   // Re-arm the loop after a transition (fullscreen exit, tab re-shown) that can
-  // leave the browser having stopped delivering rAF callbacks. Safe to call on a
-  // healthy loop and safe to call in a burst: the superseded chain retires
-  // itself, so this converges to one live chain without ever cancelling.
+  // leave the browser having stopped delivering rAF callbacks. Safe on a healthy
+  // loop and safe in a burst — see startChain.
   kick(): void {
     if (this.live) {
       this.startRender()
@@ -361,16 +348,19 @@ export class RenderLoop {
           this.stalled = true
           this.stallSince = performance.now()
           this.setGaveUp(false)
-          // The probe delta is the diagnosis: 0 means the document itself
-          // stopped getting rAF, anything above 0 means only the render chain
-          // was dropped and the bug is on this side.
+          // The probe delta is the diagnosis, and the two readings want
+          // opposite fixes.
+          const verdict =
+            probeDelta === 0
+              ? 'the document is getting no rAF at all'
+              : 'the document IS ticking, so the render chain was dropped on our side'
           trace.add(
             'stall',
             `frame ${this.host.frameNo()} probe ${probeDelta}/beat`,
           )
           trace.flush(true)
           console.warn(
-            `rAF not delivering (frame ${this.host.frameNo()}, independent probe ${probeDelta}/beat — ${probeDelta === 0 ? 'the document is getting no rAF at all' : 'the document IS ticking, so the render chain was dropped on our side'}); driving via setTimeout fallback`,
+            `rAF not delivering (frame ${this.host.frameNo()}, independent probe ${probeDelta}/beat — ${verdict}); driving via setTimeout fallback`,
           )
         }
         this.startPump()

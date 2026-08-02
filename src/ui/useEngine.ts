@@ -99,15 +99,13 @@ export function useEngine() {
   // where nothing the DOM says reaches the screen. The tab title is browser
   // chrome, drawn by the parent process, so it still gets through.
   useEffect(() => {
-    let restore = () => {}
+    const original = document.title
     if (frozen) {
-      const original = document.title
       document.title = `⏸ frozen — ${original}`
-      restore = () => {
-        document.title = original
-      }
     }
-    return () => restore()
+    return () => {
+      document.title = original
+    }
   }, [frozen])
   const [stats, setStats] = useState<FrameStats>({ fps: 0 })
   const [engine, setEngine] = useState<Engine | null>(null)
@@ -168,24 +166,19 @@ export function useEngine() {
       const w = Math.max(1, Math.round(canvas.clientWidth * dpr))
       const h = Math.max(1, Math.round(canvas.clientHeight * dpr))
       const clamp = Math.min(1, MAX_EDGE / Math.max(w, h))
-      const next = {
-        w: Math.max(1, Math.round(w * clamp)),
-        h: Math.max(1, Math.round(h * clamp)),
-      }
-      // Only on a real change. Assigning canvas.width/height reallocates the
+      const bufW = Math.max(1, Math.round(w * clamp))
+      const bufH = Math.max(1, Math.round(h * clamp))
+      // Only on a real change: assigning canvas.width/height reallocates the
       // drawing buffer and reconfigures the WebGPU swapchain even when the value
-      // written is the one already there, and this runs from a ResizeObserver —
-      // so every panel toggle, fullscreen transition and window drag was
-      // throwing away a live swapchain and building a new one for nothing.
-      // Traces show the redundant pairs plainly (two identical `resize` lines
-      // before the loop has even started), and a swapchain churning under the
-      // compositor during a visibility transition is the likeliest way to lose
-      // the surface for good.
-      if (canvas.width !== next.w || canvas.height !== next.h) {
-        canvas.width = next.w
-        canvas.height = next.h
-        trace.add('resize', `${next.w}x${next.h}`)
-        setRes(`${next.w}×${next.h}`)
+      // written is the one already there. This runs from a ResizeObserver, so
+      // unguarded it threw away a live swapchain on every panel toggle and
+      // window drag — and churning one under the compositor is the likeliest way
+      // to lose the surface for good.
+      if (canvas.width !== bufW || canvas.height !== bufH) {
+        canvas.width = bufW
+        canvas.height = bufH
+        trace.add('resize', `${bufW}x${bufH}`)
+        setRes(`${bufW}×${bufH}`)
       }
     }
   }
