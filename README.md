@@ -25,10 +25,10 @@ footage.</sub>
 
 ## Features
 
-- Around 150 knobs, and none of them draw an artifact — they break something in
-  the signal path and let the artifact happen. Wiring, camera feedback, the
-  mixer loop, tape and RF, the receiver, the screen itself: every one of them is
-  written up in [EFFECTS.md](EFFECTS.md).
+- 132 knobs in 18 groups, and none of them draw an artifact — they break
+  something in the signal path and let the artifact happen. Wiring, camera
+  feedback, the mixer loop, tape and RF, the receiver, the screen itself: every
+  one of them is written up in [EFFECTS.md](EFFECTS.md).
 - Feed it color bars, a sweep, TV snow, the bundled photo, any image or video
   file, or a webcam or capture card. There's a second input as well, to mix,
   wipe or beat against the first.
