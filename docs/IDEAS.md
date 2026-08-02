@@ -4,14 +4,18 @@ Things worth doing that aren't done, and things that look worth doing but aren't
 — so a future pass doesn't re-litigate them. Line numbers drift; grep the
 described feature.
 
+Ideas from the original list still unclaimed: the video-synth oscillator source
+and chroma key.
+
 ## Modulation: kill the remaining naked periodic waves
 
-The premise (see `../docs/ARCHITECTURE.md`) is that a fault should be
-_mechanistic_. A single periodic wave traced straight down the raster violates
-that — it reads as a filter effect, not a fault (the warning
-`signal/audiostate.ts` opens with). The shared home for bounded-aperiodic drift
-is now **`signal/noise.ts`** (`valueNoise`, `Lorenz`, `Wow`); reuse it rather
-than rolling a new sine.
+The premise (see `ARCHITECTURE.md`) is that a fault should be _mechanistic_. A
+single periodic wave traced straight down the raster violates that — it reads as
+a filter effect, not a fault (the warning `signal/audiostate.ts` opens with). The
+shared home for bounded-aperiodic drift is **`signal/noise.ts`** (`valueNoise`,
+`Lorenz`, `Wow`); reuse it rather than rolling a new sine. Tape wow, the
+modulation LFOs and intercarrier buzz have already been converted; what is left
+is the one item below.
 
 ### Deferred — mains-frequency roll drift (hum), `channel.wgsl`
 
@@ -30,20 +34,7 @@ uniform + phase plumbing (a `PARAM_DEFS` field, `DEFAULT_CONTROLS`,
 `uniformValues`) for the least-visible win. Everything else in the batch was
 self-contained.
 
-### Landed
-
-Replaced with `signal/noise.ts` sources (commit "Replace periodic modulators
-with bounded-aperiodic sources"):
-
-- **Tape wow** (`signal/linestate.ts`) — was a single 0.6 Hz sine; now `Wow`, a
-  quasi-periodic sum of incommensurate eccentricities.
-- **Modulation LFOs** (`signal/modstate.ts`) — added `smooth` (value noise),
-  `hold` (sample & hold), `lorenz` (strange attractor) sources.
-- **Intercarrier buzz** (`channel.wgsl`) — the 4.5 MHz sound carrier's FM is now
-  driven from `audio[row]` (it physically _is_ the audio leaking past the trap),
-  so it's content-driven and silence leaves a clean stationary weave.
-
-## Not worth aperiodic-ising
+### Not worth aperiodic-ising
 
 These read like naked periodic waves but are physically correct — don't
 "aperiodic-ise" them:
@@ -98,7 +89,7 @@ encode and channel, not a scatter of knobs.
 - **Adjacent channel.** Cable is a 6 MHz comb; a weak trap lets the neighbour
   through as the drifting diagonal windshield-wiper bars, plus its sound carrier
   1.5 MHz into the picture. Needs the RF domain: what leaks in is a _carrier
-  beat_, not a summed picture, so the source-B path below does not cover it.
+  beat_, not a summed picture, so the source-B path does not cover it.
 - **Ingress.** CB or ham into a cracked shield — a herringbone that sweeps and
   comes and goes with speech. Reuses the `audio[row]` trick `soundIre` already
   uses for intercarrier buzz.
@@ -119,9 +110,9 @@ the payoff is.
 - **VITS / VIR, and line-21 caption data.** A multiburst and staircase on 17–18,
   a dashed data burst on 21. Invisible in normal framing and then the roll bar
   has real content in it. Cheap.
-- **Underscan / `vSize`.** Noted in the root `ideas.md` as nearly free. Worth
-  more than it looks: it is what makes head switch, the VBI, and everything
-  above visible rather than cropped. Build it first if any of this is wanted.
+- **Underscan.** `vSize` (see Deflection below) is what makes head switch, the
+  VBI, and everything above visible rather than cropped. Build it first if any
+  of this is wanted.
 
 ## Tape mechanisms not modelled
 
@@ -139,6 +130,51 @@ the payoff is.
   noise in saturated reds. Modelling the luma FM properly is expensive; the
   honest cheap version is the beat product alone.
 
+## Capture / deinterlace (grown out of the RCA-input work)
+
+- **Motion-adaptive deinterlace.** Current `deint` is an unconditional
+  even-field bob — halves vertical resolution even on still frames. Weave where
+  fields match (full res on static areas) and bob only where they differ (a
+  per-pixel inter-field delta metric); keeps sharpness off motion.
+- **Deint modes instead of on/off.** Turn the toggle into a mode select: off /
+  bob (current) / blend (average both fields — ghosts on motion, keeps res) /
+  weave. Blend is cheaper and some people prefer its look.
+- **Auto-detect interlacing.** Measure a comb metric on the incoming source and
+  flip `deint` on automatically only for genuinely-interlaced feeds, instead of
+  hard-enabling it on every webcam/USB connect (progressive USB cams get
+  needlessly softened today).
+- **Remember the last capture device.** Persist the chosen `deviceId` so a
+  reconnect re-selects the dongle rather than the OS default camera.
+- **PAL capture.** Composite grabbers also deliver 720×576/50i; the pipeline is
+  NTSC-shaped (525/60). At minimum square-pixel it correctly; ideally note the
+  standard mismatch in the UI.
+
+## Deflection (follow-ons to the sync/bend work)
+
+- **Intra-line geometry.** `hSize`, `hLin` (S-correction failure stretching one
+  side), pincushion. Blocked on decode's tiling: the workgroup stages one
+  contiguous 128-sample span per row, so only _row-uniform_ horizontal offsets
+  are free. Non-uniform scaling within a line reads outside the halo.
+- **Vertical geometry.** `vSize` / `vLin` are nearly free by contrast — they
+  only change which source row a screen row picks. `vSize` is also the gate on
+  the vertical-interval work above.
+- **Fractional bend.** `hoff` is `round()`ed to whole samples; at large
+  amplitudes adjacent rows stair-step. Resampling the tile with `catmull` would
+  smooth it, at the cost of restructuring the staging.
+
+## Screen-domain effects not yet built
+
+The neon phosphor colour work in `phosphor-plan.md` is done through Phase 3;
+what is left there is exactly the two items below.
+
+- **Luma-keyed halation radius.** `crt_face` already adds a wide warm
+  glass-scatter halo (`crtHalation` × the 15-px golden-angle tap ring, tinted
+  `WARM`), but at a fixed radius. Real glass scatter depends on beam current and
+  so blooms disproportionately on peak whites; keying the halo radius off local
+  luma would read more like an old tube.
+- **Per-channel bloom radius.** One radius for all three channels; the phosphors
+  don't actually scatter alike.
+
 ## Digital cable tier
 
 Macroblocking, DCT ringing, frozen last-good-blocks, motion-vector smear. Large
@@ -147,6 +183,45 @@ so it is only interesting under one framing: a digital head-end feeding an
 analog last mile. Box → impairment → NTSC encode → the entire existing chain,
 which is era-correct for the late nineties and is genuinely mechanism modelling
 rather than artifact drawing. Not worth starting until something needs it.
+
+## Patching into other apps (Max/MSP, Jitter, TouchDesigner, VJ software)
+
+Already works with no code: MIDI CC + MIDI clock in (`src/ui/midi.ts`) via a
+virtual port (IAC bus / loopMIDI); audio in via a loopback device (BlackHole),
+which reaches `audioBendUs` / `audioLoad` / `audioIre`; Jitter output in as a
+webcam through a Syphon→virtual-camera bridge; and output back out by pointing
+an OBS browser source at the page. The gaps below are what would make it feel
+like a patchable module rather than a coincidence.
+
+- **Screen capture as a source mode.** `getDisplayMedia` is unused. Picking a
+  Jitter/TouchDesigner window directly removes the Syphon→virtual-cam hop
+  entirely. Smallest change with the largest practical payoff — `useEngine`
+  already handles a `MediaStream` source, so it is mostly a new entry in
+  `sources/modes.ts` plus a picker.
+- **OSC control, via a local WebSocket bridge.** Browsers can't speak UDP, so
+  this needs a small node process doing OSC↔WebSocket. Worth it because
+  `DEFAULT_CONTROLS` is already a flat named record and `useMidi` already
+  funnels every store-origin change through one `writeControl(key, value)`: a
+  bridge lets Max address `/hHold`, `/scDetuneKHz`, `/bendUs` by name, with
+  float precision and no 128-control CC ceiling. The app side is a thin client
+  that validates the key against `ControlKey` and calls the existing write path.
+- **Bidirectional state.** Same channel in reverse — emit control changes so a
+  Max patch's UI tracks the app (and so presets/scenes can be recalled from
+  outside). Needs a loop guard on the write path.
+- **MIDI note / program-change → scene recall.** Scenes and presets exist
+  (`useScenes.ts`, `presets.ts`) but are mouse-only; note-on or PC is the
+  natural performance trigger and reuses the MIDI input already open.
+- **MIDI transport, not just clock.** `midi.ts` handles `0xF8`/`0xFC`; honouring
+  `0xFA` start / `0xFB` continue would let clock-locked rates reset phase on
+  downbeat instead of free-running from whenever the tick stream began.
+- **Live low-latency output.** WebRTC to a local peer, or NDI via a native
+  helper, for feeding the result back into Jitter without the OBS round-trip.
+  Meaningfully more work than the rest of this list; only worth it for
+  performance use.
+
+Note for anyone evaluating the reverse arrangement: Max's `jweb` embeds a web
+view but is unlikely to expose WebGPU, so hosting ntsc.js inside a patch
+probably isn't viable — it wants to be a separate app you route into.
 
 ## Not worth building
 
