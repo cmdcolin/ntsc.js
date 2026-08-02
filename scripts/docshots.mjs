@@ -73,8 +73,8 @@ const DIFF_GATE = 0.01
 // hints remember being dismissed — so without a seed, every shot would show
 // whichever state the last one happened to leave behind.
 const SEED = {
-  ntsc.js_overlay_bar_hidden: '0',
-  ntsc.js_fps_hidden: '0',
+  'ntsc.js_overlay_bar_hidden': '0',
+  'ntsc.js_fps_hidden': '0',
   video_feedback_preset_hint_dismissed: '0',
   video_feedback_presets_expanded: '0',
   video_feedback_recent_presets: '[]',
