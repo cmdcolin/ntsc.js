@@ -77,6 +77,10 @@ export class RenderLoop {
   private probing = false
   private rafTicks = 0
   private lastRafTicks = 0
+  // Second rAF chain, counting only. See startProbe.
+  private probeTicks = 0
+  private lastProbeTicks = 0
+  private probeGen = 0
   private stalled = false
   private fallbackId = 0
   private pumping = false
@@ -106,13 +110,42 @@ export class RenderLoop {
     this.probing = false
     this.rafTicks = 0
     this.lastRafTicks = 0
+    this.probeTicks = 0
+    this.lastProbeTicks = 0
     this.lastTime = 0
     this.frameAcc = 0
     this.frameCount = 0
     this.hangStrikes = 0
     trace.add('start')
     this.rafId = requestAnimationFrame(this.tick)
+    this.startProbe()
     this.watchdogId = window.setInterval(this.watchdog, WATCHDOG_MS)
+  }
+
+  // A second rAF chain that does nothing but count. It re-arms itself from
+  // inside its own callback and is never cancelled, never kicked, never touched
+  // by the stall logic — so it cannot be broken by this class's bookkeeping.
+  //
+  // That is the whole point. When the picture stalls, `rafTicks` going flat has
+  // two possible causes and no way to tell them apart: the document is getting
+  // no rAF at all, or the render chain specifically was dropped (a cancelled id
+  // never re-requested, a throw before the re-arm) while the document ticks on
+  // fine. Those call for opposite fixes — one is a browser bug to report, the
+  // other is ours to fix — so the stall line records both counters and the next
+  // trace settles it.
+  //
+  // The generation guard keeps a restart from leaving two chains counting: a
+  // callback outstanding across stop()/start() sees a stale gen and retires.
+  private startProbe(): void {
+    this.probeGen += 1
+    const gen = this.probeGen
+    const step = (): void => {
+      if (this.live && gen === this.probeGen) {
+        this.probeTicks += 1
+        requestAnimationFrame(step)
+      }
+    }
+    requestAnimationFrame(step)
   }
 
   stop(): void {
@@ -282,6 +315,8 @@ export class RenderLoop {
     // Sampled before the early return, so a session that goes quiet records why
     // (hidden tab) instead of just stopping mid-trace. Only the qualitative half
     // is compared, so a steady session doesn't record a line every two seconds.
+    const probeDelta = this.probeTicks - this.lastProbeTicks
+    this.lastProbeTicks = this.probeTicks
     trace.beat(
       [
         document.visibilityState,
@@ -289,7 +324,7 @@ export class RenderLoop {
         document.fullscreenElement === null ? 'windowed' : 'fullscreen',
         this.stalled ? (this.gaveUp ? 'GAVE-UP' : 'STALLED') : 'ok',
       ].join(' '),
-      `frame ${this.host.frameNo()} raf ${this.rafTicks - this.lastRafTicks}/beat`,
+      `frame ${this.host.frameNo()} raf ${this.rafTicks - this.lastRafTicks}/beat probe ${probeDelta}/beat`,
     )
     trace.flush()
     if (!this.live || document.visibilityState !== 'visible') return
@@ -307,10 +342,16 @@ export class RenderLoop {
           this.stalled = true
           this.stallSince = performance.now()
           this.setGaveUp(false)
-          trace.add('stall', `frame ${this.host.frameNo()}`)
+          // The probe delta is the diagnosis: 0 means the document itself
+          // stopped getting rAF, anything above 0 means only the render chain
+          // was dropped and the bug is on this side.
+          trace.add(
+            'stall',
+            `frame ${this.host.frameNo()} probe ${probeDelta}/beat`,
+          )
           trace.flush(true)
           console.warn(
-            `rAF not delivering (frame ${this.host.frameNo()}); driving via setTimeout fallback`,
+            `rAF not delivering (frame ${this.host.frameNo()}, independent probe ${probeDelta}/beat — ${probeDelta === 0 ? 'the document is getting no rAF at all' : 'the document IS ticking, so the render chain was dropped on our side'}); driving via setTimeout fallback`,
           )
         }
         this.startPump()

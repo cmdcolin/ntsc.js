@@ -73,6 +73,8 @@ function harness() {
     frames: () => frames,
     recoveries: () => recoveries,
     frozenEdges: () => frozenEdges,
+    // rAF callbacks the loop currently has in flight, across both its chains.
+    outstanding: () => rafCbs.size,
     // Deliver every rAF callback the loop has outstanding.
     deliverRaf: (time: number) => {
       const cbs = [...rafCbs.values()]
@@ -239,6 +241,27 @@ describe('RenderLoop', () => {
     h.completeGpu()
     await vi.advanceTimersByTimeAsync(WATCHDOG_MS * 3)
     expect(h.recoveries()).toBe(1)
+  })
+
+  it('keeps the liveness probe on its own chain', async () => {
+    const h = harness()
+    h.loop.start()
+    // One render chain plus one probe chain. kick() cancels and re-requests the
+    // render chain and may only ever touch that one — a probe this class can
+    // break diagnoses nothing.
+    expect(h.outstanding()).toBe(2)
+    h.loop.kick()
+    h.loop.kick()
+    expect(h.outstanding()).toBe(2)
+
+    // A restart must not leave the old probe counting alongside the new one:
+    // two chains would report double the true rate and hide a dying document.
+    h.loop.stop()
+    h.loop.start()
+    h.deliverRaf(16)
+    expect(h.outstanding()).toBe(2)
+    h.deliverRaf(32)
+    expect(h.outstanding()).toBe(2)
   })
 
   it('reports one frozen edge per stall episode', async () => {
