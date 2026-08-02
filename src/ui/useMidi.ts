@@ -11,6 +11,7 @@ import type {
   LearnState,
   MidiManager,
   MidiStatus,
+  PickupMap,
 } from './midi'
 import type { RefObject } from 'react'
 
@@ -25,6 +26,7 @@ export function useMidi(engineRef: RefObject<Engine | null>) {
   const [armedKey, setArmedKey] = useState<ControlKey | null>(null)
   const [learn, setLearn] = useState<LearnState | null>(null)
   const [bpm, setBpm] = useState<number | null>(null)
+  const [pickups, setPickups] = useState<PickupMap>({})
 
   useEffect(() => {
     // A MIDI-origin change drives the engine only: the physical knob move IS
@@ -38,6 +40,7 @@ export function useMidi(engineRef: RefObject<Engine | null>) {
       onArmed: setArmedKey,
       onLearn: setLearn,
       onTempo: setBpm,
+      onPickup: setPickups,
     })
     midiRef.current = midi
     return () => {
@@ -77,6 +80,7 @@ export function useMidi(engineRef: RefObject<Engine | null>) {
     armedKey,
     learn,
     bpm,
+    pickups,
     writeControl,
     writeControls,
     enable: () => midiRef.current?.enable(),

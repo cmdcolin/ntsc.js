@@ -51,7 +51,14 @@ export function Slider(props: {
   // physically inert until another control opens its path. Clicking the note
   // sets the prerequisite.
   needs?: { hint: string; title: string; onFix: () => void }
-  midi?: { label: string | null; armed: boolean; onArm: () => void }
+  midi?: {
+    label: string | null
+    armed: boolean
+    // Set while a bound knob hasn't caught this value: where the knob is
+    // sitting, in control units.
+    pickup?: number
+    onArm: () => void
+  }
   sync?: { label: string | null; live: boolean; onCycle: () => void }
   favorite?: { on: boolean; onToggle: () => void }
 }) {
@@ -193,24 +200,36 @@ export function Slider(props: {
             onChange={props.onChange}
           />
         ) : (
-          <input
-            id={inputId}
-            type="range"
-            className={cx(styles.range, needs && styles.rangeInert)}
-            style={fill}
-            min={curved ? 0 : props.min}
-            max={curved ? 1 : props.max}
-            step={curved ? 0.002 : props.step}
-            value={curved ? zoomTravel(props.value) : props.value}
-            disabled={locked}
-            onChange={e =>
-              props.onChange(
-                curved
-                  ? fromTravel(Number(e.target.value))
-                  : Number(e.target.value),
-              )
-            }
-          />
+          <span className={styles.rangeWrap}>
+            <input
+              id={inputId}
+              type="range"
+              className={cx(styles.range, needs && styles.rangeInert)}
+              style={fill}
+              min={curved ? 0 : props.min}
+              max={curved ? 1 : props.max}
+              step={curved ? 0.002 : props.step}
+              value={curved ? zoomTravel(props.value) : props.value}
+              disabled={locked}
+              onChange={e =>
+                props.onChange(
+                  curved
+                    ? fromTravel(Number(e.target.value))
+                    : Number(e.target.value),
+                )
+              }
+            />
+            {/* Soft takeover: the knob is here, the value is at the thumb, and
+                nothing moves until one sweeps past the other. Without the mark
+                the control just looks dead. */}
+            {midi?.pickup === undefined ? null : (
+              <span
+                className={styles.pickup}
+                style={{ left: `${pct(midi.pickup)}%` }}
+                title="the knob is here — sweep it across the value to take over"
+              />
+            )}
+          </span>
         )}
       </div>
       {needs ? (

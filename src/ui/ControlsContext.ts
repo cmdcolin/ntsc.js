@@ -18,6 +18,9 @@ export interface ControlsApi {
   bindLabel: (key: ControlKey) => string | null
   armedKey: ControlKey | null
   toggleArm: (key: ControlKey) => void
+  // Where a bound knob is sitting while it hasn't caught the value yet, so the
+  // row can show why it isn't responding. Undefined once the knob has it.
+  pickup: (key: ControlKey) => number | undefined
   clockLive: boolean
   syncLabel: (key: ControlKey) => string | null
   cycleSync: (key: ControlKey) => void

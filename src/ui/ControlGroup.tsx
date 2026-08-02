@@ -58,6 +58,7 @@ export function ControlSlider(props: {
           ? {
               label: api.bindLabel(s.key),
               armed: api.armedKey === s.key,
+              pickup: api.pickup(s.key),
               onArm: () => api.toggleArm(s.key),
             }
           : undefined

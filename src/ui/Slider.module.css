@@ -106,6 +106,24 @@
   background: #b8b8c8;
 }
 
+/* holds the soft-takeover mark over the track */
+.rangeWrap {
+  display: block;
+  position: relative;
+}
+/* where the physical knob sits while it hasn't caught the value yet */
+.pickup {
+  position: absolute;
+  top: 4px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: #e8c464;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
 /* inline icon buttons on a slider's value line */
 .icon {
   background: none;

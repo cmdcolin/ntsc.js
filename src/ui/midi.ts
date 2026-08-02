@@ -14,6 +14,9 @@ export interface MidiBinding {
 
 export type BindingMap = Partial<Record<ControlKey, MidiBinding>>
 
+// Knob positions for controls waiting to be caught, in control units.
+export type PickupMap = Partial<Record<ControlKey, number>>
+
 // A controller's factory layout, as the CC number each physical knob sends, in
 // the order they should take controls. `ccs` is explicit (not a base+count)
 // because real layouts stripe knobs across non-contiguous CC ranges. A device
@@ -58,6 +61,10 @@ export type MidiStatus =
   | 'denied'
 
 const STORE_KEY = 'video_feedback_midi'
+// Set once a grant succeeds, so a reload reconnects without another trip
+// through the Advanced dialog. Cleared on denial, so a revoked permission
+// doesn't leave every load reporting an error the user didn't ask for.
+const ENABLED_KEY = 'video_feedback_midi_on'
 
 // Through readRecord, not a bare JSON.parse: this runs inside useMidi's mount
 // effect, so a corrupt or stale-schema value would throw out of it and take the
@@ -102,6 +109,23 @@ function ccToValue(def: SliderDef, cc: number): number {
 // first message of a binding, where there's no previous value to cross.
 function epsilon(def: SliderDef): number {
   return (def.max - def.min) / 64
+}
+
+// Soft takeover: has the knob earned the right to drive this control yet?
+// Three cases — nothing on screen to catch; a first message with no earlier
+// knob position to have crossed from, so accept when it lands close enough;
+// otherwise the knob must have swept through the live value.
+export function hasCaught(
+  def: SliderDef,
+  onScreen: number | undefined,
+  knobWas: number | undefined,
+  knobNow: number,
+): boolean {
+  return onScreen === undefined
+    ? true
+    : knobWas === undefined
+      ? Math.abs(knobNow - onScreen) <= epsilon(def)
+      : (knobWas - onScreen) * (knobNow - onScreen) <= 0
 }
 
 // Rate controls (Hz) that can lock to the incoming clock. `beats` is the cycle
@@ -151,6 +175,10 @@ export interface MidiCallbacks {
   onStatus: (status: MidiStatus) => void
   onBindings: (bindings: BindingMap) => void
   onArmed: (key: ControlKey | null) => void
+  // Where each physical knob sits for controls it hasn't caught yet, in control
+  // units. Soft takeover makes those knobs inert, and without this the panel
+  // gives no sign of it — the control just looks broken.
+  onPickup: (pickups: PickupMap) => void
   // Progress of a learn-in-order sweep, or null when none is running.
   onLearn: (state: LearnState | null) => void
   // Detected clock tempo, or null when no clock is running.
@@ -173,6 +201,28 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
   const current = new Map<ControlKey, number>()
   const lastCc = new Map<ControlKey, number>()
   const engaged = new Set<ControlKey>()
+  let pickups: PickupMap = {}
+
+  // A knob's position while it is still inert. Reported as a whole map so the
+  // panel holds one piece of state rather than one per control.
+  const setPickup = (key: ControlKey, value: number | null) => {
+    if (value === null) {
+      if (pickups[key] !== undefined) {
+        pickups = omit(pickups, key)
+        cb.onPickup({ ...pickups })
+      }
+    } else if (pickups[key] !== value) {
+      pickups = { ...pickups, [key]: value }
+      cb.onPickup({ ...pickups })
+    }
+  }
+
+  const clearPickups = () => {
+    if (Object.keys(pickups).length > 0) {
+      pickups = {}
+      cb.onPickup({})
+    }
+  }
 
   // Clock: 24 pulses per quarter note. BPM is averaged over a window of pulse
   // arrivals and only reported when the rounded value changes.
@@ -239,6 +289,8 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
     }
     engaged.delete(key)
     lastCc.delete(key)
+    setPickup(key, null)
+    if (prev !== undefined) setPickup(prev, null)
     reindex()
     persist()
   }
@@ -247,22 +299,15 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
     const def = SLIDER_BY_KEY.get(key)
     if (def) {
       const mapped = ccToValue(def, cc)
-      const cur = current.get(key)
-      const last = lastCc.get(key)
-      // Three cases: nothing to catch yet; a first message with no previous CC
-      // to have crossed, so accept if it lands close enough; otherwise the knob
-      // has swept through the live value.
-      const crossed =
-        cur === undefined
-          ? true
-          : last === undefined
-            ? Math.abs(mapped - cur) <= epsilon(def)
-            : (last - cur) * (mapped - cur) <= 0
-      if (crossed) engaged.add(key)
+      if (hasCaught(def, current.get(key), lastCc.get(key), mapped))
+        engaged.add(key)
       lastCc.set(key, mapped)
       if (engaged.has(key)) {
+        setPickup(key, null)
         current.set(key, mapped)
         cb.onControl(key, mapped)
+      } else {
+        setPickup(key, mapped)
       }
     }
   }
@@ -303,7 +348,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
     for (const input of m.inputs.values()) input.onmidimessage = onMessage
   }
 
-  return {
+  const manager: MidiManager = {
     enable: () => {
       if (!('requestMIDIAccess' in navigator)) {
         cb.onStatus('unsupported')
@@ -312,6 +357,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
         navigator.requestMIDIAccess().then(
           m => {
             access = m
+            localStorage.setItem(ENABLED_KEY, '1')
             cb.onStatus('ready')
             cb.onBindings({ ...bindings })
             listen(m)
@@ -325,7 +371,10 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
                 stopClock()
             }, 500)
           },
-          () => cb.onStatus('denied'),
+          () => {
+            localStorage.removeItem(ENABLED_KEY)
+            cb.onStatus('denied')
+          },
         )
       }
     },
@@ -344,6 +393,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
       bindings = next
       engaged.clear()
       lastCc.clear()
+      clearPickups()
       reindex()
       persist()
       return { mapped: n, total: AUTOMAP_KEYS.length }
@@ -355,6 +405,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
       bindings = {}
       engaged.clear()
       lastCc.clear()
+      clearPickups()
       reindex()
       persist()
       reportLearn()
@@ -367,17 +418,23 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
     },
     clearBinding: key => {
       bindings = omit(bindings, key)
+      setPickup(key, null)
       reindex()
       persist()
     },
     clearAll: () => {
       bindings = {}
+      clearPickups()
       reindex()
       persist()
     },
     setExternal: (key, value) => {
       current.set(key, value)
-      engaged.delete(key)
+      // Losing the catch is the moment the knob's position starts mattering
+      // again, so surface where it is left sitting — a preset load strands
+      // every knob at once, and this is what says so.
+      const knob = lastCc.get(key)
+      if (engaged.delete(key) && knob !== undefined) setPickup(key, knob)
     },
     destroy: () => {
       if (tempoTimer !== null) clearInterval(tempoTimer)
@@ -388,4 +445,10 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
       }
     },
   }
+
+  // Already opted in on a previous visit, so reconnect rather than making the
+  // user find the Advanced dialog again every reload. The browser has the
+  // permission; nothing new is prompted.
+  if (localStorage.getItem(ENABLED_KEY) === '1') manager.enable()
+  return manager
 }
