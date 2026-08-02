@@ -563,7 +563,7 @@ export const PRESETS: PresetDef[] = [
     patch: {
       enhPeakMHz: 2.5,
       enhPeakQ: 0.86,
-      enhPeakBoost: 0.35,
+      enhPeakBoost: 0.36,
       enhDroopUs: 120,
       noiseIre: 1.5,
       crtCutoff: 0.05,
