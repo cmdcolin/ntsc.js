@@ -32,6 +32,13 @@ const PAGES = [
   },
   { file: 'docs/EFFECTS.md', out: 'effects.html', nav: 'Effects' },
   { file: 'docs/MIDI.md', out: 'midi.html', nav: 'MIDI' },
+  // Contributor-facing, but it holds the diagrams for the three domains and for
+  // adding a control, which are the two things hardest to pick up from the code.
+  {
+    file: 'docs/ARCHITECTURE.md',
+    out: 'architecture.html',
+    nav: 'Architecture',
+  },
 ]
 
 // Markdown link -> where it goes on the site. Anything else that ends in .md is
@@ -42,6 +49,7 @@ const LINKS = new Map([
   ['HOW-IT-WORKS.md', 'how-it-works.html'],
   ['EFFECTS.md', 'effects.html'],
   ['MIDI.md', 'midi.html'],
+  ['ARCHITECTURE.md', 'architecture.html'],
 ])
 
 const slug = text =>
@@ -106,6 +114,16 @@ const withLiveLinks = html =>
       : `<figure><img src="img/${file}"${rest}>` +
           `<figcaption><a href="${live}">open this in the app ↗</a></figcaption></figure>`
   })
+
+// The markdown ships each Graphviz diagram as a <picture> so GitHub can serve a
+// light or dark SVG per the reader's OS. This site has one theme and it is dark,
+// so honouring prefers-color-scheme here would hand a light-mode visitor pale
+// pastel diagrams on a near-black page. Collapse to the dark source instead.
+const forceDarkDiagrams = html =>
+  html.replaceAll(
+    /<picture>\s*<source media="\(prefers-color-scheme: dark\)" srcset="([^"]+)">\s*<img ([^>]*?)src="[^"]+"([^>]*)>\s*<\/picture>/g,
+    (_whole, dark, before, after) => `<img ${before}src="${dark}"${after}>`,
+  )
 
 const page = (body, title, current) => `<!doctype html>
 <html lang="en">
@@ -192,14 +210,16 @@ mkdirSync(join(outDir, 'img'), { recursive: true })
 for (const file of readdirSync('docs/img')) {
   copyFileSync(join('docs/img', file), join(outDir, 'img', file))
 }
-// The pipeline diagrams HOW-IT-WORKS.md embeds sit beside it in docs/.
+// The Graphviz diagrams the markdown embeds sit beside it in docs/.
 for (const file of readdirSync('docs')) {
   if (file.endsWith('.svg'))
     copyFileSync(join('docs', file), join(outDir, file))
 }
 for (const spec of PAGES) {
-  const body = withLiveLinks(
-    md.render(readFileSync(spec.file, 'utf8'), { dir: dirname(spec.file) }),
+  const body = forceDarkDiagrams(
+    withLiveLinks(
+      md.render(readFileSync(spec.file, 'utf8'), { dir: dirname(spec.file) }),
+    ),
   )
   writeFileSync(join(outDir, spec.out), page(body, spec.nav, spec.out))
   console.log(`  ✓ ${join(outDir, spec.out)}`)

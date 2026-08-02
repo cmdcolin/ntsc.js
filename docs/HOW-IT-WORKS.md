@@ -45,34 +45,39 @@ in `src/signal/filters.ts`.
 
 ## The chain
 
-Five blocks: source, encode, damage, decode, display. Two feedback loops fold
-back in every frame.
+Five blocks: Source, Encoder, Channel, Receiver, Display. Two feedback loops
+fold back in every frame.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="pipeline-simple-dark.svg">
-  <img alt="Signal path — overview: RGB source → encode → channel → decode → screen, with two feedback loops" src="pipeline-simple-light.svg">
+  <img alt="Signal path — overview: Source → Encoder → Channel → Receiver → Display, with a composite feedback loop from Channel back to Encoder and an image feedback loop from Display back to Source" src="pipeline-simple-light.svg">
 </picture>
 
-Same thing pass by pass, in the order they actually run (the channel block
-repeats once per dub generation):
+Same thing pass by pass, in the order they actually run. Every arrow is labelled
+with the GPU buffer it carries, so the same picture doubles as the buffer story
+— `compA` is the spine, `chroma`/`under` are side branches that rejoin it, and
+`compB` exists only because `channel` cannot read and write one buffer at once:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="pipeline-dark.svg">
-  <img alt="Signal path — detailed, pass by pass: encoder, channel, receiver, present" src="pipeline-light.svg">
+  <img alt="Signal path pass by pass. Source A and B feed the encoder (compose, encodeYuv, encodeComposite, composeB, encodeYuvB, mixB), then fbComposite, then the channel block (chromaExtract, underDown, channel, timebase) which repeats once per tape dub, then the outboard enhancer, then the receiver (syncMeasure, sync, lineAnalyze, decode), then crtFace and present. storePrev feeds the composite loop back into fbComposite one frame later; crtFace feeds the camera loop back into compose." src="pipeline-light.svg">
 </picture>
 
-<sup>Dashed boxes are passes that only run when their control is engaged.
-Diagrams are Graphviz: [`pipeline-simple.dot`](pipeline-simple.dot),
-[`pipeline.dot`](pipeline.dot). `pnpm run docs` regenerates both in light and
-dark variants (needs `dot` on PATH).</sup>
+<sup>The diagram carries its own key, and a unit test asserts it draws exactly
+the passes the engine builds. Sources are Graphviz —
+[`pipeline-simple.dot`](pipeline-simple.dot), [`pipeline.dot`](pipeline.dot),
+[`domains.dot`](domains.dot), [`controls.dot`](controls.dot); `pnpm run docs`
+regenerates every diagram in light and dark from one definition each (needs
+`dot` on PATH).</sup>
 
-| Stage     | Pass(es)                                                   | What it models                                                                                                                                          |
-| --------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Encoder   | `compose`, `encodeYuv`, `encodeComposite`                  | RGB → YUV → composite: luma + chroma quadrature-modulated onto the `Fsc` subcarrier, sync/burst/blanking inserted                                       |
-| Dirty mix | `composeB`, `encodeYuvB`, `mixB`                           | second non-genlocked source B mixed/wiped into the finished composite, with its own hue/ring/detune                                                     |
-| Channel   | `chromaExtract`, `underDown`, `channel`, `timebase`        | the tape/RF path — color-under, band-limiting, noise, dropouts, ghosting, hum, head-switch bend, time-base jitter. Loops once per **dub generation**    |
-| Receiver  | `enhancer`, `syncMeasure`, `sync`, `lineAnalyze`, `decode` | an outboard box plus a real (imperfect) TV: sharpening/pulse-shaping, then sync recovery, per-line burst lock, comb filtering, chroma demod, color-kill |
-| Display   | `crtFace`, `present`                                       | the lit tube face — bloom, halation, gamma — then the scanline beam profile to the canvas                                                               |
+| Stage     | Pass(es)                                            | What it models                                                                                                                                                                                                        |
+| --------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Encoder   | `compose`, `encodeYuv`, `encodeComposite`           | RGB → YUV → composite: luma + chroma quadrature-modulated onto the `Fsc` subcarrier, sync/burst/blanking inserted                                                                                                     |
+| Dirty mix | `composeB`, `encodeYuvB`, `mixB`                    | second non-genlocked source B mixed/wiped into the finished composite, with its own hue/ring/detune                                                                                                                   |
+| Channel   | `chromaExtract`, `underDown`, `channel`, `timebase` | the tape/RF path — color-under, band-limiting, noise, dropouts, ghosting, hum, head-switch bend, time-base jitter. Loops once per **dub generation**                                                                  |
+| Enhancer  | `enhancer`                                          | an outboard box patched between the deck and the set: sharpening, pulse clamping, sync restamping. Runs after the last dub and before anything measures sync, so the pulses it stamps are the pulses the set locks to |
+| Receiver  | `syncMeasure`, `sync`, `lineAnalyze`, `decode`      | a real, imperfect TV: sync recovery, per-line burst lock, comb filtering, chroma demod, color-kill, and the tube's own deflection bend                                                                                |
+| Display   | `crtFace`, `present`                                | the lit tube face — bloom, halation, gamma — then the scanline beam profile to the canvas                                                                                                                             |
 
 ## The two feedback loops
 

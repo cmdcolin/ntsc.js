@@ -9,11 +9,19 @@ pnpm test       # vitest
 ```
 
 `pnpm test` runs the FIR design unit tests (DC gain, passband/stopband response,
-linear-phase symmetry, filter-bank packing). CI gates deploy on `pnpm lint` +
-`pnpm test`.
+linear-phase symmetry, filter-bank packing), statically validates every WGSL
+shader through naga, and checks that `docs/pipeline.dot` draws exactly the
+passes `pipeline.ts` builds — each node's `passes="…"` attribute is what gets
+compared, so a new pass that never made it into the diagram fails the suite. CI
+gates deploy on `pnpm lint` + `pnpm test`.
 
-`pnpm run docs` regenerates the pipeline diagrams (needs Graphviz `dot` on
-PATH).
+`pnpm run docs` regenerates every diagram in `docs/*.dot` into light and dark
+SVGs (needs Graphviz `dot` on PATH). The `.dot` sources hold `@TOKEN@` colour
+placeholders rather than hex, so one graph definition produces both themes —
+edit the palette in `scripts/diagrams.mjs`, never the SVGs.
+`pnpm run docs:check` fails if a committed SVG no longer matches its `.dot` — it
+compares bytes, so it is a local check, not a CI gate (a different Graphviz
+build emits different SVG).
 
 ## Verification harness
 
@@ -82,6 +90,10 @@ Needs Firefox Nightly, ImageMagick, ffmpeg (clips) and pngquant (optional).
 source of truth and stays readable on GitHub; the builder only adds the nav, the
 live links, and styling. To add a page, add it to `PAGES` in
 [`../scripts/build-guide.mjs`](../scripts/build-guide.mjs).
+
+The site has one theme and it is dark, so the builder also collapses each
+diagram's `<picture>` down to the dark SVG. Left alone, `prefers-color-scheme`
+would hand a light-mode visitor pale pastel diagrams on a near-black page.
 
 ## YouTube source (dev server only)
 

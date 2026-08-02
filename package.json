@@ -39,7 +39,8 @@
     "logo": "node scripts/logo.mjs",
     "docshots": "node scripts/docshots.mjs",
     "guide": "node scripts/build-guide.mjs",
-    "docs": "dot -Tsvg docs/pipeline-simple.dot -o docs/pipeline-simple-light.svg && dot -Tsvg -Ecolor=#9aa4b2 -Efontcolor=#9aa4b2 docs/pipeline-simple.dot -o docs/pipeline-simple-dark.svg && dot -Tsvg docs/pipeline.dot -o docs/pipeline-light.svg && dot -Tsvg -Ecolor=#9aa4b2 -Efontcolor=#9aa4b2 docs/pipeline.dot -o docs/pipeline-dark.svg"
+    "docs": "node scripts/diagrams.mjs",
+    "docs:check": "node scripts/diagrams.mjs --check"
   },
   "dependencies": {
     "react": "^19.2.8",

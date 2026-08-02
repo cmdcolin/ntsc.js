@@ -6,10 +6,10 @@ inventory of every file.
 
 ## The premise
 
-ntsc.js simulates the NTSC signal path, not the _look_ of one. There is no
-"VHS filter". A picture is encoded to a real composite waveform on a fixed
-raster, damaged in the ways real hardware damages a waveform, then decoded by a
-model of a TV that has to find sync in whatever it is handed. Dot crawl, rainbow
+ntsc.js simulates the NTSC signal path, not the _look_ of one. There is no "VHS
+filter". A picture is encoded to a real composite waveform on a fixed raster,
+damaged in the ways real hardware damages a waveform, then decoded by a model of
+a TV that has to find sync in whatever it is handed. Dot crawl, rainbow
 fringing, tearing, rolling and hue drift are **emergent** — nobody draws them.
 
 That premise is the main design constraint: when adding an effect, prefer
@@ -51,6 +51,9 @@ postPasses   [enhancer] → syncMeasure → sync → lineAnalyze → decode → 
 present      render pass to the swap chain
 ```
 
+`docs/pipeline.dot` draws this same order with the buffers on the arrows — move
+a pass here and move it there too.
+
 Bracketed passes are gated by a `when()` predicate on the controls, so an idle
 feature costs nothing. `loopPasses` runs once per tape-dub generation, with
 per-generation params copied over the live buffers in between so each pass gets
@@ -67,19 +70,24 @@ pulses the receiver has to lock to.
 
 The single most important distinction in this codebase, and the easiest to get
 wrong. A horizontal displacement can come from three places, and they are _not_
-interchangeable:
+interchangeable — what tells them apart is what happens to hue:
 
-1. **Signal domain** (`timebase`, `channel`) — the waveform itself is resampled.
-   The burst moves with the picture, so decoder hue wobbles too. This is tape
-   time-base error.
-2. **Sync domain** (`sync` → `timing[]`) — the receiver mis-locates the line
-   start. The burst gate is keyed off the same `timing[]`, so it follows, and a
-   large enough error mistimes the gate and throws colour off. This is hold /
-   flagging.
-3. **Deflection domain** (`bendAt`, HV sag, audio bend, all inside `decode`) —
-   the tube's own scan is bent, downstream of decoding. Hue must **not** move,
-   and these are indexed by _raster line_, not source row, so a rolling picture
-   slides through a bend that stays put on the glass.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="domains-dark.svg">
+  <img alt="The picture moved sideways — which of the three domains is it? Signal domain (timebase, channel) resamples the waveform, so hue wobbles with it; cause is tape time-base error. Sync domain (sync to timing[]) mis-locates the line start, so hue follows and a large enough error throws colour; cause is hold/flagging. Deflection domain (bendAt, HV sag, audio bend inside decode) bends the tube's own scan after decoding, so hue must not move; cause is tube geometry, sag, speaker bend." src="domains-light.svg">
+</picture>
+
+- **Signal domain** (`timebase`, `channel`) — the waveform itself is resampled.
+  The burst moves with the picture, so decoder hue wobbles too. This is tape
+  time-base error.
+- **Sync domain** (`sync` → `timing[]`) — the receiver mis-locates the line
+  start. The burst gate is keyed off the same `timing[]`, so it follows, and a
+  large enough error mistimes the gate and throws colour off. This is hold /
+  flagging.
+- **Deflection domain** (`bendAt`, HV sag, audio bend, all inside `decode`) —
+  the tube's own scan is bent, downstream of decoding. Hue must **not** move,
+  and these are indexed by _raster line_, not source row, so a rolling picture
+  slides through a bend that stays put on the glass.
 
 Before adding a displacement, decide which domain causes it. Routing a geometry
 fault through `timing[]` will spin hue that should have stayed put.
@@ -110,14 +118,15 @@ Adding a param to `PARAM_DEFS` without supplying it in `Engine.uniformValues()`
 is a TypeScript error, by design — that is the guard against a silently-zero
 uniform.
 
-Adding a control end to end:
+Adding a control end to end touches five files, and only the last is optional:
 
-1. `PARAM_DEFS` (prelude) — GPU-side field.
-2. `DEFAULT_CONTROLS` (`src/controls.ts`) — user-facing value, in physical
-   units.
-3. `uniformValues()` (pipeline) — convert units, fold in any CPU state.
-4. `GROUPS` (`src/ui/controls.ts`) — slider; every control has one.
-5. Optionally a preset in `src/ui/presets.ts`.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="controls-dark.svg">
+  <img alt="Adding a control end to end: PARAM_DEFS in src/gpu/prelude.ts declares the GPU-side field, and field order there is the GPU memory layout; DEFAULT_CONTROLS in src/controls.ts holds the user-facing value in physical units; uniformValues() in src/gpu/pipeline.ts converts units and folds in per-frame CPU state; GROUPS in src/ui/controls.ts adds the slider; optionally a preset in src/ui/presets.ts. A field in PARAM_DEFS that uniformValues() does not supply is a TypeScript error, which guards against a uniform that silently reads zero." src="controls-light.svg">
+</picture>
+
+`PARAM_DEFS` has to come first — the type error it raises is what points you at
+the remaining steps.
 
 CPU-side per-frame state (`LineState`, `MixState`, `AudioState`) lives in
 `src/signal/` and is either uploaded as a buffer or folded into uniforms.

@@ -1,0 +1,26 @@
+// Adding a control end to end — see docs/ARCHITECTURE.md "Params are generated,
+// not hand-written". Five files, one value. The dashed brace is the guard that
+// makes a half-finished control a compile error rather than a silent zero.
+// Colours are placeholder tokens — render with `pnpm run docs`.
+digraph ntsc_js_controls {
+  rankdir=LR;
+  bgcolor="transparent";
+  nodesep=0.3;
+  ranksep=0.5;
+  fontname="Helvetica,Arial,sans-serif";
+  node [shape=box style="rounded,filled" fontname="Helvetica,Arial,sans-serif"
+        fontsize=11 color="@STROKE@" fontcolor="@FG@" penwidth=1 margin="0.2,0.14"];
+  edge [fontname="Helvetica,Arial,sans-serif" fontsize=9 color="@EDGE@" fontcolor="@EDGE@"];
+
+  def  [fillcolor="@ENC1@" label="PARAM_DEFS\lsrc/gpu/prelude.ts\l\lthe GPU-side field.\lfield order here IS the\lGPU memory layout\l"];
+  ctl  [fillcolor="@SRC@" label="DEFAULT_CONTROLS\lsrc/controls.ts\l\lthe user-facing value,\lin physical units\l(µs, Hz, IRE)\l"];
+  uni  [fillcolor="@CH1@" label="uniformValues()\lsrc/gpu/pipeline.ts\l\lconvert units, fold in\lany per-frame CPU state\l"];
+  ui   [fillcolor="@RX1@" label="GROUPS\lsrc/ui/controls.ts\l\lthe slider. every\lcontrol has one\l"];
+  pre  [fillcolor="@DSP@" style="rounded,filled,dashed" label="presets\lsrc/ui/presets.ts\l\loptional — a look that\lreaches for it\l"];
+
+  def -> ctl -> uni -> ui -> pre;
+
+  guard [shape=plaintext fillcolor="transparent" fontsize=10 fontcolor="@GOLD@"
+         label="a field in PARAM_DEFS that uniformValues() does not supply\lis a TypeScript error, by design — that is the guard\lagainst a uniform that silently reads zero on the GPU\l"];
+  uni -> guard [style=dashed color="@GOLD@" arrowhead=none constraint=false];
+}
