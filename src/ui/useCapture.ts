@@ -57,7 +57,16 @@ function mirrorOf(src: HTMLCanvasElement): {
   const g = canvas.getContext('2d')
   return {
     canvas,
-    draw: () => g?.drawImage(src, 0, 0, canvas.width, canvas.height),
+    // Follow the source: going fullscreen mid-recording grows the backing store,
+    // and a fixed-size mirror would squeeze every later frame into the old one.
+    // captureStream tracks the resize, so the clip just changes resolution.
+    draw: () => {
+      if (canvas.width !== src.width || canvas.height !== src.height) {
+        canvas.width = src.width
+        canvas.height = src.height
+      }
+      g?.drawImage(src, 0, 0, canvas.width, canvas.height)
+    },
   }
 }
 
