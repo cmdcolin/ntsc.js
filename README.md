@@ -13,6 +13,8 @@ went through tape and RF, then decoded by an imperfect TV. Dot crawl, ringing,
 hue drift, tearing, head-switch bend, dropouts — you don't draw any of that. It
 comes out of the signal on its own, same as on the real gear.
 
+## Screenshot
+
 [![A photo dubbed to VHS inside the ntscythe app, alongside its full control panel](img/1.png)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo-v2.mp4)
 
 <sub>▶ **In motion:**

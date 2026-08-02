@@ -31,13 +31,20 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
               playsInline
             />
             <p className={shared.muted} style={{ margin: '0 0 14px' }}>
-              Here's what it does. This app renders the entire NTSC signal path
-              in WebGPU compute shaders, so a WebGPU-capable browser with
-              working hardware acceleration is required — there is no fallback
-              rendering path.
+              The entire NTSC signal path runs in WebGPU compute shaders, so a
+              WebGPU-capable browser with working hardware acceleration is
+              required — there is no fallback rendering path.
             </p>
             <p className={shared.muted} style={{ margin: 0 }}>
-              Check support at{' '}
+              <a
+                className={shared.link}
+                href="https://github.com/cmdcolin/ntscythe"
+                target="_blank"
+                rel="noreferrer"
+              >
+                github.com/cmdcolin/ntscythe
+              </a>
+              {' · '}
               <a
                 className={shared.link}
                 href="https://caniuse.com/webgpu"
@@ -46,7 +53,6 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
               >
                 caniuse.com/webgpu
               </a>
-              .
             </p>
           </>
         ) : fatal.kind === 'hung' ? (

@@ -11,7 +11,7 @@ export async function initGpu(canvas: HTMLCanvasElement): Promise<Gpu> {
   // oxlint-disable-next-line typescript/no-unnecessary-condition
   if (!navigator.gpu) {
     throw new WebGpuUnavailableError(
-      'This browser has no WebGPU support. Try a recent Chrome, Edge, or Firefox — check caniuse.com/webgpu for current support.',
+      'This browser has no WebGPU support. Try a recent Chrome, Edge, or Firefox.',
     )
   }
   const adapter = await navigator.gpu.requestAdapter()
