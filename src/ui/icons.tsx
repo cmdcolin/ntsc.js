@@ -53,39 +53,3 @@ export function GearIcon() {
     </svg>
   )
 }
-
-// Two modules and the cable patched between them — the signal chain in
-// miniature, matching the diagram the menu item opens.
-export function ChainIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden>
-      <rect
-        x="1.5"
-        y="8"
-        width="7"
-        height="8"
-        rx="1.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      />
-      <rect
-        x="15.5"
-        y="8"
-        width="7"
-        height="8"
-        rx="1.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      />
-      <path
-        d="M8.5 12c1.6 0 2.2 2.6 3.5 2.6s1.9-2.6 3.5-2.6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}

@@ -57,11 +57,12 @@ hosted build has no server to do that with.
 
 ## Working down the chain
 
-![The signal chain dialog](img/chain.png)
+![The chain map at the head of the sidebar](img/chain.png)
 
-Controls live where they sit in the signal path, not in one long list. **signal
-chain** shows the whole path; amber is a stage you've moved something in. Click
-a stage — or one of its effects — to open it in the panel:
+Controls live where they sit in the signal path, not in one long list. The map
+at the head of the sidebar is the whole path — five stages, plus the two loops
+that feed the picture back into it. Amber is a stage you've moved something in.
+Click one to open its controls below:
 
 ![The Tape stage opened at VHS Tracking](img/signal-path.png)
 

@@ -7,7 +7,6 @@ import { DEFAULT_CONTROLS } from './controls'
 import { AdvancedDialog } from './ui/AdvancedDialog'
 import { AudioHint, AudioInput } from './ui/AudioInput'
 import { AudioSection } from './ui/AudioSection'
-import { ChainDialog } from './ui/ChainDialog'
 import { CommandPalette } from './ui/CommandPalette'
 import { ControlGroup, ControlSlider } from './ui/ControlGroup'
 import { AB_GROUPS, ALL_SLIDERS, AUDIO_GROUPS, PHASES } from './ui/controls'
@@ -96,9 +95,6 @@ export function App() {
   const [fullscreen, setFullscreen] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  // The chain diagram is reachable from the panel and from the stage menu, so
-  // its open state sits here rather than inside either one.
-  const [showChain, setShowChain] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
   const [comparing, setComparing] = useState(false)
   const [filter, setFilter] = useState('')
@@ -264,8 +260,8 @@ export function App() {
   // stage builds its own sections.
   const pathNodes = PHASES.flatMap((phase): PathNode[] => {
     const groups = phase.groups.filter(g => groupMatches(g, query))
-    // What the stage can do to the picture, group by group — the diagram lists
-    // these under the stage's box, and each one opens there.
+    // What the stage can do to the picture, group by group — the counts the
+    // map colours a stage by, and the jump target behind its count.
     const parts = groups.map(group => ({
       name: group.name,
       touched: group.sliders.filter(
@@ -279,7 +275,6 @@ export function App() {
           {
             name: phase.name,
             blurb: phase.blurb,
-            parts,
             groups,
             touched: parts.reduce((n, p) => n + p.touched, 0),
             onJumpTouched: () => {
@@ -421,7 +416,6 @@ export function App() {
         onOpen={nav.togglePhase}
         openGroup={nav.openGroup}
         onOpenGroup={nav.toggleGroup}
-        onShowChain={() => setShowChain(true)}
       />
       {!filtering || pathNodes.length > 0 ? null : (
         <div className={styles.hint}>
@@ -528,7 +522,6 @@ export function App() {
         onPopout={openPopout}
         onShowHelp={() => setShowHelp(true)}
         onShowAdvanced={() => setShowAdvanced(true)}
-        onShowChain={() => setShowChain(true)}
       />
       {fullscreen || popout !== null ? null : (
         <div className={styles.panel}>{panel}</div>
@@ -570,14 +563,6 @@ export function App() {
         />
       ) : null}
       {showHelp ? <HelpDialog onClose={() => setShowHelp(false)} /> : null}
-      {showChain ? (
-        <ChainDialog
-          stages={pathNodes}
-          open={nav.openPhase}
-          onOpen={nav.togglePhase}
-          onClose={() => setShowChain(false)}
-        />
-      ) : null}
       {showPalette ? (
         <CommandPalette
           controls={controls}

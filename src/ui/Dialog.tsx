@@ -6,13 +6,11 @@ import { useModalDialog } from './useModalDialog'
 
 import type { ReactNode } from 'react'
 
-// Three card widths, named for what goes in them rather than by measurement:
-// 'form' is a couple of rows of controls, 'prose' is text to read, 'diagram' is
-// the chain map, which scales to whatever width it is given.
+// Two card widths, named for what goes in them rather than by measurement:
+// 'form' is a couple of rows of controls, 'prose' is text to read.
 const CARD_SIZE = {
   form: '',
   prose: styles.cardWide,
-  diagram: styles.cardDiagram,
 }
 
 // Shared modal shell built on the native <dialog> element (see useModalDialog).

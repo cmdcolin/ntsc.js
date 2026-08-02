@@ -29,14 +29,7 @@
   --accent: #7fd0a0;
   --border: #44444f;
   --panel-bg: #16161a;
-  /* The signal chain is drawn on the face of a waveform monitor — the
-     instrument that would sit in the rack beside the thing this app simulates.
-     One committed palette: saturated phosphor throughout, one sharp amber for
-     anything off stock. Kept bright on purpose — a dim green on near-black goes
-     muddy long before it goes subtle. */
-  --phos: #4dffa6;
-  --phos-mid: #34cf82;
-  --phos-edge: #2b7f5c;
+  /* one sharp amber, for a count of anything off stock */
   --amber: #ffb02e;
   /* prose wraps to 3–5 lines in a panel this narrow; 1.2 is unreadable there */
   --prose-lh: 1.45;
@@ -217,215 +210,58 @@
   color: #ceba64;
 }
 
-/* The way into the chain, at the head of the signal path — an ordinary button,
-   with the same door repeated in the stage menu so it is findable from the
-   picture as well as from the panel. */
-.chainStrip {
-  margin: 10px 0 4px;
-}
-.chainMeta {
-  margin-left: 7px;
-  color: var(--fg4);
-  font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums;
-}
-/* the count only goes amber once something actually is off stock */
-.chainMetaOn {
-  color: var(--amber);
-}
-.chainCaption {
-  margin: 4px 0 0;
-  color: var(--fg4);
-  font-size: var(--fs-xs);
-}
-
-/* The diagram just sits on the dialog, with room around it. It had a waveform
-   monitor's face here — graticule, scanlines, curved glass — which looked the
-   part but competed with the thing it was behind. */
-.chainScreen {
-  padding: 6px 0 2px;
-}
-
-/* The chain diagram (ChainMap): one labeled box per stage, wired left to right,
-   with the signal travelling the wire and feedback looping back over the top.
-   Box, label, and wire all take currentColor, so one rule per state (idle /
-   touched / open) colors a whole stage. Drawn twice — the strip at the head of
-   the panel and the full dialog — off the one set of rules below. */
+/* The chain in miniature at the head of the signal path (ChainMap): one
+   labeled box per stage, wired left to right, with the two feedback returns
+   looping back over the top. Box and label take currentColor, so one rule per
+   state (idle / touched / open) colors a whole stage. */
 .map {
   display: block;
   width: 100%;
-  margin: 2px 0 0;
-  /* the bloom filter paints outside the path it is on, and the svg viewport
-     would otherwise crop it flat against the edge */
-  overflow: visible;
+  margin: 10px 0 2px;
 }
-/* A patch cable: thicker than a schematic line and round-capped, so it reads as
-   something plugged in rather than drawn on. The signal train rides the very
-   same path on top of it. */
-.mapCable {
+.mapWire {
   fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  color: var(--phos-edge);
+  stroke: var(--border);
+  stroke-width: 1;
 }
-/* the dashes that travel the wire — the signal, moving the way the picture
-   does */
-.mapFlow {
-  color: var(--phos-mid);
-  stroke-dasharray: 5 14;
-  animation: mapFlow 1.1s linear infinite;
+.mapArrow {
+  fill: var(--border);
 }
-@keyframes mapFlow {
-  to {
-    stroke-dashoffset: -19;
-  }
-}
-/* a second, sparser train at its own speed and its own period — one dash
-   pattern reads as a marching-ants border, two read as something travelling.
-   The offset has to close exactly one period or the loop visibly jumps. */
-.mapFlowFast {
-  color: var(--phos);
-  stroke-dasharray: 2 40;
-  animation: mapFlowFast 2.4s linear infinite;
-}
-@keyframes mapFlowFast {
-  to {
-    stroke-dashoffset: -42;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mapFlow {
-    animation: none;
-  }
-  /* only means anything while it moves, so it goes rather than freezes */
-  .mapFlowFast {
-    display: none;
-  }
-}
-.mapLoop {
-  color: var(--phos-edge);
-}
-.mapLoopHead {
-  fill: currentColor;
-  stroke: none;
-  color: var(--phos-edge);
-}
-/* feedback is only in the picture once it's dialed in, so the return path
-   lights up rather than always reading as live */
-.mapLoopOn {
-  color: var(--phos);
-}
-/* One hue for the whole instrument, read as brightness: a stage is dim until
-   you point at it, amber the moment it carries an edit, and full-bright once it
-   is the one open. */
 .mapNode {
-  color: var(--phos-mid);
+  color: var(--fg2);
   cursor: pointer;
-  transition: color 0.12s ease;
 }
 .mapNode:hover {
-  color: var(--phos);
-}
-.mapNodeTouched {
-  color: var(--amber);
-}
-.mapNodeOn {
-  color: #c8ffe2;
-}
-/* Filled with the stage's own colour, not left as an outline: the name hangs
-   underneath now, so nothing has to stay legible on top of the fill, and a
-   solid block is the difference between reading as a module and reading as an
-   empty rectangle. */
-.mapBox {
-  fill: color-mix(in srgb, currentColor 26%, #0e0e13);
-  stroke: currentColor;
-  stroke-width: 1.1;
-}
-.mapNode:hover .mapBox {
-  fill: color-mix(in srgb, currentColor 44%, #0e0e13);
-}
-.mapNodeOn .mapBox {
-  fill: color-mix(in srgb, currentColor 52%, #0e0e13);
-  stroke-width: 1.5;
-}
-/* the jack a cable plugs into: a dark socket ringed in the module's colour */
-.mapJack {
-  fill: #0b0b10;
-  stroke: currentColor;
-  stroke-width: 1.1;
-}
-/* the module's lamp — dark until the stage carries an edit, then amber */
-.mapLed {
-  fill: #14141b;
-  stroke: var(--phos-edge);
-  stroke-width: 0.8;
-}
-.mapLedOn {
-  fill: var(--amber);
-  stroke: var(--amber);
-}
-/* Hung under the module rather than inside it: the modules are small now, and a
-   name in the column below gets the full 85 units instead of the box's 55. */
-.mapLabel {
-  fill: currentColor;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-/* what each stage can do, in a column under its box — same column count as the
-   diagram, so an effect sits beneath the stage that applies it */
-.mapParts {
-  display: grid;
-  grid-template-columns: repeat(var(--cols), 1fr);
-  gap: 0 10px;
-  align-items: start;
-  margin-top: 4px;
-}
-.mapPart {
-  display: block;
-  width: 100%;
-  padding: 3px 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  font: inherit;
-  line-height: var(--prose-lh);
-  text-align: left;
-  color: var(--fg2);
-}
-.mapPart:hover {
   color: var(--fg);
-  text-decoration: underline;
 }
-/* something in this group is off stock — the same amber the panel uses */
-.mapPartOn {
+/* the stage carries an edit — the same amber the rest of the sidebar marks one
+   with */
+.mapNodeTouched {
   color: #ceba64;
 }
-/* what each stage does, under the diagram — the tooltips laid out flat as a
-   definition list, since the dialog has the room the panel doesn't */
-.diagramLegend {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  column-gap: 14px;
-  row-gap: 7px;
-  margin: 14px 0 0;
-  color: var(--fg2);
-  line-height: var(--prose-lh);
+.mapNodeOn {
+  color: var(--accent);
 }
-.diagramLegendName {
-  color: #b8cdea;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+.mapBox {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.mapNode:hover .mapBox,
+.mapNodeTouched .mapBox,
+.mapNodeOn .mapBox {
+  stroke: currentColor;
+}
+/* svg user units, which are px at the sidebar's width */
+.mapLabel {
+  fill: currentColor;
+  font-size: 8px;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
-/* The stage the diagram has open: its name (click to fold), what it does, then
-   its groups. Navigation lives in the diagram, so these rows carry no rail. */
+/* The stage the map has open: its name (click to fold), what it does, then its
+   groups. Navigation lives in the map, so these rows carry no rail. */
 .stages {
   margin: 2px 0 0;
 }
@@ -863,15 +699,6 @@
   width: 540px;
   line-height: 1.55;
 }
-/* the chain diagram: the svg scales to the card, so the card's width *is* the
-   diagram's size. Wide enough that a stage label fills its box legibly and each
-   stage's effect list gets its own column without wrapping every entry. */
-.cardDiagram {
-  width: 900px;
-  max-width: 94vw;
-  line-height: 1.55;
-}
-
 /* command palette: a search box over one flat list of presets, controls and
    actions. Sits high in the viewport rather than centered (the UA centers a
    modal <dialog> with `margin: auto`; pinning the top margin overrides only the
