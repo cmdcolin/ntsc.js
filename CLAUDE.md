@@ -20,6 +20,13 @@ the two invariants that are easiest to violate:
 Prefer modelling the mechanism that causes an artifact over drawing the artifact
 — that is the whole premise, and it is why mechanisms here interact for free.
 
+## Commits
+
+Use Conventional Commits (`type(scope): description`) — `cliff.toml` groups the
+changelog by type and renders the scope inline. Scope is optional; when used,
+pick from the domains in `agent-docs/ARCHITECTURE.md`: `signal`, `sync`,
+`deflection`, `gpu`, `ui`, `midi`, `audio`, `docs`.
+
 ## Testing WebGPU (Linux)
 
 On Linux, test WebGPU with **Firefox Nightly** (`/usr/bin/firefox-nightly`), not
