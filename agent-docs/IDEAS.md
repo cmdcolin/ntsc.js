@@ -6,11 +6,12 @@ described feature.
 
 ## Modulation: kill the remaining naked periodic waves
 
-The premise (see ARCHITECTURE.md) is that a fault should be _mechanistic_. A
-single periodic wave traced straight down the raster violates that — it reads as
-a filter effect, not a fault (the warning `signal/audiostate.ts` opens with).
-The shared home for bounded-aperiodic drift is now **`signal/noise.ts`**
-(`valueNoise`, `Lorenz`, `Wow`); reuse it rather than rolling a new sine.
+The premise (see `../docs/ARCHITECTURE.md`) is that a fault should be
+_mechanistic_. A single periodic wave traced straight down the raster violates
+that — it reads as a filter effect, not a fault (the warning
+`signal/audiostate.ts` opens with). The shared home for bounded-aperiodic drift
+is now **`signal/noise.ts`** (`valueNoise`, `Lorenz`, `Wow`); reuse it rather
+than rolling a new sine.
 
 ### Deferred — mains-frequency roll drift (hum), `channel.wgsl`
 

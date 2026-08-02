@@ -120,7 +120,7 @@ after the gamma is what gives vivid mids without posterizing.
 All three live in `decode.wgsl` around the persistence block
 (`decode.wgsl:176-188`), plus the standard param wiring (`PARAM_DEFS` in
 `prelude.ts` → `DEFAULT_CONTROLS` + `uniformValues()` in `pipeline.ts` →
-`GROUPS` in `controls.ts`; see `agent-docs/ARCHITECTURE.md` "Adding a control").
+`GROUPS` in `controls.ts`; see `ARCHITECTURE.md` "Adding a control").
 
 - **`phosphorMode` (P22 matrix).** A discrete select, not a slider — follow the
   existing `combMode`/`bendShape` pattern (an `f32` compared against thresholds,

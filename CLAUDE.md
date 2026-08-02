@@ -5,9 +5,9 @@ shaders.
 
 ## Read first
 
-**`agent-docs/ARCHITECTURE.md`** — read it before changing anything non-trivial.
-It covers the pass graph, buffer layouts, how to add a control end to end, and
-the two invariants that are easiest to violate:
+**`docs/ARCHITECTURE.md`** — read it before changing anything non-trivial. It
+covers the pass graph, buffer layouts, how to add a control end to end, and the
+two invariants that are easiest to violate:
 
 - **Which domain an effect belongs to.** A horizontal displacement means
   something different in the signal, sync, and deflection domains — they are not
@@ -24,8 +24,8 @@ Prefer modelling the mechanism that causes an artifact over drawing the artifact
 
 Use Conventional Commits (`type(scope): description`) — `cliff.toml` groups the
 changelog by type and renders the scope inline. Scope is optional; when used,
-pick from the domains in `agent-docs/ARCHITECTURE.md`: `signal`, `sync`,
-`deflection`, `gpu`, `ui`, `midi`, `audio`, `docs`.
+pick from the domains in `docs/ARCHITECTURE.md`: `signal`, `sync`, `deflection`,
+`gpu`, `ui`, `midi`, `audio`, `docs`.
 
 ## Testing WebGPU (Linux)
 

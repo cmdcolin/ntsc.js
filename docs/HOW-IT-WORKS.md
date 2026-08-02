@@ -71,7 +71,7 @@ dark variants (needs `dot` on PATH).</sup>
 | Encoder   | `compose`, `encodeYuv`, `encodeComposite`           | RGB → YUV → composite: luma + chroma quadrature-modulated onto the `Fsc` subcarrier, sync/burst/blanking inserted                                    |
 | Dirty mix | `composeB`, `encodeYuvB`, `mixB`                    | second non-genlocked source B mixed/wiped into the finished composite, with its own hue/ring/detune                                                  |
 | Channel   | `chromaExtract`, `underDown`, `channel`, `timebase` | the tape/RF path — color-under, band-limiting, noise, dropouts, ghosting, hum, head-switch bend, time-base jitter. Loops once per **dub generation** |
-| Receiver  | `syncMeasure`, `sync`, `lineAnalyze`, `decode`      | a real (imperfect) TV: sync recovery, per-line burst lock, comb filtering, chroma demod, color-kill                                                  |
+| Receiver  | `enhancer`, `syncMeasure`, `sync`, `lineAnalyze`, `decode` | an outboard box plus a real (imperfect) TV: sharpening/pulse-shaping, then sync recovery, per-line burst lock, comb filtering, chroma demod, color-kill |
 | Display   | `crtFace`, `present`                                | the lit tube face — bloom, halation, gamma — then the scanline beam profile to the canvas                                                            |
 
 ## The two feedback loops
@@ -84,14 +84,13 @@ They fold back at different points in the chain:
   thing as aiming a camera at the screen it's driving, and it photographs an
   emissive screen rather than the raw decoder output.
 - **Hardware mixer** (in the signal): `storePrev` stashes the waveform the
-  decoder _saw_ — damaged composite, straight off `timebase` — in `compPrev`,
-  then `fbComposite` blends it back into the next frame's composite with keying
-  and trails. Feeding back at the signal level means it dot-crawls and smears
-  like a real vision mixer.
+  decoder _saw_ — damaged composite, after the tape/RF path and the enhancer —
+  in `compPrev`, then `fbComposite` blends it back into the next frame's
+  composite with keying and trails. Feeding back at the signal level means it
+  dot-crawls and smears like a real vision mixer.
 
 ---
 
 For the pass graph, buffer layouts, the three domains, and how to add a control
-end to end, see [`agent-docs/ARCHITECTURE.md`](../agent-docs/ARCHITECTURE.md).
-Every control and the fault it models is listed in
-[`EFFECTS.md`](../EFFECTS.md).
+end to end, see [`ARCHITECTURE.md`](ARCHITECTURE.md). Every control and the
+fault it models is listed in [`EFFECTS.md`](../EFFECTS.md).

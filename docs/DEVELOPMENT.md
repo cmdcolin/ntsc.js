@@ -63,6 +63,6 @@ Example: `?iurl=/sample.jpg&preset=dirty%20mix`
 ## Further reading
 
 - [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md) — the signal path, pass by pass
-- [`../agent-docs/ARCHITECTURE.md`](../agent-docs/ARCHITECTURE.md) — pass graph,
-  buffer layouts, adding a control end to end
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — pass graph, buffer layouts, adding a
+  control end to end
 - [`../EFFECTS.md`](../EFFECTS.md) — every effect and the fault it models
