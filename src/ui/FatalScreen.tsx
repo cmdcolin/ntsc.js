@@ -23,8 +23,8 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
           <>
             <video
               className={styles.fatalVideo}
-              src={`${import.meta.env.BASE_URL}demo.mp4`}
-              poster={`${import.meta.env.BASE_URL}demo-poster.jpg`}
+              src={`${import.meta.env.BASE_URL}demo-v2.mp4`}
+              poster={`${import.meta.env.BASE_URL}demo-poster-v2.jpg`}
               autoPlay
               muted
               loop

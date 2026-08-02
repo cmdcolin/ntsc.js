@@ -13,10 +13,10 @@ went through tape and RF, then decoded by an imperfect TV. Dot crawl, ringing,
 hue drift, tearing, head-switch bend, dropouts — you don't draw any of that. It
 comes out of the signal on its own, same as on the real gear.
 
-[![A photo dubbed to VHS inside the ntscythe app, alongside its full control panel](img/1.png)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
+[![A photo dubbed to VHS inside the ntscythe app, alongside its full control panel](img/1.png)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo-v2.mp4)
 
 <sub>▶ **In motion:**
-[watch the 7-second clip](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo.mp4)
+[watch the 7-second clip](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo-v2.mp4)
 (or click the image above) · or open the
 [live demo](https://cmdcolin.github.io/ntscythe/) and load your own
 footage.</sub>
