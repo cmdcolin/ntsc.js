@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { cx } from './cx'
-import { CameraIcon, GearIcon, MenuIcon } from './icons'
+import { CameraIcon, GearIcon, GraphIcon, MenuIcon } from './icons'
 import {
   clampZoom,
   panLens,
@@ -69,6 +69,8 @@ function StageMenu(props: {
   onToggleRecord: () => void
   onToggleFullscreen: () => void
   onPopout: () => void
+  showFps: boolean
+  onToggleFps: () => void
   onShowHelp: () => void
   onShowAdvanced: () => void
   onHideBar: () => void
@@ -130,6 +132,13 @@ function StageMenu(props: {
             onClick={() => props.onPopout()}
           />
           <div className={popoverStyles.menuSep} />
+          <MenuItem
+            icon={<GraphIcon />}
+            label={props.showFps ? 'hide fps' : 'show fps'}
+            hint=""
+            closes={id}
+            onClick={() => props.onToggleFps()}
+          />
           <MenuItem
             icon={<GearIcon />}
             label="advanced settings"
@@ -230,6 +239,8 @@ export function Stage(props: {
   onGrabStill: () => void
   onToggleFullscreen: () => void
   onPopout: () => void
+  showFps: boolean
+  onToggleFps: () => void
   onShowHelp: () => void
   onShowAdvanced: () => void
 }) {
@@ -330,6 +341,8 @@ export function Stage(props: {
             onToggleRecord={props.onToggleRecord}
             onToggleFullscreen={props.onToggleFullscreen}
             onPopout={props.onPopout}
+            showFps={props.showFps}
+            onToggleFps={props.onToggleFps}
             onShowHelp={props.onShowHelp}
             onShowAdvanced={props.onShowAdvanced}
             onHideBar={() => setBarHidden(true)}

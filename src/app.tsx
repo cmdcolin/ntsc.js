@@ -98,6 +98,11 @@ export function App() {
   const [showHelp, setShowHelp] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
   const [comparing, setComparing] = useState(false)
+  // Off every session, and not persisted: a counter that moves every frame
+  // pulls the eye, and you want it only while chasing a stall. Two switches
+  // reach it — the × on the readout and the stage menu — so it lives here
+  // rather than in either of them.
+  const [showFps, setShowFps] = useState(false)
   const [filter, setFilter] = useState('')
   const nav = usePanelNav()
   const { favorites, toggleFavorite } = useFavorites()
@@ -305,7 +310,13 @@ export function App() {
         </button>
         {/* Sits in the masthead rather than over the bottom-left of the
             picture, which is the one surface meant to stay clear. */}
-        <FpsMonitor stats={eng.stats} res={eng.res} />
+        {showFps ? (
+          <FpsMonitor
+            stats={eng.stats}
+            res={eng.res}
+            onHide={() => setShowFps(false)}
+          />
+        ) : null}
         <a
           className={ui.link}
           href="https://github.com/cmdcolin/ntscenery"
@@ -526,6 +537,8 @@ export function App() {
         onGrabStill={capture.grabStill}
         onToggleFullscreen={toggleFullscreen}
         onPopout={openPopout}
+        showFps={showFps}
+        onToggleFps={() => setShowFps(!showFps)}
         onShowHelp={() => setShowHelp(true)}
         onShowAdvanced={() => setShowAdvanced(true)}
       />

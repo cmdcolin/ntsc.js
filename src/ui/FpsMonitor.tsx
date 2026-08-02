@@ -6,11 +6,13 @@ import type { FrameStats } from '../controls'
 
 // Rolling histogram of recent per-window fps, sat in the sidebar masthead. It
 // used to float over the bottom-left of the picture, which is the one place in
-// the app that is supposed to stay clear — in the chrome it is legible without
-// being in the way, and there is nothing to dismiss. Each bar is one stats
-// window; a dip below the 60/30 fps reference lines shows a stall the averaged
-// number alone would smooth over. Scaled to a 65 fps ceiling so a healthy
-// signal nearly fills the bar and any shortfall reads as a gap at the top.
+// the app that is supposed to stay clear. Whether it is on at all is the app's
+// state, not this component's — the stage menu has the other switch — and it
+// starts off, because a number that moves every frame pulls the eye whatever
+// corner it is in. Each bar is one stats window; a dip below the 60/30 fps
+// reference lines shows a stall the averaged number alone would smooth over.
+// Scaled to a 65 fps ceiling so a healthy signal nearly fills the bar and any
+// shortfall reads as a gap at the top.
 const HISTORY = 60
 const SCALE_FPS = 65
 const GOOD_FPS = 60
@@ -50,7 +52,11 @@ function draw(canvas: HTMLCanvasElement, history: number[]) {
   }
 }
 
-export function FpsMonitor(props: { stats: FrameStats; res: string }) {
+export function FpsMonitor(props: {
+  stats: FrameStats
+  res: string
+  onHide: () => void
+}) {
   const { fps } = props.stats
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const historyRef = useRef<number[]>([])
@@ -72,6 +78,13 @@ export function FpsMonitor(props: { stats: FrameStats; res: string }) {
     >
       <canvas ref={canvasRef} className={styles.graph} />
       <span className={styles.readout}>{fps.toFixed(0)} fps</span>
+      <button
+        className={styles.dismiss}
+        onClick={() => props.onHide()}
+        title="hide the fps monitor — the stage menu brings it back"
+      >
+        ×
+      </button>
     </div>
   )
 }

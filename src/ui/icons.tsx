@@ -40,6 +40,21 @@ export function CameraIcon() {
   )
 }
 
+// Three rising bars, for the fps histogram the menu toggles.
+export function GraphIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M3 14h4v7H3v-7zm7-5h4v12h-4V9zm7-6h4v18h-4V3z" />
+    </svg>
+  )
+}
+
 export function GearIcon() {
   return (
     <svg

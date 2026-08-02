@@ -22,3 +22,18 @@
   border: 1px solid var(--border);
   border-radius: 2px;
 }
+/* Quiet until reached for: this sits between the wordmark and the GitHub link,
+   and an × bright enough to notice would read as a third thing in the
+   masthead rather than a handle on the second. */
+.dismiss {
+  background: none;
+  border: none;
+  color: var(--fg4);
+  font-size: var(--fs-md);
+  line-height: 1;
+  padding: 0 1px;
+  cursor: pointer;
+}
+.dismiss:hover {
+  color: var(--fg);
+}
