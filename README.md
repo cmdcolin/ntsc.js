@@ -2,16 +2,16 @@
 
 ![One NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, then the luma staircase with the chroma subcarrier riding on each bar](docs/logo.svg)
 
-> A real-time **NTSC / VHS / composite-video glitch** simulator, running
-> entirely in **WebGPU** compute shaders
+> A real-time NTSC / VHS / composite-video glitch simulator, running entirely in
+> WebGPU compute shaders
 
-**[Live demo](https://cmdcolin.github.io/ntscenery/)** — needs a WebGPU-enabled
+**[Live demo](https://cmdcolin.github.io/ntscenery/)**. Needs a WebGPU-enabled
 browser.
 
 Each frame gets encoded into a real composite video waveform, mangled like it
 went through tape and RF, then decoded by an imperfect TV. Dot crawl, ringing,
-hue drift, tearing, head-switch bend, dropouts — you don't draw any of that. It
-comes out of the signal on its own, same as on the real gear.
+hue drift, tearing, head-switch bend and dropouts all fall out of the signal on
+their own, the same as they do on real gear.
 
 ## Screenshot
 
@@ -25,34 +25,31 @@ footage.</sub>
 
 ## Features
 
-- 132 knobs in 18 groups, and none of them draw an artifact — they break
-  something in the signal path and let the artifact happen. Wiring, camera
-  feedback, the mixer loop, tape and RF, the receiver, the screen itself: every
-  one of them is written up in [docs/EFFECTS.md](docs/EFFECTS.md).
+- 130+ settings across wiring, camera feedback, the mixer loop, tape and RF, the
+  receiver and the screen itself. Every one is written up in
+  [docs/EFFECTS.md](docs/EFFECTS.md).
 - Feed it color bars, a sweep, TV snow, the bundled photo, any image or video
   file, or a webcam or capture card. There's a second input as well, to mix,
   wipe or beat against the first.
-- Two feedback loops, and they're worth playing with: a camera aimed at its own
-  monitor, and a mixer patched back into itself down at the signal level.
-- Forty-odd presets to start from, nine slots to stash your own, a surprise-me
-  button for when you don't know what you want, and ctrl+z for when you find out
-  you didn't.
-- Anything can move on its own — put an LFO, a random walk, a sample-and-hold, a
-  Lorenz attractor or the level of whatever's playing onto any slider.
+- Two feedback loops: a camera aimed at its own monitor, and a mixer patched
+  back into itself down at the signal level.
+- Presets to start from, slots to save your own, a randomize button, and ctrl+z.
+- Any slider can be driven by an LFO, a random walk, a sample-and-hold, a Lorenz
+  attractor, or the level of whatever audio is playing.
 - Plug in a mic or a track and let it shove the picture around: bass into the
   field oscillator, level into line hold, the raw waveform into the deflection
   coils.
-- Bring your own MIDI controller — see [MIDI.md](docs/MIDI.md) if you've never
-  set one up before. It learns one control at a time or automaps a whole device,
-  won't jump when a knob is out of position, and locks rate controls to incoming
-  clock.
+- MIDI controllers work. It learns one control at a time or automaps a whole
+  device, won't jump when a knob is out of position, and locks rate controls to
+  incoming clock. [MIDI.md](docs/MIDI.md) has setup instructions if you've never
+  done it.
 - Record to webm, save a png, or pop the controls into a second window and give
-  the picture the whole screen. For anything you actually care about, point OBS
-  at the window instead — a screen recorder will beat the in-browser one on
-  quality, and it can follow the magnifier at full display resolution.
-- Every look fits in a URL, so a link is a patch you can hand to someone.
-- Scopes, if you want to look at the waveform you're wrecking — plus render
-  scale, FPS, a map of the chain, and per-pass GPU timings.
+  the picture the whole screen. For anything you care about, point OBS at the
+  window instead. It beats the in-browser recorder on quality and can follow the
+  magnifier at full display resolution.
+- The whole state fits in a URL, so you can send someone a link to a look.
+- Scopes for watching the waveform, plus render scale, FPS, a map of the chain,
+  and per-pass GPU timings.
 
 ## Run
 
@@ -61,11 +58,11 @@ pnpm install
 pnpm dev
 ```
 
-Running it locally gets you one thing the hosted demo can't have: a **YouTube…**
-source. Paste a URL and the dev server shells out to `yt-dlp`, caches the clip
-and feeds it in, so you can dub anything on the internet to tape. It needs
-`yt-dlp` on your PATH; the deployed build has no server to shell out from, so
-the option does nothing there. Details in
+Running locally adds a **YouTube…** source the hosted demo can't have. Paste a
+URL and the dev server shells out to `yt-dlp`, caches the clip and feeds it in,
+so you can dub anything on the internet to tape. It needs `yt-dlp` on your PATH;
+the deployed build has no server to shell out from, so the option does nothing
+there. Details in
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#youtube-source-dev-server-only).
 
 ## Docs
@@ -74,8 +71,8 @@ Rendered as a site at
 **[cmdcolin.github.io/ntscenery/guide/](https://cmdcolin.github.io/ntscenery/guide/)**,
 where every figure links to the live session that produced it.
 
-- [**docs/USER-GUIDE.md**](docs/USER-GUIDE.md) — the tour: what's on screen,
-  what to touch first, where the interesting things hide
+- [**docs/USER-GUIDE.md**](docs/USER-GUIDE.md) — a tour of what's on screen and
+  what to touch first
 - [**docs/EFFECTS.md**](docs/EFFECTS.md) — every effect and the hardware fault
   it models
 - [**docs/HOW-IT-WORKS.md**](docs/HOW-IT-WORKS.md) — the signal path, pass by
@@ -87,8 +84,7 @@ where every figure links to the live session that produced it.
 
 ## Related / prior art
 
-ntscenery sits in a small family of analog-video emulators. If you like it, also
-look at:
+There are a few other analog-video emulators worth a look:
 
 - **[ntsc-rs](https://github.com/valadaptive/ntsc-rs)** and **ntscQT** —
   NTSC/VHS emulation for video files and OBS.
@@ -98,9 +94,10 @@ look at:
   shaders** (`crt-royale`, `crt-guest-advanced`) — the emulator/shader side of
   the same idea.
 
-What's different here: ntscenery models the whole signal _path_ end-to-end in
-real time — encode → tape/RF damage → imperfect decode → CRT — so the artifacts
-interact the way they do on real hardware instead of being independent filters.
+The difference here is that ntscenery models the whole signal path end to end in
+real time (encode → tape/RF damage → imperfect decode → CRT), so the artifacts
+interact the way they do on real hardware rather than stacking up as independent
+filters.
 
 ---
 

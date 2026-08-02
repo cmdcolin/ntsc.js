@@ -98,11 +98,6 @@ control's own range, and the slider stays put while modulation moves around it.
 
 ![The Modulation section with two slots routed](img/modulation.png)
 
-<video
-  controls muted loop playsinline
-  poster="img/clip-modulation-poster.jpg"
-  src="https://cmdcolinphotos.s3.amazonaws.com/phosphene/clip-modulation.mp4"></video>
-
 **Sound into the picture** — audio into the hold and deflection circuits: bass
 lurches the frame, level tears line hold, the waveform draws itself on the
 screen.

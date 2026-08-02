@@ -523,7 +523,9 @@ function recordCanvas(secs, fps) {
   ].find(t => window.MediaRecorder?.isTypeSupported(t))
   const rec = new MediaRecorder(canvas.captureStream(), {
     mimeType: type,
-    videoBitsPerSecond: 24_000_000,
+    // 12 Mbit is plenty at this size, and the webm crosses into node as a
+    // base64 data url — at 24 the transfer alone outran the protocol timeout.
+    videoBitsPerSecond: 12_000_000,
   })
   const chunks = []
   rec.ondataavailable = e => e.data.size && chunks.push(e.data)
@@ -728,14 +730,25 @@ const launchBrowser = () =>
     browser: 'firefox',
     executablePath: '/usr/bin/firefox-nightly',
     headless: false,
-    // A clip that hangs page-side should fail its shot and retry, not sit at
-    // puppeteer's three-minute default.
-    protocolTimeout: 90_000,
+    // A clip that hangs page-side should fail its shot and retry rather than
+    // sit forever; the ceiling has to clear the time a finished recording takes
+    // to cross into node as a data url, which for a ten-second clip is seconds.
+    protocolTimeout: 180_000,
     extraPrefsFirefox: {
       'dom.webgpu.enabled': true,
       'gfx.webgpu.ignore-blocklist': true,
       'media.navigator.streams.fake': true,
       'media.navigator.permission.disabled': true,
+      // Keep the refresh driver on a timer at a fixed rate rather than on
+      // vsync, and stop the timer budget throttling that a window which isn't
+      // frontmost otherwise gets. Firefox has no requestFrame on a canvas
+      // capture track, so a clip is sampled on paint — and a throttled window
+      // paints about once a second, which is how a recording comes back as a
+      // slideshow when something else takes focus mid-run.
+      'layout.frame_rate': 60,
+      'dom.timeout.enable_budget_timer_throttling': false,
+      'dom.min_background_timeout_value': 4,
+      'dom.suspend_inactive.enabled': false,
     },
   })
 
