@@ -1,7 +1,6 @@
 import { useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
-import markUrl from '../docs/mark.svg'
 import styles from './app.module.css'
 import { DEFAULT_CONTROLS } from './controls'
 import { AdvancedDialog } from './ui/AdvancedDialog'
@@ -295,7 +294,11 @@ export function App() {
           title={`ntscenery ${versionLabel} (${gitSha}) — what is this?`}
           aria-label="ntscenery — what is this?"
         >
-          <img className={styles.brandMark} src={markUrl} alt="" />
+          <img
+            className={styles.brandMark}
+            src={`${import.meta.env.BASE_URL}favicon.svg`}
+            alt=""
+          />
           <span className={styles.wordmark}>ntscenery</span>
           <span className={styles.version}>{versionLabel}</span>
         </button>

@@ -2,9 +2,12 @@
 // waveform monitor — sync, burst, then the descending luma staircase with the
 // chroma subcarrier riding on each pedestal.
 //
-// Emits the wide banner (docs/logo.svg) plus a square mark of just the bar
-// staircase, small enough to read as a favicon and as the sidebar glyph
-// (docs/mark.svg, mirrored to public/favicon.svg).
+// Emits the wide banner (docs/logo.svg) plus a square mark of the same line,
+// small enough to read as a favicon and as the sidebar glyph
+// (public/favicon.svg, used for both).
+//
+// Neither SVG carries role/aria-label: every consumer renders it through an
+// <img> with its own alt, which wins over anything inside the file.
 // Usage: node scripts/logo.mjs   (via pnpm logo)
 
 import { writeFileSync } from 'node:fs'
@@ -122,7 +125,7 @@ const graticule = [100, 0, -40]
   .map(ire => `<path d="M${PAD_X} ${n(y(ire))}H${W - PAD_X}"/>`)
   .join('')
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="ntscenery — one NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, and the descending luma staircase with chroma subcarrier on each bar">
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
   <defs>
     <filter id="glow" x="-4%" y="-8%" width="108%" height="116%">
       <feGaussianBlur stdDeviation="2.2" result="blur"/>
@@ -139,21 +142,65 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" wid
 </svg>
 `
 
-// The square mark: the same staircase, stripped to what survives 16 px. The
+// The square mark: the same line, stripped to what survives 16 px. The
 // subcarrier turns to mush at that size, so each bar is drawn as its chroma
 // envelope alone, with the luma pedestal as a bright cap. Only the six chroma
-// bars are kept — white and black are flat lines that vanish at icon size, and
-// dropping them lets the cascade fill the square.
+// bars are kept — white and black are flat lines that vanish at icon size.
+//
+// Both ends of the line stay, so the mark reads as a signal and not a bar
+// chart: sync notch, burst, then the staircase, then the front porch falling
+// into the next line's sync. At true timing they would be a pixel each in this
+// square, so the ends take a fixed px budget and the bars share what is left.
 const CHROMA_BARS = BARS.filter(b => b.chroma > 0)
 const S = 32
 const SPAD = 2.5
-const TOP_IRE = 100
-const BOT_IRE = -16
-const sy = ire =>
-  SPAD + ((TOP_IRE - ire) * (S - 2 * SPAD)) / (TOP_IRE - BOT_IRE)
-const sw = (S - 2 * SPAD) / CHROMA_BARS.length
+const sy = ire => SPAD + ((100 - ire) * (S - 2 * SPAD)) / 140 // 100 → -40 IRE
+const ENDS = {
+  sync: 2.8,
+  breezeway: 0.7,
+  burst: 2.9,
+  burstCycles: 2, // not the real 9 — that many would alias into a grey block
+  backPorch: 0.8,
+  frontPorch: 2,
+}
+const endsW = Object.entries(ENDS)
+  .filter(([k]) => k !== 'burstCycles')
+  .reduce((a, [, v]) => a + v, 0)
+const sw = (S - 2 * SPAD - endsW) / CHROMA_BARS.length
+const burstX = SPAD + ENDS.sync + ENDS.breezeway
+const barsX = burstX + ENDS.burst + ENDS.backPorch
+const barsEnd = barsX + sw * CHROMA_BARS.length
+
+// Triangle-wave burst: a quarter period up to the first peak, alternating half
+// periods, then a quarter period back down to blanking.
+const swings = 2 * ENDS.burstCycles - 1
+const quarter = ENDS.burst / (4 * ENDS.burstCycles)
+const half = ENDS.burst / (2 * ENDS.burstCycles)
+const markBurst = [
+  `L${n(burstX + quarter)} ${n(sy(BURST_IRE))}`,
+  ...Array.from(
+    { length: swings },
+    (_, k) =>
+      `L${n(burstX + quarter + (k + 1) * half)} ${n(sy(k % 2 ? BURST_IRE : -BURST_IRE))}`,
+  ),
+  `L${n(burstX + ENDS.burst)} ${n(sy(0))}`,
+]
+
+const markSkeleton = [
+  `M${n(SPAD)} ${n(sy(0))}`,
+  `V${n(sy(-40))}`,
+  `H${n(SPAD + ENDS.sync)}`,
+  `V${n(sy(0))}`,
+  `H${n(burstX)}`,
+  ...markBurst,
+  `H${n(barsX)}`,
+  `M${n(barsEnd)} ${n(sy(0))}`,
+  `H${n(barsEnd + ENDS.frontPorch)}`,
+  `V${n(sy(-40))}`,
+].join('')
+
 const mark = CHROMA_BARS.map((b, i) => {
-  const bx = n(SPAD + i * sw)
+  const bx = n(barsX + i * sw)
   const hi = sy(b.y + b.chroma / 2)
   const lo = sy(b.y - b.chroma / 2)
   return (
@@ -162,15 +209,15 @@ const mark = CHROMA_BARS.map((b, i) => {
   )
 }).join('\n  ')
 
-const markSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}" role="img" aria-label="ntscenery — the 75% color bar staircase of an NTSC line">
+const markSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}">
   <rect width="${S}" height="${S}" rx="6" fill="#0a0b0d"/>
   ${mark}
+  <path d="${markSkeleton}" fill="none" stroke="#f2f5f8" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>
 </svg>
 `
 
 writeFileSync('docs/logo.svg', svg)
-writeFileSync('docs/mark.svg', markSvg)
 writeFileSync('public/favicon.svg', markSvg)
 console.log(
-  `docs/logo.svg — ${(svg.length / 1024).toFixed(1)} kB · docs/mark.svg + public/favicon.svg — ${(markSvg.length / 1024).toFixed(1)} kB`,
+  `docs/logo.svg — ${(svg.length / 1024).toFixed(1)} kB · public/favicon.svg — ${(markSvg.length / 1024).toFixed(1)} kB`,
 )
