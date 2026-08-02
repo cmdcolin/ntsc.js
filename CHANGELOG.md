@@ -2,18 +2,24 @@
 
 All notable changes to ntscythe are documented here.
 
-## [Unreleased]
+## [0.6.1](https://github.com/cmdcolin/ntscythe/compare/v0.6.0...v0.6.1) - 2026-08-02
 
 ### Features
 - [`b601c46`](https://github.com/cmdcolin/ntscythe/commit/b601c464fab7ce4020092de46a2eeb157edb7d9a) Suppress sync at the head-end, and noise the color-under carrier
 
 ### Refactor
 - [`644e526`](https://github.com/cmdcolin/ntscythe/commit/644e526a221f04bc1b54bfd56d64fdc6bef4072b) Group changelog by type, keep messages verbatim
-- [`c5ee354`](https://github.com/cmdcolin/ntscythe/commit/c5ee354ec984183ddb4ab6cbcbdb47597db6f11d) simplify changelog config now that history uses real type prefixes
+- [`665c610`](https://github.com/cmdcolin/ntscythe/commit/665c610544628d6281350abe1af8a75ad63178c9) simplify changelog config now that history uses real type prefixes
+
+### Documentation
+- [`89b28fd`](https://github.com/cmdcolin/ntscythe/commit/89b28fd855733b1b1135d8e674e9d5c26cf846a8) note commit-scope convention
 
 ### Chores
 - [`788ccbb`](https://github.com/cmdcolin/ntscythe/commit/788ccbba2913246cc3b7c183075d447bdac6640a) Set up git-cliff and backfill CHANGELOG.md
 - [`73a42b9`](https://github.com/cmdcolin/ntscythe/commit/73a42b9ed1a1a3fc982acb654daca970c6663b02) Convert linting and formatting to oxlint and oxfmt
+
+### Other Changes
+- [`6dd105b`](https://github.com/cmdcolin/ntscythe/commit/6dd105b0bfd1cd5c28af217b68e585b06e30f5c1) Record the remaining effect ideas, and the free-run gap behind them
 
 ## [0.6.0](https://github.com/cmdcolin/ntscythe/compare/v0.5.0...v0.6.0) - 2026-08-01
 
