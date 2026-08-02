@@ -51,8 +51,10 @@ postPasses   [enhancer] → syncMeasure → sync → lineAnalyze → decode → 
 present      render pass to the swap chain
 ```
 
-`docs/pipeline.dot` draws this same order with the buffers on the arrows — move
-a pass here and move it there too.
+That block is not decoration: `src/gpu/pipeline-graph.test.ts` parses the three
+arrays out of `pipeline.ts` and fails if this order, or which names are
+bracketed, no longer matches. `docs/pipeline.dot` draws the same order with the
+buffers on the arrows and is held to the same list.
 
 Bracketed passes are gated by a `when()` predicate on the controls, so an idle
 feature costs nothing. `loopPasses` runs once per tape-dub generation, with

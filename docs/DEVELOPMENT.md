@@ -10,9 +10,11 @@ pnpm test       # vitest
 
 `pnpm test` runs the FIR design unit tests (DC gain, passband/stopband response,
 linear-phase symmetry, filter-bank packing), statically validates every WGSL
-shader through naga, and checks that `docs/pipeline.dot` draws exactly the
-passes `pipeline.ts` builds — each node's `passes="…"` attribute is what gets
-compared, so a new pass that never made it into the diagram fails the suite. CI
+shader through naga, and holds both hand-drawn views of the pass list to the
+arrays in `pipeline.ts` — `docs/pipeline.dot` for which passes exist and which
+are gated (from each node's `passes="…"` attribute and its dashed border), and
+the "Pass order" block in `ARCHITECTURE.md` for the order and the brackets too.
+A pass added, reordered or ungated without updating them fails the suite. CI
 gates deploy on `pnpm lint` + `pnpm test`.
 
 `pnpm run docs` regenerates every diagram in `docs/*.dot` into light and dark
