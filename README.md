@@ -73,10 +73,11 @@ the option does nothing there. Details in
 - [**EFFECTS.md**](EFFECTS.md) — every effect and the hardware fault it models
 - [**docs/HOW-IT-WORKS.md**](docs/HOW-IT-WORKS.md) — the signal path, pass by
   pass, with diagrams
+- [**docs/MIDI.md**](docs/MIDI.md) — setting up a controller, start to finish
 - [**docs/DEVELOPMENT.md**](docs/DEVELOPMENT.md) — build, test, screenshot
   harness, YouTube source, URL params
-- [**agent-docs/ARCHITECTURE.md**](agent-docs/ARCHITECTURE.md) — pass graph,
-  buffer layouts, adding a control end to end
+- [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) — pass graph, buffer layouts,
+  adding a control end to end
 
 ## Related / prior art
 
