@@ -34,6 +34,15 @@ function pickMime(): string {
   return codecs.find(t => MediaRecorder.isTypeSupported(t)) ?? 'video/webm'
 }
 
+// MediaRecorder defaults to ~2.5 Mbps, which this content pulps: snow, grain and
+// dot crawl are worst-case for a codec, and every frame is a new noise field.
+// 0.4 bits per pixel per frame keeps the grain intact; still smaller than
+// lossless, still far above what the default gives.
+function bitrateFor(canvas: HTMLCanvasElement): number {
+  const perFrame = canvas.width * canvas.height * 60 * 0.4
+  return Math.min(60_000_000, Math.max(16_000_000, perFrame))
+}
+
 // A WebGPU canvas can't be captured directly: Firefox's toBlob returns a blank
 // image and captureStream() emits no frames, because the presented drawing
 // buffer isn't retained for async readback. Drawing it into a 2D canvas
@@ -106,7 +115,10 @@ export function useCapture(
         }
         const stream = mirror.canvas.captureStream()
         const chunks: Blob[] = []
-        const rec = new MediaRecorder(stream, { mimeType: pickMime() })
+        const rec = new MediaRecorder(stream, {
+          mimeType: pickMime(),
+          videoBitsPerSecond: bitrateFor(canvas),
+        })
         rec.ondataavailable = e => {
           if (e.data.size > 0) chunks.push(e.data)
         }

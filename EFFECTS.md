@@ -1,22 +1,28 @@
 # Analog effects
 
 Every effect models the hardware mechanism that causes an artifact, not the
-artifact itself — dot crawl, rainbowing, tearing, rolling and hue drift emerge
-from the signal path on their own. Effects are grouped here by the stage of the
-chain they damage, same as the control panel.
+artifact itself. Dot crawl, rainbowing, tearing, rolling and hue drift are never
+drawn — they fall out of the signal path once something upstream is broken.
 
-- [Source / wiring](#source--wiring) — polarity, termination, miswires, loose
-  contacts
-- [Camera feedback](#camera-feedback) — a camera pointed at its own monitor
-- [Mixer loop](#mixer-loop) — composite-level feedback through a vision mixer
-- [A/B mix (source B)](#ab-mix-source-b) — a second, non-genlocked source
-- [Tape / channel](#tape--channel) — the VHS and RF path
-- [Enhancer (bent)](#enhancer-bent) — a misused picture enhancer
-- [Receiver](#receiver) — sync, deflection, comb filtering, chroma demod
-- [Audio-reactive](#audio-reactive) — audio driving the analog faults
-- [Screen](#screen) — beam, phosphor, grille
+Effects are grouped by the stage of the chain they damage, the same order as the
+control panel and the same order the signal travels.
+
+| Stage                               | Where it sits                                       |
+| ----------------------------------- | --------------------------------------------------- |
+| [Source / wiring](#source--wiring)  | the cable between the deck and everything else      |
+| [Camera feedback](#camera-feedback) | a camera pointed at the monitor it's driving        |
+| [Mixer loop](#mixer-loop)           | the composite waveform patched back into itself     |
+| [A/B mix](#ab-mix-source-b)         | a second source, genlocked or not                   |
+| [Tape / channel](#tape--channel)    | VHS and the RF path it arrives over                 |
+| [Enhancer (bent)](#enhancer-bent)   | a consumer picture enhancer with its jumpers moved  |
+| [Receiver](#receiver)               | the TV: sync, deflection, comb filter, chroma demod |
+| [Audio-reactive](#audio-reactive)   | audio patched into any of the above                 |
+| [Screen](#screen)                   | the beam, the phosphor and the glass in front of it |
 
 ## Source / wiring
+
+Faults at the connector, before the signal reaches anything that could correct
+them.
 
 - **Polarity invert** — the composite waveform negated after the encoder; full
   negative at 1, solarized midpoints partway, hue flipping with it.
@@ -28,14 +34,14 @@ chain they damage, same as the control panel.
   luma or sync, floating color over an unlocked black raster.
 - **Loose connector** — intermittent contact; bands of snow cut in and out and
   take sync with them when they land on a sync tip.
-- **Cable scrambling** — the head-end lifting the carrier over each sync pulse
+- **Cable scrambling** — the head-end lifting the carrier over each sync pulse,
   so a set with no decoder box has nothing to slice a line start out of. Partial
   suppression only fools the AGC, which washes the picture out; past the
   slicer's level the line oscillator is left free-running and the raster shears
   at whatever rate the set's own h-osc keeps. Line-alternate is corrected half
-  the time and zigzags instead; SSAVI inverts the video on top, and since burst
-  is in the back porch the negative keeps its hue. Vertical stays framed: the
-  broad pulses are wider than the line-rate gate.
+  the time and zigzags instead. SSAVI inverts the video on top, and since burst
+  is in the back porch the negative keeps its hue. Vertical stays framed either
+  way: the broad pulses are wider than the line-rate gate.
 - **Bob deinterlace** — rebuilds frames from one field to kill capture-card
   combing, at the cost of half the vertical detail.
 
@@ -92,10 +98,19 @@ into a clean switcher dissolve.
 
 ## Tape / channel
 
+Everything that happens between the recorder and the set: limited bandwidth,
+noise picked up along the way, and the mechanical realities of tape. The whole
+stage can run more than once — see **dub generations**.
+
+### Bandwidth and detail
+
 - **Luma bandwidth** — broadcast ~4.2 MHz down to worn-tape softness; vertical
   edges smear while the picture stays sharp top to bottom.
 - **Peaking** — the crispening boost VCRs fake detail back with; bright/dark
   ringing outlines on every edge.
+
+### Noise and interference
+
 - **Noise** — tape grain and RF snow on the whole waveform, degrading sync and
   burst along with the picture.
 - **Ghosting** — multipath: a delayed, possibly phase-inverted echo displaced
@@ -107,18 +122,25 @@ into a clean switcher dissolve.
   because sync is scaled too the AGC and hold chase it.
 - **Sound carrier** — 4.5 MHz intercarrier sound past its trap: visible
   herringbone buzz.
-- **Dropouts** — shed oxide; the head reads nothing for a moment, leaving white
-  streaks and scarred lines.
-- **Dub generations** — the whole tape stage run up to four times, each with its
-  own noise, dropouts and timebase walk.
-- **Color-under** — VHS heterodynes chroma to 629 kHz and back; color bandwidth
-  collapses and smears sideways while luma stays sharp.
+
+### Color-under
+
+VHS can't record chroma where it lives, so it heterodynes it down and back.
+Everything below follows from that trip.
+
+- **Color-under** — chroma moved to 629 kHz and back; color bandwidth collapses
+  and smears sideways while luma stays sharp.
 - **Color-under phase jitter** — per-line phase error in that conversion: hue
   wanders line to line into a colored venetian-blind texture.
 - **Chroma noise** — noise on the 629 kHz carrier itself, which has far less
   headroom than the luma FM. It comes back through the narrow chroma bandpass,
   so it lands as slow smears of wrong hue rather than grain: why VHS colour is
   blotchy while its luma is merely noisy.
+
+### The tape and the heads
+
+- **Dropouts** — shed oxide; the head reads nothing for a moment, leaving white
+  streaks and scarred lines.
 - **Tracking error** — the head reading off-track: a band of noise the picture
   tears and bends through, parked where you set it.
 - **Shuttle (picture search)** — off play speed each head sweep crosses several
@@ -129,6 +151,8 @@ into a clean switcher dissolve.
   moves with the picture and hue wobbles too.
 - **Head switch** — the two-head timing mismatch and settling noise that make
   the torn hook at the bottom of every VHS frame.
+- **Dub generations** — the whole tape stage run up to four times, each with its
+  own noise, dropouts and timebase walk.
 
 ## Enhancer (bent)
 
@@ -155,6 +179,13 @@ set, with jumpers across three of its stages.
 
 ## Receiver
 
+A real television, and every way one can be imperfect or misadjusted. Sync
+faults move the picture; decoding faults move its color.
+
+### Sync and deflection
+
+- **AGC** — level normalization off the sync tip; disabled, amplitude faults
+  become brightness faults.
 - **Horizontal hold** — the PLL's pull toward sync: loose drifts and skews,
   tight translates waveform damage straight into a bent picture.
 - **Vertical hold / vertical oscillator** — lock authority and free-run rate;
@@ -167,6 +198,9 @@ set, with jumpers across three of its stages.
   downstream of decoding, so geometry warps but hue stays put.
 - **HV sag / supply ring** — bright content loads the high-voltage supply and
   stretches the scan; underdamped, a bright edge sets off decaying wobble.
+
+### Color decoding
+
 - **Y/C comb** — notch trap (dot crawl, rainbow fringing) versus 2-/3-line combs
   that separate luma and chroma properly.
 - **S-video bleed** — Y/C shorted: the subcarrier itself appears as a moving dot
@@ -177,12 +211,12 @@ set, with jumpers across three of its stages.
   reference crystal; unlocked, hue sweeps the whole wheel.
 - **Color killer** — the burst level below which the set decides the signal is
   monochrome; weak signals make color cut out in patches.
-- **AGC** — level normalization off the sync tip; disabled, amplitude faults
-  become brightness faults.
 
 ## Audio-reactive
 
-Audio patched into the electronics, one sample per scan line.
+Audio patched into the electronics, one sample per scan line. These drive the
+same faults listed above rather than adding new ones, so they interact with
+whatever else is engaged.
 
 - **Bass → vertical hold** — kicks detune the field oscillator; the frame
   lurches on the beat because the field rate genuinely moves.
@@ -197,15 +231,23 @@ Audio patched into the electronics, one sample per scan line.
 
 ## Screen
 
+The picture is decoded by now; what's left is how a tube turns it into light,
+and what you see looking at one.
+
+### The beam
+
 - **Beam profile / bloom** — spot size and its growth with beam current;
   scanlines show in shadows and close up in highlights.
 - **Beam spot** — the gun writes a smooth blob, not a square, so light from one
   sample lands partly on its neighbours and dim picture bleeds as much as
   highlights. Why a tube never resolves into hard pixels.
-- **Phosphor grain** — the coating is a granular deposit, so emission is
-  mottled; fixed on the glass and strongest in the mid tones.
 - **Reconstruction** — bilinear to cubic; how the sampled line becomes
   continuous light without pumping fine patterns.
+
+### The phosphor
+
+- **Phosphor grain** — the coating is a granular deposit, so emission is
+  mottled; fixed on the glass and strongest in the mid tones.
 - **Phosphor primaries** — sRGB, P22/SMPTE-C, the wide 1953 NTSC set, or
   long-persistence monochrome green.
 - **Phosphor persistence / trail tint / trail sum** — afterglow in the glass;
@@ -216,6 +258,9 @@ Audio patched into the electronics, one sample per scan line.
   fresh edge stays sharp while old light goes wide and cloudy.
 - **Aperture grille** — the R/G/B stripe mask, with a pitch that moirés near
   small whole-pixel spacings, exactly as photographing a CRT does.
+
+### Looking at it
+
 - **Magnifier** — where your eye is. Past 1× it goes against the glass, and
   everything that lives on the screen rather than in the image magnifies with
   it: triads, scanline gaps, grain, the beam spot's bleed between samples. Below
