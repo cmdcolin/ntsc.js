@@ -7,7 +7,9 @@ import { travelToValue, valueToTravel } from './curve'
 import { clamp01 } from './miniFrame'
 
 // Below 1x the camera pulls back off the set until the tube is a small object in
-// a dark room; above it, in toward the grille.
+// a dark room. That's a preset-only easter egg now ('across the room' in
+// presets.ts) — no travel control (stage slider, panel slider, MIDI knob) can
+// reach it, so ZOOM_MIN only bounds presets and gestures, not travel.
 export const ZOOM_MIN = 0.25
 export const ZOOM_MAX = 12
 
@@ -20,32 +22,18 @@ export interface Lens {
 export const clampZoom = (z: number) =>
   Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z))
 
-// Where 1x — the picture filling the frame — sits along the track. Closing in is
-// the everyday move and gets most of the travel; pulling back off the set is one
-// gesture you make once, so it lives in the first third.
-const DETENT = 0.32
+// Magnification along a 0..1 track, 1x..ZOOM_MAX. Travel is spread over view
+// fraction rather than magnification (see curve.ts), so the fine control sits
+// where the useful values are: the first fifth covers 1x to 1.2x, and only the
+// last sliver goes all the way in.
+export const zoomAtTravel = (t: number) =>
+  clampZoom(travelToValue(1, ZOOM_MAX, clamp01(t)))
 
-// Magnification along a 0..1 track, with 1x at the detent. Above it the travel
-// is spread over view fraction rather than magnification (see curve.ts), so the
-// fine control sits where the useful values are: the first fifth covers 1x to
-// 1.2x, and only the last sliver goes all the way in. Below it the same curve
-// would make one notch a fifth of the way out, so pulling back is a plain linear
-// scale — the set simply gets smaller, evenly. Every route (stage slider, panel
-// slider, MIDI knob) moves on this scale, so they all feel alike.
-export const zoomAtTravel = (t: number) => {
-  const p = clamp01(t)
-  return clampZoom(
-    p < DETENT
-      ? ZOOM_MIN + (p / DETENT) * (1 - ZOOM_MIN)
-      : travelToValue(1, ZOOM_MAX, (p - DETENT) / (1 - DETENT)),
-  )
-}
-
+// A zoom below 1x has no travel position — it parks at the low end, same as
+// dragging the slider all the way down would if it could reach that far.
 export const zoomTravel = (zoom: number) => {
   const z = clampZoom(zoom)
-  return z < 1
-    ? (DETENT * (z - ZOOM_MIN)) / (1 - ZOOM_MIN)
-    : DETENT + (1 - DETENT) * valueToTravel(1, ZOOM_MAX, z)
+  return z < 1 ? 0 : valueToTravel(1, ZOOM_MAX, z)
 }
 
 // What the magnifier covers: at zoom Z the lens sees 1/Z of each axis, and the

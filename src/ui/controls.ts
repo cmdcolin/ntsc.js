@@ -1318,11 +1318,10 @@ export const GROUPS: Group[] = [
         max: 12,
         step: 0.01,
         // Creeping in slightly is the common move; going all the way to the
-        // grille is the rare one, so it gets the last sliver of travel. Pulling
-        // back off the set lives below the detent at 1x.
+        // grille is the rare one, so it gets the last sliver of travel.
         curve: 'magnifier',
         unit: '×',
-        help: 'Where your eye is. Past 1× it goes up against the glass, and everything that lives on the screen rather than in the image magnifies with it — scanline structure, the beam spot bleeding between samples, phosphor grain, the grille triads — so this is the way to see what the picture is actually built out of. Below 1× it pulls back off the set instead: the tube stops filling the frame, its face swells the way a real faceplate does, and the cabinet holding it comes out of the dark.',
+        help: 'Where your eye is, up against the glass. Everything that lives on the screen rather than in the image magnifies with it — scanline structure, the beam spot bleeding between samples, phosphor grain, the grille triads — so this is the way to see what the picture is actually built out of.',
       },
       {
         key: 'crtZoomX',

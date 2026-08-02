@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ZOOM_MAX,
-  ZOOM_MIN,
   lensView,
   panLens,
   pictureUv,
@@ -39,22 +38,22 @@ describe('lensView', () => {
 })
 
 describe('the magnifier travel', () => {
-  it('runs from pulled back to all the way in', () => {
-    expect(zoomAtTravel(0)).toBe(ZOOM_MIN)
+  it('runs from 1x to all the way in — pulling back is not on the track', () => {
+    expect(zoomAtTravel(0)).toBe(1)
     expect(zoomAtTravel(1)).toBe(ZOOM_MAX)
   })
-  it('round-trips a magnification', () => {
-    for (const z of [0.25, 0.4, 0.8, 1, 1.3, 4, 12]) {
+  it('round-trips a magnification at or above 1x', () => {
+    for (const z of [1, 1.3, 4, 12]) {
       expect(zoomAtTravel(zoomTravel(z))).toBeCloseTo(z)
     }
   })
-  it('detents at 1x, with most of the track spent closing in', () => {
-    const detent = zoomTravel(1)
-    expect(detent).toBeGreaterThan(0.25)
-    expect(detent).toBeLessThan(0.4)
+  it('parks at the low end for a magnification below 1x, unreachable by travel', () => {
+    for (const z of [0.25, 0.4, 0.8]) {
+      expect(zoomTravel(z)).toBe(0)
+    }
   })
   it('is gradual where it matters: a fifth of the way in is barely magnified', () => {
-    const fifth = zoomAtTravel(zoomTravel(1) + 0.2 * (1 - zoomTravel(1)))
+    const fifth = zoomAtTravel(0.2)
     expect(fifth).toBeGreaterThan(1.1)
     expect(fifth).toBeLessThan(1.3)
   })
