@@ -57,7 +57,13 @@ export function useShortcuts(popout: Window | null, handlers: Handlers) {
         h.onToggleFullscreen()
       } else if (!typing && key === 'c' && !e.repeat) {
         h.onStartCompare()
-      } else if (!typing && key === 'r' && !e.repeat) {
+      } else if (
+        !typing &&
+        key === 'r' &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.repeat
+      ) {
         h.onToggleRecord()
       } else if (!typing && key === 's' && !e.repeat) {
         h.onGrabStill()
