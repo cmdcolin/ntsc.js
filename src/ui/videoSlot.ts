@@ -53,6 +53,10 @@ export function makeSlotVideo(slot: VideoSlot): HTMLVideoElement {
   v.muted = true
   v.loop = true
   v.playsInline = true
+  // Lets copyExternalImageToTexture read frames from a CORS-cleared
+  // cross-origin source (the bundled clips on S3) without tainting; a no-op
+  // for same-origin and blob: sources, so it's safe to set unconditionally.
+  v.crossOrigin = 'anonymous'
   v.addEventListener('error', () => {
     slot.onError(
       `video error: ${v.error?.message ?? 'unknown'} (code ${v.error?.code ?? '?'})`,

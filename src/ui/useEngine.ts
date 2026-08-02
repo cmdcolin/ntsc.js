@@ -4,6 +4,7 @@ import { DEFAULT_CONTROLS } from '../controls'
 import { Engine } from '../gpu/pipeline'
 import { MAX_SRC_EDGE } from '../gpu/sources'
 import { reportPreviousTrace, trace } from '../gpu/trace'
+import { clipUrl, isClipId } from '../sources/clips'
 import { smpteBars, sweep } from '../sources/pattern'
 import { ytId } from '../sources/youtube'
 import {
@@ -278,9 +279,10 @@ export function useEngine() {
   const stopVideoB = () => stopSlot(slotB)
 
   // The built-in sources either slot can show, picked by mode name alone since
-  // both slots offer the same set. Four are synthesised on the spot; the cat is
-  // a bundled file, so it lands a fetch later — the slot keeps showing whatever
-  // it had until then, exactly like the ?iurl path.
+  // both slots offer the same set. Four are synthesised on the spot; cat and
+  // the bundled clips are files under public/, so cat lands a fetch later —
+  // the slot keeps showing whatever it had until then, exactly like the
+  // ?iurl path — and a clip plays the same way a picked file does.
   const showGenerated = (slot: VideoSlot, mode: SourceMode | SourceBMode) => {
     if (mode === 'bars') slot.setImage(smpteBars())
     else if (mode === 'sweep') slot.setImage(sweep())
@@ -291,6 +293,7 @@ export function useEngine() {
         bmp => slot.setImage(bmp, bmp.width / bmp.height),
         (e: unknown) => setError(`image: ${reason(e)}`),
       )
+    else if (isClipId(mode)) playUrl(slot, clipUrl(mode))
   }
 
   // Decode a still into a slot. A passes the source's own aspect so compose

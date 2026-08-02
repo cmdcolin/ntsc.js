@@ -1,9 +1,12 @@
+import { CLIP_IDS, CLIPS } from './clips'
+
 export const SOURCE_MODES = [
   'bars',
   'sweep',
   'tv static',
   'vhs static',
   'cat',
+  ...CLIP_IDS,
   'file',
   'youtube',
   'webcam',
@@ -15,6 +18,7 @@ export const SOURCE_B_MODES = [
   'tv static',
   'vhs static',
   'cat',
+  ...CLIP_IDS,
   'file',
   'youtube',
 ] as const
@@ -29,6 +33,10 @@ export const SOURCE_DESC: Record<SourceMode | SourceBMode, string> = {
   'tv static': 'TV static — no-signal broadcast snow',
   'vhs static': 'VHS static — blank-tape noise',
   cat: 'Tama station master — bundled photo, no file to pick',
+  'clip-test': CLIPS['clip-test'].label,
+  'clip-popeye': CLIPS['clip-popeye'].label,
+  'clip-haunted-house': CLIPS['clip-haunted-house'].label,
+  'clip-minnie-moocher': CLIPS['clip-minnie-moocher'].label,
   file: 'File… — open an image or video',
   youtube: 'YouTube… — fetch a URL via yt-dlp',
   webcam: 'Webcam / USB device — camera or RCA capture',
