@@ -25,20 +25,38 @@ footage.</sub>
 
 ## Features
 
-- ~150 controls in 18 groups, each a hardware fault rather than a drawn artifact
-- Sources: bars, sweep, TV/VHS static, bundled photo, image/video file, webcam
-  or capture device, YouTube (dev server only) — plus a second source to mix in
-- Two feedback loops: a camera pointed at its own monitor, and a hardware-mixer
-  loop in the signal
-- 40+ presets, 9 scene slots, surprise-me, mutate, undo
-- Modulation: LFOs, random walk, sample-and-hold, Lorenz or audio level/onset
-  onto any slider
-- Audio in: mic or file into field lurch, line tear, HV sag, deflection and the
-  video input
-- MIDI: per-control learn, whole-device automap, soft takeover, clock lock
-- Record webm, save png, pop the controls out into their own window
-- Shareable links that carry a whole look (`?preset=`, `?set=`, `?iurl=`, …)
-- Diagnostics: scope views, render scale, FPS, chain map, per-pass GPU timings
+- Around 150 knobs, and none of them draw an artifact — they break something in
+  the signal path and let the artifact happen. They're grouped by where in the
+  chain they do the damage: [wiring](EFFECTS.md#source--wiring),
+  [camera feedback](EFFECTS.md#camera-feedback),
+  [mixer loop](EFFECTS.md#mixer-loop), [A/B mix](EFFECTS.md#ab-mix-source-b),
+  [tape and RF](EFFECTS.md#tape--channel), [enhancer](EFFECTS.md#enhancer-bent),
+  [the receiver](EFFECTS.md#receiver), [audio](EFFECTS.md#audio-reactive), and
+  [the screen itself](EFFECTS.md#screen).
+- Feed it color bars, a sweep, TV snow, the bundled photo, any image or video
+  file, or a webcam or capture card. There's a
+  [second input](EFFECTS.md#ab-mix-source-b) as well, to mix, wipe or beat
+  against the first.
+- Two feedback loops, and they're worth playing with:
+  [a camera aimed at its own monitor](EFFECTS.md#camera-feedback), and
+  [a mixer patched back into itself](EFFECTS.md#mixer-loop) down at the signal
+  level.
+- Forty-odd presets to start from, nine slots to stash your own, a surprise-me
+  button for when you don't know what you want, and ctrl+z for when you find out
+  you didn't.
+- Anything can move on its own — put an LFO, a random walk, a sample-and-hold, a
+  Lorenz attractor or the level of whatever's playing onto any slider.
+- Plug in a mic or a track and let it
+  [shove the picture around](EFFECTS.md#audio-reactive): bass into the field
+  oscillator, level into line hold, the raw waveform into the deflection coils.
+- Bring your own MIDI controller. It learns one control at a time or automaps a
+  whole device, won't jump when a knob is out of position, and locks rate
+  controls to incoming clock.
+- Record to webm, save a png, or pop the controls into a second window and give
+  the picture the whole screen.
+- Every look fits in a URL, so a link is a patch you can hand to someone.
+- Scopes, if you want to look at the waveform you're wrecking — plus render
+  scale, FPS, a map of the chain, and per-pass GPU timings.
 
 ## Run
 
