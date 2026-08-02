@@ -2,6 +2,12 @@
 
 All notable changes to ntscythe are documented here.
 
+## [0.6.2](https://github.com/cmdcolin/ntscythe/compare/v0.6.1...v0.6.2) - 2026-08-02
+
+### Other Changes
+- [`a44802c`](https://github.com/cmdcolin/ntscythe/commit/a44802c52b246111ebfd6bb853da4f0af11ec16e) Rm gallery
+- [`bb9a815`](https://github.com/cmdcolin/ntscythe/commit/bb9a815c8760b273c5bdc31eadc35593fa3c9122) Bump demo video
+
 ## [0.6.1](https://github.com/cmdcolin/ntscythe/compare/v0.6.0...v0.6.1) - 2026-08-02
 
 ### Features
