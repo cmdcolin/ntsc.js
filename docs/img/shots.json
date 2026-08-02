@@ -99,37 +99,37 @@
     "name": "look-roll-1",
     "file": "look-roll-1.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&set=demodMHz%3A0.5%2CsyncBendUs%3A2.45%2CbendUs%3A14.8%2CbendShape%3A2%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4.2%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A150%2CtbWowNs%3A300"
+    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&set=demodMHz%3A0.55%2ChHold%3A0.18%2CvHold%3A0.4%2CvFreqHz%3A58.5%2CsyncBendUs%3A6%2CbendUs%3A12%2CbendShape%3A2%2ChvSagUs%3A20%2ChvRing%3A0.9%2ClumaMHz%3A3.55%2ClumaPeak%3A0.4%2CnoiseIre%3A5.3%2CcolorUnderMix%3A0.47%2CunderJitterDeg%3A1.9%2CdropoutRate%3A3%2CheadSwitchNoise%3A0.19%2CheadSwitchShiftUs%3A0.4%2CtbJitterNs%3A70%2CtbWowNs%3A140%2CcfbMix%3A0.93%2CcfbDelayUs%3A0.209%2CcfbLines%3A4%2CcfbKey%3A0.51%2CbGain%3A0.6%2CbLineHz%3A0.9%2CbDetuneHz%3A130%2CbRollLps%3A0.2%2Cphosphor%3A0.6"
   },
   {
     "name": "look-roll-2",
     "file": "look-roll-2.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&set=demodMHz%3A0.55%2ClumaMHz%3A3.55%2ClumaPeak%3A0.35%2CnoiseIre%3A7.4%2CsoundIre%3A3.5%2Cagc%3A0.4%2CghostDelayUs%3A2.4%2CghostGain%3A0.18%2CcolorUnderMix%3A0.45%2CunderJitterDeg%3A1.8%2CdropoutRate%3A3%2CheadSwitchNoise%3A0.18%2CheadSwitchShiftUs%3A0.35%2CtbJitterNs%3A150%2CtbWowNs%3A140"
+    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&set=demodMHz%3A0.68%2ClumaMHz%3A2.65%2ClumaPeak%3A1.1%2CnoiseIre%3A6.6%2CghostDelayUs%3A4.1%2CghostGain%3A0.22%2CcolorUnderMix%3A0.77%2CchromaNoiseIre%3A7%2CunderJitterDeg%3A7.7%2CdropoutRate%3A19%2CdropoutLenUs%3A8%2CheadSwitchNoise%3A0.62%2CheadSwitchShiftUs%3A1.25%2CtbJitterNs%3A310%2CtbWowNs%3A700%2CdubGens%3A2"
   },
   {
     "name": "look-roll-3",
     "file": "look-roll-3.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&set=encChromaMHz%3A1.54%2CdemodMHz%3A0.82%2CchromaTail%3A0.21%2CchromaGain%3A1.56%2CsvideoBleed%3A0.35%2ChHold%3A0.28%2ChvSagUs%3A16%2ChvRing%3A0.85%2ClumaMHz%3A3.45%2CchromaPinOnly%3A0.17%2ClumaPeak%3A0.5%2CnoiseIre%3A5.3%2CghostDelayUs%3A1.1%2CghostGain%3A0.06%2CcolorUnderMix%3A0.37%2CchromaNoiseIre%3A3.3%2CunderJitterDeg%3A3.7%2CdropoutRate%3A9%2CdropoutLenUs%3A6.5%2CheadSwitchNoise%3A0.3%2CheadSwitchShiftUs%3A0.6%2CtbJitterNs%3A150%2CtbWowNs%3A330%2CbGain%3A0.55%2CbRing%3A0.3%2CbLineHz%3A0.9%2CbDetuneHz%3A130%2CbRollLps%3A0.2"
+    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&set=invert%3A0.69%2CdemodMHz%3A0.5%2ChHold%3A0.27%2CvHold%3A0.72%2ChvSagUs%3A3.6%2ChvRing%3A0.65%2CaudioLoad%3A1.13%2CaudioSagUs%3A12.5%2CaudioRoll%3A2.55%2CaudioTear%3A67%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A200%2CshuttleX%3A5%2Cphosphor%3A0.255"
   },
   {
     "name": "look-roll-4",
     "file": "look-roll-4.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&set=chromaGain%3A1.4%2CkillThresh%3A4.5%2ChHold%3A0.46%2CchromaPinOnly%3A1%2CnoiseIre%3A13.5%2Cagc%3A0.3%2CghostDelayUs%3A2.55%2CghostGain%3A0.13%2ChumAmp%3A3.4%2CdropoutRate%3A17%2CdropoutLenUs%3A9%2CtbJitterNs%3A255%2CtbWowNs%3A510"
+    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&set=demodMHz%3A0.5%2ChHold%3A0.33%2CvHold%3A0.79%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2CaudioLoad%3A0.84%2CaudioSagUs%3A9%2CaudioRoll%3A1.9%2CaudioTear%3A49%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A6.6%2CsoundIre%3A1.7%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
   },
   {
     "name": "look-roll-5",
     "file": "look-roll-5.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&set=demodMHz%3A0.53%2CkillThresh%3A8%2ChHold%3A0.6%2ClumaMHz%3A3.25%2ClumaPeak%3A0.65%2CnoiseIre%3A35.3%2Cagc%3A0.7%2CghostDelayUs%3A7.4%2CghostGain%3A0.37%2ChumAmp%3A8%2CcolorUnderMix%3A0.47%2CchromaNoiseIre%3A4.2%2CunderJitterDeg%3A4.7%2CdropoutRate%3A52%2CdropoutLenUs%3A16%2CheadSwitchNoise%3A0.38%2CheadSwitchShiftUs%3A0.75%2CtbJitterNs%3A790%2CtbWowNs%3A1620"
+    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&set=invert%3A1%2CdemodMHz%3A0.53%2ClumaMHz%3A3.25%2ClumaPeak%3A0.55%2CnoiseIre%3A3.9%2CsoundIre%3A1.1%2Cagc%3A0.13%2CghostDelayUs%3A0.75%2CghostGain%3A0.06%2CcolorUnderMix%3A0.66%2CunderJitterDeg%3A2.7%2CdropoutRate%3A4%2CheadSwitchNoise%3A0.27%2CheadSwitchShiftUs%3A0.55%2CtbJitterNs%3A125%2CtbWowNs%3A200"
   },
   {
-    "name": "look-full-collapse",
-    "file": "look-full-collapse.jpg",
+    "name": "look-roll-6",
+    "file": "look-roll-6.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&preset=full+collapse&set=hHold%3A0.18%2CvHold%3A0.4%2CvFreqHz%3A58.5%2CsyncBendUs%3A6%2CbendUs%3A12%2CbendShape%3A2%2ChvSagUs%3A20%2ChvRing%3A0.9%2CnoiseIre%3A3%2CcfbMix%3A0.45%2CcfbLines%3A3%2CbGain%3A0.6%2CbLineHz%3A0.9%2CbDetuneHz%3A130%2CbRollLps%3A0.2%2Cphosphor%3A0.6"
+    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&set=encChromaMHz%3A2%2CdemodMHz%3A1.4%2CchromaTail%3A0.6%2CchromaCoarse%3A2%2CchromaGain%3A2.6%2CsvideoBleed%3A1%2ChHold%3A0.08%2CvHold%3A0.69%2CvFreqHz%3A57.15%2CsyncBendUs%3A3.3%2CchromaPinOnly%3A0.5%2CnoiseIre%3A4.2%2CcfbMix%3A0.31%2CcfbDelayUs%3A0.124%2CcfbHold%3A2%2CcfbTrail%3A0.47"
   },
   {
     "name": "clip-feedback",
@@ -141,7 +141,7 @@
     "name": "clip-sync",
     "file": "clip-sync-poster.jpg",
     "mp4": "https://cmdcolinphotos.s3.amazonaws.com/phosphene/clip-sync.mp4",
-    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&preset=vertical+hold+gone&set=hHold%3A0.72%2CvHold%3A0.62%2CvFreqHz%3A54%2CsyncBendUs%3A7%2CnoiseIre%3A6%2CtbJitterNs%3A780%2CtbWowNs%3A1950%2CtrackAmt%3A0.45"
+    "live": "https://cmdcolin.github.io/ntscenery/?src=cat&preset=worn+tape&set=demodMHz%3A0.45%2ChHold%3A0.62%2ClumaMHz%3A2.2%2ClumaPeak%3A1.4%2CnoiseIre%3A6%2CghostDelayUs%3A3%2CghostGain%3A0.15%2CcolorUnderMix%3A1%2CchromaNoiseIre%3A9%2CunderJitterDeg%3A10%2CdropoutRate%3A25%2CdropoutLenUs%3A9%2CheadSwitchNoise%3A0.8%2CheadSwitchShiftUs%3A2%2CtbJitterNs%3A700%2CtbWowNs%3A1400%2CdubGens%3A2%2CtrackAmt%3A0.6%2CtrackPos%3A0.6"
   },
   {
     "name": "clip-hero",

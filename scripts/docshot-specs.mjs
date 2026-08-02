@@ -52,15 +52,6 @@ const wildWith = extra => ({
   set: [WILD.set, extra].filter(Boolean).join(','),
 })
 
-// One preset, filling the frame.
-const look = (name, preset, extra = {}, frames = 200) => ({
-  ...PICTURE,
-  ...FRAME,
-  name: `look-${name}`,
-  params: { ...CAT, preset, ...extra },
-  warm: frames,
-})
-
 // A gallery frame from the app's own dice: `?surprise` rolls a random stack of
 // presets on load, which reaches wilder places than any single preset does.
 // Once a roll is worth keeping, `docshots --freeze` writes the look it landed
@@ -264,7 +255,7 @@ export const SPECS = [
   roll('roll-3'),
   roll('roll-4'),
   roll('roll-5'),
-  look('full-collapse', 'full collapse'),
+  roll('roll-6'),
 
   // Clips: the four things a still cannot show — a feedback loop developing,
   // sync coming apart, a control moved by something other than a hand, and

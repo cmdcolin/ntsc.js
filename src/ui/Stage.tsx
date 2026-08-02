@@ -298,7 +298,7 @@ export function Stage(props: {
               ? 'grabbing'
               : zoomed
                 ? 'grab'
-                : 'zoom-in',
+                : 'crosshair',
         }}
         title={
           zoomed

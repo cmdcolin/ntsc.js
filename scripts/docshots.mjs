@@ -506,9 +506,15 @@ function commit(tmpFile, outFile, name) {
   }
 }
 
-// Record the canvas in the page and hand the webm back as a data url. The page
-// steps the render loop itself while recording: a backgrounded window throttles
-// rAF, and a clip captured that way plays back in lurches.
+// Record the canvas in the page and hand the webm back as a data url.
+//
+// The stream is asked for a frame explicitly (captureStream(0) +
+// requestFrame) rather than sampling whatever the compositor paints, and the
+// render loop is stepped from a timer rather than rAF. Both for the same
+// reason: a window that isn't the frontmost one gets its rAF and its paints
+// throttled to about 1Hz, and the clip then comes back technically valid and
+// a slideshow. This way the recording rate is the loop's rate, whatever the
+// window manager thinks of the window.
 function recordCanvas(secs, fps) {
   const canvas = document.querySelector('canvas')
   const type = [
@@ -516,11 +522,9 @@ function recordCanvas(secs, fps) {
     'video/webm;codecs=vp8',
     'video/webm',
   ].find(t => window.MediaRecorder?.isTypeSupported(t))
-  // No rate argument: the stream then samples on every canvas paint rather
-  // than on a fixed clock, so the clip runs at whatever the render loop
-  // actually achieves instead of duplicating or dropping frames against a
-  // rate it can't hit.
-  const rec = new MediaRecorder(canvas.captureStream(), {
+  const stream = canvas.captureStream(0)
+  const track = stream.getVideoTracks()[0]
+  const rec = new MediaRecorder(stream, {
     mimeType: type,
     videoBitsPerSecond: 24_000_000,
   })
@@ -530,22 +534,18 @@ function recordCanvas(secs, fps) {
   rec.start()
   const t0 = performance.now()
   return new Promise(res => {
-    // Stepped from rAF rather than a timer: a timer that fires faster than the
-    // GPU can finish a frame queues up behind itself, and the clip comes out at
-    // two thirds of the frame rate it asked for.
-    const tick = async () => {
+    const iv = setInterval(async () => {
       window.vf?.step()
-      if (performance.now() - t0 < secs * 1000) {
-        requestAnimationFrame(tick)
-      } else {
+      track.requestFrame()
+      if (performance.now() - t0 > secs * 1000) {
+        clearInterval(iv)
         rec.stop()
         await stopped
         const fr = new FileReader()
         fr.onload = () => res(fr.result)
         fr.readAsDataURL(new Blob(chunks, { type: 'video/webm' }))
       }
-    }
-    requestAnimationFrame(tick)
+    }, 1000 / fps)
   })
 }
 
@@ -602,8 +602,15 @@ async function captureVideo(page, spec) {
     .trim()
     .split('\n')
     .map(Number)
-  const rate = probe[0] / probe[1]
-  if (!(rate > 15)) throw new Error(`clip stalled at ${rate.toFixed(1)} fps`)
+  const [frames, duration] = probe
+  const rate = frames / duration
+  // Both halves matter: a stalled recording can come back as three frames over
+  // a hundredth of a second, which reads as a fine frame rate and is not a clip.
+  if (!(duration > secs * 0.6 && rate > 15)) {
+    throw new Error(
+      `clip stalled (${frames} frames over ${duration.toFixed(1)}s, wanted ${secs}s)`,
+    )
+  }
   console.log(
     `  ✓ ${spec.name}.mp4 (${(statSync(mp4).size / 1e6).toFixed(1)} MB, ${rate.toFixed(0)} fps)`,
   )

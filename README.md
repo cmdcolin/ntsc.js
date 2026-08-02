@@ -28,7 +28,7 @@ footage.</sub>
 - 132 knobs in 18 groups, and none of them draw an artifact — they break
   something in the signal path and let the artifact happen. Wiring, camera
   feedback, the mixer loop, tape and RF, the receiver, the screen itself: every
-  one of them is written up in [EFFECTS.md](EFFECTS.md).
+  one of them is written up in [docs/EFFECTS.md](docs/EFFECTS.md).
 - Feed it color bars, a sweep, TV snow, the bundled photo, any image or video
   file, or a webcam or capture card. There's a second input as well, to mix,
   wipe or beat against the first.
@@ -76,12 +76,11 @@ where every figure links to the live session that produced it.
 
 - [**docs/USER-GUIDE.md**](docs/USER-GUIDE.md) — the tour: what's on screen,
   what to touch first, where the interesting things hide
-- [**EFFECTS.md**](EFFECTS.md) — every effect and the hardware fault it models
+- [**docs/EFFECTS.md**](docs/EFFECTS.md) — every effect and the hardware fault it models
 - [**docs/HOW-IT-WORKS.md**](docs/HOW-IT-WORKS.md) — the signal path, pass by
   pass, with diagrams
 - [**docs/MIDI.md**](docs/MIDI.md) — setting up a controller, start to finish
-- [**docs/DEVELOPMENT.md**](docs/DEVELOPMENT.md) — build, test, the harness that
-  captures every doc screenshot, YouTube source, URL params
+- [**docs/DEVELOPMENT.md**](docs/DEVELOPMENT.md) — notes on the developer setup
 - [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) — pass graph, buffer layouts,
   adding a control end to end
 
@@ -97,8 +96,6 @@ look at:
 - **Blargg's NTSC filters** (`nes_ntsc` / `snes_ntsc`) and **RetroArch CRT
   shaders** (`crt-royale`, `crt-guest-advanced`) — the emulator/shader side of
   the same idea.
-- Hardware roots: **Rutt–Etra** video synthesis, **no-input video feedback**,
-  and time-base correctors — the gear ntscenery imitates in software.
 
 What's different here: ntscenery models the whole signal _path_ end-to-end in
 real time — encode → tape/RF damage → imperfect decode → CRT — so the artifacts

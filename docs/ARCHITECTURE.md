@@ -6,10 +6,10 @@ inventory of every file.
 
 ## The premise
 
-ntscenery simulates the NTSC signal path, not the _look_ of one. There is no "VHS
-filter". A picture is encoded to a real composite waveform on a fixed raster,
-damaged in the ways real hardware damages a waveform, then decoded by a model of
-a TV that has to find sync in whatever it is handed. Dot crawl, rainbow
+ntscenery simulates the NTSC signal path, not the _look_ of one. There is no
+"VHS filter". A picture is encoded to a real composite waveform on a fixed
+raster, damaged in the ways real hardware damages a waveform, then decoded by a
+model of a TV that has to find sync in whatever it is handed. Dot crawl, rainbow
 fringing, tearing, rolling and hue drift are **emergent** — nobody draws them.
 
 That premise is the main design constraint: when adding an effect, prefer

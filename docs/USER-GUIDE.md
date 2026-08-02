@@ -35,13 +35,12 @@ it sideways instead and it goes in _partially_, stacking onto what's there.
 `c`) previews the clean signal. **surprise me** stacks random presets;
 **mutate** jitters everything a little, which is where the accidents come from.
 
-Five rolls of **surprise me**, plus one preset pushed hard. Each opens live from
-the docs site:
+Six rolls of **surprise me**, each one a link you can open and keep pushing:
 
-|                          |                          |                                 |
-| :----------------------: | :----------------------: | :-----------------------------: |
-| ![](img/look-roll-1.jpg) | ![](img/look-roll-2.jpg) |    ![](img/look-roll-3.jpg)     |
-| ![](img/look-roll-4.jpg) | ![](img/look-roll-5.jpg) | ![](img/look-full-collapse.jpg) |
+|                          |                          |                          |
+| :----------------------: | :----------------------: | :----------------------: |
+| ![](img/look-roll-1.jpg) | ![](img/look-roll-2.jpg) | ![](img/look-roll-3.jpg) |
+| ![](img/look-roll-4.jpg) | ![](img/look-roll-5.jpg) | ![](img/look-roll-6.jpg) |
 
 ## Give it something to mangle
 
