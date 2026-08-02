@@ -2,6 +2,27 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.7.3](https://github.com/cmdcolin/ntsc.js/compare/v0.7.2...v0.7.3) - 2026-08-02
+
+### Fixes
+- *(docs)* [`fcfbdb5`](https://github.com/cmdcolin/ntsc.js/commit/fcfbdb51aa2a9a6c22b68b6a850870b3301a9669) restore valid syntax in the docshots localStorage seed
+
+### Performance
+- *(gpu)* [`20d4f14`](https://github.com/cmdcolin/ntsc.js/commit/20d4f1447d209cfff7862082ba23dc469dda408e) stop paying for arithmetic the signal path throws away
+
+### Documentation
+- [`ce43af8`](https://github.com/cmdcolin/ntsc.js/commit/ce43af82e13c9f311f0fc62e18d22e5e73167cfd) make the pipeline diagrams teach the invariants, and keep them honest
+- [`5961fb4`](https://github.com/cmdcolin/ntsc.js/commit/5961fb4f11cd2cc2f2f774aa71673f61315d7b3e) full-window doc shots, drop inversion from the base look, new gallery
+
+### Tests
+- *(gpu)* [`1999380`](https://github.com/cmdcolin/ntsc.js/commit/19993801c4ece10fe46a8c86427099a022ead403) hold the pass-order docs to the arrays, not just the pass set
+
+### Chores
+- *(gpu)* [`a9bf95f`](https://github.com/cmdcolin/ntsc.js/commit/a9bf95fe65832e74a80e3e947239dfdee6fdcac6) drop the ?prof per-pass profiler
+
+### Other Changes
+- [`a5fd0b7`](https://github.com/cmdcolin/ntsc.js/commit/a5fd0b795123ad2cfe2e5e36c316509102dbaa16) Consolidate ideas docs
+
 ## [0.7.2](https://github.com/cmdcolin/ntsc.js/compare/v0.7.1...v0.7.2) - 2026-08-02
 
 ### Features
