@@ -49,6 +49,12 @@ export interface RenderLoopHost {
   // callbacks after a hidden stretch and then stopping for good — so the owner
   // gets a chance to rebuild the presentation surface instead.
   recover: () => void
+  // The picture is now frozen (true) or live again (false). Latched when the
+  // fallback spends its budget, cleared when rAF comes back. Giving up used to
+  // be silent, which left a tab that the compositor had abandoned looking
+  // identical to a bug in the signal path — the app is fine, it just cannot
+  // reach the screen, and only the user can act on that.
+  onFrozen: (frozen: boolean) => void
   // Current frame number, for log breadcrumbs only.
   frameNo: () => number
 }
@@ -96,7 +102,7 @@ export class RenderLoop {
     this.stalled = false
     this.pumping = false
     this.stallSince = 0
-    this.gaveUp = false
+    this.setGaveUp(false)
     this.probing = false
     this.rafTicks = 0
     this.lastRafTicks = 0
@@ -135,7 +141,7 @@ export class RenderLoop {
         // WATCHDOG_MS and double the submission rate on a device that just
         // demonstrated it was struggling.
         this.stalled = false
-        this.gaveUp = false
+        this.setGaveUp(false)
         trace.add('resume', `frame ${this.host.frameNo()}`)
         console.warn(
           `rAF resumed at frame ${this.host.frameNo()}; leaving fallback`,
@@ -185,13 +191,22 @@ export class RenderLoop {
     }
   }
 
+  // Sole writer of `gaveUp`, so the host hears every edge exactly once and can
+  // hold it as plain state rather than polling for it.
+  private setGaveUp(v: boolean): void {
+    if (this.gaveUp !== v) {
+      this.gaveUp = v
+      this.host.onFrozen(v)
+    }
+  }
+
   // True while the stall is still young enough to be worth rendering into.
   // Latches `gaveUp` on the way past, so the watchdog stops restarting the pump
   // for this stall and the picture is simply left frozen until rAF returns.
   private bridging(): boolean {
     const within = performance.now() - this.stallSince < FALLBACK_BUDGET_MS
     if (!within && !this.gaveUp) {
-      this.gaveUp = true
+      this.setGaveUp(true)
       // One attempt at rebuilding the surface on the way out. If it works the
       // next delivered rAF clears the stall, so a `resume` following this line
       // in the trace is the proof; nothing following it means the surface was
@@ -291,7 +306,7 @@ export class RenderLoop {
         if (!this.stalled) {
           this.stalled = true
           this.stallSince = performance.now()
-          this.gaveUp = false
+          this.setGaveUp(false)
           trace.add('stall', `frame ${this.host.frameNo()}`)
           trace.flush(true)
           console.warn(

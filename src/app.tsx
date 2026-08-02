@@ -516,6 +516,7 @@ export function App() {
       <Stage
         canvasRef={eng.canvasRef}
         error={eng.error}
+        frozen={eng.frozen}
         fullscreen={fullscreen}
         poppedOut={popout !== null}
         recording={capture.recording}

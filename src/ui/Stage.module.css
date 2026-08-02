@@ -48,6 +48,27 @@
   color: #f66;
   font-family: var(--mono);
 }
+/* Give-up notice: the fallback has stopped bridging and the picture is frozen
+   until the browser paints again. Centred rather than tucked in a corner —
+   there is nothing else moving on the stage to compete with it. */
+.frozen {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 10px;
+  max-width: min(420px, 80%);
+  padding: 16px 18px;
+  border: 1px solid #a86;
+  border-radius: 8px;
+  background: #000000d8;
+  color: #fc9;
+  font-size: 13px;
+  line-height: 1.5;
+}
 /* overlay controls over the canvas. Every direct child is one --ctl-h-tall
    pill; nothing here is allowed to size itself off its content. */
 .overlayBar {

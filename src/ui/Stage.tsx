@@ -14,6 +14,7 @@ import { Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
 import styles from './Stage.module.css'
 import { usePersistedFlag } from './storage'
+import ui from './ui.module.css'
 
 import type { Lens } from './lens'
 import type { PointerEvent, ReactNode, RefObject } from 'react'
@@ -230,6 +231,7 @@ function ZoomRow(props: { lens: Lens; onChange: (lens: Lens) => void }) {
 export function Stage(props: {
   canvasRef: RefObject<HTMLCanvasElement | null>
   error: string
+  frozen: boolean
   fullscreen: boolean
   poppedOut: boolean
   recording: boolean
@@ -321,6 +323,19 @@ export function Stage(props: {
         <div className={styles.marquee} style={marquee} />
       )}
       {props.error !== '' && <div className={styles.error}>{props.error}</div>}
+      {props.frozen ? (
+        <div className={styles.frozen}>
+          <b>the browser stopped painting this tab</b>
+          <span>
+            The app and the GPU are both still running — rendered frames just
+            aren&apos;t reaching the screen. It clears itself if the browser
+            resumes; if it doesn&apos;t, close the tab and open it again.
+          </span>
+          <button className={ui.btn} onClick={() => location.reload()}>
+            reload
+          </button>
+        </div>
+      ) : null}
       {barHidden ? (
         <button
           className={cx(styles.overlayBtn, styles.reopenBar)}

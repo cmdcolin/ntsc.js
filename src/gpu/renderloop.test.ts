@@ -22,6 +22,7 @@ function harness() {
   const workDone: (() => void)[] = []
   let hangs = 0
   let recoveries = 0
+  const frozenEdges: boolean[] = []
 
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
     rafSeq += 1
@@ -60,6 +61,9 @@ function harness() {
     recover: () => {
       recoveries += 1
     },
+    onFrozen: f => {
+      frozenEdges.push(f)
+    },
     frameNo: () => frames,
   })
 
@@ -68,6 +72,7 @@ function harness() {
     hangs: () => hangs,
     frames: () => frames,
     recoveries: () => recoveries,
+    frozenEdges: () => frozenEdges,
     // Deliver every rAF callback the loop has outstanding.
     deliverRaf: (time: number) => {
       const cbs = [...rafCbs.values()]
@@ -234,6 +239,32 @@ describe('RenderLoop', () => {
     h.completeGpu()
     await vi.advanceTimersByTimeAsync(WATCHDOG_MS * 3)
     expect(h.recoveries()).toBe(1)
+  })
+
+  it('reports one frozen edge per stall episode', async () => {
+    const h = harness()
+    h.loop.start()
+    await vi.advanceTimersByTimeAsync(WATCHDOG_MS)
+    // A stall alone is not frozen: the fallback is bridging it, and the picture
+    // is live. Only spending the budget is worth telling the user about.
+    expect(h.frozenEdges()).toEqual([])
+
+    for (let t = 0; t < FALLBACK_BUDGET_MS; t += FALLBACK_MS) {
+      h.completeGpu()
+      await vi.advanceTimersByTimeAsync(FALLBACK_MS)
+    }
+    expect(h.frozenEdges()).toEqual([true])
+
+    // The watchdog keeps re-arming rAF for the whole give-up, so it must not
+    // re-announce a freeze the host is already showing.
+    h.completeGpu()
+    await vi.advanceTimersByTimeAsync(WATCHDOG_MS * 3)
+    expect(h.frozenEdges()).toEqual([true])
+
+    // rAF coming back is the only thing that clears it, and it must clear on
+    // the delivered callback rather than waiting for the next watchdog.
+    h.deliverRaf(1000)
+    expect(h.frozenEdges()).toEqual([true, false])
   })
 
   it('re-enters the fallback after a restart', async () => {

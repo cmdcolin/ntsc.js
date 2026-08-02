@@ -106,6 +106,10 @@ export class Engine {
   // (the GPU process is wedged, and it outlives this page).
   onDeviceLost: (message: string) => void = () => {}
   onHang: () => void = () => {}
+  // A third, milder failure: the app and the GPU are both fine, the browser has
+  // simply stopped painting this tab, so rendered frames go nowhere. Recoverable
+  // on its own — hence a banner rather than the fatal screen.
+  onFrozen: (frozen: boolean) => void = () => {}
   // Non-fatal GPU faults (uncaptured validation/oom, e.g. an over-large source
   // texture): surfaced to the panel banner instead of only the console, so a
   // wedged render loop shows a reason rather than looking frozen.
@@ -617,6 +621,7 @@ export class Engine {
       onStats: s => this.onStats(s),
       onHang: () => this.onHang(),
       recover: () => this.recoverSurface(),
+      onFrozen: f => this.onFrozen(f),
       frameNo: () => this.frame,
     })
 

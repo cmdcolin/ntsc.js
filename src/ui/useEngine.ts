@@ -90,6 +90,25 @@ export function useEngine() {
   const fileInputBRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
   const [fatal, setFatal] = useState<Fatal | null>(null)
+  // The browser stopped painting the tab. Not fatal — it clears itself the
+  // moment rAF is delivered again — so it rides over the stage as a banner.
+  const [frozen, setFrozen] = useState(false)
+
+  // The stage banner rides on the canvas, so it is invisible in the worst
+  // version of this — a document the browser has stopped painting entirely,
+  // where nothing the DOM says reaches the screen. The tab title is browser
+  // chrome, drawn by the parent process, so it still gets through.
+  useEffect(() => {
+    let restore = () => {}
+    if (frozen) {
+      const original = document.title
+      document.title = `⏸ frozen — ${original}`
+      restore = () => {
+        document.title = original
+      }
+    }
+    return () => restore()
+  }, [frozen])
   const [stats, setStats] = useState<FrameStats>({ fps: 0 })
   const [engine, setEngine] = useState<Engine | null>(null)
   const [sourceMode, setSourceMode] = useState<SourceMode>('bars')
@@ -670,6 +689,7 @@ export function useEngine() {
                 body: 'Submitted work stopped completing, so the picture would be frozen even though the app is still running.',
                 kind: 'hung',
               })
+            created.onFrozen = f => setFrozen(f)
             created.setImageSource(smpteBars())
             created.setImageSourceB(smpteBars())
             created.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
@@ -704,6 +724,7 @@ export function useEngine() {
     engineRef,
     engine,
     fatal,
+    frozen,
     error,
     stats,
     res,
