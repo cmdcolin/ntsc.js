@@ -9,10 +9,22 @@ Every figure here is captured from the running app by
 [`scripts/docshots.mjs`](../scripts/docshots.mjs), so the guide can't drift from
 the UI.
 
+## The deep end first
+
+Every stage at once — scrambled sync, a bent enhancer, both feedback loops,
+source B beating against itself, the phosphor left long. None of it is drawn:
+each fault is one circuit misbehaving, and they interfere with each other for
+free.
+
 <video
   controls muted loop playsinline
-  poster="img/clip-feedback-poster.jpg"
-  src="https://cmdcolinphotos.s3.amazonaws.com/phosphene/clip-feedback.mp4"></video>
+  poster="img/clip-hero-poster.jpg"
+  src="https://cmdcolinphotos.s3.amazonaws.com/phosphene/clip-hero.mp4"></video>
+
+<sub>[Open this patch ↗](https://cmdcolin.github.io/ntsc.js/?src=cat&srcb=cat&set=chromaGain%3A2.4%2CsvideoBleed%3A0.8%2CchromaTail%3A0.4%2CencChromaMHz%3A1.85%2CdemodMHz%3A1.23%2ChHold%3A0.35%2CvHold%3A0.4%2CvFreqHz%3A59.6%2CsyncBendUs%3A6%2CbendUs%3A22%2CbendShape%3A2%2ChvSagUs%3A12%2ChvRing%3A0.8%2ChDetuneHz%3A24%2Cscramble%3A0.4%2Cagc%3A0.5%2CnoiseIre%3A7%2CenhPeakMHz%3A0.35%2CenhPeakQ%3A0.7%2CenhPeakBoost%3A0.06%2CfbMix%3A0.5%2CfbZoom%3A1.03%2CfbRotateDeg%3A2%2CfbGain%3A0.96%2CfbFocus%3A1.1%2CfbVign%3A0.4%2CfbBlack%3A0.02%2CfbKnee%3A0.6%2CcfbMix%3A0.35%2CcfbGain%3A0.8%2CcfbDelayUs%3A0.25%2CcfbLines%3A3%2CcfbKey%3A0.7%2CcfbKeyLevel%3A45%2CcfbKeySoft%3A10%2CbGain%3A0.35%2CbLineHz%3A0.71%2CbDetuneHz%3A107%2CbRollLps%3A0.17%2Cphosphor%3A0.45),
+then hit **mutate** a few times.</sub>
+
+The rest of this page is how you get there one stage at a time.
 
 ## What's on screen
 
@@ -24,27 +36,34 @@ the UI.
 
 ## Start with a preset
 
-![The Presets section](img/presets.png)
+![The app window, the Presets section at the top of the panel boxed in red](img/presets.jpg)
 
 Click one and the board jumps to that look. Every preset is also a fader: drag
 it sideways instead and it goes in _partially_, stacking onto what's there.
 
-![The vhs preset dragged to about 60%, its chip filled to match](img/preset-mix.png)
+![The vhs preset dragged to about 60%, its chip filled to match](img/preset-mix.jpg)
 
 `clean` resets. **undo** (`ctrl+z`) steps back. **hold to compare** (or hold
 `c`) previews the clean signal. **surprise me** stacks random presets;
 **mutate** jitters everything a little, which is where the accidents come from.
 
-Six rolls of **surprise me**, each one a link you can open and keep pushing:
+Six mechanisms, each starting from the preset that names it and pushed past
+where the preset stops — every one a link you can open and keep pushing:
 
-|                          |                          |                          |
-| :----------------------: | :----------------------: | :----------------------: |
-| ![](img/look-roll-1.jpg) | ![](img/look-roll-2.jpg) | ![](img/look-roll-3.jpg) |
-| ![](img/look-roll-4.jpg) | ![](img/look-roll-5.jpg) | ![](img/look-roll-6.jpg) |
+|                                                                       |                                                                                 |                                                             |
+| :-------------------------------------------------------------------: | :-----------------------------------------------------------------------------: | :---------------------------------------------------------: |
+|      ![Hue banding rolling down the frame](img/look-rainbow.jpg)      | ![Suppressed sync: every line landing at its own offset](img/look-scramble.jpg) |    ![Noise bars sweeping a cued tape](img/look-tape.jpg)    |
+| ![Camera feedback spiralling around the subject](img/look-tunnel.jpg) |       ![Keyed mixer feedback rippling up the frame](img/look-ladder.jpg)        | ![A tube driven past its clipping point](img/look-tube.jpg) |
+
+**rainbow storm** pulls the colour crystal off frequency · **scrambled channel**
+suppresses sync · **picture search** drags the head across four tracks a sweep ·
+**fb bloom** points a camera at the monitor · **key loop** patches the composite
+back into itself through a luma key · **neon tube** drives the gun past where it
+can still hold a colour.
 
 ## Give it something to mangle
 
-![The Input section: source A, source B, and the audio input](img/input.png)
+![The app window, the Input section boxed in red](img/input.jpg)
 
 **A** is the main source: bars, sweep, snow, the bundled photo, a file of your
 own, or a webcam — which is also how an RCA capture dongle gets real gear in
@@ -57,14 +76,14 @@ hosted build has no server to do that with.
 
 ## Working down the chain
 
-![The chain map at the head of the sidebar](img/chain.png)
+![The app window, the chain map at the head of the sidebar boxed in red](img/chain.jpg)
 
 Controls live where they sit in the signal path, not in one long list. The map
 at the head of the sidebar is the whole path — five stages, plus the two loops
 that feed the picture back into it. Amber is a stage you've moved something in.
 Click one to open its controls below:
 
-![The Tape stage opened at VHS Tracking](img/signal-path.png)
+![The app window with the Tape stage opened at VHS Tracking, the stage list boxed in red](img/signal-path.jpg)
 
 - **• 10** counts what you've moved in that stage; click it to jump there.
 - **?** on any slider explains the fault it models — hover for a line, click for
@@ -72,24 +91,34 @@ Click one to open its controls below:
 - **"inert — needs …"** means another control gates this one. Click the note to
   set it.
 
-![The help card behind a slider's ?](img/slider-help.png)
+![The app window with a slider's help card open, boxed in red](img/slider-help.jpg)
 
 The help says what breaks in the hardware, not what you'll see — the look is
 emergent, and the cause is what tells you how two controls will combine.
 [EFFECTS.md](EFFECTS.md) gathers all of them onto one page, if you'd rather read
 than hover.
 
+The two **loops** on the map are the exception to working left to right: they
+take the picture off the end of the chain and put it back at the front, so they
+compound the damage every other stage is doing. A camera aimed a hair off-axis
+from the monitor it's watching, over a tape that's dropping out under it:
+
+<video
+  controls muted loop playsinline
+  poster="img/clip-feedback-poster.jpg"
+  src="https://cmdcolinphotos.s3.amazonaws.com/phosphene/clip-feedback.mp4"></video>
+
 ## Finding a control
 
 Both searches cover the help text, so you can hunt an artifact without knowing
 the knob. The filter box narrows the panel:
 
-![Filtering the panel for "rainbow"](img/filter.png)
+![The app window filtered for "rainbow", the filter box and what it left boxed in red](img/filter.jpg)
 
 `ctrl+k` opens the palette over presets, controls and actions at once; `←→`
 nudges the highlighted control live.
 
-![The command palette searching for "ghost"](img/palette.png)
+![The app window with the command palette open on "ghost", boxed in red](img/palette.jpg)
 
 ## Making it move
 
@@ -97,13 +126,13 @@ nudges the highlighted control live.
 attractor or the audio envelope onto any control. Depth is a fraction of that
 control's own range, and the slider stays put while modulation moves around it.
 
-![The Modulation section with two slots routed](img/modulation.png)
+![The app window, the Modulation section with two slots routed boxed in red](img/modulation.jpg)
 
 **Sound into the picture** — audio into the hold and deflection circuits: bass
 lurches the frame, level tears line hold, the waveform draws itself on the
 screen.
 
-![The audio section](img/audio.png)
+![The app window, the Sound into the picture section boxed in red](img/audio.jpg)
 
 **MIDI** — the real answer if you want to play this. Automap or learn one knob
 at a time, no jumps when a knob is out of position, rates locked to clock. See
@@ -111,7 +140,7 @@ at a time, no jumps when a knob is out of position, rates locked to clock. See
 
 ## Keeping what you find
 
-![The Scenes section](img/scenes.png)
+![The app window, the Scenes section boxed in red](img/scenes.jpg)
 
 Nine scene slots for the whole board: `shift+1–9` saves, `1–9` recalls. **copy
 link** puts the entire look in a URL — a link is a patch. `s` saves a still, `r`
@@ -119,7 +148,7 @@ records a clip.
 
 ## Looking closer
 
-![The magnifier at 3.4×](img/magnifier.jpg)
+![The app window with the picture magnified 3.4x](img/magnifier.jpg)
 
 Drag a box to zoom, drag to pan once you're in, double-click to reset. The
 magnifier is part of the display, so it magnifies the lit tube face — scan
@@ -128,7 +157,7 @@ lines, mask and all.
 To watch the signal instead of the picture, pick a tap in **advanced settings**:
 the composite waveform, luma, chroma energy, or the decoder's burst state.
 
-![The advanced dialog](img/advanced.png)
+![The app window with the advanced settings dialog open, boxed in red](img/advanced.jpg)
 
 ![The raw composite waveform tap](img/scope.jpg)
 
@@ -138,7 +167,7 @@ rate.
 
 ## Getting it out
 
-![The stage menu open over the picture](img/stage-menu.jpg)
+![The app window with the stage menu open over the picture, boxed in red](img/stage-menu.jpg)
 
 Everything that isn't a signal control lives here: stills, recording,
 fullscreen, and **pop out controls**, which moves the panel to a second window
@@ -157,19 +186,6 @@ resolution.
 | `1`–`9` / `shift+1`–`9` | recall / save a scene                               |
 | `ctrl/⌘+z`              | undo                                                |
 | `esc`                   | close a dialog, cancel a MIDI arm, clear the filter |
-
-## The deep end
-
-Stack every stage at once — scrambled sync, a bent enhancer, both feedback
-loops, source B beating against itself, the phosphor left long:
-
-<video
-  controls muted loop playsinline
-  poster="img/clip-hero-poster.jpg"
-  src="https://cmdcolinphotos.s3.amazonaws.com/phosphene/clip-hero.mp4"></video>
-
-<sub>[Open this patch ↗](https://cmdcolin.github.io/ntsc.js/?src=cat&srcb=cat&set=encChromaMHz%3A1.85%2Cinvert%3A1%2CdemodMHz%3A1.23%2CchromaTail%3A0.47%2CchromaCoarse%3A2%2CchromaGain%3A2.36%2CsvideoBleed%3A0.78%2ChHold%3A0.45%2CvHold%3A0.56%2CvFreqHz%3A58.9%2CsyncBendUs%3A8.45%2CbendUs%3A30%2CbendShape%3A2%2ChvSagUs%3A14.8%2ChvRing%3A0.8%2ChDetuneHz%3A38%2CchromaPinOnly%3A0.67%2Cscramble%3A1%2CscrambleMode%3A2%2CenhClampUs%3A3.4%2CenhDroopUs%3A9%2CenhPeakMHz%3A0.2%2CenhPeakQ%3A0.53%2CenhPeakBoost%3A0.02%2CenhSync%3A0.57%2CenhSliceIre%3A-0.5%2CnoiseIre%3A15.1%2Cagc%3A0.7%2CfbMix%3A0.82%2CfbZoom%3A1.045%2CfbRotateDeg%3A2.5%2CfbGain%3A1.18%2CfbFocus%3A1.3%2CfbVign%3A0.35%2CfbBlack%3A0.05%2CfbKnee%3A0.65%2CcrtGamma%3A1.1%2CcfbMix%3A0.95%2CcfbGain%3A1.2%2CcfbDelayUs%3A0.05%2CcfbLines%3A4%2CcfbKey%3A1%2CcfbKeyLevel%3A47%2CcfbKeySoft%3A8.5%2CcfbFilterMHz%3A0.4%2CcfbFilterQ%3A0.57%2CcfbFilterBoost%3A2.1%2CbGain%3A0.44%2CbLineHz%3A0.71%2CbDetuneHz%3A107%2CbRollLps%3A0.17%2Cphosphor%3A0.445),
-then hit **mutate** a few times.</sub>
 
 ## Where next
 

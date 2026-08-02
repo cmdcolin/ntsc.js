@@ -51,12 +51,14 @@ serving there, so a regen is one command from a cold checkout.
 
 Shots are declared in
 [`../scripts/docshot-specs.mjs`](../scripts/docshot-specs.mjs) — a URL, the
-actions that put the app in the state being documented, optional red callouts,
-and what to crop to. Crops and callouts resolve against live elements at capture
-time, so nothing is a hand-measured pixel offset. Captures run at 2x; UI crops
-land as pngquant'd PNGs and picture-heavy frames as JPEG. The runner refuses to
-save a dead-black frame or one with the stage's error banner up, and leaves a
-shot alone when its pixels didn't change.
+actions that put the app in the state being documented, and the red callouts
+drawn over the result. Callouts and crops resolve against live elements at
+capture time, so nothing is a hand-measured pixel offset. A UI figure is the
+whole window with a red box round the part being described (the `boxed` helper),
+not a crop of that part: a cropped panel section loses where it sits and what it
+is doing to the picture. Captures run at 2x, as JPEG. The runner refuses to save
+a dead-black frame or one with the stage's error banner up, and leaves a shot
+alone when its pixels didn't change.
 
 A spec with `video` records the canvas to mp4 instead, with a poster still
 beside it. Clips are too big to commit, so they go to a gitignored `clips/` and
@@ -72,16 +74,21 @@ moment of each capture, as a URL against the hosted build. That is what puts the
 back from the live session rather than rebuilt from the spec, so it holds even
 for a shot whose look the app rolled itself.
 
-The gallery shots do exactly that: they load `?surprise`, which rolls a random
-preset stack the way the button does. A roll worth keeping gets pinned:
+The `look-*` gallery shots are one named mechanism each, started from the preset
+that names it and pushed past where that preset stops. Pushing further is mostly
+how you lose them — a subcarrier detuned far enough decodes to grey, a feedback
+loop left running long enough eats the picture — so each one sits just short of
+its own cliff, and a change wants looking at rather than assuming.
+
+A look pushed further by hand in the app can be captured back out of it:
 
 ```
-pnpm docshots --freeze look-roll-3   # capture, then record the look it landed on
+pnpm docshots --freeze look-tunnel   # capture, then record the look it landed on
 ```
 
-`--freeze` writes the resulting params into `scripts/docshot-frozen.json`, and
-that shot stops rolling — same picture every regen. Delete its entry to let it
-roll again.
+`--freeze` writes what the address bar said into `scripts/docshot-frozen.json`,
+and that entry then wins over the spec's own params. Delete it to go back to the
+spec.
 
 Needs Firefox Nightly, ImageMagick, ffmpeg (clips) and pngquant (optional).
 

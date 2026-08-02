@@ -41,9 +41,18 @@ const CLIP = { ...FRAME, dpr: 1.5 }
 // The look every UI shot sits on. Not the landing state: those shots are of the
 // panel, but their "open this in the app" link should still land somewhere
 // worth being, and the off-stock lamps and counts only mean something once
-// something is off stock. One of the frozen gallery rolls, so the whole guide
-// reads as one session.
-const WILD = frozen['look-roll-5'] ?? CAT
+// something is off stock. Fixed here rather than borrowed from a gallery roll,
+// so re-rolling the gallery doesn't quietly restyle every UI figure — and kept
+// off the polarity controls, because a UI shot wants the picture beside it
+// legible as a picture.
+const WILD = {
+  ...CAT,
+  set:
+    'demodMHz:0.5,lumaMHz:2.8,lumaPeak:0.8,noiseIre:4,agc:0.19,' +
+    'ghostDelayUs:1.15,ghostGain:0.08,colorUnderMix:1,underJitterDeg:4,' +
+    'dropoutRate:6,headSwitchNoise:0.4,headSwitchShiftUs:0.8,tbJitterNs:190,' +
+    'tbWowNs:300,hvSagUs:2.7,hvRing:0.61,phosphor:0.19',
+}
 
 // WILD with more controls on top — the two `set` strings concatenated, since a
 // second `set` param would replace the first rather than extend it.
@@ -52,35 +61,65 @@ const wildWith = extra => ({
   set: [WILD.set, extra].filter(Boolean).join(','),
 })
 
-// A gallery frame from the app's own dice: `?surprise` rolls a random stack of
-// presets on load, which reaches wilder places than any single preset does.
-// Once a roll is worth keeping, `docshots --freeze` writes the look it landed
-// on into docshot-frozen.json and that shot stops rolling — same picture every
-// regen, with the params on record rather than in a lucky screenshot.
-const roll = name => ({
+// The whole app in frame, with a red box round the thing being described. A
+// tight crop of one panel section reads as a screenshot of some other program:
+// it drops where the section sits, what it is doing to the picture, and how far
+// down the panel you have to go to find it. The box is drawn from the live
+// element (see `annotate` in docshots.mjs), so it cannot drift off its target.
+//
+// Height is per shot: a section that opens tall wants a taller window rather
+// than a panel scrolled halfway down.
+const WINDOW = { format: 'jpeg', width: 1320, height: 900 }
+const boxed = (target, spec) => ({
+  ...WINDOW,
+  params: WILD,
+  ...spec,
+  annotations: [{ target, box: true }, ...(spec?.annotations ?? [])],
+})
+
+// A gallery frame: one named mechanism pushed past where its preset leaves it,
+// so each tile in the guide's gallery is a different fault rather than a
+// different roll of the same dice. `?surprise` (the app's own dice) mostly
+// lands on stacks that read as generic mush at thumbnail size — a good gallery
+// needs the cat still legible under the damage, and the damage nameable.
+//
+// `docshots --freeze` still pins whatever a shot's address bar said, so a look
+// pushed further by hand in the app can be captured back into
+// docshot-frozen.json and takes precedence from then on.
+const look = (name, params, extra) => ({
   ...PICTURE,
   ...FRAME,
   name: `look-${name}`,
-  params: frozen[`look-${name}`] ?? { ...CAT, surprise: '1' },
+  params: frozen[`look-${name}`] ?? { ...CAT, ...params },
   warm: 150,
+  ...extra,
 })
 
 // A hand-built patch nothing in the preset table reaches: everything stacked at
-// once — scrambled sync, a bent enhancer, both feedback loops, source B beating
-// against itself. The guide links it live, so the link and the shot are one
-// string rather than two that can disagree.
+// once — suppressed sync, a bent enhancer, both feedback loops, source B
+// beating against itself, the phosphor left long. The guide links it live, so
+// the link and the shot are one string rather than two that can disagree.
+//
+// Two things this patch is deliberately kept off, both of which take the frame
+// to a wall rather than to a picture:
+//
+// - Anything that inverts. `invert`, SSAVI scrambling and `chromaPinOnly` all
+//   turn the raster inside out or black it out entirely; a negative reads as a
+//   filter over the photo rather than as damage done to a signal.
+// - The enhancer's sync side (`enhSync`, `enhSliceIre` up in picture territory).
+//   It hands the separator pulses minted from dark content, the AGC chases them,
+//   and everything else here — two loops at just under unity — then compounds
+//   whatever level is left. Even a touch of it takes the frame to black. The
+//   resonant peak is what stays, which is the bend worth showing anyway.
 export const HERO_SET =
-  'encChromaMHz:1.85,invert:1,demodMHz:1.23,chromaTail:0.47,chromaCoarse:2,' +
-  'chromaGain:2.36,svideoBleed:0.78,hHold:0.45,vHold:0.56,vFreqHz:58.9,' +
-  'syncBendUs:8.45,bendUs:30,bendShape:2,hvSagUs:14.8,hvRing:0.8,hDetuneHz:38,' +
-  'chromaPinOnly:0.67,scramble:1,scrambleMode:2,enhClampUs:3.4,enhDroopUs:9,' +
-  'enhPeakMHz:0.2,enhPeakQ:0.53,enhPeakBoost:0.02,enhSync:0.57,' +
-  'enhSliceIre:-0.5,noiseIre:15.1,agc:0.7,fbMix:0.82,fbZoom:1.045,' +
-  'fbRotateDeg:2.5,fbGain:1.18,fbFocus:1.3,fbVign:0.35,fbBlack:0.05,' +
-  'fbKnee:0.65,crtGamma:1.1,cfbMix:0.95,cfbGain:1.2,cfbDelayUs:0.05,' +
-  'cfbLines:4,cfbKey:1,cfbKeyLevel:47,cfbKeySoft:8.5,cfbFilterMHz:0.4,' +
-  'cfbFilterQ:0.57,cfbFilterBoost:2.1,bGain:0.44,bLineHz:0.71,bDetuneHz:107,' +
-  'bRollLps:0.17,phosphor:0.445'
+  'chromaGain:2.4,svideoBleed:0.8,chromaTail:0.4,encChromaMHz:1.85,' +
+  'demodMHz:1.23,hHold:0.35,vHold:0.4,vFreqHz:59.6,syncBendUs:6,bendUs:22,' +
+  'bendShape:2,hvSagUs:12,hvRing:0.8,hDetuneHz:24,scramble:0.4,agc:0.5,' +
+  'noiseIre:7,enhPeakMHz:0.35,enhPeakQ:0.7,enhPeakBoost:0.06,fbMix:0.5,' +
+  'fbZoom:1.03,fbRotateDeg:2,fbGain:0.96,fbFocus:1.1,fbVign:0.4,fbBlack:0.02,' +
+  'fbKnee:0.6,cfbMix:0.35,cfbGain:0.8,cfbDelayUs:0.25,cfbLines:3,cfbKey:0.7,' +
+  'cfbKeyLevel:45,cfbKeySoft:10,bGain:0.35,bLineHz:0.71,bDetuneHz:107,' +
+  'bRollLps:0.17,phosphor:0.45'
 const HERO = { ...CAT, srcb: 'cat', set: HERO_SET }
 
 // The chain map at the head of the sidebar — the figure itself in one shot, a
@@ -104,131 +143,116 @@ export const SPECS = [
       { target: MAP, n: 5, at: 'tl', dx: -22, dy: 16 },
     ],
   },
-  {
-    name: 'presets',
-    params: WILD,
-    crop: { section: 'Presets', pad: 10 },
-  },
-  {
-    name: 'preset-mix',
-    params: WILD,
-    // Past the drag slop and on to ~60%: the fill behind the chip is the whole
-    // point of the shot, and a click would apply the preset outright instead.
-    actions: [{ drag: { text: 'vhs' }, by: { x: 72 } }, { steps: 40 }],
-    crop: { section: 'Presets', pad: 10 },
-  },
-  {
-    name: 'input',
-    params: { ...WILD, srcb: 'sweep' },
-    crop: { section: 'Input', pad: 10 },
-  },
-  {
-    name: 'signal-path',
-    params: WILD,
-    height: 1150,
-    seed: {
-      video_feedback_open_phase: 'Tape',
-      video_feedback_open_group: 'VHS Tracking',
+  boxed({ section: 'Presets' }, { name: 'presets' }),
+  boxed(
+    { section: 'Presets' },
+    {
+      name: 'preset-mix',
+      // Past the drag slop and on to ~60%: the fill behind the chip is the
+      // whole point of the shot, and a click would apply the preset outright
+      // instead.
+      actions: [{ drag: { text: 'vhs' }, by: { x: 72 } }, { steps: 40 }],
     },
-    crop: {
-      union: [MAP, { selector: 'div[class*="stages_"]' }],
-      pad: 10,
+  ),
+  boxed(
+    { section: 'Input' },
+    { name: 'input', params: { ...WILD, srcb: 'sweep' } },
+  ),
+  boxed(
+    { selector: 'div[class*="stages_"]' },
+    {
+      name: 'signal-path',
+      height: 1150,
+      seed: {
+        video_feedback_open_phase: 'Tape',
+        video_feedback_open_group: 'VHS Tracking',
+      },
     },
-  },
-  {
+  ),
+  boxed('dialog', {
     name: 'slider-help',
-    params: WILD,
     seed: {
       video_feedback_open_phase: 'Tape',
       video_feedback_open_group: 'VHS Tracking',
     },
     // The first ? in the panel belongs to the one group left open above.
     actions: [{ click: { selector: 'button[title="what does this do?"]' } }],
-    crop: 'dialog',
-  },
-  {
-    name: 'filter',
-    params: WILD,
-    height: 1150,
-    actions: [
-      { set: { selector: 'input[type="search"]' }, value: 'rainbow' },
-      { wait: 400 },
-    ],
-    crop: {
+  }),
+  boxed(
+    {
       union: [
         { selector: 'input[type="search"]' },
         { selector: 'div[class*="stages_"]' },
       ],
-      pad: 10,
     },
-  },
-  {
+    {
+      name: 'filter',
+      height: 1150,
+      actions: [
+        { set: { selector: 'input[type="search"]' }, value: 'rainbow' },
+        { wait: 400 },
+      ],
+    },
+  ),
+  boxed('dialog', {
     name: 'palette',
-    params: WILD,
     actions: [
       { press: 'Control+KeyK' },
       { set: { selector: 'input[data-autofocus]' }, value: 'ghost' },
       { wait: 400 },
     ],
-    crop: 'dialog',
-  },
-  {
-    name: 'chain',
-    params: WILD,
-    // The map alone: a 304x34 row, so it wants a tight crop rather than the
-    // whole sidebar around it.
-    crop: { ...MAP, pad: 10 },
-  },
-  {
-    name: 'modulation',
-    params: WILD,
-    seed: {
-      video_feedback_sections: sections({ Modulation: true }),
-      video_feedback_mod: JSON.stringify([
-        { target: 'hHold', source: 'sine', rateHz: 0.35, depth: 0.4 },
-        { target: 'chromaGain', source: 'lorenz', rateHz: 0.12, depth: 0.25 },
-      ]),
+  }),
+  // The map is a 304x34 row in a 360px panel, so the box is most of what tells
+  // you where to look for it.
+  boxed(MAP, { name: 'chain' }),
+  boxed(
+    { section: 'Modulation' },
+    {
+      name: 'modulation',
+      height: 1150,
+      seed: {
+        video_feedback_sections: sections({ Modulation: true }),
+        video_feedback_mod: JSON.stringify([
+          { target: 'hHold', source: 'sine', rateHz: 0.35, depth: 0.4 },
+          { target: 'chromaGain', source: 'lorenz', rateHz: 0.12, depth: 0.25 },
+        ]),
+      },
     },
-    crop: { section: 'Modulation', pad: 10 },
-  },
-  {
-    name: 'scenes',
-    params: WILD,
-    seed: {
-      video_feedback_sections: sections({ Scenes: true }),
-      video_feedback_scenes: JSON.stringify({
-        1: { hHold: 0.4, noiseIre: 3 },
-        2: { chromaGain: 2.2, svideoBleed: 0.8 },
-        4: { fbMix: 0.6 },
-      }),
+  ),
+  boxed(
+    { section: 'Scenes' },
+    {
+      name: 'scenes',
+      seed: {
+        video_feedback_sections: sections({ Scenes: true }),
+        video_feedback_scenes: JSON.stringify({
+          1: { hHold: 0.4, noiseIre: 3 },
+          2: { chromaGain: 2.2, svideoBleed: 0.8 },
+          4: { fbMix: 0.6 },
+        }),
+      },
     },
-    crop: { section: 'Scenes', pad: 10 },
-  },
-  {
-    name: 'audio',
-    params: WILD,
-    height: 1000,
-    seed: {
-      video_feedback_sections: sections({ 'Sound into the picture': true }),
+  ),
+  boxed(
+    { section: 'Sound into the picture' },
+    {
+      name: 'audio',
+      height: 1150,
+      seed: {
+        video_feedback_sections: sections({ 'Sound into the picture': true }),
+      },
     },
-    crop: { section: 'Sound into the picture', pad: 10 },
-  },
-  {
+  ),
+  boxed('menu', {
     name: 'stage-menu',
-    params: WILD,
-    format: 'jpeg',
-    width: 1000,
-    height: 760,
     actions: [{ click: { title: 'menu (' } }],
-    crop: 'stage',
-  },
+  }),
   {
+    // No box: the magnified picture is the whole frame, and the panel beside it
+    // is what says this is the app's own display rather than a cropped image.
+    ...WINDOW,
     name: 'magnifier',
     params: wildWith('crtZoom:3.4,crtZoomX:0.44,crtZoomY:0.42'),
-    format: 'jpeg',
-    width: 1000,
-    height: 760,
-    crop: 'stage',
   },
   {
     ...PICTURE,
@@ -238,24 +262,62 @@ export const SPECS = [
     width: 1000,
     height: 760,
   },
-  {
+  boxed('dialog', {
     name: 'advanced',
-    params: WILD,
     actions: [
       { click: { title: 'menu (' } },
       { click: { text: 'advanced settings' } },
     ],
-    crop: 'dialog',
-  },
+  }),
 
-  // The showcase gallery: six rolls of the app's own "surprise me", plus the
-  // two hand-pushed looks that name a specific fault.
-  roll('roll-1'),
-  roll('roll-2'),
-  roll('roll-3'),
-  roll('roll-4'),
-  roll('roll-5'),
-  roll('roll-6'),
+  // The showcase gallery: six mechanisms, one per tile, each starting from the
+  // preset that names it and pushed past where that preset stops — but stopping
+  // short of where the mechanism destroys its own evidence. Detune the
+  // subcarrier far enough and the decoder gives up on colour entirely; suppress
+  // sync hard enough and there is no picture left to shear. The preset is the
+  // safe end and these sit just short of the cliff, so a change to one wants
+  // looking at rather than assuming.
+  look('rainbow', {
+    preset: 'rainbow storm',
+    // A far-detuned subcarrier is a motion effect: the hue spins fast enough
+    // that a still averages back to grey with coloured fringes. Pulled back to
+    // half a kilohertz it barber-poles slowly enough to photograph.
+    set: 'scDetuneKHz:0.5,burstLock:0.2,chromaGain:2.2,svideoBleed:0.6,hHold:0.25',
+  }),
+  look('scramble', {
+    preset: 'scrambled channel',
+    // Sync suppression and AGC compound: the amplifier chases a tip that is not
+    // there and takes the whole picture to white with it, so the gain control
+    // comes down as the suppression goes up.
+    set: 'scramble:0.62,hHold:0.45,agc:0.22,noiseIre:3',
+  }),
+  look('tape', {
+    preset: 'picture search',
+    set: 'trackAmt:0.75,trackPos:0.35,headSwitchNoise:0.9,dropoutRate:30,tbWowNs:1100',
+  }),
+  look(
+    'tunnel',
+    {
+      preset: 'fb bloom',
+      set: 'fbMix:0.72,fbZoom:1.07,fbRotateDeg:8,fbGain:1.05,fbFocus:0.9,fbVign:0.5,fbBlack:0.08,fbKnee:0.8,phosphor:0.3',
+    },
+    // A camera loop is a picture of its own history: it needs the frames to
+    // actually go round before there is a tunnel to photograph. Past a couple
+    // of hundred it has eaten the picture and the tile is a white haze.
+    { warm: 140 },
+  ),
+  look(
+    'ladder',
+    {
+      preset: 'key loop',
+      set: 'cfbMix:0.9,cfbGain:1,cfbLines:5,cfbDelayUs:0.6,cfbTrail:0.7,cfbKeyLevel:60,crtSat:1.2',
+    },
+    { warm: 180 },
+  ),
+  look('tube', {
+    preset: 'neon tube',
+    set: 'crtGamma:2.7,crtSat:1.7,crtBloom:0.9,crtHalation:0.8,chromaGain:2,phosphor:0.5,scanBloom:0.8,noiseIre:3',
+  }),
 
   // Clips: the four things a still cannot show — a feedback loop developing,
   // sync coming apart, a control moved by something other than a hand, and
@@ -263,16 +325,28 @@ export const SPECS = [
   {
     name: 'clip-feedback',
     // A camera barely off-axis from the monitor it is pointed at: a hair over
-    // 1x zoom, no rotation, and the tunnel builds itself over several seconds.
-    // Winding the zoom and rotation up instead gives a spinning kaleidoscope,
-    // which is a different (and much less analog) thing.
+    // 1x zoom, a degree of tilt, and the tunnel builds itself over several
+    // seconds. Winding zoom and rotation right up instead gives a spinning
+    // kaleidoscope, which is a different (and much less analog) thing — so the
+    // loop is pushed by gain and mix rather than by geometry.
+    //
+    // The tape underneath it is running badly too: dropouts, head-switch noise
+    // and time-base wobble all go around the loop, so each pass smears the last
+    // one's damage instead of the picture cleanly tunnelling. Only a little of
+    // each, though — the loop compounds them, and a mixer loop stacked on top
+    // of this one takes ten seconds to reach a flat wall of noise.
     params: {
       ...CAT,
-      set: 'fbMix:0.86,fbZoom:1.012,fbGain:1.06,fbFocus:1.15,fbVign:0.22,fbBlack:0.02,fbKnee:0.5,noiseIre:0.8,phosphor:0.35',
+      set:
+        'fbMix:0.88,fbZoom:1.014,fbRotateDeg:0.6,fbGain:1.08,fbFocus:1.2,' +
+        'fbVign:0.28,fbBlack:0.03,fbKnee:0.55,colorUnderMix:0.5,' +
+        'underJitterDeg:3,dropoutRate:8,dropoutLenUs:5,headSwitchNoise:0.35,' +
+        'headSwitchShiftUs:0.9,tbJitterNs:150,tbWowNs:300,noiseIre:2.5,' +
+        'phosphor:0.4',
     },
     ...CLIP,
     warm: 60,
-    video: { secs: 10 },
+    video: { secs: 10, crf: 28 },
   },
   {
     name: 'clip-sync',
@@ -292,7 +366,9 @@ export const SPECS = [
     name: 'clip-hero',
     params: HERO,
     ...CLIP,
-    warm: 120,
+    // Short: both loops sit just under unity, so every extra frame before the
+    // shutter is another generation of wash across the frame.
+    warm: 45,
     // Dense per-pixel noise: at the default quality this one alone outweighs
     // every other clip put together.
     video: { secs: 9, crf: 30 },
