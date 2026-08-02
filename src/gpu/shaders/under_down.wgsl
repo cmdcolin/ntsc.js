@@ -53,13 +53,14 @@ fn main(
   let c = lid.x + HALO;
   let ph = downPhasor(row, f32(s));
   var w = vec2f(1.0, 0.0); // (cos dS, sin dS), walked outward from d = 0
-  var acc = filters[SEC_UNDER * FILTER_STRIDE + m] * tile[c] * 2.0 * ph.x;
+  var acc = filters[SEC_UNDER * FILTER_STRIDE + m] * tile[c] * ph.x;
   for (var d = 1u; d <= m; d = d + 1u) {
     w = stepPhasor(w);
     let lo = tile[c - d];
     let hi = tile[c + d];
-    acc = acc + filters[SEC_UNDER * FILTER_STRIDE + m - d] * 2.0
+    acc = acc + filters[SEC_UNDER * FILTER_STRIDE + m - d]
       * (ph.x * w.x * (lo + hi) + ph.y * w.y * (lo - hi));
   }
-  under[row * SPL + s] = acc;
+  // the heterodyne's factor of two, out of the tap loop
+  under[row * SPL + s] = 2.0 * acc;
 }

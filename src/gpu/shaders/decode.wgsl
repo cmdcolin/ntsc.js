@@ -106,20 +106,58 @@ fn loPhaseErr(n: u32, row: u32) -> f32 {
 // reads shared memory instead of 1-3 storage loads per tap
 var<workgroup> tile: array<f32, TILE>;
 
-// synchronous chroma demod centered on tile index ti / global sample n0.
+// Synchronous chroma demod centered on tile index ti / global sample n0.
 // Offsets stay within the halo for |off| <= HALO - (DEMOD_TAPS-1)/2.
+//
+// Sampling at 4x fsc puts the carrier on the four-phase lattice (0,1) (1,0)
+// (0,-1) (-1,0), so at any tap exactly one of the U and V multiplies is against
+// a zero — a per-tap carrier() and half the arithmetic thrown away. Which
+// accumulator a tap lands in, and with what sign, depends only on k mod 4, so
+// the taps sum into four buckets and the lattice is applied once at the end as
+// a rotation of those buckets onto (us, vs).
 fn demodAt(ti: i32, n0: i32) -> vec2f {
   let m = i32((DEMOD_TAPS - 1u) / 2u);
-  var us = 0.0;
-  var vs = 0.0;
-  for (var k = 0; k < i32(DEMOD_TAPS); k = k + 1) {
-    let c = tile[u32(ti + k - m)];
-    let sc = carrier(clampIdx(n0 + k - m), P.frame);
-    let h = filters[SEC_DEMOD * FILTER_STRIDE + u32(k)];
-    us = us + h * c * sc.x;
-    vs = vs + h * c * sc.y;
+  let f0 = SEC_DEMOD * FILTER_STRIDE;
+  var q = vec4f(0.0);
+  var k = 0;
+  for (; k <= i32(DEMOD_TAPS) - 4; k = k + 4) {
+    q = q + vec4f(
+      filters[f0 + u32(k)] * tile[u32(ti + k - m)],
+      filters[f0 + u32(k + 1)] * tile[u32(ti + k + 1 - m)],
+      filters[f0 + u32(k + 2)] * tile[u32(ti + k + 2 - m)],
+      filters[f0 + u32(k + 3)] * tile[u32(ti + k + 3 - m)],
+    );
   }
-  return vec2f(us, vs);
+  // odd tap count leaves up to three; select rather than a dynamic vec index,
+  // which would spill q to scratch for the sake of one iteration
+  for (; k < i32(DEMOD_TAPS); k = k + 1) {
+    let g = filters[f0 + u32(k)] * tile[u32(ti + k - m)];
+    let b = k & 3;
+    q = q + vec4f(
+      select(0.0, g, b == 0),
+      select(0.0, g, b == 1),
+      select(0.0, g, b == 2),
+      select(0.0, g, b == 3),
+    );
+  }
+  // Lattice phase of the first tap. Unlike the per-tap carrier() this replaces,
+  // the phase is stepped arithmetically rather than read off a clamped index,
+  // so the two differ only where the tap span runs past an end of the buffer —
+  // the outermost row of a picture torn far enough to reach it.
+  let r = u32(n0 - m + i32(2u * (P.frame & 1u)) + 1024) & 3u;
+  var mu = vec4f(0.0, 1.0, 0.0, -1.0);
+  var mv = vec4f(1.0, 0.0, -1.0, 0.0);
+  if (r == 1u) {
+    mu = vec4f(1.0, 0.0, -1.0, 0.0);
+    mv = vec4f(0.0, -1.0, 0.0, 1.0);
+  } else if (r == 2u) {
+    mu = vec4f(0.0, -1.0, 0.0, 1.0);
+    mv = vec4f(-1.0, 0.0, 1.0, 0.0);
+  } else if (r == 3u) {
+    mu = vec4f(-1.0, 0.0, 1.0, 0.0);
+    mv = vec4f(0.0, 1.0, 0.0, -1.0);
+  }
+  return vec2f(dot(q, mu), dot(q, mv));
 }
 
 @compute @workgroup_size(64, 1, 1)

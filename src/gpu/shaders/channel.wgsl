@@ -40,6 +40,12 @@ fn stepPhasor(p: vec2f) -> vec2f {
 
 var<workgroup> tileLc: array<f32, TILE>; // luma-path source: comp - chroma
 var<workgroup> tileUn: array<f32, TILE>; // color-under signal
+// Snow, one deviate per sample plus a neighbour either side. The 1-2-1 kernel
+// below reads its two neighbours' deviates, and every thread's neighbours are
+// some other thread's centre, so generating them per-thread draws each of these
+// three times over. gauss() is Box-Muller — two hashes, a log and a cos — which
+// makes that the most expensive redundancy in the pass.
+var<workgroup> tileNs: array<f32, 66>;
 
 @compute @workgroup_size(64, 1, 1)
 fn main(
@@ -70,6 +76,14 @@ fn main(
       tileUn[i] = v;
     }
   }
+  if (P.noiseSigma > 0.0) {
+    let ns = pcg(P.frame * 2654435761u + P.gen * 2246822519u);
+    // slot 1 is this workgroup's first sample, so slot i is global index n0+i-1
+    let n0 = row * SPL + wid.x * 64u;
+    for (var i = lid.x; i < 66u; i = i + 64u) {
+      tileNs[i] = gauss((n0 + i - 1u) ^ ns);
+    }
+  }
   workgroupBarrier();
 
   let s = gid.x;
@@ -93,15 +107,16 @@ fn main(
     let cb = lid.x + HALO;
     let ph = upPhasor(row, f32(s));
     var w = vec2f(1.0, 0.0); // (cos dS, sin dS), walked outward from d = 0
-    var up = filters[SEC_CHROMA_BP * FILTER_STRIDE + mb] * tileUn[cb] * 2.0 * ph.x;
+    var up = filters[SEC_CHROMA_BP * FILTER_STRIDE + mb] * tileUn[cb] * ph.x;
     for (var d = 1u; d <= mb; d = d + 1u) {
       w = stepPhasor(w);
       let lo = tileUn[cb - d];
       let hi = tileUn[cb + d];
-      up = up + filters[SEC_CHROMA_BP * FILTER_STRIDE + mb - d] * 2.0
+      up = up + filters[SEC_CHROMA_BP * FILTER_STRIDE + mb - d]
         * (ph.x * w.x * (lo + hi) + ph.y * w.y * (lo - hi));
     }
-    chr = mix(chr, up, P.colorUnderMix);
+    // the heterodyne's factor of two, out of the tap loop
+    chr = mix(chr, 2.0 * up, P.colorUnderMix);
   }
 
   // C-pin-only feed: only the chroma pin reaches the composite input, so there
@@ -146,8 +161,8 @@ fn main(
   // additive noise (snow), 1-2-1 band-limited: receiver noise comes through
   // the IF filter, so it has no energy near the top of the 14.3 MHz raster
   if (P.noiseSigma > 0.0) {
-    let ns = pcg(P.frame * 2654435761u + P.gen * 2246822519u);
-    out = out + P.noiseSigma * 0.4082 * (gauss((n - 1u) ^ ns) + 2.0 * gauss(n ^ ns) + gauss((n + 1u) ^ ns));
+    let cn = lid.x + 1u;
+    out = out + P.noiseSigma * 0.4082 * (tileNs[cn - 1u] + 2.0 * tileNs[cn] + tileNs[cn + 1u]);
   }
 
   // 60 Hz hum: one cycle per field, slowly rolling
