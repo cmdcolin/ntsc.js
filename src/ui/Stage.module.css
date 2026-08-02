@@ -4,11 +4,10 @@
   position: relative;
   min-width: 0;
   min-height: 0;
-  /* Not `hidden`: the canvas below is inset:0 and so cannot overflow anyway,
-     but the stage menu can — it opens downward from the top-right, and on a
-     stacked layout the stage is only as tall as a 4:3 picture, which cut the
-     last two items off with no way to scroll to them. */
-  overflow: visible;
+  /* Safe again now the stage menu is a native popover: it renders in the top
+     layer, so this clips the picture without reaching the menu hanging off the
+     bottom of a short stage. */
+  overflow: hidden;
 }
 /* Absolutely positioned, not an in-flow `height: 100%`: as a flex item the
    stage's height comes from cross-axis stretch, and a percentage resolved

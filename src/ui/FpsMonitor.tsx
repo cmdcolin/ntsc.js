@@ -1,14 +1,16 @@
 import { useEffect, useRef } from 'react'
 
 import styles from './FpsMonitor.module.css'
-import { usePersistedFlag } from './storage'
 
 import type { FrameStats } from '../controls'
 
-// Always-on rolling histogram of recent per-window fps. Each bar is one stats
+// Rolling histogram of recent per-window fps, sat in the sidebar masthead. It
+// used to float over the bottom-left of the picture, which is the one place in
+// the app that is supposed to stay clear — in the chrome it is legible without
+// being in the way, and there is nothing to dismiss. Each bar is one stats
 // window; a dip below the 60/30 fps reference lines shows a stall the averaged
-// number alone would smooth over. Scaled to a 65 fps ceiling so a healthy signal
-// nearly fills the bar and any shortfall reads as a visible gap at the top.
+// number alone would smooth over. Scaled to a 65 fps ceiling so a healthy
+// signal nearly fills the bar and any shortfall reads as a gap at the top.
 const HISTORY = 60
 const SCALE_FPS = 65
 const GOOD_FPS = 60
@@ -17,9 +19,6 @@ const OK_FPS = 30
 function barColor(fps: number): string {
   return fps >= 55 ? '#4a4' : fps >= 28 ? '#cc4' : '#e55'
 }
-
-// Persisted across reloads so a dismissal sticks.
-const HIDDEN_STORE = 'ntscenery_fps_hidden'
 
 function draw(canvas: HTMLCanvasElement, history: number[]) {
   const dpr = Math.min(window.devicePixelRatio, 2)
@@ -55,7 +54,6 @@ export function FpsMonitor(props: { stats: FrameStats; res: string }) {
   const { fps } = props.stats
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const historyRef = useRef<number[]>([])
-  const [hidden, setHidden] = usePersistedFlag(HIDDEN_STORE)
 
   // Each new stats object is one window sample; append and redraw the histogram.
   useEffect(() => {
@@ -64,26 +62,16 @@ export function FpsMonitor(props: { stats: FrameStats; res: string }) {
     if (canvas !== null) draw(canvas, historyRef.current)
   }, [fps])
 
-  return hidden ? (
-    <button
-      className={styles.reopen}
-      style={{ background: barColor(fps) }}
-      onClick={() => setHidden(false)}
-      title={`show fps monitor (${fps.toFixed(0)} fps)`}
-    />
-  ) : (
-    <div className={styles.monitor}>
+  // The render resolution rides in the tooltip rather than the line: it is a
+  // number you go looking for once, and spelling it out here is what made this
+  // too wide for the header. Advanced settings shows it beside its own control.
+  return (
+    <div
+      className={styles.monitor}
+      title={`${fps.toFixed(0)} fps · rendering at ${props.res}`}
+    >
       <canvas ref={canvasRef} className={styles.graph} />
-      <span className={styles.readout}>
-        {fps.toFixed(0)} fps · {props.res}
-      </span>
-      <button
-        className={styles.dismiss}
-        onClick={() => setHidden(true)}
-        title="hide fps monitor"
-      >
-        ×
-      </button>
+      <span className={styles.readout}>{fps.toFixed(0)} fps</span>
     </div>
   )
 }

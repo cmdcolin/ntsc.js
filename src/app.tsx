@@ -13,6 +13,7 @@ import { ControlsContext } from './ui/ControlsContext'
 import { cx } from './ui/cx'
 import { FatalScreen } from './ui/FatalScreen'
 import { FilterContext, groupMatches, sliderMatches } from './ui/filter'
+import { FpsMonitor } from './ui/FpsMonitor'
 import { HelpDialog } from './ui/HelpDialog'
 import { InputSection } from './ui/InputSection'
 import { MidiSection } from './ui/MidiSection'
@@ -302,6 +303,9 @@ export function App() {
           <span className={styles.wordmark}>ntscenery</span>
           <span className={styles.version}>{versionLabel}</span>
         </button>
+        {/* Sits in the masthead rather than over the bottom-left of the
+            picture, which is the one surface meant to stay clear. */}
+        <FpsMonitor stats={eng.stats} res={eng.res} />
         <a
           className={ui.link}
           href="https://github.com/cmdcolin/ntscenery"
@@ -501,8 +505,6 @@ export function App() {
       <Stage
         canvasRef={eng.canvasRef}
         error={eng.error}
-        stats={eng.stats}
-        res={eng.res}
         fullscreen={fullscreen}
         poppedOut={popout !== null}
         recording={capture.recording}

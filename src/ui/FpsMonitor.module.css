@@ -1,47 +1,24 @@
+/* Inline in the sidebar masthead, between the wordmark and the GitHub link.
+   Sized down from the old canvas overlay so all three fit on one line in a
+   332px panel. */
 .monitor {
-  position: absolute;
-  bottom: 8px;
-  left: 12px;
   display: flex;
   flex-direction: row;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
+  margin-left: auto;
+  padding-right: 8px;
 }
 .readout {
   color: #6ec98a;
   font-family: var(--mono);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .graph {
-  width: 60px;
-  height: 20px;
+  width: 34px;
+  height: 13px;
   border: 1px solid var(--border);
-  border-radius: 3px;
-}
-.dismiss {
-  background: none;
-  border: none;
-  color: var(--fg4);
-  font-size: var(--fs-md);
-  line-height: 1;
-  padding: 0 2px;
-  cursor: pointer;
-}
-.dismiss:hover {
-  color: var(--fg);
-}
-.reopen {
-  position: absolute;
-  bottom: 8px;
-  left: 12px;
-  width: 8px;
-  height: 8px;
-  padding: 0;
-  border: 1px solid rgba(0, 0, 0, 0.4);
-  border-radius: 50%;
-  cursor: pointer;
-  opacity: 0.7;
-}
-.reopen:hover {
-  opacity: 1;
+  border-radius: 2px;
 }

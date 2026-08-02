@@ -1,42 +1,48 @@
-import { useEffect, useRef, useState } from 'react'
+import { useId } from 'react'
 
 import styles from './Popover.module.css'
 
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
-// Generic click-to-open menu anchored to its trigger. Closes on outside
-// pointerdown or when a menu item calls the close callback it's handed.
+// Click-to-open menu anchored to its trigger, built on the native popover.
+//
+// There is no open state and no event listener here on purpose. `popover="auto"`
+// gets light dismiss (click anywhere outside), Escape, and one-open-at-a-time
+// from the browser, so the whole thing is a few attributes and a CSS rule
+// rather than a useState, a useRef and a document-level pointerdown listener.
+//
+// The other half of the reason is the top layer: a popover renders there rather
+// than in place, so no ancestor's `overflow` can clip it. This menu opens
+// downward inside a stage that is only as tall as the picture, and used to lose
+// its last items whenever the picture was short.
+//
+// The anchor is named per instance rather than left implicit: Firefox 151 does
+// not resolve the implicit anchor `popovertarget` is meant to set up, and two
+// menus sharing one name would both resolve to whichever trigger came last.
+// React's useId is not a valid CSS ident (it wraps its counter in « »), hence
+// the strip.
 export function Popover(props: {
-  trigger: (toggle: () => void) => ReactNode
-  children: (close: () => void) => ReactNode
+  // The trigger gets the attributes that open the menu and make it the thing
+  // the menu hangs off. Anything inside the menu that should close on click
+  // takes the id and pairs it with popoverTargetAction="hide" — clicks that
+  // land inside and say nothing, like a drag along the zoom slider, leave it
+  // open.
+  trigger: (attrs: { popoverTarget: string; style: CSSProperties }) => ReactNode
+  children: (id: string) => ReactNode
 }) {
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-
-  // An effect's cleanup return is conditional by nature (React's own documented pattern).
-  // oxlint-disable-next-line typescript/consistent-return
-  useEffect(() => {
-    const doc = wrapRef.current?.ownerDocument
-    if (open && doc !== undefined) {
-      const onPointerDown = (e: PointerEvent) => {
-        const inside =
-          e.target instanceof Node &&
-          (wrapRef.current?.contains(e.target) ?? false)
-        if (!inside) setOpen(false)
-      }
-      doc.addEventListener('pointerdown', onPointerDown)
-      return () => doc.removeEventListener('pointerdown', onPointerDown)
-    }
-  }, [open])
-
+  const id = useId()
+  const anchorName = `--pop-${id.replaceAll(/\W/g, '')}`
   return (
-    <div className={styles.wrap} ref={wrapRef}>
-      {props.trigger(() => setOpen(o => !o))}
-      {open && (
-        <div className={styles.menu}>
-          {props.children(() => setOpen(false))}
-        </div>
-      )}
-    </div>
+    <>
+      {props.trigger({ popoverTarget: id, style: { anchorName } })}
+      <div
+        id={id}
+        popover="auto"
+        className={styles.menu}
+        style={{ positionAnchor: anchorName }}
+      >
+        {props.children(id)}
+      </div>
+    </>
   )
 }

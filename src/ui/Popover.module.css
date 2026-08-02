@@ -1,14 +1,21 @@
-/* Flex, not block: the wrapper is a layout middleman, and a block one would let
-   the trigger shrink-wrap while its bar siblings stretch. */
-.wrap {
-  position: relative;
-  display: flex;
-}
+/* The menu is a native popover, so it lives in the top layer: no ancestor's
+   overflow can clip it, and there is no z-index to lose an argument with.
+   position-anchor (set per instance in Popover.tsx) hangs it off the trigger,
+   so there is no wrapper and nothing to measure.
+
+   The UA styles a popover `position: fixed` with `inset: 0` and `margin: auto`,
+   which centres it — the insets have to be released before anchor() can place
+   it. Start-side insets only: Firefox 151 parses `position-area` and the
+   end-side insets but honours neither, so the right edge is lined up by
+   anchoring the left edge to the trigger's right and pulling back a full width,
+   which every engine that has anchor() gets right. */
 .menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  display: flex;
+  position: fixed;
+  inset: auto;
+  top: anchor(bottom);
+  left: anchor(right);
+  translate: -100% 0;
+  margin-top: 6px;
   flex-direction: column;
   gap: 2px;
   min-width: 170px;
@@ -16,7 +23,25 @@
   background: rgba(22, 22, 26, 0.95);
   border: 1px solid var(--border);
   border-radius: 4px;
-  z-index: 10;
+}
+/* `display` has to be set on the open state, never on .menu itself. What hides
+   a closed popover is a UA rule — [popover]:not(:popover-open) { display: none }
+   — and any author declaration beats the UA sheet no matter how specific the UA
+   selector is, so a plain `display: flex` here pins the menu open from the
+   moment the page loads. */
+.menu:popover-open {
+  display: flex;
+}
+/* Chrome 113–124 and Safari < 26 run WebGPU but not anchor positioning, so the
+   placement above is inert and the UA's centred popover would stand. Pin it
+   under the top-right corner the trigger sits in, so it still reads as that
+   button's menu rather than as a dialog. */
+@supports not (top: anchor(bottom)) {
+  .menu {
+    inset: 46px 12px auto auto;
+    translate: none;
+    margin-top: 0;
+  }
 }
 .menuItem {
   display: flex;

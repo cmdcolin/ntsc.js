@@ -1,0 +1,116 @@
+import { describe, expect, it } from 'vitest'
+
+import { readdirSync, readFileSync } from 'node:fs'
+import { dirname, join, relative, resolve } from 'node:path'
+
+// CSS modules are typed as Record<string, string>, so `styles.thisIsAtypo`
+// compiles fine and resolves to undefined at runtime — the element just renders
+// unstyled, and nothing fails until someone looks at that particular corner of
+// the UI. That is the whole risk in moving a rule from one module to another,
+// and it is a static question: does every class a component reaches for exist
+// in the file it imported?
+
+const SRC = resolve(import.meta.dirname, '..')
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+    const path = join(dir, e.name)
+    return e.isDirectory()
+      ? sourceFiles(path)
+      : /\.tsx?$/.test(e.name) && !e.name.endsWith('.test.ts')
+        ? [path]
+        : []
+  })
+}
+
+// Class names a stylesheet defines. Comments go first so a name mentioned in
+// prose doesn't count as a definition.
+function definedClasses(css: string): Set<string> {
+  const code = css.replaceAll(/\/\*[\s\S]*?\*\//g, '')
+  return new Set([...code.matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map(m => m[1]))
+}
+
+// Every `import styles from './X.module.css'` in a file, as identifier -> path.
+function moduleImports(src: string, file: string) {
+  return [
+    ...src.matchAll(/import\s+(\w+)\s+from\s+'([^']+\.module\.css)'/g),
+  ].map(m => ({ ident: m[1], path: resolve(dirname(file), m[2]) }))
+}
+
+// Usage scanning has to skip the import lines, or `from './ui.module.css'`
+// reads as a use of a class called `module` on the identifier `ui`.
+const withoutImports = (src: string) => src.replaceAll(/^import\s[^\n]*$/gm, '')
+
+const files = sourceFiles(SRC)
+
+describe('css modules', () => {
+  it('finds the components that import one', () => {
+    // a guard on the scan itself: a broken glob silently passes everything
+    expect(
+      files.filter(f => moduleImports(readFileSync(f, 'utf8'), f).length > 0)
+        .length,
+    ).toBeGreaterThan(15)
+  })
+
+  it.each(files.map(f => relative(SRC, f)))(
+    '%s uses only classes that exist',
+    rel => {
+      const file = join(SRC, rel)
+      const src = withoutImports(readFileSync(file, 'utf8'))
+      const missing: string[] = []
+      for (const { ident, path } of moduleImports(
+        readFileSync(file, 'utf8'),
+        file,
+      )) {
+        const defined = definedClasses(readFileSync(path, 'utf8'))
+        const used = [
+          ...src.matchAll(new RegExp(String.raw`\b${ident}\.(\w+)\b`, 'g')),
+        ].map(m => m[1])
+        for (const name of used) {
+          if (!defined.has(name))
+            missing.push(`${ident}.${name} (${relative(SRC, path)})`)
+        }
+      }
+      expect(missing).toEqual([])
+    },
+  )
+
+  it('has no class no component references', () => {
+    // Dead rules outlive the markup that used them; .title survived a redesign
+    // this way. A class only ever named by another selector (.a .b) still shows
+    // up as defined *and* is not referenced from tsx — hence the second pass
+    // over the stylesheets themselves.
+    const dead: string[] = []
+    const referenced = new Set<string>()
+    const sheets = new Set<string>()
+    for (const file of files) {
+      const raw = readFileSync(file, 'utf8')
+      const src = withoutImports(raw)
+      for (const { ident, path } of moduleImports(raw, file)) {
+        sheets.add(path)
+        for (const m of src.matchAll(
+          new RegExp(String.raw`\b${ident}\.(\w+)\b`, 'g'),
+        )) {
+          referenced.add(`${path}:${m[1]}`)
+        }
+      }
+    }
+    for (const path of sheets) {
+      const css = readFileSync(path, 'utf8').replaceAll(/\/\*[\s\S]*?\*\//g, '')
+      // a name used as a descendant/compound part is spoken for by the sheet
+      const usedBySheet = new Set(
+        [
+          ...css.matchAll(
+            /\.(-?[A-Za-z_][\w-]*)[^,{]*[\s.>+~]\.(-?[A-Za-z_][\w-]*)/g,
+          ),
+        ].flatMap(m => [m[1], m[2]]),
+      )
+      for (const name of definedClasses(css)) {
+        if (!referenced.has(`${path}:${name}`) && !usedBySheet.has(name)) {
+          dead.push(`${relative(SRC, path)} .${name}`)
+        }
+      }
+    }
+    expect(dead).toEqual([])
+  })
+})

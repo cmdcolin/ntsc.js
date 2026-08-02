@@ -1,7 +1,6 @@
 import { useState } from 'react'
 
 import { cx } from './cx'
-import { FpsMonitor } from './FpsMonitor'
 import { CameraIcon, GearIcon, MenuIcon } from './icons'
 import {
   clampZoom,
@@ -16,7 +15,6 @@ import popoverStyles from './Popover.module.css'
 import styles from './Stage.module.css'
 import { usePersistedFlag } from './storage'
 
-import type { FrameStats } from '../controls'
 import type { Lens } from './lens'
 import type { PointerEvent, ReactNode, RefObject } from 'react'
 
@@ -28,15 +26,23 @@ const zoomLabel = (lens: Lens) =>
   `${clampZoom(lens.zoom).toFixed(2).replace(/0$/, '')}×`
 
 // One row of the stage menu. The icon sits in a fixed slot so glyphs and svgs
-// share a text column; a blank hint means the action has no shortcut.
+// share a text column; a blank hint means the action has no shortcut. `closes`
+// is the menu's id: picking a row runs its action and dismisses the menu, and
+// the browser does the dismissing, so there is no close callback to thread.
 function MenuItem(props: {
   icon: ReactNode
   label: string
   hint: string
+  closes: string
   onClick: () => void
 }) {
   return (
-    <button className={popoverStyles.menuItem} onClick={() => props.onClick()}>
+    <button
+      className={popoverStyles.menuItem}
+      popoverTarget={props.closes}
+      popoverTargetAction="hide"
+      onClick={() => props.onClick()}
+    >
       <span className={popoverStyles.menuLabel}>
         <span className={popoverStyles.menuIcon}>{props.icon}</span>
         {props.label}
@@ -69,10 +75,11 @@ function StageMenu(props: {
 }) {
   return (
     <Popover
-      trigger={toggle => (
+      trigger={attrs => (
         <button
           className={cx(styles.overlayBtn, props.recording && styles.recording)}
-          onClick={() => toggle()}
+          popoverTarget={attrs.popoverTarget}
+          style={attrs.style}
           title={
             props.recording
               ? 'recording — click for options'
@@ -87,64 +94,65 @@ function StageMenu(props: {
         </button>
       )}
     >
-      {close => {
-        const run = (act: () => void) => () => {
-          act()
-          close()
-        }
-        return (
-          <>
-            <ZoomRow lens={props.lens} onChange={props.onLens} />
-            <div className={popoverStyles.menuSep} />
-            <MenuItem
-              icon={<CameraIcon />}
-              label="save still"
-              hint="s"
-              onClick={run(props.onGrabStill)}
-            />
-            <MenuItem
-              icon={props.recording ? '■' : '●'}
-              label={props.recording ? 'stop recording' : 'start recording'}
-              hint="r"
-              onClick={run(props.onToggleRecord)}
-            />
-            <div className={popoverStyles.menuSep} />
-            <MenuItem
-              icon={props.fullscreen ? '⤢' : '⛶'}
-              label={props.fullscreen ? 'exit fullscreen' : 'fullscreen'}
-              hint="f"
-              onClick={run(props.onToggleFullscreen)}
-            />
-            <MenuItem
-              icon="⧉"
-              label={
-                props.poppedOut ? 'focus controls window' : 'pop out controls'
-              }
-              hint=""
-              onClick={run(props.onPopout)}
-            />
-            <div className={popoverStyles.menuSep} />
-            <MenuItem
-              icon={<GearIcon />}
-              label="advanced settings"
-              hint=""
-              onClick={run(props.onShowAdvanced)}
-            />
-            <MenuItem
-              icon="?"
-              label="help / about"
-              hint=""
-              onClick={run(props.onShowHelp)}
-            />
-            <MenuItem
-              icon="×"
-              label="hide this bar"
-              hint=""
-              onClick={run(props.onHideBar)}
-            />
-          </>
-        )
-      }}
+      {id => (
+        <>
+          <ZoomRow lens={props.lens} onChange={props.onLens} />
+          <div className={popoverStyles.menuSep} />
+          <MenuItem
+            icon={<CameraIcon />}
+            label="save still"
+            hint="s"
+            closes={id}
+            onClick={() => props.onGrabStill()}
+          />
+          <MenuItem
+            icon={props.recording ? '■' : '●'}
+            label={props.recording ? 'stop recording' : 'start recording'}
+            hint="r"
+            closes={id}
+            onClick={() => props.onToggleRecord()}
+          />
+          <div className={popoverStyles.menuSep} />
+          <MenuItem
+            icon={props.fullscreen ? '⤢' : '⛶'}
+            label={props.fullscreen ? 'exit fullscreen' : 'fullscreen'}
+            hint="f"
+            closes={id}
+            onClick={() => props.onToggleFullscreen()}
+          />
+          <MenuItem
+            icon="⧉"
+            label={
+              props.poppedOut ? 'focus controls window' : 'pop out controls'
+            }
+            hint=""
+            closes={id}
+            onClick={() => props.onPopout()}
+          />
+          <div className={popoverStyles.menuSep} />
+          <MenuItem
+            icon={<GearIcon />}
+            label="advanced settings"
+            hint=""
+            closes={id}
+            onClick={() => props.onShowAdvanced()}
+          />
+          <MenuItem
+            icon="?"
+            label="help / about"
+            hint=""
+            closes={id}
+            onClick={() => props.onShowHelp()}
+          />
+          <MenuItem
+            icon="×"
+            label="hide this bar"
+            hint=""
+            closes={id}
+            onClick={() => props.onHideBar()}
+          />
+        </>
+      )}
     </Popover>
   )
 }
@@ -213,8 +221,6 @@ function ZoomRow(props: { lens: Lens; onChange: (lens: Lens) => void }) {
 export function Stage(props: {
   canvasRef: RefObject<HTMLCanvasElement | null>
   error: string
-  stats: FrameStats
-  res: string
   fullscreen: boolean
   poppedOut: boolean
   recording: boolean
@@ -330,7 +336,6 @@ export function Stage(props: {
           />
         </div>
       )}
-      <FpsMonitor stats={props.stats} res={props.res} />
     </div>
   )
 }
