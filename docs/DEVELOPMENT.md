@@ -124,4 +124,4 @@ Example: `?iurl=/sample.jpg&preset=dirty%20mix`
 - [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md) — the signal path, pass by pass
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — pass graph, buffer layouts, adding a
   control end to end
-- [`../EFFECTS.md`](../EFFECTS.md) — every effect and the fault it models
+- [`EFFECTS.md`](EFFECTS.md) — every effect and the fault it models

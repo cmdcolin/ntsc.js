@@ -93,4 +93,4 @@ They fold back at different points in the chain:
 
 For the pass graph, buffer layouts, the three domains, and how to add a control
 end to end, see [`ARCHITECTURE.md`](ARCHITECTURE.md). Every control and the
-fault it models is listed in [`EFFECTS.md`](../EFFECTS.md).
+fault it models is listed in [`EFFECTS.md`](EFFECTS.md).

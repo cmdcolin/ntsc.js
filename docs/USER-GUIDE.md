@@ -60,8 +60,8 @@ hosted build has no server to do that with.
 ![The signal chain dialog](img/chain.png)
 
 Controls live where they sit in the signal path, not in one long list. **signal
-chain** shows the rack; a lit lamp is a stage you've moved something in. Click a
-stage — or one of its effects — to open it in the panel:
+chain** shows the whole path; amber is a stage you've moved something in. Click
+a stage — or one of its effects — to open it in the panel:
 
 ![The Tape stage opened at VHS Tracking](img/signal-path.png)
 
@@ -75,7 +75,7 @@ stage — or one of its effects — to open it in the panel:
 
 The help says what breaks in the hardware, not what you'll see — the look is
 emergent, and the cause is what tells you how two controls will combine. All of
-them are listed in [EFFECTS.md](../EFFECTS.md).
+them are listed in [EFFECTS.md](EFFECTS.md).
 
 ## Finding a control
 
@@ -176,7 +176,7 @@ then hit **mutate** a few times.</sub>
 
 ## Where next
 
-- [EFFECTS.md](../EFFECTS.md) — every control and the fault it models
+- [EFFECTS.md](EFFECTS.md) — every control and the fault it models
 - [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — the signal path, pass by pass
 - [MIDI.md](MIDI.md) — setting up a controller
 - [DEVELOPMENT.md](DEVELOPMENT.md) — running it locally, URL params, this page's
