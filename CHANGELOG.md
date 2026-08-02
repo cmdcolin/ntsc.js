@@ -2,6 +2,19 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.7.2](https://github.com/cmdcolin/ntsc.js/compare/v0.7.1...v0.7.2) - 2026-08-02
+
+### Features
+- *(gpu)* [`41a519f`](https://github.com/cmdcolin/ntsc.js/commit/41a519f7ae73937d318954edd1a2475a1c241831) a second rAF chain, so a stall says which side broke
+
+### Fixes
+- *(gpu)* [`3275486`](https://github.com/cmdcolin/ntsc.js/commit/3275486aa270b56250d39fde8ebbda536913913a) say so when the browser stops painting the tab
+- *(gpu)* [`0a85dc7`](https://github.com/cmdcolin/ntsc.js/commit/0a85dc7e5c31df107b9e74d950a713d2618f0be5) stop rebuilding the swapchain for a size it already has
+- *(gpu)* [`72c351e`](https://github.com/cmdcolin/ntsc.js/commit/72c351e3cde964f8f2d9b35fb74364616e4f6dab) never cancel the rAF chain, supersede it instead
+
+### Refactor
+- *(gpu)* [`93d6d5e`](https://github.com/cmdcolin/ntsc.js/commit/93d6d5e8d68c9c56bce54bb4a34458b6533d0ad1) one rAF chain mechanism instead of two copies
+
 ## [0.7.1](https://github.com/cmdcolin/ntsc.js/compare/v0.7.0...v0.7.1) - 2026-08-02
 
 ### Other Changes
