@@ -1,0 +1,49 @@
+/* The stage the map has open: its name (click to fold), what it does, then its
+   groups. Navigation lives in the map, so these rows carry no rail. */
+.stages {
+  margin: 2px 0 0;
+}
+.stageRow {
+  padding: 0 0 2px;
+}
+.stageHead {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin: 16px 0 3px;
+}
+/* The stage outranks the group headers under it, so it has to win on size as
+   well as color — at 10px it was the smallest thing on screen while naming the
+   largest division in the panel. */
+.stageName {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+/* the stage's role, shown while it's open — the same line the diagram's box
+   carries, so the panel repeats what you clicked through */
+.stageBlurb {
+  color: var(--fg3);
+  margin: 0 0 7px;
+  line-height: var(--prose-lh);
+}
+/* the stage's touched-control count; clicking opens the first touched group */
+.phaseDot {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 0 0 4px;
+  font: inherit;
+  letter-spacing: normal;
+  color: #ceba64;
+}
+.phaseDot:hover {
+  color: #e8c464;
+}

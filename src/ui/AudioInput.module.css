@@ -1,0 +1,64 @@
+/* transport for a loaded audio file — same indent as .fileName, and the track
+   fills in accent like the meter so it reads as playback, not as a knob */
+.scrubRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 4px 19px;
+}
+.scrubTime {
+  flex-shrink: 0;
+  color: var(--fg3);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+/* The track and thumb have to be written once per engine — a selector list
+   mixing ::-webkit- and ::-moz- is dropped whole by both — so the parts that
+   would drift live in custom properties here and each engine's rule is a
+   reference. --p (progress) is set inline by the component. */
+.scrub {
+  --track-bg: linear-gradient(
+    to right,
+    var(--accent) var(--p),
+    #31313c var(--p)
+  );
+  --thumb-size: 10px;
+  flex: 1;
+  min-width: 0;
+  height: 12px;
+  margin: 0;
+  appearance: none;
+  background: none;
+  cursor: pointer;
+}
+.scrub::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--track-bg);
+}
+.scrub::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--track-bg);
+}
+.scrub::-moz-range-progress {
+  background: none;
+}
+.scrub::-webkit-slider-thumb {
+  appearance: none;
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  /* centre the thumb on the 4px track */
+  margin-top: calc((4px - var(--thumb-size)) / 2);
+  border-radius: 50%;
+  border: none;
+  background: #b8b8c8;
+}
+.scrub::-moz-range-thumb {
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  border-radius: 50%;
+  border: none;
+  background: #b8b8c8;
+}

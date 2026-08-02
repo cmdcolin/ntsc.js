@@ -1,7 +1,8 @@
 import { useId } from 'react'
 
-import styles from '../app.module.css'
 import { cx } from './cx'
+import dlg from './dialog.module.css'
+import ui from './ui.module.css'
 import { useModalDialog } from './useModalDialog'
 
 import type { ReactNode } from 'react'
@@ -10,7 +11,7 @@ import type { ReactNode } from 'react'
 // 'form' is a couple of rows of controls, 'prose' is text to read.
 const CARD_SIZE = {
   form: '',
-  prose: styles.cardWide,
+  prose: dlg.cardWide,
 }
 
 // Shared modal shell built on the native <dialog> element (see useModalDialog).
@@ -29,19 +30,19 @@ export function Dialog(props: {
   return (
     <dialog
       ref={ref}
-      className={styles.modal}
+      className={dlg.modal}
       aria-labelledby={titleId}
       onCancel={onClose}
       onClick={e => {
         if (e.target === ref.current) onClose()
       }}
     >
-      <div className={cx(styles.card, CARD_SIZE[props.size])}>
-        <div className={styles.cardRow}>
-          <h2 id={titleId} className={styles.h2}>
+      <div className={cx(dlg.card, CARD_SIZE[props.size])}>
+        <div className={dlg.cardRow}>
+          <h2 id={titleId} className={dlg.h2}>
             {props.title}
           </h2>
-          <button className={cx(styles.btn, styles.btnFlush)} onClick={onClose}>
+          <button className={cx(ui.btn, ui.btnFlush)} onClick={onClose}>
             close
           </button>
         </div>

@@ -1,4 +1,5 @@
-import styles from '../app.module.css'
+import styles from './SelectRow.module.css'
+import ui from './ui.module.css'
 
 // A leading tag glyph plus a full-width dropdown — the panel's standard picker
 // row. Generic over the option values so callers get their own key type back
@@ -16,7 +17,7 @@ export function SelectRow<T extends string>(props: {
         {props.tag}
       </span>
       <select
-        className={styles.select}
+        className={ui.select}
         value={props.value}
         onChange={e => {
           const picked = props.options.find(o => o.value === e.target.value)

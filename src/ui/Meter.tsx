@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import styles from '../app.module.css'
+import styles from './Meter.module.css'
 
 import type { AudioState } from '../signal/audiostate'
 

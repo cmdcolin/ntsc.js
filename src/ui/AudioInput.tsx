@@ -1,7 +1,8 @@
-import styles from '../app.module.css'
+import styles from './AudioInput.module.css'
 import { FileName } from './FileName'
 import { Meter } from './Meter'
 import { SelectRow } from './SelectRow'
+import ui from './ui.module.css'
 import { AUDIO_DESC, AUDIO_MODES } from './useAudio'
 
 import type { AudioState } from '../signal/audiostate'
@@ -98,9 +99,9 @@ export function AudioInput(props: {
 
 export function AudioHint(props: { mode: AudioMode; error: string | null }) {
   return props.error !== null ? (
-    <div className={styles.hint}>{props.error}</div>
+    <div className={ui.hint}>{props.error}</div>
   ) : props.mode === 'off' ? (
-    <div className={styles.hint}>
+    <div className={ui.hint}>
       sound knocks sync out of lock — its knobs are in the Audio section below.
     </div>
   ) : null

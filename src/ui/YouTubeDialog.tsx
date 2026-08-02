@@ -1,8 +1,9 @@
 import { useState } from 'react'
 
-import styles from '../app.module.css'
 import { cx } from './cx'
 import { Dialog } from './Dialog'
+import dlg from './dialog.module.css'
+import ui from './ui.module.css'
 
 export function YouTubeDialog(props: {
   slot: 'a' | 'b'
@@ -16,27 +17,27 @@ export function YouTubeDialog(props: {
       size="prose"
       onClose={props.onClose}
     >
-      <p className={styles.helpText}>
+      <p className={ui.helpText}>
         Paste a YouTube URL. It’s fetched locally with yt-dlp (dev only) and fed
         through the signal path like any other video. The first load downloads
         the clip, so it may take a moment.
       </p>
       <form
-        className={styles.cardRow}
+        className={dlg.cardRow}
         onSubmit={e => {
           e.preventDefault()
           props.onSubmit(url)
         }}
       >
         <input
-          className={styles.select}
+          className={ui.select}
           type="text"
           placeholder="https://youtube.com/watch?v=…"
           value={url}
           onChange={e => setUrl(e.target.value)}
           data-autofocus
         />
-        <button className={cx(styles.btn, styles.btnFlush)} type="submit">
+        <button className={cx(ui.btn, ui.btnFlush)} type="submit">
           Load
         </button>
       </form>

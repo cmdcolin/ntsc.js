@@ -1,0 +1,49 @@
+/* The chain in miniature at the head of the signal path: one labeled box per
+   stage, wired left to right, with the two feedback returns looping back over
+   the top. Box and label take currentColor, so one rule per state
+   (idle / touched / open) colors a whole stage. */
+.map {
+  display: block;
+  width: 100%;
+  margin: 10px 0 2px;
+}
+.mapWire {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.mapArrow {
+  fill: var(--border);
+}
+.mapNode {
+  color: var(--fg2);
+  cursor: pointer;
+}
+.mapNode:hover {
+  color: var(--fg);
+}
+/* the stage carries an edit — the same amber the rest of the sidebar marks one
+   with */
+.mapNodeTouched {
+  color: #ceba64;
+}
+.mapNodeOn {
+  color: var(--accent);
+}
+.mapBox {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.mapNode:hover .mapBox,
+.mapNodeTouched .mapBox,
+.mapNodeOn .mapBox {
+  stroke: currentColor;
+}
+/* svg user units, which are px at the sidebar's width */
+.mapLabel {
+  fill: currentColor;
+  font-size: 8px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}

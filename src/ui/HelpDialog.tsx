@@ -1,22 +1,23 @@
 import logoUrl from '../../docs/logo.svg'
-import styles from '../app.module.css'
 import { Dialog } from './Dialog'
+import dlg from './dialog.module.css'
+import ui from './ui.module.css'
 
 export function HelpDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog title="ntscenery" size="prose" onClose={onClose}>
       <img
-        className={styles.helpLogo}
+        className={dlg.helpLogo}
         src={logoUrl}
         alt="One NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, then the luma staircase with the chroma subcarrier riding on each bar"
       />
-      <p className={styles.helpText}>
+      <p className={ui.helpText}>
         A real-time simulator of the analog NTSC signal path — camera, tape, RF,
         and CRT — rendered entirely in WebGPU compute shaders. Feed it a
         pattern, image, video, or your webcam and degrade it however you like.
       </p>
-      <div className={styles.helpHead}>getting started</div>
-      <ol className={styles.helpList}>
+      <div className={dlg.helpHead}>getting started</div>
+      <ol className={dlg.helpList}>
         <li>
           Click a <b>Preset</b> for an instant look — or drag one sideways to
           mix it in partially, stacking its faults onto what’s already there.
@@ -43,8 +44,8 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
           control gates it; click the note to set the prerequisite.
         </li>
       </ol>
-      <div className={styles.helpHead}>keyboard</div>
-      <ul className={styles.helpList}>
+      <div className={dlg.helpHead}>keyboard</div>
+      <ul className={dlg.helpList}>
         <li>
           <b>⌘K</b> / <b>Ctrl+K</b> jump to any preset, control, or action by
           name; <b>←→</b> nudges a control from the list
@@ -62,11 +63,11 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
           <b>1–9</b> recall a scene · <b>shift+1–9</b> save the current look
         </li>
       </ul>
-      <div className={styles.helpHead}>more</div>
-      <p className={styles.muted} style={{ margin: 0 }}>
+      <div className={dlg.helpHead}>more</div>
+      <p className={ui.muted} style={{ margin: 0 }}>
         The{' '}
         <a
-          className={styles.link}
+          className={ui.link}
           href="https://cmdcolin.github.io/ntscenery/guide/"
           target="_blank"
           rel="noreferrer"
@@ -78,7 +79,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         window — handy with the stage fullscreen on a projector. Source code and
         notes on{' '}
         <a
-          className={styles.link}
+          className={ui.link}
           href="https://github.com/cmdcolin/ntscenery"
           target="_blank"
           rel="noreferrer"

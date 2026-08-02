@@ -1,7 +1,7 @@
-import styles from '../app.module.css'
 import { cx } from './cx'
 import { controlsEqual, presetControls } from './presets'
 import { Section } from './Section'
+import ui from './ui.module.css'
 
 import type { Controls } from '../controls'
 
@@ -27,9 +27,9 @@ export function ScenesSection(props: {
           <button
             key={n}
             className={cx(
-              styles.btn,
-              scene === undefined && styles.slotEmpty,
-              isActive && styles.active,
+              ui.btn,
+              scene === undefined && ui.slotEmpty,
+              isActive && ui.active,
             )}
             title={
               scene === undefined
@@ -46,7 +46,7 @@ export function ScenesSection(props: {
           </button>
         )
       })}
-      <div className={styles.hint}>
+      <div className={ui.hint}>
         snapshots of the whole board — keys 1–9 recall · shift+1–9 save
       </div>
     </Section>

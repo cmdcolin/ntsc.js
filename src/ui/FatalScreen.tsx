@@ -1,6 +1,6 @@
-import shared from '../app.module.css'
 import { cx } from './cx'
 import styles from './FatalScreen.module.css'
+import ui from './ui.module.css'
 
 export interface Fatal {
   title: string
@@ -30,14 +30,14 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
               loop
               playsInline
             />
-            <p className={shared.muted} style={{ margin: '0 0 14px' }}>
+            <p className={ui.muted} style={{ margin: '0 0 14px' }}>
               The entire NTSC signal path runs in WebGPU compute shaders, so a
               WebGPU-capable browser with working hardware acceleration is
               required — there is no fallback rendering path.
             </p>
-            <p className={shared.muted} style={{ margin: 0 }}>
+            <p className={ui.muted} style={{ margin: 0 }}>
               <a
-                className={shared.link}
+                className={ui.link}
                 href="https://github.com/cmdcolin/ntscenery"
                 target="_blank"
                 rel="noreferrer"
@@ -46,7 +46,7 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
               </a>
               {' · '}
               <a
-                className={shared.link}
+                className={ui.link}
                 href="https://caniuse.com/webgpu"
                 target="_blank"
                 rel="noreferrer"
@@ -60,17 +60,17 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
             <p style={{ margin: '0 0 14px' }}>
               Close this browser tab and open the app again.
             </p>
-            <p className={shared.muted} style={{ margin: '0 0 14px' }}>
+            <p className={ui.muted} style={{ margin: '0 0 14px' }}>
               The GPU process is shared across tabs and outlives this page, so
               reloading usually lands on the same wedged one.
             </p>
-            <button className={shared.btn} onClick={() => location.reload()}>
+            <button className={ui.btn} onClick={() => location.reload()}>
               reload anyway
             </button>
           </>
         ) : (
           <button
-            className={cx(shared.btn, shared.active)}
+            className={cx(ui.btn, ui.active)}
             onClick={() => location.reload()}
           >
             reload

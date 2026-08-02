@@ -1,0 +1,158 @@
+/* Shared primitives: the handful of classes more than one component reaches
+   for — buttons and their state modifiers, the select, prose blocks, and the
+   text-colour utilities. Imported as `ui` (never `styles`) so a call site says
+   which layer a class comes from: `ui.btn` is shared and changing it is felt
+   everywhere, `styles.barBtn` belongs to the component you are reading.
+
+   Anything used by exactly one component belongs in that component's own
+   module instead — this file is for the shared few, and it stays small on
+   purpose. Tokens live in src/theme.css. */
+
+/* buttons */
+.btn {
+  background: #26262e;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 4px 9px;
+  margin: 2px 3px 2px 0;
+  font: inherit;
+  cursor: pointer;
+}
+.btn:hover {
+  border-color: #63637a;
+}
+/* a .btn standing alone (dialog actions, close) rather than in a flowing row */
+.btnFlush {
+  margin: 0;
+}
+.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.edited {
+  border-color: #7f7f50;
+}
+.danger {
+  border-color: #a05050;
+}
+.slotEmpty {
+  color: var(--fg4);
+  border-color: #2e2e38;
+}
+
+/* Preset buttons double as weight sliders: drag one sideways to dial the preset
+   in partially, and the fill shows how much of it is in the mix. The fill can't
+   advertise the gesture (it only exists once you've already found it), and
+   `cursor: pointer` actively says "one click, one action" — so the resize cursor
+   is what carries the affordance. pan-y, not none: these chips sit near the top
+   of a scrolling panel, and swallowing vertical drags traps touch users.
+
+   It lives here rather than with the rest of PresetsSection because it is a
+   .btn modifier: it overrides .btn's background, and two same-specificity rules
+   in two files would have their winner decided by whatever order the bundler
+   happened to emit them in. */
+.presetBtn {
+  background: linear-gradient(
+    to right,
+    #3a6355 var(--w, 0%),
+    #26262e var(--w, 0%)
+  );
+  touch-action: pan-y;
+}
+.presetBtn:hover {
+  cursor: ew-resize;
+}
+
+.select {
+  flex: 1;
+  background: #20202a;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+.select:hover {
+  border-color: var(--fg4);
+}
+
+.link {
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+}
+.link:hover {
+  text-decoration: underline;
+}
+
+/* prose: a line of guidance under a control, and a paragraph inside a card */
+.hint {
+  color: var(--fg2);
+  margin: 5px 0;
+  line-height: var(--prose-lh);
+}
+/* a hint the user can dismiss with the × at its end */
+.dismissHint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.hintIcon {
+  flex-shrink: 0;
+  display: inline-flex;
+  color: #c9a94a;
+  margin-top: 1px;
+}
+.hintX {
+  flex-shrink: 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--fg3);
+  font: inherit;
+  font-size: var(--fs-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+.hintX:hover {
+  color: var(--fg);
+}
+.helpText {
+  color: var(--fg);
+  margin: 0 0 12px;
+  line-height: var(--prose-lh);
+}
+
+/* text colour, by meaning rather than by hue */
+.muted {
+  color: var(--fg2);
+}
+.dim {
+  color: var(--fg3);
+}
+.ok {
+  color: var(--accent);
+}
+.warn {
+  color: #cba065;
+}
+.err {
+  color: #e08484;
+}
+.blue {
+  color: #9dbcea;
+}
+.amber {
+  color: #e8c464;
+}
+
+/* Touch: these were sized for a cursor. --ctl-h in theme.css covers the stage
+   overlay; this covers the panel. */
+@media (pointer: coarse) {
+  .btn,
+  .select {
+    padding: 8px 11px;
+  }
+}

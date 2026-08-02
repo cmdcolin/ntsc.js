@@ -1,8 +1,8 @@
-import styles from '../app.module.css'
 import { cx } from './cx'
 import { Meter } from './Meter'
 import { Section } from './Section'
 import { Slider } from './Slider'
+import ui from './ui.module.css'
 import { REVERB_DEFAULT, SPEED_DEFAULT, VAPORWAVE_SPEED } from './urlParams'
 
 import type { AudioState } from '../signal/audiostate'
@@ -37,11 +37,11 @@ export function VaporwaveSection(props: {
 }) {
   return (
     <Section title="Vaporwave" dot={props.playAudio}>
-      <div className={styles.hint}>
+      <div className={ui.hint}>
         slow the clip down and the pitch drops with it — the screwed sound.
         played out loud it also drives the reactive artifacts.
       </div>
-      <button className={styles.btn} onClick={props.onApplyPreset}>
+      <button className={ui.btn} onClick={props.onApplyPreset}>
         {VAPORWAVE_SPEED}× vaporwave
       </button>
       {props.videoA ? speed('speed A', props.speedA, props.onSpeedA) : null}
@@ -57,7 +57,7 @@ export function VaporwaveSection(props: {
         onChange={props.onReverb}
       />
       <button
-        className={cx(styles.btn, props.playAudio ? styles.danger : undefined)}
+        className={cx(ui.btn, props.playAudio ? ui.danger : undefined)}
         onClick={props.onTogglePlayAudio}
       >
         {props.playAudio ? 'mute audio' : 'play audio out loud'}

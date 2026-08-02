@@ -1,5 +1,5 @@
-import styles from '../app.module.css'
 import { Section } from './Section'
+import ui from './ui.module.css'
 
 import type { ReactNode } from 'react'
 
@@ -10,7 +10,7 @@ import type { ReactNode } from 'react'
 export function AudioSection(props: { active: boolean; children: ReactNode }) {
   return (
     <Section title="Sound into the picture" dot={props.active} openOnFilter>
-      <div className={styles.hint}>
+      <div className={ui.hint}>
         pick a mic or file under Input, then start with the top two knobs: they
         detune the hold oscillators, so sound knocks sync out of lock.
       </div>

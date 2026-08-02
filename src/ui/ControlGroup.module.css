@@ -1,0 +1,34 @@
+/* one banner for a group whose controls share an unmet gate, in place of a
+   stack of identical per-slider notes; clicking sets the prerequisite */
+.groupNeeds {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+  margin: 2px 0;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: #b6a058;
+}
+.groupNeeds:hover {
+  color: #e8c464;
+}
+
+/* reveals the sliders a direct-manipulation miniature stands in for */
+.sliderToggle {
+  display: block;
+  margin: -4px 0 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--fg3);
+}
+.sliderToggle:hover {
+  color: var(--fg);
+}

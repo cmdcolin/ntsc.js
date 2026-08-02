@@ -1,52 +1,18 @@
-/* Minimal dark UI. Small palette, thin borders, native form controls.
-   Font/color inherit from .app; only numeric readouts use --mono.
-   Colors live as tokens on :root so every CSS module (and the FatalScreen,
-   which renders outside .app) reads one palette — retheme in one place. */
-/* Four text tiers, not twelve near-identical grays: primary reading text,
-   secondary (headers, labels-about-labels), tertiary (prose, meta), and faint
-   (icon affordances, placeholders). The floor is set by contrast on the panel —
-   --fg3 clears 8:1, so the explanatory prose reads at a glance rather than
-   asking to be leaned into. Anything dimmer than --fg4 must be decoration only.
+/* The app shell: the two-pane split, the panel that scrolls, and the masthead
+   and filter box at the top of it. Everything inside the panel styles itself —
+   this file owns the frame, not the contents.
 
-   One type scale, so "the whole UI is too small" is a six-line edit rather than
-   a sweep over sixty declarations. --fs-xs is the floor: nothing sets a size
-   below it, and the only raw px size left in the app is .mapLabel, which is in
-   svg user units rather than pixels. Sizes are px, not em, because these nest
-   (a button in a row in a section) and relative units compound into sizes
-   nobody chose. */
-:root {
-  --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
-  --fg: #e6e6ee;
-  --fg2: #c6c6d6;
-  --fg3: #a6a6ba;
-  --fg4: #85859a;
-  --fs-xs: 11px;
-  --fs-sm: 12px;
-  --fs: 13px;
-  --fs-md: 14px;
-  --fs-lg: 16px;
-  --fs-xl: 20px;
-  --accent: #7fd0a0;
-  --border: #44444f;
-  --panel-bg: #16161a;
-  /* one sharp amber, for a count of anything off stock */
-  --amber: #ffb02e;
-  /* prose wraps to 3–5 lines in a panel this narrow; 1.2 is unreadable there */
-  --prose-lh: 1.45;
-  /* One height for every control that can end up sitting beside another one.
-     Padding alone can't hold a row level — a control with an <input> in it, or
-     one wrapped for positioning, measures differently — so anything on the
-     overlay bar sets this height outright rather than hoping its box matches. */
-  --ctl-h: 26px;
-  --ctl-radius: 3px;
-  --ctl-bg: rgba(22, 22, 26, 0.6);
-  --ctl-bg-hover: rgba(40, 40, 48, 0.85);
-}
+   Minimal dark UI. Small palette, thin borders, native form controls.
+   Font/color inherit from .app; only numeric readouts use --mono. Tokens live
+   in src/theme.css; the classes more than one component uses live in
+   ui.module.css. */
 
 .app {
   display: flex;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  /* dvh, not vh: a phone browser counts its retracting URL bar in vh, so the
+     bottom of the panel sits under the chrome and can't be scrolled to. */
+  height: 100dvh;
   background: #000;
   color: var(--fg);
   font-family:
@@ -63,27 +29,54 @@
 .panel {
   width: 332px;
   overflow-y: auto;
+  /* the panel is the app's only scroller; without this a flick past its end
+     rubber-bands the page (or triggers pull-to-refresh) on a phone */
+  overscroll-behavior: contain;
   padding: 10px 14px;
   flex-shrink: 0;
 }
-/* the panel portaled into the popout window fills it */
+/* The panel portaled into the popout window fills it — but only up to a
+   measure: that window is resizable, and a slider stretched across 1000px puts
+   its label and its value a screen apart with the prose running just as wide. */
 .panelPop {
   width: auto;
   flex: 1;
+  max-width: 520px;
+  margin-inline: auto;
 }
+
+/* A phone held upright can't give a third of its width to a sidebar, so the
+   two halves stack: picture at the top (Stage.module.css sizes it), panel as
+   the scrolling remainder under it. The breakpoint is orientation-and-width so
+   a narrow desktop window in portrait gets the same treatment — nothing here
+   depends on the device being a phone. */
+@media (orientation: portrait) and (max-width: 900px) {
+  .app {
+    flex-direction: column;
+  }
+  .panel {
+    width: auto;
+    flex: 1;
+    min-height: 0;
+    border-top: 1px solid var(--border);
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+}
+
+/* On its side the sidebar still reads, but 332px out of 844 is a third of the
+   picture — narrow it and pad the right edge clear of a landscape notch. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .panel {
+    width: min(300px, 40vw);
+    padding: 8px max(10px, env(safe-area-inset-right)) 8px 10px;
+  }
+}
+
 .titleRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin: 2px 0 4px;
-}
-.title {
-  font-size: var(--fs-md);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  letter-spacing: 0.04em;
 }
 /* color-bars glyph + wordmark + version, doubling as the help trigger */
 .brand {
@@ -117,270 +110,6 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--fg3);
-  font-variant-numeric: tabular-nums;
-}
-.helpBtn {
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: 1px solid var(--fg4);
-  border-radius: 50%;
-  background: transparent;
-  color: var(--fg3);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-}
-.helpBtn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.link {
-  color: var(--accent);
-  font-size: var(--fs-sm);
-  text-decoration: none;
-}
-.link:hover {
-  text-decoration: underline;
-}
-
-/* Section header + collapse caret. Two levels use this: a top-level section
-   (Presets, Input, Audio) and a group nested inside one (.headSub — the stage's
-   Sync, Deflection, Display). The nested level must read as subordinate to its
-   own contents' labels, which is why it is the quieter of the two: before, both
-   levels were identical and dimmer than the sliders under them, so nesting was
-   invisible and the hierarchy read upside down. */
-.head {
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--fg);
-  margin: 14px 0 5px;
-  padding: 3px 2px;
-  border-bottom: 1px solid #3c3c4a;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  user-select: none;
-  letter-spacing: 0.02em;
-}
-.head:hover {
-  color: #fff;
-}
-/* a group inside a section: same shape, one step quieter and less separated */
-.headSub {
-  font-weight: 600;
-  color: var(--fg2);
-  margin: 10px 0 3px;
-  border-bottom-color: #2e2e38;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  font-size: var(--fs-sm);
-}
-.headSub:hover {
-  color: var(--fg);
-}
-/* The header's own toggle: a real button, so a section collapses from the
-   keyboard and reports aria-expanded. It carries the heading's type rather than
-   setting its own, and any accessory (the ? explainer) sits beside it in .head
-   so its clicks are its own. */
-.headBtn {
-  flex: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  color: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.caret {
-  color: var(--fg3);
-  font-size: var(--fs-md);
-}
-/* section holds a control that's off its default */
-.dot {
-  color: #ceba64;
-}
-
-/* The chain in miniature at the head of the signal path (ChainMap): one
-   labeled box per stage, wired left to right, with the two feedback returns
-   looping back over the top. Box and label take currentColor, so one rule per
-   state (idle / touched / open) colors a whole stage. */
-.map {
-  display: block;
-  width: 100%;
-  margin: 10px 0 2px;
-}
-.mapWire {
-  fill: none;
-  stroke: var(--border);
-  stroke-width: 1;
-}
-.mapArrow {
-  fill: var(--border);
-}
-.mapNode {
-  color: var(--fg2);
-  cursor: pointer;
-}
-.mapNode:hover {
-  color: var(--fg);
-}
-/* the stage carries an edit — the same amber the rest of the sidebar marks one
-   with */
-.mapNodeTouched {
-  color: #ceba64;
-}
-.mapNodeOn {
-  color: var(--accent);
-}
-.mapBox {
-  fill: none;
-  stroke: var(--border);
-  stroke-width: 1;
-}
-.mapNode:hover .mapBox,
-.mapNodeTouched .mapBox,
-.mapNodeOn .mapBox {
-  stroke: currentColor;
-}
-/* svg user units, which are px at the sidebar's width */
-.mapLabel {
-  fill: currentColor;
-  font-size: 8px;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-/* The stage the map has open: its name (click to fold), what it does, then its
-   groups. Navigation lives in the map, so these rows carry no rail. */
-.stages {
-  margin: 2px 0 0;
-}
-.stageRow {
-  padding: 0 0 2px;
-}
-.stageHead {
-  display: flex;
-  align-items: baseline;
-  gap: 2px;
-  margin: 16px 0 3px;
-}
-/* The stage outranks the group headers under it, so it has to win on size as
-   well as color — at 10px it was the smallest thing on screen while naming the
-   largest division in the panel. */
-.stageName {
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--fs-md);
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-/* the stage's role, shown while it's open — the same line the diagram's box
-   carries, so the panel repeats what you clicked through */
-.stageBlurb {
-  color: var(--fg3);
-  margin: 0 0 7px;
-  line-height: var(--prose-lh);
-}
-/* the stage's touched-control count; clicking opens the first touched group */
-.phaseDot {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 0 0 4px;
-  font: inherit;
-  letter-spacing: normal;
-  color: #ceba64;
-}
-.phaseDot:hover {
-  color: #e8c464;
-}
-/* one banner for a group whose controls share an unmet gate, in place of a
-   stack of identical per-slider notes; clicking sets the prerequisite */
-.groupNeeds {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 0;
-  margin: 2px 0;
-  font: inherit;
-  font-size: var(--fs-sm);
-  color: #b6a058;
-}
-.groupNeeds:hover {
-  color: #e8c464;
-}
-
-/* reveals the sliders a direct-manipulation miniature stands in for */
-.sliderToggle {
-  display: block;
-  margin: -4px 0 6px;
-  padding: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--fs-sm);
-  color: var(--fg3);
-}
-.sliderToggle:hover {
-  color: var(--fg);
-}
-/* the only route from the preset shortlist to the rest of the catalog, so it
-   reads a step brighter than the miniatures' slider reveal */
-/* A full-width bar button: the handle on something bigger than a row of chips —
-   the preset catalog, the chain diagram — so it reads as a thing you open
-   rather than a line of small print. */
-.barBtn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  margin: 5px 0 3px;
-  padding: 6px 9px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: #1e1e26;
-  color: var(--fg2);
-  font: inherit;
-  cursor: pointer;
-}
-.barBtn:hover {
-  border-color: #63637a;
-  color: var(--fg);
-}
-.barBtnOn {
-  border-color: #4a5f54;
-  color: var(--fg);
-}
-.barCaret {
-  font-size: var(--fs-xs);
-  color: var(--fg3);
-}
-.barCount {
-  margin-left: auto;
-  padding: 1px 6px;
-  border-radius: 7px;
-  background: #2e2e3a;
-  color: var(--fg3);
-  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -423,453 +152,4 @@
 .filter:focus {
   border-color: var(--fg4);
   outline: none;
-}
-
-/* input dropdowns */
-.inputRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 3px 0;
-}
-.tag {
-  width: 13px;
-  flex-shrink: 0;
-  color: #9dbcea;
-  font-family: var(--mono);
-  font-size: var(--fs);
-  font-weight: 700;
-}
-.select {
-  flex: 1;
-  background: #20202a;
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 5px 8px;
-  font: inherit;
-  cursor: pointer;
-}
-.select:hover {
-  border-color: var(--fg4);
-}
-/* The picked file's name, aligned under the select (13px tag + 6px gap). */
-.fileName {
-  display: block;
-  width: 100%;
-  margin: -1px 0 4px 19px;
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: left;
-  color: var(--fg3);
-  font-family: var(--mono);
-  font-size: var(--fs-sm);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.fileName:hover {
-  color: var(--fg);
-  text-decoration: underline;
-}
-
-/* buttons */
-.btn {
-  background: #26262e;
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 4px 9px;
-  margin: 2px 3px 2px 0;
-  font: inherit;
-  cursor: pointer;
-}
-.btn:hover {
-  border-color: #63637a;
-}
-/* a .btn standing alone (dialog actions, close) rather than in a flowing row */
-.btnFlush {
-  margin: 0;
-}
-.active {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.edited {
-  border-color: #7f7f50;
-}
-.danger {
-  border-color: #a05050;
-}
-.slotEmpty {
-  color: var(--fg4);
-  border-color: #2e2e38;
-}
-
-/* Preset buttons double as weight sliders: drag one sideways to dial the preset
-   in partially, and the fill shows how much of it is in the mix. The fill can't
-   advertise the gesture (it only exists once you've already found it), and
-   `cursor: pointer` actively says "one click, one action" — so the resize cursor
-   is what carries the affordance. pan-y, not none: these chips sit near the top
-   of a scrolling panel, and swallowing vertical drags traps touch users. */
-.presetBtn {
-  background: linear-gradient(
-    to right,
-    #3a6355 var(--w, 0%),
-    #26262e var(--w, 0%)
-  );
-  touch-action: pan-y;
-}
-.presetBtn:hover {
-  cursor: ew-resize;
-}
-
-.grpLabel {
-  color: var(--fg2);
-  font-size: var(--fs-sm);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  margin: 7px 0 3px;
-}
-.caption {
-  min-height: 20px;
-  color: var(--fg2);
-  margin: 3px 0 4px;
-  line-height: var(--prose-lh);
-}
-.hint {
-  color: var(--fg2);
-  margin: 5px 0;
-  line-height: var(--prose-lh);
-}
-/* a hint the user can dismiss with the × at its end */
-.dismissHint {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-}
-.hintIcon {
-  flex-shrink: 0;
-  display: inline-flex;
-  color: #c9a94a;
-  margin-top: 1px;
-}
-.hintX {
-  flex-shrink: 0;
-  padding: 0 2px;
-  border: 0;
-  background: transparent;
-  color: var(--fg3);
-  font: inherit;
-  font-size: var(--fs-lg);
-  line-height: 1;
-  cursor: pointer;
-}
-.hintX:hover {
-  color: var(--fg);
-}
-/* audio input level — green until it is loud, red as it approaches clipping */
-.meter {
-  position: relative;
-  height: 4px;
-  background: linear-gradient(to right, #3ac06a, #cfc046 62%, #e0503c);
-  border-radius: 2px;
-  overflow: hidden;
-  margin: 6px 0;
-}
-/* vertical twin, sat beside the scrub slider so it fills bottom-up */
-.meterV {
-  position: relative;
-  flex-shrink: 0;
-  width: 4px;
-  height: 14px;
-  background: linear-gradient(to top, #3ac06a, #cfc046 62%, #e0503c);
-  border-radius: 2px;
-  overflow: hidden;
-}
-/* unlit remainder, eating back from the loud end; starts covering the whole
-   track so the bar reads empty until the first frame writes a level */
-.meterUnlitH {
-  position: absolute;
-  inset: 0 0 0 auto;
-  width: 100%;
-  background: #26262e;
-}
-.meterUnlitV {
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 100%;
-  background: #26262e;
-}
-/* transport for a loaded audio file — same indent as .fileName, and the track
-   fills in accent like the meter so it reads as playback, not as a knob */
-.scrubRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 2px 0 4px 19px;
-}
-.scrubTime {
-  flex-shrink: 0;
-  color: var(--fg3);
-  font-family: var(--mono);
-  font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums;
-}
-.scrub {
-  flex: 1;
-  min-width: 0;
-  height: 12px;
-  margin: 0;
-  appearance: none;
-  background: none;
-  cursor: pointer;
-}
-.scrub::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(
-    to right,
-    var(--accent) var(--p),
-    #31313c var(--p)
-  );
-}
-.scrub::-moz-range-track {
-  height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(
-    to right,
-    var(--accent) var(--p),
-    #31313c var(--p)
-  );
-}
-.scrub::-moz-range-progress {
-  background: none;
-}
-.scrub::-webkit-slider-thumb {
-  appearance: none;
-  width: 10px;
-  height: 10px;
-  margin-top: -3px;
-  border-radius: 50%;
-  border: none;
-  background: #b8b8c8;
-}
-.scrub::-moz-range-thumb {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: none;
-  background: #b8b8c8;
-}
-.subhead {
-  font-weight: 600;
-  color: var(--fg2);
-  margin: 0 0 4px;
-}
-
-/* dialogs — native <dialog>, centered in the top layer. Strip the UA chrome
-   (border/padding/opaque background/text color) back to a transparent wrapper
-   around the card, and dim the page behind it via ::backdrop. */
-.modal {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: inherit;
-  max-width: 100vw;
-  max-height: 100dvh;
-}
-.modal::backdrop {
-  background: rgba(0, 0, 0, 0.6);
-}
-.card {
-  width: 360px;
-  max-width: 90vw;
-  background: var(--panel-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 20px 24px;
-  line-height: var(--prose-lh);
-}
-/* prose dialogs (help, a control's explainer): a measure that stays under ~80
-   characters at --fs, so the text is read rather than scanned */
-.cardWide {
-  width: 540px;
-  line-height: 1.55;
-}
-/* command palette: a search box over one flat list of presets, controls and
-   actions. Sits high in the viewport rather than centered (the UA centers a
-   modal <dialog> with `margin: auto`; pinning the top margin overrides only the
-   vertical half), so the results grow downward into empty space instead of
-   pushing the box around as the list shrinks. */
-.paletteModal {
-  margin-top: 10vh;
-  margin-bottom: auto;
-}
-.paletteCard {
-  width: 560px;
-  max-width: 92vw;
-  background: var(--panel-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.paletteInput {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 14px;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  background: transparent;
-  color: var(--fg);
-  font: inherit;
-  font-size: var(--fs-lg);
-}
-.paletteInput:focus {
-  outline: none;
-}
-.paletteInput::placeholder {
-  color: var(--fg4);
-}
-.paletteList {
-  max-height: 46vh;
-  overflow-y: auto;
-}
-.paletteRow {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  width: 100%;
-  padding: 6px 14px;
-  border: 0;
-  background: transparent;
-  color: var(--fg);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.paletteRowOn {
-  background: #22303a;
-}
-.paletteKind {
-  flex-shrink: 0;
-  width: 54px;
-  color: var(--fg3);
-  font-size: var(--fs-xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.paletteName {
-  flex-shrink: 0;
-  font-weight: 600;
-}
-.paletteRowOn .paletteName {
-  color: var(--accent);
-}
-.paletteSub {
-  flex: 1;
-  min-width: 0;
-  color: var(--fg3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.paletteValue {
-  flex-shrink: 0;
-  font-family: var(--mono);
-  color: var(--fg2);
-}
-.paletteEmpty {
-  padding: 10px 14px;
-  color: var(--fg3);
-}
-.paletteFoot {
-  padding: 6px 14px;
-  border-top: 1px solid var(--border);
-  color: var(--fg3);
-  font-size: var(--fs-sm);
-}
-
-.cardRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 8px;
-}
-.h2 {
-  font-size: var(--fs-lg);
-  margin: 0;
-}
-.helpHead {
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--accent);
-  margin: 0 0 4px;
-}
-.helpText {
-  color: var(--fg);
-  margin: 0 0 12px;
-  line-height: var(--prose-lh);
-}
-.helpLogo {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin: 0 0 12px;
-}
-.helpList {
-  color: var(--fg);
-  margin: 0 0 12px;
-  padding-left: 18px;
-  line-height: var(--prose-lh);
-}
-
-/* section rows + text-color utilities */
-.midiRow {
-  display: flex;
-  justify-content: space-between;
-  margin: 2px 0;
-}
-.iconX {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: var(--fs-sm);
-  color: #d87878;
-}
-.muted {
-  color: var(--fg2);
-}
-.dim {
-  color: var(--fg3);
-}
-.ok {
-  color: var(--accent);
-}
-.warn {
-  color: #cba065;
-}
-.err {
-  color: #e08484;
-}
-.blue {
-  color: #9dbcea;
-}
-.amber {
-  color: #e8c464;
-}
-
-/* a preset group in the unfolded catalog */
-.presetGroup {
-  margin: 2px 0 4px;
-}
-/* MIDI section notes: the setup line under the buttons, and the clock readout */
-.midiNote {
-  margin: 0 0 6px;
-}
-.midiClock {
-  margin: 8px 0 2px;
 }

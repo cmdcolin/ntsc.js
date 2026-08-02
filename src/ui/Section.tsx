@@ -1,8 +1,8 @@
 import { createContext, use, useState } from 'react'
 
-import styles from '../app.module.css'
 import { cx } from './cx'
 import { useFilterQuery } from './filter'
+import styles from './Section.module.css'
 import { readRecord, writeJSON } from './storage'
 
 import type { ReactNode } from 'react'

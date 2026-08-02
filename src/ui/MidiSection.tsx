@@ -1,10 +1,11 @@
 import { useState } from 'react'
 
-import styles from '../app.module.css'
 import { ALL_SLIDERS, sliderFor } from './controls'
 import { cx } from './cx'
 import { DEVICE_PROFILES } from './midi'
+import styles from './MidiSection.module.css'
 import { Section } from './Section'
+import ui from './ui.module.css'
 
 import type { ControlKey } from '../controls'
 import type { BindingMap, DeviceProfile, LearnState } from './midi'
@@ -37,13 +38,13 @@ export function MidiSection(props: {
 
   return (
     <Section title="MIDI">
-      <div className={learn === null ? styles.hint : styles.amber}>{hint}</div>
+      <div className={learn === null ? ui.hint : ui.amber}>{hint}</div>
 
       {learn === null ? (
         <>
           <div className={styles.midiRow}>
             <select
-              className={styles.select}
+              className={ui.select}
               value={deviceName}
               onChange={e => setDeviceName(e.target.value)}
             >
@@ -53,20 +54,14 @@ export function MidiSection(props: {
                 </option>
               ))}
             </select>
-            <button
-              className={styles.btn}
-              onClick={() => props.onAutoMap(device)}
-            >
+            <button className={ui.btn} onClick={() => props.onAutoMap(device)}>
               auto-map
             </button>
-            <button
-              className={styles.btn}
-              onClick={() => props.onLearnSequence()}
-            >
+            <button className={ui.btn} onClick={() => props.onLearnSequence()}>
               learn in order
             </button>
           </div>
-          <div className={cx(styles.dim, styles.midiNote)}>
+          <div className={cx(ui.dim, styles.midiNote)}>
             auto-map takes the first{' '}
             {Math.min(device.ccs.length, ALL_SLIDERS.length)} controls by CC;
             learn in order works on any controller — sweep each knob once, left
@@ -78,7 +73,7 @@ export function MidiSection(props: {
         </>
       ) : (
         <button
-          className={cx(styles.btn, styles.midiNote)}
+          className={cx(ui.btn, styles.midiNote)}
           onClick={() => props.onStopLearn()}
         >
           stop learning
@@ -90,9 +85,9 @@ export function MidiSection(props: {
         return b === undefined ? null : (
           <div key={s.key} className={styles.midiRow}>
             <span>
-              {s.label} <span className={styles.blue}>· CC{b.controller}</span>
+              {s.label} <span className={ui.blue}>· CC{b.controller}</span>
               {b.channel === 0 ? null : (
-                <span className={styles.dim}> ch{b.channel + 1}</span>
+                <span className={ui.dim}> ch{b.channel + 1}</span>
               )}
             </span>
             <button
@@ -106,23 +101,20 @@ export function MidiSection(props: {
       })}
       {bound.length === 0 ? null : (
         <button
-          className={cx(styles.btn, styles.danger)}
+          className={cx(ui.btn, ui.danger)}
           onClick={() => props.onClearAll()}
         >
           clear all bindings
         </button>
       )}
       <div
-        className={cx(
-          props.bpm === null ? styles.dim : styles.amber,
-          styles.midiClock,
-        )}
+        className={cx(props.bpm === null ? ui.dim : ui.amber, styles.midiClock)}
       >
         {props.bpm === null
           ? 'clock ♩ — no signal'
           : `clock ♩ = ${props.bpm.toFixed(1)} BPM`}
       </div>
-      <div className={styles.dim}>
+      <div className={ui.dim}>
         click ♩ on a rate slider to lock it to the beat.
       </div>
     </Section>

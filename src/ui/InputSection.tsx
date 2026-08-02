@@ -1,8 +1,8 @@
-import styles from '../app.module.css'
 import { SOURCE_B_MODES, SOURCE_DESC, SOURCE_MODES } from '../sources/modes'
 import { FileName, ReopenFile } from './FileName'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
+import ui from './ui.module.css'
 
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { ReactNode, RefObject } from 'react'
@@ -99,7 +99,7 @@ export function InputSection(props: {
           onReopen={() => props.onReopenFileB()}
         />
         {props.audioInput}
-        <div className={styles.hint}>
+        <div className={ui.hint}>
           {props.sourceBMode === 'none'
             ? 'pick a source B to mix a second signal in.'
             : 'mix controls are in A/B Mix below.'}

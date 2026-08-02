@@ -1,0 +1,21 @@
+/* one bound control per row: its name, and the controller number it answers to */
+.midiRow {
+  display: flex;
+  justify-content: space-between;
+  margin: 2px 0;
+}
+/* drop a binding */
+.iconX {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  color: #d87878;
+}
+/* the setup line under the buttons, and the clock readout */
+.midiNote {
+  margin: 0 0 6px;
+}
+.midiClock {
+  margin: 8px 0 2px;
+}

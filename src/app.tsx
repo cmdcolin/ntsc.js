@@ -24,6 +24,7 @@ import { ScenesSection } from './ui/ScenesSection'
 import { Section } from './ui/Section'
 import { SignalPath } from './ui/SignalPath'
 import { Stage } from './ui/Stage'
+import ui from './ui/ui.module.css'
 import { useAudio } from './ui/useAudio'
 import { useCapture } from './ui/useCapture'
 import { useClockSync } from './ui/useClockSync'
@@ -299,7 +300,7 @@ export function App() {
           <span className={styles.version}>{versionLabel}</span>
         </button>
         <a
-          className={styles.link}
+          className={ui.link}
           href="https://github.com/cmdcolin/ntscenery"
           target="_blank"
           rel="noreferrer"
@@ -418,7 +419,7 @@ export function App() {
         onOpenGroup={nav.toggleGroup}
       />
       {!filtering || pathNodes.length > 0 ? null : (
-        <div className={styles.hint}>
+        <div className={ui.hint}>
           nothing matches “{filter.trim()}” — try an artifact: rainbow, ghost,
           tear
         </div>

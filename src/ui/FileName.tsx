@@ -1,4 +1,4 @@
-import styles from '../app.module.css'
+import styles from './SelectRow.module.css'
 
 // Caption under a loaded file/URL source. Clicking it re-fires the source
 // handler, reopening the file picker (or URL dialog) — the native <select>

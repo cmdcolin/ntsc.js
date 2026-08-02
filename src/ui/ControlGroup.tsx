@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
-import styles from '../app.module.css'
 import { DEFAULT_CONTROLS } from '../controls'
+import styles from './ControlGroup.module.css'
 import { NEEDS, sliderFor } from './controls'
 import { useControlsApi } from './ControlsContext'
 import { sliderMatches, useFilterQuery } from './filter'

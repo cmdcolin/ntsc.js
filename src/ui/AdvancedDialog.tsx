@@ -1,10 +1,11 @@
 import { useState } from 'react'
 
-import styles from '../app.module.css'
 import { cx } from './cx'
 import { Dialog } from './Dialog'
+import dlg from './dialog.module.css'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
+import ui from './ui.module.css'
 
 import type { Engine } from '../gpu/pipeline'
 import type { MidiStatus } from './midi'
@@ -50,10 +51,10 @@ export function AdvancedDialog(props: {
         defaultValue={1}
         onChange={props.onScaleChange}
       />
-      <div className={styles.dim} style={{ margin: '2px 0 12px' }}>
+      <div className={ui.dim} style={{ margin: '2px 0 12px' }}>
         backing-store resolution · lower = faster · {props.res}
       </div>
-      <div className={styles.subhead}>signal tap</div>
+      <div className={dlg.subhead}>signal tap</div>
       <SelectRow
         tag="◫"
         title="view the signal mid-decode instead of the finished picture"
@@ -64,32 +65,30 @@ export function AdvancedDialog(props: {
           props.engine?.setDbgView(Number(v))
         }}
       />
-      <div className={styles.dim} style={{ margin: '2px 0 12px' }}>
+      <div className={ui.dim} style={{ margin: '2px 0 12px' }}>
         see what the TV sees: the raw waveform, or luma / chroma / burst
         mid-decode — the fastest way to understand what a control is doing.
       </div>
-      <div className={styles.subhead}>MIDI control</div>
+      <div className={dlg.subhead}>MIDI control</div>
       {props.midiStatus === 'idle' ? (
         <button
-          className={cx(styles.btn, styles.btnFlush)}
+          className={cx(ui.btn, ui.btnFlush)}
           onClick={props.onEnableMidi}
         >
           enable MIDI
         </button>
       ) : null}
       {props.midiStatus === 'requesting' ? (
-        <div className={styles.muted}>requesting access…</div>
+        <div className={ui.muted}>requesting access…</div>
       ) : null}
       {props.midiStatus === 'unsupported' ? (
-        <div className={styles.warn}>
-          Web MIDI not supported in this browser.
-        </div>
+        <div className={ui.warn}>Web MIDI not supported in this browser.</div>
       ) : null}
       {props.midiStatus === 'denied' ? (
-        <div className={styles.err}>
+        <div className={ui.err}>
           Access denied.{' '}
           <button
-            className={cx(styles.btn, styles.btnFlush)}
+            className={cx(ui.btn, ui.btnFlush)}
             onClick={props.onEnableMidi}
           >
             retry
@@ -97,11 +96,11 @@ export function AdvancedDialog(props: {
         </div>
       ) : null}
       {props.midiStatus === 'ready' ? (
-        <div className={styles.ok}>
+        <div className={ui.ok}>
           enabled — bind knobs from the MIDI panel in the sidebar.
         </div>
       ) : null}
-      <div className={styles.dim} style={{ margin: '4px 0 0' }}>
+      <div className={ui.dim} style={{ margin: '4px 0 0' }}>
         map a hardware controller to any slider; sync rates to MIDI clock.
       </div>
     </Dialog>

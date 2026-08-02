@@ -1,0 +1,88 @@
+/* The preset front door: the shortlist of chips, the handle onto the full
+   catalog, and the group headings inside it. The chips themselves are .btn
+   variants and live in ui.module.css beside the rest of the button family. */
+
+/* the ? explainer beside the section title */
+.helpBtn {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--fg4);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg3);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.helpBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+@media (pointer: coarse) {
+  .helpBtn {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+/* A full-width bar button: the handle on something bigger than a row of chips —
+   the preset catalog — so it reads as a thing you open rather than a line of
+   small print, and a step brighter than the miniatures' slider reveal. */
+.barBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 5px 0 3px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: #1e1e26;
+  color: var(--fg2);
+  font: inherit;
+  cursor: pointer;
+}
+.barBtn:hover {
+  border-color: #63637a;
+  color: var(--fg);
+}
+.barBtnOn {
+  border-color: #4a5f54;
+  color: var(--fg);
+}
+.barCaret {
+  font-size: var(--fs-xs);
+  color: var(--fg3);
+}
+.barCount {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 7px;
+  background: #2e2e3a;
+  color: var(--fg3);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.grpLabel {
+  color: var(--fg2);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 7px 0 3px;
+}
+/* what the hovered preset does, held at a fixed height so the panel below it
+   doesn't jump as you move along the row */
+.caption {
+  min-height: 20px;
+  color: var(--fg2);
+  margin: 3px 0 4px;
+  line-height: var(--prose-lh);
+}
+/* a preset group in the unfolded catalog */
+.presetGroup {
+  margin: 2px 0 4px;
+}

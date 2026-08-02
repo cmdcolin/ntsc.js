@@ -1,8 +1,9 @@
 import { useState } from 'react'
 
-import styles from '../app.module.css'
+import styles from './CommandPalette.module.css'
 import { GROUPS } from './controls'
 import { cx } from './cx'
+import dlg from './dialog.module.css'
 import { formatValue } from './format'
 import { PRESETS } from './presets'
 import { useModalDialog } from './useModalDialog'
@@ -149,7 +150,7 @@ export function CommandPalette(props: {
   return (
     <dialog
       ref={ref}
-      className={cx(styles.modal, styles.paletteModal)}
+      className={cx(dlg.modal, styles.paletteModal)}
       aria-label="command palette"
       onCancel={props.onClose}
       onClick={e => {

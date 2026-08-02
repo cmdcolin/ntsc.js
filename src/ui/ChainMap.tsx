@@ -1,4 +1,4 @@
-import styles from '../app.module.css'
+import styles from './ChainMap.module.css'
 import { cx } from './cx'
 
 import type { Phase } from './controls'

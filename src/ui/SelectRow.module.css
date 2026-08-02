@@ -1,0 +1,38 @@
+/* An input slot: the A/B/♪ tag, the dropdown beside it, and — on the line under
+   it — the name of the file that dropdown picked. FileName.tsx renders that
+   line, so it shares this module: the 19px indent is the tag's 13px plus the
+   row's 6px gap, and the two only line up while they are read together. */
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0;
+}
+.tag {
+  width: 13px;
+  flex-shrink: 0;
+  color: #9dbcea;
+  font-family: var(--mono);
+  font-size: var(--fs);
+  font-weight: 700;
+}
+.fileName {
+  display: block;
+  width: 100%;
+  margin: -1px 0 4px 19px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: var(--fg3);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.fileName:hover {
+  color: var(--fg);
+  text-decoration: underline;
+}

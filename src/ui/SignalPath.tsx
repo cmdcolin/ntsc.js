@@ -1,7 +1,7 @@
-import styles from '../app.module.css'
 import { ChainMap } from './ChainMap'
 import { ControlGroup } from './ControlGroup'
 import { Accordion, NestedSections } from './Section'
+import styles from './SignalPath.module.css'
 
 import type { ChainStage } from './ChainMap'
 import type { Group } from './controls'

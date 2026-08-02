@@ -1,0 +1,96 @@
+/* The palette: a search box over one flat list of presets, controls and
+   actions. It takes .modal from dialog.module.css and styles its own card —
+   this one is a list, not a page of prose. */
+
+/* Sits high in the viewport rather than centered (the UA centers a modal
+   <dialog> with `margin: auto`; pinning the top margin overrides only the
+   vertical half), so the results grow downward into empty space instead of
+   pushing the box around as the list shrinks. */
+.paletteModal {
+  margin-top: 10vh;
+  margin-bottom: auto;
+}
+.paletteCard {
+  width: 560px;
+  max-width: 92vw;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.paletteInput {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--fs-lg);
+}
+.paletteInput:focus {
+  outline: none;
+}
+.paletteInput::placeholder {
+  color: var(--fg4);
+}
+.paletteList {
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.paletteRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.paletteRowOn {
+  background: #22303a;
+}
+.paletteKind {
+  flex-shrink: 0;
+  width: 54px;
+  color: var(--fg3);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.paletteName {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.paletteRowOn .paletteName {
+  color: var(--accent);
+}
+.paletteSub {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.paletteValue {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  color: var(--fg2);
+}
+.paletteEmpty {
+  padding: 10px 14px;
+  color: var(--fg3);
+}
+.paletteFoot {
+  padding: 6px 14px;
+  border-top: 1px solid var(--border);
+  color: var(--fg3);
+  font-size: var(--fs-sm);
+}

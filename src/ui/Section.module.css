@@ -1,0 +1,63 @@
+/* Section header + collapse caret. Two levels use this: a top-level section
+   (Presets, Input, Audio) and a group nested inside one (.headSub — the stage's
+   Sync, Deflection, Display). The nested level must read as subordinate to its
+   own contents' labels, which is why it is the quieter of the two: before, both
+   levels were identical and dimmer than the sliders under them, so nesting was
+   invisible and the hierarchy read upside down. */
+.head {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--fg);
+  margin: 14px 0 5px;
+  padding: 3px 2px;
+  border-bottom: 1px solid #3c3c4a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  letter-spacing: 0.02em;
+}
+.head:hover {
+  color: #fff;
+}
+/* a group inside a section: same shape, one step quieter and less separated */
+.headSub {
+  font-weight: 600;
+  color: var(--fg2);
+  margin: 10px 0 3px;
+  border-bottom-color: #2e2e38;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: var(--fs-sm);
+}
+.headSub:hover {
+  color: var(--fg);
+}
+/* The header's own toggle: a real button, so a section collapses from the
+   keyboard and reports aria-expanded. It carries the heading's type rather than
+   setting its own, and any accessory (the ? explainer) sits beside it in .head
+   so its clicks are its own. */
+.headBtn {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.caret {
+  color: var(--fg3);
+  font-size: var(--fs-md);
+}
+/* section holds a control that's off its default */
+.dot {
+  color: #ceba64;
+}

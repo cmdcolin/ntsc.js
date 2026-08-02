@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 
-import styles from '../app.module.css'
 import { GROUPS, SLIDER_BY_KEY } from './controls'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
 import { readArray, writeJSON } from './storage'
+import ui from './ui.module.css'
 
 import type { ControlKey, ModSlot } from '../controls'
 import type { Engine } from '../gpu/pipeline'
@@ -82,7 +82,7 @@ export function ModSection(props: { engine: Engine | null }) {
   }
   return (
     <Section title="Modulation" defaultOpen={false} dot={active.length > 0}>
-      <div className={styles.hint}>
+      <div className={ui.hint}>
         LFOs, drift and the audio envelope wiggling any control around its
         slider setting.
       </div>

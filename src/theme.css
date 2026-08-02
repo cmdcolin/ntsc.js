@@ -1,0 +1,56 @@
+/* The palette and the type scale, as tokens on :root — a plain stylesheet, not
+   a CSS module, because these are global by design: every module reads them,
+   and FatalScreen renders outside .app and still has to look like the app.
+   Imported once, from main.tsx. Retheme here and nowhere else.
+
+   Four text tiers, not twelve near-identical grays: primary reading text,
+   secondary (headers, labels-about-labels), tertiary (prose, meta), and faint
+   (icon affordances, placeholders). The floor is set by contrast on the panel —
+   --fg3 clears 8:1, so the explanatory prose reads at a glance rather than
+   asking to be leaned into. Anything dimmer than --fg4 must be decoration only.
+
+   One type scale, so "the whole UI is too small" is a six-line edit rather than
+   a sweep over sixty declarations. --fs-xs is the floor: nothing sets a size
+   below it, and the only raw size left in the app is .mapLabel, which is in svg
+   user units rather than pixels. rem, not em, because these nest (a button in a
+   row in a section) and em would compound into sizes nobody chose — rem always
+   resolves against the root, so it nests without compounding and still honours
+   a reader who set their browser's default font size to something other than
+   16px. The comments give the px each one lands on at that default. */
+:root {
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
+  --fg: #e6e6ee;
+  --fg2: #c6c6d6;
+  --fg3: #a6a6ba;
+  --fg4: #85859a;
+  --fs-xs: 0.6875rem; /* 11px */
+  --fs-sm: 0.75rem; /* 12px */
+  --fs: 0.8125rem; /* 13px */
+  --fs-md: 0.875rem; /* 14px */
+  --fs-lg: 1rem; /* 16px */
+  --fs-xl: 1.25rem; /* 20px */
+  --accent: #7fd0a0;
+  --border: #44444f;
+  --panel-bg: #16161a;
+  /* one sharp amber, for a count of anything off stock */
+  --amber: #ffb02e;
+  /* prose wraps to 3–5 lines in a panel this narrow; 1.2 is unreadable there */
+  --prose-lh: 1.45;
+  /* One height for every control that can end up sitting beside another one.
+     Padding alone can't hold a row level — a control with an <input> in it, or
+     one wrapped for positioning, measures differently — so anything on the
+     overlay bar sets this height outright rather than hoping its box matches. */
+  --ctl-h: 1.625rem; /* 26px */
+  --ctl-radius: 3px;
+  --ctl-bg: rgba(22, 22, 26, 0.6);
+  --ctl-bg-hover: rgba(40, 40, 48, 0.85);
+}
+
+/* Touch: --ctl-h sets every overlay pill at once. The panel's own buttons,
+   selects and sliders grow beside their own rules, in ui.module.css and
+   Slider.module.css. */
+@media (pointer: coarse) {
+  :root {
+    --ctl-h: 2.125rem; /* 34px */
+  }
+}

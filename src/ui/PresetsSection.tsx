@@ -1,13 +1,14 @@
 import { useRef, useState } from 'react'
 
-import styles from '../app.module.css'
 import { cx } from './cx'
 import { Dialog } from './Dialog'
 import { BulbIcon } from './icons'
 import { clamp01 } from './miniFrame'
 import { PRESETS, matchPreset } from './presets'
+import styles from './PresetsSection.module.css'
 import { Section } from './Section'
 import { usePersistedFlag } from './storage'
+import ui from './ui.module.css'
 import { useRecentPresets } from './useRecentPresets'
 
 import type { Controls } from '../controls'
@@ -64,19 +65,19 @@ const SHORTLIST_MAX = 8
 function PresetsHelpDialog(props: { onClose: () => void }) {
   return (
     <Dialog title="Presets" size="prose" onClose={props.onClose}>
-      <p className={styles.helpText}>
+      <p className={ui.helpText}>
         Each preset is a named look — a bundle of control settings that
         recreates a particular signal fault or device. Hover one for what it
         does.
       </p>
-      <p className={styles.helpText}>
+      <p className={ui.helpText}>
         Every preset but “clean” is also a fader: click to dial it fully in, or
         drag sideways for a partial amount. Either way it layers onto what’s
         already there rather than replacing it, and the fill shows how much is
         in — so stacking several accumulates their faults. “clean” is a plain
         reset: click it to clear them all.
       </p>
-      <div className={styles.muted}>
+      <div className={ui.muted}>
         A mix lasts only until something else moves the look — a slider, mutate,
         a scene — and then the fills reset, since a blended look can’t be traced
         back to exact amounts.
@@ -121,10 +122,10 @@ function PresetButton(props: {
       title={`${props.def.blurb} — drag sideways to mix it in partially`}
       style={fill}
       className={cx(
-        styles.btn,
-        styles.presetBtn,
-        props.active && styles.active,
-        props.edited && styles.edited,
+        ui.btn,
+        ui.presetBtn,
+        props.active && ui.active,
+        props.edited && ui.edited,
       )}
       onPointerEnter={() => props.onHover(props.def.name)}
       onPointerLeave={() => props.onHover(null)}
@@ -175,9 +176,9 @@ function PresetButton(props: {
     <button
       title={props.def.blurb}
       className={cx(
-        styles.btn,
-        props.active && styles.active,
-        props.edited && styles.edited,
+        ui.btn,
+        props.active && ui.active,
+        props.edited && ui.edited,
       )}
       onPointerEnter={() => props.onHover(props.def.name)}
       onPointerLeave={() => props.onHover(null)}
@@ -270,13 +271,13 @@ export function PresetsSection(props: {
       }
     >
       {hintDismissed ? null : (
-        <div className={cx(styles.hint, styles.dismissHint)}>
-          <span className={styles.hintIcon}>
+        <div className={cx(ui.hint, ui.dismissHint)}>
+          <span className={ui.hintIcon}>
             <BulbIcon />
           </span>
           <span>drag a preset sideways to mix it in partially</span>
           <button
-            className={styles.hintX}
+            className={ui.hintX}
             title="dismiss this hint"
             aria-label="dismiss hint"
             onClick={() => setHintDismissed(true)}
@@ -314,33 +315,33 @@ export function PresetsSection(props: {
         onPointerDown={props.onStartCompare}
         onPointerUp={props.onEndCompare}
         onPointerLeave={props.onEndCompare}
-        className={cx(styles.btn, props.comparing && styles.active)}
+        className={cx(ui.btn, props.comparing && ui.active)}
         title="hold to preview the clean signal, release to return (or hold C)"
       >
         {props.comparing ? 'showing clean…' : 'hold to compare'}
       </button>
       <button
-        className={cx(styles.btn, props.copied && styles.active)}
+        className={cx(ui.btn, props.copied && ui.active)}
         onClick={props.onCopyLink}
       >
         {props.copied ? 'copied!' : 'copy link'}
       </button>
       <button
-        className={styles.btn}
+        className={ui.btn}
         onClick={props.onSurprise}
         title="stack a few random presets from different groups — a fresh look each roll, with the recipe shown in the chips above"
       >
         surprise me
       </button>
       <button
-        className={styles.btn}
+        className={ui.btn}
         onClick={props.onMutate}
         title="jitter every control around the current look, for a related variation (also happy accidents)"
       >
         mutate
       </button>
       <button
-        className={cx(styles.btn, !props.canUndo && styles.slotEmpty)}
+        className={cx(ui.btn, !props.canUndo && ui.slotEmpty)}
         onClick={props.onUndo}
         disabled={!props.canUndo}
         title="restore the look from before the last preset, scene, or mutate"
