@@ -15,7 +15,7 @@ comes out of the signal on its own, same as on the real gear.
 
 ## Screenshot
 
-[![A photo dubbed to VHS inside the ntscythe app, alongside its full control panel](img/1.png)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo-v2.mp4)
+[![A photo dubbed to VHS: rainbow chroma noise banding across the frame, torn lines, and the picture bending through a tracking band](img/screenshot.jpg)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo-v2.mp4)
 
 <sub>▶ **In motion:**
 [watch the 7-second clip](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo-v2.mp4)

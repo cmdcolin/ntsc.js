@@ -31,8 +31,8 @@ sidebar at first.
 You should now see **enabled — bind knobs from the MIDI panel in the sidebar**,
 and a new **MIDI** section in the control panel.
 
-You have to click **enable MIDI** once per page load. The bindings you make
-stick around; the connection doesn't.
+You only have to do this once. After a successful grant the app reconnects by
+itself on later visits, so reloading won't send you back to the dialog.
 
 If instead you get:
 
@@ -95,10 +95,13 @@ then it catches, and from that point it tracks normally.
 
 So: turn it further, all the way across if you need to. It'll grab.
 
-There's no on-screen indicator for this yet, which is the main thing that makes
-it feel broken the first time. Knobs also let go and need re-catching whenever a
-value gets set from somewhere else — loading a preset, recalling a scene,
-undoing, randomizing. After a preset load, expect to re-catch everything.
+An **amber mark** on the track shows where the knob currently sits while it's
+waiting. Sweep the thumb past that mark — or the mark past the thumb — and the
+mark disappears, meaning the knob has it.
+
+Knobs also let go and need re-catching whenever a value is set from somewhere
+else: loading a preset, recalling a scene, undoing, randomizing. After a preset
+load expect a row of amber marks, one per knob you'd touched.
 
 ## Locking a rate to the beat
 
@@ -143,7 +146,7 @@ Worth knowing before you buy something specifically for this:
 | What you see                        | What's going on                                                               |
 | ----------------------------------- | ----------------------------------------------------------------------------- |
 | No MIDI section in the sidebar      | Not enabled yet, or there's text in the panel's filter box — clear it         |
-| Knob does nothing                   | Soft takeover: sweep the knob across the on-screen value to catch it          |
+| Knob does nothing, amber mark shown | Soft takeover: sweep the knob across the on-screen value to catch it          |
 | Everything went dead after a preset | Same thing; a preset load drops every knob's catch                            |
 | Two controls move together          | Both bound to the same CC — unbind one with **×** and re-learn it             |
 | Value jumps in steps                | Coarse-stepped slider; 128 knob positions land on fewer distinct values       |
