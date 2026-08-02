@@ -70,7 +70,7 @@ export class RenderLoop {
   private lastTime = 0
   private frameAcc = 0
   private frameCount = 0
-  private rafId = 0
+  private renderGen = 0
   private renderErrors = 0
   private watchdogId = 0
   private hangStrikes = 0
@@ -117,7 +117,7 @@ export class RenderLoop {
     this.frameCount = 0
     this.hangStrikes = 0
     trace.add('start')
-    this.rafId = requestAnimationFrame(this.tick)
+    this.startRender()
     this.startProbe()
     this.watchdogId = window.setInterval(this.watchdog, WATCHDOG_MS)
   }
@@ -151,37 +151,57 @@ export class RenderLoop {
   stop(): void {
     trace.add('stop', `frame ${this.host.frameNo()}`)
     trace.flush(true)
+    // No cancelAnimationFrame: `live` retires both chains on their next
+    // callback, at a cost of one no-op call each, and never cancelling is the
+    // whole reason the chains are generation-tagged.
     this.live = false
     this.stalled = false
     this.pumping = false
-    cancelAnimationFrame(this.rafId)
     clearInterval(this.watchdogId)
     clearTimeout(this.fallbackId)
     this.fallbackId = 0
   }
 
-  private tick = (time: number): void => {
-    if (this.live) {
-      // Re-arm the next frame FIRST, before any work. A synchronous throw below
-      // (e.g. getCurrentTexture during a fullscreen/visibility transition, or a
-      // React setState in onStats) then can't leave the loop un-scheduled — the
-      // classic "canvas froze, controls look dead" hang after exiting fullscreen.
-      this.rafId = requestAnimationFrame(this.tick)
-      this.rafTicks += 1 // proof rAF is actually being delivered (watchdog reads it)
-      if (this.stalled) {
-        // Leave the fallback the instant rAF returns rather than waiting for the
-        // watchdog to notice, otherwise both drivers run frames for up to
-        // WATCHDOG_MS and double the submission rate on a device that just
-        // demonstrated it was struggling.
-        this.stalled = false
-        this.setGaveUp(false)
-        trace.add('resume', `frame ${this.host.frameNo()}`)
-        console.warn(
-          `rAF resumed at frame ${this.host.frameNo()}; leaving fallback`,
-        )
+  // The render chain, generation-tagged and self-re-arming exactly like the
+  // probe, and — the point of it — never cancelled.
+  //
+  // cancelAnimationFrame is the single operation that can leave this loop with
+  // no request outstanding, and kick() used to run it on every visibility and
+  // focus transition: precisely when the browser is suspending and resuming its
+  // refresh driver, and precisely where a trace caught eight hidden/visible
+  // flips followed by rAF never being delivered again. Cancel-then-request has
+  // to be atomic against a driver doing its own bookkeeping underneath, and
+  // there is no reason to assume it is. Starting a new generation instead can
+  // only ever *add* a chain; the superseded one retires on its own next
+  // callback, so a run of kicks collapses back to one live chain by the next
+  // delivered frame and no path through here ever reaches zero.
+  private startRender(): void {
+    this.renderGen += 1
+    const gen = this.renderGen
+    const step = (time: number): void => {
+      if (this.live && gen === this.renderGen) {
+        // Re-arm FIRST, before any work. A synchronous throw below (e.g.
+        // getCurrentTexture during a fullscreen/visibility transition, or a
+        // React setState in onStats) then can't leave the loop un-scheduled —
+        // the classic "canvas froze, controls look dead" hang after fullscreen.
+        requestAnimationFrame(step)
+        this.rafTicks += 1 // proof rAF is being delivered (watchdog reads it)
+        if (this.stalled) {
+          // Leave the fallback the instant rAF returns rather than waiting for
+          // the watchdog, otherwise both drivers run frames for up to
+          // WATCHDOG_MS and double the submission rate on a device that just
+          // demonstrated it was struggling.
+          this.stalled = false
+          this.setGaveUp(false)
+          trace.add('resume', `frame ${this.host.frameNo()}`)
+          console.warn(
+            `rAF resumed at frame ${this.host.frameNo()}; leaving fallback`,
+          )
+        }
+        this.runFrame(time)
       }
-      this.runFrame(time)
     }
+    requestAnimationFrame(step)
   }
 
   // One frame: stats + render, shared by the rAF loop and the setTimeout
@@ -295,13 +315,12 @@ export class RenderLoop {
   }
 
   // Re-arm the loop after a transition (fullscreen exit, tab re-shown) that can
-  // leave the browser having stopped delivering rAF callbacks. Idempotent: it
-  // cancels any pending frame first, so calling it when the loop is healthy is a
-  // no-op rather than a double-schedule.
+  // leave the browser having stopped delivering rAF callbacks. Safe to call on a
+  // healthy loop and safe to call in a burst: the superseded chain retires
+  // itself, so this converges to one live chain without ever cancelling.
   kick(): void {
     if (this.live) {
-      cancelAnimationFrame(this.rafId)
-      this.rafId = requestAnimationFrame(this.tick)
+      this.startRender()
     }
   }
 

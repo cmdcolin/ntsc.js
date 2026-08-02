@@ -246,22 +246,32 @@ describe('RenderLoop', () => {
   it('keeps the liveness probe on its own chain', async () => {
     const h = harness()
     h.loop.start()
-    // One render chain plus one probe chain. kick() cancels and re-requests the
-    // render chain and may only ever touch that one — a probe this class can
-    // break diagnoses nothing.
-    expect(h.outstanding()).toBe(2)
-    h.loop.kick()
-    h.loop.kick()
+    // One render chain plus one probe chain.
     expect(h.outstanding()).toBe(2)
 
-    // A restart must not leave the old probe counting alongside the new one:
-    // two chains would report double the true rate and hide a dying document.
-    h.loop.stop()
-    h.loop.start()
+    // A burst of kicks — what eight visibility flips produce — only ever adds
+    // chains, never cancels, so the loop cannot be left with none outstanding.
+    h.loop.kick()
+    h.loop.kick()
+    expect(h.outstanding()).toBe(4)
+
+    // ...and the superseded ones retire themselves on their next callback, so
+    // it converges straight back to one render chain plus one probe rather than
+    // driving the frame several times over.
     h.deliverRaf(16)
     expect(h.outstanding()).toBe(2)
+    expect(h.frames()).toBe(1)
+
+    // A restart must not leave the old chains running alongside the new ones:
+    // a doubled probe would report twice the true rate and hide a dying
+    // document, and a doubled render chain double-submits every frame.
+    h.loop.stop()
+    h.loop.start()
     h.deliverRaf(32)
     expect(h.outstanding()).toBe(2)
+    h.deliverRaf(48)
+    expect(h.outstanding()).toBe(2)
+    expect(h.frames()).toBe(3)
   })
 
   it('reports one frozen edge per stall episode', async () => {
