@@ -70,12 +70,18 @@ the option does nothing there. Details in
 
 ## Docs
 
+Rendered as a site at
+**[cmdcolin.github.io/ntscythe/guide/](https://cmdcolin.github.io/ntscythe/guide/)**,
+where every figure links to the live session that produced it.
+
+- [**docs/USER-GUIDE.md**](docs/USER-GUIDE.md) — the tour: what's on screen,
+  what to touch first, where the interesting things hide
 - [**EFFECTS.md**](EFFECTS.md) — every effect and the hardware fault it models
 - [**docs/HOW-IT-WORKS.md**](docs/HOW-IT-WORKS.md) — the signal path, pass by
   pass, with diagrams
 - [**docs/MIDI.md**](docs/MIDI.md) — setting up a controller, start to finish
-- [**docs/DEVELOPMENT.md**](docs/DEVELOPMENT.md) — build, test, screenshot
-  harness, YouTube source, URL params
+- [**docs/DEVELOPMENT.md**](docs/DEVELOPMENT.md) — build, test, the harness that
+  captures every doc screenshot, YouTube source, URL params
 - [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) — pass graph, buffer layouts,
   adding a control end to end
 

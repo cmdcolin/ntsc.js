@@ -25,6 +25,64 @@ Drives a headed Firefox Nightly, steps frames deterministically, probes pixels,
 and saves a screenshot. Headless Chrome can't present WebGPU swap chains here,
 which is why it's Firefox.
 
+## Documentation screenshots
+
+Every figure in [`USER-GUIDE.md`](USER-GUIDE.md) is captured from the running
+app, so the guide can't quietly drift from the UI:
+
+```
+pnpm docshots                 # all of them, into docs/img/
+pnpm docshots presets filter  # just these
+pnpm docshots --force         # rewrite even unchanged shots
+```
+
+It runs against `localhost:5199` and starts a dev server itself if nothing is
+serving there, so a regen is one command from a cold checkout.
+
+Shots are declared in
+[`../scripts/docshot-specs.mjs`](../scripts/docshot-specs.mjs) — a URL, the
+actions that put the app in the state being documented, optional red callouts,
+and what to crop to. Crops and callouts resolve against live elements at capture
+time, so nothing is a hand-measured pixel offset. Captures run at 2x; UI crops
+land as pngquant'd PNGs and picture-heavy frames as JPEG. The runner refuses to
+save a dead-black frame or one with the stage's error banner up, and leaves a
+shot alone when its pixels didn't change.
+
+A spec with `video` records the canvas to mp4 instead, with a poster still
+beside it. Clips are too big to commit, so they go to a gitignored `clips/` and
+are hosted on S3:
+
+```
+pnpm docshots --upload clip-feedback   # aws --profile colin
+```
+
+Each run also writes `docs/img/shots.json` — the app's own address bar at the
+moment of each capture, as a URL against the hosted build. That is what puts the
+"open this in the app" link under every figure on the docs site, and it is read
+back from the live session rather than rebuilt from the spec, so it holds even
+for a shot whose look the app rolled itself.
+
+The gallery shots do exactly that: they load `?surprise`, which rolls a random
+preset stack the way the button does. A roll worth keeping gets pinned:
+
+```
+pnpm docshots --freeze look-roll-3   # capture, then record the look it landed on
+```
+
+`--freeze` writes the resulting params into `scripts/docshot-frozen.json`, and
+that shot stops rolling — same picture every regen. Delete its entry to let it
+roll again.
+
+Needs Firefox Nightly, ImageMagick, ffmpeg (clips) and pngquant (optional).
+
+## Docs site
+
+`pnpm guide` (also run by `pnpm build`) renders the reader-facing markdown into
+`dist/guide/`, which Pages serves at `/ntscythe/guide/`. Markdown stays the
+source of truth and stays readable on GitHub; the builder only adds the nav, the
+live links, and styling. To add a page, add it to `PAGES` in
+[`../scripts/build-guide.mjs`](../scripts/build-guide.mjs).
+
 ## YouTube source (dev server only)
 
 The **YouTube…** source fetches `/yt?url=…`, a Vite middleware
@@ -56,6 +114,7 @@ A link specifies a look — **copy link** in the app writes one.
 | `?vurl=`             | video source                                 |
 | `?src=` / `?srcb=`   | source kind for A / B                        |
 | `?dbg=1..5`          | scope views (composite, luma, chroma, burst) |
+| `?surprise`          | roll a random preset stack on load           |
 | `?prof`              | per-pass GPU timings                         |
 
 Example: `?iurl=/sample.jpg&preset=dirty%20mix`

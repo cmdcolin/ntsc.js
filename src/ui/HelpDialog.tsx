@@ -64,9 +64,19 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
       </ul>
       <div className={styles.helpHead}>more</div>
       <p className={styles.muted} style={{ margin: 0 }}>
-        The <b>gear</b> icon holds render scale and MIDI setup. <b>⧉ pop out</b>{' '}
-        moves the controls into their own window — handy with the stage
-        fullscreen on a projector. Source code and notes on{' '}
+        The{' '}
+        <a
+          className={styles.link}
+          href="https://cmdcolin.github.io/ntscythe/guide/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          user guide ↗
+        </a>{' '}
+        walks through all of it with pictures. The <b>gear</b> icon holds render
+        scale and MIDI setup. <b>⧉ pop out</b> moves the controls into their own
+        window — handy with the stage fullscreen on a projector. Source code and
+        notes on{' '}
         <a
           className={styles.link}
           href="https://github.com/cmdcolin/ntscythe"
