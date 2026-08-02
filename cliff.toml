@@ -45,17 +45,17 @@ split_commits = false
 commit_preprocessors = []
 protect_breaking_commits = false
 commit_parsers = [
-    { message = "^Release v", skip = true },
-    { message = "^feat", group = "<!-- 0 -->Features" },
-    { message = "^fix", group = "<!-- 1 -->Fixes" },
-    { message = "^perf", group = "<!-- 2 -->Performance" },
-    { message = "^refactor", group = "<!-- 3 -->Refactor" },
-    { message = "^docs", group = "<!-- 4 -->Documentation" },
-    { message = "^style", group = "<!-- 5 -->Style" },
-    { message = "^test", group = "<!-- 6 -->Tests" },
-    { message = "^(chore|ci|build)", group = "<!-- 7 -->Chores" },
-    { message = "^revert", group = "<!-- 8 -->Reverts" },
-    { message = ".*", group = "<!-- 9 -->Other Changes" },
+  { message = "^Release v", skip = true },
+  { message = "^feat", group = "<!-- 0 -->Features" },
+  { message = "^fix", group = "<!-- 1 -->Fixes" },
+  { message = "^perf", group = "<!-- 2 -->Performance" },
+  { message = "^refactor", group = "<!-- 3 -->Refactor" },
+  { message = "^docs", group = "<!-- 4 -->Documentation" },
+  { message = "^style", group = "<!-- 5 -->Style" },
+  { message = "^test", group = "<!-- 6 -->Tests" },
+  { message = "^(chore|ci|build)", group = "<!-- 7 -->Chores" },
+  { message = "^revert", group = "<!-- 8 -->Reverts" },
+  { message = ".*", group = "<!-- 9 -->Other Changes" },
 ]
 filter_commits = false
 fail_on_unmatched_commit = false

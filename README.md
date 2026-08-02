@@ -26,6 +26,31 @@ footage.</sub>
 
 ![](img/1.png)
 
+## Features
+
+- **Controls** — ~150 in 18 groups, each a hardware fault rather than a drawn
+  artifact ([EFFECTS.md](EFFECTS.md)).
+- **Sources** — bars, sweep, TV/VHS static, bundled photo, image/video file,
+  webcam or capture device, [YouTube](#youtube-source-dev-server-only). Source B
+  takes all but webcam.
+- **Presets** — 40+ built-ins, 9 scene slots (`1`–`9` recall, `shift+1`–`9`
+  save), surprise-me, mutate, `ctrl+z` undo.
+- **Keys** — `ctrl+k` palette, hold `c` to compare against clean, `f`
+  fullscreen, `r` record webm, `s` save png; **⧉ pop out** gives the controls
+  their own window.
+- **Modulation** — LFOs, random walk, sample-and-hold, Lorenz or audio
+  level/onset onto any slider.
+- **Audio in** — mic or file into field lurch, line tear, HV sag, deflection and
+  the video input; playback speed and reverb.
+- **MIDI** — per-control learn, whole-device automap, soft takeover, clock lock
+  for rate controls.
+- **URL params** — a link specifies a look (**copy link** writes one):
+  `?preset=`, `?set=key:value,...`, `?iurl=`/`?iurlb=` (image A/B), `?vurl=`,
+  `?src=`, `?srcb=`, `?dbg=1..5`, `?prof`. Bundled sample:
+  `?iurl=/sample.jpg&preset=dirty%20mix`.
+- **Diagnostics** — scope views (composite, luma, chroma, burst), render scale,
+  FPS, chain map, per-pass GPU timings with `?prof`.
+
 ## Run
 
 ```
@@ -37,18 +62,24 @@ pnpm dev
 linear-phase symmetry, filter-bank packing). CI gates deploy on `pnpm lint` +
 `pnpm test`.
 
-- **Sources**: SMPTE bars, multiburst sweep, video/image file, webcam; plus an
-  independent source B for the dirty mixer.
-- **Presets**: built-ins + 9 scene slots (`1`–`9` recall, `shift+1`–`9` save).
-- **Performing**: `f` fullscreens the stage, and **⧉ pop out** moves the
-  controls into their own window — project one screen, tweak from the other.
-- **URL params** (a link can fully specify a look): `?preset=name`,
-  `?set=key:value,...` (e.g. `?set=timeScale:0.25` — slow motion via link),
-  `?iurl=…`/`?iurlb=…` (image source A / B by URL), `?vurl=…` (video),
-  `?src=sweep|webcam`, `?srcb=bars|sweep`, `?dbg=1..5`, `?prof` (per-pass GPU
-  timings in the console, needs timestamp-query support). A bundled
-  `public/sample.jpg` makes `?iurl=/sample.jpg&preset=dirty%20mix` reproducible
-  out of the box.
+### YouTube source (dev server only)
+
+The **YouTube…** source fetches `/yt?url=…`, a Vite middleware
+([`vite-plugin-ytdlp.ts`](vite-plugin-ytdlp.ts)) that shells out to `yt-dlp` and
+serves the clip back as an mp4. It's `apply: 'serve'`, so it exists under
+`pnpm dev` only — the deployed build has no server to shell out from, and the
+option does nothing there.
+
+Setup is just the binaries on `PATH`:
+
+```
+yt-dlp --version    # pipx install yt-dlp, or your package manager
+ffmpeg -version     # only needed when no single-file mp4 exists at 720p
+```
+
+Clips are capped at 720p (the chain downscales to 480 lines anyway) and cached
+in `$TMPDIR/ntscythe-yt` keyed by URL, so a reload replays instantly. The first
+load takes as long as the download; failures come back as the yt-dlp error.
 
 ## Effects
 
