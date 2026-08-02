@@ -2,6 +2,50 @@
 
 All notable changes to ntscenery are documented here.
 
+## [0.7.0](https://github.com/cmdcolin/ntscenery/compare/v0.6.2...v0.7.0) - 2026-08-02
+
+### Features
+- *(midi)* [`7ca81d4`](https://github.com/cmdcolin/ntscenery/commit/7ca81d447423fd675ffe00ea6858fe67a03c1f71) show where an uncaught knob sits, and reconnect on load
+- *(ui)* [`000f28d`](https://github.com/cmdcolin/ntscenery/commit/000f28da2e73b8e1b7a1d05f482739bb85e34fbc) roll a look from a link with ?surprise, and keep the view out of it
+- *(ui)* [`1b1f1db`](https://github.com/cmdcolin/ntscenery/commit/1b1f1db9ab417a40dc09f17fb284a8e486323eb7) the signal chain as a small map at the head of the sidebar
+- *(ui)* [`6131ef4`](https://github.com/cmdcolin/ntscenery/commit/6131ef4428f5260cb423f5783855934d9708449e) a layout that works on a phone, and a stylesheet that can be found in
+- *(ui)* [`c1a6608`](https://github.com/cmdcolin/ntscenery/commit/c1a66089a327c3593d023ea9999d28a852e538ee) give the icon the ends of the line, not just the bars
+- *(ui)* [`2318c3f`](https://github.com/cmdcolin/ntscenery/commit/2318c3f350754ce2eb7f10d7e7f07beac98e60be) the fps readout starts out of the way, with two ways back to it
+
+### Fixes
+- *(ui)* [`aa29b1e`](https://github.com/cmdcolin/ntscenery/commit/aa29b1ea2a477b7c719b012ee5e2fc8865fbe1f3) gate below-1x magnifier to the "across the room" preset
+- *(ui)* [`1a15346`](https://github.com/cmdcolin/ntscenery/commit/1a15346e853228ccb54975141bf571892a04707f) tighten WebGPU-unavailable screen, link the repo
+- *(ui)* [`c291acd`](https://github.com/cmdcolin/ntscenery/commit/c291acd4958c4f7503857d8210a0750b58e84af4) keep the capture mirror sized to the canvas
+- *(ui)* [`80dda72`](https://github.com/cmdcolin/ntscenery/commit/80dda725f989faeaf50f4d39a84b4319b5bebefe) snap the bent detailer preset onto its step grid
+- *(ui)* [`e480e85`](https://github.com/cmdcolin/ntscenery/commit/e480e8582f6f3116c8c72031c2488662de4d3212) keep the picture centered when the canvas outgrows the stage
+
+### Refactor
+- *(ui)* [`f2eb191`](https://github.com/cmdcolin/ntscenery/commit/f2eb1919a5fb8f3bfddcb0d8dd5eb16ac2dc8c8a) the stage menu is a native popover, and the fps readout moves off the picture
+
+### Documentation
+- [`3d1176c`](https://github.com/cmdcolin/ntscenery/commit/3d1176c90c347cc6e1eb1d7ab41fd0e7037f19b1) add features list and YouTube setup notes
+- [`a7edd7c`](https://github.com/cmdcolin/ntscenery/commit/a7edd7c5e518117c0a4772407fc9bb43641ca17d) split README into HOW-IT-WORKS, DEVELOPMENT; simplify feature list
+- [`709a78a`](https://github.com/cmdcolin/ntscenery/commit/709a78a1a781048c0d5f14c7eb63a67afc898b8c) point demo link at refreshed clip
+- [`4756f5c`](https://github.com/cmdcolin/ntscenery/commit/4756f5cabccc6007fbdb60cbec02160421e3081d) cache-bust demo asset names (demo-v2.mp4)
+- [`78d9e18`](https://github.com/cmdcolin/ntscenery/commit/78d9e18572d6c1fb3012a4bc1f331398d749ac06) rewrite feature bullets in plain voice, link to EFFECTS.md
+- [`dc6328f`](https://github.com/cmdcolin/ntscenery/commit/dc6328fbfd47f00e212b89b5c166a8fda094bde6) one EFFECTS.md link, YouTube + OBS notes; feat(ui): raise recording bitrate
+- *(midi)* [`9a733ef`](https://github.com/cmdcolin/ntscenery/commit/9a733ef24f72c62b98732e46f9a917debc6985b6) add a beginner guide for controller setup
+- [`3e9be9a`](https://github.com/cmdcolin/ntscenery/commit/3e9be9a6648d3ba49868e64a6ed48bbb09f3b8db) correct the control count (132 in 18 groups)
+- [`8d01e52`](https://github.com/cmdcolin/ntscenery/commit/8d01e52f1d8670d6044aecd885e375e59ff86f5b) move ARCHITECTURE.md into docs/, fix stale pass-order and React Compiler facts
+- [`5639415`](https://github.com/cmdcolin/ntscenery/commit/5639415364d411b40e81002d65bf46cbb4db5549) remove old agent-docs/ARCHITECTURE.md path
+- [`dc3ea94`](https://github.com/cmdcolin/ntscenery/commit/dc3ea94b3181f95ddf21bbb87877db0f6a6cab03) shrink the README screenshot, fix its alt text
+- *(guide)* [`359a2e7`](https://github.com/cmdcolin/ntscenery/commit/359a2e7b36e31e5c392824699adc0399c99d47c7) a user guide whose figures are captured from the running app
+- *(guide)* [`701a63c`](https://github.com/cmdcolin/ntscenery/commit/701a63c8af916225b9b0fbf1f1feeef9e6f7ab6b) a wilder gallery, and clips that keep the frame still
+- [`a960fbd`](https://github.com/cmdcolin/ntscenery/commit/a960fbd7ea1a5662b61e5ebd821a56f1e7dec474) fix broken EFFECTS.md relative links
+- *(guide)* [`2c1bf9e`](https://github.com/cmdcolin/ntscenery/commit/2c1bf9ead3d679b221cf1d7c069b4d55d2fa4b07) subtler camera-feedback clip, and a clip guard that can't be fooled
+- *(guide)* [`ef53df6`](https://github.com/cmdcolin/ntscenery/commit/ef53df67333abe1d1a13a1ff5016506af1f5781f) follow the chain into the sidebar
+- *(guide)* [`05a018a`](https://github.com/cmdcolin/ntscenery/commit/05a018a8a4b7359f5f5675e036a546a4795460f2) stop a clip losing its frame rate to the window manager
+- [`e3ad3a4`](https://github.com/cmdcolin/ntscenery/commit/e3ad3a461d6105f2928c67f95e105ead4026f426) surface the docs site, and give each cross-link a reason to follow it
+- [`a55b867`](https://github.com/cmdcolin/ntscenery/commit/a55b8672a9a48a66dddd3e8e67d60b87374f3346) note that it works on a phone
+
+### Other Changes
+- [`c704e2f`](https://github.com/cmdcolin/ntscenery/commit/c704e2f4f77839c89569ca373df97036614d2c15) Rename to ntscenery
+
 ## [0.6.2](https://github.com/cmdcolin/ntscenery/compare/v0.6.1...v0.6.2) - 2026-08-02
 
 ### Other Changes
@@ -87,7 +131,7 @@ All notable changes to ntscenery are documented here.
 
 ### Chores
 - [`fe587bd`](https://github.com/cmdcolin/ntscenery/commit/fe587bdd0d0ff219314fb9239d02db3fad3d52a2) Rename
-- [`76e7895`](https://github.com/cmdcolin/ntscenery/commit/76e7895295497fdbf8c55a32fbf262db3301bcb2) App rename to ntscenery
+- [`76e7895`](https://github.com/cmdcolin/ntscenery/commit/76e7895295497fdbf8c55a32fbf262db3301bcb2) App rename to ntscythe
 
 ## [0.4.0](https://github.com/cmdcolin/ntscenery/compare/v0.3.0...v0.4.0) - 2026-08-01
 
