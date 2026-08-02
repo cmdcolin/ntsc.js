@@ -28,11 +28,9 @@ footage.</sub>
 ## Features
 
 - 130+ settings across wiring, camera feedback, the mixer loop, tape and RF, the
-  receiver and the screen itself. [docs/EFFECTS.md](docs/EFFECTS.md) goes
-  through what each one breaks.
-- Feed it color bars, a sweep, TV snow, the bundled photo, any image or video
-  file, or a webcam or capture card. There's a second input as well, to mix,
-  wipe or beat against the first.
+  receiver and the screen itself, [docs/EFFECTS.md](docs/EFFECTS.md).
+- Can provide a variety of input from user provided image, video, or NTSC color
+  bars, and you can mix multiple video sources including 'dirty' video mixing
 - Two feedback loops: a camera aimed at its own monitor, and a mixer patched
   back into itself down at the signal level.
 - Presets to start from, slots to save your own, a randomize button, and ctrl+z.
@@ -50,6 +48,9 @@ footage.</sub>
   window instead. It beats the in-browser recorder on quality and can follow the
   magnifier at full display resolution.
 - The whole state fits in a URL, so you can send someone a link to a look.
+- Works on a phone. Held upright the picture takes the top of the screen and the
+  controls scroll under it; turned sideways it goes back to a sidebar. Drag the
+  picture to move the magnifier, and every knob is sized for a fingertip.
 - Scopes for watching the waveform, plus render scale, FPS, a map of the chain,
   and per-pass GPU timings.
 
