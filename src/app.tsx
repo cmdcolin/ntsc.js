@@ -296,16 +296,16 @@ export function App() {
         <button
           className={styles.brand}
           onClick={() => setShowHelp(true)}
-          title={`ntscythe ${versionLabel} (${gitSha}) — what is this?`}
-          aria-label="ntscythe — what is this?"
+          title={`ntscenery ${versionLabel} (${gitSha}) — what is this?`}
+          aria-label="ntscenery — what is this?"
         >
           <img className={styles.brandMark} src={markUrl} alt="" />
-          <span className={styles.wordmark}>ntscythe</span>
+          <span className={styles.wordmark}>ntscenery</span>
           <span className={styles.version}>{versionLabel}</span>
         </button>
         <a
           className={styles.link}
-          href="https://github.com/cmdcolin/ntscythe"
+          href="https://github.com/cmdcolin/ntscenery"
           target="_blank"
           rel="noreferrer"
         >

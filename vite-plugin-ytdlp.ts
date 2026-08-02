@@ -16,7 +16,7 @@ import { join } from 'node:path'
 // clip in a temp dir, and serves it as an mp4 the app's <video> path can play.
 // The NTSC chain downscales to 480 lines, so we cap at 720p and let yt-dlp
 // merge with ffmpeg only when no single-file mp4 exists at that height.
-const CACHE_DIR = join(tmpdir(), 'ntscythe-yt')
+const CACHE_DIR = join(tmpdir(), 'ntscenery-yt')
 const FORMAT =
   'bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/b[ext=mp4]/b'
 
@@ -84,7 +84,7 @@ const fetchClip = (url: string): Promise<string> => {
 
 export function ytdlp(): Plugin {
   return {
-    name: 'ntscythe-ytdlp',
+    name: 'ntscenery-ytdlp',
     apply: 'serve',
     configureServer(server) {
       // Connect strips the '/yt' mount, so req.url here is '/?url=...'.

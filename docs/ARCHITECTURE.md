@@ -1,4 +1,4 @@
-# ntscythe architecture
+# ntscenery architecture
 
 Orientation for someone (or something) about to change this codebase. It covers
 the shape of the system and the invariants that are easy to violate, not an
@@ -6,7 +6,7 @@ inventory of every file.
 
 ## The premise
 
-ntscythe simulates the NTSC signal path, not the _look_ of one. There is no "VHS
+ntscenery simulates the NTSC signal path, not the _look_ of one. There is no "VHS
 filter". A picture is encoded to a real composite waveform on a fixed raster,
 damaged in the ways real hardware damages a waveform, then decoded by a model of
 a TV that has to find sync in whatever it is handed. Dot crawl, rainbow
@@ -57,9 +57,9 @@ per-generation params copied over the live buffers in between so each pass gets
 its own noise and time-base walk.
 
 The split matters: **encode** builds the waveform, **channel/timebase** damage
-it, **enhancer/sync/decode** is the receiver trying to make sense of the
-damage. An effect belongs in the stage that physically causes it. `enhancer` is
-an outboard box between the deck and the set — it runs after the last dub
+it, **enhancer/sync/decode** is the receiver trying to make sense of the damage.
+An effect belongs in the stage that physically causes it. `enhancer` is an
+outboard box between the deck and the set — it runs after the last dub
 generation and before anything measures sync, so the pulses it stamps are the
 pulses the receiver has to lock to.
 
@@ -113,7 +113,8 @@ uniform.
 Adding a control end to end:
 
 1. `PARAM_DEFS` (prelude) — GPU-side field.
-2. `DEFAULT_CONTROLS` (`src/controls.ts`) — user-facing value, in physical units.
+2. `DEFAULT_CONTROLS` (`src/controls.ts`) — user-facing value, in physical
+   units.
 3. `uniformValues()` (pipeline) — convert units, fold in any CPU state.
 4. `GROUPS` (`src/ui/controls.ts`) — slider; every control has one.
 5. Optionally a preset in `src/ui/presets.ts`.
@@ -197,8 +198,8 @@ the compiler's job. Two consequences worth knowing:
 - **`App`, `Stage`, `InputSection` don't compile** — the ref-during-render
   pattern above is exactly what the compiler refuses. This is harmless in
   itself: a bail-out means the compiler leaves that code exactly as written.
-  `useEngine` itself does compile (it only returns the refs, never reads one
-  for render output within its own body) — the bail-out lives in its callers.
+  `useEngine` itself does compile (it only returns the refs, never reads one for
+  render output within its own body) — the bail-out lives in its callers.
   oxlint's `react` plugin (`.oxlintrc.json`) has no rule equivalent to
   eslint-plugin-react-hooks' `refs` (which used to flag this on principle), so
   there's nothing to suppress; `react/rules-of-hooks` and

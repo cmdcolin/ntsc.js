@@ -38,11 +38,11 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
             <p className={shared.muted} style={{ margin: 0 }}>
               <a
                 className={shared.link}
-                href="https://github.com/cmdcolin/ntscythe"
+                href="https://github.com/cmdcolin/ntscenery"
                 target="_blank"
                 rel="noreferrer"
               >
-                github.com/cmdcolin/ntscythe
+                github.com/cmdcolin/ntscenery
               </a>
               {' · '}
               <a

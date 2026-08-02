@@ -1,13 +1,13 @@
 {
-  "name": "ntscythe",
+  "name": "ntscenery",
   "private": true,
   "version": "0.6.2",
   "description": "Real-time NTSC / VHS / composite-video glitch simulator in WebGPU compute shaders.",
   "license": "MIT",
-  "homepage": "https://cmdcolin.github.io/ntscythe/",
+  "homepage": "https://cmdcolin.github.io/ntscenery/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cmdcolin/ntscythe.git"
+    "url": "https://github.com/cmdcolin/ntscenery.git"
   },
   "keywords": [
     "webgpu",

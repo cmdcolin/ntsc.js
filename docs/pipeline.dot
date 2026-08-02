@@ -1,8 +1,8 @@
-// ntscythe signal path — mirrors the pass order in src/gpu/pipeline.ts
+// ntscenery signal path — mirrors the pass order in src/gpu/pipeline.ts
 // (prePasses -> loopPasses x dubGens -> postPasses -> present).
 // Dashed node borders mark passes that only run when their control is engaged.
 // Render: dot -Tsvg docs/pipeline.dot -o docs/pipeline.svg
-digraph ntscythe {
+digraph ntscenery {
   rankdir=TB;
   bgcolor="transparent";
   compound=true;

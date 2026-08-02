@@ -13,9 +13,9 @@ export function usePopout() {
     if (popout !== null && !popout.closed) {
       popout.focus()
     } else {
-      const w = window.open('', 'ntscythe_controls', 'width=340,height=900')
+      const w = window.open('', 'ntscenery_controls', 'width=340,height=900')
       if (w !== null) {
-        w.document.title = 'ntscythe — controls'
+        w.document.title = 'ntscenery — controls'
         w.document.body.style.margin = '0'
         // Mirror the app's styles (Vite dev injects <style>; prod links CSS).
         for (const el of document.querySelectorAll('style')) {

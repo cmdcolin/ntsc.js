@@ -1,11 +1,11 @@
-# ntscythe
+# ntscenery
 
 ![One NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, then the luma staircase with the chroma subcarrier riding on each bar](docs/logo.svg)
 
 > A real-time **NTSC / VHS / composite-video glitch** simulator, running
 > entirely in **WebGPU** compute shaders
 
-**[Live demo](https://cmdcolin.github.io/ntscythe/)** — needs a WebGPU-enabled
+**[Live demo](https://cmdcolin.github.io/ntscenery/)** — needs a WebGPU-enabled
 browser.
 
 Each frame gets encoded into a real composite video waveform, mangled like it
@@ -20,7 +20,7 @@ comes out of the signal on its own, same as on the real gear.
 <sub>▶ **In motion:**
 [watch the 7-second clip](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo-v2.mp4)
 (or click the image above) · or open the
-[live demo](https://cmdcolin.github.io/ntscythe/) and load your own
+[live demo](https://cmdcolin.github.io/ntscenery/) and load your own
 footage.</sub>
 
 ## Features
@@ -71,7 +71,7 @@ the option does nothing there. Details in
 ## Docs
 
 Rendered as a site at
-**[cmdcolin.github.io/ntscythe/guide/](https://cmdcolin.github.io/ntscythe/guide/)**,
+**[cmdcolin.github.io/ntscenery/guide/](https://cmdcolin.github.io/ntscenery/guide/)**,
 where every figure links to the live session that produced it.
 
 - [**docs/USER-GUIDE.md**](docs/USER-GUIDE.md) — the tour: what's on screen,
@@ -87,7 +87,7 @@ where every figure links to the live session that produced it.
 
 ## Related / prior art
 
-ntscythe sits in a small family of analog-video emulators. If you like it, also
+ntscenery sits in a small family of analog-video emulators. If you like it, also
 look at:
 
 - **[ntsc-rs](https://github.com/valadaptive/ntsc-rs)** and **ntscQT** —
@@ -98,9 +98,9 @@ look at:
   shaders** (`crt-royale`, `crt-guest-advanced`) — the emulator/shader side of
   the same idea.
 - Hardware roots: **Rutt–Etra** video synthesis, **no-input video feedback**,
-  and time-base correctors — the gear ntscythe imitates in software.
+  and time-base correctors — the gear ntscenery imitates in software.
 
-What's different here: ntscythe models the whole signal _path_ end-to-end in
+What's different here: ntscenery models the whole signal _path_ end-to-end in
 real time — encode → tape/RF damage → imperfect decode → CRT — so the artifacts
 interact the way they do on real hardware instead of being independent filters.
 

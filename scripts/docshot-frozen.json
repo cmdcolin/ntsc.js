@@ -1,22 +1,10 @@
 {
   "look-roll-1": {
     "src": "cat",
-    "set": "hHold:0.38,vHold:0.76,vFreqHz:59.4,syncBendUs:2.35,bendUs:4.7,bendShape:2,hvSagUs:7.9,hvRing:0.66,hDetuneHz:18,scramble:0.55,noiseIre:3.2,agc:0.3,cfbMix:0.18,cfbLines:1,bGain:0.24,bLineHz:0.45,bDetuneHz:75.5,bRollLps:0.14,phosphor:0.235"
-  },
-  "look-roll-2": {
-    "src": "cat",
-    "set": "demodMHz:0.54,hHold:0.32,lumaMHz:3.3,lumaPeak:0.5,noiseIre:7.9,soundIre:3.5,agc:0.4,ghostDelayUs:2.4,ghostGain:0.18,colorUnderMix:0.65,underJitterDeg:2.6,headSwitchNoise:0.26,headSwitchShiftUs:0.5,tbJitterNs:210,shuttleX:3.6"
+    "set": "demodMHz:0.5,syncBendUs:2.45,bendUs:14.8,bendShape:2,lumaMHz:2.8,lumaPeak:0.8,noiseIre:4.2,colorUnderMix:1,underJitterDeg:4,dropoutRate:6,headSwitchNoise:0.4,headSwitchShiftUs:0.8,tbJitterNs:150,tbWowNs:300"
   },
   "look-roll-3": {
     "src": "cat",
-    "set": "hHold:0.32,vHold:0.65,hvSagUs:4.4,hvRing:0.69,audioLoad:1.4,audioSagUs:15,audioRoll:3.15,audioTear:83,noiseIre:8.1,soundIre:3.5,agc:0.4,ghostDelayUs:2.4,ghostGain:0.18,tbJitterNs:80,fbMix:0.47,fbZoom:1.045,fbRotateDeg:1.4,fbGain:1.105,fbFocus:1.05,fbVign:0.29,fbBlack:0.04,fbKnee:0.52,phosphor:0.315"
-  },
-  "look-roll-4": {
-    "src": "cat",
-    "set": "demodMHz:0.53,syncBendUs:4,bendUs:24,bendShape:2,lumaMHz:3.3,lumaPeak:0.55,noiseIre:4,colorUnderMix:0.66,underJitterDeg:2.6,dropoutRate:4,headSwitchNoise:0.26,headSwitchShiftUs:0.55,tbJitterNs:100,tbWowNs:200"
-  },
-  "look-roll-5": {
-    "src": "cat",
-    "set": "hHold:0.32,vHold:0.67,hvSagUs:4.2,hvRing:0.68,hDetuneHz:6,audioLoad:1.33,audioSagUs:14.5,audioRoll:3,audioTear:79,lumaMHz:2.6,scramble:0.27,scrambleMode:2,lumaPeak:1,noiseIre:6,agc:0.13,colorUnderMix:1,underJitterDeg:6,headSwitchNoise:0.5,headSwitchShiftUs:1,tbJitterNs:300,tbWowNs:500,shuttleX:0,phosphor:0.9,timeScale:0.35"
+    "set": "encChromaMHz:1.54,demodMHz:0.82,chromaTail:0.21,chromaGain:1.56,svideoBleed:0.35,hHold:0.28,hvSagUs:16,hvRing:0.85,lumaMHz:3.45,chromaPinOnly:0.17,lumaPeak:0.5,noiseIre:5.3,ghostDelayUs:1.1,ghostGain:0.06,colorUnderMix:0.37,chromaNoiseIre:3.3,underJitterDeg:3.7,dropoutRate:9,dropoutLenUs:6.5,headSwitchNoise:0.3,headSwitchShiftUs:0.6,tbJitterNs:150,tbWowNs:330,bGain:0.55,bRing:0.3,bLineHz:0.9,bDetuneHz:130,bRollLps:0.2"
   }
 }

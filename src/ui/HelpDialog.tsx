@@ -4,7 +4,7 @@ import { Dialog } from './Dialog'
 
 export function HelpDialog({ onClose }: { onClose: () => void }) {
   return (
-    <Dialog title="ntscythe" size="prose" onClose={onClose}>
+    <Dialog title="ntscenery" size="prose" onClose={onClose}>
       <img
         className={styles.helpLogo}
         src={logoUrl}
@@ -67,7 +67,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         The{' '}
         <a
           className={styles.link}
-          href="https://cmdcolin.github.io/ntscythe/guide/"
+          href="https://cmdcolin.github.io/ntscenery/guide/"
           target="_blank"
           rel="noreferrer"
         >
@@ -79,7 +79,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         notes on{' '}
         <a
           className={styles.link}
-          href="https://github.com/cmdcolin/ntscythe"
+          href="https://github.com/cmdcolin/ntscenery"
           target="_blank"
           rel="noreferrer"
         >

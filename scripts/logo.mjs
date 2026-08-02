@@ -122,7 +122,7 @@ const graticule = [100, 0, -40]
   .map(ire => `<path d="M${PAD_X} ${n(y(ire))}H${W - PAD_X}"/>`)
   .join('')
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="ntscythe — one NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, and the descending luma staircase with chroma subcarrier on each bar">
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="ntscenery — one NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, and the descending luma staircase with chroma subcarrier on each bar">
   <defs>
     <filter id="glow" x="-4%" y="-8%" width="108%" height="116%">
       <feGaussianBlur stdDeviation="2.2" result="blur"/>
@@ -162,7 +162,7 @@ const mark = CHROMA_BARS.map((b, i) => {
   )
 }).join('\n  ')
 
-const markSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}" role="img" aria-label="ntscythe — the 75% color bar staircase of an NTSC line">
+const markSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}" role="img" aria-label="ntscenery — the 75% color bar staircase of an NTSC line">
   <rect width="${S}" height="${S}" rx="6" fill="#0a0b0d"/>
   ${mark}
 </svg>

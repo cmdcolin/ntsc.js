@@ -56,7 +56,7 @@ interface Meta {
 
 const NONE: Meta = { name: '', type: '', kind: 'copy' }
 
-const metaKey = (slot: StashSlot) => `ntscythe.stash.${slot}`
+const metaKey = (slot: StashSlot) => `ntscenery.stash.${slot}`
 const copyName = (slot: StashSlot) => `source-${slot}`
 
 const opfsRoot = () => navigator.storage.getDirectory()
@@ -70,7 +70,7 @@ const HANDLE_STORE = 'handles'
 
 const openDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
-    const req = indexedDB.open('ntscythe', 1)
+    const req = indexedDB.open('ntscenery', 1)
     req.onupgradeneeded = () => req.result.createObjectStore(HANDLE_STORE)
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(idbError(req.error))

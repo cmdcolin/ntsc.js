@@ -66,13 +66,13 @@ Diagrams are Graphviz: [`pipeline-simple.dot`](pipeline-simple.dot),
 [`pipeline.dot`](pipeline.dot). `pnpm run docs` regenerates both in light and
 dark variants (needs `dot` on PATH).</sup>
 
-| Stage     | Pass(es)                                            | What it models                                                                                                                                       |
-| --------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Encoder   | `compose`, `encodeYuv`, `encodeComposite`           | RGB → YUV → composite: luma + chroma quadrature-modulated onto the `Fsc` subcarrier, sync/burst/blanking inserted                                    |
-| Dirty mix | `composeB`, `encodeYuvB`, `mixB`                    | second non-genlocked source B mixed/wiped into the finished composite, with its own hue/ring/detune                                                  |
-| Channel   | `chromaExtract`, `underDown`, `channel`, `timebase` | the tape/RF path — color-under, band-limiting, noise, dropouts, ghosting, hum, head-switch bend, time-base jitter. Loops once per **dub generation** |
+| Stage     | Pass(es)                                                   | What it models                                                                                                                                          |
+| --------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Encoder   | `compose`, `encodeYuv`, `encodeComposite`                  | RGB → YUV → composite: luma + chroma quadrature-modulated onto the `Fsc` subcarrier, sync/burst/blanking inserted                                       |
+| Dirty mix | `composeB`, `encodeYuvB`, `mixB`                           | second non-genlocked source B mixed/wiped into the finished composite, with its own hue/ring/detune                                                     |
+| Channel   | `chromaExtract`, `underDown`, `channel`, `timebase`        | the tape/RF path — color-under, band-limiting, noise, dropouts, ghosting, hum, head-switch bend, time-base jitter. Loops once per **dub generation**    |
 | Receiver  | `enhancer`, `syncMeasure`, `sync`, `lineAnalyze`, `decode` | an outboard box plus a real (imperfect) TV: sharpening/pulse-shaping, then sync recovery, per-line burst lock, comb filtering, chroma demod, color-kill |
-| Display   | `crtFace`, `present`                                | the lit tube face — bloom, halation, gamma — then the scanline beam profile to the canvas                                                            |
+| Display   | `crtFace`, `present`                                       | the lit tube face — bloom, halation, gamma — then the scanline beam profile to the canvas                                                               |
 
 ## The two feedback loops
 
