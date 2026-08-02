@@ -175,7 +175,9 @@ export const SPECS = [
   {
     name: 'chain',
     params: WILD,
-    crop: { union: [MAP], pad: 10 },
+    // The map alone: a 304x34 row, so it wants a tight crop rather than the
+    // whole sidebar around it.
+    crop: { ...MAP, pad: 10 },
   },
   {
     name: 'modulation',

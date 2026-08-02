@@ -76,7 +76,8 @@ where every figure links to the live session that produced it.
 
 - [**docs/USER-GUIDE.md**](docs/USER-GUIDE.md) — the tour: what's on screen,
   what to touch first, where the interesting things hide
-- [**docs/EFFECTS.md**](docs/EFFECTS.md) — every effect and the hardware fault it models
+- [**docs/EFFECTS.md**](docs/EFFECTS.md) — every effect and the hardware fault
+  it models
 - [**docs/HOW-IT-WORKS.md**](docs/HOW-IT-WORKS.md) — the signal path, pass by
   pass, with diagrams
 - [**docs/MIDI.md**](docs/MIDI.md) — setting up a controller, start to finish

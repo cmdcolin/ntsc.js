@@ -30,7 +30,7 @@ const PAGES = [
     out: 'how-it-works.html',
     nav: 'How it works',
   },
-  { file: 'EFFECTS.md', out: 'effects.html', nav: 'Effects' },
+  { file: 'docs/EFFECTS.md', out: 'effects.html', nav: 'Effects' },
   { file: 'docs/MIDI.md', out: 'midi.html', nav: 'MIDI' },
 ]
 
