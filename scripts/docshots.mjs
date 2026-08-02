@@ -506,15 +506,14 @@ function commit(tmpFile, outFile, name) {
   }
 }
 
-// Record the canvas in the page and hand the webm back as a data url.
+// Record the canvas in the page and hand the webm back as a data url. The page
+// steps the render loop itself while recording, and the stream samples on every
+// paint (captureStream with no rate) rather than against a fixed clock, so the
+// clip runs at whatever the loop actually achieved.
 //
-// The stream is asked for a frame explicitly (captureStream(0) +
-// requestFrame) rather than sampling whatever the compositor paints, and the
-// render loop is stepped from a timer rather than rAF. Both for the same
-// reason: a window that isn't the frontmost one gets its rAF and its paints
-// throttled to about 1Hz, and the clip then comes back technically valid and
-// a slideshow. This way the recording rate is the loop's rate, whatever the
-// window manager thinks of the window.
+// This does mean the recording depends on the window being the frontmost one —
+// an occluded window paints at about 1Hz — which is why a clip gets a fresh
+// browser of its own and why captureVideo checks the rate that landed.
 function recordCanvas(secs, fps) {
   const canvas = document.querySelector('canvas')
   const type = [
@@ -522,9 +521,7 @@ function recordCanvas(secs, fps) {
     'video/webm;codecs=vp8',
     'video/webm',
   ].find(t => window.MediaRecorder?.isTypeSupported(t))
-  const stream = canvas.captureStream(0)
-  const track = stream.getVideoTracks()[0]
-  const rec = new MediaRecorder(stream, {
+  const rec = new MediaRecorder(canvas.captureStream(), {
     mimeType: type,
     videoBitsPerSecond: 24_000_000,
   })
@@ -534,18 +531,19 @@ function recordCanvas(secs, fps) {
   rec.start()
   const t0 = performance.now()
   return new Promise(res => {
-    const iv = setInterval(async () => {
+    const tick = async () => {
       window.vf?.step()
-      track.requestFrame()
-      if (performance.now() - t0 > secs * 1000) {
-        clearInterval(iv)
+      if (performance.now() - t0 < secs * 1000) {
+        requestAnimationFrame(tick)
+      } else {
         rec.stop()
         await stopped
         const fr = new FileReader()
         fr.onload = () => res(fr.result)
         fr.readAsDataURL(new Blob(chunks, { type: 'video/webm' }))
       }
-    }, 1000 / fps)
+    }
+    requestAnimationFrame(tick)
   })
 }
 
@@ -730,6 +728,9 @@ const launchBrowser = () =>
     browser: 'firefox',
     executablePath: '/usr/bin/firefox-nightly',
     headless: false,
+    // A clip that hangs page-side should fail its shot and retry, not sit at
+    // puppeteer's three-minute default.
+    protocolTimeout: 90_000,
     extraPrefsFirefox: {
       'dom.webgpu.enabled': true,
       'gfx.webgpu.ignore-blocklist': true,

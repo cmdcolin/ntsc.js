@@ -43,7 +43,7 @@ const CLIP = { ...FRAME, dpr: 1.5 }
 // worth being, and the off-stock lamps and counts only mean something once
 // something is off stock. One of the frozen gallery rolls, so the whole guide
 // reads as one session.
-const WILD = frozen['look-roll-4'] ?? CAT
+const WILD = frozen['look-roll-5'] ?? CAT
 
 // WILD with more controls on top — the two `set` strings concatenated, since a
 // second `set` param would replace the first rather than extend it.
@@ -83,6 +83,10 @@ export const HERO_SET =
   'bRollLps:0.17,phosphor:0.445'
 const HERO = { ...CAT, srcb: 'cat', set: HERO_SET }
 
+// The chain map at the head of the sidebar — the figure itself in one shot, a
+// callout target in others.
+const MAP = { selector: 'svg[aria-label="signal chain"]' }
+
 export const SPECS = [
   {
     name: 'overview',
@@ -97,7 +101,7 @@ export const SPECS = [
       { target: { title: 'menu (' }, n: 2, at: 'tl', dx: -22, dy: 16 },
       { target: { section: 'Presets' }, n: 3, at: 'tl', dx: -22, dy: 14 },
       { target: { section: 'Input' }, n: 4, at: 'tl', dx: -22, dy: 14 },
-      { target: { title: 'the whole chain' }, n: 5, at: 'tl', dx: -22, dy: 16 },
+      { target: MAP, n: 5, at: 'tl', dx: -22, dy: 16 },
     ],
   },
   {
@@ -127,10 +131,7 @@ export const SPECS = [
       video_feedback_open_group: 'VHS Tracking',
     },
     crop: {
-      union: [
-        { title: 'the whole chain' },
-        { selector: 'div[class*="stages_"]' },
-      ],
+      union: [MAP, { selector: 'div[class*="stages_"]' }],
       pad: 10,
     },
   },
@@ -174,10 +175,7 @@ export const SPECS = [
   {
     name: 'chain',
     params: WILD,
-    width: 1440,
-    height: 980,
-    actions: [{ click: { title: 'the whole chain' } }],
-    crop: 'dialog',
+    crop: { union: [MAP], pad: 10 },
   },
   {
     name: 'modulation',
@@ -262,17 +260,17 @@ export const SPECS = [
   // everything at once.
   {
     name: 'clip-feedback',
-    // The camera loop rather than the composite one: a zoom-and-rotate tunnel
-    // builds over seconds, which is the thing a still can't say.
+    // A camera barely off-axis from the monitor it is pointed at: a hair over
+    // 1x zoom, no rotation, and the tunnel builds itself over several seconds.
+    // Winding the zoom and rotation up instead gives a spinning kaleidoscope,
+    // which is a different (and much less analog) thing.
     params: {
       ...CAT,
-      preset: 'fb bloom',
-      set: 'fbMix:0.9,fbRotateDeg:4,fbGain:1.3',
+      set: 'fbMix:0.86,fbZoom:1.012,fbGain:1.06,fbFocus:1.15,fbVign:0.22,fbBlack:0.02,fbKnee:0.5,noiseIre:0.8,phosphor:0.35',
     },
-    width: 1320,
-    height: 720,
-    warm: 150,
-    video: { secs: 8 },
+    ...CLIP,
+    warm: 60,
+    video: { secs: 10 },
   },
   {
     name: 'clip-sync',
