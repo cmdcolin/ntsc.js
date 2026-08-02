@@ -5,8 +5,10 @@
 > A real-time NTSC / VHS / composite-video glitch simulator, running entirely in
 > WebGPU compute shaders
 
-**[Live demo](https://cmdcolin.github.io/ntscenery/)**. Needs a WebGPU-enabled
-browser.
+**[Live demo](https://cmdcolin.github.io/ntscenery/)** ·
+**[Documentation](https://cmdcolin.github.io/ntscenery/guide/)**
+
+The demo needs a WebGPU-enabled browser.
 
 Each frame gets encoded into a real composite video waveform, mangled like it
 went through tape and RF, then decoded by an imperfect TV. Dot crawl, ringing,
@@ -26,8 +28,8 @@ footage.</sub>
 ## Features
 
 - 130+ settings across wiring, camera feedback, the mixer loop, tape and RF, the
-  receiver and the screen itself. Every one is written up in
-  [docs/EFFECTS.md](docs/EFFECTS.md).
+  receiver and the screen itself. [docs/EFFECTS.md](docs/EFFECTS.md) goes
+  through what each one breaks.
 - Feed it color bars, a sweep, TV snow, the bundled photo, any image or video
   file, or a webcam or capture card. There's a second input as well, to mix,
   wipe or beat against the first.
@@ -41,8 +43,8 @@ footage.</sub>
   coils.
 - MIDI controllers work. It learns one control at a time or automaps a whole
   device, won't jump when a knob is out of position, and locks rate controls to
-  incoming clock. [MIDI.md](docs/MIDI.md) has setup instructions if you've never
-  done it.
+  incoming clock. Never set one up? [MIDI.md](docs/MIDI.md) starts from plugging
+  it in.
 - Record to webm, save a png, or pop the controls into a second window and give
   the picture the whole screen. For anything you care about, point OBS at the
   window instead. It beats the in-browser recorder on quality and can follow the
@@ -67,9 +69,12 @@ there. Details in
 
 ## Docs
 
-Rendered as a site at
-**[cmdcolin.github.io/ntscenery/guide/](https://cmdcolin.github.io/ntscenery/guide/)**,
-where every figure links to the live session that produced it.
+### 📖 [Read the docs site →](https://cmdcolin.github.io/ntscenery/guide/)
+
+Every figure there links to the live session that produced it — click through
+and move the sliders yourself.
+
+The same pages as markdown in this repo:
 
 - [**docs/USER-GUIDE.md**](docs/USER-GUIDE.md) — a tour of what's on screen and
   what to touch first
@@ -78,6 +83,9 @@ where every figure links to the live session that produced it.
 - [**docs/HOW-IT-WORKS.md**](docs/HOW-IT-WORKS.md) — the signal path, pass by
   pass, with diagrams
 - [**docs/MIDI.md**](docs/MIDI.md) — setting up a controller, start to finish
+
+Contributor notes, repo only:
+
 - [**docs/DEVELOPMENT.md**](docs/DEVELOPMENT.md) — notes on the developer setup
 - [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) — pass graph, buffer layouts,
   adding a control end to end

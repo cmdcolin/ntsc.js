@@ -75,8 +75,9 @@ Click one to open its controls below:
 ![The help card behind a slider's ?](img/slider-help.png)
 
 The help says what breaks in the hardware, not what you'll see — the look is
-emergent, and the cause is what tells you how two controls will combine. All of
-them are listed in [EFFECTS.md](EFFECTS.md).
+emergent, and the cause is what tells you how two controls will combine.
+[EFFECTS.md](EFFECTS.md) gathers all of them onto one page, if you'd rather read
+than hover.
 
 ## Finding a control
 
