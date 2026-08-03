@@ -7,6 +7,14 @@
   width: 100%;
   margin: 10px 0 2px;
 }
+/* The svg scales to its box, so the labels grow with it — at the bench's 664px
+   the miniature stops reading as a miniature. Cap it and let it sit at the left
+   of the panel head, over the first column. */
+@container panel (min-width: 540px) {
+  .map {
+    max-width: 420px;
+  }
+}
 .mapWire {
   fill: none;
   stroke: var(--border);

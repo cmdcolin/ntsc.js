@@ -24,6 +24,7 @@ import { ScenesSection } from './ui/ScenesSection'
 import { Section } from './ui/Section'
 import { SignalPath } from './ui/SignalPath'
 import { Stage } from './ui/Stage'
+import { usePersistedFlag } from './ui/storage'
 import { TeletypeDialog } from './ui/TeletypeDialog'
 import ui from './ui/ui.module.css'
 import { useAudio } from './ui/useAudio'
@@ -31,6 +32,7 @@ import { useCapture } from './ui/useCapture'
 import { useClockSync } from './ui/useClockSync'
 import { useEngine } from './ui/useEngine'
 import { useFavorites } from './ui/useFavorites'
+import { useMediaQuery } from './ui/useMediaQuery'
 import { useMidi } from './ui/useMidi'
 import { useMix } from './ui/useMix'
 import { usePageLifecycle } from './ui/usePageLifecycle'
@@ -94,6 +96,13 @@ export function App() {
     writeControl,
   })
   const { popout, openPopout } = usePopout()
+  // The bench: every stage of the chain at once, two columns wide. Persisted,
+  // but inert unless there is room for it — the docked panel needs a wide
+  // screen, while the popout is the user's own window to size, so there the
+  // panel's container query has the last word.
+  const [benchOn, setBenchOn] = usePersistedFlag('ntsc.js_panel_bench')
+  const roomy = useMediaQuery('(min-width: 1280px)')
+  const bench = benchOn && (popout !== null || roomy)
   const [fullscreen, setFullscreen] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
@@ -236,9 +245,14 @@ export function App() {
       run: toggleFullscreen,
     },
     {
+      name: 'wide bench',
+      blurb: 'spread the controls over two columns',
+      run: () => setBenchOn(!benchOn),
+    },
+    {
       name: 'pop out controls',
       blurb: 'move this panel into its own window',
-      run: openPopout,
+      run: () => openPopout(benchOn),
     },
     {
       name: 'advanced settings',
@@ -320,6 +334,19 @@ export function App() {
             onHide={() => setShowFps(false)}
           />
         ) : null}
+        {/* One switch, two widths. There is deliberately no third mode that
+            collapses the panel to a rail: fullscreen (f) and the popout already
+            hand the picture the whole window, and a rail would compete with
+            both while hiding the controls behind a second click. */}
+        <button
+          className={styles.widthToggle}
+          aria-pressed={benchOn}
+          aria-label="wide bench"
+          title="wide bench — two columns of controls"
+          onClick={() => setBenchOn(!benchOn)}
+        >
+          ◫
+        </button>
         <a
           className={ui.link}
           href="https://github.com/cmdcolin/ntsc.js"
@@ -439,7 +466,10 @@ export function App() {
         nodes={pathNodes}
         open={nav.openPhase}
         expandAll={filtering}
-        onOpen={nav.togglePhase}
+        bench={bench}
+        // On the bench nothing is folded, so the map marks a stage and scrolls
+        // to it rather than unfolding one and closing another.
+        onOpen={bench ? nav.jumpPhase : nav.togglePhase}
         openGroup={nav.openGroup}
         onOpenGroup={nav.toggleGroup}
       />
@@ -544,20 +574,30 @@ export function App() {
         onToggleRecord={capture.toggleRecord}
         onGrabStill={capture.grabStill}
         onToggleFullscreen={toggleFullscreen}
-        onPopout={openPopout}
+        onPopout={() => openPopout(benchOn)}
         showFps={showFps}
         onToggleFps={() => setShowFps(!showFps)}
         onShowHelp={() => setShowHelp(true)}
         onShowAdvanced={() => setShowAdvanced(true)}
       />
       {fullscreen || popout !== null ? null : (
-        <div className={styles.panel}>{panel}</div>
+        <div className={cx(styles.panel, benchOn && styles.panelWide)}>
+          {panel}
+        </div>
       )}
       {popout === null
         ? null
         : createPortal(
             <div className={styles.app}>
-              <div className={cx(styles.panel, styles.panelPop)}>{panel}</div>
+              <div
+                className={cx(
+                  styles.panel,
+                  styles.panelPop,
+                  benchOn && styles.panelPopWide,
+                )}
+              >
+                {panel}
+              </div>
             </div>,
             popout.document.body,
           )}

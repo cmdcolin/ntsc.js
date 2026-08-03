@@ -21,6 +21,10 @@ export function usePanelNav() {
     openAt,
     toggleGroup: (name: string) =>
       setOpenGroup(openGroup === name ? null : name),
+    // On the bench every stage is already on screen, so the map is an index
+    // rather than a fold: a click marks where you are (and the bench scrolls
+    // there) instead of unfolding one stage and closing another.
+    jumpPhase: (name: string) => setOpenPhase(name),
     // Opening a stage opens its first group too, so reaching a knob stays one
     // click deep rather than two.
     togglePhase: (name: string) => {

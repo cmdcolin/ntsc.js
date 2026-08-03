@@ -1,3 +1,5 @@
+import { Fragment, useRef } from 'react'
+
 import { ChainMap } from './ChainMap'
 import { ControlGroup } from './ControlGroup'
 import { Accordion, NestedSections } from './Section'
@@ -17,18 +19,24 @@ export interface PathNode extends ChainStage {
 
 // The signal path, navigated from the map at its head: the map picks a stage,
 // and only that stage's groups render below — so the sidebar holds the knobs
-// you are using rather than a flat list of sixteen headers.
+// you are using rather than a flat list of sixteen headers. On the bench, where
+// there is width for two columns, the same map heads every stage at once.
 export function SignalPath(props: {
   nodes: PathNode[]
   // null = no stage picked, which is where exploration starts. Ignored while a
   // filter is live: then every stage with a match shows at once.
   open: string | null
   expandAll: boolean
+  // Two columns of module cards, every stage mounted (see Bench).
+  bench: boolean
   onOpen: (name: string) => void
   // Which group inside the open stage is unfolded — one at a time.
   openGroup: string | null
   onOpenGroup: (name: string) => void
 }) {
+  if (props.bench) {
+    return <Bench nodes={props.nodes} open={props.open} onOpen={props.onOpen} />
+  }
   const shown = props.nodes.filter(
     n => props.expandAll || props.open === n.name,
   )
@@ -69,6 +77,77 @@ export function SignalPath(props: {
               </Accordion>
             </NestedSections>
           </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+// Every stage at once, groups as module cards over two columns. Nothing folds a
+// stage away, so the map stops being a fold and becomes an index: a click marks
+// the stage and scrolls its heading to the top of the panel. No Accordion
+// either — each group keeps its own persisted open state (Section falls back to
+// selfOpen, default open), so the bench stays arranged the way you left it.
+//
+// The filter needs nothing here: app.tsx already drops the stages and groups it
+// leaves empty, and each group's Section opens itself on a live query — which is
+// also why `expandAll` has no bench equivalent.
+function Bench(props: {
+  nodes: PathNode[]
+  open: string | null
+  onOpen: (name: string) => void
+}) {
+  // The stage headings, by name, as scroll targets. Element-relative
+  // scrollIntoView only: the panel also renders inside the popout's document,
+  // where this window's scrolling APIs address the wrong realm.
+  const heads = useRef(new Map<string, HTMLDivElement>())
+  const jump = (name: string) => {
+    props.onOpen(name)
+    heads.current
+      .get(name)
+      ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
+  return (
+    <>
+      <ChainMap stages={props.nodes} open={props.open} onOpen={jump} />
+      <div className={styles.bench}>
+        {props.nodes.map(node => (
+          <Fragment key={node.name}>
+            <div
+              className={styles.benchStage}
+              ref={el => {
+                if (el === null) heads.current.delete(node.name)
+                else heads.current.set(node.name, el)
+              }}
+            >
+              <div className={styles.stageHead}>
+                <button
+                  className={styles.stageName}
+                  title={`${node.blurb} — click to mark this stage on the map`}
+                  onClick={() => props.onOpen(node.name)}
+                >
+                  {node.name}
+                </button>
+                {node.touched === 0 ? null : (
+                  <button
+                    className={styles.phaseDot}
+                    title={`${node.touched} control${node.touched === 1 ? '' : 's'} in this stage off stock — click to bring the stage up`}
+                    onClick={() => jump(node.name)}
+                  >
+                    • {node.touched}
+                  </button>
+                )}
+              </div>
+              <div className={styles.stageBlurb}>{node.blurb}</div>
+            </div>
+            {node.groups.map(group => (
+              <div key={group.name} className={styles.groupCard}>
+                <NestedSections>
+                  <ControlGroup group={group} />
+                </NestedSections>
+              </div>
+            ))}
+          </Fragment>
         ))}
       </div>
     </>

@@ -7,13 +7,20 @@ import { useEffect, useState } from 'react'
 export function usePopout() {
   const [popout, setPopout] = useState<Window | null>(null)
 
-  const openPopout = () => {
+  // `wide` opens it at bench width: the panel's container query splits into two
+  // columns from 540px up, so a 340px window would show the bench folded back
+  // into one column until the user dragged it out.
+  const openPopout = (wide: boolean) => {
     // `closed` too: if the window went away without firing pagehide, the stale
     // handle sticks around and focus() is a no-op, leaving no way to reopen.
     if (popout !== null && !popout.closed) {
       popout.focus()
     } else {
-      const w = window.open('', 'ntsc.js_controls', 'width=340,height=900')
+      const w = window.open(
+        '',
+        'ntsc.js_controls',
+        wide ? 'width=780,height=900' : 'width=340,height=900',
+      )
       if (w !== null) {
         w.document.title = 'ntsc.js — controls'
         w.document.body.style.margin = '0'

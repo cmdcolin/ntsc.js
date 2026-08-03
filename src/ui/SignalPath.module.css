@@ -47,3 +47,41 @@
 .phaseDot:hover {
   color: #e8c464;
 }
+
+/* The bench: every stage mounted, its groups paired off into two columns once
+   the panel is wide enough to hold them. Single flow until then — the query is
+   on the panel container, not the viewport, because the popout window is sized
+   by whoever dragged its edge. */
+.bench {
+  margin: 2px 0 0;
+}
+@container panel (min-width: 540px) {
+  .bench {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 14px;
+    /* a card is as tall as its own rows: stretching a short module to match the
+       one beside it puts a box of empty panel under half the bench */
+    align-items: start;
+  }
+}
+/* A stage names both columns under it, so its heading spans the row and the
+   chain still reads top to bottom. */
+.benchStage {
+  grid-column: 1 / -1;
+  /* the panel is the app's scroller; a map click lands the heading just clear of
+     its top edge rather than flush against it */
+  scroll-margin-top: 8px;
+}
+/* A module on a device front panel: a hairline box around the group, no fill
+   beyond the panel's own, and the group's existing header strip as its title.
+   min-width because a grid item floors at min-content — one long slider label
+   would otherwise push its column past its share of the width. */
+.groupCard {
+  min-width: 0;
+  margin: 6px 0;
+  padding: 0 10px 8px;
+  border: 1px solid #2e2e38;
+  border-radius: 4px;
+  background: var(--panel-bg);
+}
