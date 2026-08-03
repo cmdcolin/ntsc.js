@@ -1,0 +1,89 @@
+/* The drawing surface and its brushes (see TeletypePaint.tsx). */
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+/* Square and large: these are shapes being picked by their shape, and the
+   block glyphs on them need room to be told apart at a glance. */
+.tool {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #26262e;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: var(--mono-blocks);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tool:hover {
+  border-color: #63637a;
+}
+.on {
+  color: #101014;
+  background: #4a7a62;
+  border-color: #4a7a62;
+}
+.clear {
+  margin-left: auto;
+}
+
+/* The canvas is one pixel per dot — the card's own resolution — and CSS blows
+   it up. `pixelated` is not a style choice here: a smoothed one would show
+   soft grey edges on a page that is one bit deep, which is the opposite of
+   what is being drawn.
+
+   crosshair over pointer: what lands is the block under the intersection, not
+   under the tip of an arrow. touch-action none so a drag draws instead of
+   scrolling the dialog out from under the finger. */
+.surface {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #080808;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  image-rendering: pixelated;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* The page is 320x288 dots, so at the card's full width it is 600-odd pixels
+   tall and the dialog stops fitting on a laptop. Bound the height instead and
+   let the width follow, so the surface is as big as the screen allows and the
+   dialog never has to be scrolled to draw on. */
+.frame {
+  position: relative;
+  width: min(100%, calc(52svh * 320 / 288));
+  margin: 0 auto;
+  /* the canvas is inline by default and would sit on a text baseline, leaving
+     a strip of gap under it that the overlay would not cover */
+  line-height: 0;
+}
+/* The cell grid: over the picture rather than in it — it is a guide for the
+   hand, and a dot of it drawn into the card would be a dot in the picture.
+   Cells, not blocks: eighty lines across is a texture, not a guide, and the
+   cell is the unit that letters and shades line up on anyway. */
+.grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      rgba(127, 208, 160, 0.14) 0 1px,
+      transparent 1px calc(100% / 40)
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(127, 208, 160, 0.14) 0 1px,
+      transparent 1px calc(100% / 24)
+    );
+}

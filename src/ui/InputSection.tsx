@@ -35,7 +35,7 @@ export function InputSection(props: {
   sourceBName: string
   onSelectSourceB: (mode: SourceBMode) => void
   // Each slot's teletype card, shown and edited in place while that slot is on
-  // teletype. Submitting reprints the card, so it is not per-keystroke.
+  // teletype. Edits land on the card as they are typed.
   teletypeA: TeletypeCard
   teletypeB: TeletypeCard
   onTeletypeA: (text: string) => void
@@ -72,7 +72,7 @@ export function InputSection(props: {
         {props.sourceMode === 'teletype' ? (
           <TeletypeRow
             text={props.teletypeA.text}
-            onSubmit={props.onTeletypeA}
+            onChange={props.onTeletypeA}
             onOpenDialog={() => props.onSelectSource('teletype')}
           />
         ) : null}
@@ -108,7 +108,7 @@ export function InputSection(props: {
         {props.sourceBMode === 'teletype' ? (
           <TeletypeRow
             text={props.teletypeB.text}
-            onSubmit={props.onTeletypeB}
+            onChange={props.onTeletypeB}
             onOpenDialog={() => props.onSelectSourceB('teletype')}
           />
         ) : null}

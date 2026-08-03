@@ -20,8 +20,8 @@
 // dot resolution, thresholded to one bit, and then blown up with the smoothing
 // off. Everything crunchy about it — broken thin strokes, stairstepped
 // diagonals, letters that shift a dot as they wrap — is the ROM, not a bug.
-const CELL_W = 8
-const CELL_H = 12
+export const CELL_W = 8
+export const CELL_H = 12
 // Font size used inside a cell. Small enough that thresholding it to one bit
 // crushes the glyph down to a handful of dots, which is the whole point.
 const CELL_PX = 11
@@ -36,7 +36,11 @@ const CARD_H = 960
 export const TELETYPE_ASPECT = CARD_W / CARD_H
 
 // A teletext page was 40 columns, and so is this.
-const MAX_COLS = 40
+export const MAX_COLS = 40
+// And 24 rows, which is the page you draw on. Nothing stops a card being
+// taller — a crawl usually is — but a surface has to be some fixed size, and
+// this is the one the character set was designed around.
+export const PAINT_ROWS = 24
 // Short text is not blown up to fill the card: "HI" 400px tall is a shape, not
 // type, and it stops looking like a caption.
 const MIN_COLS = 8
@@ -50,10 +54,18 @@ const USABLE_H = CARD_H * (1 - 2 * MARGIN)
 // left to run off both edges — 500 newlines is a thing a person can paste.
 const MAX_ROWS = Math.floor(USABLE_H / CELL_H)
 
-// Long enough for a page of teletext (40x24 is 960 characters), short enough
-// that the reveal stays a reveal. Enforced on the query-string path too, where
-// the text arrives from a link.
+// Long enough for a page of teletext (40x24 is 960 characters, plus the line
+// breaks between the rows), short enough that the reveal stays a reveal.
+// Enforced on the query-string path too, where the text arrives from a link.
 export const TELETYPE_MAX = 1000
+
+// Characters, counted the way a card counts them: a sextant lives outside the
+// BMP and is two UTF-16 units, so a limit measured in `.length` would cut a
+// drawn page in half and — worse — could cut it *between* the halves of a
+// character, leaving a lone surrogate that draws as tofu. Every way text gets
+// in comes through here.
+export const clampCardText = (text: string): string =>
+  Array.from(text).slice(0, TELETYPE_MAX).join('')
 
 // A card as its owner set it: what it says, and whether it rolls up the frame
 // instead of sitting still. One value rather than two loose fields, because
@@ -128,13 +140,12 @@ const SHADE_DOTS: [number, number][][] = [
   ],
 ]
 
+export const SHADE_CHARS = Object.keys(SHADES)
+
 // Everything the dialog offers as a click-to-insert chip. Sextants are not
-// here — there are sixty of them and no keyboard has them either; they render
-// if pasted, which is how block art arrives.
-export const MOSAIC_PALETTE = [
-  ...Object.keys(QUADRANTS),
-  ...Object.keys(SHADES),
-]
+// here — there are sixty of them and no keyboard has them either; they arrive
+// by being drawn, or in pasted block art.
+export const MOSAIC_PALETTE = [...Object.keys(QUADRANTS), ...SHADE_CHARS]
 
 // Rows of a mosaic character, one '1' per lit block, or null for anything that
 // is an ordinary glyph. Exported for the tests: the sextant decode is
@@ -150,6 +161,76 @@ export function mosaicRows(ch: string): string[] | null {
   return [0, 1, 2].map(
     row => `${(bits >> (2 * row)) & 1}${(bits >> (2 * row + 1)) & 1}`,
   )
+}
+
+// The 2x3 pattern a cell is already holding, or null if it holds something that
+// does not land on thirds — a letter, a shade, a quadrant. Paint starts from
+// what is there when it can, so putting a dot next to a dot keeps the first
+// one; a cell holding anything else is replaced rather than merged into.
+//
+// Blank and the three whole-cell blocks are patterns the sextant range doesn't
+// carry (they had characters of their own long before it existed), so they are
+// named here rather than decoded.
+export function sextantRows(ch: string): string[] | null {
+  if (ch === ' ') return ['00', '00', '00']
+  if (ch === '█') return ['11', '11', '11']
+  if (ch === '▌') return ['10', '10', '10']
+  if (ch === '▐') return ['01', '01', '01']
+  const rows = mosaicRows(ch)
+  return rows !== null && rows.length === 3 ? rows : null
+}
+
+// The inverse of sextantRows: a painted pattern back to the character that
+// carries it. Drawing needs this because text is the only thing a card has —
+// it is what the box holds, what the link carries and what someone pastes
+// somewhere else — so a picture has to survive as characters or not at all.
+export function mosaicChar(rows: string[]): string {
+  let bits = 0
+  rows.forEach((row, r) => {
+    for (let c = 0; c < 2; c++) if (row[c] === '1') bits |= 1 << (2 * r + c)
+  })
+  if (bits === 0) return ' '
+  if (bits === 0b111111) return '█'
+  if (bits === SEXTANT_LEFT_HALF) return '▌'
+  if (bits === SEXTANT_RIGHT_HALF) return '▐'
+  // Undo the two the block skips: a pattern past one of them sits that many
+  // code points earlier than its value would suggest.
+  let n = bits
+  if (n > SEXTANT_RIGHT_HALF) n--
+  if (n > SEXTANT_LEFT_HALF) n--
+  return String.fromCodePoint(SEXTANT_FIRST + n - 1)
+}
+
+// A page as cells — one character each, wrapped and padded out to a rectangle.
+// Text is ragged and a paint surface is not, so this is the shape drawing wants
+// and `text` never has. Rows past the page are handed back untouched: someone
+// with a long card should be able to draw on the top of it without the rest
+// quietly disappearing.
+export function textToCells(
+  text: string,
+  rows: number,
+): { cells: string[][]; tail: string[] } {
+  const lines = wrapText(text, MAX_COLS)
+  return {
+    cells: Array.from({ length: rows }, (_row, r) => {
+      // By character, not by code unit: a sextant is one cell, not two halves.
+      const line = Array.from(lines[r] ?? '')
+      return Array.from({ length: MAX_COLS }, (_cell, c) => line[c] ?? ' ')
+    }),
+    tail: lines.slice(rows),
+  }
+}
+
+// And back. Trailing blanks come off — a drawing in the top corner should not
+// carry twenty empty rows around with it, and the card centres what it is
+// given — but only down to where the untouched tail starts, or dropping them
+// would drag the tail up into the picture.
+export function cellsToText(cells: string[][], tail: string[] = []): string {
+  const lines = cells.map(row => row.join('').replace(/\s+$/, ''))
+  if (tail.length === 0) {
+    while (lines.length > 1 && lines[lines.length - 1] === '') lines.pop()
+  }
+  return [...lines, ...tail].join('\n')
 }
 
 // Break text into lines of at most `cols` characters. Explicit newlines are
@@ -213,7 +294,17 @@ function shadeTile(level: number): OffscreenCanvas {
 // the cell rather than by the font's own advance, then knocked down to one bit.
 // Every dot comes back either lit or black, which is the state a ROM could be
 // in.
-function dotGrid(rows: string[][], cols: number): OffscreenCanvas {
+//
+// Exported because the paint surface draws with it too: what you are drawing on
+// is the card's own rasteriser at 1:1, so there is no second renderer to keep
+// honest and no way for the preview to disagree with the picture. It wants the
+// cursor left off — that block belongs to a card being typed, not to a page
+// being drawn on.
+export function dotGrid(
+  rows: string[][],
+  cols: number,
+  cursor = true,
+): OffscreenCanvas {
   const grid = new OffscreenCanvas(cols * CELL_W, rows.length * CELL_H)
   const g = grid.getContext('2d')
   if (!g) throw new Error('no 2d context')
@@ -229,6 +320,10 @@ function dotGrid(rows: string[][], cols: number): OffscreenCanvas {
     // Per character, not per line: the cell grid is the layout, and letting the
     // font's own advance place them would put the dots between columns.
     row.forEach((ch, col) => {
+      // A drawn page is mostly holes, and a space is a glyph like any other as
+      // far as the rasteriser is concerned — measuring one 960 times a redraw
+      // is the whole cost of painting on a full page.
+      if (ch === ' ') return
       const x = col * CELL_W
       const shade = SHADES[ch]
       const mosaic = mosaicRows(ch)
@@ -257,12 +352,14 @@ function dotGrid(rows: string[][], cols: number): OffscreenCanvas {
   // The block cursor a teletype leaves sitting where it stopped printing. It
   // goes in before the threshold so it is just another lit run of dots.
   const last = rows.length - 1
-  g.fillRect(
-    rows[last].length * CELL_W + 1,
-    last * CELL_H + 1,
-    CELL_W - 2,
-    CELL_H - 2,
-  )
+  if (cursor) {
+    g.fillRect(
+      rows[last].length * CELL_W + 1,
+      last * CELL_H + 1,
+      CELL_W - 2,
+      CELL_H - 2,
+    )
+  }
 
   const img = g.getImageData(0, 0, grid.width, grid.height)
   for (let i = 0; i < img.data.length; i += 4) {

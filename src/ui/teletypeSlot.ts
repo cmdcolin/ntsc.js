@@ -40,7 +40,19 @@ const MAX_MS = 6000
 const CRAWL_HZ = 30
 const CRAWL_PX_PER_S = 70
 
-export function printCard(slot: VideoSlot, card: TeletypeCard): void {
+// `reveal` is what makes this a teletype rather than a caption: the card prints
+// a character at a time. It is off for an edit to a card that is already up —
+// retyping a word should change the word, not send the whole card back to the
+// printer, and with the box committing on every keystroke it would never get
+// past the first one.
+export function printCard(
+  slot: VideoSlot,
+  card: TeletypeCard,
+  reveal = true,
+): void {
+  // Whatever this slot was printing or rolling is over: two timers drawing into
+  // two canvases and both calling setImage would flicker between them.
+  slot.typer.current?.stop()
   const canvas = makeTeletypeCard()
   const show = () => slot.setImage(canvas, TELETYPE_ASPECT)
   let timer: ReturnType<typeof setInterval> | null = null
@@ -70,9 +82,32 @@ export function printCard(slot: VideoSlot, card: TeletypeCard): void {
     }, 1000 / CRAWL_HZ)
   }
 
+  // The finished card, built once whether or not it rolls: the crawl needs the
+  // build anyway, and the still one gets the same grid without the vertical
+  // squeeze a mid-reveal redraw would have applied.
+  const settle = () => {
+    stop()
+    if (card.crawl) {
+      crawl()
+    } else {
+      drawBuild(canvas, buildTeletype(card.text))
+      show()
+      slot.typer.current = null
+    }
+  }
+  if (!reveal) {
+    settle()
+    return
+  }
+
+  // Printed by character rather than by code unit: a mosaic block lives outside
+  // the BMP, and a reveal that stopped between its two halves would put a lone
+  // surrogate on the card — a tofu box, for one tick, on every drawn cell it
+  // passed through.
+  const chars = Array.from(card.text)
   const step = Math.max(
     Math.round((CPS * TICK_MS) / 1000),
-    Math.ceil(card.text.length / (MAX_MS / TICK_MS)),
+    Math.ceil(chars.length / (MAX_MS / TICK_MS)),
     1,
   )
   let shown = 0
@@ -81,22 +116,12 @@ export function printCard(slot: VideoSlot, card: TeletypeCard): void {
   drawTeletype(canvas, '')
   show()
   timer = setInterval(() => {
-    shown = Math.min(card.text.length, shown + step)
-    if (shown < card.text.length) {
-      drawTeletype(canvas, card.text.slice(0, shown))
+    shown = Math.min(chars.length, shown + step)
+    if (shown < chars.length) {
+      drawTeletype(canvas, chars.slice(0, shown).join(''))
       show()
       return
     }
-    stop()
-    // The finished card is built once here whether or not it rolls: the crawl
-    // needs the build anyway, and the still one gets the same grid without the
-    // vertical squeeze a mid-reveal redraw would have applied.
-    if (card.crawl) {
-      crawl()
-    } else {
-      drawBuild(canvas, buildTeletype(card.text))
-      show()
-      slot.typer.current = null
-    }
+    settle()
   }, TICK_MS)
 }

@@ -360,8 +360,8 @@ export function App() {
         onSelectSourceB={eng.selectSourceB}
         teletypeA={eng.teletypeA}
         teletypeB={eng.teletypeB}
-        onTeletypeA={text => eng.loadTeletype({ text })}
-        onTeletypeB={text => eng.loadTeletypeB({ text })}
+        onTeletypeA={text => eng.retypeTeletype({ text })}
+        onTeletypeB={text => eng.retypeTeletypeB({ text })}
         webcamDeviceId={eng.webcamDeviceId}
         videoDevices={eng.videoDevices}
         onStartWebcam={eng.startWebcam}
@@ -593,6 +593,10 @@ export function App() {
         <TeletypeDialog
           slot={eng.askTeletype}
           initial={eng.askTeletype === 'b' ? eng.teletypeB : eng.teletypeA}
+          onLive={card => {
+            if (eng.askTeletype === 'b') eng.retypeTeletypeB(card)
+            else eng.retypeTeletype(card)
+          }}
           onSubmit={card => {
             if (eng.askTeletype === 'b') eng.loadTeletypeB(card)
             else eng.loadTeletype(card)

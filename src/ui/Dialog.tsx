@@ -7,11 +7,14 @@ import { useModalDialog } from './useModalDialog'
 
 import type { ReactNode } from 'react'
 
-// Two card widths, named for what goes in them rather than by measurement:
-// 'form' is a couple of rows of controls, 'prose' is text to read.
+// Three card widths, named for what goes in them rather than by measurement:
+// 'form' is a couple of rows of controls, 'prose' is text to read, 'paint' is
+// a surface to draw on — the one case where the content has a fixed number of
+// cells across and wants every pixel it can have for them.
 const CARD_SIZE = {
   form: '',
   prose: dlg.cardWide,
+  paint: dlg.cardPaint,
 }
 
 // Shared modal shell built on the native <dialog> element (see useModalDialog).

@@ -8,7 +8,7 @@
 
 import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
-import { TELETYPE_DEFAULT, TELETYPE_MAX } from '../sources/teletype'
+import { TELETYPE_DEFAULT, clampCardText } from '../sources/teletype'
 import { PRESETS, presetControls } from './presets'
 
 import type { Controls } from '../controls'
@@ -92,7 +92,7 @@ export function parseSessionParams(search: string): SessionParams {
     const crawl = q.has(crawlKey)
     if (raw === null && !crawl) return null
     return {
-      text: raw === null ? TELETYPE_DEFAULT.text : raw.slice(0, TELETYPE_MAX),
+      text: raw === null ? TELETYPE_DEFAULT.text : clampCardText(raw),
       crawl,
     }
   }

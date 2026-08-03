@@ -69,13 +69,19 @@ can still hold a colour.
 own, or a webcam — which is also how an RCA capture dongle gets real gear in
 here. **Teletype…** is the odd one out: type your own words and they are printed
 onto a text card a character at a time, in a dot-matrix font coarse enough that
-the chain has something to chew on — and since the card is dots rather than
-glyphs, the block characters in that dialog draw teletext mosaics, so you can
-put a picture on it too. Tick **crawl** and it rolls up the frame instead of
-holding still. **B** is a second source, deliberately not genlocked, so mixing
-it in beats and tears against A; its controls appear in **A/B Mix**. **♪** is
-audio in, which does nothing until you turn up a knob in **Sound into the
-picture**.
+the chain has something to chew on. The box under the picker edits the card as
+you type. Since the card is dots rather than glyphs you can draw on it too — the
+**draw** tab in that dialog is a paint surface on the 40×24 page the character
+set was designed around, with a pen that works a block at a time, a solid brush
+and the three dither shades. Right-drag erases, ⌘/ctrl+Z takes back a stroke,
+and every stroke lands back in the card's text as the mosaic character that
+carries it, so a drawing shares through a link like the words do. The shades are
+worth a try on their own: a dither is a half-rate checker by the time it reaches
+the decoder, which is exactly what dot crawl and chroma bleed feed on. Tick
+**crawl** and it rolls up the frame instead of holding still. **B** is a second
+source, deliberately not genlocked, so mixing it in beats and tears against A;
+its controls appear in **A/B Mix**. **♪** is audio in, which does nothing until
+you turn up a knob in **Sound into the picture**.
 
 Running locally adds a **YouTube…** source (`yt-dlp` on the dev server); the
 hosted build has no server to do that with.

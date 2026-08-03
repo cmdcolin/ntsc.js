@@ -39,6 +39,39 @@
   width: 540px;
   line-height: 1.55;
 }
+/* the drawing card: a 40-cell page wants width above all, and the surface
+   scales to whatever it is given, so this is as wide as a laptop can hold
+   without the card starting to fight the viewport */
+.cardPaint {
+  width: 720px;
+  line-height: 1.55;
+}
+/* type / draw. Two ways into one card rather than two features, so they sit
+   above everything they share (the crawl, the starters, the print button)
+   instead of beside them */
+.tabs {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+.tab {
+  padding: 5px 14px;
+  background: #26262e;
+  color: var(--fg2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font: inherit;
+  font-family: var(--mono-blocks);
+  cursor: pointer;
+}
+.tab:hover {
+  border-color: #63637a;
+}
+.tabOn {
+  color: #101014;
+  background: #4a7a62;
+  border-color: #4a7a62;
+}
 .cardRow {
   display: flex;
   justify-content: space-between;

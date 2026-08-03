@@ -85,13 +85,21 @@ declare global {
 
 // Print a card on a slot. A patch, not a whole card, because the two ways in
 // speak to different halves of it: the dialog sets the text and the crawl
-// together, the row under the picker only ever retypes the words. Blank text
-// falls back to the stock card rather than a black frame — the row is the way
-// back into this source, and an empty one leaves nothing to edit.
-const printOn = (slot: VideoSlot, patch: Partial<TeletypeCard>) => {
+// together, the row under the picker only ever retypes the words.
+//
+// `live` is an edit to a card already on screen — a keystroke, a painted block.
+// It skips the reveal, and it leaves an empty card empty: the fallback to the
+// stock words is there so that *arriving* at this source always shows
+// something, but applied to an edit it would refill the box the moment someone
+// cleared it, and there would be no way to start over.
+const printOn = (
+  slot: VideoSlot,
+  patch: Partial<TeletypeCard>,
+  live = false,
+) => {
   const card = { ...slot.card(), ...patch }
-  slot.setCard(card.text.trim() === '' ? TELETYPE_DEFAULT : card)
-  printCard(slot, slot.card())
+  slot.setCard(!live && card.text.trim() === '' ? TELETYPE_DEFAULT : card)
+  printCard(slot, slot.card(), !live)
 }
 
 // Owns the singleton Engine (a GPUDevice + rAF loop), its lifecycle, and every
@@ -498,6 +506,24 @@ export function useEngine() {
     }
   }
 
+  // Editing a card that is already up. Safe to call on every keystroke and
+  // every painted block: it redraws the card and touches nothing else — no
+  // source switch, no file dropped, no reveal replayed.
+  //
+  // It deliberately does nothing when the slot is on something else. The dialog
+  // can be opened over a webcam or a clip, and those are only given up once
+  // something is actually sent — typing a letter into a box should not pull the
+  // camera out from under the picture.
+  const retypeTeletype = (patch: Partial<TeletypeCard>) => {
+    if (engineRef.current && sourceMode === 'teletype')
+      printOn(slotA, patch, true)
+  }
+
+  const retypeTeletypeB = (patch: Partial<TeletypeCard>) => {
+    if (engineRef.current && sourceBMode === 'teletype')
+      printOn(slotB, patch, true)
+  }
+
   const selectSource = (mode: SourceMode) => {
     const current = engineRef.current
     if (current) {
@@ -839,6 +865,8 @@ export function useEngine() {
     setAskYouTube,
     loadTeletype,
     loadTeletypeB,
+    retypeTeletype,
+    retypeTeletypeB,
     askTeletype,
     setAskTeletype,
     teletypeA: cardA,

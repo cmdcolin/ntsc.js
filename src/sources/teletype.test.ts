@@ -1,6 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
-import { MOSAIC_PALETTE, mosaicRows, wrapText } from './teletype'
+import {
+  MAX_COLS,
+  MOSAIC_PALETTE,
+  TELETYPE_MAX,
+  cellsToText,
+  clampCardText,
+  mosaicChar,
+  mosaicRows,
+  sextantRows,
+  textToCells,
+  wrapText,
+} from './teletype'
+
+// Every 2x3 pattern, as the rows a cell is described by.
+const patterns = (): string[][] =>
+  Array.from({ length: 64 }, (_, bits) =>
+    [0, 1, 2].map(r => `${(bits >> (2 * r)) & 1}${(bits >> (2 * r + 1)) & 1}`),
+  )
 
 describe('wrapText', () => {
   it('leaves a line that already fits alone', () => {
@@ -89,6 +106,35 @@ describe('mosaicRows', () => {
     expect(seen.has('000000')).toBe(false) // and blank is a space
   })
 
+  it('round-trips every pattern a drawing can be made of', () => {
+    // Paint reads a cell, sets one block and writes it back, so a pattern that
+    // came back as a different character than it went in as would change the
+    // five blocks nobody touched.
+    for (const rows of patterns()) {
+      expect(sextantRows(mosaicChar(rows))).toEqual(rows)
+    }
+  })
+
+  it('gives distinct characters to distinct patterns', () => {
+    expect(new Set(patterns().map(mosaicChar)).size).toBe(64)
+  })
+
+  it('uses the characters that already existed rather than a sextant', () => {
+    expect(mosaicChar(['00', '00', '00'])).toBe(' ')
+    expect(mosaicChar(['11', '11', '11'])).toBe('█')
+    expect(mosaicChar(['10', '10', '10'])).toBe('▌')
+    expect(mosaicChar(['01', '01', '01'])).toBe('▐')
+    expect(mosaicChar(['10', '00', '00'])).toBe('\u{1FB00}')
+  })
+
+  it('reads a cell holding something that is not on thirds as unpaintable', () => {
+    // A letter, a shade and a quadrant have no 2x3 pattern to add a block to,
+    // so paint replaces them instead of trying to merge into them.
+    expect(sextantRows('A')).toBe(null)
+    expect(sextantRows('▒')).toBe(null)
+    expect(sextantRows('▀')).toBe(null)
+  })
+
   it('offers only characters it can actually draw', () => {
     // Every chip in the dialog is either a mosaic or one of the three dithers;
     // a chip that fell through to the font would insert a tofu box.
@@ -97,5 +143,68 @@ describe('mosaicRows', () => {
       if (!shades.includes(ch)) expect(mosaicRows(ch)).not.toBe(null)
     }
     for (const shade of shades) expect(MOSAIC_PALETTE).toContain(shade)
+  })
+})
+
+describe('the paint grid', () => {
+  it('lays text out as a rectangle of cells', () => {
+    const { cells, tail } = textToCells('HI', 3)
+    expect(cells.length).toBe(3)
+    expect(cells.every(row => row.length === MAX_COLS)).toBe(true)
+    expect(cells[0].slice(0, 3)).toEqual(['H', 'I', ' '])
+    expect(cells[2].every(c => c === ' ')).toBe(true)
+    expect(tail).toEqual([])
+  })
+
+  it('keeps a mosaic whole, rather than as two halves of a code point', () => {
+    const { cells } = textToCells('\u{1FB00}\u{1FB01}', 1)
+    expect(cells[0].slice(0, 2)).toEqual(['\u{1FB00}', '\u{1FB01}'])
+  })
+
+  it('comes back as the text it went in as', () => {
+    const text = 'HI\n  \u{1FB00}█\nBYE'
+    const { cells, tail } = textToCells(text, 8)
+    expect(cellsToText(cells, tail)).toBe(text)
+  })
+
+  it('drops the blank rows under a drawing rather than carrying them around', () => {
+    const { cells, tail } = textToCells('X', 24)
+    expect(cellsToText(cells, tail)).toBe('X')
+  })
+
+  it('keeps the rows past the page, and the blanks holding them up', () => {
+    // A card can be taller than the surface; drawing on the top of one must not
+    // quietly drop the bottom of it, or shuffle it upward.
+    const { cells, tail } = textToCells('TOP\n\n\nDEEP', 3)
+    expect(tail).toEqual(['DEEP'])
+    expect(cellsToText(cells, tail)).toBe('TOP\n\n\nDEEP')
+  })
+
+  it('never makes a page too long to store', () => {
+    // A full 40x24 of drawn blocks is the biggest thing the surface can
+    // produce, and it has to survive the trip through a link.
+    const full = Array.from({ length: 24 }, () =>
+      Array.from({ length: MAX_COLS }, () => '\u{1FB00}'),
+    )
+    const text = cellsToText(full)
+    expect(Array.from(text).length).toBeLessThanOrEqual(TELETYPE_MAX)
+    expect(clampCardText(text)).toBe(text)
+  })
+})
+
+describe('clampCardText', () => {
+  it('counts characters, not the units they are stored in', () => {
+    // A sextant is two UTF-16 units. Measured by .length, a drawn page would be
+    // cut in half.
+    const drawn = '\u{1FB00}'.repeat(TELETYPE_MAX)
+    expect(Array.from(clampCardText(drawn)).length).toBe(TELETYPE_MAX)
+  })
+
+  it('never cuts a character in half', () => {
+    const clamped = clampCardText('\u{1FB00}'.repeat(TELETYPE_MAX + 10))
+    // A lone surrogate has no code point of its own to come back as.
+    expect(Array.from(clamped).every(c => c.codePointAt(0)! > 0xffff)).toBe(
+      true,
+    )
   })
 })
