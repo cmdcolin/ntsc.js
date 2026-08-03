@@ -156,6 +156,20 @@ toggle. That is what keeps MIDI binding, clock sync, favorites, presets, scenes
 and URL state working untouched — a miniature is another writer of a normal
 control, never the only one.
 
+The **fine tier** is the second sanctioned hider, under the same contract. A
+`fine: true` on a `SliderDef` in `src/ui/controls.ts` marks a trim — a control
+that shapes an effect some other control turns on — and `ControlGroup` folds
+those rows behind a `▸ N fine tweaks` disclosure so a group's look-makers stay
+scannable. Hidden, not removed: the row is one click away, a live filter
+collapses the tier entirely so search and the ⌘K palette reach fine rows
+directly, the group's touched dot and the phase roll-ups still walk every
+slider, and the fold shows `· N touched` in the same amber when a preset has
+moved something behind it. The tier is also the auto-map ranking (`AUTOMAP_KEYS`
+puts non-fine controls first, then fine, then `VIEW_KEYS`), so a
+knob-count-bound controller lands on look-makers first. Demotion criteria and
+the vetoes that protect mode switches, preset-heavy keys and the
+miniature-backed keys are pinned by `controls.test.ts`.
+
 Two things to respect when adding another:
 
 - **The frame is the shader's UV space** — 0..1 across the active picture, y

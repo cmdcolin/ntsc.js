@@ -17,7 +17,14 @@
   color: #e8c464;
 }
 
-/* reveals the sliders a direct-manipulation miniature stands in for */
+/* how many of the hidden trims are off default — the same amber the Section dot
+   uses, so touched state behind a fold reads as touched state anywhere else */
+.fineTouched {
+  color: #ceba64;
+}
+
+/* reveals the sliders a direct-manipulation miniature stands in for, and the
+   fine trims a group folds away */
 .sliderToggle {
   display: block;
   margin: -4px 0 6px;

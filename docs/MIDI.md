@@ -68,16 +68,23 @@ they start. No confirmation, so don't hit them casually once you've built a
 layout you like.
 
 **auto-map** is for a MIDI Fighter Twister specifically. Pick it in the dropdown
-and click the button: it assigns the first 64 controls, in signal-path order, to
-CC 0–63 on channel 1, which is what a Twister sends from the factory. Its four
-banks are all mapped up front, so flicking banks on the hardware just gives you
-a different set of live knobs.
+and click the button: it assigns the first 64 controls — hero controls first, in
+signal-path order — to CC 0–63 on channel 1, which is what a Twister sends from
+the factory. Its four banks are all mapped up front, so flicking banks on the
+hardware just gives you a different set of live knobs.
+
+Hero controls are the ones the panel shows without asking: 86 of the 132, so a
+64-knob sweep never spends a knob on a trim. The controls behind each group's
+**fine tweaks** fold rank after all of them, and the magnifier ranks dead last —
+a knob spent on where you are looking is a knob not spent on the picture.
+Bindings are stored per control, so re-ranking never moves one you already have;
+only the next sweep sees the new order.
 
 **learn in order** works with anything. Click it, then sweep your knobs one at a
-time, left to right — each new knob it hears takes the next control. The hint
-line tells you which control is waiting and how many you've done. Stop whenever
-you've had enough with **stop learning** or **Esc**; what you've bound so far is
-kept.
+time, left to right — each new knob it hears takes the next control, in the same
+order. The hint line tells you which control is waiting and how many you've
+done. Stop whenever you've had enough with **stop learning** or **Esc**; what
+you've bound so far is kept.
 
 One catch worth knowing: in a sweep, a knob you bump by accident gets consumed,
 and there's no going back a step. Starting over means wiping everything again.

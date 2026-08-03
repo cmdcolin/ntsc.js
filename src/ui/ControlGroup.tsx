@@ -174,19 +174,29 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   // A live filter drops the miniature, so a search can reach the sliders it
   // stands in for.
   const [showFramed, setShowFramed] = useState(false)
+  const [showFine, setShowFine] = useState(false)
   const frame = FRAMES.find(f => f.group === group.name && query === '')
 
   const matched =
     query === '' || group.name.toLowerCase().includes(query)
       ? group.sliders
       : group.sliders.filter(s => sliderMatches(s, query))
-  const sliders =
+  const unframed =
     frame === undefined || showFramed
       ? matched
       : matched.filter(s => !frame.keys.has(s.key))
+  // The trims a group hides so its look-makers stay in reach. A filter reaches
+  // them for free: with a query up the tier collapses, so a search or a palette
+  // jump lands on the row itself rather than on a toggle that hides it.
+  const fine = query === '' ? unframed.filter(s => s.fine === true) : []
+  const shown = query === '' ? unframed.filter(s => s.fine !== true) : unframed
+  const sliders = showFine ? [...shown, ...fine] : shown
   const touched = group.sliders.some(
     s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
   )
+  const fineTouched = fine.filter(
+    s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
+  ).length
 
   // When most of a group is dead behind the same gate (e.g. all of Mixer Loop
   // behind loop mix), one banner beats a stack of identical per-row notes; the
@@ -203,7 +213,9 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   const banners = [...unmet.values()].filter(e => e.n >= 3)
   const muted: ReadonlySet<ControlKey> = new Set(banners.map(e => e.need.key))
 
-  return sliders.length === 0 && frame === undefined ? null : (
+  return sliders.length === 0 &&
+    fine.length === 0 &&
+    frame === undefined ? null : (
     <Section
       title={group.name}
       defaultOpen={props.defaultOpen}
@@ -231,9 +243,36 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
           {n} controls here are inert — needs {need.hint} · click to set
         </button>
       ))}
-      {sliders.map(s => (
+      {shown.map(s => (
         <ControlSlider key={s.key} slider={s} muted={muted} />
       ))}
+      {fine.length === 0 ? null : (
+        <>
+          <button
+            className={styles.sliderToggle}
+            onClick={() => setShowFine(!showFine)}
+            title="trims that shape an effect something else turns on"
+          >
+            {showFine ? (
+              '▾ fine tweaks'
+            ) : (
+              <>
+                {`▸ ${fine.length} fine tweaks`}
+                {fineTouched === 0 ? null : (
+                  <span className={styles.fineTouched}>
+                    {` · ${fineTouched} touched`}
+                  </span>
+                )}
+              </>
+            )}
+          </button>
+          {showFine
+            ? fine.map(s => (
+                <ControlSlider key={s.key} slider={s} muted={muted} />
+              ))
+            : null}
+        </>
+      )}
     </Section>
   )
 }
