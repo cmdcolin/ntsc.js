@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_COLS,
   MOSAIC_PALETTE,
+  PAINT_ROWS,
   TELETYPE_MAX,
   cellsToText,
   clampCardText,
@@ -58,9 +59,28 @@ describe('wrapText', () => {
     const text = 'PLEASE STAND BY\nsupercalifragilistic  tracking\n\n0000 0000'
     for (const cols of [4, 8, 12, 32]) {
       for (const line of wrapText(text, cols)) {
-        expect(line.length).toBeLessThanOrEqual(cols)
+        expect(Array.from(line).length).toBeLessThanOrEqual(cols)
       }
     }
+  })
+
+  it('measures a line in characters, not code units', () => {
+    // A sextant is two UTF-16 units, so a full row of them is 80 units wide
+    // and 40 cells wide. Counting units folds a row that fits.
+    const row = '🬀'.repeat(40)
+    expect(wrapText(row, 40)).toEqual([row])
+  })
+
+  it('keeps the gaps in a drawn row that is wider than 20 mosaics', () => {
+    // The failure that made a drag scramble the page: past the point where the
+    // row's code units passed the column count, the re-flow path collapsed the
+    // spaces between the blocks and pushed the overflow onto the next line.
+    const row = '🬀   '.repeat(10)
+    expect(wrapText(row, 40)).toEqual([row])
+  })
+
+  it('breaks an oversized word between characters, not inside one', () => {
+    expect(wrapText('🬀'.repeat(6), 4)).toEqual(['🬀🬀🬀🬀', '🬀🬀'])
   })
 
   it('always yields at least one line, so the card has something to size to', () => {
@@ -178,6 +198,18 @@ describe('the paint grid', () => {
     const { cells, tail } = textToCells('TOP\n\n\nDEEP', 3)
     expect(tail).toEqual(['DEEP'])
     expect(cellsToText(cells, tail)).toBe('TOP\n\n\nDEEP')
+  })
+
+  it('holds a drawn page still through the round trip a stroke makes', () => {
+    // Every block a drag lays down goes cells -> text -> cells, so anything the
+    // trip moves gets moved again on the next sample: a page that does not come
+    // back identical does not wobble, it walks away.
+    const { cells, tail } = textToCells('', PAINT_ROWS)
+    for (let c = 0; c < MAX_COLS; c += 3) cells[0][c] = '\u{1FB00}'
+    for (let c = 0; c < MAX_COLS; c++) cells[5][c] = '█'
+    cells[9][20] = 'X'
+    const back = textToCells(cellsToText(cells, tail), PAINT_ROWS)
+    expect(back.cells).toEqual(cells)
   })
 
   it('never makes a page too long to store', () => {
