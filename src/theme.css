@@ -19,6 +19,11 @@
    16px. The comments give the px each one lands on at that default. */
 :root {
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
+  /* For text made of block characters — the teletype card and its palette.
+     --mono's first choices are UI faces whose block elements are narrow and
+     don't meet, so a drawing made of them reads as gaps; the DejaVu/Liberation
+     family draws them cell-filling, the way the card itself will. */
+  --mono-blocks: 'DejaVu Sans Mono', 'Liberation Mono', var(--mono);
   --fg: #e6e6ee;
   --fg2: #c6c6d6;
   --fg3: #a6a6ba;

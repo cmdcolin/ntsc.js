@@ -6,6 +6,7 @@ import { MAX_SRC_EDGE } from '../gpu/sources'
 import { reportPreviousTrace, trace } from '../gpu/trace'
 import { clipUrl, isClipId } from '../sources/clips'
 import { smpteBars, sweep } from '../sources/pattern'
+import { TELETYPE_DEFAULT } from '../sources/teletype'
 import { ytId } from '../sources/youtube'
 import {
   canPickHandle,
@@ -15,6 +16,7 @@ import {
   stashFile,
 } from './fileStash'
 import { blendPresets, randomPresetMix } from './presets'
+import { printCard } from './teletypeSlot'
 import {
   REVERB_DEFAULT,
   SPEED_DEFAULT,
@@ -22,10 +24,11 @@ import {
   parseSessionParams,
   urlName,
 } from './urlParams'
-import { playStream, playUrl, stopSlot } from './videoSlot'
+import { playStream, playUrl, stopSlot, stopTyping } from './videoSlot'
 
 import type { FrameStats } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
+import type { TeletypeCard } from '../sources/teletype'
 import type { Fatal } from './FatalScreen'
 import type { PickedFileHandle, StashSlot, Stashed } from './fileStash'
 import type { SessionParams } from './urlParams'
@@ -80,6 +83,17 @@ declare global {
   }
 }
 
+// Print a card on a slot. A patch, not a whole card, because the two ways in
+// speak to different halves of it: the dialog sets the text and the crawl
+// together, the row under the picker only ever retypes the words. Blank text
+// falls back to the stock card rather than a black frame — the row is the way
+// back into this source, and an empty one leaves nothing to edit.
+const printOn = (slot: VideoSlot, patch: Partial<TeletypeCard>) => {
+  const card = { ...slot.card(), ...patch }
+  slot.setCard(card.text.trim() === '' ? TELETYPE_DEFAULT : card)
+  printCard(slot, slot.card())
+}
+
 // Owns the singleton Engine (a GPUDevice + rAF loop), its lifecycle, and every
 // video/image source path (patterns, files, webcam/USB capture, source B).
 export function useEngine() {
@@ -87,6 +101,9 @@ export function useEngine() {
   const engineRef = useRef<Engine | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const videoBRef = useRef<HTMLVideoElement | null>(null)
+  // The teletype reveal each slot may have in flight, retired by stopSlot.
+  const typerARef = useRef<{ stop: () => void } | null>(null)
+  const typerBRef = useRef<{ stop: () => void } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const fileInputBRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
@@ -124,6 +141,14 @@ export function useEngine() {
   const [askWebcam, setAskWebcam] = useState(false)
   // Which slot the YouTube URL dialog is loading into, or null when closed.
   const [askYouTube, setAskYouTube] = useState<'a' | 'b' | null>(null)
+  // Same for the teletype text dialog, plus the text each slot last showed —
+  // kept so reopening the dialog starts on what is on screen, the caption can
+  // say what the card reads, and the card survives a shared link. The ref is
+  // the copy the async paths read, exactly like vaporRef below.
+  const [askTeletype, setAskTeletype] = useState<'a' | 'b' | null>(null)
+  const [cardA, setCardA] = useState(TELETYPE_DEFAULT)
+  const [cardB, setCardB] = useState(TELETYPE_DEFAULT)
+  const cardRef = useRef({ a: TELETYPE_DEFAULT, b: TELETYPE_DEFAULT })
   // Vaporwave playback: per-slot rate (pitch drops with it), whether the video
   // audio is routed to the speakers + reactive path, and the reverb wet mix.
   // videoA/videoB track whether each slot currently holds a live <video>.
@@ -250,6 +275,7 @@ export function useEngine() {
     routeAudio(vaporRef.current.playAudio, vaporRef.current.reverb)
   const slotA: VideoSlot = {
     ref: videoRef,
+    typer: typerARef,
     rate: () => vaporRef.current.speedA,
     attach: el => engineRef.current?.setVideoSource(el),
     // Only A keeps its own aspect — B is staged to the raster with a 4:3 crop,
@@ -259,18 +285,29 @@ export function useEngine() {
     setNoise: kind => engineRef.current?.setNoiseSource(kind),
     setLive: setVideoA,
     setYtUrl: setYtUrlA,
+    card: () => cardRef.current.a,
+    setCard: card => {
+      cardRef.current.a = card
+      setCardA(card)
+    },
     onError: setError,
     release: el => engineRef.current?.audioState.releaseMedia(el),
     adopt,
   }
   const slotB: VideoSlot = {
     ref: videoBRef,
+    typer: typerBRef,
     rate: () => vaporRef.current.speedB,
     attach: el => engineRef.current?.setVideoSourceB(el),
     setImage: source => engineRef.current?.setImageSourceB(source),
     setNoise: kind => engineRef.current?.setNoiseSourceB(kind),
     setLive: setVideoB,
     setYtUrl: setYtUrlB,
+    card: () => cardRef.current.b,
+    setCard: card => {
+      cardRef.current.b = card
+      setCardB(card)
+    },
     onError: setError,
     release: el => engineRef.current?.audioState.releaseMedia(el),
     adopt,
@@ -282,12 +319,14 @@ export function useEngine() {
   // both slots offer the same set. Four are synthesised on the spot; cat and
   // the bundled clips are files under public/, so cat lands a fetch later —
   // the slot keeps showing whatever it had until then, exactly like the
-  // ?iurl path — and a clip plays the same way a picked file does.
+  // ?iurl path — and a clip plays the same way a picked file does. Teletype
+  // reads the slot's own text, since the mode name alone doesn't carry it.
   const showGenerated = (slot: VideoSlot, mode: SourceMode | SourceBMode) => {
     if (mode === 'bars') slot.setImage(smpteBars())
     else if (mode === 'sweep') slot.setImage(sweep())
     else if (mode === 'tv static') slot.setNoise(1)
     else if (mode === 'vhs static') slot.setNoise(2)
+    else if (mode === 'teletype') printCard(slot, slot.card())
     else if (mode === 'cat')
       loadImage(CAT_URL).then(
         bmp => slot.setImage(bmp, bmp.width / bmp.height),
@@ -437,6 +476,28 @@ export function useEngine() {
     )
   }
 
+  const loadTeletype = (patch: Partial<TeletypeCard>) => {
+    if (engineRef.current) {
+      stopVideo()
+      setError('')
+      setSourceMode('teletype')
+      dropFile('a')
+      printOn(slotA, patch)
+    }
+  }
+
+  const loadTeletypeB = (patch: Partial<TeletypeCard>) => {
+    const current = engineRef.current
+    if (current) {
+      stopVideoB()
+      setError('')
+      setSourceBMode('teletype')
+      current.setSourceBEnabled(true)
+      dropFile('b')
+      printOn(slotB, patch)
+    }
+  }
+
   const selectSource = (mode: SourceMode) => {
     const current = engineRef.current
     if (current) {
@@ -454,6 +515,9 @@ export function useEngine() {
       } else if (mode === 'youtube') {
         // Same deferral: wait for a URL in the dialog before touching state.
         setAskYouTube('a')
+      } else if (mode === 'teletype') {
+        // And again: the card is whatever the dialog comes back with.
+        setAskTeletype('a')
       } else {
         stopVideo()
         setSourceMode(mode)
@@ -554,6 +618,8 @@ export function useEngine() {
         pickFile('b', fileInputBRef, adoptFileB)
       } else if (mode === 'youtube') {
         setAskYouTube('b')
+      } else if (mode === 'teletype') {
+        setAskTeletype('b')
       } else {
         stopVideoB()
         setSourceBMode(mode)
@@ -578,6 +644,10 @@ export function useEngine() {
       eng.applyControls(blendPresets(DEFAULT_CONTROLS, randomPresetMix(false)))
     }
     eng.applyControls(params.controls)
+    // Before either source is shown: the teletype card is typed out of the
+    // slot's own text, so the link's text has to be on the slot by then.
+    if (params.card !== null) slotA.setCard(params.card)
+    if (params.cardb !== null) slotB.setCard(params.cardb)
     if (params.src === 'webcam') {
       selectSource('webcam')
     } else if (params.src !== null) {
@@ -593,6 +663,9 @@ export function useEngine() {
     if (params.iurl !== null) {
       const url = params.iurl
       loadImage(url).then(bmp => {
+        // A link naming both ?src=teletype and a still means the still: stop
+        // the reveal or it goes on typing over the picture that just landed.
+        stopTyping(slotA)
         slotA.setImage(bmp, bmp.width / bmp.height)
         setSourceMode('file')
         setSourceName(urlName(url))
@@ -601,6 +674,7 @@ export function useEngine() {
     if (params.iurlb !== null) {
       const url = params.iurlb
       loadImage(url).then(bmp => {
+        stopTyping(slotB)
         slotB.setImage(bmp)
         eng.setSourceBEnabled(true)
         setSourceBMode('file')
@@ -608,6 +682,7 @@ export function useEngine() {
       }, imageError)
     }
     if (params.vurl !== null) {
+      stopTyping(slotA)
       playUrl(slotA, params.vurl)
       setSourceMode('file')
       setSourceName(urlName(params.vurl))
@@ -762,6 +837,12 @@ export function useEngine() {
     loadYouTubeB,
     askYouTube,
     setAskYouTube,
+    loadTeletype,
+    loadTeletypeB,
+    askTeletype,
+    setAskTeletype,
+    teletypeA: cardA,
+    teletypeB: cardB,
     videoA,
     videoB,
     speedA,

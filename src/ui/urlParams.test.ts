@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_CONTROLS } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
+import { TELETYPE_DEFAULT, TELETYPE_MAX } from '../sources/teletype'
 import { ALL_SLIDERS } from './controls'
 import { mutate } from './mutate'
 import { PRESETS, presetControls } from './presets'
@@ -97,6 +98,29 @@ describe('session params', () => {
     expect(p.yt).toBe('https://y/?v=1')
     expect(p.iurlb).toBe(null)
   })
+
+  it('carries a teletype card, newlines and all', () => {
+    const p = parseSessionParams(
+      `?src=teletype&text=${encodeURIComponent('BE KIND\nREWIND')}`,
+    )
+    expect(p.src).toBe('teletype')
+    expect(p.card).toEqual({ text: 'BE KIND\nREWIND', crawl: false })
+    expect(p.cardb).toBe(null)
+  })
+
+  it('takes ?crawl on its own as the stock card, rolling', () => {
+    expect(parseSessionParams('?src=teletype&crawl').card).toEqual({
+      text: TELETYPE_DEFAULT.text,
+      crawl: true,
+    })
+  })
+
+  it('clamps teletype text a link asks for', () => {
+    // The reveal prints the card a chunk at a time, so an unbounded string
+    // from a link is an unbounded animation.
+    const p = parseSessionParams(`?text=${'A'.repeat(5000)}`)
+    expect(p.card?.text).toHaveLength(TELETYPE_MAX)
+  })
 })
 
 // The two halves of the contract, back to back. Everything below asks the same
@@ -110,6 +134,8 @@ const state = (over: Partial<SessionState> = {}): SessionState => ({
   sourceBMode: 'bars',
   ytUrlA: '',
   ytUrlB: '',
+  teletypeA: { text: '', crawl: false },
+  teletypeB: { text: '', crawl: false },
   speedA: SPEED_DEFAULT,
   speedB: SPEED_DEFAULT,
   reverb: REVERB_DEFAULT,
@@ -162,6 +188,24 @@ describe('session round trip', () => {
         expect(back.srcb).toBe(sourceBMode)
       }
     }
+  })
+
+  it('returns a teletype card, mode and words and roll together', () => {
+    const card = { text: 'BE KIND\nREWIND', crawl: true }
+    const back = roundTrip(state({ sourceMode: 'teletype', teletypeA: card }))
+    expect(back.src).toBe('teletype')
+    expect(back.card).toEqual(card)
+    // B is on bars, so its card is not the reader's business
+    expect(back.cardb).toBe(null)
+  })
+
+  it('leaves a card behind when the slot moved off teletype', () => {
+    // The words are only the source while teletype is the source; a link made
+    // after switching to bars must not resurrect the card on the far end.
+    const back = roundTrip(
+      state({ sourceMode: 'bars', teletypeA: { text: 'HI', crawl: true } }),
+    )
+    expect(back.card).toBe(null)
   })
 
   it('returns the playback settings', () => {

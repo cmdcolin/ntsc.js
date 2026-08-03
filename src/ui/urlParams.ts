@@ -8,10 +8,12 @@
 
 import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
+import { TELETYPE_DEFAULT, TELETYPE_MAX } from '../sources/teletype'
 import { PRESETS, presetControls } from './presets'
 
 import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
+import type { TeletypeCard } from '../sources/teletype'
 
 // What a bare load (no ?preset/?set) lands on: a whisper of source B summed
 // into the composite, so the mixer is visibly doing something on arrival. Kept
@@ -26,6 +28,8 @@ export const VAPORWAVE_SPEED = 0.66
 
 // The generated sources a link can name. `bars` is the default and `file` /
 // `youtube` carry their own url params, so neither ever appears as ?src=.
+// `teletype` does appear — the mode is the source, and ?text= alongside it
+// carries what is on the card.
 const SRC_MODES = SOURCE_MODES.filter(
   m => m !== 'bars' && m !== 'file' && m !== 'youtube',
 )
@@ -45,6 +49,12 @@ export interface SessionParams {
   vurl: string | null
   yt: string | null
   ytb: string | null
+  // Each slot's teletype card: what it reads and whether it rolls. The text is
+  // clamped to the length the dialog allows — a link is untrusted input, and
+  // the reveal prints it a chunk at a time, so an unbounded string would be an
+  // unbounded animation. `?crawl` alone is a card too: the stock words, rolling.
+  card: TeletypeCard | null
+  cardb: TeletypeCard | null
   vapor: { speedA: number; speedB: number; reverb: number }
   debug: boolean
   // `?surprise` — roll a random preset stack on load, the same one the button
@@ -77,6 +87,15 @@ export function parseSessionParams(search: string): SessionParams {
     key: string,
     allowed: readonly T[],
   ): T | null => allowed.find(m => m === q.get(key)) ?? null
+  const card = (textKey: string, crawlKey: string): TeletypeCard | null => {
+    const raw = q.get(textKey)
+    const crawl = q.has(crawlKey)
+    if (raw === null && !crawl) return null
+    return {
+      text: raw === null ? TELETYPE_DEFAULT.text : raw.slice(0, TELETYPE_MAX),
+      crawl,
+    }
+  }
 
   const setParam = q.get('set')
   const presetName = q.get('preset')
@@ -100,6 +119,8 @@ export function parseSessionParams(search: string): SessionParams {
     vurl: q.get('vurl'),
     yt: q.get('yt'),
     ytb: q.get('ytb'),
+    card: card('text', 'crawl'),
+    cardb: card('textb', 'crawlb'),
     vapor: {
       speedA: num('speeda', SPEED_DEFAULT),
       speedB: num('speedb', SPEED_DEFAULT),
@@ -121,6 +142,8 @@ export interface SessionState {
   sourceBMode: SourceBMode
   ytUrlA: string
   ytUrlB: string
+  teletypeA: TeletypeCard
+  teletypeB: TeletypeCard
   speedA: number
   speedB: number
   reverb: number
@@ -171,6 +194,14 @@ export function writeSessionParams(
     state.sourceBMode === 'youtube' && state.ytUrlB !== '',
     state.ytUrlB,
   )
+  // The card rides alongside ?src=teletype rather than instead of it: the mode
+  // is what the slot is showing, the text and the crawl are only how it reads.
+  const cardA = state.sourceMode === 'teletype'
+  const cardB = state.sourceBMode === 'teletype'
+  put('text', cardA && state.teletypeA.text !== '', state.teletypeA.text)
+  put('textb', cardB && state.teletypeB.text !== '', state.teletypeB.text)
+  put('crawl', cardA && state.teletypeA.crawl, '1')
+  put('crawlb', cardB && state.teletypeB.crawl, '1')
   put('speeda', state.speedA !== SPEED_DEFAULT, short(state.speedA))
   put('speedb', state.speedB !== SPEED_DEFAULT, short(state.speedB))
   put('reverb', state.reverb !== REVERB_DEFAULT, short(state.reverb))

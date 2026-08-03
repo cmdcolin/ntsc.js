@@ -2,9 +2,11 @@ import { SOURCE_B_MODES, SOURCE_DESC, SOURCE_MODES } from '../sources/modes'
 import { FileName, ReopenFile } from './FileName'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
+import { TeletypeRow } from './TeletypeRow'
 import ui from './ui.module.css'
 
 import type { SourceBMode, SourceMode } from '../sources/modes'
+import type { TeletypeCard } from '../sources/teletype'
 import type { ReactNode, RefObject } from 'react'
 
 // The YouTube option is backed by the dev-only yt-dlp bridge, so hide it in
@@ -19,7 +21,9 @@ const B_MODES = import.meta.env.DEV
 const A_OPTIONS = A_MODES.map(m => ({ value: m, label: SOURCE_DESC[m] }))
 const B_OPTIONS = B_MODES.map(m => ({ value: m, label: SOURCE_DESC[m] }))
 
-// The source-name caption shows for loaded file/YouTube sources.
+// The source-name caption shows for loaded file/YouTube sources. Teletype
+// carries something the picker can't say too, but its words are editable, so
+// it gets a row of its own rather than a caption.
 const namedMode = (m: SourceMode | SourceBMode): boolean =>
   m === 'file' || m === 'youtube'
 
@@ -30,6 +34,12 @@ export function InputSection(props: {
   sourceBMode: SourceBMode
   sourceBName: string
   onSelectSourceB: (mode: SourceBMode) => void
+  // Each slot's teletype card, shown and edited in place while that slot is on
+  // teletype. Submitting reprints the card, so it is not per-keystroke.
+  teletypeA: TeletypeCard
+  teletypeB: TeletypeCard
+  onTeletypeA: (text: string) => void
+  onTeletypeB: (text: string) => void
   webcamDeviceId: string
   videoDevices: MediaDeviceInfo[]
   onStartWebcam: (deviceId: string) => void
@@ -59,6 +69,13 @@ export function InputSection(props: {
           options={A_OPTIONS}
           onChange={props.onSelectSource}
         />
+        {props.sourceMode === 'teletype' ? (
+          <TeletypeRow
+            text={props.teletypeA.text}
+            onSubmit={props.onTeletypeA}
+            onOpenDialog={() => props.onSelectSource('teletype')}
+          />
+        ) : null}
         {namedMode(props.sourceMode) ? (
           <FileName
             name={props.sourceName}
@@ -88,6 +105,13 @@ export function InputSection(props: {
           options={B_OPTIONS}
           onChange={props.onSelectSourceB}
         />
+        {props.sourceBMode === 'teletype' ? (
+          <TeletypeRow
+            text={props.teletypeB.text}
+            onSubmit={props.onTeletypeB}
+            onOpenDialog={() => props.onSelectSourceB('teletype')}
+          />
+        ) : null}
         {namedMode(props.sourceBMode) ? (
           <FileName
             name={props.sourceBName}

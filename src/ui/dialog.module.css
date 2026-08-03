@@ -45,6 +45,66 @@
   align-items: baseline;
   margin-bottom: 8px;
 }
+/* the teletype card's text box: monospace and full width, because what is
+   typed here lands on a 40-column grid and both the wrap and the shape of a
+   drawing want to be visible while typing rather than a surprise on the
+   picture */
+.textArea {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  background: #16161c;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+  font-family: var(--mono-blocks);
+  resize: vertical;
+}
+.textArea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+/* the mosaic palette: a keyboard has no key for these, so they are chips you
+   click into the card. Sized so the block fills the chip — they are being
+   picked by shape, and a shape needs to be big enough to read */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+.chip {
+  /* The proportions of a character cell, not a square: a block glyph is about
+     0.6em wide by a full em tall, so a square chip frames it as a thin bar and
+     the shapes stop being tellable apart at a glance. */
+  width: 24px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #16161c;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: var(--mono-blocks);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+.chip:hover {
+  border-color: var(--accent);
+}
+/* a checkbox and its label as one target */
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: var(--fg2);
+  cursor: pointer;
+}
 .h2 {
   font-size: var(--fs-lg);
   margin: 0;

@@ -7,6 +7,7 @@ export const SOURCE_MODES = [
   'vhs static',
   'cat',
   ...CLIP_IDS,
+  'teletype',
   'file',
   'youtube',
   'webcam',
@@ -19,6 +20,7 @@ export const SOURCE_B_MODES = [
   'vhs static',
   'cat',
   ...CLIP_IDS,
+  'teletype',
   'file',
   'youtube',
 ] as const
@@ -37,6 +39,7 @@ export const SOURCE_DESC: Record<SourceMode | SourceBMode, string> = {
   'clip-popeye': CLIPS['clip-popeye'].label,
   'clip-haunted-house': CLIPS['clip-haunted-house'].label,
   'clip-minnie-moocher': CLIPS['clip-minnie-moocher'].label,
+  teletype: 'Teletype… — type your own text card',
   file: 'File… — open an image or video',
   youtube: 'YouTube… — fetch a URL via yt-dlp',
   webcam: 'Webcam / USB device — camera or RCA capture',

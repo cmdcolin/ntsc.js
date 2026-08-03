@@ -6,8 +6,14 @@
 // once. What is genuinely per-slot — the mode enum, the name label, B's enable
 // flag — stays with the caller rather than being smuggled in here as options.
 
+import type { TeletypeCard } from '../sources/teletype'
+
 export interface VideoSlot {
   ref: { current: HTMLVideoElement | null }
+  // The teletype reveal currently printing into this slot, if any. It lives
+  // here for the same reason the element does: whatever a slot holds has to be
+  // retired by stopSlot, and every load path already opens with that call.
+  typer: { current: { stop: () => void } | null }
   // Playback rate to stamp on a new element. A getter, because every caller
   // runs inside an async fetch callback or the mount-time restore, where the
   // state it would otherwise close over is stale.
@@ -20,16 +26,33 @@ export interface VideoSlot {
   // it was loaded from (kept so the source round-trips through the query string).
   setLive: (live: boolean) => void
   setYtUrl: (url: string) => void
+  // The teletype card this slot last showed, kept so the dialog reopens on it
+  // and the source round-trips through the query string. A getter for the same
+  // reason `rate` is one: the callers run in async callbacks and the mount-time
+  // restore, where closed-over state is stale.
+  card: () => TeletypeCard
+  setCard: (card: TeletypeCard) => void
   onError: (message: string) => void
   // Audio graph: drop a retired element, adopt a fresh one.
   release: (el: HTMLMediaElement) => void
   adopt: () => void
 }
 
-// Retire whatever the slot holds: stop a capture stream, free a blob url, drop
-// the element from the audio graph, and point the engine at nothing. Safe on an
-// empty slot, so every load path can open with it.
+// Retire a teletype reveal on its own, for the load paths that put a picture
+// on the slot without retiring the rest of it: an interval left running would
+// go on typing over whatever replaced it.
+export function stopTyping(slot: VideoSlot): void {
+  slot.typer.current?.stop()
+  slot.typer.current = null
+}
+
+// Retire whatever the slot holds: stop a teletype reveal, stop a capture
+// stream, free a blob url, drop the element from the audio graph, and point the
+// engine at nothing. Safe on an empty slot, so every load path can open with it
+// — which is also what keeps a reveal from typing over the source that replaced
+// it, since a running interval outlives the mode change on its own.
 export function stopSlot(slot: VideoSlot): void {
+  stopTyping(slot)
   const v = slot.ref.current
   if (v !== null) {
     v.pause()

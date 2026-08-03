@@ -16,6 +16,27 @@
   font-size: var(--fs);
   font-weight: 700;
 }
+/* The teletype card's text, edited in place under its picker (TeletypeRow.tsx).
+   It stands in for .fileName on that source: there is no file to name, and the
+   words are the thing you came back to change. */
+.cardInput {
+  flex: 1;
+  min-width: 0;
+  background: #20202a;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-family: var(--mono-blocks);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  white-space: pre;
+  resize: vertical;
+}
+.cardInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
 .fileName {
   display: block;
   width: 100%;

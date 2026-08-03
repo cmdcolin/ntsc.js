@@ -4,6 +4,7 @@ import { writeSessionParams } from './urlParams'
 
 import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
+import type { TeletypeCard } from '../sources/teletype'
 
 interface UrlStateArgs {
   controls: Controls
@@ -17,6 +18,10 @@ interface UrlStateArgs {
   // autoplay, so a restored clip must start muted and be un-muted by a click.
   ytUrlA: string
   ytUrlB: string
+  // Each slot's teletype card, so a shared link carries the words and the roll
+  // as well as the mode.
+  teletypeA: TeletypeCard
+  teletypeB: TeletypeCard
   speedA: number
   speedB: number
   reverb: number
@@ -32,6 +37,8 @@ export function useUrlState({
   sourceBMode,
   ytUrlA,
   ytUrlB,
+  teletypeA,
+  teletypeB,
   speedA,
   speedB,
   reverb,
@@ -48,6 +55,8 @@ export function useUrlState({
       sourceBMode,
       ytUrlA,
       ytUrlB,
+      teletypeA,
+      teletypeB,
       speedA,
       speedB,
       reverb,
@@ -60,6 +69,8 @@ export function useUrlState({
     sourceBMode,
     ytUrlA,
     ytUrlB,
+    teletypeA,
+    teletypeB,
     speedA,
     speedB,
     reverb,

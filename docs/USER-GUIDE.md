@@ -67,9 +67,15 @@ can still hold a colour.
 
 **A** is the main source: bars, sweep, snow, the bundled photo, a file of your
 own, or a webcam — which is also how an RCA capture dongle gets real gear in
-here. **B** is a second source, deliberately not genlocked, so mixing it in
-beats and tears against A; its controls appear in **A/B Mix**. **♪** is audio
-in, which does nothing until you turn up a knob in **Sound into the picture**.
+here. **Teletype…** is the odd one out: type your own words and they are printed
+onto a text card a character at a time, in a dot-matrix font coarse enough that
+the chain has something to chew on — and since the card is dots rather than
+glyphs, the block characters in that dialog draw teletext mosaics, so you can
+put a picture on it too. Tick **crawl** and it rolls up the frame instead of
+holding still. **B** is a second source, deliberately not genlocked, so mixing
+it in beats and tears against A; its controls appear in **A/B Mix**. **♪** is
+audio in, which does nothing until you turn up a knob in **Sound into the
+picture**.
 
 Running locally adds a **YouTube…** source (`yt-dlp` on the dev server); the
 hosted build has no server to do that with.

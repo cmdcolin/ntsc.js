@@ -24,6 +24,7 @@ import { ScenesSection } from './ui/ScenesSection'
 import { Section } from './ui/Section'
 import { SignalPath } from './ui/SignalPath'
 import { Stage } from './ui/Stage'
+import { TeletypeDialog } from './ui/TeletypeDialog'
 import ui from './ui/ui.module.css'
 import { useAudio } from './ui/useAudio'
 import { useCapture } from './ui/useCapture'
@@ -187,6 +188,8 @@ export function App() {
     sourceBMode: eng.sourceBMode,
     ytUrlA: eng.ytUrlA,
     ytUrlB: eng.ytUrlB,
+    teletypeA: eng.teletypeA,
+    teletypeB: eng.teletypeB,
     speedA: eng.speedA,
     speedB: eng.speedB,
     reverb: eng.reverb,
@@ -355,6 +358,10 @@ export function App() {
         sourceBMode={eng.sourceBMode}
         sourceBName={eng.sourceBName}
         onSelectSourceB={eng.selectSourceB}
+        teletypeA={eng.teletypeA}
+        teletypeB={eng.teletypeB}
+        onTeletypeA={text => eng.loadTeletype({ text })}
+        onTeletypeB={text => eng.loadTeletypeB({ text })}
         webcamDeviceId={eng.webcamDeviceId}
         videoDevices={eng.videoDevices}
         onStartWebcam={eng.startWebcam}
@@ -580,6 +587,18 @@ export function App() {
             eng.setAskYouTube(null)
           }}
           onClose={() => eng.setAskYouTube(null)}
+        />
+      ) : null}
+      {eng.askTeletype !== null ? (
+        <TeletypeDialog
+          slot={eng.askTeletype}
+          initial={eng.askTeletype === 'b' ? eng.teletypeB : eng.teletypeA}
+          onSubmit={card => {
+            if (eng.askTeletype === 'b') eng.loadTeletypeB(card)
+            else eng.loadTeletype(card)
+            eng.setAskTeletype(null)
+          }}
+          onClose={() => eng.setAskTeletype(null)}
         />
       ) : null}
       {showHelp ? <HelpDialog onClose={() => setShowHelp(false)} /> : null}
