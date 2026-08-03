@@ -11,11 +11,11 @@ and chroma key.
 
 The premise (see `ARCHITECTURE.md`) is that a fault should be _mechanistic_. A
 single periodic wave traced straight down the raster violates that — it reads as
-a filter effect, not a fault (the warning `signal/audiostate.ts` opens with). The
-shared home for bounded-aperiodic drift is **`signal/noise.ts`** (`valueNoise`,
-`Lorenz`, `Wow`); reuse it rather than rolling a new sine. Tape wow, the
-modulation LFOs and intercarrier buzz have already been converted; what is left
-is the one item below.
+a filter effect, not a fault (the warning `signal/audiostate.ts` opens with).
+The shared home for bounded-aperiodic drift is **`signal/noise.ts`**
+(`valueNoise`, `Lorenz`, `Wow`); reuse it rather than rolling a new sine. Tape
+wow, the modulation LFOs and intercarrier buzz have already been converted; what
+is left is the one item below.
 
 ### Deferred — mains-frequency roll drift (hum), `channel.wgsl`
 

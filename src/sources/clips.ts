@@ -48,7 +48,6 @@ export const CLIPS: Record<ClipId, BundledClip> = {
 }
 
 const CLIP_ID_SET: ReadonlySet<string> = new Set(CLIP_IDS)
-export const isClipId = (mode: string): mode is ClipId =>
-  CLIP_ID_SET.has(mode)
+export const isClipId = (mode: string): mode is ClipId => CLIP_ID_SET.has(mode)
 
 export const clipUrl = (id: ClipId): string => CLIPS[id].url
