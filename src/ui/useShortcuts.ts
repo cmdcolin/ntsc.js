@@ -3,14 +3,12 @@ import { useEffect, useRef } from 'react'
 // The panel can live in the popout window, whose elements belong to a foreign
 // realm — `instanceof HTMLInputElement` is always false there — so sniff the
 // shape instead. Range sliders don't count: they should not swallow shortcuts.
+// A textarea always does: the teletype card is typed into one, and the 'r' in
+// the middle of a word must not start a recording.
 function isTextEntry(t: EventTarget | null): boolean {
-  return (
-    t !== null &&
-    'tagName' in t &&
-    t.tagName === 'INPUT' &&
-    'type' in t &&
-    t.type !== 'range'
-  )
+  if (t === null || !('tagName' in t)) return false
+  if (t.tagName === 'TEXTAREA') return true
+  return t.tagName === 'INPUT' && 'type' in t && t.type !== 'range'
 }
 
 interface Handlers {
