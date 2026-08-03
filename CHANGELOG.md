@@ -2,6 +2,22 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.7.5](https://github.com/cmdcolin/ntsc.js/compare/v0.7.4...v0.7.5) - 2026-08-03
+
+### Features
+- *(ui)* [`0a3bc9e`](https://github.com/cmdcolin/ntsc.js/commit/0a3bc9ed6d95b42a6b8f1c87642551a5bae384f6) teletype source — a text card you type, draw and roll
+- *(ui)* [`8dce53e`](https://github.com/cmdcolin/ntsc.js/commit/8dce53e905833f433c9d52afc871496c79eb0a7c) draw on the teletype card, and print it as you type
+- *(ui)* [`3ffbc14`](https://github.com/cmdcolin/ntsc.js/commit/3ffbc1440d6c25e4ba70a12d2a8df61104de44e8) fine-tier control curation, heroes-first auto-map
+- *(ui)* [`551e76f`](https://github.com/cmdcolin/ntsc.js/commit/551e76f17b6c20dbf72153e37e1db9360eb557cd) wide bench mode for the panel and popout
+
+### Fixes
+- *(ui)* [`50edbe2`](https://github.com/cmdcolin/ntsc.js/commit/50edbe2df8b4c416fb5578450a3454befc538632) let a textarea swallow global shortcuts
+- *(ui)* [`367192e`](https://github.com/cmdcolin/ntsc.js/commit/367192e8a99cc3f26e71bdfd935b425413a22c2a) stop the panel scrolling sideways
+- *(ui)* [`6e24fa0`](https://github.com/cmdcolin/ntsc.js/commit/6e24fa09cac3bff51e7ca0569a4b608d8d4f3a66) stop a drawn page walking down the card as you draw
+
+### Other Changes
+- [`0a54ef3`](https://github.com/cmdcolin/ntsc.js/commit/0a54ef3cdb1f7af1adc768a9356d16204e3a2d82) More idea docs
+
 ## [0.7.4](https://github.com/cmdcolin/ntsc.js/compare/v0.7.3...v0.7.4) - 2026-08-02
 
 ### Features
