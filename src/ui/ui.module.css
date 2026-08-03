@@ -66,6 +66,9 @@
 
 .select {
   flex: 1;
+  /* a flex item floors at min-content, and a native select's min-content is its
+     widest option — long clip names were pushing the whole panel sideways */
+  min-width: 0;
   background: #20202a;
   color: var(--fg);
   border: 1px solid var(--border);

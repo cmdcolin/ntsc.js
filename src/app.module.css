@@ -35,6 +35,9 @@
      top-layer <dialog> or popover. */
   container: panel / inline-size;
   overflow-y: auto;
+  /* the panel scrolls one way only — overflow-y: auto alone computes x to auto
+     too, so any child an option-name too wide made the whole panel side-scroll */
+  overflow-x: hidden;
   /* the panel is the app's only scroller; without this a flick past its end
      rubber-bands the page (or triggers pull-to-refresh) on a phone */
   overscroll-behavior: contain;
