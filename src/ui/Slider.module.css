@@ -182,6 +182,42 @@
   pointer-events: none;
 }
 
+/* The reading, once the row is off stock: the number itself is the reset.
+   Amber is the panel's one word for "off stock" (the section dot, a stage's
+   `• N`, the fine-tweak count), so the row stops needing to be read against the
+   track's default tick to know whether it has been moved — and the ↺ that was
+   behind the ⋮ rides the element that was already there, at the cost of one
+   glyph on the rows that have something to put back. */
+.revert {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: #ceba64;
+  cursor: pointer;
+}
+.revert:hover {
+  color: #e8c464;
+}
+.revert:focus-visible {
+  outline: 1px solid #5a5a68;
+  outline-offset: 1px;
+}
+/* The same amber as the number it trails, one notch quieter, rather than the
+   panel's dimmest grey: at --fs-xs in --fg4 it read as a speck of punctuation
+   on the number and not as the row's way back, which is the whole point of
+   moving it out of the ⋮. It stays smaller than the reading, so the pair still
+   reads as "value, and a way to undo it" rather than as two glyphs of equal
+   rank. */
+.revertMark {
+  padding-left: 5px;
+  font-size: var(--fs-sm);
+  opacity: 0.8;
+}
+.revert:hover .revertMark {
+  opacity: 1;
+}
+
 /* What is wired to a row, marked beside its reading — a routing, a MIDI
    binding, a clock lock, a pin. Only rendered when set, so a row that has none
    of them spends nothing on the slot; the colour is the whole message, and the
@@ -261,6 +297,11 @@ button.badge {
   .badge,
   .what {
     padding: 4px 0 4px 10px;
+  }
+  /* the reading doubles as the reset, so it needs a fingertip's height — and
+     no side padding, which would push the column off the row's right edge */
+  .revert {
+    padding: 6px 0;
   }
   .rowMenu {
     padding: 6px 2px 6px 10px;

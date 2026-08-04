@@ -30,6 +30,24 @@
   color: #7cbf9a;
 }
 
+/* Put the whole group back, beside the dice. Amber rather than the dice's dim
+   grey, because unlike the dice it is only rendered on a group that is off
+   stock — it is a statement about this group's state as much as an affordance,
+   and it is the same amber the dot in the heading beside it already wears. */
+.revert {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1;
+  color: #ceba64;
+}
+.revert:hover {
+  color: #e8c464;
+}
+
 /* Per-stage jitter, in the header's accessory slot. Dim by default and lit on
    hover: it sits on every group heading, so at full contrast thirty of them
    would read as a column of decoration down the panel. */

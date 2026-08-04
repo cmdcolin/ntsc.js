@@ -35,7 +35,7 @@ function IconButton(props: {
   )
 }
 
-// Everything a row can do that isn't moving it, behind one ⋮.
+// The set-up a row can carry, behind one ⋮.
 //
 // These used to sit in the open at the end of every row — ∿ ☆ ↺, plus ⚟ and ♩
 // once MIDI was on. Five affordances the median session presses zero times,
@@ -44,13 +44,15 @@ function IconButton(props: {
 // column that actually needed it, so labels with a parenthetical wrapped to two
 // lines to pay for buttons nobody was reaching for.
 //
-// What a row is *set* to stays in the open beside the reading — see the badges
-// below. The menu is for changing it, which is the part that can wait for a
-// click.
+// Reset is deliberately *not* here. It is the one row action a session actually
+// reaches for — you push a knob to hear what it does and then want it back —
+// and it needs no width of its own, because the reading is already rendered,
+// already in its own column, and already the thing that says the row has moved.
+// So the number is the reset (see `readout` below) and the menu keeps only the
+// wiring: what a row is set to stays in the open beside the reading as a badge,
+// and changing that is what can wait for a click.
 function RowMenu(props: {
   label: string
-  defaultLabel: string
-  onReset: () => void
   favorite?: { on: boolean; onToggle: () => void }
   mod?: { routed: boolean; open: boolean; onToggle: () => void }
   midi?: { label: string | null; armed: boolean; onArm: () => void }
@@ -85,15 +87,6 @@ function RowMenu(props: {
         <>
           {!opened ? null : (
             <>
-              {/* The hint carries where it lands, so the row answers "what was
-              stock here?" without having to be pressed to find out. */}
-              <MenuItem
-                icon="↺"
-                label="reset to default"
-                hint={props.defaultLabel}
-                closes={id}
-                onClick={props.onReset}
-              />
               {favorite === undefined ? null : (
                 <MenuItem
                   icon={favorite.on ? '★' : '☆'}
@@ -105,9 +98,14 @@ function RowMenu(props: {
                   onClick={favorite.onToggle}
                 />
               )}
-              {mod === undefined &&
-              midi === undefined &&
-              sync === undefined ? null : (
+              {/* Only between two populated halves: with reset gone from the
+                  menu the first half is the pin alone, and a row that offers no
+                  pin (there is none) or no wiring would otherwise open on a
+                  rule with nothing above or below it. */}
+              {favorite === undefined ||
+              (mod === undefined &&
+                midi === undefined &&
+                sync === undefined) ? null : (
                 <div className={popoverStyles.menuSep} />
               )}
               {mod === undefined ? null : (
@@ -331,14 +329,36 @@ export function Slider(props: {
       )}
     </>
   )
+  // The reading, and — the moment the row is off stock — the way back.
+  //
+  // Reset costs nothing to put in the open here because nothing new is drawn:
+  // the number is already rendered, already in a column of its own, and it is
+  // already the part of the row that knows it has been moved. Off stock it
+  // turns amber (the panel's one colour for that, the same one the section dot
+  // and a stage's `• N` wear, so a row now reports its own state instead of
+  // being read against the track's tick) and takes the ↺ beside it. At stock it
+  // is a plain span again — there is nothing to put back, and 121 permanent ↺s
+  // are exactly the reserve the last pass took out of this column.
+  const atStock = props.value === props.defaultValue
   const readout = (
     <span className={styles.value}>
-      {reading(props.value)}
+      {atStock ? (
+        reading(props.value)
+      ) : (
+        <button
+          type="button"
+          className={styles.revert}
+          title={`off stock — click to put it back to ${reading(props.defaultValue)} (or double-click the track)`}
+          aria-label={`reset ${props.label} to ${reading(props.defaultValue)}`}
+          onClick={() => props.onChange(props.defaultValue)}
+        >
+          {reading(props.value)}
+          <span className={styles.revertMark}>↺</span>
+        </button>
+      )}
       {badges}
       <RowMenu
         label={props.label}
-        defaultLabel={reading(props.defaultValue)}
-        onReset={() => props.onChange(props.defaultValue)}
         favorite={favorite}
         mod={props.mod}
         midi={midi}
@@ -366,6 +386,12 @@ export function Slider(props: {
         step={curved ? 0.002 : props.step}
         value={curved ? zoomTravel(props.value) : props.value}
         disabled={locked}
+        // The plugin idiom, for free: the track is the biggest target on the
+        // row and a double-click on it means "put this back" everywhere else a
+        // fader lives. It carries no tooltip of its own — one on the track
+        // would follow the pointer across every drag — so the reading's own
+        // tooltip is where it is written down.
+        onDoubleClick={() => props.onChange(props.defaultValue)}
         onChange={e =>
           props.onChange(
             curved

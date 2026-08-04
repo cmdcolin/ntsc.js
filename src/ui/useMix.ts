@@ -200,6 +200,16 @@ export function useMix(args: {
       apply(mutate(controls, MUTATE_SLIDERS, MUTATE_AMOUNTS[amount]))
       setLastPreset(null)
     },
+    // One circuit back to stock, from its header. The row-level ↺ is the fine
+    // move and "clean" is the whole board; between them sat the thing a session
+    // actually wants after a bad detour — put *this stage* back and keep the
+    // rest of the look. Through `apply`, so it is one step on the walk: a
+    // gesture that can wipe twenty controls has to be one ctrl+z to take back.
+    resetGroup: (sliders: readonly SliderDef[]) => {
+      const next = { ...controls }
+      for (const s of sliders) next[s.key] = DEFAULT_CONTROLS[s.key]
+      apply(next)
+    },
     // The same roll aimed at one group, from its header. Jittering all ~120
     // controls answers "give me something else"; this answers "keep this look
     // and shake one circuit", which is how a patch actually gets dialed in.

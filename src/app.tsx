@@ -23,6 +23,7 @@ import { FpsMonitor } from './ui/FpsMonitor'
 import { HelpDialog } from './ui/HelpDialog'
 import { InputSection } from './ui/InputSection'
 import { LookBar } from './ui/LookBar'
+import { LookSection } from './ui/LookSection'
 import { MidiSection } from './ui/MidiSection'
 import { ModSection } from './ui/ModSection'
 import { slotsToRoutings } from './ui/modSlots'
@@ -227,6 +228,7 @@ export function App() {
     syncLabel,
     cycleSync,
     mutateGroup: mix.mutateGroup,
+    resetGroup: mix.resetGroup,
   }
 
   const { copyLink, copied } = useUrlState({
@@ -344,6 +346,14 @@ export function App() {
       favorites.has(s.key) &&
       (!filtering || sliderMatches(s, query, isRouted(s.key))),
   )
+  // Everything the current look actually moves, gathered out of the five stages
+  // it is scattered across. The same walk the chain map's `• N` does, kept as
+  // rows rather than reduced to a count — see LookSection, which does its own
+  // filtering because its membership has to be decided before a query narrows
+  // it, not after.
+  const edited = ALL_SLIDERS.filter(
+    s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
+  )
   // The contextual groups, dropped when the filter leaves them nothing: a
   // section header over an empty body is a dead end in a result list.
   const abGroups = AB_GROUPS.filter(g => groupMatches(g, query, isRouted))
@@ -389,6 +399,7 @@ export function App() {
   const anyResult =
     pathNodes.length > 0 ||
     pinned.length > 0 ||
+    edited.some(s => sliderMatches(s, query, isRouted(s.key))) ||
     audioGroups.length > 0 ||
     (eng.sourceBMode !== 'none' && abGroups.length > 0)
 
@@ -500,6 +511,13 @@ export function App() {
         onMixStart={mix.startMix}
         onMix={mix.setPresetWeight}
       />
+
+      {/* Directly under the chips, because it is the answer to them: click a
+          preset and the controls it moved are right there to drag, rather than
+          five folds down the chain map. */}
+      {edited.length === 0 ? null : (
+        <LookSection sliders={edited} onOpenGroup={nav.openAt} />
+      )}
 
       <InputSection
         sourceMode={eng.sourceMode}

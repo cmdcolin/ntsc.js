@@ -208,7 +208,7 @@ const FRAMES: {
 
 export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   const { group } = props
-  const { controls, writeControl, mutateGroup } = useControlsApi()
+  const { controls, writeControl, mutateGroup, resetGroup } = useControlsApi()
   const mod = useModSlotsApi()
   const query = useFilterQuery()
   // A live filter drops the miniature, so a search can reach the sliders it
@@ -262,19 +262,35 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
       openOnFilter
       dot={touched}
       help={
-        <button
-          className={styles.dice}
-          title={`shake only this stage's controls around where they sit — shift for a wilder roll, alt for a gentle one (${group.name})`}
-          aria-label={`jitter ${group.name}`}
-          onClick={e =>
-            mutateGroup(
-              group.sliders,
-              e.shiftKey ? 'wild' : e.altKey ? 'gentle' : 'normal',
-            )
-          }
-        >
-          ⚄
-        </button>
+        <>
+          {/* Only on a group that has something to put back — the same rule the
+              row's own ↺ follows, and the reason neither costs anything on the
+              majority of headers that are still at stock. It sits before the
+              dice because the pair reads as "back / further" in that order. */}
+          {touched ? (
+            <button
+              className={styles.revert}
+              title={`put this stage's controls back to stock, and leave the rest of the look alone (ctrl+z takes it back)`}
+              aria-label={`reset ${group.name} to defaults`}
+              onClick={() => resetGroup(group.sliders)}
+            >
+              ↺
+            </button>
+          ) : null}
+          <button
+            className={styles.dice}
+            title={`shake only this stage's controls around where they sit — shift for a wilder roll, alt for a gentle one (${group.name})`}
+            aria-label={`jitter ${group.name}`}
+            onClick={e =>
+              mutateGroup(
+                group.sliders,
+                e.shiftKey ? 'wild' : e.altKey ? 'gentle' : 'normal',
+              )
+            }
+          >
+            ⚄
+          </button>
+        </>
       }
     >
       {frame === undefined ? null : (

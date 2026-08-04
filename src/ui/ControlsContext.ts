@@ -34,6 +34,8 @@ export interface ControlsApi {
   // group headers are rendered from a static table, and the row tree already
   // reads its verbs from this context.
   mutateGroup: (sliders: readonly SliderDef[], amount?: MutateAmount) => void
+  // Put one group back to stock, for the same reason and by the same route.
+  resetGroup: (sliders: readonly SliderDef[]) => void
 }
 
 export const ControlsContext = createContext<ControlsApi | null>(null)

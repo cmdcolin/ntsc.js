@@ -43,6 +43,13 @@ it sideways instead and it goes in _partially_, stacking onto what's there.
 
 ![The vhs preset dragged to about 60%, its chip filled to match](img/preset-mix.jpg)
 
+**This look**, right under the chips, is the preset taken apart: every control
+the current look moves off stock, as the real sliders, under the module each one
+came from. It is the fastest way from "that's a good look" to the knob making
+it — drag one and you are editing the preset, press a module name to open it on
+the chain map, and press a reading's **↺** to put that one piece back without
+losing the rest.
+
 `clean` resets. **hold to compare** (or hold `c`) previews the clean signal.
 **surprise me** stacks random presets; **mutate** jitters everything a little,
 which is where the accidents come from — hold `shift` for a wilder roll, `alt`
@@ -112,7 +119,12 @@ Click one to open its controls below:
 
 - **• 10** counts what you've moved in that stage; click it to jump there.
 - **?** on any slider explains the fault it models — hover for a line, click for
-  the card. **↺** resets it, **☆** pins it to Favorites at the top.
+  the card.
+- A reading in **amber** is a control off stock, and the **↺** beside it puts it
+  back — as does a double-click on its track. A group heading carrying a **↺**
+  puts that whole module back, and `ctrl+z` takes that back in turn.
+- **⋮** on a row is the wiring: pin it to Favorites, start an LFO on it, or —
+  once a controller is connected — learn a MIDI knob or lock it to the clock.
 - **"inert — needs …"** means another control gates this one. Click the note to
   set it.
 
