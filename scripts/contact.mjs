@@ -111,6 +111,65 @@ const INSTALL_SCORER = (sw, sh) => `(() => {
   }
 })()`
 
+// How far a candidate's picture is from the same source rendered clean.
+//
+// Every other score is dominated by the source photo rather than by the patch:
+// a cat with a little grain over it and a cat run through a feedback loop both
+// have plenty of spread and plenty of colour. This is the one number that
+// answers "did the patch actually do anything", which is the failure the first
+// round of candidates was full of — several read as "the source, slightly
+// noisier" and no threshold on sd or saturation would have caught it.
+//
+// Measured off the saved frames rather than during the run, so it also scores
+// results carried over from an earlier one. The frames go into the page as
+// data: URIs because a file:// image taints the canvas it is drawn on, and a
+// tainted canvas cannot be read back.
+async function departures(page, dir, files, refFile) {
+  const b64 = async f =>
+    `data:image/jpeg;base64,${await readFile(`${dir}/${f}`, 'base64')}`
+  const refUri = await b64(refFile)
+  const uris = await Promise.all(files.map(f => (f === null ? null : b64(f))))
+  return page.evaluate(
+    async (refUri, uris, sw, sh) => {
+      const luma = async src => {
+        const img = new Image()
+        await new Promise((res, rej) => {
+          img.onload = res
+          img.onerror = rej
+          img.src = src
+        })
+        const oc = new OffscreenCanvas(sw, sh)
+        const g = oc.getContext('2d')
+        g.drawImage(img, 0, 0, sw, sh)
+        const d = g.getImageData(0, 0, sw, sh).data
+        const out = new Float32Array(sw * sh)
+        for (let i = 0; i < out.length; i++) {
+          out[i] =
+            0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]
+        }
+        return out
+      }
+      const ref = await luma(refUri)
+      const out = []
+      for (const uri of uris) {
+        if (uri === null) {
+          out.push(null)
+          continue
+        }
+        const a = await luma(uri)
+        let sum = 0
+        for (let i = 0; i < a.length; i++) sum += Math.abs(a[i] - ref[i])
+        out.push(sum / a.length)
+      }
+      return out
+    },
+    refUri,
+    uris,
+    SW,
+    SH,
+  )
+}
+
 // The house rule for a bad candidate. Deliberately loose — this rejects looks
 // that are broken, not looks that are boring; picking between the survivors is
 // the part a person does.
@@ -288,6 +347,39 @@ results.sort(
   (a, b) =>
     (order.get(a.item.name) ?? 1e6) - (order.get(b.item.name) ?? 1e6),
 )
+// Scored against the reference frame before the sheet is written, so the tiles
+// can carry it. Skipped entirely when the spec has no reference item — the
+// number is a comparison, and there is nothing honest to compare against.
+const refItem = spec.reference ?? 'ref clean'
+const ref = results.find(r => r.item.name === refItem && r.file !== null)
+
+const shooter = await puppeteer.launch({
+  browser: 'firefox',
+  executablePath: '/usr/bin/firefox-nightly',
+  headless: true,
+})
+const sp = await shooter.newPage()
+await sp.setViewport({ width: 1600, height: 1200 })
+
+if (ref !== undefined) {
+  await sp.goto('about:blank')
+  const d = await departures(
+    sp,
+    outDir,
+    results.map(r => r.file),
+    ref.file,
+  )
+  results.forEach((r, i) => {
+    r.depart = d[i]
+    // The source with a little grain over it scores well on every other
+    // measure. Under this much departure the patch is not the thing you are
+    // looking at, whatever else it is doing.
+    if (r.depart !== null && r.depart < 10 && r.item.name !== refItem) {
+      r.flags = [...r.flags, 'subtle']
+    }
+  })
+}
+
 await writeFile(priorPath, JSON.stringify(results, null, 1))
 
 // The sheet itself. Plain HTML on disk rather than a generated image only, so
@@ -302,7 +394,7 @@ const tile = r => `
       <span class="metrics">${
         r.m === null
           ? r.error
-          : `sd ${r.m.shot.sd.toFixed(1)} · mean ${r.m.shot.mean.toFixed(0)} · sat ${r.m.shot.sat.toFixed(0)} · motion ${r.m.motion.toFixed(1)} · late sd ${r.m.late.sd.toFixed(1)}`
+          : `depart ${r.depart === null || r.depart === undefined ? '—' : r.depart.toFixed(1)} · sd ${r.m.shot.sd.toFixed(1)} · mean ${r.m.shot.mean.toFixed(0)} · sat ${r.m.shot.sat.toFixed(0)} · motion ${r.m.motion.toFixed(1)} · late sd ${r.m.late.sd.toFixed(1)}`
       }</span>
       <a href="${r.url}">open ↗</a>
     </figcaption>
@@ -331,13 +423,6 @@ await writeFile(`${outDir}/index.html`, sheet)
 
 // Paged PNGs of the sheet: one image per two rows, because a single tall strip
 // of twenty tiles is downsampled past the point of being able to judge one.
-const shooter = await puppeteer.launch({
-  browser: 'firefox',
-  executablePath: '/usr/bin/firefox-nightly',
-  headless: true,
-})
-const sp = await shooter.newPage()
-await sp.setViewport({ width: 1600, height: 1200 })
 await sp.goto(pathToFileURL(resolve(`${outDir}/index.html`)).href, {
   waitUntil: 'networkidle0',
 })
