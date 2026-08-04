@@ -95,6 +95,15 @@ generation loss rather than by a fader, and they decay the way tape does.
   oxide, so a held loop comes back identical every lap — down to the same grain
   in the same places, since the grain belongs to the tape. Drop the head again
   and it records over what it has.
+- **Transport** — which way a held loop runs past the heads. Reverse plays the
+  frames back in the order they were laid down, each one whole: the scanner
+  still sweeps the same way, so motion runs backwards while the picture stays a
+  picture. (Dragging tape backwards past a _fixed_ head would time-reverse the
+  waveform itself and hand the set a mirrored line with its sync on the wrong
+  end — that is a different thing, and not this.) Stopped parks the tape while
+  the drum keeps re-reading the same sweep, which is a still frame you can play
+  live over. Only means anything with the record head up: laying tape down is
+  forward by definition.
 - **Playback heads** — each at its own distance from the record head, so one lap
   hands the picture back once per head: the heads are a rhythm and the loop is
   the bar line. The generation structure this produces is not the obvious one —

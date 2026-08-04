@@ -8,7 +8,7 @@ import {
 } from './constants'
 import { TapeState } from './tapeloop'
 
-import type { TapeUniforms } from './tapeloop'
+import type { TapeControls, TapeUniforms } from './tapeloop'
 
 const N = SAMPLES_PER_LINE * LINES
 const still = {
@@ -17,6 +17,7 @@ const still = {
   tapeColourFrame: 1,
   tapeMix: 0.5,
   tapeRecord: 1,
+  tapeTransport: 2, // forward
 }
 // Mirrors the read in tape_play.wgsl: where round the loop window a head at
 // distance `d` is lifting sample `n` from, as an offset off the window's base.
@@ -222,6 +223,73 @@ describe('TapeState', () => {
     const a = live.update(still, 40 + L)
     const b = held.update(lifted, 40 + L)
     expect(read(b, 0)).not.toBe(read(a, 0))
+  })
+
+  it('runs a held loop backwards a whole frame at a time', () => {
+    // Reverse walks the window's phase backwards while samples still run
+    // forward inside each frame — frames come off in reverse order, each one
+    // whole, which is reverse play on a helical machine rather than the tape
+    // being dragged backwards past a fixed head.
+    const tape = new TapeState()
+    tape.update(still, 0)
+    const back = { ...still, tapeRecord: 0, tapeTransport: 0 }
+    tape.update(back, 1)
+    const seen = []
+    for (let f = 2; f < 40; f++) seen.push(readOff(tape.update(back, f), 0))
+    const loop = delayOf(tape.update(back, 40))
+    for (let i = 1; i < seen.length; i++) {
+      // each step is one frame of tape earlier, modulo the loop
+      expect(wrapRing(seen[i - 1] - seen[i])).toBe(N)
+    }
+    expect(seen.every(o => o >= -loop && o < 0)).toBe(true)
+  })
+
+  it('parks the tape when the transport is stopped', () => {
+    // Tape still, drum still turning: the same sweep is re-read, which is a
+    // frozen frame rather than a frozen sample.
+    const tape = new TapeState()
+    tape.update(still, 0)
+    const stop = { ...still, tapeRecord: 0, tapeTransport: 1 }
+    tape.update(stop, 1)
+    const first = readOff(tape.update(stop, 2), 0)
+    for (let f = 3; f < 30; f++) {
+      expect(readOff(tape.update(stop, f), 0)).toBe(first)
+    }
+  })
+
+  it('runs the splice backwards with the tape, and stops it with the tape', () => {
+    const at = (c: TapeControls, frames: number) => {
+      const tape = new TapeState()
+      tape.update(still, 0)
+      const seen = []
+      for (let f = 1; f <= frames; f++) {
+        const u = tape.update(c, f)
+        seen.push(u.tapeSpliceFrames * N + u.tapeSpliceRem)
+      }
+      return seen
+    }
+    const fwd = at({ ...still, tapeRecord: 0, tapeTransport: 2 }, 5)
+    const rev = at({ ...still, tapeRecord: 0, tapeTransport: 0 }, 5)
+    const stopped = at({ ...still, tapeRecord: 0, tapeTransport: 1 }, 5)
+    expect(wrapRing(fwd[1] - fwd[0])).toBe(N)
+    expect(wrapRing(rev[0] - rev[1])).toBe(N)
+    expect(new Set(stopped).size).toBe(1)
+  })
+
+  it('ignores the transport switch while the record head is down', () => {
+    // You cannot record into a loop you are pulling backwards through the
+    // heads: laying tape down is forward by definition.
+    const fwd = new TapeState()
+    const back = new TapeState()
+    for (let f = 0; f < 10; f++) {
+      const a = fwd.update(still, f)
+      const b = back.update({ ...still, tapeTransport: 0 }, f)
+      expect(b.tapeHoldSlot).toBe(a.tapeHoldSlot)
+      expect(b.tapeHoldFrames * N + b.tapeHoldRem).toBe(
+        a.tapeHoldFrames * N + a.tapeHoldRem,
+      )
+      expect(b.tapeSpliceFrames).toBe(a.tapeSpliceFrames)
+    }
   })
 
   it('treats a shut fader as the record head being up', () => {

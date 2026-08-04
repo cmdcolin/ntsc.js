@@ -499,6 +499,16 @@ export const GROUPS: Group[] = [
         help: 'Lift the record head and the tape keeps circulating with whatever is already on it — the loop repeats indefinitely and stops taking in the live picture. Playing over a held loop is what makes this a looper rather than an echo. It does not fade: playback loss is what the head does on the way past, not damage to the oxide, so a held loop comes back identical every lap, down to the same grain in the same places. Drop the head again and it starts recording over what it has.',
       },
       {
+        key: 'tapeTransport',
+        label: 'transport',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['reverse', 'stopped', 'forward'],
+        help: 'Which way a held loop runs past the heads. Reverse plays the frames back in the order they were laid down, each one whole — the scanner still sweeps the same way, so motion runs backwards while the picture stays a picture. Stopped parks the tape and the drum keeps re-reading the same sweep, which is a still frame you can play live over. Only means anything with the record head up: laying tape down is forward by definition.',
+      },
+      {
         key: 'tapeHeads',
         label: 'playback heads',
         min: 1,
@@ -514,6 +524,7 @@ export const GROUPS: Group[] = [
         max: 3,
         step: 0.05,
         unit: '',
+        fine: true,
         help: 'Where the heads sit along the path. At 1 they are at even subdivisions of the loop — a straight pattern. Below 1 they crowd toward the far head, so the taps rush and then hold; above 1 they crowd toward the record head, so the taps come quickly and leave a long gap before the lap turns over.',
       },
       {
@@ -1642,6 +1653,12 @@ export const NEEDS: Partial<Record<ControlKey, SliderNeed>> = {
   },
   tapeLoopMm: tape,
   tapeRecord: tape,
+  tapeTransport: {
+    key: 'tapeRecord',
+    ok: (v: number) => v < 0.5,
+    fix: 0,
+    hint: 'the record head lifted',
+  },
   tapeHeads: tape,
   tapeHeadSpread: {
     key: 'tapeHeads',

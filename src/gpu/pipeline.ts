@@ -1212,6 +1212,7 @@ export class Engine {
         tapeColourFrame: c.tapeColourFrame,
         tapeMix: c.tapeMix,
         tapeRecord: c.tapeRecord,
+        tapeTransport: c.tapeTransport,
       },
       this.frame,
     )

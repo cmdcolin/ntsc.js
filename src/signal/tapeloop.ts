@@ -29,6 +29,7 @@ export interface TapeControls {
   tapeColourFrame: number // 1 = hold the delay on a subcarrier cycle
   tapeMix: number // the loop is out of circuit entirely at 0
   tapeRecord: number // 1 = the record head is down, 0 = lifted
+  tapeTransport: number // 0 reverse, 1 stopped, 2 forward
 }
 
 export interface TapeUniforms {
@@ -51,6 +52,13 @@ export const tapeRecording = (c: {
   tapeMix: number
   tapeRecord: number
 }): boolean => c.tapeMix !== 0 && c.tapeRecord >= 0.5
+
+// Which way the tape is running, in frames of tape per frame of time. Laying
+// tape down means the transport is going forward by definition — you cannot
+// record into a loop you are pulling backwards through the heads — so the
+// switch only means anything once the record head is up.
+const transportSpeed = (c: TapeControls): number =>
+  tapeRecording(c) ? 1 : Math.round(c.tapeTransport) - 1
 
 export class TapeState {
   private wow = new Wow()
@@ -93,9 +101,12 @@ export class TapeState {
     // meet it at their own moment: a head at distance d sees the joint when
     // the splice has run that far. A loop is rarely a whole number of frames
     // long, so where that lands walks down the raster lap by lap.
+    // The joint is a point on the tape, so it runs past the heads whichever way
+    // the transport is going, and sits still when the transport does.
+    const transport = transportSpeed(c)
     this.splicePast = wrap(this.splicePast, delay)
     const past = this.splicePast
-    this.splicePast = wrap(past + N, delay)
+    this.splicePast = wrap(past + transport * N, delay)
 
     // Lifting the record head does not stop the tape — it keeps circulating
     // over the same loop-length of oxide, so the heads have to wrap inside that
@@ -110,13 +121,23 @@ export class TapeState {
     // has been laid down — so the base steps on one last time, or the window
     // closes just short of the newest tape and the last thing recorded is the
     // one thing that never plays back.
+    //
+    // Direction lives here and nowhere else. The heads read at `phase + n`, so
+    // walking the phase backwards a frame at a time while `n` still runs
+    // forward within each one is exactly a reversed transport under a scanner
+    // that still sweeps the same way: frames come off in reverse order, each
+    // one whole. Motion runs backwards and the picture stays a picture — which
+    // is what reverse play on a helical machine actually looks like, as opposed
+    // to dragging the tape backwards past a fixed head, which would time-
+    // reverse the waveform itself and hand the set a mirrored line with its
+    // sync on the wrong end.
     const slot = wrap(frame, TAPE_FRAMES)
     const recording = tapeRecording(c)
     if (recording || this.wasRecording) {
       this.holdSlot = slot
       this.holdPhase = 0
     } else {
-      this.holdPhase = wrap(this.holdPhase + N, delay)
+      this.holdPhase = wrap(this.holdPhase + transport * N, delay)
     }
     this.wasRecording = recording
 

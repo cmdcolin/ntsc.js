@@ -288,6 +288,16 @@ block. Two things were considered and left:
 Worth doing if the loop ever needs to sound like a _different deck_ from the
 main one, which is the case the current model cannot express.
 
+- **Transport speeds other than ±1 and 0.** The switch is reverse / stopped /
+  forward because those three are exact: the hold phase steps by a whole frame
+  of tape, so every frame comes off whole. Half speed and double speed are the
+  interesting missing ones and they are _not_ a wider slider — off play speed a
+  helical head stops following one track, which is the whole mechanism behind
+  the deck's `shuttleX` noise bars (`channel.wgsl`). Doing it here honestly
+  means giving the loop its own track-crossing model; scaling the phase
+  advance alone would hand back a picture torn across a frame boundary with
+  nothing to explain why.
+
 ## In flight — preset screening, round 2
 
 Ten retuned candidates sit schema-checked in `scripts/candidates.example.mjs`;
