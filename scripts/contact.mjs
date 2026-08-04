@@ -287,6 +287,26 @@ for (const item of todo) {
     await page.evaluate(() => window.vf?.loop?.stop())
     await page.evaluate(INSTALL_SCORER(SW, SH))
 
+    // Did the patch this candidate asked for actually land? `?set=` drops any
+    // key the schema does not know, silently — so a typo, or a control renamed
+    // since the candidate was written, costs a full render and comes back
+    // looking merely uninteresting. Asking the engine what it ended up with
+    // turns that into a message.
+    const missed = await page.evaluate(set => {
+      const live = window.vf?.getControls() ?? {}
+      return set
+        .split(',')
+        .filter(p => p !== '')
+        .flatMap(pair => {
+          const [k, v] = pair.split(':')
+          if (!(k in live)) return [`${k}: not a control`]
+          return Math.abs(live[k] - Number(v)) < 1e-6
+            ? []
+            : [`${k}: asked ${v}, got ${live[k]}`]
+        })
+    }, item.set)
+    if (missed.length > 0) console.log(`  ! ${item.name}: ${missed.join(' · ')}`)
+
     await step(page, item.warm)
     const warm = await page.evaluate(() => window.__csScore())
     await step(page, item.frames - item.warm)
