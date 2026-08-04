@@ -2,6 +2,11 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.12.0](https://github.com/cmdcolin/ntsc.js/compare/v0.11.0...v0.12.0) - 2026-08-04
+
+### Features
+- *(signal)* [`d4110ca`](https://github.com/cmdcolin/ntsc.js/commit/d4110cadbc6a924dbb601f7e20f51714c42c7da8) stall the drum and drag the tape, for the broken one
+
 ## [0.11.0](https://github.com/cmdcolin/ntsc.js/compare/v0.10.0...v0.11.0) - 2026-08-04
 
 ### Features
