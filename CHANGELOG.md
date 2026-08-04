@@ -2,6 +2,11 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.10.0](https://github.com/cmdcolin/ntsc.js/compare/v0.9.0...v0.10.0) - 2026-08-04
+
+### Features
+- *(signal)* [`893eb44`](https://github.com/cmdcolin/ntsc.js/commit/893eb44ab7157351edd15af44af12892d99f1f6e) lift the record head, and the loop becomes an instrument
+
 ## [0.9.0](https://github.com/cmdcolin/ntsc.js/compare/v0.8.0...v0.9.0) - 2026-08-04
 
 ### Features
