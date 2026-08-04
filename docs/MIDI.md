@@ -58,8 +58,40 @@ To unbind, click the red **×** next to that control's row in the MIDI panel.
 Clicking the blue **CC7** button doesn't unbind — it re-learns, so you can move
 a control to a different knob without unbinding first.
 
-One knob drives one control. If you bind a knob that was already driving
-something else, it quietly moves — the old control loses it.
+One knob drives one thing. If you bind a knob that was already driving something
+else, it quietly moves — whatever held it before loses it.
+
+## The two knobs that aren't sliders
+
+Sliders are most of what you'd want on a controller, but they are not the two
+most useful things to have under your hands during a set.
+
+**The motion amount.** Once anything is modulated, the **motion** strip above
+the filter box scales every routing at once. With MIDI on it carries the same
+**⚟** a slider row does, at the right-hand end of the strip — click it, move a
+knob, and one hand now takes the whole board from still to swimming.
+
+**A preset's weight.** Every preset but "clean" is a fader you can dial in
+partially, and a preset patch is already a macro: one chip moves everything that
+preset touches, in the proportions that make it look like itself. To put one on
+a knob, use the picker at the bottom of the MIDI panel — choose the preset, click
+**⚟ preset mix**, move a knob. Turning it up now layers that preset onto whatever
+is live, exactly as dragging the chip sideways does.
+
+Two things follow from what a preset weight *is*:
+
+- Weights layer, so several knobs on several presets is a small mixing desk of
+  looks. Sweeping one back to zero returns to what was underneath it.
+- A weight only describes the look while nothing else has moved it. Touch a
+  slider, mutate, recall a scene, and the fills reset — the next turn of the
+  knob starts a fresh mix from whatever is on screen rather than reverting it.
+
+**Neither does soft takeover** (below): both take over on the first message
+instead of waiting to be swept through the current value. Soft takeover only
+works because the slider row can show an amber mark saying where the knob is
+waiting, and neither the motion strip nor a preset chip has anywhere to draw
+one — an inert knob there would just look broken. They behave like the
+performance faders they are: grab it, it's yours.
 
 ## Mapping the whole device
 
@@ -68,10 +100,15 @@ they start. No confirmation, so don't hit them casually once you've built a
 layout you like.
 
 **auto-map** is for a MIDI Fighter Twister specifically. Pick it in the dropdown
-and click the button: it assigns the first 64 controls — hero controls first, in
-signal-path order — to CC 0–63 on channel 1, which is what a Twister sends from
-the factory. Its four banks are all mapped up front, so flicking banks on the
-hardware just gives you a different set of live knobs.
+and click the button: it assigns the first 64 — the motion amount, then hero
+controls in signal-path order — to CC 0–63 on channel 1, which is what a Twister
+sends from the factory. Its four banks are all mapped up front, so flicking banks
+on the hardware just gives you a different set of live knobs.
+
+The motion amount goes first deliberately: on a device whose low CCs are the
+front row of knobs, that is where the one fader that scales the whole patch
+belongs. Preset weights are never swept in — which preset is worth a knob is a
+choice about the set you're playing, not something a layout can guess.
 
 Hero controls are the ones the panel shows without asking: 86 of the 132, so a
 64-knob sweep never spends a knob on a trim. The controls behind each group's
@@ -81,10 +118,11 @@ Bindings are stored per control, so re-ranking never moves one you already have;
 only the next sweep sees the new order.
 
 **learn in order** works with anything. Click it, then sweep your knobs one at a
-time, left to right — each new knob it hears takes the next control, in the same
-order. The hint line tells you which control is waiting and how many you've
-done. Stop whenever you've had enough with **stop learning** or **Esc**; what
-you've bound so far is kept.
+time, left to right — each new knob it hears takes the next thing down the same
+spine, so the first knob you move gets the motion amount and the rest walk the
+controls. The hint line tells you what is waiting and how many you've done. Stop
+whenever you've had enough with **stop learning** or **Esc**; what you've bound
+so far is kept.
 
 One catch worth knowing: in a sweep, a knob you bump by accident gets consumed,
 and there's no going back a step. Starting over means wiping everything again.
@@ -110,6 +148,9 @@ Knobs also let go and need re-catching whenever a value is set from somewhere
 else: loading a preset, recalling a scene, undoing, randomizing. After a preset
 load expect a row of amber marks, one per knob you'd touched.
 
+All of this is for sliders only. A knob on the motion amount or on a preset
+weight takes over the moment you touch it — see above for why.
+
 ## Locking a rate to the beat
 
 If your controller or DAW sends **MIDI clock**, the MIDI panel shows the tempo:
@@ -133,6 +174,10 @@ Bindings and clock-lock settings are saved in this browser and survive reloads.
 They are **not** part of presets, scenes, or the shareable URL — a link you send
 someone carries the look, not your knob layout. There's no way to export a
 mapping to a file, so a different browser or machine means mapping again.
+
+A preset weight is bound by preset name, so if a preset is ever renamed or
+dropped from the table, that one binding is discarded on the next load and its
+knob goes quiet. Everything else you had bound is untouched.
 
 ## What isn't supported
 

@@ -1,9 +1,11 @@
 import { useState } from 'react'
 
 import { sliderFor } from './controls'
+import { useControlsApi } from './ControlsContext'
 import { cx } from './cx'
-import styles from './MotionStrip.module.css'
+import { MOTION } from './midi'
 import { useModSlotsApi } from './ModSlotsContext'
+import styles from './MotionStrip.module.css'
 
 // One scale over everything that is moving, plus a freeze.
 //
@@ -21,6 +23,7 @@ import { useModSlotsApi } from './ModSlotsContext'
 // panel's most prominent control doing nothing.
 export function MotionStrip() {
   const { slots, master, setMaster } = useModSlotsApi()
+  const api = useControlsApi()
   // What to come back to when the freeze lets go. Local, not persisted: a
   // freeze is a gesture within a session, and reloading into a frozen board
   // with no memory of why would just look broken.
@@ -32,6 +35,11 @@ export function MotionStrip() {
   if (driven.length === 0) return null
 
   const frozen = master === 0
+  // The same ⚟ every control row carries, on the one fader that is not a
+  // control. Deliberately last in the strip rather than beside the freeze: it is
+  // set-up, not performance, and it only exists once a device is wired up.
+  const bind = api.bindLabel(MOTION)
+  const armed = api.armed === MOTION
   return (
     <div className={styles.strip}>
       <button
@@ -69,6 +77,22 @@ export function MotionStrip() {
       <span className={styles.count} title={driven.join(', ')}>
         {driven.length}∿
       </span>
+      {api.midiReady ? (
+        <button
+          className={cx(
+            styles.bind,
+            armed ? styles.bindArmed : bind !== null && styles.bindSet,
+          )}
+          title={
+            bind === null
+              ? 'assign a MIDI control'
+              : `MIDI CC${bind} — click to relearn`
+          }
+          onClick={() => api.toggleArm(MOTION)}
+        >
+          {armed ? 'learn…' : bind === null ? '⚟' : `CC${bind}`}
+        </button>
+      ) : null}
     </div>
   )
 }

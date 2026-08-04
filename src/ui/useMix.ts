@@ -84,6 +84,21 @@ export function useMix(args: {
     writeControls(next)
   }
 
+  // One preset's weight written onto a baseline. `base`/`from` are passed in
+  // rather than read from `mix` because the MIDI path rebaselines and writes in
+  // the same call, and a second setMix would only be the one that landed.
+  const writeWeight = (
+    name: string,
+    w: number,
+    base: Controls,
+    from: PresetWeights,
+  ) => {
+    const next = new Map(from).set(name, w)
+    writeControls(blendPresets(base, next))
+    setMix({ base, weights: next })
+    setLastPreset(name)
+  }
+
   // Both directions are the same move: take the step the walk offers, if any.
   // Controls are written synchronously and the bay lands on the next effect
   // flush — a bounded one-frame skew that modulation (additive and clamped)
@@ -144,11 +159,22 @@ export function useMix(args: {
       }
       setHistory(h => record(h, live(), sameLook))
     },
-    setPresetWeight: (name: string, w: number) => {
-      const next = new Map(mix.weights).set(name, w)
-      writeControls(blendPresets(mix.base, next))
-      setMix({ base: mix.base, weights: next })
-      setLastPreset(name)
+    setPresetWeight: (name: string, w: number) =>
+      writeWeight(name, w, mix.base, mix.weights),
+    // The same fader under a knob. A knob has no press to rebaseline on, so the
+    // drift check startMix does on pointer-down happens here instead, on
+    // whichever message first finds the look moved out from under the mix — and
+    // the walk is recorded only there, so a sweep banks one step to undo rather
+    // than one per MIDI message.
+    midiPresetWeight: (name: string, w: number) => {
+      const drifted = !controlsEqual(controls, mixed)
+      if (drifted) setHistory(h => record(h, live(), sameLook))
+      writeWeight(
+        name,
+        w,
+        drifted ? controls : mix.base,
+        drifted ? NO_WEIGHTS : mix.weights,
+      )
     },
     // A fresh look from the authored presets: one full preset plus one or two
     // partial ones from other groups, over clean defaults. Built through the mix

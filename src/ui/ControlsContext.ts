@@ -2,6 +2,7 @@ import { createContext, use } from 'react'
 
 import type { ControlKey, Controls } from '../controls'
 import type { SliderDef } from './controls'
+import type { BindTarget } from './midi'
 import type { MutateAmount } from './mutate'
 
 // Everything a control row needs to draw and drive itself. Read from context,
@@ -15,11 +16,13 @@ export interface ControlsApi {
   writeControls: (controls: Controls) => void
   favorites: Set<ControlKey>
   toggleFavorite: (key: ControlKey) => void
-  // MIDI accessories appear only once a device is wired up.
+  // MIDI accessories appear only once a device is wired up. Keyed by bind
+  // target, not by control: the motion strip carries the same ⚟ affordance as a
+  // control row, and it is not a control.
   midiReady: boolean
-  bindLabel: (key: ControlKey) => string | null
-  armedKey: ControlKey | null
-  toggleArm: (key: ControlKey) => void
+  bindLabel: (target: BindTarget) => string | null
+  armed: BindTarget | null
+  toggleArm: (target: BindTarget) => void
   // Where a bound knob is sitting while it hasn't caught the value yet, so the
   // row can show why it isn't responding. Undefined once the knob has it.
   pickup: (key: ControlKey) => number | undefined

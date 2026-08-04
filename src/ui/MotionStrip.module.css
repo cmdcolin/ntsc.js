@@ -46,6 +46,25 @@
   color: var(--fg3);
 }
 
+/* the ⚟ that puts this fader on a knob — same three states as a control row's,
+   so the strip reads as one of them rather than as a different kind of thing */
+.bind {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  font-size: var(--fs-xs);
+  line-height: 1;
+  color: var(--fg4);
+}
+.bindSet {
+  color: #9dbcea;
+}
+.bindArmed {
+  color: #e8c464;
+}
+
 /* the strip is a live-set control, so its hit targets follow the same rule the
    slider rows do on a touch screen */
 @media (pointer: coarse) {
@@ -55,5 +74,8 @@
   }
   .freeze {
     padding: 4px 6px;
+  }
+  .bind {
+    padding: 4px 2px;
   }
 }

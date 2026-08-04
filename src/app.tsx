@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
 import styles from './app.module.css'
@@ -73,11 +73,12 @@ export function App() {
   const {
     status: midiStatus,
     bindings: midiBindings,
-    armedKey,
+    armed,
     bpm,
     pickups,
     writeControl,
     writeControls,
+    setSinks,
     enable: enableMidi,
     toggleArm,
     disarm,
@@ -129,6 +130,17 @@ export function App() {
     writeControls,
     sourceBOn: eng.sourceBMode !== 'none',
     mod: modApi,
+  })
+
+  // The two bindable things the engine doesn't own. Registered from an effect
+  // rather than passed into useMidi, which is built before either of them
+  // exists — useMix needs the write path that hook owns. No dep array: both
+  // close over this render's state, and re-registering is one assignment.
+  useEffect(() => {
+    setSinks({
+      setMotion: modApi.setMaster,
+      setPresetWeight: mix.midiPresetWeight,
+    })
   })
 
   const { scenes, saveScene, recallScene, clearScene } = useScenes(
@@ -190,11 +202,11 @@ export function App() {
     favorites,
     toggleFavorite,
     midiReady: midiStatus === 'ready',
-    bindLabel: key => {
-      const b = midiBindings[key]
+    bindLabel: target => {
+      const b = midiBindings[target]
       return b === undefined ? null : String(b.controller)
     },
-    armedKey,
+    armed,
     toggleArm,
     pickup: key => pickups[key],
     clockLive: bpm !== null,
@@ -560,13 +572,14 @@ export function App() {
           wire up a controller, so it stays out of the default panel. */}
       {filtering || midiStatus !== 'ready' ? null : (
         <MidiSection
-          armedKey={armedKey}
+          armed={armed}
           learn={learn}
           midiBindings={midiBindings}
           bpm={bpm}
           onAutoMap={autoMap}
           onLearnSequence={learnSequence}
           onStopLearn={stopLearn}
+          onArm={toggleArm}
           onClearBinding={clearBinding}
           onClearAll={clearAll}
         />

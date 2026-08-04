@@ -1,5 +1,7 @@
-import { AUTOMAP_KEYS, SLIDER_BY_KEY, snapToStep } from './controls'
+import { CONTROL_KEYS } from '../controls'
+import { AUTOMAP_KEYS, SLIDER_BY_KEY, sliderFor, snapToStep } from './controls'
 import { zoomAtTravel } from './lens'
+import { PRESETS } from './presets'
 import { readRecord } from './storage'
 
 import type { ControlKey } from '../controls'
@@ -12,10 +14,67 @@ export interface MidiBinding {
   controller: number
 }
 
-export type BindingMap = Partial<Record<ControlKey, MidiBinding>>
+// What a knob can drive. Most of it is controls, but the two levers worth a
+// knob most in a set are not in `Controls` at all: the motion amount, which
+// scales every routing at once, and a preset's weight, which is already a macro
+// over everything that preset touches. So a binding names something *bindable*
+// rather than something in the control store, and the string is the storage key.
+export type BindTarget = ControlKey | 'motion' | `preset:${string}`
 
-// Knob positions for controls waiting to be caught, in control units.
+export const MOTION: BindTarget = 'motion'
+const PRESET_PREFIX = 'preset:'
+
+// Taking a target apart again, without a cast anywhere: `find` narrows to
+// ControlKey on its own, and the template literal builds its own type.
+export const presetTarget = (name: string): BindTarget =>
+  `${PRESET_PREFIX}${name}`
+
+export const presetOf = (t: BindTarget): string | null =>
+  t.startsWith(PRESET_PREFIX) ? t.slice(PRESET_PREFIX.length) : null
+
+export const controlOf = (t: BindTarget): ControlKey | null =>
+  CONTROL_KEYS.find(k => k === t) ?? null
+
+// A stored key read back. Anything that no longer names something bindable — a
+// control renamed between versions, a preset retitled or dropped from the table
+// — comes back null and is discarded, rather than sitting in the map as a
+// binding that fires into nothing: the panel lists bound targets by walking the
+// preset and control tables, so a key neither table knows could never be shown,
+// and its knob could only be freed by clearing every binding.
+export function parseTarget(s: string): BindTarget | null {
+  if (s === MOTION) return MOTION
+  if (!s.startsWith(PRESET_PREFIX))
+    return CONTROL_KEYS.find(k => k === s) ?? null
+  const name = s.slice(PRESET_PREFIX.length)
+  return PRESETS.some(p => p.name === name) ? presetTarget(name) : null
+}
+
+export type BindingMap = Partial<Record<BindTarget, MidiBinding>>
+
+// Knob positions for controls waiting to be caught, in control units. Keyed by
+// control, not target: soft takeover applies to controls alone (see `drive`).
 export type PickupMap = Partial<Record<ControlKey, number>>
+
+// What a knob needs to know about its target: the span it sweeps and the grid
+// it lands on. A control carries that on its SliderDef; motion and preset
+// weights are plain unit faders, 0..1 in hundredths — the motion strip's own
+// step, and fine enough that a weight reads as continuous.
+type BindSpan = Pick<SliderDef, 'min' | 'max' | 'step' | 'curve'>
+
+const UNIT_SPAN: BindSpan = { min: 0, max: 1, step: 0.01 }
+
+export function spanFor(t: BindTarget): BindSpan | null {
+  const key = controlOf(t)
+  return key === null ? UNIT_SPAN : (SLIDER_BY_KEY.get(key) ?? null)
+}
+
+// How a bound target is named in the MIDI panel.
+export function targetLabel(t: BindTarget): string {
+  const key = controlOf(t)
+  if (key !== null) return sliderFor(key).label
+  const preset = presetOf(t)
+  return preset === null ? 'motion amount' : `${preset} · preset`
+}
 
 // A controller's factory layout, as the CC number each physical knob sends, in
 // the order they should take controls. `ccs` is explicit (not a base+count)
@@ -39,18 +98,23 @@ export const DEVICE_PROFILES: DeviceProfile[] = [
   { name: 'MIDI Fighter Twister', channel: 0, ccs: twisterCcs },
 ]
 
+// The auto-map spine, with the motion amount ahead of every control: it is the
+// one fader that scales a whole patch at once, and on a device whose low CCs are
+// the front row of knobs that is where it belongs.
+export const AUTOMAP_TARGETS: BindTarget[] = [MOTION, ...AUTOMAP_KEYS]
+
 export interface AutoMapResult {
   mapped: number
   total: number
 }
 
-// Live progress of a "learn in order" sweep: bind each control down the spine
-// to whichever knob the user moves next. `nextKey` is the control still waiting
+// Live progress of a "learn in order" sweep: bind each target down the spine
+// to whichever knob the user moves next. `nextTarget` is the one still waiting
 // for a knob, or null once every slot is filled.
 export interface LearnState {
   done: number
   total: number
-  nextKey: ControlKey | null
+  nextTarget: BindTarget | null
 }
 
 export type MidiStatus =
@@ -68,9 +132,17 @@ const ENABLED_KEY = 'video_feedback_midi_on'
 
 // Through readRecord, not a bare JSON.parse: this runs inside useMidi's mount
 // effect, so a corrupt or stale-schema value would throw out of it and take the
-// whole app down with no way back but clearing storage by hand.
+// whole app down with no way back but clearing storage by hand. Keys go through
+// parseTarget on the way in, so a map written by an older version keeps every
+// binding it still has a target for and quietly drops the rest.
 function loadBindings(): BindingMap {
-  return readRecord<BindingMap>(STORE_KEY, {})
+  const stored = readRecord<Partial<Record<string, MidiBinding>>>(STORE_KEY, {})
+  const out: BindingMap = {}
+  for (const [k, b] of Object.entries(stored)) {
+    const target = parseTarget(k)
+    if (target !== null && b !== undefined) out[target] = b
+  }
+  return out
 }
 
 function bindingId(b: MidiBinding): string {
@@ -81,34 +153,35 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v))
 }
 
-// Copy of a partial control map without one key. Generic so both the binding
-// map here and the sync map in app.tsx share it.
-export function omit<V>(
-  map: Partial<Record<ControlKey, V>>,
-  key: ControlKey,
-): Partial<Record<ControlKey, V>> {
-  const out: Partial<Record<ControlKey, V>> = {}
-  for (const [k, v] of Object.entries(map))
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries widens to string; map's keys are already ControlKey
-    if (k !== key) out[k as ControlKey] = v
+// Copy of a partial map without one key. Generic over the key type as well as
+// the value, so the binding map here (keyed by target), the pickup map (keyed by
+// control) and the sync map in useClockSync all share it. Spread-then-delete
+// rather than a rebuild: `delete` on an optional property needs no cast, and
+// Object.entries would widen every key back to string.
+export function omit<K extends string, V>(
+  map: Partial<Record<K, V>>,
+  key: K,
+): Partial<Record<K, V>> {
+  const out = { ...map }
+  delete out[key]
   return out
 }
 
-// A 0..127 CC value → a stepped control value in the slider's range. A curved
-// control maps through its own travel, so a knob feels like its on-screen slider
-// rather than racing through the useful end of the scale.
-function ccToValue(def: SliderDef, cc: number): number {
+// A 0..127 CC value → a stepped value in the target's range. A curved control
+// maps through its own travel, so a knob feels like its on-screen slider rather
+// than racing through the useful end of the scale.
+function ccToValue(span: BindSpan, cc: number): number {
   const raw =
-    def.curve === 'magnifier'
+    span.curve === 'magnifier'
       ? zoomAtTravel(cc / 127)
-      : def.min + (cc / 127) * (def.max - def.min)
-  return snapToStep(def, raw)
+      : span.min + (cc / 127) * (span.max - span.min)
+  return snapToStep(span, raw)
 }
 
 // Half a control's full span per MIDI step — the pickup tolerance for the very
 // first message of a binding, where there's no previous value to cross.
-function epsilon(def: SliderDef): number {
-  return (def.max - def.min) / 64
+function epsilon(span: BindSpan): number {
+  return (span.max - span.min) / 64
 }
 
 // Soft takeover: has the knob earned the right to drive this control yet?
@@ -116,7 +189,7 @@ function epsilon(def: SliderDef): number {
 // knob position to have crossed from, so accept when it lands close enough;
 // otherwise the knob must have swept through the live value.
 export function hasCaught(
-  def: SliderDef,
+  span: BindSpan,
   onScreen: number | undefined,
   knobWas: number | undefined,
   knobNow: number,
@@ -124,7 +197,7 @@ export function hasCaught(
   return onScreen === undefined
     ? true
     : knobWas === undefined
-      ? Math.abs(knobNow - onScreen) <= epsilon(def)
+      ? Math.abs(knobNow - onScreen) <= epsilon(span)
       : (knobWas - onScreen) * (knobNow - onScreen) <= 0
 }
 
@@ -153,28 +226,29 @@ export function syncedValue(
 
 export interface MidiManager {
   enable: () => void
-  arm: (key: ControlKey | null) => void
+  arm: (target: BindTarget | null) => void
   // Replace all bindings with a device's factory layout: each knob CC takes the
-  // next control along the auto-map spine. Returns how many controls got a knob.
+  // next target along the auto-map spine. Returns how many got a knob.
   autoMap: (profile: DeviceProfile) => AutoMapResult
   // Device-agnostic bulk bind: start from a clean slate, then bind the next
-  // control down the spine to each fresh knob the user moves. Works for any
+  // target down the spine to each fresh knob the user moves. Works for any
   // controller regardless of its CC layout.
   learnSequence: () => void
   stopLearn: () => void
-  clearBinding: (key: ControlKey) => void
+  clearBinding: (target: BindTarget) => void
   clearAll: () => void
   // Report a value set from outside MIDI (slider drag, preset, slot). Drops
   // soft-takeover engagement so the physical knob must re-catch the new value.
+  // Controls only — the other targets don't take over softly (see `drive`).
   setExternal: (key: ControlKey, value: number) => void
   destroy: () => void
 }
 
 export interface MidiCallbacks {
-  onControl: (key: ControlKey, value: number) => void
+  onControl: (target: BindTarget, value: number) => void
   onStatus: (status: MidiStatus) => void
   onBindings: (bindings: BindingMap) => void
-  onArmed: (key: ControlKey | null) => void
+  onArmed: (target: BindTarget | null) => void
   // Where each physical knob sits for controls it hasn't caught yet, in control
   // units. Soft takeover makes those knobs inert, and without this the panel
   // gives no sign of it — the control just looks broken.
@@ -187,15 +261,18 @@ export interface MidiCallbacks {
 
 export function createMidi(cb: MidiCallbacks): MidiManager {
   let bindings = loadBindings()
-  let armed: ControlKey | null = null
+  let armed: BindTarget | null = null
   let access: MIDIAccess | null = null
   let onStateChange: (() => void) | null = null
-  // Active learn-in-order sweep: the spine of keys to fill, how far along we
+  // Active learn-in-order sweep: the spine of targets to fill, how far along we
   // are, and the knob sources already claimed (so one knob's stream of messages
-  // binds a single control, not the whole row).
-  let learn: { keys: ControlKey[]; index: number; seen: Set<string> } | null =
-    null
-  const keyByBinding = new Map<string, ControlKey>()
+  // binds a single target, not the whole row).
+  let learn: {
+    targets: BindTarget[]
+    index: number
+    seen: Set<string>
+  } | null = null
+  const targetByBinding = new Map<string, BindTarget>()
 
   // Soft-takeover bookkeeping, keyed by control.
   const current = new Map<ControlKey, number>()
@@ -256,10 +333,12 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
   }
 
   const reindex = () => {
-    keyByBinding.clear()
-    for (const [k, b] of Object.entries(bindings))
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries widens to string; bindings' keys are already ControlKey
-      keyByBinding.set(bindingId(b), k as ControlKey)
+    targetByBinding.clear()
+    for (const [k, b] of Object.entries(bindings)) {
+      const target = parseTarget(k)
+      if (target !== null && b !== undefined)
+        targetByBinding.set(bindingId(b), target)
+    }
   }
   reindex()
 
@@ -274,41 +353,59 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
         ? null
         : {
             done: learn.index,
-            total: learn.keys.length,
-            nextKey: learn.keys[learn.index] ?? null,
+            total: learn.targets.length,
+            nextTarget: learn.targets[learn.index] ?? null,
           },
     )
   }
 
-  const bind = (key: ControlKey, b: MidiBinding) => {
-    // A CC drives one control at a time: drop whoever held this source before.
-    const prev = keyByBinding.get(bindingId(b))
-    bindings = {
-      ...(prev === undefined ? bindings : omit(bindings, prev)),
-      [key]: b,
+  // Forget a control's takeover state, so the knob has to earn it again.
+  const release = (t: BindTarget) => {
+    const key = controlOf(t)
+    if (key !== null) {
+      engaged.delete(key)
+      lastCc.delete(key)
+      setPickup(key, null)
     }
-    engaged.delete(key)
-    lastCc.delete(key)
-    setPickup(key, null)
-    if (prev !== undefined) setPickup(prev, null)
+  }
+
+  const bind = (t: BindTarget, b: MidiBinding) => {
+    // A CC drives one target at a time: drop whoever held this source before.
+    const prev = targetByBinding.get(bindingId(b))
+    const next: BindingMap =
+      prev === undefined ? { ...bindings } : omit(bindings, prev)
+    next[t] = b
+    bindings = next
+    release(t)
+    if (prev !== undefined) release(prev)
     reindex()
     persist()
   }
 
-  const drive = (key: ControlKey, cc: number) => {
-    const def = SLIDER_BY_KEY.get(key)
-    if (def) {
-      const mapped = ccToValue(def, cc)
-      if (hasCaught(def, current.get(key), lastCc.get(key), mapped))
-        engaged.add(key)
-      lastCc.set(key, mapped)
-      if (engaged.has(key)) {
-        setPickup(key, null)
-        current.set(key, mapped)
-        cb.onControl(key, mapped)
-      } else {
-        setPickup(key, mapped)
-      }
+  const drive = (t: BindTarget, cc: number) => {
+    const span = spanFor(t)
+    if (span === null) return
+    const mapped = ccToValue(span, cc)
+    const key = controlOf(t)
+    // Soft takeover is a control's rule, and it works only because the row can
+    // draw an amber mark showing where the knob is waiting. The motion strip
+    // and a preset chip have nowhere to put that mark, so an inert knob there
+    // would read as broken with nothing on screen to explain it — those take
+    // over on the first message instead, which is what a performance fader
+    // should do anyway.
+    if (key === null) {
+      cb.onControl(t, mapped)
+      return
+    }
+    if (hasCaught(span, current.get(key), lastCc.get(key), mapped))
+      engaged.add(key)
+    lastCc.set(key, mapped)
+    if (engaged.has(key)) {
+      setPickup(key, null)
+      current.set(key, mapped)
+      cb.onControl(t, mapped)
+    } else {
+      setPickup(key, mapped)
     }
   }
 
@@ -325,12 +422,12 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
       const id = bindingId(b)
       if (learn !== null) {
         // A knob already claimed this sweep keeps streaming as it turns — only a
-        // fresh source advances to the next control.
+        // fresh source advances to the next target.
         if (!learn.seen.has(id)) {
           learn.seen.add(id)
-          bind(learn.keys[learn.index], b)
+          bind(learn.targets[learn.index], b)
           learn.index += 1
-          if (learn.index >= learn.keys.length) learn = null
+          if (learn.index >= learn.targets.length) learn = null
           reportLearn()
         }
       } else if (armed !== null) {
@@ -338,8 +435,8 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
         armed = null
         cb.onArmed(null)
       } else {
-        const key = keyByBinding.get(id)
-        if (key !== undefined) drive(key, data[2])
+        const target = targetByBinding.get(id)
+        if (target !== undefined) drive(target, data[2])
       }
     }
   }
@@ -378,15 +475,15 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
         )
       }
     },
-    arm: key => {
-      armed = key
-      cb.onArmed(key)
+    arm: target => {
+      armed = target
+      cb.onArmed(target)
     },
     autoMap: profile => {
-      const n = Math.min(profile.ccs.length, AUTOMAP_KEYS.length)
+      const n = Math.min(profile.ccs.length, AUTOMAP_TARGETS.length)
       const next: BindingMap = {}
       for (let i = 0; i < n; i++)
-        next[AUTOMAP_KEYS[i]] = {
+        next[AUTOMAP_TARGETS[i]] = {
           channel: profile.channel,
           controller: profile.ccs[i],
         }
@@ -396,12 +493,12 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
       clearPickups()
       reindex()
       persist()
-      return { mapped: n, total: AUTOMAP_KEYS.length }
+      return { mapped: n, total: AUTOMAP_TARGETS.length }
     },
     learnSequence: () => {
       armed = null
       cb.onArmed(null)
-      learn = { keys: AUTOMAP_KEYS, index: 0, seen: new Set() }
+      learn = { targets: AUTOMAP_TARGETS, index: 0, seen: new Set() }
       bindings = {}
       engaged.clear()
       lastCc.clear()
@@ -416,9 +513,9 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
         reportLearn()
       }
     },
-    clearBinding: key => {
-      bindings = omit(bindings, key)
-      setPickup(key, null)
+    clearBinding: target => {
+      bindings = omit(bindings, target)
+      release(target)
       reindex()
       persist()
     },

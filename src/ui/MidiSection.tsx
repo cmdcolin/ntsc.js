@@ -1,40 +1,65 @@
 import { useState } from 'react'
 
-import { ALL_SLIDERS, sliderFor } from './controls'
+import { ALL_SLIDERS } from './controls'
 import { cx } from './cx'
-import { DEVICE_PROFILES } from './midi'
+import {
+  AUTOMAP_TARGETS,
+  DEVICE_PROFILES,
+  MOTION,
+  presetTarget,
+  targetLabel,
+} from './midi'
 import styles from './MidiSection.module.css'
+import { PRESETS } from './presets'
 import { Section } from './Section'
 import ui from './ui.module.css'
 
-import type { ControlKey } from '../controls'
-import type { BindingMap, DeviceProfile, LearnState } from './midi'
+import type { BindingMap, BindTarget, DeviceProfile, LearnState } from './midi'
+
+// Presets that can be dialed in partially. "clean" is the reset — an empty patch
+// blendPresets can never mix in — so a knob on its weight would do nothing.
+const MIXABLE = PRESETS.filter(p => Object.keys(p.patch).length > 0)
 
 export function MidiSection(props: {
-  armedKey: ControlKey | null
+  armed: BindTarget | null
   learn: LearnState | null
   midiBindings: BindingMap
   bpm: number | null
   onAutoMap: (profile: DeviceProfile) => void
   onLearnSequence: () => void
   onStopLearn: () => void
-  onClearBinding: (key: ControlKey) => void
+  onArm: (target: BindTarget) => void
+  onClearBinding: (target: BindTarget) => void
   onClearAll: () => void
 }) {
   const [deviceName, setDeviceName] = useState(DEVICE_PROFILES[0].name)
   const device =
     DEVICE_PROFILES.find(d => d.name === deviceName) ?? DEVICE_PROFILES[0]
-  // Walked in signal-path order rather than bind order, so a row doesn't move
-  // under the pointer as bindings come and go.
-  const bound = ALL_SLIDERS.filter(s => props.midiBindings[s.key] !== undefined)
-  const { learn, armedKey } = props
+  // Which preset the ⚟ beside the picker will bind. A chip is too small to
+  // carry the affordance itself, and putting it here keeps the drag gesture on
+  // the chip unambiguous — a press there is always a mix, never a bind.
+  const [presetName, setPresetName] = useState(MIXABLE[0].name)
+  // Walked in a fixed order rather than bind order, so a row doesn't move under
+  // the pointer as bindings come and go: the levers a set is played on first —
+  // motion, then preset weights in table order — and the controls down the
+  // signal path after them.
+  const bound: BindTarget[] = [
+    MOTION,
+    ...MIXABLE.map(p => presetTarget(p.name)),
+    ...ALL_SLIDERS.map(s => s.key),
+  ].filter(t => props.midiBindings[t] !== undefined)
+  const boundControls = ALL_SLIDERS.filter(
+    s => props.midiBindings[s.key] !== undefined,
+  ).length
+  const { learn, armed } = props
+  const presetArm = presetTarget(presetName)
 
   const hint =
     learn !== null
-      ? `turn a knob${learn.nextKey === null ? '' : ` for: ${sliderFor(learn.nextKey).label}`} — ${learn.done}/${learn.total} bound (Esc to stop)`
-      : armedKey === null
+      ? `turn a knob${learn.nextTarget === null ? '' : ` for: ${targetLabel(learn.nextTarget)}`} — ${learn.done}/${learn.total} bound (Esc to stop)`
+      : armed === null
         ? 'click ⚟ on any slider, then move a knob to bind.'
-        : `learning ${sliderFor(armedKey).label}… move a knob (Esc to cancel)`
+        : `learning ${targetLabel(armed)}… move a knob (Esc to cancel)`
 
   return (
     <Section title="MIDI">
@@ -63,12 +88,36 @@ export function MidiSection(props: {
           </div>
           <div className={cx(ui.dim, styles.midiNote)}>
             auto-map takes the first{' '}
-            {Math.min(device.ccs.length, ALL_SLIDERS.length)} controls by CC;
-            learn in order works on any controller — sweep each knob once, left
-            to right.
-            {bound.length < ALL_SLIDERS.length && bound.length > 0
-              ? ` ${ALL_SLIDERS.length - bound.length} controls have no knob.`
+            {Math.min(device.ccs.length, AUTOMAP_TARGETS.length)} by CC — the
+            motion amount, then controls in signal-path order; learn in order
+            works on any controller — sweep each knob once, left to right.
+            {boundControls < ALL_SLIDERS.length && boundControls > 0
+              ? ` ${ALL_SLIDERS.length - boundControls} controls have no knob.`
               : ''}
+          </div>
+
+          {/* A preset weight is the widest thing a single knob can drive: one
+              chip already moves everything that preset touches, which is what a
+              bank of assignable macros was going to be for. */}
+          <div className={styles.midiRow}>
+            <select
+              className={ui.select}
+              value={presetName}
+              onChange={e => setPresetName(e.target.value)}
+            >
+              {MIXABLE.map(p => (
+                <option key={p.name} value={p.name}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className={cx(ui.btn, armed === presetArm && ui.active)}
+              title="put this preset's mix amount on a knob"
+              onClick={() => props.onArm(presetArm)}
+            >
+              {armed === presetArm ? 'learn…' : '⚟ preset mix'}
+            </button>
           </div>
         </>
       ) : (
@@ -80,19 +129,20 @@ export function MidiSection(props: {
         </button>
       )}
 
-      {bound.map(s => {
-        const b = props.midiBindings[s.key]
+      {bound.map(t => {
+        const b = props.midiBindings[t]
         return b === undefined ? null : (
-          <div key={s.key} className={styles.midiRow}>
+          <div key={t} className={styles.midiRow}>
             <span>
-              {s.label} <span className={ui.blue}>· CC{b.controller}</span>
+              {targetLabel(t)}{' '}
+              <span className={ui.blue}>· CC{b.controller}</span>
               {b.channel === 0 ? null : (
                 <span className={ui.dim}> ch{b.channel + 1}</span>
               )}
             </span>
             <button
               className={styles.iconX}
-              onClick={() => props.onClearBinding(s.key)}
+              onClick={() => props.onClearBinding(t)}
             >
               ×
             </button>

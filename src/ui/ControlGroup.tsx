@@ -7,8 +7,8 @@ import { useControlsApi } from './ControlsContext'
 import { sliderMatches, useFilterQuery } from './filter'
 import { MagnifierFrame } from './MagnifierFrame'
 import { SYNCABLE_KEYS } from './midi'
-import { EMPTY_SLOT } from './modSlots'
 import { ModRowEditor } from './ModRowEditor'
+import { EMPTY_SLOT } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
 import { PipFrame } from './PipFrame'
 import { Section } from './Section'
@@ -64,7 +64,7 @@ export function ControlSlider(props: {
         api.midiReady
           ? {
               label: api.bindLabel(s.key),
-              armed: api.armedKey === s.key,
+              armed: api.armed === s.key,
               pickup: api.pickup(s.key),
               onArm: () => api.toggleArm(s.key),
             }

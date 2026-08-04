@@ -36,6 +36,30 @@ Drives a headed Firefox Nightly, steps frames deterministically, probes pixels,
 and saves a screenshot. Headless Chrome can't present WebGPU swap chains here,
 which is why it's Firefox.
 
+## MIDI without a controller
+
+```
+node scripts/midicheck.mjs [url]
+```
+
+Installs a fake Web MIDI device in the page, then drives every kind of binding
+from it: a knob on the motion amount, a knob on a preset weight, and a knob on
+an ordinary control (which must still take over softly, and show its pickup
+mark). Prints one line per assertion and exits non-zero on the first failure.
+
+Point it at a production build if anything else is editing the tree — an HMR
+reload mid-run remounts the app and takes the bindings with it:
+
+```
+npx vite build --outDir /tmp/mc && npx vite preview --outDir /tmp/mc --port 5233
+node scripts/midicheck.mjs http://localhost:5233/
+```
+
+The fake device is installed with `page.evaluate` after load, never
+`evaluateOnNewDocument`: under Firefox BiDi a preload script runs in a sandbox
+realm, and the app then trips over Xray vision reading `.length` off a message
+built on the other side of it.
+
 ## Screening candidate looks
 
 ```
