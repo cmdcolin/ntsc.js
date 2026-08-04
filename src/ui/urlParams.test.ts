@@ -254,8 +254,18 @@ describe('session round trip', () => {
 
 describe('motion on a link', () => {
   const mod = [
-    { target: 'fbZoom' as const, source: 'sine' as const, rateHz: 0.5, depth: 0.2 },
-    { target: 'cfbMix' as const, source: 'lorenz' as const, rateHz: 2, depth: 0.45 },
+    {
+      target: 'fbZoom' as const,
+      source: 'sine' as const,
+      rateHz: 0.5,
+      depth: 0.2,
+    },
+    {
+      target: 'cfbMix' as const,
+      source: 'lorenz' as const,
+      rateHz: 2,
+      depth: 0.45,
+    },
   ]
 
   it('carries every routing back, exactly', () => {

@@ -9,13 +9,7 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { TELETYPE_DEFAULT, clampCardText } from '../sources/teletype'
-import {
-  N_SLOTS,
-  RATE_MAX,
-  RATE_MIN,
-  modSource,
-  modTarget,
-} from './modSlots'
+import { N_SLOTS, RATE_MAX, RATE_MIN, modSource, modTarget } from './modSlots'
 import { PRESETS, presetControls } from './presets'
 
 import type { Controls } from '../controls'

@@ -1,3 +1,4 @@
+import { PASS_THROUGH } from '../signal/modstate'
 import { GROUPS } from './controls'
 import { MOD_SOURCES, RATE_MAX, RATE_MIN, EMPTY_SLOT } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
@@ -5,8 +6,6 @@ import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
 import ui from './ui.module.css'
-
-import { PASS_THROUGH } from '../signal/modstate'
 
 // Every slider is a bend point: flatten the groups into target options. The
 // slider's range doubles as the modulation span, so depth stays meaningful

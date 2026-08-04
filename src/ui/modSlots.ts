@@ -126,10 +126,7 @@ export function normalizeSlots(stored: readonly unknown[]): UiSlot[] {
 // `master` scales every depth at once — the motion amount. At 0 nothing routes,
 // so the loop skips modulation entirely and every wave holds its phase, which
 // is what makes the freeze resume rather than restart.
-export function toEngineSlots(
-  slots: readonly UiSlot[],
-  master = 1,
-): ModSlot[] {
+export function toEngineSlots(slots: readonly UiSlot[], master = 1): ModSlot[] {
   return slots.flatMap((s, id): ModSlot[] => {
     const def = s.target === '' ? undefined : SLIDER_BY_KEY.get(s.target)
     const depth = s.depth * master

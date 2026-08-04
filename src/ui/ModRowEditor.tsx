@@ -92,9 +92,10 @@ export function ModRowEditor(props: { controlKey: ControlKey }) {
       />
       {clipped === null ? null : (
         <div className={ui.hint}>
-          “{def.label}” is resting at the {clipped === 'down' ? 'bottom' : 'top'}{' '}
-          of its range, so the swing only goes one way — move the slider toward
-          the middle for a full wobble.
+          “{def.label}” is resting at the{' '}
+          {clipped === 'down' ? 'bottom' : 'top'} of its range, so the swing
+          only goes one way — move the slider toward the middle for a full
+          wobble.
         </div>
       )}
       <button
