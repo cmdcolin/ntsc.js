@@ -195,13 +195,16 @@ const STEP_CHUNK = 60
 
 const step = async (page, n) => {
   for (let done = 0; done < n; done += STEP_CHUNK) {
-    await page.evaluate(async count => {
-      for (let i = 0; i < count; i++) {
-        window.vf?.step()
-        // Yield periodically or the page never services the GPU's callbacks.
-        if (i % 10 === 0) await new Promise(r => setTimeout(r, 12))
-      }
-    }, Math.min(STEP_CHUNK, n - done))
+    await page.evaluate(
+      async count => {
+        for (let i = 0; i < count; i++) {
+          window.vf?.step()
+          // Yield periodically or the page never services the GPU's callbacks.
+          if (i % 10 === 0) await new Promise(r => setTimeout(r, 12))
+        }
+      },
+      Math.min(STEP_CHUNK, n - done),
+    )
   }
 }
 
@@ -305,7 +308,8 @@ for (const item of todo) {
             : [`${k}: asked ${v}, got ${live[k]}`]
         })
     }, item.set)
-    if (missed.length > 0) console.log(`  ! ${item.name}: ${missed.join(' · ')}`)
+    if (missed.length > 0)
+      console.log(`  ! ${item.name}: ${missed.join(' · ')}`)
 
     await step(page, item.warm)
     const warm = await page.evaluate(() => window.__csScore())
@@ -343,9 +347,13 @@ for (const item of todo) {
       // extra steps.
       develops: shot.delta,
     }
-    results.push({ item, file, url, m, flags: verdicts(m), error })
+    // The reference is exempt: it is a clean render, so "still" and "not
+    // developing" are what it is for, not faults it has.
+    const flags =
+      item.name === (spec.reference ?? 'ref clean') ? [] : verdicts(m)
+    results.push({ item, file, url, m, flags, error })
     console.log(
-      `${item.name.padEnd(22)} sd=${shot.sd.toFixed(1)} mean=${shot.mean.toFixed(0)} sat=${shot.sat.toFixed(0)} motion=${m.motion.toFixed(1)} ${verdicts(m).join(',') || 'ok'}`,
+      `${item.name.padEnd(22)} sd=${shot.sd.toFixed(1)} mean=${shot.mean.toFixed(0)} sat=${shot.sat.toFixed(0)} motion=${m.motion.toFixed(1)} ${flags.join(',') || 'ok'}`,
     )
   } catch (err) {
     console.log(`${item.name.padEnd(22)} FAILED ${String(err).slice(0, 120)}`)
@@ -377,8 +385,7 @@ await browser.close().catch(() => {})
 // run behind — so a sheet reads in authoring order rather than in run order.
 const order = new Map(items.map((it, i) => [it.name, i]))
 results.sort(
-  (a, b) =>
-    (order.get(a.item.name) ?? 1e6) - (order.get(b.item.name) ?? 1e6),
+  (a, b) => (order.get(a.item.name) ?? 1e6) - (order.get(b.item.name) ?? 1e6),
 )
 // Scored against the reference frame before the sheet is written, so the tiles
 // can carry it. Skipped entirely when the spec has no reference item — the
