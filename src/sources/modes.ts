@@ -11,6 +11,7 @@ export const SOURCE_MODES = [
   'file',
   'youtube',
   'webcam',
+  'screen',
 ] as const
 export const SOURCE_B_MODES = [
   'none',
@@ -23,6 +24,7 @@ export const SOURCE_B_MODES = [
   'teletype',
   'file',
   'youtube',
+  'screen',
 ] as const
 export type SourceMode = (typeof SOURCE_MODES)[number]
 export type SourceBMode = (typeof SOURCE_B_MODES)[number]
@@ -43,4 +45,5 @@ export const SOURCE_DESC: Record<SourceMode | SourceBMode, string> = {
   file: 'File… — open an image or video',
   youtube: 'YouTube… — fetch a URL via yt-dlp',
   webcam: 'Webcam / USB device — camera or RCA capture',
+  screen: 'Screen / window… — share a window or a tab',
 }

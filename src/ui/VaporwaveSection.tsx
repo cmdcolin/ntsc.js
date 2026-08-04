@@ -6,6 +6,7 @@ import ui from './ui.module.css'
 import { REVERB_DEFAULT, SPEED_DEFAULT, VAPORWAVE_SPEED } from './urlParams'
 
 import type { AudioState } from '../signal/audiostate'
+import type { SlotKind } from './videoSlot'
 
 const speed = (label: string, value: number, onChange: (v: number) => void) => (
   <Slider
@@ -21,8 +22,8 @@ const speed = (label: string, value: number, onChange: (v: number) => void) => (
 )
 
 export function VaporwaveSection(props: {
-  videoA: boolean
-  videoB: boolean
+  videoA: SlotKind
+  videoB: SlotKind
   speedA: number
   speedB: number
   reverb: number
@@ -44,8 +45,15 @@ export function VaporwaveSection(props: {
       <button className={ui.btn} onClick={props.onApplyPreset}>
         {VAPORWAVE_SPEED}× vaporwave
       </button>
-      {props.videoA ? speed('speed A', props.speedA, props.onSpeedA) : null}
-      {props.videoB ? speed('speed B', props.speedB, props.onSpeedB) : null}
+      {/* Per slot, because one may be a clip while the other is a live stream:
+          an element backed by a MediaStream ignores playbackRate, so a speed
+          slider over one would be a lie the moment it moved. */}
+      {props.videoA === 'clip'
+        ? speed('speed A', props.speedA, props.onSpeedA)
+        : null}
+      {props.videoB === 'clip'
+        ? speed('speed B', props.speedB, props.onSpeedB)
+        : null}
       <Slider
         label="reverb"
         unit=""

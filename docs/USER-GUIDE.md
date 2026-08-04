@@ -74,7 +74,13 @@ can still hold a colour.
 
 **A** is the main source: bars, sweep, snow, the bundled photo, a file of your
 own, or a webcam — which is also how an RCA capture dongle gets real gear in
-here. **Teletype…** is the odd one out: type your own words and they are printed
+here. **Screen / window…** shares a window, a tab or a whole display straight
+into the chain, so anything on your desktop can be the signal: a video player, a
+game, a patch in TouchDesigner. Point it at _this_ window and the loop closes —
+the set is re-shooting its own face through the compositor, which is camera
+feedback without the camera. Stop the share from the browser's own bar and the
+input drops to snow, the same as a set losing its feed. **Teletype…** is the odd
+one out: type your own words and they are printed
 onto a text card a character at a time, in a dot-matrix font coarse enough that
 the chain has something to chew on. The box under the picker edits the card as
 you type. Since the card is dots rather than glyphs you can draw on it too — the

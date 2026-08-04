@@ -194,11 +194,13 @@ webcam through a Syphon→virtual-camera bridge; and output back out by pointing
 an OBS browser source at the page. The gaps below are what would make it feel
 like a patchable module rather than a coincidence.
 
-- **Screen capture as a source mode.** `getDisplayMedia` is unused. Picking a
-  Jitter/TouchDesigner window directly removes the Syphon→virtual-cam hop
-  entirely. Smallest change with the largest practical payoff — `useEngine`
-  already handles a `MediaStream` source, so it is mostly a new entry in
-  `sources/modes.ts` plus a picker.
+- ~~**Screen capture as a source mode.**~~ Shipped: `screen` on both A and B
+  (`useEngine.startScreen`). The browser's picker is the only confirmation, so
+  there is no dialog of our own; the share names itself in the caption, which
+  reopens the picker; ending the share from the browser's bar drops A to snow
+  and switches B off. It cannot round-trip through a link — the grant dies with
+  the page and the picker needs a gesture the loader hasn't got — so `screen` is
+  filtered out of the `?src=` contract alongside `file`.
 - **OSC control, via a local WebSocket bridge.** Browsers can't speak UDP, so
   this needs a small node process doing OSC↔WebSocket. Worth it because
   `DEFAULT_CONTROLS` is already a flat named record and `useMidi` already

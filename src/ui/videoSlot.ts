@@ -8,6 +8,14 @@
 
 import type { TeletypeCard } from '../sources/teletype'
 
+// What a slot is holding, for the panel sections that can only offer something
+// to one of them. A clip has a timeline: it can be slowed, and slowing it drops
+// the pitch, which is the whole vaporwave path. A live stream — webcam, RCA
+// grabber, screen share — has no timeline at all, and an element backed by a
+// MediaStream ignores playbackRate outright, so a speed slider over one is a
+// control that cannot do anything.
+export type SlotKind = 'none' | 'clip' | 'stream'
+
 export interface VideoSlot {
   ref: { current: HTMLVideoElement | null }
   // The teletype reveal currently printing into this slot, if any. It lives
@@ -22,9 +30,9 @@ export interface VideoSlot {
   attach: (el: HTMLVideoElement | null) => void
   setImage: (source: OffscreenCanvas | ImageBitmap, aspect?: number) => void
   setNoise: (kind: number) => void
-  // React mirrors: whether the slot holds a live <video>, and the YouTube URL
-  // it was loaded from (kept so the source round-trips through the query string).
-  setLive: (live: boolean) => void
+  // React mirrors: what kind of <video> the slot holds, and the YouTube URL it
+  // was loaded from (kept so the source round-trips through the query string).
+  setLive: (kind: SlotKind) => void
   setYtUrl: (url: string) => void
   // The teletype card this slot last showed, kept so the dialog reopens on it
   // and the source round-trips through the query string. A getter for the same
@@ -65,13 +73,16 @@ export function stopSlot(slot: VideoSlot): void {
     slot.ref.current = null
     slot.release(v)
   }
-  slot.setLive(false)
+  slot.setLive('none')
   slot.setYtUrl('')
   slot.attach(null)
 }
 
 // A fresh element for the slot, configured but not yet sourced.
-export function makeSlotVideo(slot: VideoSlot): HTMLVideoElement {
+export function makeSlotVideo(
+  slot: VideoSlot,
+  kind: SlotKind,
+): HTMLVideoElement {
   const v = document.createElement('video')
   v.muted = true
   v.loop = true
@@ -97,7 +108,7 @@ export function makeSlotVideo(slot: VideoSlot): HTMLVideoElement {
   v.defaultPlaybackRate = rate
   v.playbackRate = rate
   slot.ref.current = v
-  slot.setLive(true)
+  slot.setLive(kind)
   // A fresh clip is a new element the audio graph has not adopted; re-route so
   // it is captured (and slowed audio keeps playing) when playback audio is on.
   slot.adopt()
@@ -116,14 +127,31 @@ function roll(slot: VideoSlot, v: HTMLVideoElement): void {
 // Point the slot at a url: a blob for a picked file or a fetched clip, or a
 // plain one for ?vurl.
 export function playUrl(slot: VideoSlot, url: string): void {
-  const v = makeSlotVideo(slot)
+  const v = makeSlotVideo(slot, 'clip')
   v.src = url
   roll(slot, v)
 }
 
-// Point the slot at a live capture stream (webcam or an RCA grabber).
-export function playStream(slot: VideoSlot, stream: MediaStream): void {
-  const v = makeSlotVideo(slot)
+// Point the slot at a live capture stream (webcam, an RCA grabber, or a shared
+// screen). `onEnded` fires when the source stops on its own — the browser's own
+// "stop sharing" bar, or a dongle being unplugged — which the slot cannot see
+// any other way: the element simply holds its last frame forever. Not called
+// when stopSlot retires the track itself, since the caller is already replacing
+// the source and does not need telling.
+export function playStream(
+  slot: VideoSlot,
+  stream: MediaStream,
+  onEnded?: () => void,
+): void {
+  const v = makeSlotVideo(slot, 'stream')
   v.srcObject = stream
+  if (onEnded !== undefined) {
+    for (const t of stream.getVideoTracks()) {
+      t.addEventListener('ended', () => {
+        // The slot may have moved on since; only the stream still on it speaks.
+        if (slot.ref.current === v) onEnded()
+      })
+    }
+  }
   roll(slot, v)
 }

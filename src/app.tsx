@@ -541,7 +541,12 @@ export function App() {
 
           <ModSection />
 
-          {eng.videoA || eng.videoB ? (
+          {/* Only for a clip, not for any live <video>: everything this
+              section offers — the rate, the pitch that falls with it, the audio
+              it routes out — belongs to a source with a timeline and a sound
+              track. A webcam or a screen share has neither, so the whole
+              section was a set of controls that could not move. */}
+          {eng.videoA === 'clip' || eng.videoB === 'clip' ? (
             <VaporwaveSection
               videoA={eng.videoA}
               videoB={eng.videoB}

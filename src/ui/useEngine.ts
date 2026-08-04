@@ -32,7 +32,7 @@ import type { TeletypeCard } from '../sources/teletype'
 import type { Fatal } from './FatalScreen'
 import type { PickedFileHandle, StashSlot, Stashed } from './fileStash'
 import type { SessionParams } from './urlParams'
-import type { VideoSlot } from './videoSlot'
+import type { SlotKind, VideoSlot } from './videoSlot'
 import type { RefObject } from 'react'
 
 // Capped to the same long edge the engine's texture is, and for the same
@@ -76,6 +76,14 @@ const fetchYouTube = (url: string): Promise<Blob> =>
 
 const reason = (e: unknown): string =>
   e instanceof Error ? e.message : String(e)
+
+// Backing out of a browser permission surface — the screen picker's Cancel, a
+// dismissed camera prompt. The user made a choice and it was "no", so there is
+// nothing to report; a real failure (no such device, blocked by policy) still
+// carries a different name and reaches the banner.
+const isAbort = (e: unknown): boolean =>
+  e instanceof DOMException &&
+  (e.name === 'AbortError' || e.name === 'NotAllowedError')
 
 declare global {
   interface Window {
@@ -159,13 +167,14 @@ export function useEngine() {
   const cardRef = useRef({ a: TELETYPE_DEFAULT, b: TELETYPE_DEFAULT })
   // Vaporwave playback: per-slot rate (pitch drops with it), whether the video
   // audio is routed to the speakers + reactive path, and the reverb wet mix.
-  // videoA/videoB track whether each slot currently holds a live <video>.
+  // videoA/videoB track what kind of <video> each slot currently holds — only
+  // a clip has a rate to change (see SlotKind).
   const [speedA, setSpeedA] = useState(SPEED_DEFAULT)
   const [speedB, setSpeedB] = useState(SPEED_DEFAULT)
   const [playAudio, setPlayAudio] = useState(false)
   const [reverb, setReverb] = useState(REVERB_DEFAULT)
-  const [videoA, setVideoA] = useState(false)
-  const [videoB, setVideoB] = useState(false)
+  const [videoA, setVideoA] = useState<SlotKind>('none')
+  const [videoB, setVideoB] = useState<SlotKind>('none')
   // The loaded YouTube URL per slot, kept so the source round-trips through the
   // query string (a refresh or shared link restores the clip).
   const [ytUrlA, setYtUrlA] = useState('')
@@ -544,6 +553,11 @@ export function useEngine() {
       } else if (mode === 'teletype') {
         // And again: the card is whatever the dialog comes back with.
         setAskTeletype('a')
+      } else if (mode === 'screen') {
+        // No dialog of our own: the browser's picker *is* the confirmation, and
+        // this handler still holds the click's transient activation, which
+        // getDisplayMedia requires.
+        startScreen('a')
       } else {
         stopVideo()
         setSourceMode(mode)
@@ -552,6 +566,58 @@ export function useEngine() {
         showGenerated(slotA, mode)
       }
     }
+  }
+
+  // Share a window, a tab or a whole display into a slot. Unlike the webcam
+  // path this asks *before* giving up the current source: the picker is a
+  // second surface the user can back out of, and a cancel there should leave
+  // the picture exactly as it was rather than on a dead slot.
+  //
+  // A window is not a signal source in the NTSC sense, so nothing about the
+  // stream is special downstream — it lands on the same <video> a picked file
+  // does, and the whole chain damages it identically. Picking *this* window is
+  // worth knowing about: the tab re-shooting its own output is a real optical
+  // feedback loop, drawn by the compositor instead of by fbMix.
+  const startScreen = (slot: 'a' | 'b') => {
+    navigator.mediaDevices.getDisplayMedia({ video: true }).then(
+      stream => {
+        setError('')
+        // What the picker was pointed at, for the caption. Firefox names the
+        // window in the track label; where that is blank the surface kind is
+        // still worth saying, since "monitor" and "window" behave differently
+        // once you go looking for the app's own output in the share.
+        const track = stream.getVideoTracks()[0]
+        const name =
+          track === undefined || track.label === ''
+            ? (track?.getSettings().displaySurface ?? 'screen')
+            : track.label
+        if (slot === 'a') {
+          stopVideo()
+          setSourceMode('screen')
+          setSourceName(name)
+          dropFile('a')
+          // A share the user ended from the browser's own bar leaves the slot
+          // holding a frozen last frame. Snow is what a set with nothing on its
+          // input shows, and this app has no clearer way to say "the feed went".
+          playStream(slotA, stream, () => selectSource('tv static'))
+        } else {
+          stopVideoB()
+          setSourceBMode('screen')
+          setSourceBName(name)
+          dropFile('b')
+          engineRef.current?.setSourceBEnabled(true)
+          // B is optional by nature, so its "the feed went" is off rather than
+          // snow: summing static into the composite would be a bigger change to
+          // the look than letting go of a share asks for.
+          playStream(slotB, stream, () => selectSourceB('none'))
+        }
+      },
+      (e: unknown) => {
+        // Cancelling the picker rejects too, and that is not a failure worth a
+        // banner — the source the user backed away from is still on screen.
+        if (!isAbort(e)) setError(`screen: ${reason(e)}`)
+      },
+    )
   }
 
   // Actually opens the device once the user confirms; deviceId '' takes the
@@ -646,6 +712,8 @@ export function useEngine() {
         setAskYouTube('b')
       } else if (mode === 'teletype') {
         setAskTeletype('b')
+      } else if (mode === 'screen') {
+        startScreen('b')
       } else {
         stopVideoB()
         setSourceBMode(mode)

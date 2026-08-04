@@ -21,11 +21,13 @@ const B_MODES = import.meta.env.DEV
 const A_OPTIONS = A_MODES.map(m => ({ value: m, label: SOURCE_DESC[m] }))
 const B_OPTIONS = B_MODES.map(m => ({ value: m, label: SOURCE_DESC[m] }))
 
-// The source-name caption shows for loaded file/YouTube sources. Teletype
+// The source-name caption shows for loaded file/YouTube sources, and for a
+// screen share — where it names the shared surface and, clicked, reopens the
+// browser's picker, which is the only way back to a different window. Teletype
 // carries something the picker can't say too, but its words are editable, so
 // it gets a row of its own rather than a caption.
 const namedMode = (m: SourceMode | SourceBMode): boolean =>
-  m === 'file' || m === 'youtube'
+  m === 'file' || m === 'youtube' || m === 'screen'
 
 export function InputSection(props: {
   sourceMode: SourceMode
@@ -128,6 +130,15 @@ export function InputSection(props: {
             ? 'pick a source B to mix a second signal in.'
             : 'mix controls are in A/B Mix below.'}
         </div>
+        {/* The one thing about a share the browser's picker can't tell you:
+            pointing it at this very window closes an optical loop through the
+            compositor — a camera on the tube, without the camera. */}
+        {props.sourceMode === 'screen' || props.sourceBMode === 'screen' ? (
+          <div className={ui.hint}>
+            share this window itself for a real feedback tunnel. stop sharing
+            from the browser and the input goes to snow.
+          </div>
+        ) : null}
         {props.audioHint}
       </Section>
       {/* Hidden pickers stay mounted outside the collapsible Section, so a

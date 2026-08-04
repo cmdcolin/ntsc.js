@@ -32,12 +32,18 @@ export const VAPORWAVE_SPEED = 0.66
 // `youtube` carry their own url params, so neither ever appears as ?src=.
 // `teletype` does appear — the mode is the source, and ?text= alongside it
 // carries what is on the card.
-const SRC_MODES = SOURCE_MODES.filter(
-  m => m !== 'bars' && m !== 'file' && m !== 'youtube',
-)
-const SRCB_MODES = SOURCE_B_MODES.filter(
-  m => m !== 'bars' && m !== 'file' && m !== 'youtube',
-)
+//
+// `screen` is left out for a different reason than `file` is: a share is not a
+// thing a link can name at all. The grant dies with the page, the picker needs
+// a gesture the loader does not have, and which window was shared is the
+// browser's business, not the app's. Webcam still round-trips — ?src=webcam
+// names a device class, and its dialog supplies the gesture on the far end.
+const LINKABLE = <T extends string>(modes: readonly T[]) =>
+  modes.filter(
+    m => m !== 'bars' && m !== 'file' && m !== 'youtube' && m !== 'screen',
+  )
+const SRC_MODES = LINKABLE(SOURCE_MODES)
+const SRCB_MODES = LINKABLE(SOURCE_B_MODES)
 
 export interface SessionParams {
   // Every control the link asks for, already layered: the landing look or the

@@ -78,6 +78,9 @@ describe('session params', () => {
     // bars is the default and file/youtube carry their own url params
     expect(parseSessionParams('?src=bars').src).toBe(null)
     expect(parseSessionParams('?src=file').src).toBe(null)
+    // a share grant dies with the page, so a link cannot ask for one back
+    expect(parseSessionParams('?src=screen').src).toBe(null)
+    expect(parseSessionParams('?srcb=screen').srcb).toBe(null)
     expect(parseSessionParams('?srcb=nonsense').srcb).toBe(null)
   })
 
@@ -165,8 +168,13 @@ describe('session round trip', () => {
   it('returns every source mode a link can carry', () => {
     for (const sourceMode of SOURCE_MODES) {
       const back = roundTrip(state({ sourceMode, ytUrlA: 'https://y/?v=1' }))
-      // file has nothing to name and youtube travels as its url instead
-      if (sourceMode === 'bars' || sourceMode === 'file') {
+      // file has nothing to name, a screen share cannot be re-granted from a
+      // link, and youtube travels as its url instead
+      if (
+        sourceMode === 'bars' ||
+        sourceMode === 'file' ||
+        sourceMode === 'screen'
+      ) {
         expect(back.src).toBe(null)
       } else if (sourceMode === 'youtube') {
         expect(back.src).toBe(null)
@@ -180,7 +188,11 @@ describe('session round trip', () => {
   it('returns every source B mode a link can carry', () => {
     for (const sourceBMode of SOURCE_B_MODES) {
       const back = roundTrip(state({ sourceBMode, ytUrlB: 'https://y/?v=2' }))
-      if (sourceBMode === 'bars' || sourceBMode === 'file') {
+      if (
+        sourceBMode === 'bars' ||
+        sourceBMode === 'file' ||
+        sourceBMode === 'screen'
+      ) {
         expect(back.srcb).toBe(null)
       } else if (sourceBMode === 'youtube') {
         expect(back.srcb).toBe(null)
