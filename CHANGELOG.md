@@ -2,6 +2,44 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.8.0](https://github.com/cmdcolin/ntsc.js/compare/v0.7.5...v0.8.0) - 2026-08-04
+
+### Features
+- *(ui)* [`ec262c8`](https://github.com/cmdcolin/ntsc.js/commit/ec262c8ee7e64e32443ed276a4b290dccfb138f8) motion on any row, and a search you can walk back along
+- *(scripts)* [`abf7b93`](https://github.com/cmdcolin/ntsc.js/commit/abf7b93b85f97c27681fba6180cf63884d0e581b) score a candidate look by how far it is from doing nothing
+- *(scripts)* [`4a38b1c`](https://github.com/cmdcolin/ntsc.js/commit/4a38b1c430f748f7a5bde6785000fd6e2a551ac5) report when a candidate's patch didn't land
+- *(ui)* [`7d80dcc`](https://github.com/cmdcolin/ntsc.js/commit/7d80dcc6ef7410e6c3f2d19e05114eb6cd94db3e) seven presets found by screening, including a full-board group
+- *(midi)* [`cfce812`](https://github.com/cmdcolin/ntsc.js/commit/cfce8125f85e07e17ee1ecf6273c40b7eecb8a2b) bind the motion amount and preset weights to knobs
+- *(sync)* [`ca037d4`](https://github.com/cmdcolin/ntsc.js/commit/ca037d418c40f746c08bf96b7785e90e5cb4bd55) the sync separator slices post-AGC video, closing the loop
+- *(ui)* [`e3cd480`](https://github.com/cmdcolin/ntsc.js/commit/e3cd480a58e2f6d6bb2ac21a23a62cda49a17d03) share a screen or window straight into the chain
+- *(ui)* [`837137e`](https://github.com/cmdcolin/ntsc.js/commit/837137ebc5be45cffcca92525ecfccfd2ec72559) ask the panel what is moving
+- *(ui)* [`ef72c59`](https://github.com/cmdcolin/ntsc.js/commit/ef72c59f9b9f7d7e75dd39163754ba7e3fac3a77) put the signal tap on the stage, and say when one is live
+
+### Fixes
+- *(scripts)* [`295d120`](https://github.com/cmdcolin/ntsc.js/commit/295d120dbdcf88ad201fe3eec9d11e8c94e03385) keep a candidate batch's results when the run dies
+- *(ui)* [`dadebe9`](https://github.com/cmdcolin/ntsc.js/commit/dadebe9aebca6c8b611b4c935ba6777f30d40ba6) patching a control while motion is frozen no longer does nothing
+- *(scripts)* [`6776ae2`](https://github.com/cmdcolin/ntsc.js/commit/6776ae267bd5d979b6e846de99016dec64443613) don't flag the reference tile for being clean
+- *(scripts)* [`917e368`](https://github.com/cmdcolin/ntsc.js/commit/917e368b66ae686828341c80f656ea5373f98751) calibrate the "subtle" threshold against a shipped preset
+
+### Performance
+- *(ui)* [`5b4d803`](https://github.com/cmdcolin/ntsc.js/commit/5b4d803de2db799b9c800b4105743313bb96df01) stop writing localStorage on every frame of a drag
+- *(gpu)* [`5900ae2`](https://github.com/cmdcolin/ntsc.js/commit/5900ae223484be29f2ea1c4a8abdf4791a1923d2) cut the measured hot passes — B chroma precompute, crt_face tap tables
+- *(gpu)* [`0d4e49b`](https://github.com/cmdcolin/ntsc.js/commit/0d4e49bb0a803298f2a20bb71784ea49bd75e7b3) upload video frames only when the video has advanced
+
+### Documentation
+- [`ebe3a1c`](https://github.com/cmdcolin/ntsc.js/commit/ebe3a1c0f95ecd090ae5aca8449bf07d3ffca2f4) split graphviz sources and images into subfolders
+- [`bfbd23e`](https://github.com/cmdcolin/ntsc.js/commit/bfbd23e2542d70d472b8f69bb47dab27ea90ce7d) remove old top-level dot/svg paths superseded by graphviz/img split
+- *(architecture)* [`7c8a379`](https://github.com/cmdcolin/ntsc.js/commit/7c8a37982e5b7d76ff9c00a66a3d96857a6ee145) why the panel has two contexts, and who owns the mod bay
+- *(ideas)* [`307dd5c`](https://github.com/cmdcolin/ntsc.js/commit/307dd5c7326691ffeda1cd1e052a44f3e95f3b88) record what the motion pass shipped, and why macros were cut
+- [`a07a3c7`](https://github.com/cmdcolin/ntsc.js/commit/a07a3c72da1106e5a98d9896b9649c3645d31f7f) hand off the motion pass — state, divergences, and the open round
+- [`2ebf96b`](https://github.com/cmdcolin/ntsc.js/commit/2ebf96bb3c905f9347574ebc82fc82d4afbc5507) recapture the figures, and give motion one of its own
+- [`536c089`](https://github.com/cmdcolin/ntsc.js/commit/536c089ee7f6897a06f08c04855125a08d6aac5b) delete the writeups whose work has shipped
+- [`54936a0`](https://github.com/cmdcolin/ntsc.js/commit/54936a016e2c3791654c264b0b5db4a5e8ddcd27) keep the browser-harness traps where the harnesses are
+- *(dev)* [`c492d23`](https://github.com/cmdcolin/ntsc.js/commit/c492d233f81ddf03aa854a949b607b182800425e) the tmpfs trap that stops the harnesses before they start
+
+### Style
+- [`8244d14`](https://github.com/cmdcolin/ntsc.js/commit/8244d1461c46b9edb63f24bf1e47cc7fbd50fe73) format five files oxfmt had never reached
+
 ## [0.7.5](https://github.com/cmdcolin/ntsc.js/compare/v0.7.4...v0.7.5) - 2026-08-03
 
 ### Features
