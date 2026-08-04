@@ -16,6 +16,8 @@ interface Handlers {
   onPalette: () => void
   onUndo: () => void
   canUndo: boolean
+  onRedo: () => void
+  canRedo: boolean
   onToggleFullscreen: () => void
   onStartCompare: () => void
   onEndCompare: () => void
@@ -46,6 +48,18 @@ export function useShortcuts(popout: Window | null, handlers: Handlers) {
         // to be when you decide you wanted the palette instead.
         e.preventDefault()
         h.onPalette()
+      } else if ((e.ctrlKey || e.metaKey) && key === 'z' && e.shiftKey) {
+        // Both spellings of redo, since which one is muscle memory depends on
+        // where you learned it.
+        if (h.canRedo) {
+          e.preventDefault()
+          h.onRedo()
+        }
+      } else if ((e.ctrlKey || e.metaKey) && key === 'y') {
+        if (h.canRedo) {
+          e.preventDefault()
+          h.onRedo()
+        }
       } else if ((e.ctrlKey || e.metaKey) && key === 'z') {
         if (h.canUndo) {
           e.preventDefault()

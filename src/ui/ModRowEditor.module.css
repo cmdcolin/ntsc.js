@@ -1,0 +1,23 @@
+/* The modulation editor, expanded under the control row it belongs to. Set in
+   from the left and ruled down that edge so it reads as belonging to the row
+   above rather than as the next control in the list. */
+.editor {
+  margin: 2px 0 8px 8px;
+  padding: 4px 0 4px 8px;
+  border-left: 2px solid #3a5a4a;
+}
+
+.remove {
+  display: block;
+  padding: 0;
+  margin-top: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--fg3);
+}
+.remove:hover {
+  color: #d08a8a;
+}

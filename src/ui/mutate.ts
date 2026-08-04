@@ -3,6 +3,13 @@ import { snapToStep } from './controls'
 import type { Controls } from '../controls'
 import type { SliderDef } from './controls'
 
+// How hard a jitter lands, as a fraction of each slider's range. `normal` is
+// what the mutate button has always rolled; the other two exist because a
+// search needs both step sizes — `gentle` to creep around a look that is nearly
+// right, `wild` to get out of a corner the current one has painted you into.
+export const MUTATE_AMOUNTS = { gentle: 0.04, normal: 0.12, wild: 0.3 }
+export type MutateAmount = keyof typeof MUTATE_AMOUNTS
+
 // Nudge every control by a random fraction of its own slider range — the
 // bender's hand brushing all the pots at once. Jittering *around* the current
 // look rather than picking fresh-random values keeps sync, colour, and geometry

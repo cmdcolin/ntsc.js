@@ -57,7 +57,11 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
           <b>R</b> record a clip · <b>S</b> save a still (both download)
         </li>
         <li>
-          <b>F</b> fullscreen · <b>Esc</b> close dialogs · <b>Ctrl/⌘+Z</b> undo
+          <b>F</b> fullscreen · <b>Esc</b> close dialogs
+        </li>
+        <li>
+          <b>Ctrl/⌘+Z</b> step back through the looks you have been through ·{' '}
+          <b>+shift</b> forward again
         </li>
         <li>
           <b>1–9</b> recall a scene · <b>shift+1–9</b> save the current look

@@ -61,6 +61,13 @@ export function Slider(props: {
   }
   sync?: { label: string | null; live: boolean; onCycle: () => void }
   favorite?: { on: boolean; onToggle: () => void }
+  // Whether something is driving this control, and the way in to change it.
+  // The lever is marked, never the value: the readout keeps showing where the
+  // slider rests, because that is what presets, links and scenes store, and
+  // because a number that moves every frame is unreadable anyway.
+  mod?: { routed: boolean; open: boolean; onToggle: () => void }
+  // The editor itself, rendered by the caller under the row.
+  modEditor?: ReactNode
 }) {
   const inputId = useId()
   const [showHelp, setShowHelp] = useState(false)
@@ -168,6 +175,24 @@ export function Slider(props: {
                     : `CC${midi.label}`}
               </IconButton>
             ) : null}
+            {props.mod ? (
+              <IconButton
+                title={
+                  props.mod.routed
+                    ? 'modulated — click to change what is driving it'
+                    : 'wobble this control with an LFO, drift or the audio'
+                }
+                className={cx(
+                  styles.icon,
+                  props.mod.open
+                    ? styles.iconOn
+                    : props.mod.routed && styles.iconModSet,
+                )}
+                onClick={props.mod.onToggle}
+              >
+                ∿
+              </IconButton>
+            ) : null}
             {favorite ? (
               <IconButton
                 title={
@@ -242,6 +267,7 @@ export function Slider(props: {
           inert — needs {needs.hint} · click to set
         </button>
       ) : null}
+      {props.modEditor}
       {hoverHelp && !showHelp && help !== undefined ? (
         <div className={styles.helpPop}>{help}</div>
       ) : null}

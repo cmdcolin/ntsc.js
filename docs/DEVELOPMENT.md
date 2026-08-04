@@ -36,6 +36,27 @@ Drives a headed Firefox Nightly, steps frames deterministically, probes pixels,
 and saves a screenshot. Headless Chrome can't present WebGPU swap chains here,
 which is why it's Firefox.
 
+## Screening candidate looks
+
+```
+node scripts/contact.mjs candidates.mjs [outDir] [url] [--missing|--only=a,b]
+```
+
+Renders a batch of `?set=` patches through one browser, scores each (spread,
+brightness, saturation, per-frame motion, and whether the loop has collapsed by
+frame 800), and writes a contact sheet — `index.html` with a link per tile back
+to the live patch, plus paged PNGs. Authoring a preset is a search rather than a
+derivation, and this is what makes the search cheap enough to actually run: a
+round of twenty guesses costs one command instead of twenty.
+
+Results accumulate in `results.json`, so `--only=spiral core` re-renders one
+retuned candidate and the sheet keeps everyone else. The candidates module
+default-exports `{ src, srcb, frames, settle, late, items: [{ name, blurb, set
+}] }`; anything at the top level is a default each item may override.
+
+One browser does not survive a long batch — after about a dozen WebGPU sessions
+Firefox detaches the frame — so it recycles browsers every few candidates.
+
 ## Documentation screenshots
 
 Every figure in [`USER-GUIDE.md`](USER-GUIDE.md) is captured from the running
@@ -132,6 +153,7 @@ A link specifies a look — **copy link** in the app writes one.
 | -------------------- | -------------------------------------------- |
 | `?preset=`           | load a built-in preset by name               |
 | `?set=key:value,…`   | override individual controls                 |
+| `?mod=t:src:hz:d,…`  | modulation routings (target, source, rate, depth) |
 | `?iurl=` / `?iurlb=` | image source A / B                           |
 | `?vurl=`             | video source                                 |
 | `?src=` / `?srcb=`   | source kind for A / B                        |

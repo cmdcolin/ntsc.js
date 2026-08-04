@@ -23,6 +23,30 @@
   color: #ceba64;
 }
 
+/* one of the hidden trims is being driven — the same green the row's own ∿
+   uses, because the touched count next to it cannot say this: modulation never
+   moves the resting value it compares against */
+.fineMod {
+  color: #7cbf9a;
+}
+
+/* Per-stage jitter, in the header's accessory slot. Dim by default and lit on
+   hover: it sits on every group heading, so at full contrast thirty of them
+   would read as a column of decoration down the panel. */
+.dice {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1;
+  color: var(--fg4);
+}
+.dice:hover {
+  color: #e8c464;
+}
+
 /* reveals the sliders a direct-manipulation miniature stands in for, and the
    fine trims a group folds away */
 .sliderToggle {

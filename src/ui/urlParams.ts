@@ -9,11 +9,19 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { TELETYPE_DEFAULT, clampCardText } from '../sources/teletype'
+import {
+  N_SLOTS,
+  RATE_MAX,
+  RATE_MIN,
+  modSource,
+  modTarget,
+} from './modSlots'
 import { PRESETS, presetControls } from './presets'
 
 import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
+import type { ModRouting } from './modSlots'
 
 // What a bare load (no ?preset/?set) lands on: a whisper of source B summed
 // into the composite, so the mixer is visibly doing something on arrival. Kept
@@ -60,6 +68,10 @@ export interface SessionParams {
   // `?surprise` — roll a random preset stack on load, the same one the button
   // rolls. Layered under ?preset/?set, so an explicit control still wins.
   surprise: boolean
+  // What the link says about motion: routings to install, or null for "said
+  // nothing", which leaves whatever the browser already had patched. A link
+  // written by this app always says something, so null means an old link.
+  mod: ModRouting[] | null
 }
 
 // `key:value` pairs against the control schema. Anything unrecognised or
@@ -74,6 +86,36 @@ function parseSet(raw: string): Partial<Controls> {
     if (key !== undefined && Number.isFinite(n)) patch[key] = n
   }
   return patch
+}
+
+// `target:source:rateHz:depth` pairs, same separator family as ?set=. Every
+// field is checked against the live schema and the numbers are clamped, so a
+// link outliving a renamed control or carrying a hand-edited depth loses that
+// one routing rather than installing something the panel can't show.
+function parseMod(raw: string): ModRouting[] {
+  const out: ModRouting[] = []
+  for (const entry of raw.split(',')) {
+    if (out.length === N_SLOTS) break
+    const [t, s, r, d] = entry.split(':')
+    const target = modTarget(t)
+    const source = modSource(s)
+    const rateHz = Number(r)
+    const depth = Number(d)
+    if (
+      target !== null &&
+      source !== null &&
+      Number.isFinite(rateHz) &&
+      Number.isFinite(depth)
+    ) {
+      out.push({
+        target,
+        source,
+        rateHz: Math.min(RATE_MAX, Math.max(RATE_MIN, rateHz)),
+        depth: Math.min(1, Math.max(0, depth)),
+      })
+    }
+  }
+  return out
 }
 
 export function parseSessionParams(search: string): SessionParams {
@@ -98,6 +140,7 @@ export function parseSessionParams(search: string): SessionParams {
   }
 
   const setParam = q.get('set')
+  const modParam = q.get('mod')
   const presetName = q.get('preset')
   // Gated on the *params*, not on the lookup: a link naming a preset that has
   // since been retired asked for that preset and got nothing, which is not the
@@ -128,6 +171,12 @@ export function parseSessionParams(search: string): SessionParams {
     },
     debug: q.has('debug'),
     surprise: q.has('surprise'),
+    // ?mod= wins over the preset's own motion, atomically: a link that names
+    // both is someone who moved the routings after picking the preset.
+    mod:
+      modParam !== null
+        ? parseMod(modParam)
+        : (preset?.mod?.map(m => ({ ...m })) ?? null),
   }
 }
 
@@ -138,6 +187,7 @@ export function parseSessionParams(search: string): SessionParams {
 // sharing a link with B on static handed the reader bars.
 export interface SessionState {
   controls: Controls
+  mod: readonly ModRouting[]
   sourceMode: SourceMode
   sourceBMode: SourceBMode
   ytUrlA: string
@@ -172,6 +222,16 @@ export function writeSessionParams(
   // look. Without the marker, copying a link while on `clean` handed the reader
   // source B mixed in rather than the clean picture on screen.
   q.set('set', set.join(','))
+  // Always emitted too, and for the same reason: a link is a statement about a
+  // session, so "nothing is moving" has to be sayable. Without the marker,
+  // copying a link while the bay is empty would hand the reader whatever their
+  // own browser had patched, over a look that was authored still.
+  q.set(
+    'mod',
+    state.mod
+      .map(m => `${m.target}:${m.source}:${short(m.rateHz)}:${short(m.depth)}`)
+      .join(','),
+  )
   // A one-shot instruction, not part of the look: once the roll has happened,
   // `?set=` above IS what it rolled. Leaving it on would make the link reroll
   // over its own recorded look every time someone opened it.

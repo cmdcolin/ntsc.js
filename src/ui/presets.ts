@@ -2,12 +2,22 @@ import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { SLIDER_BY_KEY, snapToStep } from './controls'
 
 import type { ControlKey, Controls } from '../controls'
+import type { ModRouting } from './modSlots'
 
 export interface PresetDef {
   name: string
   group: string
   blurb: string
   patch: Partial<Controls>
+  // How the look moves, if it moves at all. A preset without one says nothing
+  // about motion rather than asserting stillness: clearing the bay on every
+  // chip click would make each one destroy hand-patched routings, and most
+  // presets have no opinion about whether an LFO is running.
+  //
+  // Avoid targeting the five filter controls (encChromaMHz, demodMHz,
+  // chromaTail, lumaMHz, lumaPeak) — modulating one rebuilds the FIR bank every
+  // frame, which is a real cost to hang on a preset someone clicked casually.
+  mod?: readonly ModRouting[]
 }
 
 // Built-in presets are absolute: defaults + patch. Ordered by group so the UI
@@ -182,6 +192,10 @@ export const PRESETS: PresetDef[] = [
       hHold: 0.2,
       noiseIre: 2.5,
     },
+    // A free-running vertical oscillator hunts: the roll speeds up and slows
+    // as the divider drifts, which is the difference between a set that has
+    // lost hold and a picture being scrolled at a constant rate.
+    mod: [{ target: 'vFreqHz', source: 'smooth', rateHz: 0.08, depth: 0.015 }],
   },
   {
     name: 'bent scan',
@@ -255,6 +269,10 @@ export const PRESETS: PresetDef[] = [
     group: 'Feedback loops',
     blurb: 'Composite fed back into itself — each line echoes into the next.',
     patch: { cfbMix: 0.65, cfbDelayUs: 0.12, cfbLines: 3, noiseIre: 1.5 },
+    // The loop delay is also a hue rotation, so drifting it by a fraction of a
+    // microsecond walks the colour of every generation around the wheel while
+    // the geometry stays put.
+    mod: [{ target: 'cfbDelayUs', source: 'sine', rateHz: 0.12, depth: 0.01 }],
   },
   {
     name: 'strobe trails',
@@ -299,6 +317,10 @@ export const PRESETS: PresetDef[] = [
       fbVign: 0.35,
       noiseIre: 1.5,
     },
+    // Nobody holds a camera that still. A degree of sway on the mount is also
+    // what keeps the loop from settling into one fixed pattern and sitting
+    // there — the tunnel keeps finding new structure to breed.
+    mod: [{ target: 'fbRotateDeg', source: 'sine', rateHz: 0.05, depth: 0.02 }],
   },
   {
     name: 'clean dissolve',
@@ -460,6 +482,12 @@ export const PRESETS: PresetDef[] = [
       hHold: 0.25,
       noiseIre: 2,
     },
+    // A crystal pulled off frequency does not sit still — it wanders with
+    // temperature, which is why the barber pole in a real one never holds a
+    // steady pitch. Smooth noise rather than a sine for the same reason.
+    mod: [
+      { target: 'scDetuneKHz', source: 'smooth', rateHz: 0.05, depth: 0.02 },
+    ],
   },
   {
     name: 'neon tube',
@@ -645,6 +673,30 @@ const ENUM_KEYS = new Set<ControlKey>(
 function quantize(key: ControlKey, v: number): number {
   const s = SLIDER_BY_KEY.get(key)
   return s === undefined ? v : snapToStep(s, v)
+}
+
+// What a recipe says about motion: the heaviest preset that carries routings
+// wins outright, its depths scaled by how much of it is in.
+//
+// Routings do not sum the way control departures do — they are patch cables,
+// and half of one cable plus half of another is not a quieter version of both,
+// it is a different bay. So this follows the ENUM_KEYS rule instead: the
+// heaviest mover picks, everyone else abstains. `null` is "the recipe has no
+// opinion", which the caller reads as leave the bay alone.
+export function blendMod(weights: PresetWeights): ModRouting[] | null {
+  const winner = weights
+    .entries()
+    .filter(([, w]) => w > 0)
+    .toArray()
+    .toSorted(([, a], [, b]) => b - a)
+    .flatMap(([name, w]) => {
+      const def = PRESETS.find(p => p.name === name)
+      return def?.mod === undefined ? [] : [{ w, mod: def.mod }]
+    })
+    .at(0)
+  return winner === undefined
+    ? null
+    : winner.mod.map(m => ({ ...m, depth: m.depth * winner.w }))
 }
 
 // Presets mix by summing their departures from default onto `baseline`, so

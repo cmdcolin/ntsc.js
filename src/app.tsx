@@ -18,6 +18,9 @@ import { HelpDialog } from './ui/HelpDialog'
 import { InputSection } from './ui/InputSection'
 import { MidiSection } from './ui/MidiSection'
 import { ModSection } from './ui/ModSection'
+import { slotsToRoutings } from './ui/modSlots'
+import { ModSlotsContext } from './ui/ModSlotsContext'
+import { MotionStrip } from './ui/MotionStrip'
 import { matchPreset } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
 import { ScenesSection } from './ui/ScenesSection'
@@ -35,6 +38,7 @@ import { useFavorites } from './ui/useFavorites'
 import { useMediaQuery } from './ui/useMediaQuery'
 import { useMidi } from './ui/useMidi'
 import { useMix } from './ui/useMix'
+import { useModSlots } from './ui/useModSlots'
 import { usePageLifecycle } from './ui/usePageLifecycle'
 import { usePanelNav } from './ui/usePanelNav'
 import { usePopout } from './ui/usePopout'
@@ -116,16 +120,22 @@ export function App() {
   const [filter, setFilter] = useState('')
   const nav = usePanelNav()
   const { favorites, toggleFavorite } = useFavorites()
+  // The modulation bay, owned here so the panel, the rows and the mix all see
+  // one copy. The engine is written to and never read from — it applies the
+  // routings inside its own frame and restores, so React has to be the store.
+  const modApi = useModSlots(eng.engine)
   const mix = useMix({
     controls,
     writeControls,
     sourceBOn: eng.sourceBMode !== 'none',
+    mod: modApi,
   })
 
   const { scenes, saveScene, recallScene, clearScene } = useScenes(
     engineRef,
     writeControls,
     mix.snapshotForUndo,
+    modApi,
   )
 
   // Hold-to-compare: preview the clean defaults on the render path without
@@ -158,6 +168,8 @@ export function App() {
     onPalette: () => setShowPalette(true),
     onUndo: mix.undo,
     canUndo: mix.canUndo,
+    onRedo: mix.redo,
+    canRedo: mix.canRedo,
     onToggleFullscreen: toggleFullscreen,
     onStartCompare: startCompare,
     onEndCompare: endCompare,
@@ -188,10 +200,12 @@ export function App() {
     clockLive: bpm !== null,
     syncLabel,
     cycleSync,
+    mutateGroup: mix.mutateGroup,
   }
 
   const { copyLink, copied } = useUrlState({
     controls,
+    mod: slotsToRoutings(modApi.slots),
     engineReady: eng.engine !== null,
     sourceMode: eng.sourceMode,
     sourceBMode: eng.sourceBMode,
@@ -217,12 +231,27 @@ export function App() {
     {
       name: 'mutate',
       blurb: 'jitter every control around the current look',
-      run: mix.mutateLook,
+      run: () => mix.mutateLook('normal'),
+    },
+    {
+      name: 'mutate gently',
+      blurb: 'a small jitter, for creeping around a look that is nearly right',
+      run: () => mix.mutateLook('gentle'),
+    },
+    {
+      name: 'mutate hard',
+      blurb: 'a wild jitter, for getting out of a corner',
+      run: () => mix.mutateLook('wild'),
     },
     {
       name: 'undo',
-      blurb: 'restore the look from before the last preset, scene, or mutate',
+      blurb: 'step back through the looks you have been through',
       run: mix.undo,
+    },
+    {
+      name: 'redo',
+      blurb: 'step forward again after an undo',
+      run: mix.redo,
     },
     {
       name: 'copy link',
@@ -376,6 +405,8 @@ export function App() {
         onSurprise={mix.surprise}
         canUndo={mix.canUndo}
         onUndo={mix.undo}
+        canRedo={mix.canRedo}
+        onRedo={mix.redo}
       />
 
       <InputSection
@@ -445,6 +476,10 @@ export function App() {
       {/* The signal-path map is the panel's trunk, so it sits high — right under
           the source and preset front door — and the filter that acts on it heads
           it. Scenes/mod/audio/midi are occasional tools and drop below it. */}
+      {/* Above the filter box, not inside Modulation: while a filter is live
+          everything below the box is the result set, and the motion amount is
+          a live-set control that has to stay reachable from anywhere. */}
+      <MotionStrip />
       <div className={styles.filterRow}>
         <input
           className={styles.filter}
@@ -492,7 +527,7 @@ export function App() {
             onClear={clearScene}
           />
 
-          <ModSection engine={eng.engine} />
+          <ModSection />
 
           {eng.videoA || eng.videoB ? (
             <VaporwaveSection
@@ -542,7 +577,12 @@ export function App() {
   // renders the same whether the panel is docked or in the popout window.
   const panel = (
     <FilterContext value={query}>
-      <ControlsContext value={controlsApi}>{panelBody}</ControlsContext>
+      <ControlsContext value={controlsApi}>
+        {/* Its own context beside the controls one: a slider drag rewrites
+            controls every pointer move, and rebuilding the bay's consumers on
+            each of those frames would cost more than the bay ever does. */}
+        <ModSlotsContext value={modApi}>{panelBody}</ModSlotsContext>
+      </ControlsContext>
     </FilterContext>
   )
 

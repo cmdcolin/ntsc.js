@@ -5,9 +5,12 @@ import { writeSessionParams } from './urlParams'
 import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
+import type { ModRouting } from './modSlots'
 
 interface UrlStateArgs {
   controls: Controls
+  // What is moving, so a shared link carries the motion and not just the look.
+  mod: readonly ModRouting[]
   // Gated on the engine existing: before it does, `controls` is the default
   // fallback and syncing would wipe the very params the loader is about to read.
   engineReady: boolean
@@ -32,6 +35,7 @@ interface UrlStateArgs {
 // "copied" flash.
 export function useUrlState({
   controls,
+  mod,
   engineReady,
   sourceMode,
   sourceBMode,
@@ -51,6 +55,7 @@ export function useUrlState({
   const stateUrl = useCallback(() => {
     const q = writeSessionParams(new URLSearchParams(location.search), {
       controls,
+      mod,
       sourceMode,
       sourceBMode,
       ytUrlA,
@@ -65,6 +70,7 @@ export function useUrlState({
     return `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
   }, [
     controls,
+    mod,
     sourceMode,
     sourceBMode,
     ytUrlA,

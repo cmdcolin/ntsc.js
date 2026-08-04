@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_CONTROLS } from '../controls'
+import { SLIDER_BY_KEY } from './controls'
+import { RATE_MAX, RATE_MIN, modSource } from './modSlots'
 import {
   PRESETS,
+  blendMod,
   blendPresets,
   controlsEqual,
   matchPreset,
@@ -73,6 +76,85 @@ describe('blendPresets', () => {
       ]),
     )
     expect(piled.noiseIre).toBeLessThanOrEqual(40)
+  })
+})
+
+describe('blendMod', () => {
+  // Two presets that carry motion, whichever they happen to be — this is about
+  // the rule, not about which looks were authored to move.
+  const moving = PRESETS.filter(p => p.mod !== undefined)
+
+  it('every authored routing names a real control and a real source', () => {
+    expect(moving.length).toBeGreaterThan(0)
+    for (const p of moving) {
+      for (const m of p.mod ?? []) {
+        expect(SLIDER_BY_KEY.has(m.target), `${p.name}: ${m.target}`).toBe(true)
+        expect(modSource(m.source), `${p.name}: ${m.source}`).not.toBe(null)
+        expect(m.depth, `${p.name} depth`).toBeGreaterThan(0)
+        expect(m.depth, `${p.name} depth`).toBeLessThanOrEqual(1)
+        expect(m.rateHz, `${p.name} rate`).toBeGreaterThanOrEqual(RATE_MIN)
+        expect(m.rateHz, `${p.name} rate`).toBeLessThanOrEqual(RATE_MAX)
+      }
+    }
+  })
+
+  it('no authored routing drives a filter control', () => {
+    // Modulating one of these rebuilds the whole FIR bank every frame. Fine as
+    // a deliberate patch, not fine hanging off a chip someone clicked.
+    const FILTER_KEYS = [
+      'encChromaMHz',
+      'demodMHz',
+      'chromaTail',
+      'lumaMHz',
+      'lumaPeak',
+    ]
+    for (const p of moving) {
+      for (const m of p.mod ?? []) {
+        expect(FILTER_KEYS, `${p.name}`).not.toContain(m.target)
+      }
+    }
+  })
+
+  it('at full weight, reproduces the preset’s own routings', () => {
+    for (const p of moving) {
+      expect(blendMod(new Map([[p.name, 1]])), p.name).toEqual(p.mod)
+    }
+  })
+
+  it('scales depth by how much of the preset is in', () => {
+    const [p] = moving
+    const half = blendMod(new Map([[p.name, 0.5]])) ?? []
+    expect(half.map(m => m.depth)).toEqual(
+      (p.mod ?? []).map(m => m.depth * 0.5),
+    )
+  })
+
+  it('lets the heaviest preset that carries motion win outright', () => {
+    // Routings are patch cables, not summable scalars: half of one bay plus
+    // half of another is a third bay nobody asked for.
+    const [a, b] = moving
+    const out = blendMod(
+      new Map([
+        [a.name, 0.4],
+        [b.name, 0.9],
+      ]),
+    )
+    expect(out?.map(m => m.target)).toEqual((b.mod ?? []).map(m => m.target))
+    expect(out?.map(m => m.depth)).toEqual(
+      (b.mod ?? []).map(m => m.depth * 0.9),
+    )
+  })
+
+  it('says nothing when no preset in the recipe carries motion', () => {
+    // Which the caller reads as "leave the bay alone" — a preset with no
+    // opinion about motion must not silently unpatch hand-wired routings.
+    expect(blendMod(new Map([['broadcast', 1]]))).toBe(null)
+    expect(blendMod(new Map())).toBe(null)
+  })
+
+  it('ignores a preset that is dialed all the way out', () => {
+    const [p] = moving
+    expect(blendMod(new Map([[p.name, 0]]))).toBe(null)
   })
 })
 

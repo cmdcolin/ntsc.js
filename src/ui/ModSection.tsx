@@ -1,15 +1,12 @@
-import { useEffect, useState } from 'react'
-
-import { GROUPS, SLIDER_BY_KEY } from './controls'
+import { GROUPS } from './controls'
+import { MOD_SOURCES, RATE_MAX, RATE_MIN, EMPTY_SLOT } from './modSlots'
+import { useModSlotsApi } from './ModSlotsContext'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
-import { readArray, writeJSON } from './storage'
 import ui from './ui.module.css'
 
-import type { ControlKey, ModSlot } from '../controls'
-import type { Engine } from '../gpu/pipeline'
-import type { ModSource } from '../signal/modstate'
+import { PASS_THROUGH } from '../signal/modstate'
 
 // Every slider is a bend point: flatten the groups into target options. The
 // slider's range doubles as the modulation span, so depth stays meaningful
@@ -21,73 +18,21 @@ const TARGET_OPTIONS = [
   ),
 ]
 
-const SOURCES: { value: ModSource; label: string }[] = [
-  { value: 'sine', label: 'sine LFO' },
-  { value: 'triangle', label: 'triangle LFO' },
-  { value: 'walk', label: 'random walk' },
-  { value: 'smooth', label: 'smooth noise' },
-  { value: 'hold', label: 'sample & hold' },
-  { value: 'lorenz', label: 'lorenz chaos' },
-  { value: 'level', label: 'audio level' },
-  { value: 'hit', label: 'audio hit' },
-]
-
-interface UiSlot {
-  target: ControlKey | '' // '' = slot off
-  source: ModSource
-  rateHz: number
-  depth: number
-}
-const EMPTY: UiSlot = { target: '', source: 'sine', rateHz: 0.5, depth: 0.2 }
-const N_SLOTS = 4
-const MOD_STORE = 'video_feedback_mod'
-
-function loadSlots(): UiSlot[] {
-  const stored = readArray<UiSlot>(MOD_STORE, [])
-  const valid = stored.filter(
-    s => s.target === '' || SLIDER_BY_KEY.has(s.target),
-  )
-  return Array.from({ length: N_SLOTS }, (_, i) =>
-    i < valid.length ? valid[i] : EMPTY,
-  )
-}
-
-export function ModSection(props: { engine: Engine | null }) {
-  const [slots, setSlots] = useState<UiSlot[]>(loadSlots)
-
-  // The slot index rides along as `id`: this list is compacted (off and
-  // zero-depth slots drop out), so ModState cannot use position as identity —
-  // enabling one slot would otherwise hand it a neighbour's running phase.
-  const active = slots.flatMap((s, i): ModSlot[] => {
-    const def = s.target === '' ? undefined : SLIDER_BY_KEY.get(s.target)
-    return def === undefined || s.depth === 0
-      ? []
-      : [{ ...s, id: i, target: def.key, min: def.min, max: def.max }]
-  })
-
-  // Push the active routings to the render loop. The engine applies them per
-  // frame around its controls without writing through them, so sliders,
-  // presets, and scenes keep the resting values.
-  const engine = props.engine
-  useEffect(() => {
-    if (engine !== null) {
-      engine.setModSlots(active)
-    }
-  }, [engine, active])
-
-  const set = (i: number, patch: Partial<UiSlot>) => {
-    const next = slots.map((s, j) => (j === i ? { ...s, ...patch } : s))
-    writeJSON(MOD_STORE, next)
-    setSlots(next)
-  }
+// The whole bay, one row per slot. State, persistence and the push to the
+// render loop all moved to useModSlots when motion stopped being this section's
+// private business — presets carry it, links carry it, and any control row can
+// claim a slot from its own ∿. What is left here is the view that shows all
+// eight at once, which is still the only place to see the bay as a bay.
+export function ModSection() {
+  const { slots, active, setSlot } = useModSlotsApi()
   return (
     <Section title="Modulation" defaultOpen={false} dot={active.length > 0}>
       <div className={ui.hint}>
         LFOs, drift and the audio envelope wiggling any control around its
-        slider setting.
+        slider setting — or press ∿ on any control row.
       </div>
       {slots.map((s, i) => (
-        // Slots are positional identities (slot 1..4), so the index IS the key.
+        // Slots are positional identities (slot 1..8), so the index IS the key.
         // oxlint-disable-next-line react/no-array-index-key
         <div key={i}>
           <SelectRow
@@ -95,7 +40,7 @@ export function ModSection(props: { engine: Engine | null }) {
             title={`mod slot ${i + 1}`}
             value={s.target}
             options={TARGET_OPTIONS}
-            onChange={target => set(i, { target })}
+            onChange={target => setSlot(i, { target })}
           />
           {s.target === '' ? null : (
             <>
@@ -103,20 +48,20 @@ export function ModSection(props: { engine: Engine | null }) {
                 tag="∿"
                 title="modulation source"
                 value={s.source}
-                options={SOURCES}
-                onChange={source => set(i, { source })}
+                options={MOD_SOURCES}
+                onChange={source => setSlot(i, { source })}
               />
-              {s.source === 'level' || s.source === 'hit' ? null : (
+              {PASS_THROUGH.has(s.source) ? null : (
                 <Slider
                   label="rate"
                   unit="Hz"
-                  min={0.02}
-                  max={10}
+                  min={RATE_MIN}
+                  max={RATE_MAX}
                   step={0.02}
                   value={s.rateHz}
-                  defaultValue={EMPTY.rateHz}
+                  defaultValue={EMPTY_SLOT.rateHz}
                   help="How fast this slot's LFO cycles, in Hz. Slow rates drift the target control the way a warming-up circuit does; fast ones buzz it per-frame."
-                  onChange={v => set(i, { rateHz: v })}
+                  onChange={v => setSlot(i, { rateHz: v })}
                 />
               )}
               <Slider
@@ -126,9 +71,9 @@ export function ModSection(props: { engine: Engine | null }) {
                 max={1}
                 step={0.01}
                 value={s.depth}
-                defaultValue={EMPTY.depth}
+                defaultValue={EMPTY_SLOT.depth}
                 help="How far the modulation swings the target, as a fraction of that control's own slider range. The resting slider position stays the centre, so presets and scenes still hold the look."
-                onChange={v => set(i, { depth: v })}
+                onChange={v => setSlot(i, { depth: v })}
               />
             </>
           )}

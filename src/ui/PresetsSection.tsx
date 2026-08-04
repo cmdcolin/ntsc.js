@@ -12,6 +12,7 @@ import ui from './ui.module.css'
 import { useRecentPresets } from './useRecentPresets'
 
 import type { Controls } from '../controls'
+import type { MutateAmount } from './mutate'
 import type { PresetDef, PresetWeights } from './presets'
 import type { CSSProperties } from 'react'
 
@@ -202,10 +203,12 @@ export function PresetsSection(props: {
   onEndCompare: () => void
   onCopyLink: () => void
   copied: boolean
-  onMutate: () => void
+  onMutate: (amount: MutateAmount) => void
   onSurprise: () => void
   canUndo: boolean
   onUndo: () => void
+  canRedo: boolean
+  onRedo: () => void
 }) {
   const [showHelp, setShowHelp] = useState(false)
   const [hintDismissed, setHintDismissed] = usePersistedFlag(HINT_STORE)
@@ -335,8 +338,10 @@ export function PresetsSection(props: {
       </button>
       <button
         className={ui.btn}
-        onClick={props.onMutate}
-        title="jitter every control around the current look, for a related variation (also happy accidents)"
+        onClick={e =>
+          props.onMutate(e.shiftKey ? 'wild' : e.altKey ? 'gentle' : 'normal')
+        }
+        title="jitter every control around the current look, for a related variation (also happy accidents) — shift for a wilder roll, alt for a gentle one"
       >
         mutate
       </button>
@@ -344,10 +349,22 @@ export function PresetsSection(props: {
         className={cx(ui.btn, !props.canUndo && ui.slotEmpty)}
         onClick={props.onUndo}
         disabled={!props.canUndo}
-        title="restore the look from before the last preset, scene, or mutate"
+        title="step back through the looks you have been through (ctrl+z)"
       >
         undo
       </button>
+      {/* Only once there is a walk to step forward into: a permanently greyed
+          redo would cost a slot in the button row on every session that never
+          undid anything. */}
+      {props.canRedo ? (
+        <button
+          className={ui.btn}
+          onClick={props.onRedo}
+          title="step forward again (ctrl+shift+z)"
+        >
+          redo
+        </button>
+      ) : null}
       {showHelp ? (
         <PresetsHelpDialog onClose={() => setShowHelp(false)} />
       ) : null}

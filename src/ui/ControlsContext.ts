@@ -1,6 +1,8 @@
 import { createContext, use } from 'react'
 
 import type { ControlKey, Controls } from '../controls'
+import type { SliderDef } from './controls'
+import type { MutateAmount } from './mutate'
 
 // Everything a control row needs to draw and drive itself. Read from context,
 // not threaded: eleven props through every group is why the panel used to
@@ -24,6 +26,11 @@ export interface ControlsApi {
   clockLive: boolean
   syncLabel: (key: ControlKey) => string | null
   cycleSync: (key: ControlKey) => void
+  // Roll one group's controls around where they sit. Lives here rather than
+  // being threaded as a prop for the same reason everything else does: the
+  // group headers are rendered from a static table, and the row tree already
+  // reads its verbs from this context.
+  mutateGroup: (sliders: readonly SliderDef[], amount?: MutateAmount) => void
 }
 
 export const ControlsContext = createContext<ControlsApi | null>(null)

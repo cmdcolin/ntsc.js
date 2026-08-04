@@ -1,0 +1,59 @@
+/* One row above the filter box, present only while something is moving. Sits
+   there rather than inside the Modulation section because it is the control you
+   want during a set, and the section it belongs to is folded away below the
+   whole signal path. */
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 2px;
+  padding: 3px 5px;
+  border: 1px solid #2f4a3d;
+  border-radius: 4px;
+  background: #1a221e;
+}
+
+.label {
+  font-size: var(--fs-sm);
+  color: #7cbf9a;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.range {
+  flex: 1;
+  min-width: 0;
+  accent-color: #7cbf9a;
+}
+
+.freeze {
+  padding: 0 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1;
+  color: #7cbf9a;
+}
+.frozen {
+  color: #e8c464;
+}
+
+.count {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--fg3);
+}
+
+/* the strip is a live-set control, so its hit targets follow the same rule the
+   slider rows do on a touch screen */
+@media (pointer: coarse) {
+  .strip {
+    gap: 10px;
+    padding: 6px;
+  }
+  .freeze {
+    padding: 4px 6px;
+  }
+}

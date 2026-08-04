@@ -4,6 +4,7 @@ import { Section } from './Section'
 import ui from './ui.module.css'
 
 import type { Controls } from '../controls'
+import type { SceneMap } from './useScenes'
 
 const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -11,7 +12,7 @@ const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 // are yours for tonight. Recall/save also ride the 1–9 keys (see app.tsx).
 export function ScenesSection(props: {
   controls: Controls
-  scenes: Partial<Record<string, Partial<Controls>>>
+  scenes: SceneMap
   onSave: (n: number) => void
   onRecall: (n: number) => void
   onClear: (n: number) => void
@@ -22,7 +23,7 @@ export function ScenesSection(props: {
         const scene = props.scenes[n]
         const isActive =
           scene !== undefined &&
-          controlsEqual(presetControls(scene), props.controls)
+          controlsEqual(presetControls(scene.controls), props.controls)
         return (
           <button
             key={n}

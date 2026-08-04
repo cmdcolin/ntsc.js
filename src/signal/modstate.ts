@@ -16,6 +16,14 @@ export type ModSource =
   | 'level'
   | 'hit'
 
+// Sources with no oscillator behind them: the audio followers hand their
+// current value straight through, so `rateHz` addresses nothing and the UI
+// hides the rate control rather than offering a knob wired to nowhere.
+export const PASS_THROUGH: ReadonlySet<ModSource> = new Set<ModSource>([
+  'level',
+  'hit',
+])
+
 export interface ModWave {
   // Stable identity of the routing this wave belongs to. The caller compacts
   // its slot list before handing it over (an off or zero-depth slot is dropped),

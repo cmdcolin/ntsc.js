@@ -7,6 +7,9 @@ import { useControlsApi } from './ControlsContext'
 import { sliderMatches, useFilterQuery } from './filter'
 import { MagnifierFrame } from './MagnifierFrame'
 import { SYNCABLE_KEYS } from './midi'
+import { EMPTY_SLOT } from './modSlots'
+import { ModRowEditor } from './ModRowEditor'
+import { useModSlotsApi } from './ModSlotsContext'
 import { PipFrame } from './PipFrame'
 import { Section } from './Section'
 import { Slider } from './Slider'
@@ -29,12 +32,16 @@ export function ControlSlider(props: {
   muted?: ReadonlySet<ControlKey>
 }) {
   const api = useControlsApi()
+  const mod = useModSlotsApi()
+  const [modOpen, setModOpen] = useState(false)
   const s = props.slider
   const need = NEEDS[s.key]
-  const unmet =
-    need !== undefined &&
-    !need.ok(api.controls[need.key]) &&
-    props.muted?.has(need.key) !== true
+  // Whether the gate is closed at all, as opposed to whether this row is the
+  // one that says so: a banner-muted row is still inert, and offering to
+  // modulate a control whose path is shut would start an LFO nothing can show.
+  const inert = need !== undefined && !need.ok(api.controls[need.key])
+  const unmet = inert && props.muted?.has(need.key) !== true
+  const routed = mod.modFor(s.key) !== null
   return (
     <Slider
       label={s.label}
@@ -72,8 +79,35 @@ export function ControlSlider(props: {
             }
           : undefined
       }
+      // Not offered on a row whose gate is shut, and not on a choice control:
+      // stepping a mode enum with an LFO picks tubes nobody asked for.
+      mod={
+        inert || s.choices !== undefined
+          ? undefined
+          : {
+              routed,
+              open: modOpen,
+              onToggle: () => {
+                // Claim on open, so the first press already moves the picture
+                // rather than handing over an editor with nothing patched into
+                // it. Handing the slot back is the remove button, one click
+                // away — a claim you can see and undo beats a form to fill in.
+                if (!routed) mod.setSlotForKey(s.key, DEFAULT_ROUTING)
+                setModOpen(!modOpen)
+              },
+            }
+      }
+      modEditor={modOpen ? <ModRowEditor controlKey={s.key} /> : undefined}
     />
   )
+}
+
+// What a row patches in when it first asks for motion: slow enough to read as
+// drift rather than flicker, deep enough to see at a glance.
+const DEFAULT_ROUTING = {
+  source: EMPTY_SLOT.source,
+  rateHz: EMPTY_SLOT.rateHz,
+  depth: EMPTY_SLOT.depth,
 }
 
 // The note under an inert control, and the one-click fix for its gate.
@@ -169,7 +203,8 @@ const FRAMES: {
 
 export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   const { group } = props
-  const { controls, writeControl } = useControlsApi()
+  const { controls, writeControl, mutateGroup } = useControlsApi()
+  const mod = useModSlotsApi()
   const query = useFilterQuery()
   // A live filter drops the miniature, so a search can reach the sliders it
   // stands in for.
@@ -197,6 +232,9 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   const fineTouched = fine.filter(
     s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
   ).length
+  // The touched count can't cover motion: a routing never moves the resting
+  // value, so a folded trim being driven by an LFO looks untouched from here.
+  const fineMod = fine.some(s => mod.modFor(s.key) !== null)
 
   // When most of a group is dead behind the same gate (e.g. all of Mixer Loop
   // behind loop mix), one banner beats a stack of identical per-row notes; the
@@ -221,6 +259,21 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
       defaultOpen={props.defaultOpen}
       openOnFilter
       dot={touched}
+      help={
+        <button
+          className={styles.dice}
+          title={`shake only this stage's controls around where they sit — shift for a wilder roll, alt for a gentle one (${group.name})`}
+          aria-label={`jitter ${group.name}`}
+          onClick={e =>
+            mutateGroup(
+              group.sliders,
+              e.shiftKey ? 'wild' : e.altKey ? 'gentle' : 'normal',
+            )
+          }
+        >
+          ⚄
+        </button>
+      }
     >
       {frame === undefined ? null : (
         <>
@@ -263,6 +316,7 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
                     {` · ${fineTouched} touched`}
                   </span>
                 )}
+                {fineMod ? <span className={styles.fineMod}> · ∿</span> : null}
               </>
             )}
           </button>

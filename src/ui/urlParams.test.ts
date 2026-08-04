@@ -130,6 +130,7 @@ describe('session params', () => {
 // source B to bars. Nothing caught it, because each half read fine alone.
 const state = (over: Partial<SessionState> = {}): SessionState => ({
   controls: DEFAULT_CONTROLS,
+  mod: [],
   sourceMode: 'bars',
   sourceBMode: 'bars',
   ytUrlA: '',
@@ -248,5 +249,62 @@ describe('session round trip', () => {
     expect(q.get('set')).toBe('')
     expect(parseSessionParams('?set=').controls).toEqual({})
     expect(parseSessionParams('').controls).toEqual(LANDING_LOOK)
+  })
+})
+
+describe('motion on a link', () => {
+  const mod = [
+    { target: 'fbZoom' as const, source: 'sine' as const, rateHz: 0.5, depth: 0.2 },
+    { target: 'cfbMix' as const, source: 'lorenz' as const, rateHz: 2, depth: 0.45 },
+  ]
+
+  it('carries every routing back, exactly', () => {
+    expect(roundTrip(state({ mod })).mod).toEqual(mod)
+  })
+
+  it('says "nothing is moving" out loud rather than by omission', () => {
+    // Same argument as the empty ?set= marker: a link is a statement about a
+    // session, so a still look has to be distinguishable from an old link that
+    // never had an opinion — which leaves the reader's own bay alone.
+    const q = writeSessionParams(new URLSearchParams(), state())
+    expect(q.get('mod')).toBe('')
+    expect(parseSessionParams('?mod=').mod).toEqual([])
+    expect(parseSessionParams('?set=').mod).toBe(null)
+  })
+
+  it('drops a routing whose control or source no longer exists', () => {
+    const back = parseSessionParams(
+      '?mod=fbZoom:sine:0.5:0.2,gone:sine:1:1,fbMix:notASource:1:1',
+    )
+    expect(back.mod).toEqual([mod[0]])
+  })
+
+  it('clamps a hand-edited rate or depth into range', () => {
+    const [r] = parseSessionParams('?mod=fbZoom:sine:900:12').mod ?? []
+    expect(r).toEqual({
+      target: 'fbZoom',
+      source: 'sine',
+      rateHz: 10,
+      depth: 1,
+    })
+  })
+
+  it('caps how many routings a link can install', () => {
+    const many = Array.from({ length: 30 }, () => 'fbMix:sine:1:0.3').join(',')
+    expect(parseSessionParams(`?mod=${many}`).mod).toHaveLength(8)
+  })
+
+  it('takes a preset at its word about motion, and ?mod= over that', () => {
+    // Presets that move are the point of the feature, so this asserts one
+    // exists rather than skipping when none does.
+    const moving = PRESETS.find(p => p.mod !== undefined)
+    expect(moving, 'no preset carries motion').toBeDefined()
+    const name = encodeURIComponent(moving?.name ?? '')
+    expect(parseSessionParams(`?preset=${name}`).mod).toEqual(moving?.mod)
+    // Someone who re-patched the bay after picking a preset copied this link:
+    // the routings on it are the statement, not the preset's own.
+    expect(
+      parseSessionParams(`?preset=${name}&mod=fbZoom:sine:0.5:0.2`).mod,
+    ).toEqual([mod[0]])
   })
 })

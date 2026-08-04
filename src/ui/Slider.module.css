@@ -133,6 +133,12 @@
 .iconSyncSet {
   color: #b6a058;
 }
+/* something is driving this control. A static tint and nothing else: the mark
+   says the lever is wired, and animating it would put a second moving thing on
+   screen competing with the picture, which is the thing meant to move. */
+.iconModSet {
+  color: #7cbf9a;
+}
 .iconMidiSet {
   color: #9dbcea;
 }

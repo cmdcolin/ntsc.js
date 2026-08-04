@@ -33,9 +33,11 @@ footage.</sub>
   bars, and you can mix multiple video sources including 'dirty' video mixing
 - Two feedback loops: a camera aimed at its own monitor, and a mixer patched
   back into itself down at the signal level.
-- Presets to start from, slots to save your own, a randomize button, and ctrl+z.
+- Presets to start from, slots to save your own, a randomize button, and a
+  ctrl+z you can walk all the way back along.
 - Any slider can be driven by an LFO, a random walk, a sample-and-hold, a Lorenz
-  attractor, or the level of whatever audio is playing.
+  attractor, or the level of whatever audio is playing — press ∿ on the row.
+  Presets carry their own motion, and a copied link carries yours.
 - Plug in a mic or a track and let it shove the picture around: bass into the
   field oscillator, level into line hold, the raw waveform into the deflection
   coils.

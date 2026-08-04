@@ -43,9 +43,16 @@ it sideways instead and it goes in _partially_, stacking onto what's there.
 
 ![The vhs preset dragged to about 60%, its chip filled to match](img/preset-mix.jpg)
 
-`clean` resets. **undo** (`ctrl+z`) steps back. **hold to compare** (or hold
-`c`) previews the clean signal. **surprise me** stacks random presets;
-**mutate** jitters everything a little, which is where the accidents come from.
+`clean` resets. **hold to compare** (or hold `c`) previews the clean signal.
+**surprise me** stacks random presets; **mutate** jitters everything a little,
+which is where the accidents come from — hold `shift` for a wilder roll, `alt`
+for a gentle one.
+
+Finding a look is a walk, so the walk is retraceable: **undo** (`ctrl+z`) steps
+back through everything you have been through, and `ctrl+shift+z` steps forward
+again. A wild roll costs one keystroke to take back, which is the point of
+rolling wildly. Every stage heading also carries a **⚄** that shakes only that
+stage — keep the look, shake one circuit.
 
 Six mechanisms, each starting from the preset that names it and pushed past
 where the preset stops — every one a link you can open and keep pushing:
@@ -134,9 +141,18 @@ nudges the highlighted control live.
 
 ## Making it move
 
-**Modulation** — four slots wiring an LFO, random walk, sample-and-hold, Lorenz
-attractor or the audio envelope onto any control. Depth is a fraction of that
-control's own range, and the slider stays put while modulation moves around it.
+**∿ on any control row** — press it and that control starts wobbling
+immediately: an LFO, a random walk, a sample-and-hold, a Lorenz attractor or the
+audio envelope. Depth is a fraction of that control's own range, and the slider
+itself stays put — it is the centre the motion happens around, which is why a
+preset or a link still holds the look. The **Modulation** section shows all
+eight slots at once if you would rather patch them there.
+
+Once anything is moving, a **motion** strip appears above the filter box: one
+amount over every routing, and a freeze that holds the waves where they are so
+letting go picks the drift back up mid-stride. Some presets arrive already
+moving — `rainbow storm` wanders off frequency, `vertical hold gone` hunts,
+`fb bloom` sways on its mount — and **copy link** carries whatever you patch.
 
 ![The app window, the Modulation section with two slots routed boxed in red](img/modulation.jpg)
 
@@ -196,7 +212,7 @@ resolution.
 | `r` / `s`               | record a clip / save a still                        |
 | `f`                     | fullscreen                                          |
 | `1`–`9` / `shift+1`–`9` | recall / save a scene                               |
-| `ctrl/⌘+z`              | undo                                                |
+| `ctrl/⌘+z`              | step back a look · `+shift` steps forward again     |
 | `esc`                   | close a dialog, cancel a MIDI arm, clear the filter |
 
 ## Where next
