@@ -56,6 +56,15 @@ to find:
   half-finished change.
 - **A `file://` image taints the canvas it is drawn on**, so frames are passed
   into the page as `data:` URIs.
+- **Puppeteer writes its throwaway Firefox profile into `$TMPDIR`**, ~85 MB a
+  run, and never cleans up after a killed one. On a box where `/tmp` is a tmpfs
+  that has filled, the launch dies in `createProfile` with
+  `Unknown system error -122` — that is `EDQUOT`, and it names no path, so it
+  reads as a puppeteer bug rather than a full disk. Nearby writes go quiet
+  first: redirected output lands as an empty file and the command still reports
+  success. Point `TMPDIR=` somewhere on disk, and sweep old
+  `/tmp/puppeteer_dev_chrome_profile-*` (they are Firefox profiles despite the
+  name).
 - **`?set=` silently drops any key the schema doesn't know**, so a typo costs a
   full render and comes back looking merely uninteresting rather than wrong. The
   screening harness reports what didn't land; check that line before believing a
