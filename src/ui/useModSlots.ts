@@ -61,14 +61,16 @@ export function useModSlots(engine: Engine | null): ModSlotsApi {
 
   const indexFor = (key: ControlKey) => slots.findIndex(s => s.target === key)
 
+  const writeMaster = (v: number) => {
+    writeJSON(MASTER_STORE, v)
+    setMasterState(v)
+  }
+
   return {
     slots,
     active,
     master,
-    setMaster: v => {
-      writeJSON(MASTER_STORE, v)
-      setMasterState(v)
-    },
+    setMaster: writeMaster,
     setSlot: (i, patch) =>
       commit(slots.map((s, j) => (j === i ? { ...s, ...patch } : s))),
     setSlots: next => commit(normalizeSlots(next)),
@@ -90,6 +92,11 @@ export function useModSlots(engine: Engine | null): ModSlotsApi {
           j === free ? { ...s, ...routing, target: key } : s,
         ),
       )
+      // Patching while the motion amount is at zero would otherwise be silent:
+      // the row lights up as driven and the picture does not move. Asking for a
+      // wobble is unambiguous, and a freeze is a gesture within a set rather
+      // than a setting, so the ask wins.
+      if (master === 0) writeMaster(1)
     },
   }
 }
