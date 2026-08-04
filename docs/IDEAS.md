@@ -244,11 +244,17 @@ routings alongside controls. What was deliberately left:
   several-controls-per-gesture case. If macros come back they need their own
   routing table, not a berth in the LFO bay — or they are a slider that does
   less than the slider it is standing in for.
-- **The filter and the palette don't know about modulation.** `sliderMatches` is
-  a pure function of the static slider def, so "what is moving" is not
-  searchable and a routed control cannot be jumped to by name. The row's ∿ tint
-  and the stage fold's `· ∿` cover the local case; a global "3 moving → show me"
-  does not exist.
+- ~~**The filter and the palette don't know about modulation.**~~ Shipped: the
+  filter takes a motion query (`∿`, or the words `moving` / `modulated` /
+  `motion` / `lfo`, unioned with the text match so prose still hits), and the
+  motion strip's `N∿` count is the button that asks it. `sliderMatches` /
+  `groupMatches` take the bay as an `isRouted` predicate rather than reading a
+  context, so `filter.ts` stays pure and the bay stays in its own context. The
+  spine narrows with everything else, which turns the chain map into a
+  where-is-the-motion display for free. The palette still indexes controls by
+  their static def — it reaches this through a `show what is moving` action
+  rather than by ranking routed controls higher, since the palette has no
+  per-item place to say "and this one is moving".
 - **Modulating the five filter controls** (`encChromaMHz`, `demodMHz`,
   `chromaTail`, `lumaMHz`, `lumaPeak`) rebuilds the FIR bank every frame. Allowed
   from the UI deliberately — it is a real patch someone may want — but authored

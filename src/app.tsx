@@ -12,7 +12,13 @@ import { AB_GROUPS, ALL_SLIDERS, AUDIO_GROUPS, PHASES } from './ui/controls'
 import { ControlsContext } from './ui/ControlsContext'
 import { cx } from './ui/cx'
 import { FatalScreen } from './ui/FatalScreen'
-import { FilterContext, groupMatches, sliderMatches } from './ui/filter'
+import {
+  FilterContext,
+  MOVING_QUERY,
+  groupMatches,
+  isMovingQuery,
+  sliderMatches,
+} from './ui/filter'
 import { FpsMonitor } from './ui/FpsMonitor'
 import { HelpDialog } from './ui/HelpDialog'
 import { InputSection } from './ui/InputSection'
@@ -50,7 +56,7 @@ import { WebcamDialog } from './ui/WebcamDialog'
 import { YouTubeDialog } from './ui/YouTubeDialog'
 import { gitSha, versionLabel } from './version'
 
-import type { Controls } from './controls'
+import type { ControlKey, Controls } from './controls'
 import type { PaletteAction } from './ui/CommandPalette'
 import type { ControlsApi } from './ui/ControlsContext'
 import type { PathNode } from './ui/SignalPath'
@@ -266,6 +272,14 @@ export function App() {
       run: mix.redo,
     },
     {
+      // The palette indexes controls by their static definition, so it can no
+      // more see a routing than the filter could. This is the one entry that
+      // knows, and it answers by handing the question to the filter.
+      name: 'show what is moving',
+      blurb: 'filter the panel down to the controls the bay is driving',
+      run: () => setFilter(MOVING_QUERY),
+    },
+    {
       name: 'copy link',
       blurb: 'put this look on the clipboard as a URL',
       run: copyLink,
@@ -309,13 +323,19 @@ export function App() {
 
   const query = filter.trim().toLowerCase()
   const filtering = query !== ''
+  // What the filter needs from the bay: which controls are being driven. `∿`
+  // asks exactly this and nothing else, so the whole panel — pinned rows,
+  // contextual sections, the spine — has to be able to answer it.
+  const isRouted = (key: ControlKey) => modApi.modFor(key) !== null
   const pinned = ALL_SLIDERS.filter(
-    s => favorites.has(s.key) && (!filtering || sliderMatches(s, query)),
+    s =>
+      favorites.has(s.key) &&
+      (!filtering || sliderMatches(s, query, isRouted(s.key))),
   )
   // The contextual groups, dropped when the filter leaves them nothing: a
   // section header over an empty body is a dead end in a result list.
-  const abGroups = AB_GROUPS.filter(g => groupMatches(g, query))
-  const audioGroups = AUDIO_GROUPS.filter(g => groupMatches(g, query))
+  const abGroups = AB_GROUPS.filter(g => groupMatches(g, query, isRouted))
+  const audioGroups = AUDIO_GROUPS.filter(g => groupMatches(g, query, isRouted))
 
   // Roll the per-group touched state up to the phase, so the chain reads as a
   // status map — you see which stages you're in without opening any. The count
@@ -323,7 +343,7 @@ export function App() {
   // "this preset looks cool" to the knobs that made it. Data only: the open
   // stage builds its own sections.
   const pathNodes = PHASES.flatMap((phase): PathNode[] => {
-    const groups = phase.groups.filter(g => groupMatches(g, query))
+    const groups = phase.groups.filter(g => groupMatches(g, query, isRouted))
     // What the stage can do to the picture, group by group — the counts the
     // map colours a stage by, and the jump target behind its count.
     const parts = groups.map(group => ({
@@ -348,6 +368,17 @@ export function App() {
           },
         ]
   })
+
+  // Whether the query reached anything at all, across every place a result can
+  // land — not the spine alone. A routed mixer control lives in A/B and a routed
+  // pin lives in Favorites, so keying "nothing matches" off the spine would deny
+  // a result the panel is showing right above the message. Mirrors each
+  // section's own render condition rather than restating it.
+  const anyResult =
+    pathNodes.length > 0 ||
+    pinned.length > 0 ||
+    audioGroups.length > 0 ||
+    (eng.sourceBMode !== 'none' && abGroups.length > 0)
 
   const panelBody = (
     <>
@@ -491,13 +522,13 @@ export function App() {
       {/* Above the filter box, not inside Modulation: while a filter is live
           everything below the box is the result set, and the motion amount is
           a live-set control that has to stay reachable from anywhere. */}
-      <MotionStrip />
+      <MotionStrip onReveal={() => setFilter(MOVING_QUERY)} />
       <div className={styles.filterRow}>
         <input
           className={styles.filter}
           type="search"
           placeholder="filter controls — try “rainbow” or “ghost”…"
-          title="matches names and descriptions, so artifact words work: rainbow, ghost, dot crawl, tear, roll…"
+          title="matches names and descriptions, so artifact words work: rainbow, ghost, dot crawl, tear, roll… — and “moving” (or ∿) for whatever the bay is driving"
           value={filter}
           onChange={e => setFilter(e.target.value)}
         />
@@ -520,10 +551,11 @@ export function App() {
         openGroup={nav.openGroup}
         onOpenGroup={nav.toggleGroup}
       />
-      {!filtering || pathNodes.length > 0 ? null : (
+      {!filtering || anyResult ? null : (
         <div className={ui.hint}>
-          nothing matches “{filter.trim()}” — try an artifact: rainbow, ghost,
-          tear
+          {isMovingQuery(query)
+            ? 'nothing is moving — press ∿ on any control row to set it wobbling'
+            : `nothing matches “${filter.trim()}” — try an artifact: rainbow, ghost, tear`}
         </div>
       )}
 

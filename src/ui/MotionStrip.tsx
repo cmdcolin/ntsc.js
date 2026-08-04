@@ -21,7 +21,13 @@ import styles from './MotionStrip.module.css'
 // Shown only once something is routed: with an empty bay there is nothing for
 // it to scale, and a permanent dead slider above the filter box would be the
 // panel's most prominent control doing nothing.
-export function MotionStrip() {
+export function MotionStrip(props: {
+  // Puts the motion query in the filter box, which is the only way to see the
+  // driven rows together: they are scattered down five stages, and a routing
+  // leaves the resting value alone, so nothing else in the panel marks them
+  // from outside the row.
+  onReveal: () => void
+}) {
   const { slots, master, setMaster } = useModSlotsApi()
   const api = useControlsApi()
   // What to come back to when the freeze lets go. Local, not persisted: a
@@ -74,9 +80,13 @@ export function MotionStrip() {
         title={`scales every routing's depth at once — driving ${driven.join(', ')}`}
         onChange={e => setMaster(Number(e.target.value))}
       />
-      <span className={styles.count} title={driven.join(', ')}>
+      <button
+        className={styles.count}
+        title={`${driven.join(', ')} — click to filter the panel down to them`}
+        onClick={props.onReveal}
+      >
         {driven.length}∿
-      </span>
+      </button>
       {api.midiReady ? (
         <button
           className={cx(

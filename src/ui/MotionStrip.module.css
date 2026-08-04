@@ -40,10 +40,20 @@
   color: #e8c464;
 }
 
+/* also the way in: it filters the panel down to the rows it is counting, so it
+   is a button rather than a readout — hover lifts it to the strip's own green
+   to say so, since a count that looks inert is one nobody presses */
 .count {
   font-family: var(--mono);
   font-size: var(--fs-xs);
   color: var(--fg3);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.count:hover {
+  color: #7cbf9a;
 }
 
 /* the ⚟ that puts this fader on a knob — same three states as a control row's,
@@ -75,6 +85,7 @@
   .freeze {
     padding: 4px 6px;
   }
+  .count,
   .bind {
     padding: 4px 2px;
   }

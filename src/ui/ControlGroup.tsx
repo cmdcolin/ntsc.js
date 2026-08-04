@@ -4,7 +4,7 @@ import { DEFAULT_CONTROLS } from '../controls'
 import styles from './ControlGroup.module.css'
 import { NEEDS, sliderFor } from './controls'
 import { useControlsApi } from './ControlsContext'
-import { sliderMatches, useFilterQuery } from './filter'
+import { matchedSliders, useFilterQuery } from './filter'
 import { MagnifierFrame } from './MagnifierFrame'
 import { SYNCABLE_KEYS } from './midi'
 import { ModRowEditor } from './ModRowEditor'
@@ -81,10 +81,14 @@ export function ControlSlider(props: {
       }
       // Not offered on a row whose gate is shut, and not on a choice control:
       // stepping a mode enum with an LFO picks tubes nobody asked for.
+      //
+      // Unless it is already routed — a preset, a link or a since-closed gate
+      // can all leave one there, and hiding the ∿ on those rows hid the only
+      // way to see what is driving the control or to hand the slot back. The
+      // rule is about what may be *claimed*, not about what may be shown.
       mod={
-        inert || s.choices !== undefined
-          ? undefined
-          : {
+        routed || (!inert && s.choices === undefined)
+          ? {
               routed,
               open: modOpen,
               onToggle: () => {
@@ -96,6 +100,7 @@ export function ControlSlider(props: {
                 setModOpen(!modOpen)
               },
             }
+          : undefined
       }
       modEditor={modOpen ? <ModRowEditor controlKey={s.key} /> : undefined}
     />
@@ -212,10 +217,7 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   const [showFine, setShowFine] = useState(false)
   const frame = FRAMES.find(f => f.group === group.name && query === '')
 
-  const matched =
-    query === '' || group.name.toLowerCase().includes(query)
-      ? group.sliders
-      : group.sliders.filter(s => sliderMatches(s, query))
+  const matched = matchedSliders(group, query, key => mod.modFor(key) !== null)
   const unframed =
     frame === undefined || showFramed
       ? matched

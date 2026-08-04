@@ -159,6 +159,13 @@ letting go picks the drift back up mid-stride. Some presets arrive already
 moving — `rainbow storm` wanders off frequency, `vertical hold gone` hunts,
 `fb bloom` sways on its mount — and **copy link** carries whatever you patch.
 
+The **3∿** at the end of the strip counts what is being driven, and clicking it
+filters the panel down to exactly those rows — wherever in the chain they sit.
+A routing never moves the slider itself, so this is the only thing that marks a
+moving control from outside its own row; the chain map narrows with everything
+else, which makes it a map of where the motion is. Typing `moving` in the filter
+box asks the same question, and so does **show what is moving** in the palette.
+
 ![The app window, boxed in red: the motion strip above the filter box, and the wobble editor open under the horizontal hold row](img/motion.jpg)
 
 The **Modulation** section shows all eight slots at once if you would rather
