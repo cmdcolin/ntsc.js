@@ -2,6 +2,11 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.13.0](https://github.com/cmdcolin/ntsc.js/compare/v0.12.0...v0.13.0) - 2026-08-04
+
+### Features
+- *(signal)* [`844d4b0`](https://github.com/cmdcolin/ntsc.js/commit/844d4b060a15182ad54fab6f7e3f0336e6761d00) cue and pause through the loop, bars and all
+
 ## [0.12.0](https://github.com/cmdcolin/ntsc.js/compare/v0.11.0...v0.12.0) - 2026-08-04
 
 ### Features
