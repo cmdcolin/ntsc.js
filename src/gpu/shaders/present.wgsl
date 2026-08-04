@@ -148,7 +148,9 @@ fn fs(in: VOut) -> @location(0) vec4f {
   var col = textureSampleLevel(screenTex, samp, tuv, 0.0).rgb;
   // Horizontal Catmull-Rom reconstruction: bilinear is -6 dB at the sample
   // rate's edge, so the upscale reads mushy; the cubic keeps single-sample
-  // luma detail crisp (with a hint of authentic edge ringing).
+  // luma detail crisp (with a hint of authentic edge ringing). (Collapsing
+  // the centre pair into one weighted bilinear fetch was tried and measured
+  // no faster at 1560x1080 — the cache already eats the adjacent taps.)
   if (P.crtSharp > 0.0) {
     let w = f32(ACTIVE_W);
     let x = tuv.x * w - 0.5;

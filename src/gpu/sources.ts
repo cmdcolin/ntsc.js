@@ -73,6 +73,13 @@ export class Sources {
   private stageA: OffscreenCanvas | null = null
   // 0 = use the texture; 1 = TV static; 2 = VHS static. Generated in compose.
   private noiseA = 0
+  // currentTime of the last frame staged, per slot. Video plays at its own
+  // rate (24/30 fps) under a 60 fps render loop, so without this check half
+  // the uploads re-stage a byte-identical frame — and the stage + copy of a
+  // capped 1080p frame measures ~5 ms on an iGPU, the single largest per-frame
+  // cost in the whole app. -1 forces the first upload.
+  private lastTimeA = -1
+  private lastTimeB = -1
 
   // Slot B: always raster-sized, so its texture and bind groups are fixed.
   private texB: GPUTexture
@@ -151,6 +158,9 @@ export class Sources {
   setVideoSource(el: HTMLVideoElement | null): void {
     if (el !== null) this.noiseA = 0
     this.videoA = el
+    // a re-attached element may sit paused at the same currentTime; the first
+    // frame must upload regardless or the slot shows whatever was there before
+    this.lastTimeA = -1
   }
 
   // Switch slot A to a GPU-generated noise field (1 TV static, 2 VHS static);
@@ -169,6 +179,7 @@ export class Sources {
   setVideoSourceB(el: HTMLVideoElement | null): void {
     if (el !== null) this.noiseB = 0
     this.videoB = el
+    this.lastTimeB = -1
   }
 
   setNoiseSourceB(kind: number): void {
@@ -184,13 +195,25 @@ export class Sources {
   // rendered frame, before the chain runs.
   uploadFrames(): void {
     const a = this.videoA
-    if (a !== null && a.readyState >= 2 && a.videoWidth > 0) {
+    if (
+      a !== null &&
+      a.readyState >= 2 &&
+      a.videoWidth > 0 &&
+      a.currentTime !== this.lastTimeA
+    ) {
+      this.lastTimeA = a.currentTime
       const [w, h] = fitSrc(a.videoWidth, a.videoHeight)
       this.ensureTexA(w, h, a.videoWidth / a.videoHeight)
       this.uploadA(a, w, h)
     }
     const b = this.videoB
-    if (b !== null && b.readyState >= 2 && b.videoWidth > 0) {
+    if (
+      b !== null &&
+      b.readyState >= 2 &&
+      b.videoWidth > 0 &&
+      b.currentTime !== this.lastTimeB
+    ) {
+      this.lastTimeB = b.currentTime
       this.uploadB(b, b.videoWidth, b.videoHeight)
     }
   }

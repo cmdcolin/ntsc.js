@@ -5,14 +5,19 @@
 //   node scripts/perf.mjs <url> <label> [batches] [framesPerBatch]
 //   node scripts/perf.mjs <url> <label> --ablate [framesPerBatch]
 //
+// --vp=WxH sets the viewport BEFORE navigation — the one safe moment; after
+// load it swaps the BiDi realm and window.vf vanishes (see below). The canvas
+// the run actually measured is reported, since layout and dpr decide it.
+//
 // --ablate attributes cost per pass: it disables one pass at a time by
 // overriding its `when` gate, interleaving full and ablated batches in one
 // session, and reports each pass's delta. The deltas are not perfectly
 // additive (passes overlap on the GPU) but they rank the hot spots honestly.
 //
 // Traps, learned the hard way:
-// - Never call page.setViewport under Firefox BiDi — it swaps the realm and
-//   every later evaluate sees window.vf undefined.
+// - Never call page.setViewport AFTER navigation under Firefox BiDi — it
+//   swaps the realm and every later evaluate sees window.vf undefined.
+//   Before goto (as scripts/shot.mjs does) it is safe.
 // - One browser per config; a page driven through many WebGPU sessions
 //   detaches its frame partway through a run.
 // - Serve from a `git worktree add --detach` copy when anyone (or any agent)
@@ -25,9 +30,11 @@ import puppeteer from 'puppeteer-core'
 
 const args = process.argv.slice(2)
 const ablate = args.includes('--ablate')
-const [url, label, a3, a4] = args.filter(a => a !== '--ablate')
+const vpArg = args.find(a => a.startsWith('--vp='))
+const [url, label, a3, a4] = args.filter(a => !a.startsWith('--'))
 const batches = ablate ? 3 : Number(a3 ?? 6)
 const frames = Number((ablate ? a3 : a4) ?? 120)
+const vp = vpArg ? vpArg.slice(5).split('x').map(Number) : null
 
 if (!url || !label) {
   console.error('usage: node scripts/perf.mjs <url> <label> [--ablate] [batches] [framesPerBatch]')
@@ -48,6 +55,7 @@ const browser = await puppeteer.launch({
 try {
   const page = await browser.newPage()
   page.on('pageerror', err => console.log('[pageerror]', String(err).slice(0, 300)))
+  if (vp) await page.setViewport({ width: vp[0], height: vp[1] })
   await page.goto(url, { waitUntil: 'networkidle0' })
   await page.waitForFunction(() => window.vf !== undefined, { timeout: 20000 })
   await new Promise(r => setTimeout(r, 2500)) // sources settle
@@ -67,15 +75,16 @@ try {
           await done()
           times.push((performance.now() - t0) / frames)
         }
-        return times
+        const cv = document.querySelector('canvas')
+        return { times, cw: cv?.width ?? 0, ch: cv?.height ?? 0 }
       },
       batches,
       frames,
     )
-    const best = Math.min(...res)
-    const med = [...res].sort((x, y) => x - y)[Math.floor(res.length / 2)]
+    const best = Math.min(...res.times)
+    const med = [...res.times].sort((x, y) => x - y)[Math.floor(res.times.length / 2)]
     console.log(
-      `${label}\tbest ${best.toFixed(3)} ms/frame\tmedian ${med.toFixed(3)}\tall [${res.map(t => t.toFixed(2)).join(', ')}]`,
+      `${label}\tbest ${best.toFixed(3)} ms/frame\tmedian ${med.toFixed(3)}\tcanvas ${res.cw}x${res.ch}\tall [${res.times.map(t => t.toFixed(2)).join(', ')}]`,
     )
   } else {
     const res = await page.evaluate(
