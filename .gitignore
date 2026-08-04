@@ -2,3 +2,6 @@ node_modules/
 dist/
 *.tsbuildinfo
 clips/
+# contact sheets from scripts/contact.mjs — a working artifact of one screening
+# round, regenerated per round and superseded by whichever candidates ship
+docs/contact/

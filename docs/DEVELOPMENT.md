@@ -36,6 +36,31 @@ Drives a headed Firefox Nightly, steps frames deterministically, probes pixels,
 and saves a screenshot. Headless Chrome can't present WebGPU swap chains here,
 which is why it's Firefox.
 
+### What every browser harness here has learned the hard way
+
+All four scripts below share one browser story, and each of these cost real time
+to find:
+
+- **Never `page.setViewport` after load under Firefox BiDi.** It swaps the realm,
+  and every later `evaluate` sees `window.vf` as undefined — which reads exactly
+  like the app failing to boot. Set the viewport before `goto`.
+- **One Firefox does not survive a long WebGPU batch.** After a dozen or so
+  sessions it detaches the frame and every later page dies with "Target closed",
+  so a batch recycles browsers and treats any failure as the browser being spent.
+- **An occluded window throttles rAF to about 1Hz.** Frames are stepped
+  (`window.vf.step()`) rather than waited for; a clip, which samples the canvas
+  as it paints, has to own the only window on screen.
+- **Serve from a `git worktree add --detach` copy** (or a production build) when
+  anything else might be editing the tree. An HMR reload mid-run resets the
+  engine under the frame counter, and a shot then captures someone else's
+  half-finished change.
+- **A `file://` image taints the canvas it is drawn on**, so frames are passed
+  into the page as `data:` URIs.
+- **`?set=` silently drops any key the schema doesn't know**, so a typo costs a
+  full render and comes back looking merely uninteresting rather than wrong. The
+  screening harness reports what didn't land; check that line before believing a
+  dull tile.
+
 ## MIDI without a controller
 
 ```
@@ -78,8 +103,10 @@ retuned candidate and the sheet keeps everyone else. The candidates module
 default-exports `{ src, srcb, frames, settle, late, items: [{ name, blurb, set
 }] }`; anything at the top level is a default each item may override.
 
-One browser does not survive a long batch — after about a dozen WebGPU sessions
-Firefox detaches the frame — so it recycles browsers every few candidates.
+Budget real time: a candidate is a thousand stepped frames of a patch built to
+be expensive, so even on an idle machine it runs to minutes, and a full round is
+an hour or more. `results.json` is what makes that survivable — a batch that
+dies partway through resumes with `--missing` rather than starting over.
 
 ## Documentation screenshots
 
