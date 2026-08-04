@@ -14,6 +14,7 @@ import compose from './shaders/compose.wgsl?raw'
 import composeB from './shaders/compose_b.wgsl?raw'
 import crtFace from './shaders/crt_face.wgsl?raw'
 import decode from './shaders/decode.wgsl?raw'
+import encodeChromaB from './shaders/encode_chroma_b.wgsl?raw'
 import encodeComposite from './shaders/encode_composite.wgsl?raw'
 import encodeYuv from './shaders/encode_yuv.wgsl?raw'
 import enhancer from './shaders/enhancer.wgsl?raw'
@@ -39,6 +40,7 @@ const SHADERS: Record<string, string> = {
   compose_b: composeB,
   crt_face: crtFace,
   decode,
+  encode_chroma_b: encodeChromaB,
   encode_composite: encodeComposite,
   encode_yuv: encodeYuv,
   enhancer,

@@ -160,7 +160,7 @@ fn demodAt(ti: i32, n0: i32) -> vec2f {
   return vec2f(dot(q, mu), dot(q, mv));
 }
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size(TILE_WG, 1, 1)
 fn main(
   @builtin(global_invocation_id) gid: vec3u,
   @builtin(local_invocation_id) lid: vec3u,
@@ -175,8 +175,8 @@ fn main(
   let ry = ACTIVE_TOP + gid.y;
   let sag = P.hvSag * timing[SAG_BASE + ry];
   let hoff = i32(round(timing[row] + bendAt(f32(gid.y)) + sag + P.audioBend * audio[ry]));
-  let base = i32(row * SPL + ACTIVE_START + wid.x * 64u) + hoff - i32(HALO);
-  for (var i = lid.x; i < TILE; i = i + 64u) {
+  let base = i32(row * SPL + ACTIVE_START + wid.x * TILE_WG) + hoff - i32(HALO);
+  for (var i = lid.x; i < TILE; i = i + TILE_WG) {
     tile[i] = csrc(clampIdx(base + i32(i)));
   }
   workgroupBarrier();

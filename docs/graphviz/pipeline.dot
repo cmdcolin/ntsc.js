@@ -68,6 +68,8 @@ digraph ntsc_js {
                 label="composeB\n754 × 480 px, 8×8 tiles"];
     encodeYuvB [passes="encodeYuvB" fillcolor="@ENC2@" style="rounded,filled,dashed"
                 label="encodeYuvB\n754 × 480 px"];
+    encodeChromaB [passes="encodeChromaB" fillcolor="@ENC2@" style="rounded,filled,dashed"
+                label="encodeChromaB\nB chroma bandlimit, precomputed\n754 × 480 px"];
     mixB       [passes="mixB" fillcolor="@ENC2@" style="rounded,filled,dashed"
                 label="mixB\ndirty mix · ring · wipe · PiP\n525 lines × 910 samples"];
   }
@@ -125,7 +127,9 @@ digraph ntsc_js {
   encodeComp -> mixB [label="  compA"];
   srcB -> composeB;
   composeB -> encodeYuvB [label="  texB"];
+  encodeYuvB -> encodeChromaB [label="  yuvB"];
   encodeYuvB -> mixB [label="  yuvB"];
+  encodeChromaB -> mixB [label="  uvfB"];
   mixB -> fbComposite [label="  compA"];
 
   // compA feeds the channel directly; chroma is a side branch that rejoins it,

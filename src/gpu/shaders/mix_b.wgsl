@@ -14,31 +14,19 @@
 //   B's detune/roll/skew and ring mod do not apply on this path.
 
 @group(0) @binding(0) var<uniform> P: Params;
-@group(0) @binding(1) var<storage, read> filters: array<f32>;
-@group(0) @binding(2) var<storage, read> yuvB: array<vec4f>;
+@group(0) @binding(1) var<storage, read> yuvB: array<vec4f>;
+@group(0) @binding(2) var<storage, read> uvfB: array<vec2f>;
 @group(0) @binding(3) var<storage, read_write> comp: array<f32>;
-
-// Encoder chroma bandlimit on B's baseband U/V, centred on sample idx — the
-// same FIR the house encoder runs, but reading storage rather than a tile,
-// since B's raster position is per-sample here and not workgroup-uniform.
-fn bChroma(idx: u32) -> vec2f {
-  let m = i32((ENC_CHROMA_TAPS - 1u) / 2u);
-  let i = i32(idx);
-  // folded on the kernel's symmetry: mirrored taps share one coefficient
-  var uv = filters[SEC_ENC_CHROMA * FILTER_STRIDE + u32(m)] * yuvB[clampIdx(i)].yz;
-  for (var k = 0; k < m; k = k + 1) {
-    uv = uv + filters[SEC_ENC_CHROMA * FILTER_STRIDE + u32(k)]
-      * (yuvB[clampIdx(i + k - m)].yz + yuvB[clampIdx(i + m - k)].yz);
-  }
-  return uv;
-}
 
 // B re-encoded on the house carrier: chroma from yuvB[bIdx] modulated onto the
 // A-locked subcarrier at output sample houseN (B's proc-amp hue trim only). This
 // is the genlocked path — used by the clean dissolve and the PiP DVE — so B
-// dot-crawls like real video but does not beat or roll.
+// dot-crawls like real video but does not beat or roll. The encoder chroma
+// bandlimit is precomputed per B sample by encode_chroma_b — B's raster
+// position is per-sample here, so running the FIR inline read 33 unstaged
+// storage taps per consumer sample.
 fn encodeBHouse(houseN: u32, bIdx: u32) -> f32 {
-  let uv = bChroma(bIdx);
+  let uv = uvfB[bIdx];
   return activeComposite(yuvB[bIdx].x, uv.x, uv.y, carrierRot(houseN, P.frame, P.bHue), P.bVidGain, P.bInv);
 }
 
@@ -104,7 +92,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let slot = ntscLineSlot(srow, si, np, P.frame, delta);
     var b = slot.value;
     if (slot.picture) {
-      let uv = bChroma(np);
+      let uv = uvfB[np];
       b = activeComposite(yuvB[np].x, uv.x, uv.y, carrierRot(np, P.frame, delta), P.bVidGain, P.bInv);
     }
 

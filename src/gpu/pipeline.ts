@@ -29,7 +29,13 @@ import { LineState } from '../signal/linestate'
 import { MixState } from '../signal/mixstate'
 import { ModState } from '../signal/modstate'
 import { initGpu } from './context'
-import { GEN_OFFSET, PARAM_BYTES, PRELUDE, packParams } from './prelude'
+import {
+  GEN_OFFSET,
+  PARAM_BYTES,
+  PRELUDE,
+  TILE_WG,
+  packParams,
+} from './prelude'
 import { RenderLoop } from './renderloop'
 import channelSrc from './shaders/channel.wgsl?raw'
 import chromaExtractSrc from './shaders/chroma_extract.wgsl?raw'
@@ -37,6 +43,7 @@ import composeSrc from './shaders/compose.wgsl?raw'
 import composeBSrc from './shaders/compose_b.wgsl?raw'
 import crtFaceSrc from './shaders/crt_face.wgsl?raw'
 import decodeSrc from './shaders/decode.wgsl?raw'
+import encodeChromaBSrc from './shaders/encode_chroma_b.wgsl?raw'
 import encodeCompositeSrc from './shaders/encode_composite.wgsl?raw'
 import encodeYuvSrc from './shaders/encode_yuv.wgsl?raw'
 import enhancerSrc from './shaders/enhancer.wgsl?raw'
@@ -142,6 +149,7 @@ export class Engine {
   private filterBuf: GPUBuffer
   private yuvBuf: GPUBuffer
   private yuvBBuf: GPUBuffer
+  private uvfBBuf: GPUBuffer
   private compA: GPUBuffer
   private compB: GPUBuffer
   private compPrev: GPUBuffer
@@ -213,6 +221,11 @@ export class Engine {
     })
     this.yuvBBuf = d.createBuffer({
       size: N * 16,
+      usage: GPUBufferUsage.STORAGE,
+    })
+    // B's encoder-filtered chroma, one vec2f per sample (encode_chroma_b)
+    this.uvfBBuf = d.createBuffer({
+      size: N * 8,
       usage: GPUBufferUsage.STORAGE,
     })
     this.compA = d.createBuffer({
@@ -308,6 +321,7 @@ export class Engine {
     this.composePl = compute(composeSrc)
     const composeBPl = compute(composeBSrc)
     const encodeYuvPl = compute(encodeYuvSrc)
+    const encodeChromaBPl = compute(encodeChromaBSrc)
     const encodeCompositePl = compute(encodeCompositeSrc)
     const mixBPl = compute(mixBSrc)
     const fbCompositePl = compute(fbCompositeSrc)
@@ -359,6 +373,12 @@ export class Engine {
     })
     const perLine = [Math.ceil(SAMPLES_PER_LINE / 64), LINES] as const
     const perPixel = [Math.ceil(ACTIVE_WIDTH / 64), ACTIVE_HEIGHT] as const
+    // the tiled-FIR passes run TILE_WG-wide workgroups (see prelude)
+    const perLineT = [Math.ceil(SAMPLES_PER_LINE / TILE_WG), LINES] as const
+    const perPixelT = [
+      Math.ceil(ACTIVE_WIDTH / TILE_WG),
+      ACTIVE_HEIGHT,
+    ] as const
     // 8x8 workgroups for the 2D spatial passes (compose, crtFace)
     const perTile = [
       Math.ceil(ACTIVE_WIDTH / 8),
@@ -401,7 +421,7 @@ export class Engine {
           { buffer: this.yuvBuf },
           { buffer: this.compA },
         ],
-        perLine,
+        perLineT,
       ),
       pass(
         'composeB',
@@ -418,12 +438,23 @@ export class Engine {
         bOn,
       ),
       pass(
+        'encodeChromaB',
+        encodeChromaBPl,
+        [
+          { buffer: this.filterBuf },
+          { buffer: this.yuvBBuf },
+          { buffer: this.uvfBBuf },
+        ],
+        perPixelT,
+        bOn,
+      ),
+      pass(
         'mixB',
         mixBPl,
         [
           { buffer: this.paramsBuf },
-          { buffer: this.filterBuf },
           { buffer: this.yuvBBuf },
+          { buffer: this.uvfBBuf },
           { buffer: this.compA },
         ],
         perLine,
@@ -450,7 +481,7 @@ export class Engine {
           { buffer: this.compA },
           { buffer: this.chromaBuf },
         ],
-        perLine,
+        perLineT,
       ),
       pass(
         'underDown',
@@ -461,7 +492,7 @@ export class Engine {
           { buffer: this.lineParamsBuf },
           { buffer: this.underBuf },
         ],
-        perLine,
+        perLineT,
         () => c.colorUnderMix > 0,
       ),
       pass(
@@ -477,7 +508,7 @@ export class Engine {
           { buffer: this.compB },
           { buffer: this.audioBuf },
         ],
-        perLine,
+        perLineT,
       ),
       pass(
         'timebase',
@@ -515,8 +546,8 @@ export class Engine {
       label: 'decode',
       pl: decodePl,
       bg: this.decodeBgs[0],
-      x: perPixel[0],
-      y: perPixel[1],
+      x: perPixelT[0],
+      y: perPixelT[1],
     }
     this.postPasses = [
       // The enhancer is an outboard box between the deck and the set, so it
@@ -744,6 +775,7 @@ export class Engine {
         this.filterBuf,
         this.yuvBuf,
         this.yuvBBuf,
+        this.uvfBBuf,
         this.compA,
         this.compB,
         this.compPrev,

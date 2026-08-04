@@ -26,16 +26,62 @@ const WARM = vec3f(1.0, 0.62, 0.38);
 // Identity at cutoff=0, gamma=1, sat=1, so presets that don't set it are
 // untouched.
 fn beam(c: vec3f) -> vec3f {
+  // Every tap below goes through this, so a stock gun is worth branching
+  // around entirely: texture values are already in [0,1], so cutoff 0 /
+  // gamma 1 / sat 1 is exactly the identity. The params are uniform, so the
+  // branch is free.
+  if (P.crtCutoff <= 0.0 && P.crtGamma == 1.0 && P.crtSat == 1.0) {
+    return c;
+  }
   var d = max(c - vec3f(P.crtCutoff), vec3f(0.0)) / max(1.0 - P.crtCutoff, 1e-3);
-  // Every tap below goes through this, so a linear gun is worth branching
-  // around: three pow() times 16-48 taps per pixel, all to return the input.
-  // The param is uniform, so the branch is free.
   if (P.crtGamma != 1.0) {
     d = pow(d, vec3f(P.crtGamma));
   }
   let l = luma(d);
   return mix(vec3f(l), d, P.crtSat);
 }
+
+// Golden-angle disk taps, hoisted to tables: xy is direction times radius
+// fraction, z the beam gaussian weight exp(-2 r^2). Computing these in the tap
+// loop cost cos/sin/sqrt/exp per tap — ~64 transcendentals per pixel, the
+// single most expensive thing in the pass. The spot picks a sparser table when
+// its radius is small: a sub-pixel gaussian reaching the glass through the
+// bilinear sampler is fully captured by a few taps, and the default 0.6 px
+// spot was paying for sixteen.
+const DISK4 = array<vec3f, 4>(
+  vec3f(0.353553, 0.000000, 0.778801),
+  vec3f(-0.451544, 0.413652, 0.472367),
+  vec3f(0.069116, -0.787542, 0.286505),
+  vec3f(0.569143, 0.742345, 0.173774),
+);
+const DISK8 = array<vec3f, 8>(
+  vec3f(0.250000, 0.000000, 0.882497),
+  vec3f(-0.319290, 0.292496, 0.687289),
+  vec3f(0.048872, -0.556877, 0.535261),
+  vec3f(0.402445, 0.524918, 0.416862),
+  vec3f(-0.738535, -0.130636, 0.324652),
+  vec3f(0.699605, -0.445031, 0.252840),
+  vec3f(-0.234004, 0.870484, 0.196912),
+  vec3f(-0.446271, -0.859268, 0.153355),
+);
+const DISK16 = array<vec3f, 16>(
+  vec3f(0.176777, 0.000000, 0.939413),
+  vec3f(-0.225772, 0.206826, 0.829029),
+  vec3f(0.034558, -0.393771, 0.731616),
+  vec3f(0.284571, 0.371173, 0.645649),
+  vec3f(-0.522223, -0.092374, 0.569783),
+  vec3f(0.494695, -0.314685, 0.502832),
+  vec3f(-0.165466, 0.615525, 0.443747),
+  vec3f(-0.315562, -0.607594, 0.391606),
+  vec3f(0.684642, 0.250030, 0.345591),
+  vec3f(-0.712256, 0.294009, 0.304983),
+  vec3f(0.343354, -0.733729, 0.269146),
+  vec3f(0.253731, 0.808932, 0.237521),
+  vec3f(-0.764746, -0.443186, 0.209611),
+  vec3f(0.897134, -0.197233, 0.184981),
+  vec3f(-0.547507, 0.778772, 0.163246),
+  vec3f(-0.126487, -0.976090, 0.144064),
+);
 
 // over-threshold colour, hue preserved: only the part of a pixel brighter than
 // t contributes light to its neighbours. Taps go through the beam transfer so
@@ -92,34 +138,48 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     return;
   }
 
-  // Golden-angle disk taps sampled at three radii: the beam spot itself, a
-  // tight cluster for bloom, a wide one for halation. The feedback loop
-  // compounds the spread over frames, so a modest single-pass kernel is enough.
-  // Both tap sets are gated on their own params — the branches are uniform
-  // across the dispatch, so an unused radius costs nothing.
+  // Disk taps at three radii: the beam spot itself, a tight cluster for bloom,
+  // a wide one for halation. The feedback loop compounds the spread over
+  // frames, so a modest single-pass kernel is enough. Each tap set is gated on
+  // its own params — the branches are uniform across the dispatch, so an
+  // unused radius costs nothing.
+  // Beam spot: the gun writes a gaussian of finite width, so a sample's light
+  // lands partly on its neighbours' phosphor and every edge is a ramp. Unlike
+  // bloom this is not thresholded — dim picture bleeds too, which is why a
+  // real tube never resolves into a grid of hard pixels.
   var spot = center;
   var sw = 1.0;
+  if (P.crtSpot > 0.0) {
+    if (P.crtSpot <= 0.8) {
+      for (var i = 0u; i < 4u; i = i + 1u) {
+        let t = DISK4[i];
+        spot = spot + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
+        sw = sw + t.z;
+      }
+    } else if (P.crtSpot <= 2.0) {
+      for (var i = 0u; i < 8u; i = i + 1u) {
+        let t = DISK8[i];
+        spot = spot + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
+        sw = sw + t.z;
+      }
+    } else {
+      for (var i = 0u; i < 16u; i = i + 1u) {
+        let t = DISK16[i];
+        spot = spot + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
+        sw = sw + t.z;
+      }
+    }
+  }
   var bloom = vec3f(0.0);
   var halo = vec3f(0.0);
   let rb = 3.5;
   let rh = 15.0;
   let scatters = P.crtBloom + P.crtHalation > 0.0;
-  for (var i = 0u; i < 16u; i = i + 1u) {
-    let a = f32(i) * 2.3999632;
-    let rr = sqrt((f32(i) + 0.5) / 16.0);
-    let dir = vec2f(cos(a), sin(a)) * rr;
-    // Beam spot: the gun writes a gaussian of finite width, so a sample's light
-    // lands partly on its neighbours' phosphor and every edge is a ramp. Unlike
-    // bloom this is not thresholded — dim picture bleeds too, which is why a
-    // real tube never resolves into a grid of hard pixels.
-    if (P.crtSpot > 0.0) {
-      let w = exp(-2.0 * rr * rr);
-      spot = spot + beam(textureSampleLevel(srcTex, samp, uv + dir * P.crtSpot / dim, 0.0).rgb) * w;
-      sw = sw + w;
-    }
-    if (scatters) {
-      bloom = bloom + bright(textureSampleLevel(srcTex, samp, uv + dir * rb / dim, 0.0).rgb, 0.55);
-      halo = halo + bright(textureSampleLevel(srcTex, samp, uv + dir * rh / dim, 0.0).rgb, 0.35);
+  if (scatters) {
+    for (var i = 0u; i < 16u; i = i + 1u) {
+      let d = DISK16[i].xy;
+      bloom = bloom + bright(textureSampleLevel(srcTex, samp, uv + d * rb / dim, 0.0).rgb, 0.55);
+      halo = halo + bright(textureSampleLevel(srcTex, samp, uv + d * rh / dim, 0.0).rgb, 0.35);
     }
   }
   col = gamutFit(spot / sw);

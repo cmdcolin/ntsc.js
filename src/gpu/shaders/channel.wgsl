@@ -45,17 +45,17 @@ var<workgroup> tileUn: array<f32, TILE>; // color-under signal
 // some other thread's centre, so generating them per-thread draws each of these
 // three times over. gauss() is Box-Muller — two hashes, a log and a cos — which
 // makes that the most expensive redundancy in the pass.
-var<workgroup> tileNs: array<f32, 66>;
+var<workgroup> tileNs: array<f32, TILE_WG + 2u>;
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size(TILE_WG, 1, 1)
 fn main(
   @builtin(global_invocation_id) gid: vec3u,
   @builtin(local_invocation_id) lid: vec3u,
   @builtin(workgroup_id) wid: vec3u,
 ) {
   let row = wid.y;
-  let base = i32(row * SPL + wid.x * 64u) - i32(HALO);
-  for (var i = lid.x; i < TILE; i = i + 64u) {
+  let base = i32(row * SPL + wid.x * TILE_WG) - i32(HALO);
+  for (var i = lid.x; i < TILE; i = i + TILE_WG) {
     let ci = clampIdx(base + i32(i));
     tileLc[i] = comp[ci] - chroma[ci];
   }
@@ -67,7 +67,7 @@ fn main(
     // blotches of wrong hue instead of the fine grain luma gets. Seeded on the
     // global sample index so overlapping workgroup halos agree on it.
     let cns = pcg(P.frame * 1103515245u + P.gen * 88888933u);
-    for (var i = lid.x; i < TILE; i = i + 64u) {
+    for (var i = lid.x; i < TILE; i = i + TILE_WG) {
       let ci = clampIdx(base + i32(i));
       var v = under[ci];
       if (P.chromaNoise > 0.0) {
@@ -79,8 +79,8 @@ fn main(
   if (P.noiseSigma > 0.0) {
     let ns = pcg(P.frame * 2654435761u + P.gen * 2246822519u);
     // slot 1 is this workgroup's first sample, so slot i is global index n0+i-1
-    let n0 = row * SPL + wid.x * 64u;
-    for (var i = lid.x; i < 66u; i = i + 64u) {
+    let n0 = row * SPL + wid.x * TILE_WG;
+    for (var i = lid.x; i < TILE_WG + 2u; i = i + TILE_WG) {
       tileNs[i] = gauss((n0 + i - 1u) ^ ns);
     }
   }

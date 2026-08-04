@@ -180,6 +180,10 @@ export const PARAM_DEFS = [
   ['dbgView', 'f32'], // 0 normal, 1 gradient (present test), 2 raw composite (encode test)
 ] as const
 
+// Workgroup width of the tiled-FIR passes; pipeline.ts sizes their dispatches
+// from the same number so the WGSL and the dispatch cannot drift apart.
+export const TILE_WG = 64
+
 export const PARAM_BYTES = Math.ceil((PARAM_DEFS.length * 4) / 16) * 16
 export const GEN_OFFSET = PARAM_DEFS.findIndex(([n]) => n === 'gen') * 4
 
@@ -235,10 +239,15 @@ const CHROMA_BP_TAPS = ${TAPS.chromaBp}u;
 const UNDER_TAPS = ${TAPS.under}u;
 const DOWN_PER_SAMPLE = ${DOWN_PER_SAMPLE}; // (fsc - f_under) / sample_rate
 const PI = 3.14159265359;
-// FIR tiling: each 64-thread workgroup stages its input span plus a
+// FIR tiling: each TILE_WG-thread workgroup stages its input span plus a
 // 32-sample halo per side in shared memory, so symmetric kernels up to
-// 65 taps read storage once per sample instead of once per tap.
-const TILE = 128u;
+// 65 taps read storage once per sample instead of once per tap. The width
+// trades halo overhead against scheduling granularity: staging costs
+// (TILE_WG + 64) / TILE_WG loads per output, so wider workgroups re-stage
+// less — but measured on the dev GPU it doesn't pay: 64 and 128 are within
+// noise and 256 is ~8% slower, so the halo traffic is not the bottleneck.
+const TILE_WG = ${TILE_WG}u;
+const TILE = ${TILE_WG + 64}u;
 const HALO = 32u;
 
 ${paramStruct}
