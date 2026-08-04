@@ -239,6 +239,29 @@ the compiler's job. Two consequences worth knowing:
   instead of inferred from build output. Note the consumer's own status is
   irrelevant: a compiled consumer still re-fires on a changed identity.
 
+**Two panel contexts, deliberately.** `ControlsContext` carries the controls and
+the verbs a row needs; `ModSlotsContext` carries the modulation bay. They are
+separate because they change on completely different clocks — a slider drag
+rewrites controls on every pointer move, while the bay changes only when someone
+patches it — and one shared context would rebuild every consumer of both on each
+drag frame.
+
+The bay lives in React (`useModSlots`), never in the engine. `setModSlots` is
+write-only by design: the engine applies routings by mutating `controls` for the
+duration of one frame and restoring after (`pipeline.ts`, `applyMod`), so a
+modulated value never comes back out of `getControls` — which is what keeps
+presets, scenes, links and the sliders showing the resting look. Two consequences
+worth knowing before touching it:
+
+- **Slot position is identity.** `ModState` keys each wave's phase and its noise
+  seed by the slot's index, so a stale routing must be blanked in place rather
+  than filtered out; compacting hands one slot's running phase to another and
+  restarts everything below it.
+- **Modulating one of the five filter controls** (`encChromaMHz`, `demodMHz`,
+  `chromaTail`, `lumaMHz`, `lumaPeak`) rebuilds the FIR bank every frame. Fine
+  as a deliberate patch, which is why the UI allows it; not fine hanging off an
+  authored preset, which is why `presets.test.ts` forbids it there.
+
 To check what compiled, build unminified and look for the memo-cache preamble:
 
 ```sh
