@@ -47,6 +47,43 @@ export function writeJSON(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value))
 }
 
+// The same write, coalesced — for state a *drag* changes, where the setter runs
+// once per pointer move. `localStorage.setItem` is synchronous and serializes
+// on the main thread, so sixty of them a second lands on the same thread that
+// is feeding the GPU. Same trade the address bar makes in useUrlState: state
+// updates immediately, the durable copy catches up when the value settles.
+const pending = new Map<string, unknown>()
+const timers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function flushWrites() {
+  for (const [key, value] of pending) writeJSON(key, value)
+  pending.clear()
+  for (const t of timers.values()) clearTimeout(t)
+  timers.clear()
+}
+
+// A tab can be discarded without ever firing `unload`, and on mobile usually
+// is; `pagehide` is the one that reliably arrives. Registered once, at module
+// load, so no caller has to remember it.
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushWrites)
+}
+
+export function writeJSONSoon(key: string, value: unknown, ms = 300) {
+  pending.set(key, value)
+  const existing = timers.get(key)
+  if (existing !== undefined) clearTimeout(existing)
+  timers.set(
+    key,
+    setTimeout(() => {
+      timers.delete(key)
+      const v = pending.get(key)
+      pending.delete(key)
+      writeJSON(key, v)
+    }, ms),
+  )
+}
+
 // A boolean flag persisted across reloads (stored as '1'/'0'). The setter writes
 // through, so a toggle survives a refresh without any extra effect wiring.
 export function usePersistedFlag(key: string) {

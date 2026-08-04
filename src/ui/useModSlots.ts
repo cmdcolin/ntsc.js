@@ -6,7 +6,7 @@ import {
   routingsToSlots,
   toEngineSlots,
 } from './modSlots'
-import { readArray, readJSON, writeJSON } from './storage'
+import { readArray, readJSON, writeJSONSoon } from './storage'
 import { parseSessionParams } from './urlParams'
 
 import type { ControlKey } from '../controls'
@@ -54,15 +54,19 @@ export function useModSlots(engine: Engine | null): ModSlotsApi {
     engine?.setModSlots(active)
   }, [engine, active])
 
+  // Coalesced: a depth or rate slider in the row editor calls this on every
+  // pointer move, and a synchronous localStorage write per frame of a drag is
+  // paid on the thread that is also feeding the GPU.
   const commit = (next: readonly UiSlot[]) => {
-    writeJSON(MOD_STORE, next)
+    writeJSONSoon(MOD_STORE, next)
     setSlotsState(next)
   }
 
   const indexFor = (key: ControlKey) => slots.findIndex(s => s.target === key)
 
+  // Dragged too — the motion amount is a fader, not a toggle.
   const writeMaster = (v: number) => {
-    writeJSON(MASTER_STORE, v)
+    writeJSONSoon(MASTER_STORE, v)
     setMasterState(v)
   }
 
