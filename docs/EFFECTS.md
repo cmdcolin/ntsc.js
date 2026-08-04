@@ -95,15 +95,23 @@ generation loss rather than by a fader, and they decay the way tape does.
   oxide, so a held loop comes back identical every lap — down to the same grain
   in the same places, since the grain belongs to the tape. Drop the head again
   and it records over what it has.
-- **Transport** — which way a held loop runs past the heads. Reverse plays the
-  frames back in the order they were laid down, each one whole: the scanner
-  still sweeps the same way, so motion runs backwards while the picture stays a
-  picture. (Dragging tape backwards past a _fixed_ head would time-reverse the
-  waveform itself and hand the set a mirrored line with its sync on the wrong
-  end — that is a different thing, and not this.) Stopped parks the tape while
-  the drum keeps re-reading the same sweep, which is a still frame you can play
-  live over. Only means anything with the record head up: laying tape down is
-  forward by definition.
+- **Transport** — which way a held loop runs past the heads, and whether the
+  drum is still turning. Only means anything with the record head up: laying
+  tape down is forward by definition.
+  - _Reverse_ plays the frames back in the order they were laid down, each one
+    whole. The scanner still sweeps the same way, so it is the track order that
+    reverses: motion runs backwards while the picture stays a picture.
+  - _Stopped_ parks the tape while the drum re-reads one sweep — a still frame
+    you can play live over.
+  - _Scrub_ stalls the drum and keeps pulling. With nothing sweeping, the head
+    recovers the magnetisation in the order the tape drags past it, so what
+    comes back is the waveform itself reversed. Everything that then goes wrong
+    is the receiver's problem and none of it is drawn: sync tips arrive at the
+    wrong end of every line so the separator locks somewhere else, the burst
+    reads phase-flipped because a time-reversed sinusoid is, and the frame
+    comes off end-first — which lands the raster upside down and mirrored, with
+    the hue somewhere else entirely. This is the difference between playing a
+    tape backwards and dragging one backwards.
 - **Playback heads** — each at its own distance from the record head, so one lap
   hands the picture back once per head: the heads are a rhythm and the loop is
   the bar line. The generation structure this produces is not the obvious one —

@@ -152,7 +152,20 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     }
     // How far round the loop this head is reading. Wrapping inside the window
     // is what holds a lifted record head to the same oxide lap after lap.
-    let inLoop = (phase + n + loopLen - d) % loopLen;
+    //
+    // Scrub reads in tape order rather than sweep order. A helical machine in
+    // reverse still sweeps each track forwards, which is why normal reverse
+    // only turns the frames around; stall the drum and the head recovers the
+    // magnetisation in whatever order the tape drags past it, so the sample
+    // index counts DOWN through the frame and what comes back is the waveform
+    // itself reversed. Nothing below draws a consequence of that — the sync
+    // tips arrive at the wrong end of each line, the burst reads phase-flipped
+    // because a time-reversed sinusoid is, and the raster comes off end-first.
+    // Whatever the receiver makes of that is the receiver's business.
+    var inLoop = (phase + n + loopLen - d) % loopLen;
+    if (P.tapeScrub > 0.5) {
+      inLoop = (phase + 2u * loopLen - n - d) % loopLen;
+    }
     let read = tapePos(holdBase, i32(inLoop) - i32(loopLen));
     var v = headOutput(read, t, n);
 

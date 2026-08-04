@@ -177,6 +177,7 @@ export const PARAM_DEFS = [
   ['tapeSpliceFrames', 'u32'], // how far the splice has run from the record head...
   ['tapeSpliceRem', 'f32'], // ...in whole frames plus this remainder
   ['tapeSlot', 'u32'], // ring frame the record head is laying down
+  ['tapeScrub', 'f32'], // 1 = drum stalled: read in tape order, so backwards reverses the waveform
   ['tapeHoldSlot', 'u32'], // ring frame the loop window sits on (= tapeSlot while recording)
   ['tapeHoldFrames', 'u32'], // how far the heads have walked round a held loop...
   ['tapeHoldRem', 'f32'], // ...in whole frames plus this remainder (0 while recording)

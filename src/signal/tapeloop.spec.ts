@@ -6,7 +6,13 @@ import {
   TAPE_FRAMES,
   TAPE_MM_PER_S,
 } from './constants'
-import { TapeState } from './tapeloop'
+import {
+  TAPE_FORWARD,
+  TAPE_REVERSE,
+  TAPE_SCRUB,
+  TAPE_STOPPED,
+  TapeState,
+} from './tapeloop'
 
 import type { TapeControls, TapeUniforms } from './tapeloop'
 
@@ -285,6 +291,42 @@ describe('TapeState', () => {
       const a = fwd.update(still, f)
       const b = back.update({ ...still, tapeTransport: 0 }, f)
       expect(b.tapeHoldSlot).toBe(a.tapeHoldSlot)
+      expect(b.tapeHoldFrames * N + b.tapeHoldRem).toBe(
+        a.tapeHoldFrames * N + a.tapeHoldRem,
+      )
+      expect(b.tapeSpliceFrames).toBe(a.tapeSpliceFrames)
+    }
+  })
+
+  it('reads in tape order only when the drum is stalled', () => {
+    const tape = new TapeState()
+    const held = (t: number) => ({ ...still, tapeRecord: 0, tapeTransport: t })
+    expect(tape.update(held(TAPE_SCRUB), 1).tapeScrub).toBe(1)
+    expect(tape.update(held(TAPE_REVERSE), 2).tapeScrub).toBe(0)
+    expect(tape.update(held(TAPE_STOPPED), 3).tapeScrub).toBe(0)
+    expect(tape.update(held(TAPE_FORWARD), 4).tapeScrub).toBe(0)
+    // laying tape down is forward past a turning drum, whatever the switch says
+    expect(
+      tape.update({ ...still, tapeTransport: TAPE_SCRUB }, 5).tapeScrub,
+    ).toBe(0)
+  })
+
+  it('pulls the tape backwards to scrub, same as reverse does', () => {
+    // The capstan is doing the same thing in both; what differs is the drum,
+    // so the window has to walk back at the same rate either way.
+    const rev = new TapeState()
+    const scrub = new TapeState()
+    rev.update(still, 0)
+    scrub.update(still, 0)
+    for (let f = 1; f < 20; f++) {
+      const a = rev.update(
+        { ...still, tapeRecord: 0, tapeTransport: TAPE_REVERSE },
+        f,
+      )
+      const b = scrub.update(
+        { ...still, tapeRecord: 0, tapeTransport: TAPE_SCRUB },
+        f,
+      )
       expect(b.tapeHoldFrames * N + b.tapeHoldRem).toBe(
         a.tapeHoldFrames * N + a.tapeHoldRem,
       )

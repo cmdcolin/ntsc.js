@@ -29,8 +29,16 @@ export interface TapeControls {
   tapeColourFrame: number // 1 = hold the delay on a subcarrier cycle
   tapeMix: number // the loop is out of circuit entirely at 0
   tapeRecord: number // 1 = the record head is down, 0 = lifted
-  tapeTransport: number // 0 reverse, 1 stopped, 2 forward
+  tapeTransport: number // 0 reverse, 1 stopped, 2 forward, 3 scrub back
 }
+
+// Transport positions. `scrub` is appended rather than slotted in beside
+// `reverse` so the three that shipped keep the values any saved link already
+// holds — the list is a set of modes, not a number line.
+export const TAPE_REVERSE = 0
+export const TAPE_STOPPED = 1
+export const TAPE_FORWARD = 2
+export const TAPE_SCRUB = 3
 
 export interface TapeUniforms {
   tapeSlot: number
@@ -41,6 +49,7 @@ export interface TapeUniforms {
   tapeHoldSlot: number
   tapeHoldFrames: number
   tapeHoldRem: number
+  tapeScrub: number
 }
 
 // Whether anything is actually reaching the tape. The record head being down is
@@ -56,9 +65,23 @@ export const tapeRecording = (c: {
 // Which way the tape is running, in frames of tape per frame of time. Laying
 // tape down means the transport is going forward by definition — you cannot
 // record into a loop you are pulling backwards through the heads — so the
-// switch only means anything once the record head is up.
+// switch only means anything once the record head is up. Scrub runs backwards
+// like reverse does; what differs is the drum, not the capstan.
+const SPEEDS: Record<number, number> = {
+  [TAPE_REVERSE]: -1,
+  [TAPE_STOPPED]: 0,
+  [TAPE_FORWARD]: 1,
+  [TAPE_SCRUB]: -1,
+}
+
 const transportSpeed = (c: TapeControls): number =>
-  tapeRecording(c) ? 1 : Math.round(c.tapeTransport) - 1
+  tapeRecording(c) ? 1 : (SPEEDS[Math.round(c.tapeTransport)] ?? 1)
+
+// Whether the head is reading in tape order instead of sweep order — the drum
+// stalled while the capstan keeps pulling. Only reachable with the record head
+// up, for the same reason the direction switch is.
+const tapeScrubbing = (c: TapeControls): boolean =>
+  !tapeRecording(c) && Math.round(c.tapeTransport) === TAPE_SCRUB
 
 export class TapeState {
   private wow = new Wow()
@@ -146,6 +169,7 @@ export class TapeState {
     const tapeHoldFrames = Math.floor(this.holdPhase / N)
     return {
       tapeSlot: slot,
+      tapeScrub: tapeScrubbing(c) ? 1 : 0,
       tapeHoldSlot: this.holdSlot,
       tapeHoldFrames,
       tapeHoldRem: this.holdPhase - tapeHoldFrames * N,
