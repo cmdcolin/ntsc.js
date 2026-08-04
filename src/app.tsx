@@ -652,6 +652,8 @@ export function App() {
           x: controls.crtZoomX,
           y: controls.crtZoomY,
         }}
+        tap={eng.tap}
+        onTap={eng.changeTap}
         // One write for all three, so a gesture notifies the engine once.
         onLens={lens =>
           writeControls({
@@ -696,9 +698,10 @@ export function App() {
           renderScale={eng.renderScale}
           onScaleChange={eng.setScale}
           res={eng.res}
+          tap={eng.tap}
+          onTapChange={eng.changeTap}
           midiStatus={midiStatus}
           onEnableMidi={enableMidi}
-          engine={eng.engine}
           onClose={() => setShowAdvanced(false)}
         />
       ) : null}

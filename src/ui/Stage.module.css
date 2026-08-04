@@ -134,6 +134,14 @@
   color: var(--accent);
   font-family: var(--mono);
 }
+/* and the tap, carried the same way and for a stronger version of the same
+   reason: the picture is not the picture, and nothing else on screen says so.
+   Amber rather than the accent — a tap is a mode you are meant to leave, which
+   is the colour the panel already uses for "this is off stock". */
+.triggerTap {
+  color: #e8c464;
+  font-family: var(--mono);
+}
 /* the region being chosen by a drag on the picture */
 .marquee {
   position: absolute;

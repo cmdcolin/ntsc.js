@@ -200,16 +200,20 @@ Drag a box to zoom, drag to pan once you're in, double-click to reset. The
 magnifier is part of the display, so it magnifies the lit tube face — scan
 lines, mask and all.
 
-To watch the signal instead of the picture, pick a tap in **advanced settings**:
-the composite waveform, luma, chroma energy, or the decoder's burst state.
+To watch the signal instead of the picture, use **signal tap** — the first row
+of the stage menu, which steps through the taps and leaves the menu up so the
+picture changes under it: the composite waveform, luma, chroma energy, then the
+decoder's burst state, then back to the picture. Whichever tap is live is named
+on the menu button, so a screen full of waveform never looks like a fault. The
+same taps are in **advanced settings**, named at length.
 
 ![The app window with the advanced settings dialog open, boxed in red](img/advanced.jpg)
 
 ![The raw composite waveform tap](img/scope.jpg)
 
 Turning a knob and watching the waveform change shape is the fastest way to
-understand it. **render scale** in the same dialog trades resolution for frame
-rate.
+understand it. **render scale** in the advanced dialog trades resolution for
+frame rate.
 
 ## Getting it out
 

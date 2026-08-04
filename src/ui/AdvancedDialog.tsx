@@ -1,44 +1,31 @@
-import { useState } from 'react'
-
 import { cx } from './cx'
 import { Dialog } from './Dialog'
 import dlg from './dialog.module.css'
 import { SelectRow } from './SelectRow'
+import { SIGNAL_TAPS, tapFor } from './signalTap'
 import { Slider } from './Slider'
 import ui from './ui.module.css'
 
-import type { Engine } from '../gpu/pipeline'
 import type { MidiStatus } from './midi'
 
-// The decode-stage taps otherwise reachable only via ?dbg= in the URL.
-const DBG_OPTIONS = [
-  { value: '0', label: 'off — decoded picture' },
-  { value: '2', label: 'composite waveform' },
-  { value: '3', label: 'luma channel' },
-  { value: '4', label: 'chroma (U/V energy)' },
-  { value: '5', label: 'burst / decoder state' },
-] as const
-
-type DbgValue = (typeof DBG_OPTIONS)[number]['value']
-
-// getDbgView() can report any number ?dbg= was set to, not just one of the
-// options above — fall back to 'off' rather than asserting an unrecognized one.
-function dbgValue(view: number | undefined): DbgValue {
-  const s = String(view ?? 0)
-  const found = DBG_OPTIONS.find(o => o.value === s)
-  return found ? found.value : '0'
-}
+const TAP_OPTIONS = SIGNAL_TAPS.map(t => ({
+  value: String(t.value),
+  label: t.label,
+}))
 
 export function AdvancedDialog(props: {
   renderScale: number
   onScaleChange: (v: number) => void
   res: string
+  // The tap on the glass. Owned above rather than here: the stage menu switches
+  // it too, and the menu trigger badges it, so this dialog is one writer of a
+  // shared value rather than the place it lives.
+  tap: number
+  onTapChange: (v: number) => void
   midiStatus: MidiStatus
   onEnableMidi: () => void
-  engine: Engine | null
   onClose: () => void
 }) {
-  const [dbg, setDbg] = useState(() => dbgValue(props.engine?.getDbgView()))
   return (
     <Dialog title="Advanced" size="form" onClose={props.onClose}>
       <Slider
@@ -58,16 +45,14 @@ export function AdvancedDialog(props: {
       <SelectRow
         tag="◫"
         title="view the signal mid-decode instead of the finished picture"
-        value={dbg}
-        options={DBG_OPTIONS}
-        onChange={v => {
-          setDbg(v)
-          props.engine?.setDbgView(Number(v))
-        }}
+        value={String(tapFor(props.tap).value)}
+        options={TAP_OPTIONS}
+        onChange={v => props.onTapChange(Number(v))}
       />
       <div className={ui.dim} style={{ margin: '2px 0 12px' }}>
         see what the TV sees: the raw waveform, or luma / chroma / burst
-        mid-decode — the fastest way to understand what a control is doing.
+        mid-decode — the fastest way to understand what a control is doing. Also
+        on the stage menu, which badges whichever tap is live.
       </div>
       <div className={dlg.subhead}>MIDI control</div>
       {props.midiStatus === 'idle' ? (

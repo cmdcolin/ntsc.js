@@ -12,6 +12,7 @@ import {
 } from './lens'
 import { Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
+import { nextTap, tapFor } from './signalTap'
 import styles from './Stage.module.css'
 import { usePersistedFlag } from './storage'
 import ui from './ui.module.css'
@@ -30,18 +31,20 @@ const zoomLabel = (lens: Lens) =>
 // share a text column; a blank hint means the action has no shortcut. `closes`
 // is the menu's id: picking a row runs its action and dismisses the menu, and
 // the browser does the dismissing, so there is no close callback to thread.
+// Omitted, the row leaves the menu up — for the one row that is stepped rather
+// than picked, and wants the picture changing under a menu that stays put.
 function MenuItem(props: {
   icon: ReactNode
   label: string
   hint: string
-  closes: string
+  closes?: string
   onClick: () => void
 }) {
   return (
     <button
       className={popoverStyles.menuItem}
       popoverTarget={props.closes}
-      popoverTargetAction="hide"
+      popoverTargetAction={props.closes === undefined ? undefined : 'hide'}
       onClick={() => props.onClick()}
     >
       <span className={popoverStyles.menuLabel}>
@@ -56,16 +59,20 @@ function MenuItem(props: {
 }
 
 // Everything the stage can do, behind one button — the picture is the point,
-// and a row of pills competing with it was not. Two states still have to read
+// and a row of pills competing with it was not. Three states still have to read
 // without opening anything, so they ride on the trigger: recording (which has
-// to carry across a room) and a magnifier left anywhere but 1×, which would
-// otherwise be an unexplained crop of the picture.
+// to carry across a room), a magnifier left anywhere but 1×, which would
+// otherwise be an unexplained crop of the picture, and a live signal tap, which
+// replaces the picture outright — the strongest case of the three, since
+// without a badge the way back is a dialog you have to already know about.
 function StageMenu(props: {
   recording: boolean
   fullscreen: boolean
   poppedOut: boolean
   lens: Lens
   onLens: (lens: Lens) => void
+  tap: number
+  onTap: (v: number) => void
   onGrabStill: () => void
   onToggleRecord: () => void
   onToggleFullscreen: () => void
@@ -93,6 +100,9 @@ function StageMenu(props: {
           {clampZoom(props.lens.zoom) === 1 ? null : (
             <span className={styles.triggerZoom}>{zoomLabel(props.lens)}</span>
           )}
+          {props.tap === 0 ? null : (
+            <span className={styles.triggerTap}>{tapFor(props.tap).short}</span>
+          )}
           {props.recording ? '● rec' : null}
         </button>
       )}
@@ -100,6 +110,23 @@ function StageMenu(props: {
       {id => (
         <>
           <ZoomRow lens={props.lens} onChange={props.onLens} />
+          <div className={popoverStyles.menuSep} />
+          {/* Sits with the zoom rather than under Advanced only, for the same
+              reason the zoom row does: the gesture-less way in is what says the
+              thing exists at all, and this one is the app's whole premise made
+              visible. A row that steps, not a picker — five taps is a short
+              enough ring that stepping beats a dropdown inside a popover, and
+              it means one place both enters and leaves the mode. */}
+          <MenuItem
+            icon="◫"
+            label={
+              props.tap === 0
+                ? 'signal tap — see inside the decode'
+                : `signal tap: ${tapFor(props.tap).short}`
+            }
+            hint={props.tap === 0 ? '' : 'on'}
+            onClick={() => props.onTap(nextTap(props.tap))}
+          />
           <div className={popoverStyles.menuSep} />
           <MenuItem
             icon={<CameraIcon />}
@@ -237,6 +264,8 @@ export function Stage(props: {
   recording: boolean
   lens: Lens
   onLens: (lens: Lens) => void
+  tap: number
+  onTap: (v: number) => void
   onToggleRecord: () => void
   onGrabStill: () => void
   onToggleFullscreen: () => void
@@ -352,6 +381,8 @@ export function Stage(props: {
             poppedOut={props.poppedOut}
             lens={props.lens}
             onLens={props.onLens}
+            tap={props.tap}
+            onTap={props.onTap}
             onGrabStill={props.onGrabStill}
             onToggleRecord={props.onToggleRecord}
             onToggleFullscreen={props.onToggleFullscreen}

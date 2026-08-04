@@ -195,6 +195,10 @@ export function useEngine() {
   const [renderScale, setRenderScale] = useState(1)
   const renderScaleRef = useRef(1)
   const [res, setRes] = useState('')
+  // Which decode-stage tap is on the glass. The engine owns the value (it reads
+  // `?dbg=` at construction), but two surfaces switch it and one draws a badge
+  // for it, so React keeps a mirror the same way it does for the render scale.
+  const [tap, setTap] = useState(0)
 
   // Backing-store size = css size × min(dpr,2) × render scale, then clamped so
   // the long edge never exceeds MAX_EDGE. The picture is a 754-wide face texture
@@ -230,6 +234,11 @@ export function useEngine() {
     renderScaleRef.current = v
     setRenderScale(v)
     applyCanvasSize()
+  }
+
+  const changeTap = (v: number) => {
+    engineRef.current?.setDbgView(v)
+    setTap(v)
   }
 
   // Adopt the live video slots into the audio graph (or none, muting them all,
@@ -870,6 +879,9 @@ export function useEngine() {
             created.setImageSource(smpteBars())
             created.setImageSourceB(smpteBars())
             created.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
+            // The engine read `?dbg=` for itself; pick it up so the stage badge
+            // says which tap a link arrived on rather than claiming the picture.
+            setTap(created.getDbgView())
             restoreSession(created, parseSessionParams(location.search))
           }
         },
@@ -907,6 +919,8 @@ export function useEngine() {
     res,
     renderScale,
     setScale,
+    tap,
+    changeTap,
     sourceMode,
     sourceName,
     selectSource,
