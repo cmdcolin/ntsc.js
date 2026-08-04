@@ -26,9 +26,14 @@
    which is the right trade, because a wrapped label still reads and a 40px
    track cannot be aimed.
 
-   The readout's floor holds the widest ordinary reading ("0.000" plus ∿ ☆ ↺).
-   It grows past that only when MIDI is on and every row grows with it, so the
-   column still lines up. */
+   The readout's floor holds the widest ordinary reading ("0.000") and the ⋮.
+   It used to hold ∿ ☆ ↺ as well — 5.2rem, a quarter of the panel, reserved on
+   every one of 121 rows for buttons the median session never presses, taken
+   from the one column that had a use for it. With them behind the ⋮ the floor
+   is what a reading actually needs, and the label column gets the difference.
+   It still grows past the floor — a routed or bound row marks itself beside
+   the reading, and MIDI widens every row at once — so the column lines up
+   across the group either way. */
 .row {
   display: grid;
   /* Weighted toward the label: a wrapped label is the row's visible cost, and
@@ -36,7 +41,7 @@
      track still aims, and the arrow keys step it exactly either way. */
   grid-template-columns:
     minmax(0, 1.2fr) minmax(5.5rem, 0.85fr)
-    minmax(5.2rem, auto);
+    minmax(3.6rem, auto);
   align-items: center;
   column-gap: 10px;
 }
@@ -177,14 +182,39 @@
   pointer-events: none;
 }
 
-/* inline icon buttons on a slider's value line */
-.icon {
+/* What is wired to a row, marked beside its reading — a routing, a MIDI
+   binding, a clock lock, a pin. Only rendered when set, so a row that has none
+   of them spends nothing on the slot; the colour is the whole message, and the
+   ⋮ next to it is where the changing happens. Two of them are buttons rather
+   than marks (a routed ∿, an armed ⚟) and take the same box either way. */
+.badge {
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: inherit;
   padding: 0 0 0 6px;
   font-size: var(--fs-xs);
   color: var(--fg4);
+}
+button.badge {
+  cursor: pointer;
+}
+/* The row's own menu: ∿ ☆ ↺ and the MIDI pair, which were five buttons in the
+   open on every row. Quiet at rest — it sits at the end of 121 rows, and at the
+   reading's weight it would read as part of the number. */
+.rowMenu {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 0 0 5px;
+  font-size: var(--fs-md);
+  line-height: 1;
+  /* --fg4 and no dimmer: it is the only way in to five things now, and the
+     theme's floor for an affordance is exactly the line between "quiet" and
+     "decoration you are not meant to find". */
+  color: var(--fg4);
+}
+.rowMenu:hover {
+  color: var(--fg);
 }
 .iconOn {
   color: #e8c464;
@@ -213,24 +243,12 @@
 .what:hover {
   color: var(--accent);
 }
-.reset {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 0 0 5px;
-  font-size: var(--fs-sm);
-  color: var(--fg2);
-}
-/* the control is already at its default, so the arrow is a placeholder holding
-   the row's width — visible enough to find, quiet enough to ignore */
-.resetDef {
-  color: #4e4e5c;
-}
-
 /* Touch: a 12px thumb in a 14px-tall control is a target for a cursor, not a
    fingertip. --thumb-size carries the change into both engines' rules and
    re-centres the webkit one on its own; the pickup mark moves to match, and the
-   value line's icons get real padding for the same reason. */
+   value line's icons get real padding for the same reason. The ⋮ gets the most
+   of it: it is now the way in to five things a fingertip could not hit when
+   they were 11px glyphs side by side. */
 @media (pointer: coarse) {
   .range {
     --thumb-size: 20px;
@@ -240,12 +258,12 @@
     top: 7px;
     height: 16px;
   }
-  .icon,
+  .badge,
   .what {
     padding: 4px 0 4px 10px;
   }
-  .reset {
-    padding: 4px 0 4px 9px;
+  .rowMenu {
+    padding: 6px 2px 6px 10px;
   }
 }
 

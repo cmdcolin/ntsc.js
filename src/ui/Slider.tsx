@@ -4,13 +4,15 @@ import { snapToStep } from './controls'
 import { cx } from './cx'
 import { formatValue } from './format'
 import { zoomAtTravel, zoomTravel } from './lens'
+import { MenuItem, Popover } from './Popover'
+import popoverStyles from './Popover.module.css'
 import styles from './Slider.module.css'
 import { SliderHelpDialog } from './SliderHelpDialog'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
 
 import type { CSSProperties, ReactNode } from 'react'
 
-// The readout's little accessory buttons (help, sync, MIDI, favorite, reset).
+// The readout's little accessory buttons (help, and the ∿ on a routed row).
 function IconButton(props: {
   title: string
   className: string
@@ -30,6 +32,130 @@ function IconButton(props: {
     >
       {props.children}
     </button>
+  )
+}
+
+// Everything a row can do that isn't moving it, behind one ⋮.
+//
+// These used to sit in the open at the end of every row — ∿ ☆ ↺, plus ⚟ and ♩
+// once MIDI was on. Five affordances the median session presses zero times,
+// rendered 121 times over, and they were not free: the readout column reserved
+// 5.2rem to hold them, which is a quarter of the panel's width taken from the
+// column that actually needed it, so labels with a parenthetical wrapped to two
+// lines to pay for buttons nobody was reaching for.
+//
+// What a row is *set* to stays in the open beside the reading — see the badges
+// below. The menu is for changing it, which is the part that can wait for a
+// click.
+function RowMenu(props: {
+  label: string
+  defaultLabel: string
+  onReset: () => void
+  favorite?: { on: boolean; onToggle: () => void }
+  mod?: { routed: boolean; open: boolean; onToggle: () => void }
+  midi?: { label: string | null; armed: boolean; onArm: () => void }
+  sync?: { label: string | null; live: boolean; onCycle: () => void }
+}) {
+  const { favorite, mod, midi, sync } = props
+  // The rows are built on first open and not before. A menu is five MenuItems
+  // whether or not anyone looks at it, and on the bench every stage is mounted
+  // at once — 72 rows measured, so eagerly building all of them put ~700 extra
+  // elements through every render a slider drag causes, for markup nobody was
+  // looking at. The trigger is ours, so the flag rides its own click: React
+  // flushes a discrete event before paint, so the browser's own popover-open
+  // still finds the rows there.
+  const [opened, setOpened] = useState(false)
+  return (
+    <Popover
+      trigger={attrs => (
+        <button
+          type="button"
+          className={styles.rowMenu}
+          popoverTarget={attrs.popoverTarget}
+          style={attrs.style}
+          title={`more for “${props.label}”`}
+          aria-label={`more for ${props.label}`}
+          onClick={() => setOpened(true)}
+        >
+          ⋮
+        </button>
+      )}
+    >
+      {id => (
+        <>
+          {!opened ? null : (
+            <>
+              {/* The hint carries where it lands, so the row answers "what was
+              stock here?" without having to be pressed to find out. */}
+              <MenuItem
+                icon="↺"
+                label="reset to default"
+                hint={props.defaultLabel}
+                closes={id}
+                onClick={props.onReset}
+              />
+              {favorite === undefined ? null : (
+                <MenuItem
+                  icon={favorite.on ? '★' : '☆'}
+                  label={
+                    favorite.on ? 'remove from Favorites' : 'pin to Favorites'
+                  }
+                  hint=""
+                  closes={id}
+                  onClick={favorite.onToggle}
+                />
+              )}
+              {mod === undefined &&
+              midi === undefined &&
+              sync === undefined ? null : (
+                <div className={popoverStyles.menuSep} />
+              )}
+              {mod === undefined ? null : (
+                <MenuItem
+                  icon="∿"
+                  label={
+                    mod.routed
+                      ? 'change what is driving it'
+                      : 'wobble it with an LFO'
+                  }
+                  hint={mod.routed ? 'on' : ''}
+                  closes={id}
+                  onClick={mod.onToggle}
+                />
+              )}
+              {midi === undefined ? null : (
+                <MenuItem
+                  icon="⚟"
+                  label={
+                    midi.armed
+                      ? 'listening — click to cancel'
+                      : midi.label === null
+                        ? 'assign a MIDI control'
+                        : 'relearn this MIDI control'
+                  }
+                  hint={midi.label === null ? '' : `CC${midi.label}`}
+                  closes={id}
+                  onClick={midi.onArm}
+                />
+              )}
+              {sync === undefined ? null : (
+                <MenuItem
+                  icon="♩"
+                  label={
+                    sync.label === null
+                      ? 'lock to MIDI clock'
+                      : 'change the clock division'
+                  }
+                  hint={sync.label ?? ''}
+                  closes={id}
+                  onClick={sync.onCycle}
+                />
+              )}
+            </>
+          )}
+        </>
+      )}
+    </Popover>
   )
 }
 
@@ -140,83 +266,84 @@ export function Slider(props: {
       </span>
     </span>
   )
-  const readout = (
-    <span className={styles.value}>
-      {choices
-        ? (choices[props.value] ?? props.value)
-        : `${formatValue(props.value, props.step)}${props.unit}`}
-      {sync ? (
-        <IconButton
-          title={
-            sync.label === null
-              ? 'lock to MIDI clock'
-              : `clock-synced (${sync.label}) — click to change`
-          }
+  const reading = (v: number) =>
+    choices
+      ? (choices[v] ?? String(v))
+      : `${formatValue(v, props.step)}${props.unit}`
+  // What is wired to this row, marked beside the reading. Only ever what is
+  // *set*: an unset affordance has nothing to say and its slot is the width the
+  // label wanted. All of them are marks rather than buttons — the menu is the
+  // one way to change any of this — except the two that are live states you
+  // have to be able to get out of from the row you are looking at: a routed ∿
+  // opens and closes its editor, and an armed ⚟ cancels the learn.
+  const badges = (
+    <>
+      {sync?.label == null ? null : (
+        <span
           className={cx(
-            styles.icon,
-            sync.label !== null &&
-              (sync.live ? styles.iconOn : styles.iconSyncSet),
+            styles.badge,
+            sync.live ? styles.iconOn : styles.iconSyncSet,
           )}
-          onClick={sync.onCycle}
+          title={`clock-synced (${sync.label})${sync.live ? '' : ' — no clock running'}`}
         >
-          {sync.label === null ? '♩' : `♩${sync.label}`}
-        </IconButton>
-      ) : null}
-      {midi ? (
+          ♩{sync.label}
+        </span>
+      )}
+      {midi === undefined ? null : midi.armed ? (
         <IconButton
-          title={
-            midi.label === null
-              ? 'assign a MIDI control'
-              : `MIDI CC${midi.label} — click to relearn`
-          }
-          className={cx(
-            styles.icon,
-            midi.armed
-              ? styles.iconOn
-              : midi.label !== null && styles.iconMidiSet,
-          )}
+          title="listening for a knob — click to cancel"
+          className={cx(styles.badge, styles.iconOn)}
           onClick={midi.onArm}
         >
-          {midi.armed ? 'learn…' : midi.label === null ? '⚟' : `CC${midi.label}`}
+          learn…
         </IconButton>
-      ) : null}
-      {props.mod ? (
+      ) : midi.label === null ? null : (
+        <span
+          className={cx(styles.badge, styles.iconMidiSet)}
+          title={`MIDI CC${midi.label}`}
+        >
+          CC{midi.label}
+        </span>
+      )}
+      {props.mod?.routed !== true ? null : (
         <IconButton
           title={
-            props.mod.routed
-              ? 'modulated — click to change what is driving it'
-              : 'wobble this control with an LFO, drift or the audio'
+            props.mod.open
+              ? 'close what is driving it'
+              : 'modulated — click to see what is driving it'
           }
           className={cx(
-            styles.icon,
-            props.mod.open
-              ? styles.iconOn
-              : props.mod.routed && styles.iconModSet,
+            styles.badge,
+            props.mod.open ? styles.iconOn : styles.iconModSet,
           )}
           onClick={props.mod.onToggle}
         >
           ∿
         </IconButton>
-      ) : null}
-      {favorite ? (
-        <IconButton
-          title={favorite.on ? 'remove from Favorites' : 'pin to Favorites'}
-          className={cx(styles.icon, favorite.on && styles.iconOn)}
-          onClick={favorite.onToggle}
+      )}
+      {favorite?.on !== true ? null : (
+        <span
+          className={cx(styles.badge, styles.iconOn)}
+          title="pinned to Favorites"
         >
-          {favorite.on ? '★' : '☆'}
-        </IconButton>
-      ) : null}
-      <IconButton
-        title="reset"
-        className={cx(
-          styles.reset,
-          props.value === props.defaultValue && styles.resetDef,
-        )}
-        onClick={() => props.onChange(props.defaultValue)}
-      >
-        ↺
-      </IconButton>
+          ★
+        </span>
+      )}
+    </>
+  )
+  const readout = (
+    <span className={styles.value}>
+      {reading(props.value)}
+      {badges}
+      <RowMenu
+        label={props.label}
+        defaultLabel={reading(props.defaultValue)}
+        onReset={() => props.onChange(props.defaultValue)}
+        favorite={favorite}
+        mod={props.mod}
+        midi={midi}
+        sync={sync}
+      />
     </span>
   )
   const track = choices ? (
@@ -241,7 +368,9 @@ export function Slider(props: {
         disabled={locked}
         onChange={e =>
           props.onChange(
-            curved ? fromTravel(Number(e.target.value)) : Number(e.target.value),
+            curved
+              ? fromTravel(Number(e.target.value))
+              : Number(e.target.value),
           )
         }
       />
