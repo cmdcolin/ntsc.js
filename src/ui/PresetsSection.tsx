@@ -261,13 +261,28 @@ export function PresetsSection(props: {
     <Section
       title="Presets"
       help={
-        <button
-          className={styles.helpBtn}
-          title="what are presets?"
-          onClick={() => setShowHelp(true)}
-        >
-          ?
-        </button>
+        <>
+          <button
+            className={cx(styles.allBtn, showAll && styles.allBtnOn)}
+            aria-pressed={showAll}
+            title={
+              showAll
+                ? 'fold the catalog back to your shortlist'
+                : 'every preset, grouped by the kind of fault it models'
+            }
+            onClick={() => setShowAll(!showAll)}
+          >
+            all
+            <span className={styles.allCount}>{PRESETS.length}</span>
+          </button>
+          <button
+            className={styles.helpBtn}
+            title="what are presets?"
+            onClick={() => setShowHelp(true)}
+          >
+            ?
+          </button>
+        </>
       }
     >
       {hintDismissed ? null : (
@@ -289,19 +304,6 @@ export function PresetsSection(props: {
       {showAll ? null : (
         <div>{PRESETS.filter(p => picked.has(p.name)).map(renderButton)}</div>
       )}
-      <button
-        className={cx(styles.barBtn, showAll && styles.barBtnOn)}
-        title={
-          showAll
-            ? 'fold the catalog back to your shortlist'
-            : 'every preset, grouped by the kind of fault it models'
-        }
-        onClick={() => setShowAll(!showAll)}
-      >
-        <span className={styles.barCaret}>{showAll ? '▾' : '▸'}</span>
-        {showAll ? 'hide the preset catalog' : 'browse all presets'}
-        <span className={styles.barCount}>{PRESETS.length}</span>
-      </button>
       {showAll
         ? PRESET_GROUPS.map(grp => (
             <div key={grp.name} className={styles.presetGroup}>

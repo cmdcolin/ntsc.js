@@ -67,6 +67,10 @@ export function Section(props: {
   openOnFilter?: boolean
   // Some control inside sits off its default.
   dot?: boolean
+  // What the section is set to, for a section whose whole state reads in a few
+  // words — shown only while it is folded, where it is the reason folding is
+  // free rather than a thing you have to open the section to check.
+  summary?: string
   // Optional accessory (e.g. a ? explainer) beside the title, outside the
   // toggle button so its clicks are its own.
   help?: ReactNode
@@ -95,10 +99,15 @@ export function Section(props: {
           aria-expanded={shown}
           onClick={() => toggle()}
         >
-          <span>
+          <span className={styles.headTitle}>
             {props.title}
             {props.dot === true ? <span className={styles.dot}> •</span> : null}
           </span>
+          {shown || props.summary === undefined ? null : (
+            <span className={styles.summary} title={props.summary}>
+              {props.summary}
+            </span>
+          )}
           <span className={styles.caret}>{shown ? '▾' : '▸'}</span>
         </button>
         {props.help}

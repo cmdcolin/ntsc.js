@@ -29,6 +29,22 @@ const B_OPTIONS = B_MODES.map(m => ({ value: m, label: SOURCE_DESC[m] }))
 const namedMode = (m: SourceMode | SourceBMode): boolean =>
   m === 'file' || m === 'youtube' || m === 'screen'
 
+// The header's reading of what is patched in, so the section can start folded.
+// Input is set once a session and then costs 141px of the sidebar's most
+// contested stretch — the three pickers, their captions and the hint — to show
+// two dropdowns nobody is going to touch again. Folded it costs one line, and
+// this is what makes that free: the thing you would have opened it to check is
+// already on the header.
+//
+// SOURCE_DESC's options are written "short name — what it is", so the half
+// before the dash is the name on its own. A loaded file or share carries its
+// own name instead, which is the more useful of the two and the only one that
+// distinguishes two files.
+const shortName = (m: SourceMode | SourceBMode, name: string): string =>
+  namedMode(m) && name !== ''
+    ? name
+    : SOURCE_DESC[m].split(' — ')[0].replace(/…$/, '')
+
 export function InputSection(props: {
   sourceMode: SourceMode
   sourceName: string
@@ -61,9 +77,14 @@ export function InputSection(props: {
   audioInput: ReactNode
   audioHint: ReactNode
 }) {
+  const summary =
+    shortName(props.sourceMode, props.sourceName) +
+    (props.sourceBMode === 'none'
+      ? ''
+      : ` + ${shortName(props.sourceBMode, props.sourceBName)}`)
   return (
     <div>
-      <Section title="Input" defaultOpen>
+      <Section title="Input" defaultOpen={false} summary={summary}>
         <SelectRow
           tag="A"
           title="main source"

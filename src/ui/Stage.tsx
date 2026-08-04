@@ -10,7 +10,7 @@ import {
   zoomToBox,
   zoomTravel,
 } from './lens'
-import { Popover } from './Popover'
+import { MenuItem, Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
 import { nextTap, tapFor } from './signalTap'
 import styles from './Stage.module.css'
@@ -18,7 +18,7 @@ import { usePersistedFlag } from './storage'
 import ui from './ui.module.css'
 
 import type { Lens } from './lens'
-import type { PointerEvent, ReactNode, RefObject } from 'react'
+import type { PointerEvent, RefObject } from 'react'
 
 // Persisted across reloads so a collapse sticks.
 const BAR_HIDDEN_STORE = 'ntsc.js_overlay_bar_hidden'
@@ -26,37 +26,6 @@ const BAR_HIDDEN_STORE = 'ntsc.js_overlay_bar_hidden'
 // Magnification, as the menu trigger and the reset button both say it.
 const zoomLabel = (lens: Lens) =>
   `${clampZoom(lens.zoom).toFixed(2).replace(/0$/, '')}×`
-
-// One row of the stage menu. The icon sits in a fixed slot so glyphs and svgs
-// share a text column; a blank hint means the action has no shortcut. `closes`
-// is the menu's id: picking a row runs its action and dismisses the menu, and
-// the browser does the dismissing, so there is no close callback to thread.
-// Omitted, the row leaves the menu up — for the one row that is stepped rather
-// than picked, and wants the picture changing under a menu that stays put.
-function MenuItem(props: {
-  icon: ReactNode
-  label: string
-  hint: string
-  closes?: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      className={popoverStyles.menuItem}
-      popoverTarget={props.closes}
-      popoverTargetAction={props.closes === undefined ? undefined : 'hide'}
-      onClick={() => props.onClick()}
-    >
-      <span className={popoverStyles.menuLabel}>
-        <span className={popoverStyles.menuIcon}>{props.icon}</span>
-        {props.label}
-      </span>
-      {props.hint === '' ? null : (
-        <span className={popoverStyles.menuHint}>{props.hint}</span>
-      )}
-    </button>
-  )
-}
 
 // Everything the stage can do, behind one button — the picture is the point,
 // and a row of pills competing with it was not. Three states still have to read

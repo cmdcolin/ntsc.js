@@ -138,61 +138,49 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The bench switch, wearing the palette key's look because it is the same kind
-   of thing: panel chrome, not a control over the picture. The auto margin keeps
-   it against the GitHub link at the right end instead of adrift in the middle of
-   the row, and holds it there whether or not the fps readout is up. */
-.widthToggle {
+/* The masthead's right end: the ⌕ and the ⋮, held together against the edge
+   whether or not the fps readout is up between them and the wordmark. */
+.chrome {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   margin-left: auto;
-  margin-right: 8px;
-  padding: 1px 7px;
+}
+/* Panel chrome, not a control over the picture — the same quiet outline the ⋮
+   beside it wears. */
+.searchBtn {
+  flex-shrink: 0;
+  width: 22px;
+  padding: 1px 0;
   border: 1px solid #33333f;
   border-radius: 4px;
   background: var(--panel-bg);
   color: var(--fg3);
-  font-family: var(--mono);
-  font-size: var(--fs-sm);
-  line-height: 1.3;
+  font-size: var(--fs-md);
+  line-height: 1.2;
   cursor: pointer;
 }
-.widthToggle:hover {
+.searchBtn:hover {
   border-color: var(--fg4);
   color: var(--fg);
-}
-.widthToggle[aria-pressed='true'] {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-/* Stacked under the picture there is one column and nothing to spread over, so
-   the switch would only ever be a no-op. */
-@media (orientation: portrait) and (max-width: 900px) {
-  .widthToggle {
-    display: none;
-  }
 }
 
-/* control filter box, with the palette key beside it */
-.filterRow {
+/* The control filter, in the masthead rather than in a row of its own.
+   It used to be a 25px input plus a 12px margin sitting above the chain map,
+   permanently, for a feature most sessions never use — and the masthead beside
+   it was two thirds empty. Opened from the ⌕, it takes the width the wordmark
+   was holding: the brand steps aside for as long as a query is live, which is
+   the one time nobody is reading it.
+   Not a popover, though that is the obvious shape for something an icon opens:
+   this filter's whole job is to change what is underneath it, and a popover
+   would float over exactly the result set it is narrowing. */
+.filterBox {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 4px;
-  margin: 12px 0 0;
-}
-.paletteKey {
-  flex-shrink: 0;
-  padding: 0 7px;
-  border: 1px solid #33333f;
-  border-radius: 4px;
-  background: var(--panel-bg);
-  color: var(--fg3);
-  font-family: var(--mono);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-}
-.paletteKey:hover {
-  border-color: var(--fg4);
-  color: var(--fg);
 }
 .filter {
   width: 100%;
@@ -202,8 +190,9 @@
   color: var(--fg);
   border: 1px solid #33333f;
   border-radius: 4px;
-  padding: 4px 8px;
+  padding: 1px 7px;
   font: inherit;
+  font-size: var(--fs-sm);
 }
 .filter::placeholder {
   color: var(--fg4);
@@ -211,4 +200,20 @@
 .filter:focus {
   border-color: var(--fg4);
   outline: none;
+}
+/* Clears the query and hands the row back to the wordmark. Escape does both
+   too (useShortcuts), but the × is the only one of the two that is visible. */
+.filterClear {
+  flex-shrink: 0;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--fg3);
+  font: inherit;
+  font-size: var(--fs-md);
+  line-height: 1;
+  cursor: pointer;
+}
+.filterClear:hover {
+  color: var(--fg);
 }

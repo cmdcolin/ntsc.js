@@ -28,6 +28,7 @@ import { ModSection } from './ui/ModSection'
 import { slotsToRoutings } from './ui/modSlots'
 import { ModSlotsContext } from './ui/ModSlotsContext'
 import { MotionStrip } from './ui/MotionStrip'
+import { PanelMenu } from './ui/PanelMenu'
 import { matchPreset } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
 import { ScenesSection } from './ui/ScenesSection'
@@ -126,6 +127,11 @@ export function App() {
   // rather than in either of them.
   const [showFps, setShowFps] = useState(false)
   const [filter, setFilter] = useState('')
+  // Whether the masthead is showing the filter box rather than the wordmark.
+  // Held open by a live query as well as by the ⌕, so the box can't disappear
+  // out from under a filter that is still narrowing the panel — which is what
+  // a bare `searchOpen` did the moment anything else took focus.
+  const [searchOpen, setSearchOpen] = useState(false)
   const nav = usePanelNav()
   const { favorites, toggleFavorite } = useFavorites()
   // The modulation bay, owned here so the panel, the rows and the mix all see
@@ -181,6 +187,7 @@ export function App() {
     // here Escape just backs out of the panel's own modes.
     onEscape: () => {
       setFilter('')
+      setSearchOpen(false)
       disarm()
       stopLearn()
     },
@@ -324,6 +331,10 @@ export function App() {
 
   const query = filter.trim().toLowerCase()
   const filtering = query !== ''
+  // A query set from anywhere else — the ∿ reveal, a palette jump — opens the
+  // box too, so the panel is never filtered by something with nothing on screen
+  // saying so and no way to clear it.
+  const searching = searchOpen || filtering
   // What the filter needs from the bay: which controls are being driven. `∿`
   // asks exactly this and nothing else, so the whole panel — pinned rows,
   // contextual sections, the spine — has to be able to answer it.
@@ -383,21 +394,27 @@ export function App() {
 
   const panelBody = (
     <>
+      {/* The masthead carries the panel's chrome — the brand, the filter and
+          the ⋮ — and while a query is live it carries the filter alone: the
+          wordmark is the one thing on screen nobody needs to read twice, so it
+          is what gives up its width. */}
       <div className={styles.titleRow}>
-        <button
-          className={styles.brand}
-          onClick={() => setShowHelp(true)}
-          title={`ntsc.js ${versionLabel} (${gitSha}) — what is this?`}
-          aria-label="ntsc.js — what is this?"
-        >
-          <img
-            className={styles.brandMark}
-            src={`${import.meta.env.BASE_URL}favicon.svg`}
-            alt=""
-          />
-          <span className={styles.wordmark}>ntsc.js</span>
-          <span className={styles.version}>{versionLabel}</span>
-        </button>
+        {searching ? null : (
+          <button
+            className={styles.brand}
+            onClick={() => setShowHelp(true)}
+            title={`ntsc.js ${versionLabel} (${gitSha}) — what is this?`}
+            aria-label="ntsc.js — what is this?"
+          >
+            <img
+              className={styles.brandMark}
+              src={`${import.meta.env.BASE_URL}favicon.svg`}
+              alt=""
+            />
+            <span className={styles.wordmark}>ntsc.js</span>
+            <span className={styles.version}>{versionLabel}</span>
+          </button>
+        )}
         {/* Sits in the masthead rather than over the bottom-left of the
             picture, which is the one surface meant to stay clear. */}
         {showFps ? (
@@ -407,27 +424,53 @@ export function App() {
             onHide={() => setShowFps(false)}
           />
         ) : null}
-        {/* One switch, two widths. There is deliberately no third mode that
-            collapses the panel to a rail: fullscreen (f) and the popout already
-            hand the picture the whole window, and a rail would compete with
-            both while hiding the controls behind a second click. */}
-        <button
-          className={styles.widthToggle}
-          aria-pressed={benchOn}
-          aria-label="wide bench"
-          title="wide bench — two columns of controls"
-          onClick={() => setBenchOn(!benchOn)}
-        >
-          ◫
-        </button>
-        <a
-          className={ui.link}
-          href="https://github.com/cmdcolin/ntsc.js"
-          target="_blank"
-          rel="noreferrer"
-        >
-          GitHub ↗
-        </a>
+        {searching ? (
+          <div className={styles.filterBox}>
+            <input
+              className={styles.filter}
+              type="search"
+              // Mounted by the ⌕, so the press that opened it is also the press
+              // that should have landed in the box.
+              ref={el => el?.focus()}
+              placeholder="rainbow, ghost, tear…"
+              title="matches names and descriptions, so artifact words work: rainbow, ghost, dot crawl, tear, roll… — and “moving” (or ∿) for whatever the bay is driving"
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+            />
+            <button
+              className={styles.filterClear}
+              title="clear the filter (esc)"
+              aria-label="clear the filter"
+              onClick={() => {
+                setFilter('')
+                setSearchOpen(false)
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ) : null}
+        <div className={styles.chrome}>
+          {searching ? null : (
+            <button
+              className={styles.searchBtn}
+              title="filter the controls — artifact words work: rainbow, ghost, tear, roll (⌘K jumps to one by name)"
+              aria-label="filter the controls"
+              onClick={() => setSearchOpen(true)}
+            >
+              ⌕
+            </button>
+          )}
+          <PanelMenu
+            bench={benchOn}
+            canBench={popout !== null || roomy}
+            onToggleBench={() => setBenchOn(!benchOn)}
+            onPopout={() => openPopout(benchOn)}
+            onShowPalette={() => setShowPalette(true)}
+            onShowAdvanced={() => setShowAdvanced(true)}
+            onShowHelp={() => setShowHelp(true)}
+          />
+        </div>
       </div>
 
       {/* Acts on the whole board, so it sits above the sections rather than
@@ -529,23 +572,6 @@ export function App() {
           everything below the box is the result set, and the motion amount is
           a live-set control that has to stay reachable from anywhere. */}
       <MotionStrip onReveal={() => setFilter(MOVING_QUERY)} />
-      <div className={styles.filterRow}>
-        <input
-          className={styles.filter}
-          type="search"
-          placeholder="filter controls — try “rainbow” or “ghost”…"
-          title="matches names and descriptions, so artifact words work: rainbow, ghost, dot crawl, tear, roll… — and “moving” (or ∿) for whatever the bay is driving"
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-        />
-        <button
-          className={styles.paletteKey}
-          title="jump to any preset, control, or action by name"
-          onClick={() => setShowPalette(true)}
-        >
-          ⌘K
-        </button>
-      </div>
       <SignalPath
         nodes={pathNodes}
         open={nav.openPhase}

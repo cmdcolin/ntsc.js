@@ -4,12 +4,17 @@
    own contents' labels, which is why it is the quieter of the two: before, both
    levels were identical and dimmer than the sliders under them, so nesting was
    invisible and the hierarchy read upside down. */
+/* The gap above a header is the whole separation between two sections, so it is
+   the panel's most-repeated cost: six top-level headers are on screen at once
+   before a single control is, and every pixel here is spent six times over. The
+   border-bottom already draws the division, so the margin only has to keep the
+   header off the section above it rather than carry the separation by itself. */
 .head {
   font-size: var(--fs-md);
   font-weight: 700;
   color: var(--fg);
-  margin: 14px 0 5px;
-  padding: 3px 2px;
+  margin: 9px 0 4px;
+  padding: 2px 2px;
   border-bottom: 1px solid #3c3c4a;
   display: flex;
   align-items: center;
@@ -24,7 +29,7 @@
 .headSub {
   font-weight: 600;
   color: var(--fg2);
-  margin: 10px 0 3px;
+  margin: 7px 0 2px;
   border-bottom-color: #2e2e38;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -56,6 +61,27 @@
 .caret {
   color: var(--fg3);
   font-size: var(--fs-md);
+}
+/* The title holds its width; the summary beside it is what gives way, so a long
+   setting truncates rather than pushing the caret off the end of the row. */
+.headTitle {
+  flex-shrink: 0;
+}
+/* A folded section's current setting, in the header. Quiet and in the panel's
+   ordinary weight — it is a reading, not part of the heading, and at the
+   heading's size and boldness it competed with the name it sits beside. */
+.summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--fg3);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
 }
 /* section holds a control that's off its default */
 .dot {

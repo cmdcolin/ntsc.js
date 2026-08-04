@@ -28,43 +28,43 @@
   }
 }
 
-/* A full-width bar button: the handle on something bigger than a row of chips —
-   the preset catalog — so it reads as a thing you open rather than a line of
-   small print, and a step brighter than the miniatures' slider reveal. */
-.barBtn {
+/* The handle onto the full catalog, riding the section header beside the ?.
+   It used to be a full-width bar between the chips and the caption, which cost
+   37px of the sidebar's most contested stretch to say a word and a number —
+   and it is the same kind of thing the caret beside it already is: a switch on
+   how much of this section is unfolded. Carrying the count is what keeps it
+   from reading as decoration, since "49" is the argument for pressing it. */
+.allBtn {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: 100%;
-  margin: 5px 0 3px;
-  padding: 6px 9px;
+  gap: 5px;
+  padding: 1px 7px;
   border: 1px solid var(--border);
-  border-radius: 3px;
-  background: #1e1e26;
-  color: var(--fg2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg3);
   font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
   cursor: pointer;
 }
-.barBtn:hover {
+.allBtn:hover {
   border-color: #63637a;
   color: var(--fg);
 }
-.barBtnOn {
+.allBtnOn {
   border-color: #4a5f54;
   color: var(--fg);
 }
-.barCaret {
-  font-size: var(--fs-xs);
-  color: var(--fg3);
-}
-.barCount {
-  margin-left: auto;
-  padding: 1px 6px;
-  border-radius: 7px;
-  background: #2e2e3a;
-  color: var(--fg3);
-  font-size: var(--fs-sm);
+.allCount {
+  color: var(--fg4);
   font-variant-numeric: tabular-nums;
+}
+.allBtnOn .allCount {
+  color: var(--fg3);
 }
 
 .grpLabel {
@@ -74,21 +74,23 @@
   text-transform: uppercase;
   margin: 7px 0 3px;
 }
-/* What the hovered preset does. Capped at three lines rather than left to run:
-   the blurbs are 62–282 characters, which is one line to five in a panel this
-   narrow, so an uncapped caption made sweeping the chips shove the whole panel
-   below it up and down. Three lines holds three quarters of them whole, and the
-   element carries the full text as its title for the rest. min-height keeps the
-   one-line resting caption from collapsing the gap under the chips. */
+/* What the hovered preset does. Capped rather than left to run: the blurbs are
+   62–282 characters, which is one line to five in a panel this narrow, so an
+   uncapped caption made sweeping the chips shove the whole panel below it up
+   and down. Two lines rather than three — this sits above everything the panel
+   is actually for, and the third line was 19px of reserve that only the longest
+   quarter of the blurbs ever claimed. The element carries the full text as its
+   title for those. min-height keeps the one-line resting caption from
+   collapsing the gap under the chips. */
 .caption {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
   min-height: 20px;
   color: var(--fg2);
-  margin: 3px 0 4px;
+  margin: 3px 0 2px;
   line-height: var(--prose-lh);
 }
 /* a preset group in the unfolded catalog */

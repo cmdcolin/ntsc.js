@@ -18,7 +18,7 @@
   display: flex;
   align-items: baseline;
   gap: 2px;
-  margin: 16px 0 3px;
+  margin: 8px 0 2px;
 }
 /* The stage outranks the group headers under it, so it has to win on size as
    well as color — at 10px it was the smallest thing on screen while naming the
@@ -35,12 +35,21 @@
   text-transform: uppercase;
   color: var(--accent);
 }
-/* the stage's role, shown while it's open — the same line the diagram's box
-   carries, so the panel repeats what you clicked through */
+/* The stage's role, shown while it's open — the same line the diagram's box
+   carries, so the panel repeats what you clicked through. Held to one line: at
+   the sidebar's width every one of the five wraps to two, which is 19px spent
+   on a caption directly under the word it is captioning. The element carries
+   the whole line as its title, and so does the map box you clicked to get here,
+   so nothing is only knowable from the part that got cut. */
 .stageBlurb {
   color: var(--fg3);
-  margin: 0 0 7px;
+  margin: 0 0 4px;
   line-height: var(--prose-lh);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: hidden;
 }
 /* the stage's touched-control count; clicking opens the first touched group */
 .phaseDot {

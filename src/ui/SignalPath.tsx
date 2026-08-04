@@ -93,7 +93,9 @@ export function SignalPath(props: {
                 </button>
               )}
             </div>
-            <div className={styles.stageBlurb}>{node.blurb}</div>
+            <div className={styles.stageBlurb} title={node.blurb}>
+              {node.blurb}
+            </div>
             <NestedSections>
               <Accordion openId={props.openGroup} onToggle={props.onOpenGroup}>
                 {node.groups.map(group => (
@@ -169,7 +171,9 @@ function Bench(props: {
                   </button>
                 )}
               </div>
-              <div className={styles.stageBlurb}>{node.blurb}</div>
+              <div className={styles.stageBlurb} title={node.blurb}>
+                {node.blurb}
+              </div>
             </div>
             {node.groups.map(group => (
               <div key={group.name} className={styles.groupCard}>

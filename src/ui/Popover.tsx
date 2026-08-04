@@ -4,6 +4,41 @@ import styles from './Popover.module.css'
 
 import type { CSSProperties, ReactNode } from 'react'
 
+// One row of a popover menu. The icon sits in a fixed slot so glyphs and svgs
+// share a text column; a blank hint means the action has no shortcut. `closes`
+// is the menu's id: picking a row runs its action and dismisses the menu, and
+// the browser does the dismissing, so there is no close callback to thread.
+// Omitted, the row leaves the menu up — for a row that is stepped rather than
+// picked, and wants the picture changing under a menu that stays put.
+//
+// It lives here rather than beside either menu that builds one: the styles it
+// wears are this module's, and a second menu copying the markup to reach them
+// is exactly how the two drift apart.
+export function MenuItem(props: {
+  icon: ReactNode
+  label: string
+  hint: string
+  closes?: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      className={styles.menuItem}
+      popoverTarget={props.closes}
+      popoverTargetAction={props.closes === undefined ? undefined : 'hide'}
+      onClick={() => props.onClick()}
+    >
+      <span className={styles.menuLabel}>
+        <span className={styles.menuIcon}>{props.icon}</span>
+        {props.label}
+      </span>
+      {props.hint === '' ? null : (
+        <span className={styles.menuHint}>{props.hint}</span>
+      )}
+    </button>
+  )
+}
+
 // Click-to-open menu anchored to its trigger, built on the native popover.
 //
 // There is no open state and no event listener here on purpose. `popover="auto"`
