@@ -223,6 +223,44 @@ Note for anyone evaluating the reverse arrangement: Max's `jweb` embeds a web
 view but is unlikely to expose WebGPU, so hosting ntsc.js inside a patch
 probably isn't viable — it wants to be a separate app you route into.
 
+## Motion follow-ups (after the ∿-on-every-row pass)
+
+Shipped: the bay lifted into `useModSlots` (eight slots), a `∿` on every control
+row that claims a slot on first press, presets/scenes/`?mod=` carrying motion, a
+global motion amount with a phase-holding freeze, and an undo walk that restores
+routings alongside controls. What was deliberately left:
+
+- **Performance macros — cut, not deferred by accident.** The design was three
+  assignable 0..1 knobs, routed through the same eight slots as the LFOs. That
+  makes the good case the expensive one: a macro is only worth a knob once it
+  drives several controls at once, which is exactly when it eats the most slots,
+  at four clicks and one slot per control. The motion amount does the
+  one-gesture-scales-the-patch job with no assignment ritual at all. If macros
+  come back, they need their own routing table (not competing with the LFO bay)
+  and MIDI — see below — or they are a slider that does less than the slider it
+  is standing in for.
+- **MIDI cannot reach anything that is not a `ControlKey`.** `BindingMap` is
+  keyed by control (`midi.ts`), so macros, the motion amount, and preset weights
+  are all unreachable from a knob. Preset weights are the interesting one: the
+  chips are already a macro system — dragging `rainbow storm` to 40% moves eight
+  controls with one gesture — so widening the binding key to a tagged union and
+  dispatching on write would turn the existing UI into a performance instrument
+  for far less work than building a second one.
+- **The filter and the palette don't know about modulation.** `sliderMatches` is
+  a pure function of the static slider def, so "what is moving" is not
+  searchable and a routed control cannot be jumped to by name. The row's ∿ tint
+  and the stage fold's `· ∿` cover the local case; a global "3 moving → show me"
+  does not exist.
+- **Modulating the five filter controls** (`encChromaMHz`, `demodMHz`,
+  `chromaTail`, `lumaMHz`, `lumaPeak`) rebuilds the FIR bank every frame. Allowed
+  from the UI deliberately — it is a real patch someone may want — but authored
+  presets are forbidden from it by `presets.test.ts`. If it ever needs to be
+  cheap, the bank would have to be rebuilt only when the modulated value crosses
+  a meaningful step rather than on every frame.
+- **`?surprise` on boot stays controls-only.** A rolled recipe applies its
+  motion in the app, but the boot path layers controls before the bay exists.
+  Accepted asymmetry, not a bug worth plumbing around.
+
 ## Not worth building
 
 - **Cochannel interference.** Already reachable: source B's dirty-sum path is a
