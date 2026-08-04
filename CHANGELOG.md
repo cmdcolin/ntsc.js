@@ -2,6 +2,13 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.9.0](https://github.com/cmdcolin/ntsc.js/compare/v0.8.0...v0.9.0) - 2026-08-04
+
+### Features
+- *(ui)* [`fbc83be`](https://github.com/cmdcolin/ntsc.js/commit/fbc83be5f0c97493d115b893e10d4cdf8c5e7c1e) fit the sidebar on one screen, and name the loop that closes each
+- *(signal)* [`09c71a4`](https://github.com/cmdcolin/ntsc.js/commit/09c71a47db252435c51ed5a308324f6e4018211b) thread a loop of tape between two heads, seconds long
+- *(signal)* [`4a2052f`](https://github.com/cmdcolin/ntsc.js/commit/4a2052f321b8784543afa9aaa9f4c90f45243568) put up to four heads in the loop, so a lap is a rhythm
+
 ## [0.8.0](https://github.com/cmdcolin/ntsc.js/compare/v0.7.5...v0.8.0) - 2026-08-04
 
 ### Features
