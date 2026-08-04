@@ -33,14 +33,17 @@ export interface TapeUniforms {
   tapeSlot: number
   tapeDelayFrames: number
   tapeDelaySamples: number
-  tapeSpliceAt: number
+  tapeSpliceFrames: number
+  tapeSpliceRem: number
 }
 
 export class TapeState {
   private wow = new Wow()
   private t = 0 // transport time, seconds
-  // How much tape still has to run before the splice reaches the play head.
-  private spliceAhead = 0
+  // Where the splice has got to along the tape path, measured from the record
+  // head. It reaches a play head when it draws level with that head, so this
+  // one number serves however many heads are in the path — see tape_play.wgsl.
+  private splicePast = 0
 
   update(c: TapeControls, frame: number): TapeUniforms {
     const dt = 1 / FPS
@@ -63,21 +66,24 @@ export class TapeState {
     // it insists on colour framing; leaving it off lets hue spin with the wow.
     if (c.tapeColourFrame >= 0.5) delay = Math.round(delay / 4) * 4
 
-    // A lap is one trip round the loop, which is exactly the delay. `spliceAhead`
-    // counts down at one frame of tape per frame; when the remainder lands
-    // inside this frame the splice crosses the head partway down the picture.
-    // A loop is rarely a whole number of frames long, so where that lands walks
-    // down the raster lap by lap rather than sitting on one line.
-    this.spliceAhead %= delay
-    const spliceAt = this.spliceAhead < N ? this.spliceAhead : -1
-    this.spliceAhead = wrap(this.spliceAhead - N, delay)
+    // A lap is one trip round the loop, which is exactly the delay, and the
+    // splice runs the path at one frame of tape per frame. Reporting where it
+    // sits rather than when it next arrives is what lets several heads each
+    // meet it at their own moment: a head at distance d sees the joint when
+    // the splice has run that far. A loop is rarely a whole number of frames
+    // long, so where that lands walks down the raster lap by lap.
+    this.splicePast = wrap(this.splicePast, delay)
+    const past = this.splicePast
+    this.splicePast = wrap(past + N, delay)
 
     const tapeDelayFrames = Math.floor(delay / N)
+    const tapeSpliceFrames = Math.floor(past / N)
     return {
       tapeSlot: wrap(frame, TAPE_FRAMES),
       tapeDelayFrames,
       tapeDelaySamples: delay - tapeDelayFrames * N,
-      tapeSpliceAt: spliceAt,
+      tapeSpliceFrames,
+      tapeSpliceRem: past - tapeSpliceFrames * N,
     }
   }
 }

@@ -170,10 +170,14 @@ export const PARAM_DEFS = [
   ['tapeHfLoss', 'f32'], // head/tape band loss per pass (takes chroma first)
   ['tapeNoise', 'f32'], // medium noise, IRE rms — fixed to the tape, not the frame
   ['tapeWear', 'f32'], // fraction of the loop's lines with the oxide worn off
-  ['tapeSplice', 'f32'], // severity of the joint crossing the head, 0 = no splice
-  ['tapeSpliceAt', 'f32'], // sample the splice crosses at, negative = not this frame
+  ['tapeSplice', 'f32'], // severity of the joint crossing a head, 0 = no splice
+  ['tapeHeads', 'f32'], // playback heads in the path: one lap returns once per head
+  ['tapeHeadSpread', 'f32'], // head layout along the path: 1 = even subdivisions
+  ['tapeColourFrame', 'f32'], // 1 = hold every head on a whole subcarrier cycle
+  ['tapeSpliceFrames', 'u32'], // how far the splice has run from the record head...
+  ['tapeSpliceRem', 'f32'], // ...in whole frames plus this remainder
   ['tapeSlot', 'u32'], // ring frame the record head is laying down
-  ['tapeDelayFrames', 'u32'], // play head trails the record head by this many whole frames...
+  ['tapeDelayFrames', 'u32'], // the far head trails the record head by this many whole frames...
   ['tapeDelaySamples', 'f32'], // ...plus this remainder (the total overruns f32's integers)
   // display
   ['scanBeam', 'f32'], // finite beam-spot strength between scanlines

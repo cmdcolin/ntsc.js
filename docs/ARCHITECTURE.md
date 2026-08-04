@@ -109,7 +109,8 @@ fault through `timing[]` will spin hue that should have stayed put.
 - **`tapeBuf`** — the loop bin, `TAPE_FRAMES` (120) composite frames as f16 pairs
   packed into `u32`, two seconds at 60 fps for 109 MiB. It is a _medium_, not a
   frame store: `tapeRec` writes the slot `frame % TAPE_FRAMES` and `tapePlay`
-  reads a delay behind it, so the same stretch of tape carries the same grain,
+  reads it back through up to four heads at their own distances behind, so the
+  same stretch of tape carries the same grain,
   the same worn patches and the same splice round after round. Two consequences
   to respect. **The delay arrives split** — `tapeDelayFrames` (whole frames) plus
   `tapeDelaySamples` (the remainder) — because the ring holds 57 M samples and an

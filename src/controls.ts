@@ -120,7 +120,9 @@ export const DEFAULT_CONTROLS = {
   tapeHfLoss: 0.25, // band lost per pass: generation loss, colour first
   tapeNoiseIre: 1.5, // the medium's own noise floor
   tapeWear: 0, // fraction of the loop with the oxide worn off
-  tapeSplice: 0, // the joint crossing the head, once per lap
+  tapeSplice: 0, // the joint crossing a head, once per lap
+  tapeHeads: 1, // playback heads in the path: a lap returns once per head
+  tapeHeadSpread: 1, // where they sit along it; 1 = even subdivisions
   tapeWowPct: 0, // capstan wander: moves the delay time, not just the picture
   tapeColourFrame: 1, // hold the delay on a subcarrier cycle (0 = hue spins with it)
   // dirty mixer (source B, non-genlocked)

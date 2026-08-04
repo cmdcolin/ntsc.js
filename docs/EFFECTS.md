@@ -82,16 +82,26 @@ The previous frame's composite waveform patched electrically back into the input
 ## Tape loop
 
 A second machine across the mixer, threaded with a loop of tape: the record head
-lays down the mixer output, the tape travels, and a play head further round the
-loop returns it seconds later. The return is recorded again, so anything still
-circulating goes through the medium once per lap — which is the whole difference
-between this and the mixer loop above. Repeats decay by generation loss rather
-than by a fader, and they decay the way tape does.
+lays down the mixer output, the tape travels, and up to four play heads further
+round the loop return it seconds later. The return is recorded again, so
+anything still circulating goes through the medium once per lap — which is the
+whole difference between this and the mixer loop above. Repeats decay by
+generation loss rather than by a fader, and they decay the way tape does.
 
-- **Loop length** — millimetres of tape between the heads. Tape runs at
-  33.35 mm/s, so the length _is_ the delay: 0.6 mm is a frame, 33 mm a second,
-  66 mm the whole bin. It is authored as a length rather than a time because
-  that is what makes the next one work.
+- **Playback heads** — each at its own distance from the record head, so one lap
+  hands the picture back once per head: the heads are a rhythm and the loop is
+  the bar line. The generation structure this produces is not the obvious one —
+  a piece of tape is written once and read by every head as it goes past, so all
+  of a lap's taps are the _same_ generation. The pattern repeats intact and the
+  whole of it goes a generation darker each lap, rather than decaying across the
+  taps.
+- **Head spacing** — even subdivisions at 1; below that they crowd toward the
+  far head so the taps rush and hold, above it toward the record head so they
+  come quickly and leave a gap before the lap turns over.
+- **Loop length** — millimetres of tape between the record head and the far one.
+  Tape runs at 33.35 mm/s, so the length _is_ the delay: 0.6 mm is a frame,
+  33 mm a second, 66 mm the whole bin. It is authored as a length rather than a
+  time because that is what makes the next one work.
 - **Capstan wander** — speed error on a fixed length of tape is delay error, so
   the echo breathes in and out of time. Nothing time-base corrects the return:
   a delay that grows by half a frame hands back a picture displaced half a
