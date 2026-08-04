@@ -411,10 +411,12 @@ if (ref !== undefined) {
   )
   results.forEach((r, i) => {
     r.depart = d[i]
-    // The source with a little grain over it scores well on every other
-    // measure. Under this much departure the patch is not the thing you are
-    // looking at, whatever else it is doing.
-    if (r.depart !== null && r.depart < 10 && r.item.name !== refItem) {
+    // Calibrated against shipped presets, not guessed: `mixer loop` — which
+    // nobody thinks is subtle — departs about 9, because line echoes are
+    // structurally obvious while being pixel-wise small. So this only catches
+    // patches well under that. Read it alongside the rest, too: a look that
+    // collapsed to black departs enormously and is not thereby interesting.
+    if (r.depart !== null && r.depart < 5 && r.item.name !== refItem) {
       r.flags = [...r.flags, 'subtle']
     }
   })
