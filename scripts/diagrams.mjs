@@ -1,14 +1,16 @@
 #!/usr/bin/env node
-// Renders docs/*.dot to light and dark SVGs. The .dot sources use placeholder
-// colour tokens rather than literal hex so one graph definition produces both
-// themes -- the previous approach recoloured only edges, leaving pale fills and
-// near-black label text on a dark page.
+// Renders docs/graphviz/*.dot to light and dark SVGs in docs/img/. The .dot
+// sources use placeholder colour tokens rather than literal hex so one graph
+// definition produces both themes -- the previous approach recoloured only
+// edges, leaving pale fills and near-black label text on a dark page.
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const docs = join(dirname(fileURLToPath(import.meta.url)), '..', 'docs')
+const graphviz = join(docs, 'graphviz')
+const img = join(docs, 'img')
 const graphs = ['pipeline', 'pipeline-simple', 'domains', 'controls']
 
 // Paired by role, so a missing dark value is a syntax error rather than a
@@ -48,14 +50,14 @@ const check = process.argv.includes('--check')
 const stale = []
 
 for (const graph of graphs) {
-  const src = readFileSync(join(docs, `${graph}.dot`), 'utf8')
+  const src = readFileSync(join(graphviz, `${graph}.dot`), 'utf8')
   for (const [i, theme] of ['light', 'dark'].entries()) {
     const filled = src.replace(/@([A-Z0-9]+)@/g, (_, key) => {
       if (!(key in palette)) throw new Error(`${graph}.dot: unknown @${key}@`)
       return palette[key][i]
     })
     const svg = execFileSync('dot', ['-Tsvg'], { input: filled })
-    const out = join(docs, `${graph}-${theme}.svg`)
+    const out = join(img, `${graph}-${theme}.svg`)
     if (check) {
       const current = existsSync(out) ? readFileSync(out) : Buffer.alloc(0)
       if (!current.equals(svg)) stale.push(out)

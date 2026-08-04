@@ -1,0 +1,43 @@
+// The three domains — see docs/ARCHITECTURE.md "The three domains".
+// A horizontal displacement can come from three places. What separates them is
+// what happens to hue; that is the whole test.
+// Colours are placeholder tokens — render with `pnpm run docs`.
+digraph ntsc_js_domains {
+  rankdir=LR;
+  bgcolor="transparent";
+  ranksep=0.55;
+  nodesep=0.35;
+  fontname="Helvetica,Arial,sans-serif";
+  node [shape=box style="rounded,filled" fontname="Helvetica,Arial,sans-serif"
+        fontsize=11 color="@STROKE@" fontcolor="@FG@" penwidth=1 margin="0.2,0.13"];
+  edge [fontname="Helvetica,Arial,sans-serif" fontsize=10 color="@EDGE@" fontcolor="@EDGE@"];
+
+  ask [shape=plaintext fillcolor="transparent" fontcolor="@FG@" label=<
+    <table border="0" cellborder="0" cellspacing="0" cellpadding="2">
+      <tr><td align="left"><font point-size="13"><b>the picture moved sideways.</b></font></td></tr>
+      <tr><td align="left"><font point-size="12">which of the three is it?</font></td></tr>
+      <tr><td align="left"><font point-size="10" color="@GOLD@"><i>route a geometry fault through<br align="left"/>timing[] and you spin hue that<br align="left"/>should have stayed put.<br align="left"/></i></font></td></tr>
+    </table>
+  >];
+
+  sig  [label="Signal domain\ntimebase · channel\nthe waveform itself is resampled" fillcolor="@CH1@"];
+  syn  [label="Sync domain\nsync → timing[]\nthe set mis-locates the line start" fillcolor="@SYN@"];
+  defl [label="Deflection domain\nbendAt · HV sag · audio bend — inside decode\nthe tube's own scan is bent" fillcolor="@RX1@"];
+
+  // The verdict on hue is the discriminator, so it gets its own column; the
+  // real-world cause is the last line of each so there is no fourth column.
+  sigHue [shape=note fillcolor="@CH2@" label="\lhue wobbles with it\lthe burst rides along, so the decoder's\lphase reference moves too\l\lreal cause: tape time-base error\l"];
+  synHue [shape=note fillcolor="@SYN2@" label="\lhue follows, then breaks\lthe burst gate is keyed off the same timing[],\lso a large enough error mistimes the gate\land throws colour\l\lreal cause: hold / flagging\l"];
+  deflHue [shape=note fillcolor="@RX2@" label="\lhue must NOT move\lit is already decoded. indexed by raster line,\lnot source row — so a rolling picture slides\lthrough a bend that stays put on the glass\l\lreal cause: tube geometry, sag, speaker bend\l"];
+
+  ask -> sig;
+  ask -> syn;
+  ask -> defl;
+
+  sig  -> sigHue  [arrowhead=none style=dotted];
+  syn  -> synHue  [arrowhead=none style=dotted];
+  defl -> deflHue [arrowhead=none style=dotted];
+
+  { rank=same; sig; syn; defl; }
+  { rank=same; sigHue; synHue; deflHue; }
+}

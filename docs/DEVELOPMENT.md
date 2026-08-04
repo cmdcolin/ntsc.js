@@ -11,16 +11,17 @@ pnpm test       # vitest
 `pnpm test` runs the FIR design unit tests (DC gain, passband/stopband response,
 linear-phase symmetry, filter-bank packing), statically validates every WGSL
 shader through naga, and holds both hand-drawn views of the pass list to the
-arrays in `pipeline.ts` — `docs/pipeline.dot` for which passes exist and which
+arrays in `pipeline.ts` — `docs/graphviz/pipeline.dot` for which passes exist and which
 are gated (from each node's `passes="…"` attribute and its dashed border), and
 the "Pass order" block in `ARCHITECTURE.md` for the order and the brackets too.
 A pass added, reordered or ungated without updating them fails the suite. CI
 gates deploy on `pnpm lint` + `pnpm test`.
 
-`pnpm run docs` regenerates every diagram in `docs/*.dot` into light and dark
-SVGs (needs Graphviz `dot` on PATH). The `.dot` sources hold `@TOKEN@` colour
-placeholders rather than hex, so one graph definition produces both themes —
-edit the palette in `scripts/diagrams.mjs`, never the SVGs.
+`pnpm run docs` regenerates every diagram in `docs/graphviz/*.dot` into light
+and dark SVGs under `docs/img/` (needs Graphviz `dot` on PATH). The `.dot`
+sources hold `@TOKEN@` colour placeholders rather than hex, so one graph
+definition produces both themes — edit the palette in `scripts/diagrams.mjs`,
+never the SVGs.
 `pnpm run docs:check` fails if a committed SVG no longer matches its `.dot` — it
 compares bytes, so it is a local check, not a CI gate (a different Graphviz
 build emits different SVG).

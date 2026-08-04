@@ -210,11 +210,6 @@ mkdirSync(join(outDir, 'img'), { recursive: true })
 for (const file of readdirSync('docs/img')) {
   copyFileSync(join('docs/img', file), join(outDir, 'img', file))
 }
-// The Graphviz diagrams the markdown embeds sit beside it in docs/.
-for (const file of readdirSync('docs')) {
-  if (file.endsWith('.svg'))
-    copyFileSync(join('docs', file), join(outDir, file))
-}
 for (const spec of PAGES) {
   const body = forceDarkDiagrams(
     withLiveLinks(

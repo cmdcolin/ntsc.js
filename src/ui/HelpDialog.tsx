@@ -1,4 +1,4 @@
-import logoUrl from '../../docs/logo.svg'
+import logoUrl from '../../docs/img/logo.svg'
 import { Dialog } from './Dialog'
 import dlg from './dialog.module.css'
 import ui from './ui.module.css'

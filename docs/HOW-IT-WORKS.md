@@ -49,8 +49,8 @@ Five blocks: Source, Encoder, Channel, Receiver, Display. Two feedback loops
 fold back in every frame.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="pipeline-simple-dark.svg">
-  <img alt="Signal path — overview: Source → Encoder → Channel → Receiver → Display, with a composite feedback loop from Channel back to Encoder and an image feedback loop from Display back to Source" src="pipeline-simple-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="img/pipeline-simple-dark.svg">
+  <img alt="Signal path — overview: Source → Encoder → Channel → Receiver → Display, with a composite feedback loop from Channel back to Encoder and an image feedback loop from Display back to Source" src="img/pipeline-simple-light.svg">
 </picture>
 
 Same thing pass by pass, in the order they actually run. Every arrow is labelled
@@ -59,14 +59,14 @@ with the GPU buffer it carries, so the same picture doubles as the buffer story
 `compB` exists only because `channel` cannot read and write one buffer at once:
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="pipeline-dark.svg">
-  <img alt="Signal path pass by pass. Source A and B feed the encoder (compose, encodeYuv, encodeComposite, composeB, encodeYuvB, mixB), then fbComposite, then the channel block (chromaExtract, underDown, channel, timebase) which repeats once per tape dub, then the outboard enhancer, then the receiver (syncMeasure, sync, lineAnalyze, decode), then crtFace and present. storePrev feeds the composite loop back into fbComposite one frame later; crtFace feeds the camera loop back into compose." src="pipeline-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="img/pipeline-dark.svg">
+  <img alt="Signal path pass by pass. Source A and B feed the encoder (compose, encodeYuv, encodeComposite, composeB, encodeYuvB, mixB), then fbComposite, then the channel block (chromaExtract, underDown, channel, timebase) which repeats once per tape dub, then the outboard enhancer, then the receiver (syncMeasure, sync, lineAnalyze, decode), then crtFace and present. storePrev feeds the composite loop back into fbComposite one frame later; crtFace feeds the camera loop back into compose." src="img/pipeline-light.svg">
 </picture>
 
 <sup>The diagram carries its own key, and a unit test asserts it draws exactly
 the passes the engine builds. Sources are Graphviz —
-[`pipeline-simple.dot`](pipeline-simple.dot), [`pipeline.dot`](pipeline.dot),
-[`domains.dot`](domains.dot), [`controls.dot`](controls.dot); `pnpm run docs`
+[`pipeline-simple.dot`](graphviz/pipeline-simple.dot), [`pipeline.dot`](graphviz/pipeline.dot),
+[`domains.dot`](graphviz/domains.dot), [`controls.dot`](graphviz/controls.dot); `pnpm run docs`
 regenerates every diagram in light and dark from one definition each (needs
 `dot` on PATH).</sup>
 

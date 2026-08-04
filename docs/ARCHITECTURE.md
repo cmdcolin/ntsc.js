@@ -53,7 +53,7 @@ present      render pass to the swap chain
 
 That block is not decoration: `src/gpu/pipeline-graph.test.ts` parses the three
 arrays out of `pipeline.ts` and fails if this order, or which names are
-bracketed, no longer matches. `docs/pipeline.dot` draws the same order with the
+bracketed, no longer matches. `docs/graphviz/pipeline.dot` draws the same order with the
 buffers on the arrows and is held to the same list.
 
 Bracketed passes are gated by a `when()` predicate on the controls, so an idle
@@ -75,8 +75,8 @@ wrong. A horizontal displacement can come from three places, and they are _not_
 interchangeable — what tells them apart is what happens to hue:
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="domains-dark.svg">
-  <img alt="The picture moved sideways — which of the three domains is it? Signal domain (timebase, channel) resamples the waveform, so hue wobbles with it; cause is tape time-base error. Sync domain (sync to timing[]) mis-locates the line start, so hue follows and a large enough error throws colour; cause is hold/flagging. Deflection domain (bendAt, HV sag, audio bend inside decode) bends the tube's own scan after decoding, so hue must not move; cause is tube geometry, sag, speaker bend." src="domains-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="img/domains-dark.svg">
+  <img alt="The picture moved sideways — which of the three domains is it? Signal domain (timebase, channel) resamples the waveform, so hue wobbles with it; cause is tape time-base error. Sync domain (sync to timing[]) mis-locates the line start, so hue follows and a large enough error throws colour; cause is hold/flagging. Deflection domain (bendAt, HV sag, audio bend inside decode) bends the tube's own scan after decoding, so hue must not move; cause is tube geometry, sag, speaker bend." src="img/domains-light.svg">
 </picture>
 
 - **Signal domain** (`timebase`, `channel`) — the waveform itself is resampled.
@@ -123,8 +123,8 @@ uniform.
 Adding a control end to end touches five files, and only the last is optional:
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="controls-dark.svg">
-  <img alt="Adding a control end to end: PARAM_DEFS in src/gpu/prelude.ts declares the GPU-side field, and field order there is the GPU memory layout; DEFAULT_CONTROLS in src/controls.ts holds the user-facing value in physical units; uniformValues() in src/gpu/pipeline.ts converts units and folds in per-frame CPU state; GROUPS in src/ui/controls.ts adds the slider; optionally a preset in src/ui/presets.ts. A field in PARAM_DEFS that uniformValues() does not supply is a TypeScript error, which guards against a uniform that silently reads zero." src="controls-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="img/controls-dark.svg">
+  <img alt="Adding a control end to end: PARAM_DEFS in src/gpu/prelude.ts declares the GPU-side field, and field order there is the GPU memory layout; DEFAULT_CONTROLS in src/controls.ts holds the user-facing value in physical units; uniformValues() in src/gpu/pipeline.ts converts units and folds in per-frame CPU state; GROUPS in src/ui/controls.ts adds the slider; optionally a preset in src/ui/presets.ts. A field in PARAM_DEFS that uniformValues() does not supply is a TypeScript error, which guards against a uniform that silently reads zero." src="img/controls-light.svg">
 </picture>
 
 `PARAM_DEFS` has to come first — the type error it raises is what points you at

@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 
 import { readFileSync } from 'node:fs'
 
-// docs/pipeline.dot and the "Pass order" block in docs/ARCHITECTURE.md are both
+// docs/graphviz/pipeline.dot and the "Pass order" block in docs/ARCHITECTURE.md are both
 // hand-maintained views of the pass arrays in pipeline.ts, so both can silently
 // fall behind — `enhancer` was missing from the diagram for several releases.
 // These tests read the arrays as the source of truth and hold the two docs to
@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs'
 // Reading pipeline.ts as text rather than importing it keeps this a unit test:
 // constructing an Engine needs a GPUDevice, which vitest has no adapter for.
 const source = readFileSync('src/gpu/pipeline.ts', 'utf8')
-const dot = readFileSync('docs/pipeline.dot', 'utf8')
+const dot = readFileSync('docs/graphviz/pipeline.dot', 'utf8')
 const architecture = readFileSync('docs/ARCHITECTURE.md', 'utf8')
 
 // Comments hold apostrophes ("Decode's two bind groups"), so they have to go

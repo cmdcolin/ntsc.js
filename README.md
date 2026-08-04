@@ -1,6 +1,6 @@
 # ntsc.js
 
-![One NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, then the luma staircase with the chroma subcarrier riding on each bar](docs/logo.svg)
+![One NTSC line of 75% color bars on a waveform monitor: horizontal sync, color burst, then the luma staircase with the chroma subcarrier riding on each bar](docs/img/logo.svg)
 
 > A real-time NTSC / VHS / composite-video glitch simulator, running entirely in
 > WebGPU compute shaders

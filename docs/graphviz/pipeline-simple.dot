@@ -1,0 +1,24 @@
+// ntsc.js — the big idea in five blocks. Block names match the stage names in
+// pipeline.dot and the table in docs/HOW-IT-WORKS.md; keep them in step.
+// Colours are placeholder tokens — render with `pnpm run docs`.
+digraph ntsc_js_simple {
+  rankdir=LR;
+  bgcolor="transparent";
+  fontname="Helvetica,Arial,sans-serif";
+  node [shape=box style="rounded,filled" fontname="Helvetica,Arial,sans-serif"
+        fontsize=12 color="@STROKE@" fontcolor="@FG@" penwidth=1 margin="0.22,0.14"];
+  edge [fontname="Helvetica,Arial,sans-serif" fontsize=10 color="@EDGE@" fontcolor="@EDGE@"];
+
+  src    [label="Source\nbars · video · webcam" fillcolor="@SRC@"];
+  encode [label="Encoder\nbuild the NTSC\ncomposite waveform" fillcolor="@ENC1@"];
+  damage [label="Channel\ndamage the signal\ntape · RF · VHS" fillcolor="@CH1@"];
+  decode [label="Receiver\nimperfect TV\ndecodes it → RGB" fillcolor="@RX1@"];
+  screen [label="Display\nscanline beam\non a lit tube" fillcolor="@DSP@"];
+
+  src -> encode -> damage -> decode -> screen;
+
+  damage -> encode [label="  composite feedback\l  hardware mixer\l" style=dashed
+                    color="@GOLD@" fontcolor="@GOLD@" constraint=false];
+  screen -> src    [label="  image feedback\l  camera-at-monitor\l" style=dashed
+                    color="@GREEN@" fontcolor="@GREEN@" constraint=false];
+}
