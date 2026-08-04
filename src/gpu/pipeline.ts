@@ -1213,6 +1213,7 @@ export class Engine {
         tapeMix: c.tapeMix,
         tapeRecord: c.tapeRecord,
         tapeTransport: c.tapeTransport,
+        tapeShuttle: c.tapeShuttle,
       },
       this.frame,
     )

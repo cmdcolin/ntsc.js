@@ -123,6 +123,7 @@ export const DEFAULT_CONTROLS = {
   tapeSplice: 0, // the joint crossing a head, once per lap
   tapeRecord: 1, // record head down; lift it and the loop holds what it has
   tapeTransport: 2, // 0 reverse, 1 stopped, 2 forward, 3 scrub — only means anything held
+  tapeShuttle: 1, // loop speed as a multiple of play; the transport gives the sign
   tapeHeads: 1, // playback heads in the path: a lap returns once per head
   tapeHeadSpread: 1, // where they sit along it; 1 = even subdivisions
   tapeWowPct: 0, // capstan wander: moves the delay time, not just the picture

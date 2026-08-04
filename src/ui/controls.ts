@@ -509,6 +509,15 @@ export const GROUPS: Group[] = [
         help: 'Which way a held loop runs past the heads, and whether the drum is still turning. Reverse plays the frames back in the order they were laid down, each one whole — the scanner still sweeps the same way, so motion runs backwards while the picture stays a picture. Stopped parks the tape while the drum re-reads one sweep: a still frame you can play live over. Scrub stalls the drum and keeps pulling backwards, so the head recovers the tape in the order it drags past rather than in sweep order — the waveform itself comes back reversed, and the set gets sync tips at the wrong end of every line, a burst that reads phase-flipped, and a raster arriving end-first. Nothing about that is drawn; it is what a receiver does with a signal running the wrong way. Only means anything with the record head up.',
       },
       {
+        key: 'tapeShuttle',
+        label: 'shuttle (1 = play)',
+        min: 0,
+        max: 8,
+        step: 0.05,
+        unit: 'x',
+        help: 'How fast a held loop runs, as a multiple of play — the transport switch above gives the direction, this gives the speed. Off play speed the head no longer follows a single recorded track: each sweep crosses several, the RF nulls at every crossing, and that many noise bars sweep the picture. It is the same mechanism the deck shuttle uses, but running over your own captured loop instead of the incoming signal — cue and review through two seconds you recorded, with the picture skipping frames as it goes. Note this is why a paused loop has a bar across it and a reversed one has two: at a standstill the head still crosses one track per sweep, and backwards it crosses two.',
+      },
+      {
         key: 'tapeHeads',
         label: 'playback heads',
         min: 1,
@@ -1654,6 +1663,12 @@ export const NEEDS: Partial<Record<ControlKey, SliderNeed>> = {
   tapeLoopMm: tape,
   tapeRecord: tape,
   tapeTransport: {
+    key: 'tapeRecord',
+    ok: (v: number) => v < 0.5,
+    fix: 0,
+    hint: 'the record head lifted',
+  },
+  tapeShuttle: {
     key: 'tapeRecord',
     ok: (v: number) => v < 0.5,
     fix: 0,

@@ -30,6 +30,7 @@ export interface TapeControls {
   tapeMix: number // the loop is out of circuit entirely at 0
   tapeRecord: number // 1 = the record head is down, 0 = lifted
   tapeTransport: number // 0 reverse, 1 stopped, 2 forward, 3 scrub back
+  tapeShuttle: number // loop speed as a multiple of play; transport gives the sign
 }
 
 // Transport positions. `scrub` is appended rather than slotted in beside
@@ -50,6 +51,8 @@ export interface TapeUniforms {
   tapeHoldFrames: number
   tapeHoldRem: number
   tapeScrub: number
+  tapeShuttleBars: number
+  tapeShuttlePhase: number
 }
 
 // Whether anything is actually reaching the tape. The record head being down is
@@ -74,8 +77,13 @@ const SPEEDS: Record<number, number> = {
   [TAPE_SCRUB]: -1,
 }
 
+// The transport switch supplies the sign, the shuttle the magnitude, exactly
+// the way a deck has mode buttons and a wheel. Stopped is zero whatever the
+// wheel says.
 const transportSpeed = (c: TapeControls): number =>
-  tapeRecording(c) ? 1 : (SPEEDS[Math.round(c.tapeTransport)] ?? 1)
+  tapeRecording(c)
+    ? 1
+    : (SPEEDS[Math.round(c.tapeTransport)] ?? 1) * Math.max(0, c.tapeShuttle)
 
 // Whether the head is reading in tape order instead of sweep order — the drum
 // stalled while the capstan keeps pulling. Only reachable with the record head
@@ -96,6 +104,9 @@ export class TapeState {
   private holdSlot = 0
   private holdPhase = 0
   private wasRecording = false
+  // Where the track-crossing pattern has drifted to, in crossings. Same
+  // quantity the deck keeps for `shuttleX` (Engine.advanceShuttle).
+  private shuttlePhase = 0
 
   update(c: TapeControls, frame: number): TapeUniforms {
     const dt = 1 / FPS
@@ -164,12 +175,25 @@ export class TapeState {
     }
     this.wasRecording = recording
 
+    // Off play speed the head stops following one track. Each sweep crosses
+    // |speed - 1| of them and the RF nulls at every crossing, which is one bar
+    // standing still at a pause and four sweeping at five times play — the same
+    // count the deck uses. It falls out of the arithmetic that a loop running
+    // backwards crosses two per sweep, so reverse is not clean either, and
+    // never was on a two-head machine.
+    const bars = transport - 1
+    if (bars !== 0) {
+      this.shuttlePhase = (this.shuttlePhase + bars * 0.0035 + 0.0008) % 1024
+    }
+
     const tapeDelayFrames = Math.floor(delay / N)
     const tapeSpliceFrames = Math.floor(past / N)
     const tapeHoldFrames = Math.floor(this.holdPhase / N)
     return {
       tapeSlot: slot,
       tapeScrub: tapeScrubbing(c) ? 1 : 0,
+      tapeShuttleBars: bars,
+      tapeShuttlePhase: this.shuttlePhase,
       tapeHoldSlot: this.holdSlot,
       tapeHoldFrames,
       tapeHoldRem: this.holdPhase - tapeHoldFrames * N,

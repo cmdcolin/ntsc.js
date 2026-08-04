@@ -103,6 +103,15 @@ generation loss rather than by a fader, and they decay the way tape does.
     reverses: motion runs backwards while the picture stays a picture.
   - _Stopped_ parks the tape while the drum re-reads one sweep — a still frame
     you can play live over.
+  - _Shuttle_ is how fast it runs, as a multiple of play — the switch gives the
+    direction, the wheel the speed. Off play speed the head no longer follows a
+    single recorded track: each sweep crosses several, the RF nulls at every
+    crossing, and that many noise bars sweep the picture. The same mechanism as
+    the deck's shuttle, but running over the loop you captured rather than the
+    incoming signal, so you can cue and review through your own two seconds.
+    It is also where a paused loop's bar comes from, and a reversed loop's two:
+    at a standstill the head still crosses one track per sweep, and backwards
+    it crosses two. Only at exactly play speed forwards is a loop clean.
   - _Scrub_ stalls the drum and keeps pulling. With nothing sweeping, the head
     recovers the magnetisation in the order the tape drags past it, so what
     comes back is the waveform itself reversed. Everything that then goes wrong

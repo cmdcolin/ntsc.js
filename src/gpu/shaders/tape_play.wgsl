@@ -190,8 +190,28 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
 
   // Unity-gain summing bus, so adding a head changes the pattern and not the
   // level — otherwise the fader means something different at every head count.
+  var out = acc / f32(heads);
+
+  // Off play speed the head stops following one track: each sweep crosses
+  // |speed - 1| of them and the RF envelope nulls at every crossing. That is
+  // one bar standing still — the paused-VHS bar — and four sweeping the frame
+  // at five times play. Same model and the same constants the deck uses for
+  // `shuttleX` in channel.wgsl, applied to the summed bus rather than per head
+  // because it is one drum and one RF path losing the signal, not each head
+  // independently.
+  if (P.tapeShuttleBars != 0.0) {
+    let ab = abs(P.tapeShuttleBars);
+    let fx = fract(f32(row) / f32(NLINES) * ab + P.tapeShuttlePhase);
+    let dLines = min(fx, 1.0 - fx) / ab * f32(NLINES);
+    let half = 8.0;
+    if (dLines < half) {
+      let edge = 1.0 - dLines / half;
+      let snow = 45.0 * gauss(n ^ pcg(P.frame * 24593u + row * 3u));
+      out = mix(out, snow, clamp(edge * 1.7, 0.0, 0.95));
+    }
+  }
+
   // A fader is a crossfade, not a sum, which is why a loop left up regresses
   // instead of whiting out. Amplifier rails clip whatever gets past it.
-  let out = acc / f32(heads);
   comp[n] = clamp(mix(comp[n], P.tapeGain * out, P.tapeMix), -60.0, 140.0);
 }

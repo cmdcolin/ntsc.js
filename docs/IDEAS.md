@@ -288,15 +288,17 @@ block. Two things were considered and left:
 Worth doing if the loop ever needs to sound like a _different deck_ from the
 main one, which is the case the current model cannot express.
 
-- **Transport speeds other than ±1 and 0.** The switch is reverse / stopped /
-  forward because those three are exact: the hold phase steps by a whole frame
-  of tape, so every frame comes off whole. Half speed and double speed are the
-  interesting missing ones and they are _not_ a wider slider — off play speed a
-  helical head stops following one track, which is the whole mechanism behind
-  the deck's `shuttleX` noise bars (`channel.wgsl`). Doing it here honestly
-  means giving the loop its own track-crossing model; scaling the phase
-  advance alone would hand back a picture torn across a frame boundary with
-  nothing to explain why.
+- ~~**Transport speeds other than ±1 and 0.**~~ Shipped as `tapeShuttle`, with
+  the track-crossing model it needed: the loop carries its own `speed - 1`
+  crossings and drives the same bar the deck's `shuttleX` does. Falling out of
+  that rather than being special-cased: a paused loop has one bar and a
+  reversed one has two, so only play speed forwards is clean.
+  What is still missing is the deck's _second_ half — `linestate` gives each
+  strip between the deck's bars its own timing and colour-under phase, so the
+  picture tears and rainbows at the boundaries. The loop's strips come off one
+  contiguous read, so they are clean between bars. Doing it would need per-line
+  offsets on the loop read, which `decode`'s row-uniform constraint does not
+  block but `tape_play` has no per-line buffer for yet.
 
 ## In flight — preset screening, round 2
 

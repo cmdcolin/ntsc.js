@@ -24,6 +24,7 @@ const still = {
   tapeMix: 0.5,
   tapeRecord: 1,
   tapeTransport: 2, // forward
+  tapeShuttle: 1, // play speed
 }
 // Mirrors the read in tape_play.wgsl: where round the loop window a head at
 // distance `d` is lifting sample `n` from, as an offset off the window's base.
@@ -332,6 +333,48 @@ describe('TapeState', () => {
       )
       expect(b.tapeSpliceFrames).toBe(a.tapeSpliceFrames)
     }
+  })
+
+  it('crosses tracks whenever the loop is off play speed', () => {
+    // |speed - 1| crossings a sweep, the deck's own count: none at play, one
+    // standing still (the paused-VHS bar), two running backwards, four cueing
+    // at five times. Nothing here is a special case for pause.
+    const bars = (t: number, x: number) =>
+      new TapeState().update(
+        { ...still, tapeRecord: 0, tapeTransport: t, tapeShuttle: x },
+        1,
+      ).tapeShuttleBars
+    expect(bars(TAPE_FORWARD, 1)).toBe(0)
+    expect(bars(TAPE_STOPPED, 1)).toBe(-1)
+    expect(bars(TAPE_REVERSE, 1)).toBe(-2)
+    expect(bars(TAPE_FORWARD, 5)).toBe(4)
+    expect(bars(TAPE_REVERSE, 3)).toBe(-4)
+    // the wheel cannot un-stop a stopped transport
+    expect(bars(TAPE_STOPPED, 8)).toBe(-1)
+  })
+
+  it('runs a held loop at the shuttle speed', () => {
+    const stepAt = (t: number, x: number) => {
+      const tape = new TapeState()
+      tape.update(still, 0)
+      const held = { ...still, tapeRecord: 0, tapeTransport: t, tapeShuttle: x }
+      tape.update(held, 1)
+      const a = tape.update(held, 2)
+      const b = tape.update(held, 3)
+      const phase = (u: TapeUniforms) => u.tapeHoldFrames * N + u.tapeHoldRem
+      return wrapRing(phase(b) - phase(a))
+    }
+    expect(stepAt(TAPE_FORWARD, 1)).toBe(N)
+    expect(stepAt(TAPE_FORWARD, 3)).toBe(3 * N)
+    expect(stepAt(TAPE_FORWARD, 0.5)).toBe(N / 2)
+    expect(stepAt(TAPE_STOPPED, 4)).toBe(0)
+    expect(wrapRing(-stepAt(TAPE_REVERSE, 2))).toBe(2 * N)
+  })
+
+  it('leaves the shuttle inert while the record head is down', () => {
+    const u = new TapeState().update({ ...still, tapeShuttle: 6 }, 1)
+    expect(u.tapeShuttleBars).toBe(0)
+    expect(u.tapeHoldFrames * N + u.tapeHoldRem).toBe(0)
   })
 
   it('treats a shut fader as the record head being up', () => {
