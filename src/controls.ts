@@ -121,6 +121,7 @@ export const DEFAULT_CONTROLS = {
   tapeNoiseIre: 1.5, // the medium's own noise floor
   tapeWear: 0, // fraction of the loop with the oxide worn off
   tapeSplice: 0, // the joint crossing a head, once per lap
+  tapeRecord: 1, // record head down; lift it and the loop holds what it has
   tapeHeads: 1, // playback heads in the path: a lap returns once per head
   tapeHeadSpread: 1, // where they sit along it; 1 = even subdivisions
   tapeWowPct: 0, // capstan wander: moves the delay time, not just the picture

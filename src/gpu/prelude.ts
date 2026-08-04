@@ -177,6 +177,9 @@ export const PARAM_DEFS = [
   ['tapeSpliceFrames', 'u32'], // how far the splice has run from the record head...
   ['tapeSpliceRem', 'f32'], // ...in whole frames plus this remainder
   ['tapeSlot', 'u32'], // ring frame the record head is laying down
+  ['tapeHoldSlot', 'u32'], // ring frame the loop window sits on (= tapeSlot while recording)
+  ['tapeHoldFrames', 'u32'], // how far the heads have walked round a held loop...
+  ['tapeHoldRem', 'f32'], // ...in whole frames plus this remainder (0 while recording)
   ['tapeDelayFrames', 'u32'], // the far head trails the record head by this many whole frames...
   ['tapeDelaySamples', 'f32'], // ...plus this remainder (the total overruns f32's integers)
   // display

@@ -114,10 +114,15 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   }
   let n = row * SPL + s;
 
-  // Where this sample is coming off the loop: the record head is laying down
-  // frame `tapeSlot`, and the far head trails it by the whole loop — whole
-  // frames plus a remainder.
-  let write = P.tapeSlot * BUF_LEN + n;
+  // The stretch of tape the heads are running over, and how far round it they
+  // have got. While the record head is down this window is the frame being laid
+  // down now and the phase is zero, so the arithmetic below reduces to "the far
+  // head trails the write pointer by the whole loop". Lift the record head and
+  // the window stays put while the phase keeps walking: the tape goes on
+  // circulating over the same oxide, which is what makes a held loop repeat
+  // instead of running off the back of itself into older ring content.
+  let holdBase = P.tapeHoldSlot * BUF_LEN;
+  let phase = P.tapeHoldFrames * BUF_LEN + u32(floor(P.tapeHoldRem));
   let loopLen = P.tapeDelayFrames * BUF_LEN + u32(floor(P.tapeDelaySamples));
   let frac = fract(P.tapeDelaySamples);
   let heads = clamp(u32(P.tapeHeads + 0.5), 1u, MAX_HEADS);
@@ -145,7 +150,10 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
       }
       t = 1.0;
     }
-    let read = tapePos(write, -i32(d));
+    // How far round the loop this head is reading. Wrapping inside the window
+    // is what holds a lifted record head to the same oxide lap after lap.
+    let inLoop = (phase + n + loopLen - d) % loopLen;
+    let read = tapePos(holdBase, i32(inLoop) - i32(loopLen));
     var v = headOutput(read, t, n);
 
     // The splice. A loop is a loop because someone joined the ends, and the

@@ -27,6 +27,8 @@ export interface TapeControls {
   tapeLoopMm: number // record head to play head, millimetres of tape
   tapeWowPct: number // capstan speed wander, percent
   tapeColourFrame: number // 1 = hold the delay on a subcarrier cycle
+  tapeMix: number // the loop is out of circuit entirely at 0
+  tapeRecord: number // 1 = the record head is down, 0 = lifted
 }
 
 export interface TapeUniforms {
@@ -35,7 +37,20 @@ export interface TapeUniforms {
   tapeDelaySamples: number
   tapeSpliceFrames: number
   tapeSpliceRem: number
+  tapeHoldSlot: number
+  tapeHoldFrames: number
+  tapeHoldRem: number
 }
+
+// Whether anything is actually reaching the tape. The record head being down is
+// not enough on its own — with the fader shut the loop is out of circuit and
+// nothing is laid down either, and a window that kept advancing through that
+// would leave the play heads reading tape nobody recorded. One definition, used
+// both to gate the pass and to park the window.
+export const tapeRecording = (c: {
+  tapeMix: number
+  tapeRecord: number
+}): boolean => c.tapeMix !== 0 && c.tapeRecord >= 0.5
 
 export class TapeState {
   private wow = new Wow()
@@ -44,6 +59,12 @@ export class TapeState {
   // head. It reaches a play head when it draws level with that head, so this
   // one number serves however many heads are in the path — see tape_play.wgsl.
   private splicePast = 0
+  // The stretch of tape the heads are running over. While the record head is
+  // down this is simply the tape being laid down now; once it lifts, the window
+  // stays where it was and `holdPhase` walks the heads round it.
+  private holdSlot = 0
+  private holdPhase = 0
+  private wasRecording = false
 
   update(c: TapeControls, frame: number): TapeUniforms {
     const dt = 1 / FPS
@@ -76,10 +97,37 @@ export class TapeState {
     const past = this.splicePast
     this.splicePast = wrap(past + N, delay)
 
+    // Lifting the record head does not stop the tape — it keeps circulating
+    // over the same loop-length of oxide, so the heads have to wrap inside that
+    // window rather than walk off the back of it into whatever the ring held
+    // before. Parking the window on the current frame with zero phase while
+    // recording makes one expression in the shader cover both cases.
+    //
+    // The window has to advance once more on the frame the head lifts, and this
+    // is the easiest thing here to get wrong by one. `tapePlay` runs before
+    // `tapeRec`, so while recording frame f the newest tape on the loop is
+    // frame f-1 and the window ends there. By the time the head is up, frame f
+    // has been laid down — so the base steps on one last time, or the window
+    // closes just short of the newest tape and the last thing recorded is the
+    // one thing that never plays back.
+    const slot = wrap(frame, TAPE_FRAMES)
+    const recording = tapeRecording(c)
+    if (recording || this.wasRecording) {
+      this.holdSlot = slot
+      this.holdPhase = 0
+    } else {
+      this.holdPhase = wrap(this.holdPhase + N, delay)
+    }
+    this.wasRecording = recording
+
     const tapeDelayFrames = Math.floor(delay / N)
     const tapeSpliceFrames = Math.floor(past / N)
+    const tapeHoldFrames = Math.floor(this.holdPhase / N)
     return {
-      tapeSlot: wrap(frame, TAPE_FRAMES),
+      tapeSlot: slot,
+      tapeHoldSlot: this.holdSlot,
+      tapeHoldFrames,
+      tapeHoldRem: this.holdPhase - tapeHoldFrames * N,
       tapeDelayFrames,
       tapeDelaySamples: delay - tapeDelayFrames * N,
       tapeSpliceFrames,

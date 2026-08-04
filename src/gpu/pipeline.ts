@@ -29,7 +29,7 @@ import {
 import { LineState } from '../signal/linestate'
 import { MixState } from '../signal/mixstate'
 import { ModState } from '../signal/modstate'
-import { TapeState } from '../signal/tapeloop'
+import { TapeState, tapeRecording } from '../signal/tapeloop'
 import { initGpu } from './context'
 import {
   GEN_OFFSET,
@@ -517,7 +517,7 @@ export class Engine {
           { buffer: this.tapeBuf },
         ],
         perLineW,
-        () => c.tapeMix !== 0,
+        () => tapeRecording(c),
       ),
     ]
     this.loopPasses = [
@@ -1210,6 +1210,8 @@ export class Engine {
         tapeLoopMm: c.tapeLoopMm,
         tapeWowPct: c.tapeWowPct,
         tapeColourFrame: c.tapeColourFrame,
+        tapeMix: c.tapeMix,
+        tapeRecord: c.tapeRecord,
       },
       this.frame,
     )

@@ -88,6 +88,13 @@ anything still circulating goes through the medium once per lap — which is the
 whole difference between this and the mixer loop above. Repeats decay by
 generation loss rather than by a fader, and they decay the way tape does.
 
+- **Record head** — lift it and the tape keeps circulating with whatever is
+  already on it: the loop repeats indefinitely and stops taking in the live
+  picture, which is what makes this a looper rather than an echo. It does not
+  fade. Playback loss is what the head does on the way past, not damage to the
+  oxide, so a held loop comes back identical every lap — down to the same grain
+  in the same places, since the grain belongs to the tape. Drop the head again
+  and it records over what it has.
 - **Playback heads** — each at its own distance from the record head, so one lap
   hands the picture back once per head: the heads are a rhythm and the loop is
   the bar line. The generation structure this produces is not the obvious one —

@@ -117,7 +117,10 @@ fault through `timing[]` will spin hue that should have stayed put.
   f32 stops counting integers singly at 2²⁴; position arithmetic in
   `tape_play.wgsl` is `u32` for the same reason. And **`tapePlay` must run before
   `tapeRec`**, which is what makes the maximum delay a full ring rather than one
-  frame short of it.
+  frame short of it — and is the thing to hold in mind when touching the hold
+  window, because while recording frame _f_ the newest tape on the loop is
+  _f−1_, so the window has to step on once more as the record head lifts or the
+  last frame recorded is the one frame that never plays back.
 - **`persistBufs`** — phosphor state (the light still on the glass), packed
   `rgba8`, ping-ponged by frame parity: `decode` reads one and writes the other,
   because its lateral scatter reads neighbouring pixels and a single buffer

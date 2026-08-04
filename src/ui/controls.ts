@@ -489,6 +489,16 @@ export const GROUPS: Group[] = [
         help: "The medium's own noise floor. It belongs to the oxide, not to the moment, so the same grain is on the same stretch of tape every lap and gets re-recorded rather than averaging away like snow — it builds into standing streaks, and slides bodily through the picture when the speed wanders.",
       },
       {
+        key: 'tapeRecord',
+        label: 'record head',
+        min: 0,
+        max: 1,
+        step: 1,
+        unit: '',
+        choices: ['hold', 'record'],
+        help: 'Lift the record head and the tape keeps circulating with whatever is already on it — the loop repeats indefinitely and stops taking in the live picture. Playing over a held loop is what makes this a looper rather than an echo. It does not fade: playback loss is what the head does on the way past, not damage to the oxide, so a held loop comes back identical every lap, down to the same grain in the same places. Drop the head again and it starts recording over what it has.',
+      },
+      {
         key: 'tapeHeads',
         label: 'playback heads',
         min: 1,
@@ -1631,6 +1641,7 @@ export const NEEDS: Partial<Record<ControlKey, SliderNeed>> = {
     hint: 'resonance freq above 0',
   },
   tapeLoopMm: tape,
+  tapeRecord: tape,
   tapeHeads: tape,
   tapeHeadSpread: {
     key: 'tapeHeads',

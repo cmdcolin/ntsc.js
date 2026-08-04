@@ -15,6 +15,17 @@ const still = {
   tapeLoopMm: 33.35, // exactly one second of tape
   tapeWowPct: 0,
   tapeColourFrame: 1,
+  tapeMix: 0.5,
+  tapeRecord: 1,
+}
+// Mirrors the read in tape_play.wgsl: where round the loop window a head at
+// distance `d` is lifting sample `n` from, as an offset off the window's base.
+const wrapRing = (p: number) =>
+  ((p % (TAPE_FRAMES * N)) + TAPE_FRAMES * N) % (TAPE_FRAMES * N)
+const readOff = (u: TapeUniforms, d: number, n = 0) => {
+  const loop = delayOf(u)
+  const phase = u.tapeHoldFrames * N + u.tapeHoldRem
+  return ((phase + n + loop - d) % loop) - loop
 }
 const delayOf = (u: { tapeDelayFrames: number; tapeDelaySamples: number }) =>
   u.tapeDelayFrames * N + u.tapeDelaySamples
@@ -142,6 +153,90 @@ describe('TapeState', () => {
     expect(
       new Set(at.map(s => Math.round(s / SAMPLES_PER_LINE))).size,
     ).toBeGreaterThan(1)
+  })
+
+  it('parks the loop window on the tape it is laying down while recording', () => {
+    // With the window on the current frame at zero phase, the shader's wrap
+    // reduces to "trail the write pointer by the head's distance" — which is
+    // what keeps a recording loop bit-identical to having no hold at all.
+    const tape = new TapeState()
+    for (const f of [0, 7, 130]) {
+      const u = tape.update(still, f)
+      expect(u.tapeHoldSlot).toBe(u.tapeSlot)
+      expect(u.tapeHoldFrames * N + u.tapeHoldRem).toBe(0)
+      for (const n of [0, 1000, N - 1]) {
+        expect(readOff(u, delayOf(u), n)).toBe(n - delayOf(u))
+      }
+    }
+  })
+
+  it('walks a held loop round its own length, not off the back of it', () => {
+    // Lifting the record head does not stop the tape. The heads have to keep
+    // wrapping inside the stretch that was recorded, or after one lap they
+    // start reading whatever the ring held before the loop was laid down.
+    const tape = new TapeState()
+    tape.update(still, 0)
+    const held = { ...still, tapeRecord: 0 }
+    const frozen = tape.update(held, 1).tapeHoldSlot
+    const offs = []
+    for (let f = 2; f < 200; f++) {
+      const u = tape.update(held, f)
+      expect(u.tapeHoldSlot).toBe(frozen) // the window does not move
+      const off = readOff(u, delayOf(u))
+      expect(off).toBeGreaterThanOrEqual(-delayOf(u))
+      expect(off).toBeLessThan(0)
+      offs.push(off)
+    }
+    // one second of tape at 60 fps: the same oxide comes round every 60 frames
+    for (let i = 0; i + 60 < offs.length; i++) {
+      expect(offs[i + 60]).toBe(offs[i])
+    }
+    expect(new Set(offs).size).toBe(60)
+  })
+
+  it('holds the tape it just recorded, not the tape one frame short of it', () => {
+    // tapePlay runs before tapeRec, so while recording frame f the newest tape
+    // on the loop is f-1. If the window does not step on once more as the head
+    // lifts it closes just short of frame f, and the last thing recorded is the
+    // one thing that never comes back. Pin it by comparison: for its first lap
+    // a held loop has to read exactly what a still-recording one would, and
+    // only then repeat instead of moving on.
+    const L = 60 // frames, from the one-second fixture
+    const live = new TapeState()
+    const held = new TapeState()
+    const read = (u: TapeUniforms, n: number) =>
+      wrapRing(u.tapeHoldSlot * N + readOff(u, delayOf(u), n))
+    for (let f = 0; f < 40; f++) {
+      live.update(still, f)
+      held.update(still, f)
+    }
+    const lifted = { ...still, tapeRecord: 0 }
+    for (let f = 40; f < 40 + L; f++) {
+      const a = live.update(still, f)
+      const b = held.update(lifted, f)
+      for (const n of [0, 12345, N - 1]) {
+        expect(read(b, n), `frame ${f}, sample ${n}`).toBe(read(a, n))
+      }
+    }
+    // past a lap it must repeat rather than follow the live one into new tape
+    const a = live.update(still, 40 + L)
+    const b = held.update(lifted, 40 + L)
+    expect(read(b, 0)).not.toBe(read(a, 0))
+  })
+
+  it('treats a shut fader as the record head being up', () => {
+    // The loop is out of circuit at mix 0, so nothing reaches the tape however
+    // the record switch is set — a window that advanced through that would hand
+    // the heads tape nobody recorded.
+    const tape = new TapeState()
+    tape.update(still, 0)
+    const out = { ...still, tapeMix: 0 }
+    // one last step-on as the head comes up, to take in the frame just laid
+    // down, and then the window stays where it is
+    const frozen = tape.update(out, 1).tapeHoldSlot
+    for (let f = 2; f < 8; f++) {
+      expect(tape.update(out, f).tapeHoldSlot).toBe(frozen)
+    }
   })
 
   it('breathes the delay when the capstan wanders', () => {
