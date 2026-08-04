@@ -164,8 +164,9 @@ the payoff is.
 
 ## Screen-domain effects not yet built
 
-The neon phosphor colour work in `phosphor-plan.md` is done through Phase 3;
-what is left there is exactly the two items below.
+The neon phosphor colour work (beam transfer, `phosphorMode` tube identities,
+persistence skew/bleed, the magnifier) shipped in full; these two items are
+what remains of it.
 
 - **Luma-keyed halation radius.** `crt_face` already adds a wide warm
   glass-scatter halo (`crtHalation` × the 15-px golden-angle tap ring, tinted
@@ -235,17 +236,12 @@ routings alongside controls. What was deliberately left:
   makes the good case the expensive one: a macro is only worth a knob once it
   drives several controls at once, which is exactly when it eats the most slots,
   at four clicks and one slot per control. The motion amount does the
-  one-gesture-scales-the-patch job with no assignment ritual at all. If macros
-  come back, they need their own routing table (not competing with the LFO bay)
-  and MIDI — see below — or they are a slider that does less than the slider it
-  is standing in for.
-- **MIDI cannot reach anything that is not a `ControlKey`.** `BindingMap` is
-  keyed by control (`midi.ts`), so macros, the motion amount, and preset weights
-  are all unreachable from a knob. Preset weights are the interesting one: the
-  chips are already a macro system — dragging `rainbow storm` to 40% moves eight
-  controls with one gesture — so widening the binding key to a tagged union and
-  dispatching on write would turn the existing UI into a performance instrument
-  for far less work than building a second one.
+  one-gesture-scales-the-patch job with no assignment ritual at all, and now
+  that the MIDI binding key reaches beyond `ControlKey` (a knob can drive the
+  motion amount or a preset weight), the chips already cover the
+  several-controls-per-gesture case. If macros come back they need their own
+  routing table, not a berth in the LFO bay — or they are a slider that does
+  less than the slider it is standing in for.
 - **The filter and the palette don't know about modulation.** `sliderMatches` is
   a pure function of the static slider def, so "what is moving" is not
   searchable and a routed control cannot be jumped to by name. The row's ∿ tint
@@ -260,6 +256,14 @@ routings alongside controls. What was deliberately left:
 - **`?surprise` on boot stays controls-only.** A rolled recipe applies its
   motion in the app, but the boot path layers controls before the bay exists.
   Accepted asymmetry, not a bug worth plumbing around.
+
+## In flight — preset screening, round 2
+
+Ten retuned candidates sit schema-checked in `scripts/candidates.example.mjs`;
+`scripts/contact.mjs` (documented in `DEVELOPMENT.md`) renders them into a
+linked contact sheet. Needs a quiet machine — each candidate is ~800 stepped
+frames, and on a loaded box candidates trip the protocol timeout. Nothing
+depends on it; the shipped presets stand alone.
 
 ## Not worth building
 
