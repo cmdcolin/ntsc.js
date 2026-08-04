@@ -57,6 +57,10 @@ const STARTERS = [
   'mixer loop',
   'rainbow storm',
   'neon tube',
+  // The one that is not a single mechanism. It sits last because the others
+  // teach what the board does one fault at a time, and this one is the argument
+  // for why that is worth doing — every stage at once, interfering.
+  'deep end',
 ]
 const SHORTLIST_MAX = 8
 

@@ -4,7 +4,7 @@ import { readJSON, writeJSON } from './storage'
 
 // The presets you actually reach for, most-recent first. Drives the shortlist
 // the panel opens on, so the front door narrows to your own habits instead of
-// showing all thirty-five every time.
+// showing the whole catalog every time.
 const STORE = 'video_feedback_recent_presets'
 const MAX = 8
 

@@ -323,6 +323,71 @@ export const PRESETS: PresetDef[] = [
     mod: [{ target: 'fbRotateDeg', source: 'sine', rateHz: 0.05, depth: 0.02 }],
   },
   {
+    name: 'wound spiral',
+    group: 'Feedback loops',
+    blurb:
+      'The camera turned a few degrees on its mount and the exposure pushed past unity — each pass lands rotated and brighter than the last, so the subject smears into a spiral instead of a tunnel.',
+    patch: {
+      fbMix: 0.78,
+      fbZoom: 1.015,
+      fbRotateDeg: 3.2,
+      fbShiftX: 0.03,
+      fbGain: 1.1,
+      fbFocus: 1.4,
+      fbKnee: 0.6,
+      fbVign: 0.45,
+      fbBlack: 0.04,
+      noiseIre: 2,
+    },
+  },
+  {
+    name: 'shadow ladder',
+    group: 'Feedback loops',
+    blurb:
+      'Loop key inverted so only the dark areas re-enter, stepped four lines every trip — the shadows climb the frame in rungs while the highlights stay put.',
+    patch: {
+      cfbMix: 0.75,
+      cfbKey: -0.7,
+      cfbLines: 4,
+      cfbDelayUs: 0.2,
+      noiseIre: 1.5,
+    },
+  },
+  {
+    name: 'ladder climb',
+    group: 'Feedback loops',
+    blurb:
+      'Frame store walking six lines up per pass with its peak-hold left on: trails stack into a bleached ladder and tear the picture off its own edges.',
+    patch: {
+      cfbMix: 0.7,
+      cfbGain: 0.95,
+      cfbLines: -6,
+      cfbTrail: 0.85,
+      cfbDelayUs: 0.06,
+      noiseIre: 1.5,
+    },
+  },
+  {
+    name: 'subcarrier siren',
+    group: 'Feedback loops',
+    blurb:
+      'Resonance in the loop parked on the colour subcarrier and driven past unity: the filter stops responding to the picture and starts generating its own, in bands of pure hue.',
+    patch: {
+      cfbMix: 0.55,
+      cfbFilterMHz: 3.6,
+      cfbFilterQ: 0.85,
+      cfbFilterBoost: 2.6,
+      noiseIre: 1.5,
+    },
+    // What makes it a siren rather than a drone: an oscillator this close to
+    // unity walks its own centre frequency as the loop warms, and the bands
+    // sweep with it. Cheap to modulate — the loop resonance is designed per
+    // frame in the shader, not baked into the FIR bank.
+    mod: [
+      { target: 'cfbFilterMHz', source: 'sine', rateHz: 0.04, depth: 0.03 },
+    ],
+  },
+  {
     name: 'clean dissolve',
     group: 'A/B mixing',
     blurb:
@@ -619,6 +684,101 @@ export const PRESETS: PresetDef[] = [
     patch: {
       crtCutoff: 0.08,
       crtGamma: 2.2,
+    },
+  },
+  // Stacks rather than single mechanisms: several stages misbehaving at once,
+  // interfering with each other. The rest of the table is deliberately one
+  // fault per preset — it is what makes a chip teachable — but the looks people
+  // actually keep are usually three of them at the same time, and nothing here
+  // reached that on its own.
+  {
+    name: 'transmission fault',
+    group: 'Full board',
+    blurb:
+      'Sync suppressed at the head-end while the colour crystal sits off frequency and the tube is left long: every line lands at its own offset, in the wrong hue, over the ghost of the last one.',
+    patch: {
+      scramble: 0.35,
+      agc: 0.5,
+      hHold: 0.3,
+      hDetuneHz: 30,
+      syncBendUs: 5,
+      scDetuneKHz: 5,
+      burstLock: 0.6,
+      chromaGain: 1.6,
+      encChromaMHz: 1.7,
+      demodMHz: 1.1,
+      noiseIre: 8,
+      phosphor: 0.35,
+      crtBloom: 0.4,
+      crtGamma: 1.4,
+    },
+  },
+  {
+    name: 'night monitor',
+    group: 'Full board',
+    blurb:
+      'A monitor run hot in a dark room with a camera on it: the loop breeds halos out of the highlights, the faceplate scatters them, and the phosphor holds what is left.',
+    patch: {
+      fbMix: 0.55,
+      fbZoom: 1.01,
+      fbGain: 1.06,
+      fbFocus: 2,
+      fbKnee: 0.7,
+      fbVign: 0.6,
+      crtBloom: 1,
+      crtHalation: 0.9,
+      crtGlow: 0.25,
+      crtCutoff: 0.06,
+      crtGamma: 1.5,
+      crtSat: 1.3,
+      phosphor: 0.6,
+      noiseIre: 2,
+    },
+    // A loop sitting a hair over unity is a knife edge, and a tube warming up
+    // does not hold a bias steady. Drifting the exposure across that edge is
+    // what makes the halos breathe instead of settling.
+    mod: [{ target: 'fbGain', source: 'smooth', rateHz: 0.03, depth: 0.01 }],
+  },
+  {
+    name: 'deep end',
+    group: 'Full board',
+    blurb:
+      'Every stage at once — scrambled sync, a bent enhancer, both feedback loops and the phosphor left long. Nothing here is drawn: each fault is one circuit misbehaving, and they interfere with each other for free.',
+    patch: {
+      chromaGain: 2.4,
+      svideoBleed: 0.8,
+      chromaTail: 0.4,
+      encChromaMHz: 1.85,
+      demodMHz: 1.23,
+      vHold: 0.4,
+      vFreqHz: 59.6,
+      syncBendUs: 6,
+      bendUs: 22,
+      bendShape: 2,
+      hvSagUs: 12,
+      hvRing: 0.8,
+      hDetuneHz: 24,
+      scramble: 0.4,
+      agc: 0.5,
+      noiseIre: 7,
+      enhPeakMHz: 0.35,
+      enhPeakQ: 0.7,
+      enhPeakBoost: 0.06,
+      fbMix: 0.5,
+      fbZoom: 1.03,
+      fbRotateDeg: 2,
+      fbGain: 0.96,
+      fbFocus: 1.1,
+      fbVign: 0.4,
+      fbBlack: 0.02,
+      fbKnee: 0.6,
+      cfbMix: 0.35,
+      cfbGain: 0.8,
+      cfbDelayUs: 0.25,
+      cfbLines: 3,
+      cfbKey: 0.7,
+      cfbKeySoft: 10,
+      phosphor: 0.45,
     },
   },
 ]
