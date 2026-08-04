@@ -2,6 +2,11 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.11.0](https://github.com/cmdcolin/ntsc.js/compare/v0.10.0...v0.11.0) - 2026-08-04
+
+### Features
+- *(signal)* [`35ef691`](https://github.com/cmdcolin/ntsc.js/commit/35ef691d50e1adb038b5f4ba4be791298b562a50) run the held loop backwards, or stop it dead
+
 ## [0.10.0](https://github.com/cmdcolin/ntsc.js/compare/v0.9.0...v0.10.0) - 2026-08-04
 
 ### Features
