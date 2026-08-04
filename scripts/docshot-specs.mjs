@@ -209,9 +209,18 @@ export const SPECS = [
     { section: 'Modulation' },
     {
       name: 'modulation',
-      height: 1150,
+      // Tall enough for eight slots and no taller: the panel ends at "Sound
+      // into the picture", and the rest would be a band of empty stage.
+      height: 980,
       seed: {
-        video_feedback_sections: sections({ Modulation: true }),
+        // Eight slots is a tall section: with the front door folded it lands in
+        // frame whole, and without it the shot opens partway down a scrolled
+        // panel with the masthead cut off.
+        video_feedback_sections: sections({
+          Modulation: true,
+          Presets: false,
+          Input: false,
+        }),
         video_feedback_mod: JSON.stringify([
           { target: 'hHold', source: 'sine', rateHz: 0.35, depth: 0.4 },
           { target: 'chromaGain', source: 'lorenz', rateHz: 0.12, depth: 0.25 },
@@ -219,6 +228,36 @@ export const SPECS = [
       },
     },
   ),
+  // Motion as it is actually reached: the ∿ on a control row, the editor it
+  // opens under that row, and the strip that scales every routing at once. Two
+  // boxes rather than one, because the point is the pair — the section below is
+  // where the bay can be seen whole, but nobody goes there first any more.
+  //
+  // Presets and Input are folded so both boxes fit one window without the panel
+  // being scrolled halfway down; the figure is about the panel's spine, and a
+  // scrolled panel reads as a crop of some other program.
+  {
+    ...WINDOW,
+    height: 1000,
+    name: 'motion',
+    params: WILD,
+    seed: {
+      video_feedback_sections: sections({ Presets: false, Input: false }),
+      video_feedback_open_phase: 'Receiver',
+      video_feedback_open_group: 'Sync',
+      video_feedback_mod: JSON.stringify([
+        { target: 'hHold', source: 'sine', rateHz: 0.35, depth: 0.4 },
+        { target: 'chromaGain', source: 'lorenz', rateHz: 0.12, depth: 0.25 },
+      ]),
+    },
+    // The one row in the open group that is routed, so this reaches horizontal
+    // hold's ∿ and no other.
+    actions: [{ click: { title: 'modulated — click to change' } }],
+    annotations: [
+      { target: { selector: 'div[class*="strip_"]' }, box: true },
+      { target: { selector: 'div[class*="editor_"]' }, box: true },
+    ],
+  },
   boxed(
     { section: 'Scenes' },
     {

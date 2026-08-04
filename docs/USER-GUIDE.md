@@ -145,8 +145,7 @@ nudges the highlighted control live.
 immediately: an LFO, a random walk, a sample-and-hold, a Lorenz attractor or the
 audio envelope. Depth is a fraction of that control's own range, and the slider
 itself stays put — it is the centre the motion happens around, which is why a
-preset or a link still holds the look. The **Modulation** section shows all
-eight slots at once if you would rather patch them there.
+preset or a link still holds the look.
 
 Once anything is moving, a **motion** strip appears above the filter box: one
 amount over every routing, and a freeze that holds the waves where they are so
@@ -154,7 +153,13 @@ letting go picks the drift back up mid-stride. Some presets arrive already
 moving — `rainbow storm` wanders off frequency, `vertical hold gone` hunts,
 `fb bloom` sways on its mount — and **copy link** carries whatever you patch.
 
-![The app window, the Modulation section with two slots routed boxed in red](img/modulation.jpg)
+![The app window, boxed in red: the motion strip above the filter box, and the wobble editor open under the horizontal hold row](img/motion.jpg)
+
+The **Modulation** section shows all eight slots at once if you would rather
+patch them there — and it is the one place to see the bay as a bay, which is
+what tells you why the ninth ∿ has nowhere to go.
+
+![The app window, the Modulation section with two of its eight slots routed, boxed in red](img/modulation.jpg)
 
 **Sound into the picture** — audio into the hold and deflection circuits: bass
 lurches the frame, level tears line hold, the waveform draws itself on the

@@ -3,133 +3,139 @@
     "name": "overview",
     "file": "overview.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "presets",
     "file": "presets.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "preset-mix",
     "file": "preset-mix.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.45%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.05%2ClumaPeak%3A1.25%2CnoiseIre%3A5.7%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A6.2%2CdropoutRate%3A9%2CheadSwitchNoise%3A0.62%2CheadSwitchShiftUs%3A1.25%2CtbJitterNs%3A275%2CtbWowNs%3A470%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.45%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.05%2ClumaPeak%3A1.25%2CnoiseIre%3A5.7%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A6.2%2CdropoutRate%3A9%2CheadSwitchNoise%3A0.62%2CheadSwitchShiftUs%3A1.25%2CtbJitterNs%3A275%2CtbWowNs%3A470%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "input",
     "file": "input.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&srcb=sweep"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&srcb=sweep&mod="
   },
   {
     "name": "signal-path",
     "file": "signal-path.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "slider-help",
     "file": "slider-help.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "filter",
     "file": "filter.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "palette",
     "file": "palette.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "chain",
     "file": "chain.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "modulation",
     "file": "modulation.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod=hHold%3Asine%3A0.35%3A0.4%2CchromaGain%3Alorenz%3A0.12%3A0.25"
+  },
+  {
+    "name": "motion",
+    "file": "motion.jpg",
+    "mp4": null,
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod=hHold%3Asine%3A0.35%3A0.4%2CchromaGain%3Alorenz%3A0.12%3A0.25"
   },
   {
     "name": "scenes",
     "file": "scenes.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "audio",
     "file": "audio.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "stage-menu",
     "file": "stage-menu.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "magnifier",
     "file": "magnifier.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19%2CcrtZoom%3A3.4%2CcrtZoomX%3A0.44%2CcrtZoomY%3A0.42"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19%2CcrtZoom%3A3.4%2CcrtZoomX%3A0.44%2CcrtZoomY%3A0.42&mod="
   },
   {
     "name": "scope",
     "file": "scope.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&dbg=2"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&dbg=2&mod="
   },
   {
     "name": "advanced",
     "file": "advanced.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
     "name": "look-rainbow",
     "file": "look-rainbow.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=rainbow+storm&set=chromaGain%3A2.2%2CburstLock%3A0.2%2CscDetuneKHz%3A0.5%2CsvideoBleed%3A0.6%2ChHold%3A0.25%2CnoiseIre%3A2"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=rainbow+storm&set=chromaGain%3A2.2%2CburstLock%3A0.2%2CscDetuneKHz%3A0.5%2CsvideoBleed%3A0.6%2ChHold%3A0.25%2CnoiseIre%3A2&mod=scDetuneKHz%3Asmooth%3A0.05%3A0.02"
   },
   {
     "name": "look-scramble",
     "file": "look-scramble.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=scrambled+channel&set=hHold%3A0.45%2ChDetuneHz%3A18%2Cscramble%3A0.62%2CnoiseIre%3A3%2Cagc%3A0.22"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=scrambled+channel&set=hHold%3A0.45%2ChDetuneHz%3A18%2Cscramble%3A0.62%2CnoiseIre%3A3%2Cagc%3A0.22&mod="
   },
   {
     "name": "look-tape",
     "file": "look-tape.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=picture+search&set=demodMHz%3A0.5%2ChHold%3A0.3%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A3%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A30%2CheadSwitchNoise%3A0.9%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A200%2CtbWowNs%3A1100%2CtrackAmt%3A0.75%2CtrackPos%3A0.35%2CshuttleX%3A5"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=picture+search&set=demodMHz%3A0.5%2ChHold%3A0.3%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A3%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A30%2CheadSwitchNoise%3A0.9%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A200%2CtbWowNs%3A1100%2CtrackAmt%3A0.75%2CtrackPos%3A0.35%2CshuttleX%3A5&mod="
   },
   {
     "name": "look-tunnel",
     "file": "look-tunnel.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=fb+bloom&set=noiseIre%3A1.5%2CfbMix%3A0.72%2CfbZoom%3A1.07%2CfbRotateDeg%3A8%2CfbGain%3A1.05%2CfbFocus%3A0.9%2CfbVign%3A0.5%2CfbBlack%3A0.08%2CfbKnee%3A0.8%2Cphosphor%3A0.3"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=fb+bloom&set=noiseIre%3A1.5%2CfbMix%3A0.72%2CfbZoom%3A1.07%2CfbRotateDeg%3A8%2CfbGain%3A1.05%2CfbFocus%3A0.9%2CfbVign%3A0.5%2CfbBlack%3A0.08%2CfbKnee%3A0.8%2Cphosphor%3A0.3&mod=fbRotateDeg%3Asine%3A0.05%3A0.02"
   },
   {
     "name": "look-ladder",
     "file": "look-ladder.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=key+loop&set=noiseIre%3A1.5%2CcrtSat%3A1.2%2CcfbMix%3A0.9%2CcfbDelayUs%3A0.6%2CcfbLines%3A5%2CcfbKey%3A0.85%2CcfbKeyLevel%3A60%2CcfbTrail%3A0.7"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=key+loop&set=noiseIre%3A1.5%2CcrtSat%3A1.2%2CcfbMix%3A0.9%2CcfbDelayUs%3A0.6%2CcfbLines%3A5%2CcfbKey%3A0.85%2CcfbKeyLevel%3A60%2CcfbTrail%3A0.7&mod="
   },
   {
     "name": "look-tube",
     "file": "look-tube.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=neon+tube&set=chromaGain%3A2%2CnoiseIre%3A3%2CcrtCutoff%3A0.12%2CcrtGamma%3A2.7%2CcrtSat%3A1.7%2CcrtBloom%3A0.9%2CcrtHalation%3A0.8%2CcrtGlow%3A0.3%2CscanBloom%3A0.8%2Cphosphor%3A0.5"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=neon+tube&set=chromaGain%3A2%2CnoiseIre%3A3%2CcrtCutoff%3A0.12%2CcrtGamma%3A2.7%2CcrtSat%3A1.7%2CcrtBloom%3A0.9%2CcrtHalation%3A0.8%2CcrtGlow%3A0.3%2CscanBloom%3A0.8%2Cphosphor%3A0.5&mod="
   },
   {
     "name": "clip-feedback",
