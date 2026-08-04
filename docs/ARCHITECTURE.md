@@ -45,7 +45,7 @@ authenticity gap.
 One frame, driven by `Engine.render()` in `src/gpu/pipeline.ts`:
 
 ```
-prePasses    compose → encodeYuv → encodeComposite → [composeB → encodeYuvB → encodeChromaB → mixB] → [fbComposite]
+prePasses    compose → encodeYuv → encodeComposite → [composeB → encodeYuvB → encodeChromaB → mixB] → [fbComposite] → [tapePlay → tapeRec]
 loopPasses   chromaExtract → [underDown] → channel → timebase     (× dubGens, ≤ 4)
 postPasses   [enhancer] → syncMeasure → sync → lineAnalyze → decode → crtFace → [storePrev]
 present      render pass to the swap chain
@@ -106,6 +106,17 @@ fault through `timing[]` will spin hue that should have stayed put.
 - **`syncMeasureBuf`** — one `vec4f` per line from `sync_measure`:
   `(sync edge or −1000, sync depth, mean beam load, broad-pulse flag)`.
 - **`audioBuf`** — one float per line, the audio waveform at line rate.
+- **`tapeBuf`** — the loop bin, `TAPE_FRAMES` (120) composite frames as f16 pairs
+  packed into `u32`, two seconds at 60 fps for 109 MiB. It is a _medium_, not a
+  frame store: `tapeRec` writes the slot `frame % TAPE_FRAMES` and `tapePlay`
+  reads a delay behind it, so the same stretch of tape carries the same grain,
+  the same worn patches and the same splice round after round. Two consequences
+  to respect. **The delay arrives split** — `tapeDelayFrames` (whole frames) plus
+  `tapeDelaySamples` (the remainder) — because the ring holds 57 M samples and an
+  f32 stops counting integers singly at 2²⁴; position arithmetic in
+  `tape_play.wgsl` is `u32` for the same reason. And **`tapePlay` must run before
+  `tapeRec`**, which is what makes the maximum delay a full ring rather than one
+  frame short of it.
 - **`persistBufs`** — phosphor state (the light still on the glass), packed
   `rgba8`, ping-ponged by frame parity: `decode` reads one and writes the other,
   because its lateral scatter reads neighbouring pixels and a single buffer

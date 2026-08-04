@@ -121,9 +121,10 @@ the payoff is.
   track bleeds through as a _low-frequency-only_ ghost — a soft, colourless
   second picture that swims when tracking is off. Distinct from the multipath
   ghost, which is sharp and full-bandwidth.
-- **Crease / edge damage.** A scar at a fixed _tape_ position, recurring on the
-  helical period rather than randomly like `dropoutRate`. Reads as damage
-  instead of noise.
+- ~~**Crease / edge damage.**~~ Shipped as the loop bin's `tapeWear`, though only
+  on the loop: defects seeded on _position on the tape_ so they recur every lap.
+  The same idea on the main deck still wants doing — it has no tape-position
+  coordinate to hang a defect off, which is exactly what the ring gave the loop.
 - **Servo hunting.** `trackPos` is a static knob; a real auto-tracking deck
   searches and settles after a scene change or on exiting shuttle.
 - **Luma FM beating the 629 kHz color-under carrier.** The fine crawling chroma
@@ -264,6 +265,28 @@ routings alongside controls. What was deliberately left:
 - **`?surprise` on boot stays controls-only.** A rolled recipe applies its
   motion in the app, but the boot path layers controls before the bay exists.
   Accepted asymmetry, not a bug worth plumbing around.
+
+## Loop bin follow-ons (after the tape-delay pass)
+
+The loop shipped with the play head's own damage model — band loss, medium
+noise, wear, splice — rather than routing the return through the real `channel`
+block. Two things were considered and left:
+
+- **Erase residue.** A record head with no full erase leaves the previous lap
+  under the new one. Cut because on a loop whose length _is_ the delay, the tape
+  reaching the record head is the tape that just played, so residue is
+  arithmetically the same as more loop gain — a second knob for the fader's job.
+  It would become a distinct mechanism only if the record and play heads were
+  independently placeable round the loop.
+- **Routing the return through `channel`/`timebase`.** Physically the honest
+  version of generation loss, and it would give the loop dropouts and time-base
+  wander for free. It needs a second set of scratch buffers (`chromaExtract` →
+  `underDown` → `channel` → `timebase` is a four-buffer chain) and roughly
+  doubles the loop's cost. The 1-2-1 kernel in `tape_play` gets the dominant
+  term — chroma dying faster than luma — for one tap.
+
+Worth doing if the loop ever needs to sound like a _different deck_ from the
+main one, which is the case the current model cannot express.
 
 ## In flight — preset screening, round 2
 

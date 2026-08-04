@@ -18,6 +18,7 @@ import {
   LINES,
   SAMPLES_PER_LINE,
   SYNC_LEN,
+  TAPE_FRAMES,
   VSYNC_FIRST,
   VSYNC_LAST,
 } from '../signal/constants'
@@ -163,6 +164,17 @@ export const PARAM_DEFS = [
   ['cfbFilterFc', 'f32'], // loop resonance center, cycles/sample (0 = flat loop)
   ['cfbFilterQ', 'f32'], // loop resonance selectivity, 0 broad .. 1 narrow/ringing
   ['cfbFilterBoost', 'f32'], // added in-band loop gain (self-oscillates past unity round trip)
+  // tape loop: a loop of tape threaded record head -> play head, seconds long
+  ['tapeMix', 'f32'], // crossfader position toward the play head, 0 = loop out of circuit
+  ['tapeGain', 'f32'], // playback proc-amp trim, negative inverts
+  ['tapeHfLoss', 'f32'], // head/tape band loss per pass (takes chroma first)
+  ['tapeNoise', 'f32'], // medium noise, IRE rms — fixed to the tape, not the frame
+  ['tapeWear', 'f32'], // fraction of the loop's lines with the oxide worn off
+  ['tapeSplice', 'f32'], // severity of the joint crossing the head, 0 = no splice
+  ['tapeSpliceAt', 'f32'], // sample the splice crosses at, negative = not this frame
+  ['tapeSlot', 'u32'], // ring frame the record head is laying down
+  ['tapeDelayFrames', 'u32'], // play head trails the record head by this many whole frames...
+  ['tapeDelaySamples', 'f32'], // ...plus this remainder (the total overruns f32's integers)
   // display
   ['scanBeam', 'f32'], // finite beam-spot strength between scanlines
   ['scanBloom', 'f32'], // beam-spot growth with beam current: bright lines fatten, gaps close in whites
@@ -221,6 +233,7 @@ const SAG_BASE = ${LINES + 3}u; // deflection sag region of the timing buffer
 const VSYNC_FIRST = ${VSYNC_FIRST}u;
 const VSYNC_LAST = ${VSYNC_LAST}u;
 const HEAD_SWITCH_LINE = ${HEAD_SWITCH_LINE}u;
+const TAPE_LEN = ${TAPE_FRAMES * SAMPLES_PER_LINE * LINES}u; // loop bin capacity, samples
 const IRE_SYNC = ${IRE_SYNC}.0;
 const IRE_BLANK = ${IRE_BLANK}.0;
 const IRE_BLACK = ${IRE_BLACK};

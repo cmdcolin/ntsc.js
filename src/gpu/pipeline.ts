@@ -8,6 +8,7 @@ import {
   LINES,
   SAMPLES_PER_LINE,
   SAMPLE_RATE,
+  TAPE_FRAMES,
 } from '../signal/constants'
 import {
   FILTER_STRIDE,
@@ -28,6 +29,7 @@ import {
 import { LineState } from '../signal/linestate'
 import { MixState } from '../signal/mixstate'
 import { ModState } from '../signal/modstate'
+import { TapeState } from '../signal/tapeloop'
 import { initGpu } from './context'
 import {
   GEN_OFFSET,
@@ -54,6 +56,8 @@ import presentSrc from './shaders/present.wgsl?raw'
 import storePrevSrc from './shaders/store_prev.wgsl?raw'
 import syncSrc from './shaders/sync.wgsl?raw'
 import syncMeasureSrc from './shaders/sync_measure.wgsl?raw'
+import tapePlaySrc from './shaders/tape_play.wgsl?raw'
+import tapeRecSrc from './shaders/tape_rec.wgsl?raw'
 import timebaseSrc from './shaders/timebase.wgsl?raw'
 import underDownSrc from './shaders/under_down.wgsl?raw'
 import { Sources } from './sources'
@@ -132,6 +136,7 @@ export class Engine {
   readonly audioState = new AudioState()
   private mixState = new MixState()
   private modState = new ModState()
+  private tapeState = new TapeState()
   private modSlots: ModSlot[] = []
   // bent-crystal demod LO phase error, accumulated per frame (radians)
   private scPhase = 0
@@ -153,6 +158,10 @@ export class Engine {
   private compA: GPUBuffer
   private compB: GPUBuffer
   private compPrev: GPUBuffer
+  // The loop bin: a ring of composite frames the record head writes and the
+  // play head reads a couple of seconds behind. Unlike compPrev this is a
+  // medium, not a frame store — see tape_play.wgsl.
+  private tapeBuf: GPUBuffer
   private chromaBuf: GPUBuffer
   private underBuf: GPUBuffer
   private lineInfoBuf: GPUBuffer
@@ -236,6 +245,13 @@ export class Engine {
     this.compPrev = d.createBuffer({
       size: N * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    })
+    // Two bytes a sample, not four: the loop is the one buffer here big enough
+    // for its precision to be a VRAM decision, and f16 buys twice the tape for
+    // a resolution still far under the noise the medium has anyway.
+    this.tapeBuf = d.createBuffer({
+      size: TAPE_FRAMES * N * 2,
+      usage: GPUBufferUsage.STORAGE,
     })
     this.chromaBuf = d.createBuffer({
       size: N * 4,
@@ -326,6 +342,8 @@ export class Engine {
     const mixBPl = compute(mixBSrc)
     const fbCompositePl = compute(fbCompositeSrc)
     const storePrevPl = compute(storePrevSrc)
+    const tapePlayPl = compute(tapePlaySrc)
+    const tapeRecPl = compute(tapeRecSrc)
     const chromaExtractPl = compute(chromaExtractSrc)
     const underDownPl = compute(underDownSrc)
     const channelPl = compute(channelSrc)
@@ -372,6 +390,8 @@ export class Engine {
       when,
     })
     const perLine = [Math.ceil(SAMPLES_PER_LINE / 64), LINES] as const
+    // the record head writes a packed f16 pair per thread (see tape_rec)
+    const perLineW = [Math.ceil(SAMPLES_PER_LINE / 2 / 64), LINES] as const
     const perPixel = [Math.ceil(ACTIVE_WIDTH / 64), ACTIVE_HEIGHT] as const
     // the tiled-FIR passes run TILE_WG-wide workgroups (see prelude)
     const perLineT = [Math.ceil(SAMPLES_PER_LINE / TILE_WG), LINES] as const
@@ -470,6 +490,34 @@ export class Engine {
         ],
         perLine,
         () => c.cfbMix !== 0,
+      ),
+      // The loop bin, patched across the mixer the way an outboard delay is: the
+      // play head returns onto the bus, and the record head lays down the sum —
+      // so anything still circulating is re-recorded once per lap and comes back
+      // a generation older each time. Both heads sit ahead of the channel block,
+      // because that block is the *deck's* playback damage and the loop is a
+      // second machine with damage of its own.
+      pass(
+        'tapePlay',
+        tapePlayPl,
+        [
+          { buffer: this.paramsBuf },
+          { buffer: this.tapeBuf },
+          { buffer: this.compA },
+        ],
+        perLine,
+        () => c.tapeMix !== 0,
+      ),
+      pass(
+        'tapeRec',
+        tapeRecPl,
+        [
+          { buffer: this.paramsBuf },
+          { buffer: this.compA },
+          { buffer: this.tapeBuf },
+        ],
+        perLineW,
+        () => c.tapeMix !== 0,
       ),
     ]
     this.loopPasses = [
@@ -967,6 +1015,12 @@ export class Engine {
       cfbFilterFc: (c.cfbFilterMHz * 1e6) / SAMPLE_RATE,
       cfbFilterQ: c.cfbFilterQ,
       cfbFilterBoost: c.cfbFilterBoost,
+      tapeMix: c.tapeMix,
+      tapeGain: c.tapeGain,
+      tapeHfLoss: c.tapeHfLoss,
+      tapeNoise: c.tapeNoiseIre,
+      tapeWear: c.tapeWear,
+      tapeSplice: c.tapeSplice,
       soundIre: c.soundIre,
       agc: c.agc,
       chromaCoarse: c.chromaCoarse,
@@ -1144,7 +1198,22 @@ export class Engine {
       wipePos: c.wipePos,
       wipeRateHz: c.wipeRate,
     })
-    packParams({ ...this.uniformValues(), ...mixU }, this.paramScratch)
+    // The transport runs whether or not the loop is faded up — a tape machine
+    // left threaded keeps moving, so the splice does not stall at the head and
+    // the loop still has whatever was last recorded on it when the fader comes
+    // back up.
+    const tapeU = this.tapeState.update(
+      {
+        tapeLoopMm: c.tapeLoopMm,
+        tapeWowPct: c.tapeWowPct,
+        tapeColourFrame: c.tapeColourFrame,
+      },
+      this.frame,
+    )
+    packParams(
+      { ...this.uniformValues(), ...mixU, ...tapeU },
+      this.paramScratch,
+    )
     d.queue.writeBuffer(this.paramsBuf, 0, this.paramScratch)
     const lineControls: LineStateControls = {
       tbJitterNs: c.tbJitterNs,

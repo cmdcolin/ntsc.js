@@ -77,6 +77,14 @@ digraph ntsc_js {
   fbComposite [passes="fbComposite" fillcolor="@STORE@" style="rounded,filled,dashed"
                label="fbComposite\nhardware mixer loop\nkey · trails\n525 lines × 910 samples"];
 
+  // The loop bin is a second machine across the mixer, not a frame store: the
+  // return is recorded again, so material still circulating ages one tape
+  // generation per lap.
+  tapePlay [passes="tapePlay" fillcolor="@STORE@" style="rounded,filled,dashed"
+            label="tapePlay\nplay head — up to 2 s behind\ngeneration loss · wear · splice\n525 lines × 910 samples"];
+  tapeRec  [passes="tapeRec" fillcolor="@STORE@" style="rounded,filled,dashed"
+            label="tapeRec\nrecord head\n525 lines × 455 packed words"];
+
   // ---- channel (repeats per dub generation) --------------------------------
   subgraph cluster_ch {
     label="  ②  Channel — the whole block runs again per tape dub  ";
@@ -132,10 +140,13 @@ digraph ntsc_js {
   encodeChromaB -> mixB [label="  uvfB"];
   mixB -> fbComposite [label="  compA"];
 
+  fbComposite -> tapePlay [label="  compA"];
+  tapePlay -> tapeRec [label="  compA — the sum goes\l  back onto the loop\l"];
+
   // compA feeds the channel directly; chroma is a side branch that rejoins it,
   // it is not in line with the luma.
-  fbComposite -> channel [label="  compA"];
-  fbComposite -> chromaExtract [label="  compA"];
+  tapePlay -> channel [label="  compA"];
+  tapePlay -> chromaExtract [label="  compA"];
   chromaExtract -> underDown [label="  chroma"];
   chromaExtract -> channel [label="  chroma"];
   underDown -> channel [label="  under"];
@@ -154,6 +165,8 @@ digraph ntsc_js {
   // ---- feedback loops (one frame of delay) ---------------------------------
   storePrev -> fbComposite [label="  compPrev\l  next frame\l" style=dashed
                             color="@GOLD@" fontcolor="@GOLD@" constraint=false];
+  tapeRec -> tapePlay [label="  tapeBuf\l  up to 120 frames later\l" style=dashed
+                       color="@GOLD@" fontcolor="@GOLD@" constraint=false];
   crtFace -> compose [label="  faceTex\l  camera-at-monitor\l" style=dashed
                       color="@GREEN@" fontcolor="@GREEN@" constraint=false];
 }

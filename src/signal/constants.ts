@@ -23,6 +23,18 @@ export const ACTIVE_TOP = 22
 export const ACTIVE_HEIGHT = 480
 export const HEAD_SWITCH_LINE = ACTIVE_TOP + ACTIVE_HEIGHT - 8 // VHS head switch near bottom of picture
 
+// How much tape is on the loop bin, in frames. This is the one constant here
+// bounded by hardware rather than by NTSC: the ring stores every sample of the
+// raster as an f16, so a frame of tape costs 910 x 525 x 2 = 933 KiB and 120 of
+// them is 109 MiB — inside the 128 MiB a WebGPU storage binding is guaranteed
+// at default limits, with room to spare. At 60 fps that is a two-second loop.
+export const TAPE_FRAMES = 120
+
+// VHS SP linear tape speed. The loop is authored in millimetres of tape between
+// the record and play heads, so the delay is length / speed — which is why
+// capstan wander moves the delay time rather than only wobbling the picture.
+export const TAPE_MM_PER_S = 33.35
+
 // IRE levels
 export const IRE_SYNC = -40
 export const IRE_BLANK = 0

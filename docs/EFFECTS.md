@@ -12,6 +12,7 @@ control panel and the same order the signal travels.
 | [Source / wiring](#source--wiring)  | the cable between the deck and everything else      |
 | [Camera feedback](#camera-feedback) | a camera pointed at the monitor it's driving        |
 | [Mixer loop](#mixer-loop)           | the composite waveform patched back into itself     |
+| [Tape loop](#tape-loop)             | a loop of tape between a record and a play head     |
 | [A/B mix](#ab-mix-source-b)         | a second source, genlocked or not                   |
 | [Tape / channel](#tape--channel)    | VHS and the RF path it arrives over                 |
 | [Enhancer (bent)](#enhancer-bent)   | a consumer picture enhancer with its jumpers moved  |
@@ -77,6 +78,45 @@ The previous frame's composite waveform patched electrically back into the input
   luminance smear in its store.
 - **Loop resonance** — a bent video enhancer in the loop; enough in-band boost
   and the filter self-oscillates, generating pattern from nothing.
+
+## Tape loop
+
+A second machine across the mixer, threaded with a loop of tape: the record head
+lays down the mixer output, the tape travels, and a play head further round the
+loop returns it seconds later. The return is recorded again, so anything still
+circulating goes through the medium once per lap — which is the whole difference
+between this and the mixer loop above. Repeats decay by generation loss rather
+than by a fader, and they decay the way tape does.
+
+- **Loop length** — millimetres of tape between the heads. Tape runs at
+  33.35 mm/s, so the length _is_ the delay: 0.6 mm is a frame, 33 mm a second,
+  66 mm the whole bin. It is authored as a length rather than a time because
+  that is what makes the next one work.
+- **Capstan wander** — speed error on a fixed length of tape is delay error, so
+  the echo breathes in and out of time. Nothing time-base corrects the return:
+  a delay that grows by half a frame hands back a picture displaced half a
+  screen, and the repeats slide vertically. This is the fault frame
+  synchronizers were invented to fix.
+- **Generation loss** — the band the head and tape lose per pass. The subcarrier
+  sits at the very top of it, so chroma dies several times faster than the luma
+  carrying it: repeats fade to grey well before they go soft, and a long tail
+  ends up monochrome. Nobody draws that — it falls out of where colour lives.
+- **Tape noise** — the medium's own floor, fixed to the oxide rather than to the
+  moment. The same grain is on the same millimetre every lap and is re-recorded
+  each time instead of averaging away like snow, so it builds into standing
+  streaks and slides bodily when the speed wanders.
+- **Oxide wear** — worn patches at fixed positions on the loop, so the same
+  lines drop out every lap. What tells a loop apart from a deck playing a long
+  recording, where a dropout never comes back.
+- **Splice** — a loop is a loop because someone joined the ends, and the joint
+  crosses the play head once per lap. A loop is rarely a whole number of frames
+  long, so the bump walks down the picture lap by lap: a metronome you can see,
+  ticking at the delay.
+- **Colour framing** — the subcarrier rides the same tape, so a delay is also a
+  hue rotation (90° per sample, and 180° per frame of delay). Framed rounds the
+  delay onto a whole subcarrier cycle for 140 ns of picture shift, which is what
+  an edit controller insisting on colour framing is doing; off, every change of
+  delay repaints the repeats a different colour.
 
 ## A/B mix (source B)
 

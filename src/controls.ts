@@ -113,6 +113,16 @@ export const DEFAULT_CONTROLS = {
   cfbFilterMHz: 0, // loop resonance center, 0 = flat loop
   cfbFilterQ: 0.5, // loop resonance selectivity
   cfbFilterBoost: 2, // added in-band loop gain once a center is set
+  // tape loop (a loop of tape threaded record head -> play head)
+  tapeMix: 0,
+  tapeLoopMm: 20, // record head to play head; delay = length / 33.35 mm/s
+  tapeGain: 1,
+  tapeHfLoss: 0.25, // band lost per pass: generation loss, colour first
+  tapeNoiseIre: 1.5, // the medium's own noise floor
+  tapeWear: 0, // fraction of the loop with the oxide worn off
+  tapeSplice: 0, // the joint crossing the head, once per lap
+  tapeWowPct: 0, // capstan wander: moves the delay time, not just the picture
+  tapeColourFrame: 1, // hold the delay on a subcarrier cycle (0 = hue spins with it)
   // dirty mixer (source B, non-genlocked)
   aGain: 1, // A level on the summing bus, signed (negative inverts A)
   bGain: 0, // defaults are the clean baseline; the landing look adds B on top

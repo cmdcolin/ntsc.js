@@ -275,6 +275,26 @@ export const PRESETS: PresetDef[] = [
     mod: [{ target: 'cfbDelayUs', source: 'sine', rateHz: 0.12, depth: 0.01 }],
   },
   {
+    name: 'loop bin',
+    group: 'Feedback loops',
+    blurb: 'A loop of tape between two heads: echoes a second back, a generation older each lap.',
+    patch: {
+      tapeMix: 0.6,
+      tapeLoopMm: 30,
+      tapeHfLoss: 0.4,
+      tapeNoiseIre: 2,
+      tapeSplice: 0.7,
+      tapeWear: 0.015,
+      tapeWowPct: 0.25,
+      colorUnderMix: 0.5,
+      phosphor: 0.35,
+    },
+    // The loop length is the delay, so walking it walks the echo spacing — and
+    // because nothing time-base corrects the return, each new length hands back
+    // a picture at a different height. Slow, because a transport has mass.
+    mod: [{ target: 'tapeLoopMm', source: 'smooth', rateHz: 0.05, depth: 0.06 }],
+  },
+  {
     name: 'strobe trails',
     group: 'Feedback loops',
     blurb: 'Held frames blended forward, smearing motion into long trails.',

@@ -25,6 +25,8 @@ import present from './shaders/present.wgsl?raw'
 import storePrev from './shaders/store_prev.wgsl?raw'
 import sync from './shaders/sync.wgsl?raw'
 import syncMeasure from './shaders/sync_measure.wgsl?raw'
+import tapePlay from './shaders/tape_play.wgsl?raw'
+import tapeRec from './shaders/tape_rec.wgsl?raw'
 import timebase from './shaders/timebase.wgsl?raw'
 import underDown from './shaders/under_down.wgsl?raw'
 
@@ -51,6 +53,8 @@ const SHADERS: Record<string, string> = {
   store_prev: storePrev,
   sync,
   sync_measure: syncMeasure,
+  tape_play: tapePlay,
+  tape_rec: tapeRec,
   timebase,
   under_down: underDown,
 }
