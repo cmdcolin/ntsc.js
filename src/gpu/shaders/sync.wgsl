@@ -141,7 +141,13 @@ fn main() {
     agc = 1.0;
   }
   if (depthCount > 0.0) {
-    let want = 40.0 / clamp(depthSum / depthCount, 5.0, 160.0);
+    // sync_measure reports depth post-IF-gain (the separator sits inside the
+    // AGC loop), so divide out the gain that was actually applied before
+    // recomputing the wanted one — otherwise the servo squares its own
+    // correction. mix() is the same expression sync_measure applied, so at
+    // agc = 0 this degenerates to exactly the open-loop update.
+    let applied = mix(1.0, agc, P.agc);
+    let want = applied * 40.0 / clamp(depthSum / depthCount, 5.0, 160.0);
     agc = agc + 0.25 * (want - agc);
   }
 

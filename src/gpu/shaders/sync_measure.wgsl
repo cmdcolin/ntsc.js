@@ -8,10 +8,21 @@
 //                 mean active-picture level (beam load), 1 if mid-line sits at
 //                 sync level)
 
-@group(0) @binding(0) var<storage, read> comp: array<f32>;
-@group(0) @binding(1) var<storage, read_write> measure: array<vec4f>;
+@group(0) @binding(0) var<uniform> P: Params;
+@group(0) @binding(1) var<storage, read> comp: array<f32>;
+@group(0) @binding(2) var<storage, read> timing: array<f32>;
+@group(0) @binding(3) var<storage, read_write> measure: array<vec4f>;
 
 const SLICE = -20.0; // IRE slicing level
+
+// The separator taps video after the IF stage, inside the AGC loop — so the
+// receiver's gain reaches sync stability, not just brightness. A dim
+// double-terminated feed relocks as the gain ramps; hum-mod gain pumping
+// genuinely breathes the horizontal lock. Last frame's gain, which is the lag
+// a real AGC's time constant gives; identity while the agc control is 0.
+fn ifGain() -> f32 {
+  return mix(1.0, timing[527u], P.agc);
+}
 
 fn levelAt(n: i32) -> f32 {
   // small boxcar lowpass, the sync separator's RC filter
@@ -19,7 +30,7 @@ fn levelAt(n: i32) -> f32 {
   for (var k = -2; k <= 2; k = k + 1) {
     acc = acc + comp[clampIdx(n + k)];
   }
-  return acc / 5.0;
+  return acc / 5.0 * ifGain();
 }
 
 @compute @workgroup_size(64, 1, 1)
@@ -52,12 +63,14 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
 
   // Beam load: mean active-picture level on this line, i.e. how much current
   // this line asks the tube to draw. The deflection sag in sync.wgsl integrates
-  // it — bright content physically bends the scan.
+  // it — bright content physically bends the scan. Post-AGC, because the gun
+  // is driven by the gain-corrected video: a pumping AGC pumps the sag too.
   var load = 0.0;
   let step = i32(ACTIVE_W / 24u);
   for (var k = 0; k < 24; k = k + 1) {
     load = load + comp[clampIdx(base + i32(ACTIVE_START) + k * step)];
   }
+  load = load * ifGain();
 
   let broad = select(0.0, 1.0, levelAt(base + 200) < SLICE);
   measure[row] = vec4f(edge, depth, load / 24.0, broad);

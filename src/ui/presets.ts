@@ -500,7 +500,10 @@ export const PRESETS: PresetDef[] = [
     group: 'Bad cables',
     blurb:
       'Two monitors on one line double-terminate it: dim, washed out, sync barely holding.',
-    patch: { termination: -0.8, agc: 0.5, hHold: 0.5, noiseIre: 2 },
+    // AGC now reaches the sync separator (it slices post-IF-gain), so a
+    // strong AGC would quietly rescue this fault; a weak one keeps the look
+    // the blurb promises while still breathing the way a real set's would.
+    patch: { termination: -1.0, agc: 0.2, hHold: 0.5, noiseIre: 2 },
   },
   {
     name: 'chroma only',

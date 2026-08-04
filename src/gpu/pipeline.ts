@@ -567,7 +567,12 @@ export class Engine {
       pass(
         'syncMeasure',
         syncMeasurePl,
-        [{ buffer: this.compA }, { buffer: this.syncMeasureBuf }],
+        [
+          { buffer: this.paramsBuf },
+          { buffer: this.compA },
+          { buffer: this.timingBuf },
+          { buffer: this.syncMeasureBuf },
+        ],
         perRow,
       ),
       pass(
