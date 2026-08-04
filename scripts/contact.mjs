@@ -229,11 +229,12 @@ const launch = () =>
     },
   })
 
-// One browser does not survive a long batch: after about a dozen WebGPU
-// sessions Firefox detaches the frame mid-run and every later page dies with
-// "Target closed". So the run is cut into short stints with a fresh browser
-// each — the launch costs a few seconds against a render that costs a minute.
-const BROWSER_LIFE = 4
+// One browser does not survive a long batch: after a handful of WebGPU sessions
+// Firefox detaches the frame mid-run and every later page dies with "Target
+// closed". So the run is cut into short stints with a fresh browser each — the
+// launch costs a few seconds against a render that costs minutes — and any
+// failure is treated as the browser being spent, not just that candidate.
+const BROWSER_LIFE = 3
 
 // Results carry over between runs, keyed by name. Retuning one candidate and
 // rerunning just that one is the whole loop this is for, and it should update
@@ -259,22 +260,26 @@ console.log(`rendering ${todo.length} of ${items.length} candidates`)
 let browser = await launch()
 let stint = 0
 for (const item of todo) {
-  if (stint === BROWSER_LIFE) {
+  if (stint >= BROWSER_LIFE || !browser.connected) {
     await browser.close().catch(() => {})
     browser = await launch()
     stint = 0
   }
   stint++
   const url = patchUrl(item)
-  const page = await browser.newPage()
-  // Never page.setViewport after load under Firefox BiDi — it swaps the realm
-  // and every later evaluate loses `window.vf`.
-  await page.setViewport({ width: 1100, height: 620 })
+  let page = null
   let error = ''
-  page.on('pageerror', err => {
-    error ||= String(err).slice(0, 160)
-  })
   try {
+    // Inside the try with everything else: a browser that has gone away fails
+    // here, and losing the whole run to one dead candidate is what made the
+    // first long batch worthless.
+    page = await browser.newPage()
+    // Never page.setViewport after load under Firefox BiDi — it swaps the realm
+    // and every later evaluate loses `window.vf`.
+    await page.setViewport({ width: 1100, height: 620 })
+    page.on('pageerror', err => {
+      error ||= String(err).slice(0, 160)
+    })
     await page.goto(url, { waitUntil: 'networkidle0' })
     await new Promise(r => setTimeout(r, item.settle))
     // Own the clock: rAF keeps running in a headed window, and a frame count
@@ -332,11 +337,19 @@ for (const item of todo) {
       flags: ['failed'],
       error: String(err).slice(0, 160),
     })
+    // Whatever went wrong, this browser is not to be trusted with the next
+    // candidate — the failures come in runs otherwise.
+    stint = BROWSER_LIFE
   }
-  // Release the device before teardown; otherwise the close SIGKILLs Firefox's
-  // GPU process mid-frame and it leaves a minidump behind.
-  await page.evaluate(() => window.vf?.destroy()).catch(() => {})
-  await page.close().catch(() => {})
+  if (page !== null) {
+    // Release the device before teardown; otherwise the close SIGKILLs
+    // Firefox's GPU process mid-frame and it leaves a minidump behind.
+    await page.evaluate(() => window.vf?.destroy()).catch(() => {})
+    await page.close().catch(() => {})
+  }
+  // Written after every candidate, not at the end: a batch is an hour of GPU
+  // time, and a crash on the last one used to throw away all of it.
+  await writeFile(priorPath, JSON.stringify(results, null, 1))
 }
 await browser.close().catch(() => {})
 
@@ -394,7 +407,7 @@ const tile = r => `
       <span class="metrics">${
         r.m === null
           ? r.error
-          : `depart ${r.depart === null || r.depart === undefined ? '—' : r.depart.toFixed(1)} · sd ${r.m.shot.sd.toFixed(1)} · mean ${r.m.shot.mean.toFixed(0)} · sat ${r.m.shot.sat.toFixed(0)} · motion ${r.m.motion.toFixed(1)} · late sd ${r.m.late.sd.toFixed(1)}`
+          : `depart ${r.depart === null || r.depart === undefined ? '—' : r.depart.toFixed(1)} · sd ${r.m.shot.sd.toFixed(1)} · mean ${r.m.shot.mean.toFixed(0)} · sat ${r.m.shot.sat.toFixed(0)} · motion ${r.m.motion.toFixed(1)} · late sd ${r.m.late === null || r.m.late === undefined ? '—' : r.m.late.sd.toFixed(1)}`
       }</span>
       <a href="${r.url}">open ↗</a>
     </figcaption>
