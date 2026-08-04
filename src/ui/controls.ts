@@ -66,7 +66,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'deint',
-        label: 'deinterlace (capture combing)',
+        label: 'deinterlace',
         min: 0,
         max: 1,
         step: 1,
@@ -99,7 +99,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'chromaPinOnly',
-        label: 'chroma-pin only (no luma/sync)',
+        label: 'chroma-pin only',
         min: 0,
         max: 1,
         step: 0.01,
@@ -142,8 +142,14 @@ export const GROUPS: Group[] = [
       },
     ],
   },
+  // The two loops are named for the physics that closes them, because that is
+  // the only thing that tells them apart once both are running: light around
+  // the outside of the set, or the composite bus patched back into itself. The
+  // optical one carries a picture that has already been decoded and lit, so it
+  // can only do what a lens can; the electrical one carries the subcarrier
+  // round with it, so it does things optics cannot.
   {
-    name: 'Camera Feedback',
+    name: 'Camera loop (optical)',
     place: 'Feedback',
     sliders: [
       {
@@ -243,6 +249,19 @@ export const GROUPS: Group[] = [
         fine: true,
         help: 'Sensor highlight compression. Bright areas roll off into a shoulder instead of clipping flat, which stabilizes a runaway loop into thick glowing bands rather than a white-out.',
       },
+    ],
+  },
+  // The gun and the glass, split out of the camera group because none of it is
+  // a camera: it is the tube's own transfer curve and faceplate. It sits here
+  // rather than under Screen because it is the camera loop's subject — the
+  // light the lens is pointed at — so it is what decides which structures
+  // survive a trip around and which die, and tuning a loop means reaching for
+  // these in the same breath as the lens. The mixer loop taps ahead of the
+  // tube and never sees them.
+  {
+    name: 'Tube face (what the camera shoots)',
+    place: 'Feedback',
+    sliders: [
       {
         key: 'crtCutoff',
         label: 'beam cutoff',
@@ -268,7 +287,6 @@ export const GROUPS: Group[] = [
         max: 2,
         step: 0.01,
         unit: '',
-        fine: true,
         help: 'Colour saturation of the emitted light, applied after the beam transfer. Feedback multiplies it every pass, so a small boost here compounds into wildly saturated bands.',
       },
       {
@@ -301,7 +319,7 @@ export const GROUPS: Group[] = [
     ],
   },
   {
-    name: 'Mixer Loop (composite)',
+    name: 'Mixer loop (electrical)',
     place: 'Feedback',
     sliders: [
       {
@@ -390,7 +408,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'cfbFilterMHz',
-        label: 'loop resonance freq (0 off — bent enhancer)',
+        label: 'loop resonance freq (0 off)',
         min: 0,
         max: 5,
         step: 0.05,
@@ -970,7 +988,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'vHold',
-        label: 'vertical hold (lock authority)',
+        label: 'vertical hold',
         min: 0,
         max: 1,
         step: 0.01,
@@ -988,7 +1006,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'syncBendUs',
-        label: 'retrace flag (top hook)',
+        label: 'retrace flag',
         min: 0,
         max: 12,
         step: 0.05,
@@ -1012,7 +1030,7 @@ export const GROUPS: Group[] = [
     sliders: [
       {
         key: 'audioRoll',
-        label: 'bass → vertical hold (lurch)',
+        label: 'bass → vertical hold',
         min: 0,
         max: 8,
         step: 0.05,
@@ -1021,7 +1039,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'audioTear',
-        label: 'level → horizontal hold (tear)',
+        label: 'level → horizontal hold',
         min: -400,
         max: 400,
         step: 1,
@@ -1030,7 +1048,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'audioSagUs',
-        label: 'bass → HV sag (smack, needs ring)',
+        label: 'bass → HV sag',
         min: 0,
         max: 40,
         step: 0.5,
@@ -1040,7 +1058,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'audioBendUs',
-        label: 'waveform into deflection (literal)',
+        label: 'waveform into deflection',
         min: -20,
         max: 20,
         step: 0.1,
@@ -1049,7 +1067,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'audioLoad',
-        label: 'audio into HV tank (needs sag)',
+        label: 'audio into HV tank',
         min: 0,
         max: 3,
         step: 0.01,
@@ -1059,7 +1077,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'audioIre',
-        label: 'audio into video in (bands, torn sync)',
+        label: 'audio into video in',
         min: 0,
         max: 60,
         step: 0.5,
@@ -1112,7 +1130,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'hvSagUs',
-        label: 'HV sag (beam pulls scan)',
+        label: 'HV sag',
         min: -25,
         max: 25,
         step: 0.1,
@@ -1146,7 +1164,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'svideoBleed',
-        label: 'S-video bleed (Y/C miswire)',
+        label: 'S-video bleed',
         min: 0,
         max: 1,
         step: 0.01,
@@ -1165,7 +1183,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'chromaTail',
-        label: 'chroma trail (causal bleed)',
+        label: 'chroma trail',
         min: 0,
         max: 1,
         step: 0.01,
@@ -1203,7 +1221,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'scDetuneKHz',
-        label: 'subcarrier detune (bent crystal)',
+        label: 'subcarrier detune',
         min: -20,
         max: 20,
         step: 0.05,
@@ -1256,7 +1274,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'scanBloom',
-        label: 'beam bloom (bright lines fatten)',
+        label: 'beam bloom',
         min: 0,
         max: 1,
         step: 0.01,
@@ -1265,7 +1283,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'crtSpot',
-        label: 'beam spot (bleed onto neighbours)',
+        label: 'beam spot',
         min: 0,
         max: 3,
         step: 0.05,
@@ -1312,7 +1330,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'phosphorSkew',
-        label: 'trail tint (R/B die faster)',
+        label: 'trail tint',
         min: 0,
         max: 2,
         step: 0.05,
@@ -1332,7 +1350,7 @@ export const GROUPS: Group[] = [
       },
       {
         key: 'phosphorBleed',
-        label: 'trail scatter (tails soften as they fade)',
+        label: 'trail scatter',
         min: 0,
         max: 0.5,
         step: 0.01,
@@ -1573,7 +1591,7 @@ const PHASE_BLURBS: Record<Phase, string> = {
   Source:
     'the picture becomes a composite waveform — encoder faults and bad cables live here',
   Feedback:
-    'loops around the chain: a camera pointed at the screen, or the mixer bus patched into itself',
+    'two loops around the chain — one optical (a camera on the tube), one electrical (the mixer bus patched into itself)',
   Tape: 'damage to the recorded waveform — VHS color-under, dropouts, timebase wander',
   Receiver:
     'a TV hunting for sync and decoding color from whatever arrives — hold, deflection, the decoder',

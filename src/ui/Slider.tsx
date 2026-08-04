@@ -106,157 +106,185 @@ export function Slider(props: {
     '--hi': `${Math.max(valuePct, defPct)}%`,
     '--def': `${defPct}%`,
   }
+  // The row's three parts, built once and then arranged two ways below. The
+  // label names the input beside it rather than wrapping it: with the accessory
+  // buttons inside a wrapping <label>, every one of their clicks forwarded to
+  // the range input and nudged the value, so each button (and each toggle
+  // option) had to preventDefault to stay harmless.
+  // A button is an atomic inline, so the line may break between the label and
+  // its ? — and on a wrapping label it reliably did, leaving the ? alone on a
+  // line under "phosphor persistence". The last word rides in a nowrap span
+  // with the button, so the break lands one word earlier instead. Two <label>s
+  // for one input is deliberate: the accessible name is their concatenation, so
+  // the split is invisible to a screen reader, and keeping the ? outside both
+  // is what stops its clicks reaching the range input.
+  const cut = props.label.lastIndexOf(' ')
+  const head = cut < 0 ? '' : props.label.slice(0, cut + 1)
+  const tail = cut < 0 ? props.label : props.label.slice(cut + 1)
+  const naming = (
+    <span className={styles.naming}>
+      {choices ? head : <label htmlFor={inputId}>{head}</label>}
+      <span className={styles.tail}>
+        {choices ? tail : <label htmlFor={inputId}>{tail}</label>}
+        {help === undefined ? null : (
+          <IconButton
+            title="what does this do?"
+            className={styles.what}
+            onClick={() => setShowHelp(true)}
+            onMouseEnter={() => setHoverHelp(true)}
+            onMouseLeave={() => setHoverHelp(false)}
+          >
+            ?
+          </IconButton>
+        )}
+      </span>
+    </span>
+  )
+  const readout = (
+    <span className={styles.value}>
+      {choices
+        ? (choices[props.value] ?? props.value)
+        : `${formatValue(props.value, props.step)}${props.unit}`}
+      {sync ? (
+        <IconButton
+          title={
+            sync.label === null
+              ? 'lock to MIDI clock'
+              : `clock-synced (${sync.label}) — click to change`
+          }
+          className={cx(
+            styles.icon,
+            sync.label !== null &&
+              (sync.live ? styles.iconOn : styles.iconSyncSet),
+          )}
+          onClick={sync.onCycle}
+        >
+          {sync.label === null ? '♩' : `♩${sync.label}`}
+        </IconButton>
+      ) : null}
+      {midi ? (
+        <IconButton
+          title={
+            midi.label === null
+              ? 'assign a MIDI control'
+              : `MIDI CC${midi.label} — click to relearn`
+          }
+          className={cx(
+            styles.icon,
+            midi.armed
+              ? styles.iconOn
+              : midi.label !== null && styles.iconMidiSet,
+          )}
+          onClick={midi.onArm}
+        >
+          {midi.armed ? 'learn…' : midi.label === null ? '⚟' : `CC${midi.label}`}
+        </IconButton>
+      ) : null}
+      {props.mod ? (
+        <IconButton
+          title={
+            props.mod.routed
+              ? 'modulated — click to change what is driving it'
+              : 'wobble this control with an LFO, drift or the audio'
+          }
+          className={cx(
+            styles.icon,
+            props.mod.open
+              ? styles.iconOn
+              : props.mod.routed && styles.iconModSet,
+          )}
+          onClick={props.mod.onToggle}
+        >
+          ∿
+        </IconButton>
+      ) : null}
+      {favorite ? (
+        <IconButton
+          title={favorite.on ? 'remove from Favorites' : 'pin to Favorites'}
+          className={cx(styles.icon, favorite.on && styles.iconOn)}
+          onClick={favorite.onToggle}
+        >
+          {favorite.on ? '★' : '☆'}
+        </IconButton>
+      ) : null}
+      <IconButton
+        title="reset"
+        className={cx(
+          styles.reset,
+          props.value === props.defaultValue && styles.resetDef,
+        )}
+        onClick={() => props.onChange(props.defaultValue)}
+      >
+        ↺
+      </IconButton>
+    </span>
+  )
+  const track = choices ? (
+    <ToggleButtonGroup
+      label={props.label}
+      options={choices}
+      value={props.value}
+      disabled={locked}
+      onChange={props.onChange}
+    />
+  ) : (
+    <span className={styles.rangeWrap}>
+      <input
+        id={inputId}
+        type="range"
+        className={cx(styles.range, needs && styles.rangeInert)}
+        style={fill}
+        min={curved ? 0 : props.min}
+        max={curved ? 1 : props.max}
+        step={curved ? 0.002 : props.step}
+        value={curved ? zoomTravel(props.value) : props.value}
+        disabled={locked}
+        onChange={e =>
+          props.onChange(
+            curved ? fromTravel(Number(e.target.value)) : Number(e.target.value),
+          )
+        }
+      />
+      {/* Soft takeover: the knob is here, the value is at the thumb, and
+          nothing moves until one sweeps past the other. Without the mark
+          the control just looks dead. */}
+      {midi?.pickup === undefined ? null : (
+        <span
+          className={styles.pickup}
+          style={{ left: `${pct(midi.pickup)}%` }}
+          title="the knob is here — sweep it across the value to take over"
+        />
+      )}
+    </span>
+  )
+
   return (
     <div className={styles.slider}>
-      {/* The label names the input beside it rather than wrapping it: with the
-          accessory buttons inside a wrapping <label>, every one of their clicks
-          forwarded to the range input and nudged the value, so each button (and
-          each toggle option) had to preventDefault to stay harmless. */}
-      <div>
-        <span className={styles.sliderTop}>
-          <span>
-            {choices ? (
-              props.label
-            ) : (
-              <label htmlFor={inputId}>{props.label}</label>
-            )}
-            {help === undefined ? null : (
-              <IconButton
-                title="what does this do?"
-                className={styles.what}
-                onClick={() => setShowHelp(true)}
-                onMouseEnter={() => setHoverHelp(true)}
-                onMouseLeave={() => setHoverHelp(false)}
-              >
-                ?
-              </IconButton>
-            )}
+      {/* One line for a plain slider — name, track, readout — and two for a
+          mode switch, whose options are words ("alternate", "ssavi") and cannot
+          be squeezed into a third of a sidebar.
+
+          The readout gets a column of its own rather than riding the label's
+          line, which is what a first attempt did: at a third of the panel each
+          the two of them together overflowed on any label carrying a
+          parenthetical, and a fifth of the controls carry one — the label broke
+          mid-phrase and the ? and ↺ scattered onto a line of their own. Split
+          out, only the label wraps, and it wraps where a label should. */}
+      {choices ? (
+        <div className={styles.rowStack}>
+          <span className={styles.sliderTop}>
+            {naming}
+            {readout}
           </span>
-          <span className={styles.value}>
-            {choices
-              ? (choices[props.value] ?? props.value)
-              : `${formatValue(props.value, props.step)}${props.unit}`}
-            {sync ? (
-              <IconButton
-                title={
-                  sync.label === null
-                    ? 'lock to MIDI clock'
-                    : `clock-synced (${sync.label}) — click to change`
-                }
-                className={cx(
-                  styles.icon,
-                  sync.label !== null &&
-                    (sync.live ? styles.iconOn : styles.iconSyncSet),
-                )}
-                onClick={sync.onCycle}
-              >
-                {sync.label === null ? '♩' : `♩${sync.label}`}
-              </IconButton>
-            ) : null}
-            {midi ? (
-              <IconButton
-                title={
-                  midi.label === null
-                    ? 'assign a MIDI control'
-                    : `MIDI CC${midi.label} — click to relearn`
-                }
-                className={cx(
-                  styles.icon,
-                  midi.armed
-                    ? styles.iconOn
-                    : midi.label !== null && styles.iconMidiSet,
-                )}
-                onClick={midi.onArm}
-              >
-                {midi.armed
-                  ? 'learn…'
-                  : midi.label === null
-                    ? '⚟'
-                    : `CC${midi.label}`}
-              </IconButton>
-            ) : null}
-            {props.mod ? (
-              <IconButton
-                title={
-                  props.mod.routed
-                    ? 'modulated — click to change what is driving it'
-                    : 'wobble this control with an LFO, drift or the audio'
-                }
-                className={cx(
-                  styles.icon,
-                  props.mod.open
-                    ? styles.iconOn
-                    : props.mod.routed && styles.iconModSet,
-                )}
-                onClick={props.mod.onToggle}
-              >
-                ∿
-              </IconButton>
-            ) : null}
-            {favorite ? (
-              <IconButton
-                title={
-                  favorite.on ? 'remove from Favorites' : 'pin to Favorites'
-                }
-                className={cx(styles.icon, favorite.on && styles.iconOn)}
-                onClick={favorite.onToggle}
-              >
-                {favorite.on ? '★' : '☆'}
-              </IconButton>
-            ) : null}
-            <IconButton
-              title="reset"
-              className={cx(
-                styles.reset,
-                props.value === props.defaultValue && styles.resetDef,
-              )}
-              onClick={() => props.onChange(props.defaultValue)}
-            >
-              ↺
-            </IconButton>
-          </span>
-        </span>
-        {choices ? (
-          <ToggleButtonGroup
-            label={props.label}
-            options={choices}
-            value={props.value}
-            disabled={locked}
-            onChange={props.onChange}
-          />
-        ) : (
-          <span className={styles.rangeWrap}>
-            <input
-              id={inputId}
-              type="range"
-              className={cx(styles.range, needs && styles.rangeInert)}
-              style={fill}
-              min={curved ? 0 : props.min}
-              max={curved ? 1 : props.max}
-              step={curved ? 0.002 : props.step}
-              value={curved ? zoomTravel(props.value) : props.value}
-              disabled={locked}
-              onChange={e =>
-                props.onChange(
-                  curved
-                    ? fromTravel(Number(e.target.value))
-                    : Number(e.target.value),
-                )
-              }
-            />
-            {/* Soft takeover: the knob is here, the value is at the thumb, and
-                nothing moves until one sweeps past the other. Without the mark
-                the control just looks dead. */}
-            {midi?.pickup === undefined ? null : (
-              <span
-                className={styles.pickup}
-                style={{ left: `${pct(midi.pickup)}%` }}
-                title="the knob is here — sweep it across the value to take over"
-              />
-            )}
-          </span>
-        )}
-      </div>
+          {track}
+        </div>
+      ) : (
+        <div className={styles.row}>
+          {naming}
+          {track}
+          {readout}
+        </div>
+      )}
       {needs ? (
         <button
           type="button"

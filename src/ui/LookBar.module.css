@@ -1,0 +1,52 @@
+/* The look-actions row under the masthead. Quiet outlined buttons, matching
+   app.module.css's .widthToggle and .paletteKey — the panel's chrome family —
+   rather than ui.module.css's filled .btn, which is what the board itself is
+   made of. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 2px;
+}
+/* --fs-sm, like .widthToggle and .paletteKey: the same family, and the five
+   labels only clear a 332px sidebar in one row at that size. */
+.btn {
+  padding: 2px 7px;
+  border: 1px solid #33333f;
+  border-radius: 4px;
+  background: var(--panel-bg);
+  color: var(--fg3);
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--fg4);
+  color: var(--fg);
+}
+/* live: comparing is held down, copied has just fired */
+.btnOn {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* "copy link" ⇄ "copied!" changes width on click, which would shove the three
+   buttons after it along the row under the pointer that just fired it. Held at
+   the wider of the two labels. Compare needs no such floor: its label grows
+   only while the pointer is captured on it, and nothing else is being aimed at
+   during a hold. */
+.btnLink {
+  min-width: 4.7rem;
+}
+.btnOff {
+  color: #55555f;
+  border-color: #2a2a33;
+  cursor: default;
+}
+
+/* Touch: same treatment the shared .btn gets — these were sized for a cursor. */
+@media (pointer: coarse) {
+  .btn {
+    padding: 7px 10px;
+  }
+}

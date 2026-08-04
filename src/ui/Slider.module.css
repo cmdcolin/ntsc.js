@@ -2,7 +2,58 @@
 .slider {
   display: block;
   position: relative;
-  margin: 9px 0;
+  /* Half the old 9px rather than none of it: one-line rows pack tightly enough
+     that at 4px two wrapped labels in a row read as one paragraph, and the
+     saving from the last 2px is not worth a group you have to parse. */
+  margin: 7px 0;
+}
+
+/* One line per control: name, track, readout. Stacked, each row cost 45px and
+   the panel holds 132 of them, so a stage was a scroll rather than something
+   you could take in at once.
+
+   Three columns, not two. The name and the readout share a line only in the
+   stacked variant below; side by side in one column they overflow on any label
+   carrying a parenthetical ("beam bloom (bright lines fatten)"), and a fifth of
+   the controls carry one, so the label broke mid-phrase and the ? and ↺ fell
+   onto a line of their own.
+
+   The first two columns are fr-based so every row lands its track at the same
+   x without the rows knowing about each other — a fixed label column would have
+   to be sized for the longest label in the panel (43 characters) and would
+   spend that width on the median label, which is 11. The floors are what stop
+   either from being crushed: past them a long label wraps to two lines instead,
+   which is the right trade, because a wrapped label still reads and a 40px
+   track cannot be aimed.
+
+   The readout's floor holds the widest ordinary reading ("0.000" plus ∿ ☆ ↺).
+   It grows past that only when MIDI is on and every row grows with it, so the
+   column still lines up. */
+.row {
+  display: grid;
+  /* Weighted toward the label: a wrapped label is the row's visible cost, and
+     the track can give up width far more cheaply than the name can — a short
+     track still aims, and the arrow keys step it exactly either way. */
+  grid-template-columns:
+    minmax(0, 1.2fr) minmax(5.5rem, 0.85fr)
+    minmax(5.2rem, auto);
+  align-items: center;
+  column-gap: 10px;
+}
+/* A mode switch keeps the full width: its options are words, not a track. */
+.rowStack {
+  display: block;
+}
+/* The label and its ?, the one part of the row allowed to wrap. Tighter leading
+   than the panel's prose so a two-line label stays one object rather than
+   reading as two rows. */
+.naming {
+  min-width: 0;
+  line-height: 1.25;
+}
+/* the label's last word plus its ?, kept on one line together */
+.tail {
+  white-space: nowrap;
 }
 /* the ? icon's hover card: the same text as the dialog, skimmable in place */
 .helpPop {
@@ -27,9 +78,14 @@
   justify-content: space-between;
   align-items: baseline;
 }
+/* The reading and its accessory buttons, held on one line: in its own grid
+   column it has nothing to compete with, and breaking "0.30 ∿ ☆ ↺" across two
+   lines was the ugliest thing about the row before the column existed. */
 .value {
   color: var(--accent);
   font-family: var(--mono);
+  white-space: nowrap;
+  justify-self: end;
 }
 /* Track fills from the *default* position (--def) out to the thumb (--lo/--hi
    from Slider.tsx), with a faint tick marking the default. Kept minimal so it
@@ -58,7 +114,10 @@
   --thumb-size: 12px;
   width: 100%;
   height: 14px;
-  margin: 3px 0 0;
+  /* the grid centres the track against the label column; the old top margin was
+     the gap under a label sitting above it */
+  margin: 0;
+  display: block;
   appearance: none;
   background: none;
 }

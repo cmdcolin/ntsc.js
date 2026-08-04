@@ -22,6 +22,7 @@ import {
 import { FpsMonitor } from './ui/FpsMonitor'
 import { HelpDialog } from './ui/HelpDialog'
 import { InputSection } from './ui/InputSection'
+import { LookBar } from './ui/LookBar'
 import { MidiSection } from './ui/MidiSection'
 import { ModSection } from './ui/ModSection'
 import { slotsToRoutings } from './ui/modSlots'
@@ -429,6 +430,22 @@ export function App() {
         </a>
       </div>
 
+      {/* Acts on the whole board, so it sits above the sections rather than
+          inside any one of them — and stays reachable with Presets folded. */}
+      <LookBar
+        comparing={comparing}
+        onStartCompare={startCompare}
+        onEndCompare={endCompare}
+        copied={copied}
+        onCopyLink={copyLink}
+        onSurprise={mix.surprise}
+        onMutate={mix.mutateLook}
+        canUndo={mix.canUndo}
+        onUndo={mix.undo}
+        canRedo={mix.canRedo}
+        onRedo={mix.redo}
+      />
+
       {/* The front door goes first: a look is one click, and everything below
           is for adjusting the look you picked. Input is a set-once control and
           reads fine in second place. */}
@@ -439,17 +456,6 @@ export function App() {
         onApplyPreset={mix.applyPreset}
         onMixStart={mix.startMix}
         onMix={mix.setPresetWeight}
-        comparing={comparing}
-        onStartCompare={startCompare}
-        onEndCompare={endCompare}
-        onCopyLink={copyLink}
-        copied={copied}
-        onMutate={mix.mutateLook}
-        onSurprise={mix.surprise}
-        canUndo={mix.canUndo}
-        onUndo={mix.undo}
-        canRedo={mix.canRedo}
-        onRedo={mix.redo}
       />
 
       <InputSection
@@ -545,6 +551,10 @@ export function App() {
         open={nav.openPhase}
         expandAll={filtering}
         bench={bench}
+        // Which of the two returns is actually carrying signal. Read off the
+        // two loop mixes rather than the whole group: a loop with its mix at
+        // zero is patched but silent, and the map is answering "is it running".
+        live={{ camera: controls.fbMix > 0, mixer: controls.cfbMix > 0 }}
         // On the bench nothing is folded, so the map marks a stage and scrolls
         // to it rather than unfolding one and closing another.
         onOpen={bench ? nav.jumpPhase : nav.togglePhase}

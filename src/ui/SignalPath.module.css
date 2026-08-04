@@ -6,6 +6,14 @@
 .stageRow {
   padding: 0 0 2px;
 }
+/* The line under the map while no stage is open — what the boxes are for. It
+   is the empty state, so it costs a row only when there is nothing in the row's
+   place anyway. */
+.door {
+  color: var(--fg3);
+  margin: 1px 0 2px;
+  line-height: var(--prose-lh);
+}
 .stageHead {
   display: flex;
   align-items: baseline;

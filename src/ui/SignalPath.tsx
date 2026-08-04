@@ -29,13 +29,22 @@ export function SignalPath(props: {
   expandAll: boolean
   // Two columns of module cards, every stage mounted (see Bench).
   bench: boolean
+  // Which feedback returns are carrying signal, for the map to mark.
+  live: { camera: boolean; mixer: boolean }
   onOpen: (name: string) => void
   // Which group inside the open stage is unfolded — one at a time.
   openGroup: string | null
   onOpenGroup: (name: string) => void
 }) {
   if (props.bench) {
-    return <Bench nodes={props.nodes} open={props.open} onOpen={props.onOpen} />
+    return (
+      <Bench
+        nodes={props.nodes}
+        open={props.open}
+        live={props.live}
+        onOpen={props.onOpen}
+      />
+    )
   }
   const shown = props.nodes.filter(
     n => props.expandAll || props.open === n.name,
@@ -45,8 +54,24 @@ export function SignalPath(props: {
       <ChainMap
         stages={props.nodes}
         open={props.open}
+        live={props.live}
         onOpen={name => props.onOpen(name)}
       />
+      {/* The empty state, and the panel's only door onto its own subject: with
+          no stage picked the map renders five small boxes over nothing, and
+          every one of the 132 controls is behind them. It said so in `title`
+          attributes, which a first visit never hovers. Gone the moment a stage
+          is open, since by then the answer is on screen. */}
+      {shown.length > 0 ? null : (
+        <div className={styles.door}>
+          click a stage to open its controls —{' '}
+          {props.nodes.reduce(
+            (n, s) => n + s.groups.reduce((m, g) => m + g.sliders.length, 0),
+            0,
+          )}{' '}
+          of them, in the order the picture travels
+        </div>
+      )}
       <div className={styles.stages}>
         {shown.map(node => (
           <div key={node.name} className={styles.stageRow}>
@@ -95,6 +120,7 @@ export function SignalPath(props: {
 function Bench(props: {
   nodes: PathNode[]
   open: string | null
+  live: { camera: boolean; mixer: boolean }
   onOpen: (name: string) => void
 }) {
   // The stage headings, by name, as scroll targets. Element-relative
@@ -109,7 +135,12 @@ function Bench(props: {
   }
   return (
     <>
-      <ChainMap stages={props.nodes} open={props.open} onOpen={jump} />
+      <ChainMap
+        stages={props.nodes}
+        open={props.open}
+        live={props.live}
+        onOpen={jump}
+      />
       <div className={styles.bench}>
         {props.nodes.map(node => (
           <Fragment key={node.name}>

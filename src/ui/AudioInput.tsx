@@ -97,12 +97,14 @@ export function AudioInput(props: {
   )
 }
 
+// The reason to bother picking an input, and nothing else. It used to carry
+// "— its knobs are in the Audio section below" too, which wrapped the line onto
+// a second row to point at a section whose own title already says what it is
+// for; the fact that sound reaches sync is the part nothing else on screen says.
 export function AudioHint(props: { mode: AudioMode; error: string | null }) {
   return props.error !== null ? (
     <div className={ui.hint}>{props.error}</div>
   ) : props.mode === 'off' ? (
-    <div className={ui.hint}>
-      sound knocks sync out of lock — its knobs are in the Audio section below.
-    </div>
+    <div className={ui.hint}>sound knocks sync out of lock.</div>
   ) : null
 }

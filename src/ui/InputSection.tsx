@@ -125,11 +125,16 @@ export function InputSection(props: {
           onReopen={() => props.onReopenFileB()}
         />
         {props.audioInput}
-        <div className={ui.hint}>
-          {props.sourceBMode === 'none'
-            ? 'pick a source B to mix a second signal in.'
-            : 'mix controls are in A/B Mix below.'}
-        </div>
+        {/* Only while B is off, where it is onboarding for a feature nothing on
+            screen is showing. With B running it used to read "mix controls are
+            in A/B Mix below" — a line of prose pointing at the section directly
+            underneath it, which is a row the panel was spending to say nothing
+            the next header does not. */}
+        {props.sourceBMode === 'none' ? (
+          <div className={ui.hint}>
+            pick a source B to mix a second signal in.
+          </div>
+        ) : null}
         {/* The one thing about a share the browser's picker can't tell you:
             pointing it at this very window closes an optical loop through the
             compositor — a camera on the tube, without the camera. */}

@@ -33,17 +33,28 @@ const HEAD = 2.5
 // Each is routed rather than swooped — up, back along its run, then straight
 // down into the stage it feeds, so the wire is vertical where the arrowhead
 // sits, which is the only way the two agree.
+//
+// The camera return is drawn dashed and the mixer return solid, the way a
+// schematic separates a light path from a wire — which is the whole difference
+// between them, and the map is the one place both are visible at once. Each
+// also lights up while its own loop is actually running, so "which loop is on"
+// is answered here rather than by opening the stage and reading two mixes.
 const RETURNS = [
   {
     from: 'Screen',
-    label: 'camera loop — the tube, re-shot and fed back in',
+    loop: 'camera',
+    label: 'camera loop (optical) — the tube, re-shot and fed back in',
+    optical: true,
     y: 3,
     turn: 5,
     dx: -7,
   },
   {
     from: 'Receiver',
-    label: 'mixer loop — the composite the decoder saw, patched back in',
+    loop: 'mixer',
+    label:
+      'mixer loop (electrical) — the composite the decoder saw, patched back in',
+    optical: false,
     y: 11,
     turn: 3,
     dx: 7,
@@ -69,6 +80,9 @@ export interface ChainStage {
 export function ChainMap(props: {
   stages: ChainStage[]
   open: string | null
+  // Which returns are carrying signal, so the map can show a running loop
+  // rather than only the two that exist in principle.
+  live: { camera: boolean; mixer: boolean }
   onOpen: (name: string) => void
 }) {
   const step = W / props.stages.length
@@ -115,8 +129,17 @@ export function ChainMap(props: {
         />
       ))}
       {returns.map(r => (
-        <g key={r.from}>
-          <title>{r.label}</title>
+        <g
+          key={r.loop}
+          className={cx(
+            styles.mapReturn,
+            r.optical && styles.mapReturnOptical,
+            props.live[r.loop] && styles.mapReturnLive,
+          )}
+        >
+          <title>
+            {props.live[r.loop] ? `${r.label} — running` : r.label}
+          </title>
           <path
             className={styles.mapWire}
             d={returnPath(r.from, r.to, top, r.y, r.turn)}

@@ -23,6 +23,26 @@
 .mapArrow {
   fill: var(--border);
 }
+/* A feedback return, wire and arrowhead as one colour so a running loop lights
+   both. Dashed for the optical loop and solid for the electrical one — the
+   schematic convention, and the only difference between the two that a diagram
+   this size can carry. */
+.mapReturn {
+  color: var(--border);
+}
+.mapReturn .mapWire {
+  stroke: currentColor;
+}
+.mapReturn .mapArrow {
+  fill: currentColor;
+}
+.mapReturnOptical .mapWire {
+  stroke-dasharray: 2 2;
+}
+/* the loop is actually running — its mix is off zero */
+.mapReturnLive {
+  color: var(--accent);
+}
 .mapNode {
   color: var(--fg2);
   cursor: pointer;

@@ -238,7 +238,7 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   // value, so a folded trim being driven by an LFO looks untouched from here.
   const fineMod = fine.some(s => mod.modFor(s.key) !== null)
 
-  // When most of a group is dead behind the same gate (e.g. all of Mixer Loop
+  // When most of a group is dead behind the same gate (e.g. all of the mixer loop
   // behind loop mix), one banner beats a stack of identical per-row notes; the
   // notes stay only for the odd ones out.
   const unmet = new Map<ControlKey, { need: SliderNeed; n: number }>()

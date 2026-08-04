@@ -12,7 +12,6 @@ import ui from './ui.module.css'
 import { useRecentPresets } from './useRecentPresets'
 
 import type { Controls } from '../controls'
-import type { MutateAmount } from './mutate'
 import type { PresetDef, PresetWeights } from './presets'
 import type { CSSProperties } from 'react'
 
@@ -195,6 +194,11 @@ function PresetButton(props: {
   )
 }
 
+// The section is the catalog and nothing else. The verbs that used to close it
+// out — compare, copy link, surprise, mutate, undo, redo — act on the whole
+// board rather than on presets, and they moved to the LookBar under the
+// masthead; this section had grown to a quarter of the sidebar, and they were
+// the part of it that was not presets.
 export function PresetsSection(props: {
   controls: Controls
   lastPreset: string | null
@@ -202,17 +206,6 @@ export function PresetsSection(props: {
   onApplyPreset: (name: string, patch: Partial<Controls>) => void
   onMixStart: () => void
   onMix: (name: string, w: number) => void
-  comparing: boolean
-  onStartCompare: () => void
-  onEndCompare: () => void
-  onCopyLink: () => void
-  copied: boolean
-  onMutate: (amount: MutateAmount) => void
-  onSurprise: () => void
-  canUndo: boolean
-  onUndo: () => void
-  canRedo: boolean
-  onRedo: () => void
 }) {
   const [showHelp, setShowHelp] = useState(false)
   const [hintDismissed, setHintDismissed] = usePersistedFlag(HINT_STORE)
@@ -317,58 +310,13 @@ export function PresetsSection(props: {
             </div>
           ))
         : null}
-      <div className={styles.caption}>{presetCaption}</div>
-      <button
-        onPointerDown={props.onStartCompare}
-        onPointerUp={props.onEndCompare}
-        onPointerLeave={props.onEndCompare}
-        className={cx(ui.btn, props.comparing && ui.active)}
-        title="hold to preview the clean signal, release to return (or hold C)"
-      >
-        {props.comparing ? 'showing clean…' : 'hold to compare'}
-      </button>
-      <button
-        className={cx(ui.btn, props.copied && ui.active)}
-        onClick={props.onCopyLink}
-      >
-        {props.copied ? 'copied!' : 'copy link'}
-      </button>
-      <button
-        className={ui.btn}
-        onClick={props.onSurprise}
-        title="stack a few random presets from different groups — a fresh look each roll, with the recipe shown in the chips above"
-      >
-        surprise me
-      </button>
-      <button
-        className={ui.btn}
-        onClick={e =>
-          props.onMutate(e.shiftKey ? 'wild' : e.altKey ? 'gentle' : 'normal')
-        }
-        title="jitter every control around the current look, for a related variation (also happy accidents) — shift for a wilder roll, alt for a gentle one"
-      >
-        mutate
-      </button>
-      <button
-        className={cx(ui.btn, !props.canUndo && ui.slotEmpty)}
-        onClick={props.onUndo}
-        disabled={!props.canUndo}
-        title="step back through the looks you have been through (ctrl+z)"
-      >
-        undo
-      </button>
-      {/* Only once there is a walk to step forward into: a permanently greyed
-          redo would cost a slot in the button row on every session that never
-          undid anything. */}
-      {props.canRedo ? (
-        <button
-          className={ui.btn}
-          onClick={props.onRedo}
-          title="step forward again (ctrl+shift+z)"
-        >
-          redo
-        </button>
-      ) : null}
+      {/* Clamped, and carrying the whole line as its tooltip: half the blurbs
+          run past three lines in a panel this narrow, and letting the caption
+          grow to five meant sweeping the chips pumped everything below it up
+          and down by 60px. */}
+      <div className={styles.caption} title={presetCaption}>
+        {presetCaption}
+      </div>
       {showHelp ? (
         <PresetsHelpDialog onClose={() => setShowHelp(false)} />
       ) : null}

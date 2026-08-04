@@ -74,9 +74,18 @@
   text-transform: uppercase;
   margin: 7px 0 3px;
 }
-/* what the hovered preset does, held at a fixed height so the panel below it
-   doesn't jump as you move along the row */
+/* What the hovered preset does. Capped at three lines rather than left to run:
+   the blurbs are 62–282 characters, which is one line to five in a panel this
+   narrow, so an uncapped caption made sweeping the chips shove the whole panel
+   below it up and down. Three lines holds three quarters of them whole, and the
+   element carries the full text as its title for the rest. min-height keeps the
+   one-line resting caption from collapsing the gap under the chips. */
 .caption {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
   min-height: 20px;
   color: var(--fg2);
   margin: 3px 0 4px;
