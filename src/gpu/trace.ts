@@ -57,6 +57,14 @@ class Trace {
   // GPU strike, a lifecycle transition — because the next frame may never
   // return. Routine beats take the rate-limited path instead.
   flush(force = false): void {
+    const store = sessionStore()
+    // Nowhere to write: a worker has no localStorage, and neither do the unit
+    // tests. Leaving before serializing, rather than building the whole ring
+    // into a string and handing it to nothing — every forced flush is a stall, a
+    // GPU strike or a lifecycle transition, so this is the path that runs when
+    // the app is already in trouble. It also leaves `dirty` set, which is the
+    // truth: those lines have not been written anywhere.
+    if (store === null) return
     const now = performance.now()
     if (this.dirty && (force || now - this.lastFlush > FLUSH_MS)) {
       this.dirty = false
@@ -67,7 +75,7 @@ class Trace {
           ua: navigator.userAgent,
           lines: this.lines,
         }
-        sessionStore()?.setItem(KEY, JSON.stringify(session))
+        store.setItem(KEY, JSON.stringify(session))
       } catch {
         // Quota, or a context with no DOM at all (the loop's unit tests); the
         // live console still has everything.
