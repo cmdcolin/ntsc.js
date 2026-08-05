@@ -2,6 +2,13 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.13.1](https://github.com/cmdcolin/ntsc.js/compare/v0.13.0...v0.13.1) - 2026-08-05
+
+### Features
+- *(ui)* [`7f77acb`](https://github.com/cmdcolin/ntsc.js/commit/7f77acbffd06a32f6703bec27bf16e54a17bb146) give the sidebar back to the controls
+- *(ui)* [`b246196`](https://github.com/cmdcolin/ntsc.js/commit/b24619670f4502bddaec904cef4a7fe586a2c795) put a row's ∿ ☆ ↺ behind a ⋮, keep what is set in the open
+- *(ui)* [`7295698`](https://github.com/cmdcolin/ntsc.js/commit/72956983ff833f45da520e0a4378d33485bb3842) make the reading the reset, and put the look on the front page
+
 ## [0.13.0](https://github.com/cmdcolin/ntsc.js/compare/v0.12.0...v0.13.0) - 2026-08-04
 
 ### Features
