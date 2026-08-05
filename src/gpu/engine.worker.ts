@@ -17,6 +17,9 @@ import { Engine } from './pipeline'
 import type { FromWorker, ToWorker } from './workerproto'
 
 let engine: Engine | null = null
+// Kept for rebuilds — see the 'rebuild' message.
+let target: OffscreenCanvas | null = null
+let search = ''
 
 const post = (m: FromWorker): void => {
   postMessage(m)
@@ -30,10 +33,15 @@ const drop = (bmp: ImageBitmap): void => {
   bmp.close()
 }
 
-async function init(canvas: OffscreenCanvas, search: string): Promise<void> {
+async function build(
+  canvas: OffscreenCanvas,
+  pageQuery: string,
+): Promise<boolean> {
   // Before the engine is built: `?dbg=`, `?gpu=` and `?debug` are read during
   // construction, and this worker cannot read them for itself.
-  setPageSearch(search)
+  target = canvas
+  search = pageQuery
+  setPageSearch(pageQuery)
   try {
     const e = await Engine.create(canvas)
     e.onStats = stats => {
@@ -57,19 +65,36 @@ async function init(canvas: OffscreenCanvas, search: string): Promise<void> {
       post({ t: 'controls', controls: e.getControls() })
     })
     engine = e
-    post({ t: 'ready' })
+    return true
   } catch (err) {
-    post({
-      t: 'initFailed',
-      message: err instanceof Error ? err.message : String(err),
-    })
+    lastError = err instanceof Error ? err.message : String(err)
+    return false
   }
+}
+
+let lastError = ''
+
+// A lost device, answered in place. The predecessor is torn down first so its
+// GPU resources go, but the canvas it was presenting to is reused — that is the
+// one thing a rebuild cannot replace.
+async function rebuild(): Promise<void> {
+  const dead = engine
+  engine = null
+  dead?.destroy()
+  const ok = target !== null && (await build(target, search))
+  post({ t: 'rebuilt', ok, message: ok ? '' : lastError })
 }
 
 onmessage = (ev: MessageEvent<ToWorker>) => {
   const m = ev.data
   if (m.t === 'init') {
-    void init(m.canvas, m.search)
+    void build(m.canvas, m.search).then(ok => {
+      post(ok ? { t: 'ready' } : { t: 'initFailed', message: lastError })
+    })
+    return
+  }
+  if (m.t === 'rebuild') {
+    void rebuild()
     return
   }
   const e = engine

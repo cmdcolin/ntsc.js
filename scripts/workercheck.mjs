@@ -18,30 +18,59 @@ import puppeteer from 'puppeteer-core'
 
 const url = process.argv[2] ?? 'http://localhost:5361/'
 
-const browser = await puppeteer.launch({
-  browser: 'firefox',
-  executablePath: '/usr/bin/firefox-nightly',
-  headless: false,
-  extraPrefsFirefox: {
-    'dom.webgpu.enabled': true,
-    'gfx.webgpu.ignore-blocklist': true,
-  },
-})
-const page = await browser.newPage()
-await page.setViewport({ width: 1000, height: 760 })
 const fails = []
-page.on('pageerror', e => {
-  fails.push(`pageerror: ${String(e).slice(0, 200)}`)
-})
-// React's dev build logs a line per component per render; forwarding all of it
-// over BiDi is enough to stall a run, so only keep what this harness looks for.
-page.on('console', m => {
-  const t = m.text()
-  if (/worker|error|fail/i.test(t)) console.log('[page]', t.slice(0, 200))
-})
-await page.goto(url, { waitUntil: 'load' })
 
-const result = await page.evaluate(async () => {
+// One browser per phase, and never more than one WebGPU session per browser:
+// a page driven through several detaches its frame partway and every later
+// evaluate dies with "Target closed", which reads exactly like the code under
+// test hanging.
+const runOnce = async fn => {
+  const browser = await puppeteer.launch({
+    browser: 'firefox',
+    executablePath: '/usr/bin/firefox-nightly',
+    headless: false,
+    extraPrefsFirefox: {
+      'dom.webgpu.enabled': true,
+      'gfx.webgpu.ignore-blocklist': true,
+      'media.autoplay.default': 0,
+      'media.autoplay.blocking_policy': 0,
+    },
+  })
+  try {
+    const page = await browser.newPage()
+    await page.setViewport({ width: 1000, height: 760 })
+    page.on('pageerror', e => {
+      fails.push(`pageerror: ${String(e).slice(0, 200)}`)
+    })
+    // React's dev build logs a line per component per render; forwarding all of
+    // it over BiDi is enough to stall a run, so only keep what this looks for.
+    page.on('console', m => {
+      const t = m.text()
+      if (/worker|error|fail/i.test(t)) console.log('[page]', t.slice(0, 200))
+    })
+    await page.goto(url, { waitUntil: 'load' })
+    return await page.evaluate(fn)
+  } finally {
+    await browser.close().catch(() => {})
+  }
+}
+
+// A Firefox driven through a WebGPU session sometimes detaches its frame on the
+// way out, and every later call dies with "Target closed" — the same
+// browser-is-spent failure the other harnesses here recycle around. Retry once
+// on a fresh one; a second death is reported rather than swallowed, because
+// that is no longer the browser being tired.
+const inFreshBrowser = async fn => {
+  try {
+    return await runOnce(fn)
+  } catch (e) {
+    if (!/Target closed|Protocol error|detached/i.test(String(e))) throw e
+    console.log('  (browser died; retrying once on a fresh one)')
+    return await runOnce(fn)
+  }
+}
+
+const result = await inFreshBrowser(async () => {
   const log = []
   const canvas = document.createElement('canvas')
   canvas.width = 754
@@ -183,7 +212,118 @@ const result = await page.evaluate(async () => {
   }
 })
 
+// Second phase: the same engine driven through WorkerEngine, the class React
+// will actually hold. This is where the paths raw postMessage cannot reach get
+// covered — a <video> decoded on this side and transferred over, a control
+// write that has to be readable synchronously, and a rebuild in place.
+const client = await inFreshBrowser(async () => {
+  const log = []
+  const { WorkerEngine } = await import('/src/gpu/workerclient.ts')
+  const canvas = document.createElement('canvas')
+  canvas.width = 754
+  canvas.height = 480
+  document.body.appendChild(canvas)
+  const eng = await WorkerEngine.create(canvas)
+
+  // The React contract: a write is readable before the next render. If this is
+  // ever async the sliders snap back under the user's finger.
+  eng.setControl('noiseIre', 7)
+  const syncRead = eng.getControls().noiseIre
+  let notified = 0
+  eng.subscribeControls(() => {
+    notified++
+  })
+  eng.applyControls({ noiseIre: 0, fbMix: 0, crtGlow: 0, bGain: 0 })
+  const afterPatch = eng.getControls().noiseIre
+
+  const sample = () => {
+    const oc = new OffscreenCanvas(canvas.width, canvas.height)
+    const g = oc.getContext('2d')
+    g.drawImage(canvas, 0, 0)
+    const d = g.getImageData(canvas.width >> 1, canvas.height >> 1, 1, 1).data
+    return [d[0], d[1], d[2]]
+  }
+  const settle = async (want, ms = 9000) => {
+    const end = performance.now() + ms
+    let last = sample()
+    while (performance.now() < end) {
+      if (want(last)) return last
+      await new Promise(r => setTimeout(r, 60))
+      last = sample()
+    }
+    return last
+  }
+
+  const c = new OffscreenCanvas(754, 480)
+  const cx = c.getContext('2d')
+  cx.fillStyle = 'rgb(220,30,30)'
+  cx.fillRect(0, 0, 754, 480)
+  eng.setImageSource(c.transferToImageBitmap(), 4 / 3)
+  eng.setSourceBEnabled(false)
+  for (let i = 0; i < 20; i++) await eng.step()
+  const still = await settle(px => px[0] > 70 && px[0] > px[1] + 25)
+  log.push(`still through the client: ${still}`)
+
+  // A real clip, decoded here and transferred over. The pump runs on this
+  // thread's rAF, which an occluded window throttles hard, so give it room.
+  const v = document.createElement('video')
+  v.src = '/demo-v2.mp4'
+  v.muted = true
+  v.loop = true
+  v.playsInline = true
+  await v.play().catch(() => {})
+  eng.setVideoSource(v)
+  // Wait for the clip to be genuinely rolling before judging the picture.
+  // Without this the check passes on the single frame the pump decodes from a
+  // paused element, which proves a bitmap crossed but not that a *playing*
+  // source streams — and it read as the latter.
+  const playBy = performance.now() + 8000
+  while (v.currentTime < 0.3 && performance.now() < playBy) {
+    await new Promise(r => setTimeout(r, 100))
+  }
+  const played = v.currentTime
+  const moved = await settle(px => !(px[0] > 70 && px[0] > px[1] + 25), 12000)
+  log.push(`after a clip replaced the still: ${moved} (video t=${played.toFixed(2)})`)
+
+  // A lost device, answered inside the worker on the canvas it already holds.
+  const rebuilt = await eng.rebuild()
+  log.push(`rebuild: ${JSON.stringify(rebuilt)}`)
+  eng.setImageSource((() => {
+    const c2 = new OffscreenCanvas(754, 480)
+    const x2 = c2.getContext('2d')
+    x2.fillStyle = 'rgb(30,60,220)'
+    x2.fillRect(0, 0, 754, 480)
+    return c2.transferToImageBitmap()
+  })(), 4 / 3)
+  eng.setVideoSource(null)
+  eng.applyControls({ noiseIre: 0, fbMix: 0, crtGlow: 0, bGain: 0 })
+  for (let i = 0; i < 20; i++) await eng.step()
+  const afterRebuild = await settle(px => px[2] > 70 && px[2] > px[0] + 25)
+  log.push(`picture after rebuild: ${afterRebuild}`)
+
+  const frame = await eng.syncFrame()
+  eng.destroy()
+  return { log, syncRead, afterPatch, notified, still, moved, played, rebuilt, afterRebuild, frame }
+})
+
 for (const l of result.log) console.log(' ', l)
+for (const l of client.log) console.log(' ', l)
+
+if (client.syncRead !== 7)
+  fails.push(`setControl was not readable synchronously (got ${client.syncRead})`)
+if (client.afterPatch !== 0)
+  fails.push(`applyControls did not reach the snapshot (got ${client.afterPatch})`)
+if (client.notified < 1) fails.push('no control listener was ever notified')
+if (!(client.still[0] > 70 && client.still[0] > client.still[1] + 25))
+  fails.push(`client still did not reach the screen: ${client.still}`)
+if (client.played < 0.3)
+  fails.push(`the clip never rolled (t=${client.played}); the video path was not exercised`)
+if (client.moved[0] > 70 && client.moved[0] > client.moved[1] + 25)
+  fails.push(`the clip never replaced the still: ${client.moved}`)
+if (!client.rebuilt.ok) fails.push(`rebuild failed: ${client.rebuilt.message}`)
+if (!(client.afterRebuild[2] > 70 && client.afterRebuild[2] > client.afterRebuild[0] + 25))
+  fails.push(`no picture after the rebuild: ${client.afterRebuild}`)
+if (client.frame < 1) fails.push(`frameNo after rebuild was ${client.frame}`)
 
 const dominant = (px, i) =>
   px[i] > 70 && px[i] > px[(i + 1) % 3] + 25 && px[i] > px[(i + 2) % 3] + 25
@@ -202,7 +342,6 @@ if (result.sawDeviceLost.length)
   fails.push(`device lost: ${result.sawDeviceLost.join('; ')}`)
 if (result.sawHang) fails.push('the loop reported a hang')
 
-await browser.close()
 if (fails.length) {
   console.error('FAIL (workercheck)')
   for (const f of fails) console.error('  -', f)

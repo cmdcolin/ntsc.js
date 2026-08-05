@@ -53,10 +53,18 @@ export type ToWorker =
   | { t: 'kick' }
   // Report the current frame number, for a harness that is counting.
   | { t: 'frameNo'; id: number }
+  // Build a replacement engine on the same canvas after a lost device. Not a
+  // fresh worker: transferControlToOffscreen can only ever be called once on a
+  // canvas, so the OffscreenCanvas this one already holds is the only one there
+  // will be.
+  | { t: 'rebuild' }
   | { t: 'destroy' }
 
 export type FromWorker =
   | { t: 'ready' }
+  // A replacement engine is up (or could not be built). Distinct from `ready`
+  // so the page can tell a rebuild from a first start.
+  | { t: 'rebuilt'; ok: boolean; message: string }
   // The engine could not be built at all — no adapter, no device, a canvas the
   // browser would not configure. Fatal, and the page has to say so.
   | { t: 'initFailed'; message: string }
