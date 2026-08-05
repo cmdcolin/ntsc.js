@@ -37,7 +37,9 @@ const frames = Number((ablate ? a3 : a4) ?? 120)
 const vp = vpArg ? vpArg.slice(5).split('x').map(Number) : null
 
 if (!url || !label) {
-  console.error('usage: node scripts/perf.mjs <url> <label> [--ablate] [batches] [framesPerBatch]')
+  console.error(
+    'usage: node scripts/perf.mjs <url> <label> [--ablate] [batches] [framesPerBatch]',
+  )
   process.exit(1)
 }
 
@@ -54,7 +56,9 @@ const browser = await puppeteer.launch({
 })
 try {
   const page = await browser.newPage()
-  page.on('pageerror', err => console.log('[pageerror]', String(err).slice(0, 300)))
+  page.on('pageerror', err =>
+    console.log('[pageerror]', String(err).slice(0, 300)),
+  )
   if (vp) await page.setViewport({ width: vp[0], height: vp[1] })
   await page.goto(url, { waitUntil: 'networkidle0' })
   await page.waitForFunction(() => window.vf !== undefined, { timeout: 20000 })
@@ -82,7 +86,9 @@ try {
       frames,
     )
     const best = Math.min(...res.times)
-    const med = [...res.times].sort((x, y) => x - y)[Math.floor(res.times.length / 2)]
+    const med = [...res.times].sort((x, y) => x - y)[
+      Math.floor(res.times.length / 2)
+    ]
     console.log(
       `${label}\tbest ${best.toFixed(3)} ms/frame\tmedian ${med.toFixed(3)}\tcanvas ${res.cw}x${res.ch}\tall [${res.times.map(t => t.toFixed(2)).join(', ')}]`,
     )
@@ -103,13 +109,16 @@ try {
         const groups = [vf.prePasses, vf.loopPasses, vf.postPasses]
         const active = []
         for (const g of groups)
-          for (const p of g) if (p.when === undefined || p.when()) active.push(p)
+          for (const p of g)
+            if (p.when === undefined || p.when()) active.push(p)
         const full = []
         const abl = new Map(active.map(p => [p.label, []]))
         for (let round = 0; round < batches; round++) {
           full.push(await meas())
           for (const p of active) {
-            const orig = Object.prototype.hasOwnProperty.call(p, 'when') ? p.when : undefined
+            const orig = Object.prototype.hasOwnProperty.call(p, 'when')
+              ? p.when
+              : undefined
             p.when = () => false
             abl.get(p.label).push(await meas())
             if (orig === undefined) delete p.when
@@ -133,7 +142,9 @@ try {
       `== ${label}  full best ${res.fullBest.toFixed(3)} ms/frame  (all full: ${res.full.map(t => t.toFixed(2)).join(', ')})`,
     )
     for (const r of res.rows.sort((x, y) => y.delta - x.delta))
-      console.log(`  ${r.label.padEnd(16)} ~${r.delta.toFixed(3)} ms  (without: ${r.without.toFixed(3)})`)
+      console.log(
+        `  ${r.label.padEnd(16)} ~${r.delta.toFixed(3)} ms  (without: ${r.without.toFixed(3)})`,
+      )
   }
   await page.evaluate(() => window.vf?.destroy())
 } finally {

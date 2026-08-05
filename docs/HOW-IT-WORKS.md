@@ -65,10 +65,10 @@ with the GPU buffer it carries, so the same picture doubles as the buffer story
 
 <sup>The diagram carries its own key, and a unit test asserts it draws exactly
 the passes the engine builds. Sources are Graphviz —
-[`pipeline-simple.dot`](graphviz/pipeline-simple.dot), [`pipeline.dot`](graphviz/pipeline.dot),
-[`domains.dot`](graphviz/domains.dot), [`controls.dot`](graphviz/controls.dot); `pnpm run docs`
-regenerates every diagram in light and dark from one definition each (needs
-`dot` on PATH).</sup>
+[`pipeline-simple.dot`](graphviz/pipeline-simple.dot),
+[`pipeline.dot`](graphviz/pipeline.dot), [`domains.dot`](graphviz/domains.dot),
+[`controls.dot`](graphviz/controls.dot); `pnpm run docs` regenerates every
+diagram in light and dark from one definition each (needs `dot` on PATH).</sup>
 
 | Stage     | Pass(es)                                            | What it models                                                                                                                                                                                                        |
 | --------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

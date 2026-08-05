@@ -121,10 +121,11 @@ the payoff is.
   track bleeds through as a _low-frequency-only_ ghost — a soft, colourless
   second picture that swims when tracking is off. Distinct from the multipath
   ghost, which is sharp and full-bandwidth.
-- ~~**Crease / edge damage.**~~ Shipped as the loop bin's `tapeWear`, though only
-  on the loop: defects seeded on _position on the tape_ so they recur every lap.
-  The same idea on the main deck still wants doing — it has no tape-position
-  coordinate to hang a defect off, which is exactly what the ring gave the loop.
+- ~~**Crease / edge damage.**~~ Shipped as the loop bin's `tapeWear`, though
+  only on the loop: defects seeded on _position on the tape_ so they recur every
+  lap. The same idea on the main deck still wants doing — it has no
+  tape-position coordinate to hang a defect off, which is exactly what the ring
+  gave the loop.
 - **Servo hunting.** `trackPos` is a static knob; a real auto-tracking deck
   searches and settles after a scene change or on exiting shuttle.
 - **Luma FM beating the 629 kHz color-under carrier.** The fine crawling chroma
@@ -166,8 +167,8 @@ the payoff is.
 ## Screen-domain effects not yet built
 
 The neon phosphor colour work (beam transfer, `phosphorMode` tube identities,
-persistence skew/bleed, the magnifier) shipped in full; these two items are
-what remains of it.
+persistence skew/bleed, the magnifier) shipped in full; these two items are what
+remains of it.
 
 - **Luma-keyed halation radius.** `crt_face` already adds a wide warm
   glass-scatter halo (`crtHalation` × the 15-px golden-angle tap ring, tinted
@@ -187,14 +188,14 @@ payoff-per-effort order.
 - **Dropout compensator.** Every deck and TBC had one, and `channel.wgsl`
   already produces the dropouts it would conceal. 910 samples is 227.5
   subcarrier cycles, so a 1H delay line lands the substituted line 180° out of
-  phase: a cheap DOC hides the dropout and paints it in the _complementary
-  hue_, while a 2H one is colour-correct but two lines stale. Off / 1H / 2H,
-  reading back from the same composite buffer. Under tracking error or shuttle
-  it turns whole noise bands into a second, wrong-coloured picture.
+  phase: a cheap DOC hides the dropout and paints it in the _complementary hue_,
+  while a 2H one is colour-correct but two lines stale. Off / 1H / 2H, reading
+  back from the same composite buffer. Under tracking error or shuttle it turns
+  whole noise bands into a second, wrong-coloured picture.
 - **Differential gain and differential phase.** On the spec sheet of every VTR
   and proc amp ever sold, and absent here. The video amplifier's gain is not
-  flat against DC level, so chroma riding bright luma is compressed (DG) and
-  its phase shifts (DP): saturation dies in the highlights and hue swings with
+  flat against DC level, so chroma riding bright luma is compressed (DG) and its
+  phase shifts (DP): saturation dies in the highlights and hue swings with
   brightness. A soft nonlinearity on the composite in `channel.wgsl` gives DG
   for free; DP needs an explicit amplitude-dependent delay. Inside the mixer
   loop it separates a feedback trail into colour layers by brightness, because
@@ -203,8 +204,8 @@ payoff-per-effort order.
   beam, phosphor, mask and glass, but the three guns are perfectly registered,
   which no tube is. Two per-channel offsets in `crt_face`: convergence error
   growing with radius (colour fringes at the corners), and a magnetized patch of
-  the mask as a fixed soft purity blotch the picture rolls through. Both
-  magnify with the lens.
+  the mask as a fixed soft purity blotch the picture rolls through. Both magnify
+  with the lens.
 - **Scan velocity modulation.** Consumer sets slowed the beam at dark→bright
   transitions to fake sharpness; emission goes as dwell time, so brightness
   redistributes asymmetrically across the edge — white overshoot one side, black
@@ -222,27 +223,26 @@ payoff-per-effort order.
   tracking, scrambling) bloom and hunt in colour rather than scale cleanly.
   Deferred on shape, not on value: the lag is a recurrence down the lines, and
   `line_analyze` runs after `sync` so it cannot borrow the existing serial loop.
-  Wants a bounded exponential FIR over the last N lines (parallel, cheap)
-  rather than a third `workgroup_size(1)` pass — see the note in
-  `ARCHITECTURE.md`.
+  Wants a bounded exponential FIR over the last N lines (parallel, cheap) rather
+  than a third `workgroup_size(1)` pass — see the note in `ARCHITECTURE.md`.
 - **A DVE / framestore, as the digital box in the analog last mile.** Distinct
   from the digital cable tier below, and more era-correct. An ADO / A53 /
   WJ-MX50 cannot work on composite, so it decodes to 4:2:2 601 on a 720×486,
   13.5 MHz raster — a different raster from ours — and re-encodes. The payoff is
   **cascaded encode/decode generations**: whatever the decoder got wrong becomes
   real picture, so dot crawl bakes into luma, re-encodes as chroma, crawls
-  again, and `combMode` selects which fixed point the iteration falls into.
-  That is why multi-generation composite editing looked the way it did, and it
-  is the one mechanism here that manufactures colour from nothing. Once the
-  framestore exists the consumer digital-effects buttons follow as one mechanism
-  each — mosaic and multi-image are decimation with no prefilter, so the tiles
-  alias and the subsample pattern beats against the mask.
+  again, and `combMode` selects which fixed point the iteration falls into. That
+  is why multi-generation composite editing looked the way it did, and it is the
+  one mechanism here that manufactures colour from nothing. Once the framestore
+  exists the consumer digital-effects buttons follow as one mechanism each —
+  mosaic and multi-image are decimation with no prefilter, so the tiles alias
+  and the subsample pattern beats against the mask.
 - **Frame-recursive noise reducer.** A corrective box whose failure mode is the
-  effect, which is why it is more interesting than the TBC declined below.
-  Frame averaging gated on a motion threshold: below it, noise freezes into
-  fixed plateaus and the picture goes plasticky; above it, motion drags a soft
-  trail with a hard edge where the gate trips. Put the threshold in the noise
-  floor and the grain drives the detector, so still areas breathe.
+  effect, which is why it is more interesting than the TBC declined below. Frame
+  averaging gated on a motion threshold: below it, noise freezes into fixed
+  plateaus and the picture goes plasticky; above it, motion drags a soft trail
+  with a hard edge where the gate trips. Put the threshold in the noise floor
+  and the grain drives the detector, so still areas breathe.
 - **Auto-iris hunting in the camera loop.** `fbGain` is fixed, but a real camera
   pointed at its own monitor is metering the loop it is part of, so it hunts:
   bloom, clamp, collapse, reopen. A one-pole lag on `fbGain` driven by mean
@@ -344,11 +344,11 @@ routings alongside controls. What was deliberately left:
   rather than by ranking routed controls higher, since the palette has no
   per-item place to say "and this one is moving".
 - **Modulating the five filter controls** (`encChromaMHz`, `demodMHz`,
-  `chromaTail`, `lumaMHz`, `lumaPeak`) rebuilds the FIR bank every frame. Allowed
-  from the UI deliberately — it is a real patch someone may want — but authored
-  presets are forbidden from it by `presets.test.ts`. If it ever needs to be
-  cheap, the bank would have to be rebuilt only when the modulated value crosses
-  a meaningful step rather than on every frame.
+  `chromaTail`, `lumaMHz`, `lumaPeak`) rebuilds the FIR bank every frame.
+  Allowed from the UI deliberately — it is a real patch someone may want — but
+  authored presets are forbidden from it by `presets.test.ts`. If it ever needs
+  to be cheap, the bank would have to be rebuilt only when the modulated value
+  crosses a meaningful step rather than on every frame.
 - **`?surprise` on boot stays controls-only.** A rolled recipe applies its
   motion in the app, but the boot path layers controls before the bay exists.
   Accepted asymmetry, not a bug worth plumbing around.
@@ -378,14 +378,14 @@ main one, which is the case the current model cannot express.
 - ~~**Transport speeds other than ±1 and 0.**~~ Shipped as `tapeShuttle`, with
   the track-crossing model it needed: the loop carries its own `speed - 1`
   crossings and drives the same bar the deck's `shuttleX` does. Falling out of
-  that rather than being special-cased: a paused loop has one bar and a
-  reversed one has two, so only play speed forwards is clean.
-  What is still missing is the deck's _second_ half — `linestate` gives each
-  strip between the deck's bars its own timing and colour-under phase, so the
-  picture tears and rainbows at the boundaries. The loop's strips come off one
-  contiguous read, so they are clean between bars. Doing it would need per-line
-  offsets on the loop read, which `decode`'s row-uniform constraint does not
-  block but `tape_play` has no per-line buffer for yet.
+  that rather than being special-cased: a paused loop has one bar and a reversed
+  one has two, so only play speed forwards is clean. What is still missing is
+  the deck's _second_ half — `linestate` gives each strip between the deck's
+  bars its own timing and colour-under phase, so the picture tears and rainbows
+  at the boundaries. The loop's strips come off one contiguous read, so they are
+  clean between bars. Doing it would need per-line offsets on the loop read,
+  which `decode`'s row-uniform constraint does not block but `tape_play` has no
+  per-line buffer for yet.
 
 ## In flight — preset screening, round 2
 

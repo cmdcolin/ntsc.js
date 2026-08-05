@@ -11,20 +11,19 @@ pnpm test       # vitest
 `pnpm test` runs the FIR design unit tests (DC gain, passband/stopband response,
 linear-phase symmetry, filter-bank packing), statically validates every WGSL
 shader through naga, and holds both hand-drawn views of the pass list to the
-arrays in `pipeline.ts` — `docs/graphviz/pipeline.dot` for which passes exist and which
-are gated (from each node's `passes="…"` attribute and its dashed border), and
-the "Pass order" block in `ARCHITECTURE.md` for the order and the brackets too.
-A pass added, reordered or ungated without updating them fails the suite. CI
-gates deploy on `pnpm lint` + `pnpm test`.
+arrays in `pipeline.ts` — `docs/graphviz/pipeline.dot` for which passes exist
+and which are gated (from each node's `passes="…"` attribute and its dashed
+border), and the "Pass order" block in `ARCHITECTURE.md` for the order and the
+brackets too. A pass added, reordered or ungated without updating them fails the
+suite. CI gates deploy on `pnpm lint` + `pnpm test`.
 
 `pnpm run docs` regenerates every diagram in `docs/graphviz/*.dot` into light
 and dark SVGs under `docs/img/` (needs Graphviz `dot` on PATH). The `.dot`
 sources hold `@TOKEN@` colour placeholders rather than hex, so one graph
 definition produces both themes — edit the palette in `scripts/diagrams.mjs`,
-never the SVGs.
-`pnpm run docs:check` fails if a committed SVG no longer matches its `.dot` — it
-compares bytes, so it is a local check, not a CI gate (a different Graphviz
-build emits different SVG).
+never the SVGs. `pnpm run docs:check` fails if a committed SVG no longer matches
+its `.dot` — it compares bytes, so it is a local check, not a CI gate (a
+different Graphviz build emits different SVG).
 
 ## Verification harness
 
@@ -38,15 +37,16 @@ which is why it's Firefox.
 
 ### What every browser harness here has learned the hard way
 
-Every script below shares one browser story, and each of these cost real time
-to find:
+Every script below shares one browser story, and each of these cost real time to
+find:
 
-- **Never `page.setViewport` after load under Firefox BiDi.** It swaps the realm,
-  and every later `evaluate` sees `window.vf` as undefined — which reads exactly
-  like the app failing to boot. Set the viewport before `goto`.
+- **Never `page.setViewport` after load under Firefox BiDi.** It swaps the
+  realm, and every later `evaluate` sees `window.vf` as undefined — which reads
+  exactly like the app failing to boot. Set the viewport before `goto`.
 - **One Firefox does not survive a long WebGPU batch.** After a dozen or so
   sessions it detaches the frame and every later page dies with "Target closed",
-  so a batch recycles browsers and treats any failure as the browser being spent.
+  so a batch recycles browsers and treats any failure as the browser being
+  spent.
 - **An occluded window throttles rAF to about 1Hz.** Frames are stepped
   (`window.vf.step()`) rather than waited for; a clip, which samples the canvas
   as it paints, has to own the only window on screen.
@@ -69,11 +69,11 @@ to find:
   full render and comes back looking merely uninteresting rather than wrong. The
   screening harness reports what didn't land; check that line before believing a
   dull tile.
-- **Don't forward every page console message.** React's dev build logs a line per
-  component per render, and shipping all of them back over BiDi is enough to stall
-  a harness mid-run — it hangs on an `evaluate` that never returns, which reads as
-  the app deadlocking rather than the transport drowning. Filter to warnings,
-  errors, and the lines the harness is actually looking for.
+- **Don't forward every page console message.** React's dev build logs a line
+  per component per render, and shipping all of them back over BiDi is enough to
+  stall a harness mid-run — it hangs on an `evaluate` that never returns, which
+  reads as the app deadlocking rather than the transport drowning. Filter to
+  warnings, errors, and the lines the harness is actually looking for.
 
 ## MIDI without a controller
 
@@ -113,16 +113,17 @@ engine's own `onDeviceLost`, which is what the browser calls on a real one. The
 device is still alive when the harness calls it, so the replacement really does
 have to come up under a predecessor being torn down.
 
-- `restore` — a configured session (a look, a still on A, a still on B, a routing
-  in the bay) loses its device twice, then a clip does. Checks the controls, the
-  debug tap, B's enable flag and **A's texture dimensions** come back — that last
-  one is what catches a still silently reverting to bars, since A's texture is
-  sized to its source.
+- `restore` — a configured session (a look, a still on A, a still on B, a
+  routing in the bay) loses its device twice, then a clip does. Checks the
+  controls, the debug tap, B's enable flag and **A's texture dimensions** come
+  back — that last one is what catches a still silently reverting to bars, since
+  A's texture is sized to its source.
 - `giveup` — four losses in a row must stop rebuilding and say so, rather than
   looping behind a picture that dies every second.
 - `retry` — stubs `requestAdapter` to fail twice and then work, which is the
-  shape of a wake-up where the GPU stack is still coming back; and the case where
-  it never returns, which has to end on the fatal screen rather than a banner.
+  shape of a wake-up where the GPU stack is still coming back; and the case
+  where it never returns, which has to end on the fatal screen rather than a
+  banner.
 
 The rebuild lands in about 100 ms on the dev box, which is faster than a
 puppeteer round trip — so the banner check fires the loss and watches for it
@@ -138,15 +139,15 @@ node scripts/workercheck.mjs [url]
 
 `src/gpu/engine.worker.ts` runs the whole signal path in a worker, presenting to
 an `OffscreenCanvas` and driven by the worker's own `requestAnimationFrame`.
-That is worth having because the loop stops queueing behind React, video
-staging and layout: measured on Firefox Nightly under a main-thread load of
-20 ms every 50 ms, a worker-owned loop held 60 fps with no frame gap over 33 ms,
-against 42.6 fps, a p99 gap of 90 ms and stalls past 100 ms for the same engine
-on the main thread.
+That is worth having because the loop stops queueing behind React, video staging
+and layout: measured on Firefox Nightly under a main-thread load of 20 ms every
+50 ms, a worker-owned loop held 60 fps with no frame gap over 33 ms, against
+42.6 fps, a p99 gap of 90 ms and stalls past 100 ms for the same engine on the
+main thread.
 
 The page keeps what a worker cannot have — the `<video>` elements (`VideoPump`),
 the `AudioContext`, the DOM — and sends bitmaps and scalars over
-`workerproto.ts`. Anything carrying pixels is *transferred*, never cloned; the
+`workerproto.ts`. Anything carrying pixels is _transferred_, never cloned; the
 harness asserts that by checking the sent bitmaps are neutered afterwards.
 
 - **This one needs the dev server**, not a production build: it loads the worker
@@ -157,8 +158,8 @@ harness asserts that by checking the sent bitmaps are neutered afterwards.
   already presented.** The same frame read twice in a row gave `0,0,0` and then
   the real pixel — stepping the engine is not enough, the compositor has to have
   picked the frame up. The harness polls until the picture is what it should be
-  rather than sampling once, and hands back the last thing it saw on a timeout so
-  a real failure still fails.
+  rather than sampling once, and hands back the last thing it saw on a timeout
+  so a real failure still fails.
 
 ## Screening candidate looks
 
@@ -175,8 +176,9 @@ round of twenty guesses costs one command instead of twenty.
 
 Results accumulate in `results.json`, so `--only=spiral core` re-renders one
 retuned candidate and the sheet keeps everyone else. The candidates module
-default-exports `{ src, srcb, frames, settle, late, items: [{ name, blurb, set
-}] }`; anything at the top level is a default each item may override.
+default-exports
+`{ src, srcb, frames, settle, late, items: [{ name, blurb, set }] }`; anything
+at the top level is a default each item may override.
 
 Budget real time: a candidate is a thousand stepped frames of a patch built to
 be expensive, so even on an idle machine it runs to minutes, and a full round is
@@ -275,16 +277,16 @@ load takes as long as the download; failures come back as the yt-dlp error.
 
 A link specifies a look — **copy link** in the app writes one.
 
-| Param                | Meaning                                      |
-| -------------------- | -------------------------------------------- |
-| `?preset=`           | load a built-in preset by name               |
-| `?set=key:value,…`   | override individual controls                 |
-| `?mod=t:src:hz:d,…`  | modulation routings (target, source, rate, depth) |
-| `?iurl=` / `?iurlb=` | image source A / B                           |
-| `?vurl=`             | video source                                 |
-| `?src=` / `?srcb=`   | source kind for A / B                        |
-| `?dbg=1..5`          | scope views (composite, luma, chroma, burst) |
-| `?surprise`          | roll a random preset stack on load           |
+| Param                | Meaning                                               |
+| -------------------- | ----------------------------------------------------- |
+| `?preset=`           | load a built-in preset by name                        |
+| `?set=key:value,…`   | override individual controls                          |
+| `?mod=t:src:hz:d,…`  | modulation routings (target, source, rate, depth)     |
+| `?iurl=` / `?iurlb=` | image source A / B                                    |
+| `?vurl=`             | video source                                          |
+| `?src=` / `?srcb=`   | source kind for A / B                                 |
+| `?dbg=1..5`          | scope views (composite, luma, chroma, burst)          |
+| `?surprise`          | roll a random preset stack on load                    |
 | `?gpu=low-power`     | run on the integrated GPU instead of the discrete one |
 
 Example: `?iurl=/sample.jpg&preset=dirty%20mix`
@@ -300,8 +302,8 @@ the other GPU" wants answering without a rebuild.
 
 ## Further reading
 
-- [`handoffs/`](handoffs/) — why a past piece of work landed the way it did,
-  and what was deliberately left undone
+- [`handoffs/`](handoffs/) — why a past piece of work landed the way it did, and
+  what was deliberately left undone
 - [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md) — the signal path, pass by pass
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — pass graph, buffer layouts, adding a
   control end to end

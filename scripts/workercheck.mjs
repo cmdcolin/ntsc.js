@@ -283,18 +283,23 @@ const client = await inFreshBrowser(async () => {
   }
   const played = v.currentTime
   const moved = await settle(px => !(px[0] > 70 && px[0] > px[1] + 25), 12000)
-  log.push(`after a clip replaced the still: ${moved} (video t=${played.toFixed(2)})`)
+  log.push(
+    `after a clip replaced the still: ${moved} (video t=${played.toFixed(2)})`,
+  )
 
   // A lost device, answered inside the worker on the canvas it already holds.
   const rebuilt = await eng.rebuild()
   log.push(`rebuild: ${JSON.stringify(rebuilt)}`)
-  eng.setImageSource((() => {
-    const c2 = new OffscreenCanvas(754, 480)
-    const x2 = c2.getContext('2d')
-    x2.fillStyle = 'rgb(30,60,220)'
-    x2.fillRect(0, 0, 754, 480)
-    return c2.transferToImageBitmap()
-  })(), 4 / 3)
+  eng.setImageSource(
+    (() => {
+      const c2 = new OffscreenCanvas(754, 480)
+      const x2 = c2.getContext('2d')
+      x2.fillStyle = 'rgb(30,60,220)'
+      x2.fillRect(0, 0, 754, 480)
+      return c2.transferToImageBitmap()
+    })(),
+    4 / 3,
+  )
   eng.setVideoSource(null)
   eng.applyControls({ noiseIre: 0, fbMix: 0, crtGlow: 0, bGain: 0 })
   for (let i = 0; i < 20; i++) await eng.step()
@@ -303,25 +308,47 @@ const client = await inFreshBrowser(async () => {
 
   const frame = await eng.syncFrame()
   eng.destroy()
-  return { log, syncRead, afterPatch, notified, still, moved, played, rebuilt, afterRebuild, frame }
+  return {
+    log,
+    syncRead,
+    afterPatch,
+    notified,
+    still,
+    moved,
+    played,
+    rebuilt,
+    afterRebuild,
+    frame,
+  }
 })
 
 for (const l of result.log) console.log(' ', l)
 for (const l of client.log) console.log(' ', l)
 
 if (client.syncRead !== 7)
-  fails.push(`setControl was not readable synchronously (got ${client.syncRead})`)
+  fails.push(
+    `setControl was not readable synchronously (got ${client.syncRead})`,
+  )
 if (client.afterPatch !== 0)
-  fails.push(`applyControls did not reach the snapshot (got ${client.afterPatch})`)
+  fails.push(
+    `applyControls did not reach the snapshot (got ${client.afterPatch})`,
+  )
 if (client.notified < 1) fails.push('no control listener was ever notified')
 if (!(client.still[0] > 70 && client.still[0] > client.still[1] + 25))
   fails.push(`client still did not reach the screen: ${client.still}`)
 if (client.played < 0.3)
-  fails.push(`the clip never rolled (t=${client.played}); the video path was not exercised`)
+  fails.push(
+    `the clip never rolled (t=${client.played}); the video path was not exercised`,
+  )
 if (client.moved[0] > 70 && client.moved[0] > client.moved[1] + 25)
   fails.push(`the clip never replaced the still: ${client.moved}`)
 if (!client.rebuilt.ok) fails.push(`rebuild failed: ${client.rebuilt.message}`)
-if (!(client.afterRebuild[2] > 70 && client.afterRebuild[2] > client.afterRebuild[0] + 25))
+if (
+  !(
+    client.afterRebuild[2] > 70 &&
+    client.afterRebuild[2] > client.afterRebuild[0] + 25
+  )
+)
   fails.push(`no picture after the rebuild: ${client.afterRebuild}`)
 if (client.frame < 1) fails.push(`frameNo after rebuild was ${client.frame}`)
 

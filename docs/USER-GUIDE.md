@@ -45,10 +45,10 @@ it sideways instead and it goes in _partially_, stacking onto what's there.
 
 **This look**, right under the chips, is the preset taken apart: every control
 the current look moves off stock, as the real sliders, under the module each one
-came from. It is the fastest way from "that's a good look" to the knob making
-it — drag one and you are editing the preset, press a module name to open it on
-the chain map, and press a reading's **↺** to put that one piece back without
-losing the rest.
+came from. It is the fastest way from "that's a good look" to the knob making it
+— drag one and you are editing the preset, press a module name to open it on the
+chain map, and press a reading's **↺** to put that one piece back without losing
+the rest.
 
 `clean` resets. **hold to compare** (or hold `c`) previews the clean signal.
 **surprise me** stacks random presets; **mutate** jitters everything a little,
@@ -87,21 +87,21 @@ game, a patch in TouchDesigner. Point it at _this_ window and the loop closes �
 the set is re-shooting its own face through the compositor, which is camera
 feedback without the camera. Stop the share from the browser's own bar and the
 input drops to snow, the same as a set losing its feed. **Teletype…** is the odd
-one out: type your own words and they are printed
-onto a text card a character at a time, in a dot-matrix font coarse enough that
-the chain has something to chew on. The box under the picker edits the card as
-you type. Since the card is dots rather than glyphs you can draw on it too — the
-**draw** tab in that dialog is a paint surface on the 40×24 page the character
-set was designed around, with a pen that works a block at a time, a solid brush
-and the three dither shades. Right-drag erases, ⌘/ctrl+Z takes back a stroke,
-and every stroke lands back in the card's text as the mosaic character that
-carries it, so a drawing shares through a link like the words do. The shades are
-worth a try on their own: a dither is a half-rate checker by the time it reaches
-the decoder, which is exactly what dot crawl and chroma bleed feed on. Tick
-**crawl** and it rolls up the frame instead of holding still. **B** is a second
-source, deliberately not genlocked, so mixing it in beats and tears against A;
-its controls appear in **A/B Mix**. **♪** is audio in, which does nothing until
-you turn up a knob in **Sound into the picture**.
+one out: type your own words and they are printed onto a text card a character
+at a time, in a dot-matrix font coarse enough that the chain has something to
+chew on. The box under the picker edits the card as you type. Since the card is
+dots rather than glyphs you can draw on it too — the **draw** tab in that dialog
+is a paint surface on the 40×24 page the character set was designed around, with
+a pen that works a block at a time, a solid brush and the three dither shades.
+Right-drag erases, ⌘/ctrl+Z takes back a stroke, and every stroke lands back in
+the card's text as the mosaic character that carries it, so a drawing shares
+through a link like the words do. The shades are worth a try on their own: a
+dither is a half-rate checker by the time it reaches the decoder, which is
+exactly what dot crawl and chroma bleed feed on. Tick **crawl** and it rolls up
+the frame instead of holding still. **B** is a second source, deliberately not
+genlocked, so mixing it in beats and tears against A; its controls appear in
+**A/B Mix**. **♪** is audio in, which does nothing until you turn up a knob in
+**Sound into the picture**.
 
 Running locally adds a **YouTube…** source (`yt-dlp` on the dev server); the
 hosted build has no server to do that with.
@@ -172,8 +172,8 @@ moving — `rainbow storm` wanders off frequency, `vertical hold gone` hunts,
 `fb bloom` sways on its mount — and **copy link** carries whatever you patch.
 
 The **3∿** at the end of the strip counts what is being driven, and clicking it
-filters the panel down to exactly those rows — wherever in the chain they sit.
-A routing never moves the slider itself, so this is the only thing that marks a
+filters the panel down to exactly those rows — wherever in the chain they sit. A
+routing never moves the slider itself, so this is the only thing that marks a
 moving control from outside its own row; the chain map narrows with everything
 else, which makes it a map of where the motion is. Typing `moving` in the filter
 box asks the same question, and so does **show what is moving** in the palette.

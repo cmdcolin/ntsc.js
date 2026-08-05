@@ -53,8 +53,8 @@ present      render pass to the swap chain
 
 That block is not decoration: `src/gpu/pipeline-graph.test.ts` parses the three
 arrays out of `pipeline.ts` and fails if this order, or which names are
-bracketed, no longer matches. `docs/graphviz/pipeline.dot` draws the same order with the
-buffers on the arrows and is held to the same list.
+bracketed, no longer matches. `docs/graphviz/pipeline.dot` draws the same order
+with the buffers on the arrows and is held to the same list.
 
 Bracketed passes are gated by a `when()` predicate on the controls, so an idle
 feature costs nothing. `loopPasses` runs once per tape-dub generation, with
@@ -106,21 +106,21 @@ fault through `timing[]` will spin hue that should have stayed put.
 - **`syncMeasureBuf`** — one `vec4f` per line from `sync_measure`:
   `(sync edge or −1000, sync depth, mean beam load, broad-pulse flag)`.
 - **`audioBuf`** — one float per line, the audio waveform at line rate.
-- **`tapeBuf`** — the loop bin, `TAPE_FRAMES` (120) composite frames as f16 pairs
-  packed into `u32`, two seconds at 60 fps for 109 MiB. It is a _medium_, not a
-  frame store: `tapeRec` writes the slot `frame % TAPE_FRAMES` and `tapePlay`
-  reads it back through up to four heads at their own distances behind, so the
-  same stretch of tape carries the same grain,
-  the same worn patches and the same splice round after round. Two consequences
-  to respect. **The delay arrives split** — `tapeDelayFrames` (whole frames) plus
-  `tapeDelaySamples` (the remainder) — because the ring holds 57 M samples and an
-  f32 stops counting integers singly at 2²⁴; position arithmetic in
-  `tape_play.wgsl` is `u32` for the same reason. And **`tapePlay` must run before
-  `tapeRec`**, which is what makes the maximum delay a full ring rather than one
-  frame short of it — and is the thing to hold in mind when touching the hold
-  window, because while recording frame _f_ the newest tape on the loop is
-  _f−1_, so the window has to step on once more as the record head lifts or the
-  last frame recorded is the one frame that never plays back.
+- **`tapeBuf`** — the loop bin, `TAPE_FRAMES` (120) composite frames as f16
+  pairs packed into `u32`, two seconds at 60 fps for 109 MiB. It is a _medium_,
+  not a frame store: `tapeRec` writes the slot `frame % TAPE_FRAMES` and
+  `tapePlay` reads it back through up to four heads at their own distances
+  behind, so the same stretch of tape carries the same grain, the same worn
+  patches and the same splice round after round. Two consequences to respect.
+  **The delay arrives split** — `tapeDelayFrames` (whole frames) plus
+  `tapeDelaySamples` (the remainder) — because the ring holds 57 M samples and
+  an f32 stops counting integers singly at 2²⁴; position arithmetic in
+  `tape_play.wgsl` is `u32` for the same reason. And **`tapePlay` must run
+  before `tapeRec`**, which is what makes the maximum delay a full ring rather
+  than one frame short of it — and is the thing to hold in mind when touching
+  the hold window, because while recording frame _f_ the newest tape on the loop
+  is _f−1_, so the window has to step on once more as the record head lifts or
+  the last frame recorded is the one frame that never plays back.
 - **`persistBufs`** — phosphor state (the light still on the glass), packed
   `rgba8`, ping-ponged by frame parity: `decode` reads one and writes the other,
   because its lateral scatter reads neighbouring pixels and a single buffer
@@ -293,8 +293,8 @@ The bay lives in React (`useModSlots`), never in the engine. `setModSlots` is
 write-only by design: the engine applies routings by mutating `controls` for the
 duration of one frame and restoring after (`pipeline.ts`, `applyMod`), so a
 modulated value never comes back out of `getControls` — which is what keeps
-presets, scenes, links and the sliders showing the resting look. Two consequences
-worth knowing before touching it:
+presets, scenes, links and the sliders showing the resting look. Two
+consequences worth knowing before touching it:
 
 - **Slot position is identity.** `ModState` keys each wave's phase and its noise
   seed by the slot's index, so a stale routing must be blanked in place rather

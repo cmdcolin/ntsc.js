@@ -74,11 +74,11 @@ knob, and one hand now takes the whole board from still to swimming.
 **A preset's weight.** Every preset but "clean" is a fader you can dial in
 partially, and a preset patch is already a macro: one chip moves everything that
 preset touches, in the proportions that make it look like itself. To put one on
-a knob, use the picker at the bottom of the MIDI panel — choose the preset, click
-**⚟ preset mix**, move a knob. Turning it up now layers that preset onto whatever
-is live, exactly as dragging the chip sideways does.
+a knob, use the picker at the bottom of the MIDI panel — choose the preset,
+click **⚟ preset mix**, move a knob. Turning it up now layers that preset onto
+whatever is live, exactly as dragging the chip sideways does.
 
-Two things follow from what a preset weight *is*:
+Two things follow from what a preset weight _is_:
 
 - Weights layer, so several knobs on several presets is a small mixing desk of
   looks. Sweeping one back to zero returns to what was underneath it.
@@ -89,9 +89,9 @@ Two things follow from what a preset weight *is*:
 **Neither does soft takeover** (below): both take over on the first message
 instead of waiting to be swept through the current value. Soft takeover only
 works because the slider row can show an amber mark saying where the knob is
-waiting, and neither the motion strip nor a preset chip has anywhere to draw
-one — an inert knob there would just look broken. They behave like the
-performance faders they are: grab it, it's yours.
+waiting, and neither the motion strip nor a preset chip has anywhere to draw one
+— an inert knob there would just look broken. They behave like the performance
+faders they are: grab it, it's yours.
 
 ## Mapping the whole device
 
@@ -102,8 +102,8 @@ layout you like.
 **auto-map** is for a MIDI Fighter Twister specifically. Pick it in the dropdown
 and click the button: it assigns the first 64 — the motion amount, then hero
 controls in signal-path order — to CC 0–63 on channel 1, which is what a Twister
-sends from the factory. Its four banks are all mapped up front, so flicking banks
-on the hardware just gives you a different set of live knobs.
+sends from the factory. Its four banks are all mapped up front, so flicking
+banks on the hardware just gives you a different set of live knobs.
 
 The motion amount goes first deliberately: on a device whose low CCs are the
 front row of knobs, that is where the one fader that scales the whole patch

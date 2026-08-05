@@ -108,19 +108,19 @@ generation loss rather than by a fader, and they decay the way tape does.
     single recorded track: each sweep crosses several, the RF nulls at every
     crossing, and that many noise bars sweep the picture. The same mechanism as
     the deck's shuttle, but running over the loop you captured rather than the
-    incoming signal, so you can cue and review through your own two seconds.
-    It is also where a paused loop's bar comes from, and a reversed loop's two:
-    at a standstill the head still crosses one track per sweep, and backwards
-    it crosses two. Only at exactly play speed forwards is a loop clean.
+    incoming signal, so you can cue and review through your own two seconds. It
+    is also where a paused loop's bar comes from, and a reversed loop's two: at
+    a standstill the head still crosses one track per sweep, and backwards it
+    crosses two. Only at exactly play speed forwards is a loop clean.
   - _Scrub_ stalls the drum and keeps pulling. With nothing sweeping, the head
     recovers the magnetisation in the order the tape drags past it, so what
     comes back is the waveform itself reversed. Everything that then goes wrong
     is the receiver's problem and none of it is drawn: sync tips arrive at the
     wrong end of every line so the separator locks somewhere else, the burst
-    reads phase-flipped because a time-reversed sinusoid is, and the frame
-    comes off end-first — which lands the raster upside down and mirrored, with
-    the hue somewhere else entirely. This is the difference between playing a
-    tape backwards and dragging one backwards.
+    reads phase-flipped because a time-reversed sinusoid is, and the frame comes
+    off end-first — which lands the raster upside down and mirrored, with the
+    hue somewhere else entirely. This is the difference between playing a tape
+    backwards and dragging one backwards.
 - **Playback heads** — each at its own distance from the record head, so one lap
   hands the picture back once per head: the heads are a rhythm and the loop is
   the bar line. The generation structure this produces is not the obvious one —
@@ -132,14 +132,14 @@ generation loss rather than by a fader, and they decay the way tape does.
   far head so the taps rush and hold, above it toward the record head so they
   come quickly and leave a gap before the lap turns over.
 - **Loop length** — millimetres of tape between the record head and the far one.
-  Tape runs at 33.35 mm/s, so the length _is_ the delay: 0.6 mm is a frame,
-  33 mm a second, 66 mm the whole bin. It is authored as a length rather than a
+  Tape runs at 33.35 mm/s, so the length _is_ the delay: 0.6 mm is a frame, 33
+  mm a second, 66 mm the whole bin. It is authored as a length rather than a
   time because that is what makes the next one work.
 - **Capstan wander** — speed error on a fixed length of tape is delay error, so
-  the echo breathes in and out of time. Nothing time-base corrects the return:
-  a delay that grows by half a frame hands back a picture displaced half a
-  screen, and the repeats slide vertically. This is the fault frame
-  synchronizers were invented to fix.
+  the echo breathes in and out of time. Nothing time-base corrects the return: a
+  delay that grows by half a frame hands back a picture displaced half a screen,
+  and the repeats slide vertically. This is the fault frame synchronizers were
+  invented to fix.
 - **Generation loss** — the band the head and tape lose per pass. The subcarrier
   sits at the very top of it, so chroma dies several times faster than the luma
   carrying it: repeats fade to grey well before they go soft, and a long tail
@@ -291,19 +291,19 @@ faults move the picture; decoding faults move its color.
 - **Chroma bandwidth / trail / upsample error / gain** — how fast, how
   asymmetrically, how coarsely and how hot color is demodulated. Opened past
   about 1.5 MHz the passband stops being a color filter and starts admitting
-  luma, so every edge and every fine texture arrives as cross-color: a
-  greyscale zone plate decodes in full color.
+  luma, so every edge and every fine texture arrives as cross-color: a greyscale
+  zone plate decodes in full color.
 - **Tint** — the knob on the front of the set, rotating the demodulator's
   reference against the incoming color. Every hue turns together; at ±180° the
   reference is backwards and the picture comes out complementary with its
-  brightness untouched. It sits after the burst correction, which is why
-  turning it never un-corrects itself.
-- **Demod axis** — the angle between the set's two synchronous demodulators.
-  90° only because the reference network says so, and cheap sets used
-  non-quadrature X/Z axes on purpose. Off 90 the color plane is _sheared_
-  rather than rotated — hues that were opposite stop being opposite, so a
-  picture keeps some of its colors and loses others. Wound toward 0 both
-  demodulators read the same phase and every hue collapses onto one axis.
+  brightness untouched. It sits after the burst correction, which is why turning
+  it never un-corrects itself.
+- **Demod axis** — the angle between the set's two synchronous demodulators. 90°
+  only because the reference network says so, and cheap sets used non-quadrature
+  X/Z axes on purpose. Off 90 the color plane is _sheared_ rather than rotated —
+  hues that were opposite stop being opposite, so a picture keeps some of its
+  colors and loses others. Wound toward 0 both demodulators read the same phase
+  and every hue collapses onto one axis.
 - **Burst lock / subcarrier detune** — trust in the measured burst versus a bent
   reference crystal; unlocked, hue sweeps the whole wheel.
 - **Color killer** — the burst level below which the set decides the signal is
@@ -329,11 +329,11 @@ whatever else is engaged.
 - **Waveform → deflection** — the audio waveform drawn literally into horizontal
   deflection, an oscilloscope trace bending the raster.
 - **Waveform → hue** — the same waveform driven into the color demodulator's
-  reference oscillator, which is the wire the tint knob sits on: the sound
-  turns the tint 15,734 times a second. Bass swings the whole picture's hue on
-  the beat; content up near line rate paints hue in bands that dance down the
-  frame. The reference lives in the receiver, so the bands stay on the glass
-  while a rolling picture slides through them.
+  reference oscillator, which is the wire the tint knob sits on: the sound turns
+  the tint 15,734 times a second. Bass swings the whole picture's hue on the
+  beat; content up near line rate paints hue in bands that dance down the frame.
+  The reference lives in the receiver, so the bands stay on the glass while a
+  rolling picture slides through them.
 - **Audio → video input** — the wrong cable: brightness bands, shifting color,
   torn sync as loud passages land on the sync tips.
 

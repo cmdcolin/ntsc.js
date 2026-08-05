@@ -137,9 +137,7 @@ export function ChainMap(props: {
             props.live[r.loop] && styles.mapReturnLive,
           )}
         >
-          <title>
-            {props.live[r.loop] ? `${r.label} — running` : r.label}
-          </title>
+          <title>{props.live[r.loop] ? `${r.label} — running` : r.label}</title>
           <path
             className={styles.mapWire}
             d={returnPath(r.from, r.to, top, r.y, r.turn)}
