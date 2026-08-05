@@ -67,6 +67,7 @@ import { VideoPump } from './videopump'
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { LineStateControls } from '../signal/linestate'
 import type { Gpu, RenderTarget } from './context'
+import type { PumpedFrame } from './videopump'
 
 const N = SAMPLES_PER_LINE * LINES
 const LINE_PARAM_BYTES = LINES * 16
@@ -808,6 +809,17 @@ export class Engine {
 
   // A GPU-generated noise field (1 TV static, 2 VHS static); 0 restores the
   // texture path. Any real image/video source clears it.
+  // A video frame decoded somewhere else. On the main thread the pump feeds
+  // Sources directly; a worker-owned engine has no elements to pump, so frames
+  // arrive here instead. Ownership of the bitmap passes in — Sources closes it.
+  pushFrameA(f: PumpedFrame): void {
+    this.sources.pushA(f)
+  }
+
+  pushFrameB(f: PumpedFrame): void {
+    this.sources.pushB(f)
+  }
+
   setNoiseSource(kind: number): void {
     this.pump.setA(null)
     this.sources.setNoiseSource(kind)

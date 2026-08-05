@@ -17,8 +17,18 @@
 // it (`?dbg=`, `?gpu=`, `?debug`) is a property of the session, so in a worker
 // it has to arrive by message rather than be read from the worker's own URL —
 // reading `location.search` there would silently return the script's.
+let injectedSearch: string | null = null
+
 export const pageSearch = (): string =>
-  typeof document === 'undefined' ? '' : location.search
+  injectedSearch ?? (typeof document === 'undefined' ? '' : location.search)
+
+// How a worker learns the page's query string: it is told, once, before the
+// engine is built. Reading `location.search` there would answer with the worker
+// script's own URL, and `?dbg=` / `?gpu=` / `?debug` are properties of the
+// session rather than of whichever thread happens to be running the engine.
+export function setPageSearch(search: string): void {
+  injectedSearch = search
+}
 
 // Whether the tab is on screen, and whether it has focus. The render loop uses
 // both to decide if a missing rAF callback is a stall worth bridging. Both
