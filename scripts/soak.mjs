@@ -151,8 +151,6 @@ while (Date.now() - t0 < minutes * 60_000) {
       }),
     )
   } catch (e) {
-    // A page that stops answering `evaluate` is itself a result — that is what
-    // "needs the tab closed" looks like from out here.
     died = String(e).slice(0, 300)
     break
   }
@@ -163,12 +161,52 @@ while (Date.now() - t0 < minutes * 60_000) {
 }
 console.log('')
 
-const trace = await page
-  .evaluate(() => {
-    const raw = localStorage.getItem('ntsc.trace')
-    return raw === null ? null : JSON.parse(raw).lines.slice(-40)
-  })
-  .catch(() => null)
+// Losing the transport is not the app freezing, and conflating the two is how
+// this harness reported a freeze that had not happened. Firefox under BiDi
+// detaches the frame after a long WebGPU session — the same "Target closed /
+// detached" failure every other harness here recycles browsers around, seen at
+// about twelve minutes of continuous rendering. From Node the two look
+// identical: `evaluate` stops answering. They are told apart below, by evidence
+// from the app rather than by the shape of the error.
+const transportLost =
+  died !== null &&
+  /Target closed|Protocol error|detached|Session closed/i.test(died)
+
+// The app's own black-box recorder, read back from a *fresh* page on the same
+// origin. This is precisely what trace.ts exists for — "when the tab wedges
+// there is no console left to read" — and it is the only witness that outlives
+// the session it describes. A non-app URL on purpose: re-loading the app would
+// stand up a second WebGPU session in a browser that has just demonstrated it
+// cannot hold one, while any same-origin document can read the same storage.
+const readTrace = async () => {
+  const fromLiveTab = await page
+    .evaluate(() => {
+      const raw = localStorage.getItem('ntsc.trace')
+      return raw === null ? null : JSON.parse(raw).lines
+    })
+    .catch(() => null)
+  if (fromLiveTab !== null) return fromLiveTab
+  try {
+    const fresh = await browser.newPage()
+    await fresh.goto(`${url}favicon.svg`, { waitUntil: 'domcontentloaded' })
+    return await fresh.evaluate(() => {
+      const raw = localStorage.getItem('ntsc.trace')
+      return raw === null ? null : JSON.parse(raw).lines
+    })
+  } catch {
+    return null
+  }
+}
+const traceLines = await readTrace()
+const trace = traceLines === null ? null : traceLines.slice(-40)
+// What the app itself recorded about its last moments. `stall` and `hang` are
+// written with a forced synchronous flush precisely so they survive a session
+// that never got to write anything else.
+const traceSaysTrouble =
+  traceLines !== null &&
+  traceLines.some(l =>
+    /\|stall\||\|hang\||\|gpuStrike\||\|fallbackGaveUp\|/.test(l),
+  )
 
 const onscreen = samples.filter(s => s.vis === 'visible')
 const first = onscreen[0]
@@ -190,6 +228,32 @@ const report = {
     last && first ? last.raf - first.raf - (last.frame - first.frame) : 0,
   videoSeconds: last?.videoAcc ?? 0,
   videoVsWall: wall > 0 ? +((last?.videoAcc ?? 0) / wall).toFixed(2) : 0,
+  // The freeze, stated directly: a visible tab whose frame counter did not move
+  // between two samples five seconds apart. Everything else here is a proxy —
+  // this is the thing itself, and it is what the verdict turns on rather than an
+  // endpoint average, which a run that froze only at the end would hide.
+  //
+  // Adjacent *raw* samples, both visible — not consecutive entries of the
+  // visible-only list. A hidden tab stops rAF by design (frames freeze while the
+  // video decoder carries on), so a pair drawn from either side of a hidden
+  // stretch has a real gap between them and reads as stuck when nothing was
+  // wrong. That is a freeze detector that fires on switching tabs.
+  ...(() => {
+    const pairs = samples
+      .slice(1)
+      .map((s, i) => [samples[i], s])
+      .filter(([a, b]) => a.vis === 'visible' && b.vis === 'visible')
+    const fps = pairs.map(
+      ([a, b]) => ((b.frame - a.frame) * 1000) / (b.t - a.t),
+    )
+    return {
+      measuredWindows: pairs.length,
+      stuckWindows: pairs.filter(([a, b]) => b.frame <= a.frame).length,
+      slowestWindowFps: fps.length === 0 ? null : +Math.min(...fps).toFixed(1),
+    }
+  })(),
+  transportLost,
+  traceSaysTrouble,
   everThrottled: samples.some(s => s.throttled === true),
   everStalled: samples.some(s => s.stalled === true),
   everGaveUp: samples.some(s => s.gaveUp === true),
@@ -214,12 +278,39 @@ const report = {
 writeFileSync(out, JSON.stringify({ report, samples }, null, 2))
 console.log(JSON.stringify(report, null, 2))
 
+// Only the app's own evidence decides this. A dead transport is the harness's
+// problem until something the app recorded says otherwise.
 const froze =
-  died !== null ||
   report.everFatal ||
   report.loopStopped ||
   report.everGaveUp ||
-  (report.onscreenFraction > 0.8 && report.fps < 10)
-console.log(froze ? 'FROZE — finish the worker wiring' : 'NO FREEZE')
+  report.stuckWindows > 0 ||
+  traceSaysTrouble
+// Died in a way that is not the known browser failure: that is unexplained, and
+// unexplained is not the same as fine.
+const unexplained = died !== null && !transportLost
+// A window that spent much of the run off screen never exercised the thing under
+// test. rAF stops in a hidden tab by design, so those minutes say nothing either
+// way and must not be rounded up into a clean bill of health.
+const tooMuchHidden = report.onscreenFraction < 0.9
+
+if (froze) {
+  console.log('FROZE — finish the worker wiring')
+} else if (unexplained) {
+  console.log(`INCONCLUSIVE — the run ended unexpectedly: ${died}`)
+} else if (tooMuchHidden) {
+  console.log(
+    `INCONCLUSIVE — the window was on screen for only ${Math.round(report.onscreenFraction * 100)}% of the run, and a hidden tab stops rAF by design; re-run with it in front`,
+  )
+} else if (transportLost) {
+  // Everything the app reported, right up to the last sample, was healthy, and
+  // its own recorder logged no stall. Report the shortfall rather than rounding
+  // it up to a clean run.
+  console.log(
+    `NO FREEZE in ${Math.round(wall / 60)} min of ${minutes} — the browser detached the frame before time (a known Firefox/BiDi limit, not the app); re-run for a longer window`,
+  )
+} else {
+  console.log(`NO FREEZE in ${Math.round(wall / 60)} min`)
+}
 await browser.close().catch(() => {})
-process.exit(froze ? 1 : 0)
+process.exit(froze || unexplained || tooMuchHidden ? 1 : 0)
