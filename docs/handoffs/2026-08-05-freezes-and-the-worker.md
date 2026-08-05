@@ -90,18 +90,18 @@ If it does not, the four fixes above were the answer and this stays parked.
 
 ### If it is picked back up
 
-- **Nothing tells the worker whether the page is on screen.** `env.ts` answers
-  "visible and focused" wherever there is no document, and the reasoning behind
-  that (an absent page must not read as a hidden one) is right for the *loop*
-  and wrong for the *watchdog*. Worker rAF is driven by the owning document's
-  rendering opportunities, so a hidden tab stops delivering it — which the
-  watchdog can only read as a stall. It would then bridge with the setTimeout
-  pump into a surface nothing composites, spend the 5 s budget, reconfigure the
-  swapchain, and latch `frozen` — so switching tabs would raise "the browser
-  stopped painting this tab" over a page that is merely in the background. The
-  page knows and the worker cannot, so `workerproto.ts` needs a visibility
-  message whatever Firefox turns out to do here. Reasoned from the spec, not
-  measured.
+- **Nothing tells the worker whether the page is on screen, and it cannot find
+  out.** `env.ts` answers "visible and focused" wherever there is no document,
+  and the reasoning behind that (an absent page must not read as a hidden one)
+  is right for the *loop* and wrong for the *watchdog*. **Measured on Nightly:
+  worker rAF stops dead in a hidden tab — 0 callbacks in 3 s, against 180 in the
+  same worker while the tab was front.** So the watchdog would see `rafTicks`
+  flat with `isVisible()` insisting the context is live, which is precisely its
+  definition of a stall. It would bridge with the setTimeout pump into a surface
+  nothing composites, spend the 5 s budget, reconfigure the swapchain, and latch
+  `frozen` — meaning switching tabs raises "the browser stopped painting this
+  tab" over a page that is merely in the background. `workerproto.ts` needs a
+  visibility message; the page is the only side that knows.
 - **The black-box recorder goes dark.** `sessionStore()` is null in a worker, so
   `trace.flush()` serializes the ring and drops it on the floor. The recorder
   that found most of what is written above stops recording at exactly the point
@@ -141,6 +141,17 @@ general advice on several of these is wrong *here*.
 - **That polling is main-thread-gated** (see the watchdog above).
 - **A worker has `requestAnimationFrame`.** WebGPU, `OffscreenCanvas` and rAF
   all work there, which is what makes the parked design viable at all.
+  Re-measured on Nightly against a transferred `OffscreenCanvas`: present, and
+  delivering **60 callbacks/s** while the tab is on screen. Worth re-checking
+  rather than trusting the write-ups — MDN's compat data and the third-party
+  summaries of it still say `DedicatedWorkerGlobalScope.requestAnimationFrame`
+  is Chromium-only, and on Nightly that is simply not true.
+- **...but it stops entirely when the tab is hidden**, where main-thread rAF
+  merely throttles: 0 worker callbacks in 3 s against 1 on the page's own loop.
+  A worker cannot see that for itself, which is the gap listed above. (A window
+  fully covered by another window reports `visibilityState: 'hidden'` here too,
+  so "occluded" and "hidden" are not separable on this setup — which is also why
+  the worker's benefit in an occluded-but-visible window could not be measured.)
 - **Firefox pins a GPU awake while a device is open on it.** The discrete card
   never suspended across a 60 s idle test despite a 5 s autosuspend delay. Good
   for stability, bad for battery — hence `?gpu=low-power`.
