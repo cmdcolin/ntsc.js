@@ -14,7 +14,18 @@ export async function initGpu(canvas: HTMLCanvasElement): Promise<Gpu> {
       'This browser has no WebGPU support. Try a recent Chrome, Edge, or Firefox.',
     )
   }
-  const adapter = await navigator.gpu.requestAdapter()
+  // Ask for the discrete GPU. On a single-GPU machine this changes nothing; on a
+  // hybrid laptop the default adapter is the integrated one that drives the
+  // display, and the signal path is heavy enough that the difference decides
+  // whether frames fit in the budget at all. Measured on a Precision 7540
+  // (UHD 630 + Radeon Pro WX 3200) with a signal-path-shaped compute benchmark:
+  // 400 ms on the default adapter, 101 ms on this one — and the 101 is against a
+  // 100 ms measurement floor (see renderloop.ts on Firefox's polling), so the
+  // real gap is wider. Presenting a swapchain from the discrete adapter works on
+  // that PRIME setup; if a machine can't, requestAdapter falls back on its own.
+  const adapter = await navigator.gpu.requestAdapter({
+    powerPreference: 'high-performance',
+  })
   if (!adapter) {
     throw new WebGpuUnavailableError(
       'WebGPU is present but no GPU adapter is available — usually a blocklisted GPU/driver or hardware acceleration disabled. In Firefox try gfx.webgpu.ignore-blocklist; in Chrome enable hardware acceleration.',
