@@ -5,7 +5,7 @@ import { presetControls } from './presets'
 import { readRecord, writeJSON } from './storage'
 
 import type { Controls } from '../controls'
-import type { Engine } from '../gpu/pipeline'
+import type { EngineApi } from '../gpu/engineapi'
 import type { ModRouting } from './modSlots'
 import type { ModSlotsApi } from './ModSlotsContext'
 import type { RefObject } from 'react'
@@ -48,7 +48,7 @@ function loadScenes(): SceneMap {
 }
 
 export function useScenes(
-  engineRef: RefObject<Engine | null>,
+  engineRef: RefObject<EngineApi | null>,
   writeControls: (controls: Controls) => void,
   beforeRecall: () => void,
   mod: Pick<ModSlotsApi, 'slots' | 'setRoutings'>,

@@ -25,6 +25,7 @@ import { VideoPump } from './videopump'
 import { transferables } from './workerproto'
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
+import type { DestroyOptions, EngineApi } from './engineapi'
 import type { PumpedFrame } from './videopump'
 import type { FromWorker, ToWorker } from './workerproto'
 
@@ -41,7 +42,7 @@ export interface RebuildResult {
   message: string
 }
 
-export class WorkerEngine {
+export class WorkerEngine implements EngineApi {
   private worker: Worker
   private pump = new VideoPump()
   // The page's copy, and the one React renders from. See the note above.
@@ -318,7 +319,7 @@ export class WorkerEngine {
     return await done
   }
 
-  destroy(opts: { keepAudio?: boolean } = {}): void {
+  destroy(opts: DestroyOptions = {}): void {
     if (this.live) {
       this.live = false
       cancelAnimationFrame(this.rafId)

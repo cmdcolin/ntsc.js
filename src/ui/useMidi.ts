@@ -4,7 +4,7 @@ import { CONTROL_KEYS } from '../controls'
 import { controlOf, createMidi, presetOf } from './midi'
 
 import type { ControlKey, Controls } from '../controls'
-import type { Engine } from '../gpu/pipeline'
+import type { EngineApi } from '../gpu/engineapi'
 import type {
   BindingMap,
   BindTarget,
@@ -31,7 +31,7 @@ const NO_SINKS: MidiSinks = { setMotion: () => {}, setPresetWeight: () => {} }
 // and the single control-write path. Every store-origin change must reach two
 // sinks — the render engine and MIDI's soft-takeover bookkeeping — so callers
 // go through writeControl/writeControls rather than poking each by hand.
-export function useMidi(engineRef: RefObject<Engine | null>) {
+export function useMidi(engineRef: RefObject<EngineApi | null>) {
   const midiRef = useRef<MidiManager | null>(null)
   const sinksRef = useRef<MidiSinks>(NO_SINKS)
   const [status, setStatus] = useState<MidiStatus>('idle')

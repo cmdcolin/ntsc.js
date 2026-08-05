@@ -67,6 +67,7 @@ import { VideoPump } from './videopump'
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { LineStateControls } from '../signal/linestate'
 import type { Gpu, RenderTarget } from './context'
+import type { DestroyOptions, EngineApi } from './engineapi'
 import type { PumpedFrame } from './videopump'
 
 const N = SAMPLES_PER_LINE * LINES
@@ -115,14 +116,7 @@ export interface EngineOptions {
   audio?: AudioState
 }
 
-export interface DestroyOptions {
-  // Leave the audio graph open, because a successor engine is taking it over.
-  // Only the rebuild path passes this; every other teardown means the audio is
-  // going away too.
-  keepAudio?: boolean
-}
-
-export class Engine {
+export class Engine implements EngineApi {
   readonly controls: Controls = { ...DEFAULT_CONTROLS }
   // React reads this immutable snapshot via useSyncExternalStore; it's refreshed
   // from `controls` on every write so the UI and the render loop never drift.

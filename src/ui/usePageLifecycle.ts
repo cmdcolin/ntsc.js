@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 
 import { trace } from '../gpu/trace'
 
-import type { Engine } from '../gpu/pipeline'
+import type { EngineApi } from '../gpu/engineapi'
 import type { RefObject } from 'react'
 
 // The browser can stop delivering rAF around tab hide/show, fullscreen exit, and
@@ -11,7 +11,7 @@ import type { RefObject } from 'react'
 // the last transition before any lockup. A bfcache restore carries a dead
 // GPUDevice, so that one reloads instead.
 export function usePageLifecycle(
-  engineRef: RefObject<Engine | null>,
+  engineRef: RefObject<EngineApi | null>,
   onFullscreenChange: (fullscreen: boolean) => void,
 ) {
   useEffect(() => {

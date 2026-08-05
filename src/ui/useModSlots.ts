@@ -10,7 +10,7 @@ import { readArray, readJSON, writeJSONSoon } from './storage'
 import { parseSessionParams } from './urlParams'
 
 import type { ControlKey } from '../controls'
-import type { Engine } from '../gpu/pipeline'
+import type { EngineApi } from '../gpu/engineapi'
 import type { UiSlot } from './modSlots'
 import type { ModSlotsApi } from './ModSlotsContext'
 
@@ -41,7 +41,7 @@ const loadMaster = (): number => {
     : 1
 }
 
-export function useModSlots(engine: Engine | null): ModSlotsApi {
+export function useModSlots(engine: EngineApi | null): ModSlotsApi {
   const [slots, setSlotsState] = useState<readonly UiSlot[]>(loadSlots)
   const [master, setMasterState] = useState<number>(loadMaster)
 

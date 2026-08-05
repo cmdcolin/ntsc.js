@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import type { Engine } from '../gpu/pipeline'
+import type { EngineApi } from '../gpu/engineapi'
 
 export const AUDIO_MODES = ['off', 'mic', 'file'] as const
 export type AudioMode = (typeof AUDIO_MODES)[number]
@@ -16,7 +16,7 @@ export const AUDIO_DESC: Record<AudioMode, string> = {
 // engine.audioState itself every animation frame. Only the transport readout
 // comes back through state, polled at 10 Hz — a clock ticking in tenths does not
 // need a re-render per frame, an onset envelope does.
-export function useAudio(engine: Engine | null) {
+export function useAudio(engine: EngineApi | null) {
   const [mode, setMode] = useState<AudioMode>('off')
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
