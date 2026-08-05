@@ -2,6 +2,28 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.14.0](https://github.com/cmdcolin/ntsc.js/compare/v0.13.1...v0.14.0) - 2026-08-05
+
+### Features
+- *(gpu)* [`b6e3ee5`](https://github.com/cmdcolin/ntsc.js/commit/b6e3ee5c1b07b4408bf18159ad28147d9448c1ae) ?gpu=low-power, for battery and for bisecting a driver fault
+- *(gpu)* [`c02ae33`](https://github.com/cmdcolin/ntsc.js/commit/c02ae3381a4eaa535dade25ba316da4e7ffae1c3) rebuild the session on a lost device rather than ending it
+- *(gpu)* [`a12c55e`](https://github.com/cmdcolin/ntsc.js/commit/a12c55ee3f622931b273dc3ad06139f79ec7c053) an engine that runs in a worker, and the wire to drive it
+- *(gpu)* [`2eef17e`](https://github.com/cmdcolin/ntsc.js/commit/2eef17e2f82d52c103261977ce0030247fce790b) the page-side proxy for a worker-owned engine
+
+### Fixes
+- *(gpu)* [`95f2a85`](https://github.com/cmdcolin/ntsc.js/commit/95f2a851e66f6861db6809aee4b8980790728105) ask for the discrete GPU, not the one driving the display
+- *(gpu)* [`8eb9fa0`](https://github.com/cmdcolin/ntsc.js/commit/8eb9fa027c964e0ede6c0f8847f3196574e8c154) stop rAF running ahead of a device that cannot keep up
+
+### Performance
+- *(gpu)* [`990b3d5`](https://github.com/cmdcolin/ntsc.js/commit/990b3d58303385849063757df1903d019ebdcce5) stage video frames off the main thread
+
+### Refactor
+- *(gpu)* [`c67fc3e`](https://github.com/cmdcolin/ntsc.js/commit/c67fc3ecaed49e73605f732d0c5bb5292f4a140d) read the browser through one place, so the engine can leave the main thread
+- *(gpu)* [`c657b95`](https://github.com/cmdcolin/ntsc.js/commit/c657b95f596cedd7c077247444f3862b3b464f2f) split decoding a video frame from putting one on the GPU
+
+### Documentation
+- [`d8f81bd`](https://github.com/cmdcolin/ntsc.js/commit/d8f81bdd4c0376c1058bcb0c236108ff1b2adf4e) hand off the freeze investigation, and say what was left unwired
+
 ## [0.13.1](https://github.com/cmdcolin/ntsc.js/compare/v0.13.0...v0.13.1) - 2026-08-05
 
 ### Features
