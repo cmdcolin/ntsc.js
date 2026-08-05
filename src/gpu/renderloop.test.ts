@@ -6,7 +6,7 @@ import {
   HANG_LATE_FACTOR,
   HANG_MS,
   HANG_STRIKES,
-  MAX_QUEUED_FRAMES,
+  MAX_QUEUE_WAIT_MS,
   RenderLoop,
   WATCHDOG_MS,
 } from './renderloop'
@@ -15,7 +15,13 @@ import {
 // harness models the two misbehaviours directly: rAF callbacks are queued but
 // delivered only when a test says so, and queue completion resolves only when a
 // test says so. Both "never happens" cases are just declining to call them.
-function harness({ noDocument = false } = {}) {
+//
+// `pollMs` swaps that manual completion for the one Firefox actually has: a
+// timer that resolves every submission after a fixed latency however much work
+// went into it (bug 1870699, measured at 99-101 ms on an idle queue). A device
+// with no GPU cost at all still looks that far behind, so the backpressure gate
+// cannot be judged without it.
+function harness({ noDocument = false, pollMs = 0 } = {}) {
   let rafSeq = 0
   let frames = 0
   let focused = true
@@ -61,9 +67,15 @@ function harness({ noDocument = false } = {}) {
       queue: {
         onSubmittedWorkDone: () =>
           new Promise<undefined>(resolve => {
-            workDone.push(() => {
-              resolve(undefined)
-            })
+            if (pollMs > 0) {
+              setTimeout(() => {
+                resolve(undefined)
+              }, pollMs)
+            } else {
+              workDone.push(() => {
+                resolve(undefined)
+              })
+            }
           }),
       },
     },
@@ -91,6 +103,9 @@ function harness({ noDocument = false } = {}) {
     frozenEdges: () => frozenEdges,
     // rAF callbacks the loop currently has in flight, across both its chains.
     outstanding: () => rafCbs.size,
+    // Completion promises the loop is waiting on. The gate keeps exactly one,
+    // so this is how a probe that outlived its own run shows up.
+    outstandingWork: () => workDone.length,
     // Deliver every rAF callback the loop has outstanding.
     deliverRaf: (time: number) => {
       const cbs = [...rafCbs.values()]
@@ -155,6 +170,13 @@ describe('RenderLoop', () => {
     await vi.advanceTimersByTimeAsync(WATCHDOG_MS)
     expect(h.frames()).toBe(1)
 
+    // Let the frame the fallback submitted complete first, so this measures the
+    // rAF/fallback handoff and not the backpressure gate — a device that has
+    // confirmed nothing for a whole watchdog beat is behind by any measure, and
+    // dropping the frame would be the gate doing its job rather than the bug
+    // this test is about.
+    h.completeGpu()
+    await vi.advanceTimersByTimeAsync(0)
     h.deliverRaf(100)
     expect(h.frames()).toBe(2)
 
@@ -365,55 +387,109 @@ describe('RenderLoop', () => {
     h.loop.start()
 
     // rAF keeps arriving and the device confirms nothing. rAF paces submission
-    // to the display, not to the GPU, so without a cap this renders a frame per
+    // to the display, not to the GPU, so without a gate this renders a frame per
     // callback forever and the queue grows without bound — the slow, quiet path
     // to a wedged tab.
-    for (let i = 0; i < MAX_QUEUED_FRAMES * 4; i++) h.deliverRaf(i * 16)
-    expect(h.frames()).toBe(MAX_QUEUED_FRAMES)
+    for (let t = 0; t < MAX_QUEUE_WAIT_MS * 3; t += 16) {
+      h.deliverRaf(t)
+      await vi.advanceTimersByTimeAsync(16)
+    }
+    // Whatever it managed inside the wait, and not a frame more.
+    const capped = h.frames()
+    expect(capped).toBeLessThan(MAX_QUEUE_WAIT_MS / 16 + 2)
+    for (let t = 0; t < MAX_QUEUE_WAIT_MS; t += 16) {
+      h.deliverRaf(9000 + t)
+      await vi.advanceTimersByTimeAsync(16)
+    }
+    expect(h.frames()).toBe(capped)
 
     // ...and it picks straight back up when the device catches up, rather than
     // latching off.
     h.completeGpu()
     await vi.advanceTimersByTimeAsync(0)
     h.deliverRaf(99999)
-    expect(h.frames()).toBe(MAX_QUEUED_FRAMES + 1)
+    expect(h.frames()).toBe(capped + 1)
   })
 
-  it('never throttles a device that is keeping up', async () => {
+  // The regression that motivated a wait rather than a frame count. Each of
+  // these is a device with *zero* GPU cost; the only thing standing between a
+  // submission and its confirmation is Firefox's poll. A count sized for 60Hz
+  // read that as the signal path outgrowing the device and threw away 58% of a
+  // 144Hz session, 50% at 120Hz, 20% at 75Hz, and 16% at 60Hz whenever the poll
+  // ran 20ms slow.
+  for (const [hz, poll] of [
+    [60, 100],
+    [60, 120],
+    [75, 100],
+    [120, 100],
+    [144, 100],
+  ] as const) {
+    it(`never throttles a healthy device at ${hz}Hz behind a ${poll}ms poll`, async () => {
+      const h = harness({ pollMs: poll })
+      h.loop.start()
+      const step = 1000 / hz
+      let offered = 0
+      for (let t = 0; t < 2000; t += step) {
+        h.deliverRaf(t)
+        offered += 1
+        await vi.advanceTimersByTimeAsync(step)
+      }
+      expect(h.frames()).toBe(offered)
+    })
+  }
+
+  it('keeps the gate live once it has started throttling', async () => {
     const h = harness()
     h.loop.start()
-
-    // A healthy session must not lose a single frame to the cap. This is the
-    // case the cap has to clear by a wide margin: Firefox resolves completion
-    // from a 100ms poll, so even a device finishing instantly looks several
-    // frames behind at 60Hz.
-    const n = MAX_QUEUED_FRAMES * 5
-    for (let i = 0; i < n; i++) {
-      h.deliverRaf(i * 16)
-      h.completeGpu()
-      await vi.advanceTimersByTimeAsync(0)
+    for (let t = 0; t < MAX_QUEUE_WAIT_MS * 2; t += 16) {
+      h.deliverRaf(t)
+      await vi.advanceTimersByTimeAsync(16)
     }
-    expect(h.frames()).toBe(n)
-  })
+    const capped = h.frames()
 
-  it('clears a backlog built while rAF was gone', async () => {
-    const h = harness()
-    h.loop.start()
-    for (let i = 0; i < MAX_QUEUED_FRAMES * 2; i++) h.deliverRaf(i * 16)
-    expect(h.frames()).toBe(MAX_QUEUED_FRAMES)
-
-    // The gate stops submitting once it is capped, so nothing it does can start
-    // the probe that would clear it. Only the probe re-arming itself gets the
-    // loop out of this — otherwise a single backlog gates the picture off for
+    // The gate stops submitting once it trips, so nothing it does can start the
+    // probe that would clear it. Only the probe re-arming itself on settle gets
+    // the loop out of this — otherwise one slow patch gates the picture off for
     // the rest of the session.
     h.completeGpu()
     await vi.advanceTimersByTimeAsync(0)
-    for (let i = 0; i < MAX_QUEUED_FRAMES; i++) {
-      h.deliverRaf(2000 + i * 16)
+    for (let t = 0; t < 200; t += 16) {
+      h.deliverRaf(9000 + t)
       h.completeGpu()
-      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(16)
     }
-    expect(h.frames()).toBe(MAX_QUEUED_FRAMES * 2)
+    expect(h.frames()).toBeGreaterThan(capped + 5)
+  })
+
+  it('does not read a blocked main thread as a queue that is behind', async () => {
+    const h = harness()
+    h.loop.start()
+
+    // Firefox resolves completion from a main-thread timer, so a blocked main
+    // thread leaves the probe outstanding however idle the GPU is — the same lie
+    // HANG_LATE_FACTOR catches on the hang watchdog. With nothing submitted into
+    // that probe there is nothing for the device to be behind on, and the first
+    // frame back must render rather than be dropped as a backlog.
+    h.blockMainThread(MAX_QUEUE_WAIT_MS * 4)
+    h.deliverRaf(16)
+    expect(h.frames()).toBe(1)
+  })
+
+  it('retires a probe left outstanding across a restart', async () => {
+    const h = harness()
+    h.loop.start()
+    h.loop.stop()
+    h.loop.start()
+    // One per start. The first run's is orphaned but still outstanding — a
+    // promise cannot be cancelled, only ignored when it lands.
+    expect(h.outstandingWork()).toBe(2)
+
+    // Both settle. Only the live one may re-arm: re-arming off the orphan too
+    // would leave two in flight and let the stale one reset the arm time the
+    // gate reads, doubling again on every restart.
+    h.completeGpu()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(h.outstandingWork()).toBe(1)
   })
 
   it('keeps driving frames where there is no document at all', async () => {
