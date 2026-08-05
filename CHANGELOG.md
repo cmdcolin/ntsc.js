@@ -2,6 +2,21 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.16.0](https://github.com/cmdcolin/ntsc.js/compare/v0.15.0...v0.16.0) - 2026-08-05
+
+### Features
+- *(signal)* [`45c6f56`](https://github.com/cmdcolin/ntsc.js/commit/45c6f568eac0a6672a35909661579e1154b08080) the circuit that patches a dropout, and the half cycle it patches with
+
+### Style
+- [`367788b`](https://github.com/cmdcolin/ntsc.js/commit/367788bc2343b451c0ad1db57fb5e45fec7681c2) bring the twelve files oxfmt had drifted from back in line
+
+### Tests
+- *(gpu)* [`9a5ce34`](https://github.com/cmdcolin/ntsc.js/commit/9a5ce34d30859559e7205d64b899514eeb1ef180) cover the worker wire, which needed no GPU to test
+- *(gpu)* [`1542f0f`](https://github.com/cmdcolin/ntsc.js/commit/1542f0f97875ccc1cb43406d2f83ca1544fb6c64) a soak that answers "does it still freeze"
+
+### Chores
+- [`4e7c088`](https://github.com/cmdcolin/ntsc.js/commit/4e7c088fe7109a631e7fdc17b34ca826afb3dba5) check formatting, which nothing was
+
 ## [0.15.0](https://github.com/cmdcolin/ntsc.js/compare/v0.14.0...v0.15.0) - 2026-08-05
 
 ### Features
