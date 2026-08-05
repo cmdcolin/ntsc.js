@@ -15,7 +15,7 @@ import {
 // harness models the two misbehaviours directly: rAF callbacks are queued but
 // delivered only when a test says so, and queue completion resolves only when a
 // test says so. Both "never happens" cases are just declining to call them.
-function harness() {
+function harness({ noDocument = false } = {}) {
   let rafSeq = 0
   let frames = 0
   let focused = true
@@ -34,12 +34,17 @@ function harness() {
   vi.stubGlobal('cancelAnimationFrame', (id: number) => {
     rafCbs.delete(id)
   })
-  vi.stubGlobal('document', {
-    get visibilityState() {
-      return visibility
-    },
-    hasFocus: () => focused,
-  })
+  // `noDocument` is the worker case: there is no document to read visibility or
+  // focus from, and the loop has to run anyway rather than mistake the absence
+  // for a hidden tab.
+  if (!noDocument) {
+    vi.stubGlobal('document', {
+      get visibilityState() {
+        return visibility
+      },
+      hasFocus: () => focused,
+    })
+  }
   vi.stubGlobal('window', globalThis)
 
   // The loop reads the clock to judge how late a timer was, which is how it
@@ -409,6 +414,24 @@ describe('RenderLoop', () => {
       await vi.advanceTimersByTimeAsync(0)
     }
     expect(h.frames()).toBe(MAX_QUEUED_FRAMES * 2)
+  })
+
+  it('keeps driving frames where there is no document at all', async () => {
+    // A worker owns no document. Everything the watchdog reads about one
+    // describes the page's refresh driver, which is the very dependency a
+    // worker-owned loop exists to shed — so their absence must read as "run",
+    // not as a hidden tab, or the loop stands down in the one context that was
+    // meant to keep the picture alive.
+    const h = harness({ noDocument: true })
+    h.loop.start()
+    h.deliverRaf(16)
+    expect(h.frames()).toBe(1)
+
+    // ...including the stall path, which is gated on visibility and focus. Two
+    // beats, not one: the first still sees the tick from the frame above and is
+    // right not to call a stall on it.
+    await vi.advanceTimersByTimeAsync(WATCHDOG_MS * 2)
+    expect(h.frames()).toBeGreaterThan(1)
   })
 
   it('does not call a blocked main thread a hung GPU', async () => {

@@ -17,6 +17,7 @@
 // why only A needs the bind-group rebuild hook.
 
 import { ACTIVE_HEIGHT, ACTIVE_WIDTH } from '../signal/constants'
+import { pageSearch } from './env'
 
 // compose samples the A texture down to the 754x480 raster (plus a +-2 line
 // deinterlace tap), so resolution past ~2x that buys no detail. Uncapped, a
@@ -42,6 +43,12 @@ export const coverFit43 = (
   const sh = wide ? h : w * (3 / 4)
   return [(w - sw) / 2, (h - sh) / 2, sw, sh]
 }
+
+// `HTMLVideoElement` is a DOM class, so referencing it as a value throws in a
+// worker where it does not exist. The type annotation is erased and harmless;
+// only the runtime instanceof needs the guard.
+const isVideoElement = (v: unknown): boolean =>
+  typeof HTMLVideoElement !== 'undefined' && v instanceof HTMLVideoElement
 
 // Anything that can be drawn into a 2D canvas or copied straight to a texture.
 type Drawable = OffscreenCanvas | ImageBitmap | HTMLVideoElement
@@ -126,8 +133,7 @@ export class Sources {
   private disposed = false
   // The centre staged pixel, kept for the ?debug readout only — see debugInfo.
   // Sampling it costs a getImageData, so it is only taken when asked for.
-  private readonly debug =
-    typeof location !== 'undefined' && location.search.includes('debug')
+  private readonly debug = pageSearch().includes('debug')
   private probe1: OffscreenCanvas | null = null
   private lastPixelA: number[] | null = null
 
@@ -445,11 +451,7 @@ export class Sources {
   // shader needs no aspect handling.
   private uploadB(source: Drawable, w: number, h: number): void {
     const d = this.host.device
-    if (
-      w === ACTIVE_WIDTH &&
-      h === ACTIVE_HEIGHT &&
-      !(source instanceof HTMLVideoElement)
-    ) {
+    if (w === ACTIVE_WIDTH && h === ACTIVE_HEIGHT && !isVideoElement(source)) {
       d.queue.copyExternalImageToTexture(
         { source, flipY: false },
         { texture: this.texB },

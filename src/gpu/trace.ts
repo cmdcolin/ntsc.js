@@ -9,6 +9,8 @@
 //
 // `window.vfTrace()` dumps the previous session's trace on demand.
 
+import { sessionStore } from './env'
+
 const KEY = 'ntsc.trace'
 const MAX = 200
 // Steady-state writes are rate-limited to this. A serialize + localStorage write
@@ -65,7 +67,7 @@ class Trace {
           ua: navigator.userAgent,
           lines: this.lines,
         }
-        localStorage.setItem(KEY, JSON.stringify(session))
+        sessionStore()?.setItem(KEY, JSON.stringify(session))
       } catch {
         // Quota, or a context with no DOM at all (the loop's unit tests); the
         // live console still has everything.
@@ -79,7 +81,7 @@ export const trace = new Trace()
 // The trace a previous session left behind, or null if there is none.
 export function previousTrace(): Session | null {
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = sessionStore()?.getItem(KEY) ?? null
     const parsed: unknown = raw === null ? null : JSON.parse(raw)
     return isSession(parsed) ? parsed : null
   } catch {

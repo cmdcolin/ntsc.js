@@ -6,6 +6,10 @@ export interface Gpu {
 
 export class WebGpuUnavailableError extends Error {}
 
+// Either kind of canvas. An OffscreenCanvas is what a worker-owned engine
+// presents to; on the main thread this is always an HTMLCanvasElement.
+export type RenderTarget = HTMLCanvasElement | OffscreenCanvas
+
 export type GpuPower = 'high-performance' | 'low-power'
 
 // `?gpu=low-power` sends the session to the integrated chip. Two reasons to
@@ -27,7 +31,7 @@ export function gpuPowerFromSearch(search: string): GpuPower {
 }
 
 export async function initGpu(
-  canvas: HTMLCanvasElement,
+  canvas: RenderTarget,
   power: GpuPower = 'high-performance',
 ): Promise<Gpu> {
   // the types say navigator.gpu always exists; browsers without WebGPU disagree

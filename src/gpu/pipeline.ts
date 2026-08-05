@@ -31,6 +31,7 @@ import { MixState } from '../signal/mixstate'
 import { ModState } from '../signal/modstate'
 import { TapeState, tapeRecording } from '../signal/tapeloop'
 import { gpuPowerFromSearch, initGpu } from './context'
+import { pageSearch } from './env'
 import {
   GEN_OFFSET,
   PARAM_BYTES,
@@ -64,7 +65,7 @@ import { Sources } from './sources'
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { LineStateControls } from '../signal/linestate'
-import type { Gpu } from './context'
+import type { Gpu, RenderTarget } from './context'
 
 const N = SAMPLES_PER_LINE * LINES
 const LINE_PARAM_BYTES = LINES * 16
@@ -142,10 +143,12 @@ export class Engine {
   onGpuError: (message: string) => void = () => {}
 
   // Initialized from ?dbg=; also switchable live via setDbgView (Advanced).
-  private dbgView = Number(new URLSearchParams(location.search).get('dbg') ?? 0)
+  private dbgView = Number(new URLSearchParams(pageSearch()).get('dbg') ?? 0)
+  // ?debug: dev-only per-frame logging and the first-frame readback.
+  private readonly debug = pageSearch().includes('debug')
 
   private gpu: Gpu
-  private canvas: HTMLCanvasElement
+  private canvas: RenderTarget
   private frame = 0
   private filtersDirty = true
   private lineState = new LineState()
@@ -216,14 +219,14 @@ export class Engine {
   private presentBg: GPUBindGroup
 
   static async create(
-    canvas: HTMLCanvasElement,
+    canvas: RenderTarget,
     opts: EngineOptions = {},
   ): Promise<Engine> {
-    const gpu = await initGpu(canvas, gpuPowerFromSearch(location.search))
+    const gpu = await initGpu(canvas, gpuPowerFromSearch(pageSearch()))
     return new Engine(gpu, canvas, opts.audio ?? new AudioState())
   }
 
-  private constructor(gpu: Gpu, canvas: HTMLCanvasElement, audio: AudioState) {
+  private constructor(gpu: Gpu, canvas: RenderTarget, audio: AudioState) {
     this.gpu = gpu
     this.canvas = canvas
     this.audioState = audio
@@ -1230,7 +1233,7 @@ export class Engine {
   private renderFrame(): void {
     const d = this.gpu.device
     this.sources.uploadFrames()
-    if (this.frame % 30 === 0 && location.search.includes('debug')) {
+    if (this.frame % 30 === 0 && this.debug) {
       console.log('DEBUG frame', this.frame, this.sources.debugInfo())
     }
     if (this.filtersDirty) this.rebuildFilters()
@@ -1365,7 +1368,7 @@ export class Engine {
         .popErrorScope()
         .then(e => e && console.error(`frame ${f} validation:`, e.message))
     }
-    if (location.search.includes('debug')) {
+    if (this.debug) {
       if (this.frame < 3) console.log('DEBUG rendered frame', this.frame)
       if (this.frame === 1) void this.debugReadback()
     }

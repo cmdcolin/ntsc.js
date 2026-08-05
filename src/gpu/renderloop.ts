@@ -1,3 +1,4 @@
+import { isFocused, isFullscreen, isVisible } from './env'
 import { trace } from './trace'
 
 import type { FrameStats } from '../controls'
@@ -159,7 +160,7 @@ export class RenderLoop {
     trace.add('start')
     this.startRender()
     this.startProbe()
-    this.watchdogId = window.setInterval(this.watchdog, WATCHDOG_MS)
+    this.watchdogId = setInterval(this.watchdog, WATCHDOG_MS)
   }
 
   // Both rAF chains run on this, and it is where the loop's central invariant
@@ -386,12 +387,7 @@ export class RenderLoop {
 
   private pump = (): void => {
     this.fallbackId = 0
-    if (
-      this.live &&
-      this.stalled &&
-      this.bridging() &&
-      document.visibilityState === 'visible'
-    ) {
+    if (this.live && this.stalled && this.bridging() && isVisible()) {
       this.runFrame(performance.now())
       // Wait for the frame just submitted to complete before scheduling the
       // next. rAF was the only thing pacing submission against the compositor;
@@ -418,7 +414,7 @@ export class RenderLoop {
 
   private schedulePump(): void {
     if (this.live && this.stalled && !this.gaveUp) {
-      this.fallbackId = window.setTimeout(this.pump, FALLBACK_MS)
+      this.fallbackId = setTimeout(this.pump, FALLBACK_MS)
     } else {
       this.pumping = false
     }
@@ -447,22 +443,22 @@ export class RenderLoop {
     this.lastProbeTicks = this.probeTicks
     trace.beat(
       [
-        document.visibilityState,
-        document.hasFocus() ? 'focused' : 'unfocused',
-        document.fullscreenElement === null ? 'windowed' : 'fullscreen',
+        isVisible() ? 'visible' : 'hidden',
+        isFocused() ? 'focused' : 'unfocused',
+        isFullscreen() ? 'fullscreen' : 'windowed',
         this.stalled ? (this.gaveUp ? 'GAVE-UP' : 'STALLED') : 'ok',
       ].join(' '),
       `frame ${this.host.frameNo()} raf ${this.rafTicks - this.lastRafTicks}/beat probe ${probeDelta}/beat`,
     )
     trace.flush()
-    if (!this.live || document.visibilityState !== 'visible') return
+    if (!this.live || !isVisible()) return
     // The watchdog firing at all proves the main thread is alive. rAF throttling
     // while the window is unfocused/occluded is expected, so only judge rAF
     // liveness when focused: if rafTicks hasn't advanced since the last check,
     // the browser has stopped delivering rAF even though we're visible+focused
     // (Firefox/Linux does this across fullscreen transitions, and re-requesting
     // doesn't wake it). Drive the loop from setTimeout until rAF resumes.
-    if (document.hasFocus()) {
+    if (isFocused()) {
       const rafAlive = this.rafTicks !== this.lastRafTicks
       this.lastRafTicks = this.rafTicks
       if (!rafAlive) {
