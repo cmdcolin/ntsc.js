@@ -91,9 +91,17 @@ export class VideoPump {
     this.retarget(this.b, el)
   }
 
+  // Everything about the slot goes back to untouched, `inFlight` included. A
+  // decode from the outgoing source is still running and cannot be cancelled,
+  // but it belongs to a generation this slot has retired, so it is not allowed
+  // to write here at all — see `start`. Leaving `inFlight` for that decode's own
+  // handler to clear was the same coupling in the other direction: the stale
+  // decode cleared a flag the *new* one had set, and the next pump started a
+  // second decode of a source already being decoded.
   private retarget(slot: Slot, el: HTMLVideoElement | null): void {
     slot.el = el
     slot.lastTime = -1
+    slot.inFlight = false
     slot.gen += 1
     slot.ready?.bmp.close()
     slot.ready = null
@@ -182,24 +190,34 @@ export class VideoPump {
   ): void {
     slot.inFlight = true
     const gen = slot.gen
+    // Both handlers check the generation before they touch anything, so a decode
+    // the slot has moved on from is inert rather than half-applied.
     make().then(
       bmp => {
-        slot.inFlight = false
         // Nothing downstream survives teardown or a source switch, and an
         // ImageBitmap holds a decoded frame's worth of memory until closed.
         if (this.disposed || gen !== slot.gen) {
           bmp.close()
         } else {
+          slot.inFlight = false
           slot.ready?.bmp.close()
           slot.ready = { bmp, w, h, aspect }
         }
       },
       () => {
         // A source torn down mid-decode, or a frame the decoder could not give
-        // us. Neither is worth reporting: the slot simply holds its last frame,
-        // and `lastTime` has already moved on so the next one is requested
-        // normally.
-        slot.inFlight = false
+        // us. Neither is worth reporting: the slot simply holds its last frame.
+        if (gen === slot.gen) {
+          slot.inFlight = false
+          // But it does have to be *askable* again. `lastTime` was advanced
+          // before the decode, and `due()` only re-fires once currentTime moves
+          // past it — which a playing clip does on its own and a paused element
+          // never does. Left alone, one rejected decode on a still-framed source
+          // (an element mid-seek when it was attached, a blocked autoplay)
+          // parked that slot on whatever texture it already had for the rest of
+          // the session.
+          slot.lastTime = -1
+        }
       },
     )
   }
