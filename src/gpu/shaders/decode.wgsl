@@ -233,10 +233,24 @@ fn main(
   let g = mix(1.0, acc, P.burstLock) * P.chromaGain;
 
   let ev = loPhaseErr(n, row);
-  let ce = cos(e + ev);
-  let se = sin(e + ev);
+  // Where the demodulator's reference sits. Burst error, the bent crystal's
+  // drift, the set's own tint control and audio driven into the same reference
+  // network all move one phase, because in a receiver they are one oscillator
+  // — which is why a tint knob and a detuned crystal are indistinguishable
+  // until the burst tries to correct one of them and not the other.
+  let th = e + ev + P.tint + P.audioHue * audio[ry];
+  let ce = cos(th);
+  let se = sin(th);
+  // The two synchronous demods sit 90 degrees apart only because the reference
+  // network says so. Sets on a budget used non-quadrature (X/Z) axes on
+  // purpose, and a misadjusted network lands anywhere. Off 90 the colour plane
+  // is sheared rather than rotated, so hues that were opposite stop being
+  // opposite; narrowed to nothing, both demods read the same phase and the
+  // whole wheel collapses onto one hue axis.
+  let ca = cos(P.demodAxis);
+  let sa = sin(P.demodAxis);
   let ur = (us * ce + vs * se) * g;
-  let vr = (-us * se + vs * ce) * g;
+  let vr = (us * (ce * ca - se * sa) + vs * (se * ca + ce * sa)) * g;
 
   let yn = (lum - IRE_BLACK) / VIDEO_RANGE;
   let un = ur / VIDEO_RANGE;
@@ -249,7 +263,16 @@ fn main(
   // Hue-preserving gamut fit instead of a per-channel clamp: saturated content
   // stays vivid at the clipping point rather than rotating hue toward whatever
   // channel didn't overflow. crt_face works in the headroom this leaves.
-  var outc = gamutFit(rgb);
+  //
+  // A real set extends no such courtesy. The three output amplifiers hit their
+  // rails one at a time, and the first gun to clip drags the hue toward the two
+  // still in range, so an overdriven picture doesn't just saturate — it migrates
+  // toward the primaries as it does. matrixClip crossfades to those rails.
+  var outc = mix(
+    gamutFit(rgb),
+    clamp(rgb, vec3f(0.0), vec3f(1.0)),
+    P.matrixClip,
+  );
   if (P.phosphorMode > 0.5) {
     // matrix output can leave the cube (the 1953 fit has negative lobes), so
     // fit again — same hue-preserving desaturation

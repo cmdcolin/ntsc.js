@@ -177,6 +177,93 @@ what remains of it.
 - **Per-channel bloom radius.** One radius for all three channels; the phosphors
   don't actually scatter alike.
 
+## Boxes in the rack (from the commercial-processing-unit pass)
+
+Shipped out of this batch: the receiver **tint** knob, non-quadrature **demod
+axes**, **audio → demod reference phase**, a chroma bandwidth ceiling raised to
+3 MHz, and **output stage clip**. The rest of the pass, in rough
+payoff-per-effort order.
+
+- **Dropout compensator.** Every deck and TBC had one, and `channel.wgsl`
+  already produces the dropouts it would conceal. 910 samples is 227.5
+  subcarrier cycles, so a 1H delay line lands the substituted line 180° out of
+  phase: a cheap DOC hides the dropout and paints it in the _complementary
+  hue_, while a 2H one is colour-correct but two lines stale. Off / 1H / 2H,
+  reading back from the same composite buffer. Under tracking error or shuttle
+  it turns whole noise bands into a second, wrong-coloured picture.
+- **Differential gain and differential phase.** On the spec sheet of every VTR
+  and proc amp ever sold, and absent here. The video amplifier's gain is not
+  flat against DC level, so chroma riding bright luma is compressed (DG) and
+  its phase shifts (DP): saturation dies in the highlights and hue swings with
+  brightness. A soft nonlinearity on the composite in `channel.wgsl` gives DG
+  for free; DP needs an explicit amplitude-dependent delay. Inside the mixer
+  loop it separates a feedback trail into colour layers by brightness, because
+  `cfbDelay`'s rotation per generation stops being uniform.
+- **Convergence, purity, and the magnet on the tube.** The screen section models
+  beam, phosphor, mask and glass, but the three guns are perfectly registered,
+  which no tube is. Two per-channel offsets in `crt_face`: convergence error
+  growing with radius (colour fringes at the corners), and a magnetized patch of
+  the mask as a fixed soft purity blotch the picture rolls through. Both
+  magnify with the lens.
+- **Scan velocity modulation.** Consumer sets slowed the beam at dark→bright
+  transitions to fake sharpness; emission goes as dwell time, so brightness
+  redistributes asymmetrically across the edge — white overshoot one side, black
+  notch the other. Lives in `crt_face` over the decoded image, so it sidesteps
+  the decode-tiling constraint that blocks intra-line geometry.
+- **ABL (automatic beam limiter).** `syncMeasureBuf` already carries mean beam
+  load per line, so the data is there. HV sag is one half of what bright content
+  does; ABL is the other — the set pulls drive down to protect the flyback, so a
+  white flash dims the whole picture and it pumps back. Cheapest item here, and
+  it puts a global gain term inside every feedback loop.
+- **Chroma AGC with a time constant.** `decode.wgsl` computes
+  `acc = clamp(BURST_AMP / max(li.z, 0.5), 0, 4)` instantaneously per line. A
+  real ACC has a lag, so it overshoots on a scene change and pumps when burst is
+  noisy — which would make everything that damages burst (noise, dropouts,
+  tracking, scrambling) bloom and hunt in colour rather than scale cleanly.
+  Deferred on shape, not on value: the lag is a recurrence down the lines, and
+  `line_analyze` runs after `sync` so it cannot borrow the existing serial loop.
+  Wants a bounded exponential FIR over the last N lines (parallel, cheap)
+  rather than a third `workgroup_size(1)` pass — see the note in
+  `ARCHITECTURE.md`.
+- **A DVE / framestore, as the digital box in the analog last mile.** Distinct
+  from the digital cable tier below, and more era-correct. An ADO / A53 /
+  WJ-MX50 cannot work on composite, so it decodes to 4:2:2 601 on a 720×486,
+  13.5 MHz raster — a different raster from ours — and re-encodes. The payoff is
+  **cascaded encode/decode generations**: whatever the decoder got wrong becomes
+  real picture, so dot crawl bakes into luma, re-encodes as chroma, crawls
+  again, and `combMode` selects which fixed point the iteration falls into.
+  That is why multi-generation composite editing looked the way it did, and it
+  is the one mechanism here that manufactures colour from nothing. Once the
+  framestore exists the consumer digital-effects buttons follow as one mechanism
+  each — mosaic and multi-image are decimation with no prefilter, so the tiles
+  alias and the subsample pattern beats against the mask.
+- **Frame-recursive noise reducer.** A corrective box whose failure mode is the
+  effect, which is why it is more interesting than the TBC declined below.
+  Frame averaging gated on a motion threshold: below it, noise freezes into
+  fixed plateaus and the picture goes plasticky; above it, motion drags a soft
+  trail with a hard edge where the gate trips. Put the threshold in the noise
+  floor and the grain drives the detector, so still areas breathe.
+- **Auto-iris hunting in the camera loop.** `fbGain` is fixed, but a real camera
+  pointed at its own monitor is metering the loop it is part of, so it hunts:
+  bloom, clamp, collapse, reopen. A one-pole lag on `fbGain` driven by mean
+  frame luma — two floats of CPU state, and the breathing is emergent rather
+  than an LFO, which is what the modulation section above keeps asking for.
+- **Rutt/Etra scan deflection.** The source's own luma patched into the vertical
+  deflection amplifier: the raster becomes a relief map of the picture, and the
+  brightness comes free from line bunching (line density _is_ luminance). Fits
+  the deflection domain exactly — geometry detonates while hue stays put. The
+  catch is that it is a per-pixel _vertical_ gather, so it wants `crt_face` over
+  the decoded image with a bounded column search, not `decode`.
+- **Smaller trims.** A **Y/C delay** mistrim (colour shifted bodily sideways off
+  edges, distinct from `chromaTail`'s asymmetric smear); **head clog** (one of
+  the two heads dead, so alternating segments go to snow, keyed off the existing
+  head-switch point); **setup mismatch** (a 0 IRE deck into a 7.5 IRE set and
+  back, for crushed or milky blacks).
+
+Considered and not worth it: **PAL / Hanover bars** (a raster change, not an
+effect — `constants.ts` is 525/60 throughout) and **standards-converter
+judder**, which needs 50 Hz first.
+
 ## Digital cable tier
 
 Macroblocking, DCT ringing, frozen last-good-blocks, motion-vector smear. Large

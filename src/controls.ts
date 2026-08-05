@@ -18,6 +18,9 @@ export const DEFAULT_CONTROLS = {
   chromaCoarse: 1, // chroma reconstruction lattice, samples (>1 = CUE rainbows)
   chromaGain: 1,
   burstLock: 1,
+  tintDeg: 0, // the set's tint knob: demod reference rotated (180 = complementary)
+  demodAxisDeg: 90, // angle between the two synchronous demod axes (90 = quadrature)
+  matrixClip: 0, // RGB output stage: 0 hue-preserving fit, 1 hard per-gun rails
   scDetuneKHz: 0, // bent 3.58 MHz crystal: demod LO pulled off-frequency
   killThresh: 2, // IRE
   svideoBleed: 0, // Y/C miswire: bleed chroma into luma (S-video pins into composite)
@@ -38,6 +41,7 @@ export const DEFAULT_CONTROLS = {
   audioBendUs: 0, // audio waveform straight into horizontal displacement
   audioLoad: 0, // audio driven into the HV tank (rings via hvSag/hvRing)
   audioIre: 0, // audio patched straight into the composite line, IRE
+  audioHueDeg: 0, // audio waveform into the demod reference phase, degrees per unit
   // Bass onset straight onto the sag *amplitude*. Distorting all the time reads
   // as a broken picture; keeping the tube near-clean and slamming it on the hit
   // is what reads as the bass punching the image.

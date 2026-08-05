@@ -289,11 +289,30 @@ faults move the picture; decoding faults move its color.
 - **S-video bleed** — Y/C shorted: the subcarrier itself appears as a moving dot
   pattern over anything colored.
 - **Chroma bandwidth / trail / upsample error / gain** — how fast, how
-  asymmetrically, how coarsely and how hot color is demodulated.
+  asymmetrically, how coarsely and how hot color is demodulated. Opened past
+  about 1.5 MHz the passband stops being a color filter and starts admitting
+  luma, so every edge and every fine texture arrives as cross-color: a
+  greyscale zone plate decodes in full color.
+- **Tint** — the knob on the front of the set, rotating the demodulator's
+  reference against the incoming color. Every hue turns together; at ±180° the
+  reference is backwards and the picture comes out complementary with its
+  brightness untouched. It sits after the burst correction, which is why
+  turning it never un-corrects itself.
+- **Demod axis** — the angle between the set's two synchronous demodulators.
+  90° only because the reference network says so, and cheap sets used
+  non-quadrature X/Z axes on purpose. Off 90 the color plane is _sheared_
+  rather than rotated — hues that were opposite stop being opposite, so a
+  picture keeps some of its colors and loses others. Wound toward 0 both
+  demodulators read the same phase and every hue collapses onto one axis.
 - **Burst lock / subcarrier detune** — trust in the measured burst versus a bent
   reference crystal; unlocked, hue sweeps the whole wheel.
 - **Color killer** — the burst level below which the set decides the signal is
   monochrome; weak signals make color cut out in patches.
+- **Output stage clip** — how the RGB amplifiers run out of headroom. Fitted
+  back into gamut, overdriven color stays vivid and keeps its hue; run into the
+  rails instead and the three guns clip one at a time, so the first to go drags
+  the hue toward the two still in range. Saturated content migrates toward the
+  primaries as it blows out.
 
 ## Audio-reactive
 
@@ -309,6 +328,12 @@ whatever else is engaged.
   inward on each hit and springs back.
 - **Waveform → deflection** — the audio waveform drawn literally into horizontal
   deflection, an oscilloscope trace bending the raster.
+- **Waveform → hue** — the same waveform driven into the color demodulator's
+  reference oscillator, which is the wire the tint knob sits on: the sound
+  turns the tint 15,734 times a second. Bass swings the whole picture's hue on
+  the beat; content up near line rate paints hue in bands that dance down the
+  frame. The reference lives in the receiver, so the bands stay on the glass
+  while a rolling picture slides through them.
 - **Audio → video input** — the wrong cable: brightness bands, shifting color,
   torn sync as loud passages land on the sync tips.
 

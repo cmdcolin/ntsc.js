@@ -93,12 +93,16 @@ export const PARAM_DEFS = [
   ['hvSag', 'f32'], // beam-current deflection sag amplitude, samples
   ['hvRing', 'f32'], // supply damping: 0 smooth droop .. 1 ringing / chaotic
   ['hRate', 'f32'], // horizontal oscillator free-run drift, samples/line
-  // audio patched into the deflection, one sample per line
+  // audio patched into the receiver, one sample per line
   ['audioBend', 'f32'], // direct horizontal displacement, samples
   ['audioLoad', 'f32'], // audio driven into the HV tank alongside beam current
   ['audioIre', 'f32'], // audio patched straight into the composite line, IRE per unit
+  ['audioHue', 'f32'], // audio driven into the demod reference phase, radians per unit
   ['chromaGain', 'f32'],
   ['burstLock', 'f32'], // 0..1: how much the decoder trusts the (degraded) burst
+  ['tint', 'f32'], // the set's tint control: demod reference rotated, radians (PI = complementary)
+  ['demodAxis', 'f32'], // angle between the two synchronous demod axes, radians (PI/2 = quadrature)
+  ['matrixClip', 'f32'], // RGB output stage: 0 hue-preserving fit .. 1 hard per-gun rails
   ['scDetunePhase', 'f32'], // bent-crystal demod LO phase error at frame start, radians (accumulated)
   ['scDetunePerSample', 'f32'], // LO phase error growth per sample, radians
   ['killThresh', 'f32'], // IRE of burst amplitude below which color killer engages
