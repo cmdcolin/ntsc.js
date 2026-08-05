@@ -113,7 +113,19 @@ await page.evaluate(() => {
 const samples = []
 const t0 = Date.now()
 let died = null
-while (Date.now() - t0 < minutes * 60_000) {
+let visibleMs = 0
+// Wall clock is not the measurement — *visible* time is. rAF stops in a hidden
+// tab by design, so a run that loses the foreground half way through has soaked
+// for half as long as it thinks, and on a machine where anything else opens a
+// window (another agent's harness, a screensaver) that is the normal case rather
+// than the exception. So this accumulates the minutes the app was actually
+// rendering and keeps going until it has enough of them, with a wall-clock
+// ceiling so a window that never comes back cannot run forever.
+const WALL_CEILING = 3
+while (
+  visibleMs < minutes * 60_000 &&
+  Date.now() - t0 < minutes * 60_000 * WALL_CEILING
+) {
   await new Promise(r => setTimeout(r, SAMPLE_MS))
   try {
     samples.push(
@@ -155,8 +167,13 @@ while (Date.now() - t0 < minutes * 60_000) {
     break
   }
   const s = samples.at(-1)
+  const prev = samples.at(-2)
+  // Only a gap with the tab visible at both ends counts toward the soak.
+  if (prev !== undefined && prev.vis === 'visible' && s.vis === 'visible') {
+    visibleMs += s.t - prev.t
+  }
   process.stdout.write(
-    `\r${Math.round((Date.now() - t0) / 1000)}s frame=${s.frame} raf=${s.raf} vid=${s.videoAcc}s ${s.vis}${s.throttled ? ' THROTTLED' : ''}${s.stalled ? ' STALLED' : ''}   `,
+    `\r${Math.round(visibleMs / 1000)}s visible of ${minutes * 60} (${Math.round((Date.now() - t0) / 1000)}s wall) frame=${s.frame} vid=${s.videoAcc}s ${s.vis}${s.throttled ? ' THROTTLED' : ''}${s.stalled ? ' STALLED' : ''}   `,
   )
 }
 console.log('')
@@ -213,7 +230,11 @@ const first = onscreen[0]
 const last = onscreen.at(-1)
 const wall = last && first ? (last.t - first.t) / 1000 : 0
 const report = {
-  minutes,
+  // What was asked for, and what was actually soaked. The second is the one that
+  // means anything; they differ whenever the window lost the foreground.
+  minutesAsked: minutes,
+  visibleMinutes: +(visibleMs / 60_000).toFixed(1),
+  wallMinutes: +((Date.now() - t0) / 60_000).toFixed(1),
   samples: samples.length,
   // Read this first: below ~0.9 the rAF numbers describe a backgrounded window
   // rather than the app, and the run should be repeated with the window forward.
@@ -292,7 +313,7 @@ const unexplained = died !== null && !transportLost
 // A window that spent much of the run off screen never exercised the thing under
 // test. rAF stops in a hidden tab by design, so those minutes say nothing either
 // way and must not be rounded up into a clean bill of health.
-const tooMuchHidden = report.onscreenFraction < 0.9
+const tooMuchHidden = report.visibleMinutes < minutes * 0.9
 
 if (froze) {
   console.log('FROZE — finish the worker wiring')
@@ -300,17 +321,19 @@ if (froze) {
   console.log(`INCONCLUSIVE — the run ended unexpectedly: ${died}`)
 } else if (tooMuchHidden) {
   console.log(
-    `INCONCLUSIVE — the window was on screen for only ${Math.round(report.onscreenFraction * 100)}% of the run, and a hidden tab stops rAF by design; re-run with it in front`,
+    `INCONCLUSIVE — only ${report.visibleMinutes} of the ${minutes} visible minutes asked for (${report.wallMinutes} min wall). A hidden tab stops rAF by design, so the rest measured nothing; keep the window in front, or nothing else may open one.`,
   )
 } else if (transportLost) {
   // Everything the app reported, right up to the last sample, was healthy, and
   // its own recorder logged no stall. Report the shortfall rather than rounding
   // it up to a clean run.
   console.log(
-    `NO FREEZE in ${Math.round(wall / 60)} min of ${minutes} — the browser detached the frame before time (a known Firefox/BiDi limit, not the app); re-run for a longer window`,
+    `NO FREEZE in ${report.visibleMinutes} visible min of the ${minutes} asked for — the browser detached the frame before time (a known Firefox/BiDi limit, not the app)`,
   )
 } else {
-  console.log(`NO FREEZE in ${Math.round(wall / 60)} min`)
+  console.log(
+    `NO FREEZE in ${report.visibleMinutes} visible min (${report.stuckWindows} stuck of ${report.measuredWindows} windows, slowest ${report.slowestWindowFps} fps)`,
+  )
 }
 await browser.close().catch(() => {})
 process.exit(froze || unexplained || tooMuchHidden ? 1 : 0)
