@@ -16,6 +16,7 @@ import {
   stashFile,
 } from './fileStash'
 import { blendPresets, randomPresetMix } from './presets'
+import { RebuildPolicy } from './rebuildPolicy'
 import { printCard } from './teletypeSlot'
 import {
   REVERB_DEFAULT,
@@ -27,6 +28,7 @@ import {
 import { playStream, playUrl, stopSlot, stopTyping } from './videoSlot'
 
 import type { FrameStats } from '../controls'
+import type { EngineApi } from '../gpu/engineapi'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
 import type { Fatal } from './FatalScreen'
@@ -104,16 +106,6 @@ type SlotSource =
   | { kind: 'still'; source: OffscreenCanvas | ImageBitmap; aspect?: number }
   | { kind: 'noise'; noise: number }
 
-// How many lost devices in quick succession a session will rebuild through
-// before it gives up and shows the fatal screen. What this is guarding against
-// is a *loop* — a device that dies, comes back, and dies again — because
-// silently rebuilding through that would hide the fault behind a picture that
-// detonates every few seconds. It is deliberately not a lifetime budget: a
-// laptop that sleeps four times in a day-long session is four one-off losses,
-// each of which the rebuild genuinely handles, so the count resets once a
-// rebuild has held for this long.
-const MAX_REBUILDS = 3
-const REBUILD_WINDOW_MS = 60_000
 // Tries per rebuild, and the wait between them. requestAdapter can fail outright
 // in the moments after a driver reset — the GPU stack is still coming back — so
 // a failed create is worth re-asking before calling the session over.
@@ -155,7 +147,7 @@ const printOn = (
 // video/image source path (patterns, files, webcam/USB capture, source B).
 export function useEngine() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const engineRef = useRef<Engine | null>(null)
+  const engineRef = useRef<EngineApi | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const videoBRef = useRef<HTMLVideoElement | null>(null)
   // The teletype reveal each slot may have in flight, retired by stopSlot.
@@ -188,7 +180,7 @@ export function useEngine() {
     }
   }, [frozen])
   const [stats, setStats] = useState<FrameStats>({ fps: 0 })
-  const [engine, setEngine] = useState<Engine | null>(null)
+  const [engine, setEngine] = useState<EngineApi | null>(null)
   const [sourceMode, setSourceMode] = useState<SourceMode>('bars')
   // Picked/loaded filename, shown while the source is 'file'; '' otherwise.
   const [sourceName, setSourceName] = useState('')
@@ -918,12 +910,11 @@ export function useEngine() {
       }
       window.addEventListener('pagehide', onPageHide)
 
-      // Losses in the current run of them, when the last one landed, whether a
-      // replacement is in flight, and the retry timer one may be waiting on.
-      // Locals rather than state: the guard has to be true the instant it is
-      // set, and nothing renders any of them.
-      let rebuilds = 0
-      let lastLoss = -Infinity
+      // Whether to keep replacing a device that keeps going away (rebuildPolicy),
+      // whether a replacement is in flight, and the retry timer one may be
+      // waiting on. Locals rather than state: the guard has to be true the
+      // instant it is set, and nothing renders any of them.
+      const losses = new RebuildPolicy()
       let busy = false
       let retryId = 0
 
@@ -979,16 +970,10 @@ export function useEngine() {
         trace.add('deviceLost', message.slice(0, 120))
         trace.flush(true)
         if (disposed || busy || engineRef.current !== dead) return
-        // A rebuild that held for a while did its job, so the next loss starts a
-        // fresh count; only losses that keep arriving inside the window stack up
-        // toward giving in. See REBUILD_WINDOW_MS.
-        const now = performance.now()
-        rebuilds = now - lastLoss > REBUILD_WINDOW_MS ? 1 : rebuilds + 1
-        lastLoss = now
-        if (rebuilds > MAX_REBUILDS) {
+        if (losses.record(performance.now()) === 'give-up') {
           setFatal({
             title: 'WebGPU device lost',
-            body: `The GPU device was replaced ${MAX_REBUILDS} times and kept going away${message === '' ? '' : ` (${message})`}, so the session stopped trying.`,
+            body: `The GPU device was replaced ${losses.limit} times and kept going away${message === '' ? '' : ` (${message})`}, so the session stopped trying.`,
             kind: 'lost',
           })
           return
@@ -996,7 +981,7 @@ export function useEngine() {
         busy = true
         setRebuilding(true)
         console.warn(
-          `WebGPU device lost (${message || 'no reason given'}); rebuilding on a fresh device (${rebuilds}/${MAX_REBUILDS})`,
+          `WebGPU device lost (${message || 'no reason given'}); rebuilding on a fresh device (${losses.attempt}/${losses.limit})`,
         )
         // Release what the loss left behind. The audio graph is the exception:
         // the replacement adopts it, because a <video> binds to one AudioContext
@@ -1033,7 +1018,7 @@ export function useEngine() {
             // Forced, like the loss that caused it: if the replacement wedges
             // too, the next session's trace has to show that this one already
             // came back from a loss rather than starting clean.
-            trace.add('rebuilt', `attempt ${rebuilds}`)
+            trace.add('rebuilt', `attempt ${losses.attempt}`)
             trace.flush(true)
             console.warn('engine rebuilt on a fresh device')
           },
