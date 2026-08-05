@@ -30,6 +30,12 @@ import type { FromWorker, ToWorker } from './workerproto'
 
 export class WorkerEngineUnavailableError extends Error {}
 
+// How long the worker is given to release its GPUDevice and close itself before
+// it is terminated out from under. Releasing the device is a handful of
+// synchronous calls once the message is delivered; this only has to clear the
+// message hop. See destroy().
+const TERMINATE_GRACE_MS = 1000
+
 export interface RebuildResult {
   ok: boolean
   message: string
@@ -87,7 +93,20 @@ export class WorkerEngine {
       client.onceReady = { resolve, reject }
     })
     client.send({ t: 'init', canvas: off, search: location.search })
-    await ready
+    try {
+      await ready
+    } catch (e) {
+      // The caller only ever receives a WorkerEngine on success, so anything
+      // left running here can never be reached again — a whole thread and the
+      // rAF pump this constructor started, alive for the life of the page. The
+      // audio graph is the exception when it was handed in: the caller still
+      // owns it, and a failed engine is not a reason to strand the clips bound
+      // to it. Note the canvas is spent either way, since
+      // transferControlToOffscreen only ever works once, so a retry needs a new
+      // one.
+      client.destroy({ keepAudio: opts.audio !== undefined })
+      throw e
+    }
     return client
   }
 
@@ -305,9 +324,24 @@ export class WorkerEngine {
       cancelAnimationFrame(this.rafId)
       this.pump.destroy()
       if (opts.keepAudio !== true) this.audioState.close()
+      // The worker releases its own GPUDevice and then closes itself, because
+      // terminate() discards the message queue rather than draining it: posting
+      // `destroy` and terminating in the same turn means the handler that calls
+      // device.destroy() very likely never runs. Leaving a device to implicit
+      // teardown is the leak this project has already paid for once — an
+      // abandoned GPUDevice per session is what stacks up until Firefox's WebGPU
+      // wedges the tab (see Engine.destroy).
+      //
+      // terminate() still follows, as a backstop for a worker too wedged to
+      // process the message, but on its own turn so the message gets one first.
+      // A page being torn down never reaches it and does not need to: the worker
+      // goes with the page.
       // oxlint-disable-next-line unicorn/require-post-message-target-origin
       this.worker.postMessage({ t: 'destroy' } satisfies ToWorker)
-      this.worker.terminate()
+      const worker = this.worker
+      setTimeout(() => {
+        worker.terminate()
+      }, TERMINATE_GRACE_MS)
     }
   }
 }

@@ -158,7 +158,15 @@ onmessage = (ev: MessageEvent<ToWorker>) => {
       break
     case 'destroy':
       engine = null
+      target = null
       e.destroy()
+      // Shut this thread down from the inside, rather than waiting to be
+      // terminated. The page cannot post `destroy` and call terminate() in the
+      // same turn — terminate discards the queue instead of draining it, so the
+      // device.destroy() above would never run — which leaves closing ourselves
+      // as the only way the release is guaranteed to happen before the thread
+      // goes. The page's terminate() is a backstop behind this.
+      close()
       break
   }
 }
