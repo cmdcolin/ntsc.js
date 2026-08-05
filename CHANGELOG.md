@@ -2,6 +2,18 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.17.0](https://github.com/cmdcolin/ntsc.js/compare/v0.16.0...v0.17.0) - 2026-08-05
+
+### Features
+- *(gpu)* [`a40ce11`](https://github.com/cmdcolin/ntsc.js/commit/a40ce11acfaa7d3f3f130f525a394a782ea42c79) a vectorscope, so the colour controls can be read instead of guessed
+
+### Fixes
+- *(gpu)* [`6d2a4c6`](https://github.com/cmdcolin/ntsc.js/commit/6d2a4c677eff6289d9e3da85c2072d1fc74f50dd) stop the worker path consuming a still the caller still needs
+- *(gpu)* [`137ed96`](https://github.com/cmdcolin/ntsc.js/commit/137ed969382514fe735998c1c42b41716a731d9b) stop the soak harness calling its own transport a freeze
+
+### Performance
+- *(gpu)* [`17f510e`](https://github.com/cmdcolin/ntsc.js/commit/17f510e10cc6d0e37d737aa53e29bd0044075a4f) don't serialize the trace ring where there is nowhere to put it
+
 ## [0.16.0](https://github.com/cmdcolin/ntsc.js/compare/v0.15.0...v0.16.0) - 2026-08-05
 
 ### Features
