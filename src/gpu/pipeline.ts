@@ -36,6 +36,7 @@ import {
   GEN_OFFSET,
   PARAM_BYTES,
   PRELUDE,
+  SCOPE_BYTES,
   TILE_WG,
   packParams,
 } from './prelude'
@@ -186,6 +187,7 @@ export class Engine implements EngineApi {
   private timingBuf: GPUBuffer
   private syncMeasureBuf: GPUBuffer
   private audioBuf: GPUBuffer
+  private scopeBuf: GPUBuffer
   // Phosphor state, ping-ponged: decode reads the light the screen is holding
   // out of one and writes the new state into the other, so its lateral scatter
   // sees settled neighbours rather than a buffer mid-overwrite.
@@ -305,6 +307,13 @@ export class Engine implements EngineApi {
     // one audio sample per line, uploaded each frame
     this.audioBuf = d.createBuffer({
       size: LINES * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    })
+    // Vectorscope bins, filled by decode and read by present. Cleared rather
+    // than decayed each frame: a scope's persistence is in the phosphor of the
+    // instrument, and the picture already redraws at 60 Hz.
+    this.scopeBuf = d.createBuffer({
+      size: SCOPE_BYTES,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
     // phosphor persistence state: the light still on the glass, packed rgba8
@@ -608,6 +617,7 @@ export class Engine implements EngineApi {
       { buffer: read },
       { buffer: write },
       { buffer: this.audioBuf },
+      { buffer: this.scopeBuf },
     ]
     const [pA, pB] = this.persistBufs
     this.decodeBgs = [
@@ -715,6 +725,7 @@ export class Engine implements EngineApi {
         { binding: 0, resource: { buffer: this.paramsBuf } },
         { binding: 1, resource: this.faceTex.createView() },
         { binding: 2, resource: this.linearSamp },
+        { binding: 3, resource: { buffer: this.scopeBuf } },
       ],
     })
 
@@ -1108,6 +1119,7 @@ export class Engine implements EngineApi {
       crtZoom: c.crtZoom,
       crtZoomX: c.crtZoomX,
       crtZoomY: c.crtZoomY,
+      scope: c.scope,
       dbgView: this.dbgView,
     }
   }
@@ -1329,6 +1341,9 @@ export class Engine implements EngineApi {
     }
 
     const enc = d.createCommandEncoder()
+    // The scope bins are an accumulator for one frame's worth of decode, so
+    // they have to start empty. Off, nothing writes them and this is skipped.
+    if (c.scope > 0) enc.clearBuffer(this.scopeBuf)
     const run = (p: Pass) => {
       if (p.when === undefined || p.when()) {
         const cp = enc.beginComputePass()

@@ -86,6 +86,11 @@ describe('fine tier', () => {
       VIEW_KEYS.has(key) ? 2 : sliderFor(key).fine === true ? 1 : 0
     const ranks = AUTOMAP_KEYS.map(rank)
     expect([...ranks].sort((a, b) => a - b)).toEqual(ranks)
-    expect(AUTOMAP_KEYS.slice(-3)).toEqual(['crtZoom', 'crtZoomX', 'crtZoomY'])
+    expect(AUTOMAP_KEYS.slice(-4)).toEqual([
+      'crtZoom',
+      'crtZoomX',
+      'crtZoomY',
+      'scope',
+    ])
   })
 })

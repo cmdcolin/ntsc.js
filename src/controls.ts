@@ -177,6 +177,7 @@ export const DEFAULT_CONTROLS = {
   crtZoom: 1, // magnifier on the glass: 1 = whole screen
   crtZoomX: 0.5,
   crtZoomY: 0.5,
+  scope: 0, // vectorscope overlay opacity (0 = off, and the pass does no work)
   // time
   timeScale: 1, // sim steps per display frame: everything slows together, 0 freezes
 }

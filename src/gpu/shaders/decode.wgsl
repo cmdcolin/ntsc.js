@@ -17,6 +17,7 @@
 @group(0) @binding(6) var<storage, read> held: array<u32>;
 @group(0) @binding(7) var<storage, read_write> heldNext: array<u32>;
 @group(0) @binding(8) var<storage, read> audio: array<f32>;
+@group(0) @binding(9) var<storage, read_write> scope: array<atomic<u32>>;
 
 fn heldLight(x: i32, y: i32) -> vec3f {
   let xc = u32(clamp(x, 0, i32(ACTIVE_W) - 1));
@@ -255,6 +256,22 @@ fn main(
   let yn = (lum - IRE_BLACK) / VIDEO_RANGE;
   let un = ur / VIDEO_RANGE;
   let vn = vr / VIDEO_RANGE;
+
+  // Vectorscope tap. This is a probe across the set's *own* demodulator
+  // outputs, not a bench scope on the composite going in: everything the
+  // receiver does to colour — burst correction, the tint control, the angle
+  // between the axes, chroma gain — has already happened here, which is the
+  // whole reason to tap it there. Content that overdrives the display is
+  // dropped rather than clamped, so the trace leaves the graticule the way a
+  // real one does instead of piling up a false bright rim.
+  if (P.scope > 0.0 && (gid.x % SCOPE_STEP) == 0u && (gid.y % SCOPE_STEP) == 0u) {
+    let q = vec2f(un, vn) / SCOPE_FS;
+    if (max(abs(q.x), abs(q.y)) < 1.0) {
+      let b = vec2u((q * 0.5 + vec2f(0.5)) * f32(SCOPE_N));
+      atomicAdd(&scope[min(b.y, SCOPE_N - 1u) * SCOPE_N + min(b.x, SCOPE_N - 1u)], 1u);
+    }
+  }
+
   let rgb = vec3f(
     yn + 1.140 * vn,
     yn - 0.395 * un - 0.581 * vn,

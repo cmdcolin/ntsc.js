@@ -264,6 +264,50 @@ Considered and not worth it: **PAL / Hanover bars** (a raster change, not an
 effect — `constants.ts` is 525/60 throughout) and **standards-converter
 judder**, which needs 50 Hz first.
 
+## Interlace — the gap `ARCHITECTURE.md` names and this file forgot
+
+`ARCHITECTURE.md` calls progressive 525/60 "the largest remaining authenticity
+gap" and has done for a while, but it has never had an entry here. It is a
+raster restructure rather than a knob, which is presumably why: fields at 262.5
+lines with the half-line offset, and everything indexed by row has to learn
+which field it is in.
+
+What it pays for. Vertical roll steps a whole frame at a time today because a
+frame is the only unit there is; at field rate it would creep the way a real one
+does. Head switch would land where it actually lands. The 2- and 3-line combs
+would see the line relationships they were designed around instead of the
+progressive stand-in.
+
+And it changes what `dropoutComp` looks like: a real compensator's 1H delay
+operates _within a field_, so the line it patches from is two raster lines up on
+the glass, not one. The complementary hue is the same either way — 227.5 cycles
+does not care — but the patch would visibly come from further away, which on
+fine horizontal detail is a different artifact. Worth knowing before anyone
+tunes that control's look.
+
+## Instruments, and the fact that nothing tests a pixel
+
+- ~~**Vectorscope.**~~ Shipped as `scope`. Notes for whoever adds the next
+  instrument: it is _not_ a pass — `decode` scatters into `scopeBuf` and
+  `present` reads it in the fragment shader — which is what keeps
+  `pipeline-graph.test.ts` and the pass diagram out of it. And a histogram of a
+  flat field lands every sample in one bin, so it needs a finite spot on the way
+  out or it draws as a one-pixel speck; the 3x3 tap in `present` is that, for
+  the same reason the picture has a beam spot.
+- **A waveform monitor** is the obvious companion — line-rate luma against IRE
+  graticule, where sync depth, setup and the AGC's pumping would be readable
+  instead of inferred. `?dbg=2` already paints the composite; this is that with
+  a scale on it.
+- **Nothing asserts a rendered pixel.** `shaders.test.ts` proves the WGSL
+  compiles, `pipeline-graph.test.ts` proves the pass order matches these docs,
+  and the `signal/` specs cover the DSP — but every visual claim in the repo
+  rests on someone having looked at a screenshot. The pieces for a cheap
+  regression exist: `scripts/shot.mjs` drives Firefox Nightly, `?set=`
+  configures a session, `vf.step()` is deterministic with the CPU-side jitter
+  controls at zero. Decode SMPTE bars, assert the six hues land within
+  tolerance. Too heavy for `pnpm test`; right for a script CI runs on its own
+  schedule.
+
 ## Digital cable tier
 
 Macroblocking, DCT ringing, frozen last-good-blocks, motion-vector smear. Large

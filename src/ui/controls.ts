@@ -1592,6 +1592,15 @@ export const GROUPS: Group[] = [
         help: 'Which part of the glass is under the magnifier, down.',
       },
       {
+        key: 'scope',
+        label: 'vectorscope',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "A vectorscope in the corner: the chroma plane itself, with the demodulated colour plotted as U across and V up. The circle is where 100% bars reach, the six boxes are the 75% bar targets, and the stub at the left is burst — the phase every hue is measured against. It is probing the set's own demodulator outputs rather than the signal going in, so the tint knob turns the whole constellation, the demod axis shears it, and chroma gain scales it — which is the difference between those three said in one picture.",
+      },
+      {
         key: 'timeScale',
         label: 'slow motion (1 = realtime)',
         min: 0,
@@ -1878,6 +1887,7 @@ export const VIEW_KEYS = new Set<ControlKey>([
   'crtZoom',
   'crtZoomX',
   'crtZoomY',
+  'scope',
 ])
 
 // The groups that surface contextually rather than on the signal-path spine.
