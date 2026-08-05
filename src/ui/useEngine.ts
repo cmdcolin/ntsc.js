@@ -91,6 +91,47 @@ declare global {
   }
 }
 
+// What a slot was last handed, so a rebuilt engine can be given the same picture
+// back. Only three things ever reach a slot, and they come back differently
+// after a lost device: a live <video> is the browser's rather than the device's
+// and kept playing right through the loss, so it needs re-attaching and nothing
+// else; a still and a noise field were held in a texture that went away with the
+// device, so they have to be re-issued. The still is kept by reference — an
+// ImageBitmap or the teletype's own canvas, neither of which the GPU owns.
+type SlotSource =
+  | { kind: 'none' }
+  | { kind: 'video' }
+  | { kind: 'still'; source: OffscreenCanvas | ImageBitmap; aspect?: number }
+  | { kind: 'noise'; noise: number }
+
+// How many lost devices in quick succession a session will rebuild through
+// before it gives up and shows the fatal screen. What this is guarding against
+// is a *loop* — a device that dies, comes back, and dies again — because
+// silently rebuilding through that would hide the fault behind a picture that
+// detonates every few seconds. It is deliberately not a lifetime budget: a
+// laptop that sleeps four times in a day-long session is four one-off losses,
+// each of which the rebuild genuinely handles, so the count resets once a
+// rebuild has held for this long.
+const MAX_REBUILDS = 3
+const REBUILD_WINDOW_MS = 60_000
+// Tries per rebuild, and the wait between them. requestAdapter can fail outright
+// in the moments after a driver reset — the GPU stack is still coming back — so
+// a failed create is worth re-asking before calling the session over.
+const CREATE_TRIES = 3
+const CREATE_RETRY_MS = 700
+
+// Hand a slot's picture to a freshly-built engine. The element check comes first
+// and on purpose: a clip, a webcam, a screen share and a YouTube blob all survive
+// a lost device untouched — the <video> is the browser's — so the whole recovery
+// for them is one setter. Only a still or a noise field has to be re-issued, and
+// re-issuing goes back through the slot's own setters, so the record stays true.
+const restoreSlot = (slot: VideoSlot, last: SlotSource): void => {
+  const el = slot.ref.current
+  if (el !== null) slot.attach(el)
+  else if (last.kind === 'still') slot.setImage(last.source, last.aspect)
+  else if (last.kind === 'noise') slot.setNoise(last.noise)
+}
+
 // Print a card on a slot. A patch, not a whole card, because the two ways in
 // speak to different halves of it: the dialog sets the text and the crawl
 // together, the row under the picker only ever retypes the words.
@@ -127,6 +168,11 @@ export function useEngine() {
   // The browser stopped painting the tab. Not fatal — it clears itself the
   // moment rAF is delivered again — so it rides over the stage as a banner.
   const [frozen, setFrozen] = useState(false)
+  // A lost device is being replaced. Also a banner rather than a screen: the
+  // whole point of the rebuild is that the session survives it, and the picture
+  // is back within a second — but the gap has to say what it is, or it reads as
+  // exactly the freeze this all exists to avoid.
+  const [rebuilding, setRebuilding] = useState(false)
 
   // The stage banner rides on the canvas, so it is invisible in the worst
   // version of this — a document the browser has stopped painting entirely,
@@ -187,6 +233,13 @@ export function useEngine() {
     speedB: SPEED_DEFAULT,
     playAudio: false,
     reverb: REVERB_DEFAULT,
+  })
+  // What each slot is showing, for the rebuild after a lost device. A ref rather
+  // than state because nothing renders it and the rebuild path reads it from a
+  // mount-time closure, where state is a snapshot of the first render.
+  const lastSrc = useRef<{ a: SlotSource; b: SlotSource }>({
+    a: { kind: 'none' },
+    b: { kind: 'none' },
   })
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
   const [webcamDeviceId, setWebcamDeviceId] = useState('')
@@ -299,16 +352,27 @@ export function useEngine() {
   // different descriptor rather than two near-copies drifting apart.
   const adopt = () =>
     routeAudio(vaporRef.current.playAudio, vaporRef.current.reverb)
+  // Every source that reaches a slot passes through the three setters below, so
+  // that is where the "what is on this slot" record is kept — one write per
+  // source change, and no path can set a source without leaving one behind.
   const slotA: VideoSlot = {
     ref: videoRef,
     typer: typerARef,
     rate: () => vaporRef.current.speedA,
-    attach: el => engineRef.current?.setVideoSource(el),
+    attach: el => {
+      lastSrc.current.a = el === null ? { kind: 'none' } : { kind: 'video' }
+      engineRef.current?.setVideoSource(el)
+    },
     // Only A keeps its own aspect — B is staged to the raster with a 4:3 crop,
     // so its shader needs no aspect at all (see gpu/sources.ts).
-    setImage: (source, aspect) =>
-      engineRef.current?.setImageSource(source, aspect),
-    setNoise: kind => engineRef.current?.setNoiseSource(kind),
+    setImage: (source, aspect) => {
+      lastSrc.current.a = { kind: 'still', source, aspect }
+      engineRef.current?.setImageSource(source, aspect)
+    },
+    setNoise: kind => {
+      lastSrc.current.a = { kind: 'noise', noise: kind }
+      engineRef.current?.setNoiseSource(kind)
+    },
     setLive: setVideoA,
     setYtUrl: setYtUrlA,
     card: () => cardRef.current.a,
@@ -324,9 +388,18 @@ export function useEngine() {
     ref: videoBRef,
     typer: typerBRef,
     rate: () => vaporRef.current.speedB,
-    attach: el => engineRef.current?.setVideoSourceB(el),
-    setImage: source => engineRef.current?.setImageSourceB(source),
-    setNoise: kind => engineRef.current?.setNoiseSourceB(kind),
+    attach: el => {
+      lastSrc.current.b = el === null ? { kind: 'none' } : { kind: 'video' }
+      engineRef.current?.setVideoSourceB(el)
+    },
+    setImage: source => {
+      lastSrc.current.b = { kind: 'still', source }
+      engineRef.current?.setImageSourceB(source)
+    },
+    setNoise: kind => {
+      lastSrc.current.b = { kind: 'noise', noise: kind }
+      engineRef.current?.setNoiseSourceB(kind)
+    },
     setLive: setVideoB,
     setYtUrl: setYtUrlB,
     card: () => cardRef.current.b,
@@ -844,44 +917,168 @@ export function useEngine() {
         engineRef.current?.destroy()
       }
       window.addEventListener('pagehide', onPageHide)
+
+      // Losses in the current run of them, when the last one landed, whether a
+      // replacement is in flight, and the retry timer one may be waiting on.
+      // Locals rather than state: the guard has to be true the instant it is
+      // set, and nothing renders any of them.
+      let rebuilds = 0
+      let lastLoss = -Infinity
+      let busy = false
+      let retryId = 0
+
+      // Everything a new engine needs before it is allowed to be the live one:
+      // the callbacks that report its health, and the refs the rest of the hook
+      // writes through. Shared by the boot path and the rebuild, so a replacement
+      // engine is watched exactly as closely as the first one.
+      const wire = (created: Engine) => {
+        engineRef.current = created
+        setEngine(created)
+        window.vf = created
+        created.onStats = setStats
+        created.onGpuError = m => {
+          trace.add('gpuError', m.slice(0, 120))
+          trace.flush(true)
+          setError(`gpu: ${m}`)
+        }
+        // Bound to the engine that lost its device, not to whatever is live when
+        // the promise settles: `lost` can resolve late, and a stale one must not
+        // be able to tear down the successor that replaced it.
+        created.onDeviceLost = m => rebuild(created, m)
+        // Not a lost device: the device never reported anything, it just
+        // stopped completing submitted work — so don't title it as one, and
+        // don't rebuild for it. A wedged GPU process is shared across tabs and
+        // outlives this page, so a fresh device would land on the same one.
+        created.onHang = () =>
+          setFatal({
+            title: 'The GPU stopped responding',
+            body: 'Submitted work stopped completing, so the picture would be frozen even though the app is still running.',
+            kind: 'hung',
+          })
+        created.onFrozen = f => setFrozen(f)
+        // Both belong to the engine being replaced: a gpu fault it reported on
+        // its way out, and a paint stall latched against its loop. The new loop
+        // only reports edges, so a stale `frozen` would never clear itself.
+        setError('')
+        setFrozen(false)
+      }
+
+      // A lost device is not the end of the session. The page is intact — what
+      // went away is the GPU-side half — so build a new engine and hand it back
+      // everything the user chose: the controls as the panel has them at the
+      // moment of the swap (writes during the gap land on the outgoing engine
+      // and are copied across), the debug tap, whether B is summing, and each
+      // slot's source. The audio graph moves over rather than being rebuilt, so
+      // the music does not stop and the clips stay adoptable.
+      //
+      // What cannot come back is the content of VRAM. The phosphor state, the
+      // frame store and the tape loop all start empty, so a feedback look takes
+      // a second or two to build back up — which is what a real set does after
+      // the power blinks.
+      const rebuild = (dead: Engine, message: string): void => {
+        trace.add('deviceLost', message.slice(0, 120))
+        trace.flush(true)
+        if (disposed || busy || engineRef.current !== dead) return
+        // A rebuild that held for a while did its job, so the next loss starts a
+        // fresh count; only losses that keep arriving inside the window stack up
+        // toward giving in. See REBUILD_WINDOW_MS.
+        const now = performance.now()
+        rebuilds = now - lastLoss > REBUILD_WINDOW_MS ? 1 : rebuilds + 1
+        lastLoss = now
+        if (rebuilds > MAX_REBUILDS) {
+          setFatal({
+            title: 'WebGPU device lost',
+            body: `The GPU device was replaced ${MAX_REBUILDS} times and kept going away${message === '' ? '' : ` (${message})`}, so the session stopped trying.`,
+            kind: 'lost',
+          })
+          return
+        }
+        busy = true
+        setRebuilding(true)
+        console.warn(
+          `WebGPU device lost (${message || 'no reason given'}); rebuilding on a fresh device (${rebuilds}/${MAX_REBUILDS})`,
+        )
+        // Release what the loss left behind. The audio graph is the exception:
+        // the replacement adopts it, because a <video> binds to one AudioContext
+        // for life and a fresh one could never re-adopt the clips still playing.
+        dead.destroy({ keepAudio: true })
+        replace(dead, CREATE_TRIES)
+      }
+
+      // One attempt at standing a new engine up in the old one's place. `dead` is
+      // still the store React is reading and every write path is pointed at, so
+      // it stays authoritative until the moment `wire` moves them across.
+      const replace = (dead: Engine, tries: number): void => {
+        Engine.create(canvas, { audio: dead.audioState }).then(
+          created => {
+            busy = false
+            setRebuilding(false)
+            if (disposed) {
+              created.destroy()
+              return
+            }
+            // Configured before it goes live, so nothing writes to a
+            // half-restored engine and the first frame it presents is already
+            // the user's look rather than the defaults.
+            created.applyControls(dead.getControls())
+            created.setDbgView(dead.getDbgView())
+            created.setSourceBEnabled(dead.sourceBOn)
+            wire(created)
+            // Sources last: they write through engineRef, which `wire` just
+            // moved. The modulation bay needs nothing here — it lives in React
+            // and its effect re-pushes on the new engine's identity — and MIDI
+            // writes through engineRef too.
+            restoreSlot(slotA, lastSrc.current.a)
+            restoreSlot(slotB, lastSrc.current.b)
+            // Forced, like the loss that caused it: if the replacement wedges
+            // too, the next session's trace has to show that this one already
+            // came back from a loss rather than starting clean.
+            trace.add('rebuilt', `attempt ${rebuilds}`)
+            trace.flush(true)
+            console.warn('engine rebuilt on a fresh device')
+          },
+          (e: unknown) => {
+            if (!disposed) {
+              if (tries > 1) {
+                // The GPU stack can still be coming back up right after a reset,
+                // and requestAdapter fails outright while it is. Ask again before
+                // calling the session over.
+                console.warn(
+                  `rebuild failed (${reason(e)}); retrying in ${CREATE_RETRY_MS}ms`,
+                )
+                retryId = window.setTimeout(
+                  () => replace(dead, tries - 1),
+                  CREATE_RETRY_MS,
+                )
+              } else {
+                busy = false
+                setRebuilding(false)
+                setFatal({
+                  title: 'WebGPU device lost',
+                  body: `The GPU device went away and could not be replaced: ${reason(e)}`,
+                  kind: 'lost',
+                })
+              }
+            }
+          },
+        )
+      }
+
       Engine.create(canvas).then(
         created => {
           if (disposed) {
             created.destroy()
           } else {
-            engineRef.current = created
-            setEngine(created)
-            window.vf = created
-            created.onStats = setStats
-            created.onGpuError = m => {
-              trace.add('gpuError', m.slice(0, 120))
-              trace.flush(true)
-              setError(`gpu: ${m}`)
-            }
-            created.onDeviceLost = m => {
-              trace.add('deviceLost', m.slice(0, 120))
-              trace.flush(true)
-              setFatal({
-                title: 'WebGPU device lost',
-                body: m === '' ? 'The GPU device was lost.' : m,
-                kind: 'lost',
-              })
-            }
-            // Not a lost device: the device never reported anything, it just
-            // stopped completing submitted work — so don't title it as one.
-            created.onHang = () =>
-              setFatal({
-                title: 'The GPU stopped responding',
-                body: 'Submitted work stopped completing, so the picture would be frozen even though the app is still running.',
-                kind: 'hung',
-              })
-            created.onFrozen = f => setFrozen(f)
-            created.setImageSource(smpteBars())
-            created.setImageSourceB(smpteBars())
-            created.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
+            wire(created)
             // The engine read `?dbg=` for itself; pick it up so the stage badge
             // says which tap a link arrived on rather than claiming the picture.
             setTap(created.getDbgView())
+            // Through the slots rather than straight at the engine, so the
+            // landing bars are recorded like every other source and a device lost
+            // before the user has touched anything still comes back on them.
+            showGenerated(slotA, 'bars')
+            showGenerated(slotB, 'bars')
+            created.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
             restoreSession(created, parseSessionParams(location.search))
           }
         },
@@ -895,6 +1092,7 @@ export function useEngine() {
       return () => {
         disposed = true
         ro.disconnect()
+        clearTimeout(retryId)
         window.removeEventListener('pagehide', onPageHide)
         stopVideo()
         stopVideoB()
@@ -914,6 +1112,7 @@ export function useEngine() {
     engine,
     fatal,
     frozen,
+    rebuilding,
     error,
     stats,
     res,

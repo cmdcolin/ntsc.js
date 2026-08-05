@@ -231,6 +231,34 @@ loop lives in `useEngine` and writes to the canvas directly, so live per-frame
 state (fps stats, resolution) reaches the overlays as **mutable refs read during
 render**, rather than re-rendering React at 60 fps.
 
+**A lost device is rebuilt in place, not reloaded.** Sleep/wake and driver
+resets fire `device.lost`, and they are the losses a session should survive:
+`onDeviceLost` builds a replacement engine and hands it back the controls, the
+debug tap, B's enable flag and both slots' sources, so the only thing the user
+sees is a banner for the length of a `requestDevice` (measured well under 100 ms
+on the dev box). Three consequences bind anything that touches this:
+
+- **The outgoing engine stays the store until the swap.** React reads controls
+  from the engine via `useSyncExternalStore`, so nulling `engineRef` during the
+  gap would flash every slider to its default and lose any write made in the
+  meantime. The dead engine keeps taking writes — they are plain JS — and the
+  snapshot is copied across at the moment the replacement goes live.
+- **The audio graph moves over rather than being rebuilt** (`Engine.create`'s
+  `audio` option, `destroy({keepAudio: true})`). A media element binds to one
+  `AudioContext` for life, so a fresh graph could never re-adopt the clips still
+  playing — `createMediaElementSource` throws on the second call for an element.
+- **Every source reaches a slot through `VideoSlot`'s three setters**, which is
+  what makes the restore possible: `useEngine` records what each slot was last
+  handed (`SlotSource`) and replays it. A live `<video>` is the browser's, not
+  the device's, so a clip, a webcam or a screen share only needs re-attaching;
+  only stills and noise fields are re-issued. Adding a fourth way to set a
+  source without going through a slot would silently lose it across a loss.
+
+What does _not_ come back is the content of VRAM — phosphor state, the frame
+store and the tape loop all restart empty. `onHang` is deliberately **not**
+rebuilt: a wedged GPU process is shared across tabs and outlives the page, so a
+fresh device would land on the same one. That one still goes to `FatalScreen`.
+
 **React Compiler is on** (`vite.config.ts`, via `reactCompilerPreset` and
 `@rolldown/plugin-babel`). Don't add `useMemo`/`useCallback` — memoization is
 the compiler's job. Two consequences worth knowing:

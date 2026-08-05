@@ -38,7 +38,7 @@ which is why it's Firefox.
 
 ### What every browser harness here has learned the hard way
 
-All four scripts below share one browser story, and each of these cost real time
+Every script below shares one browser story, and each of these cost real time
 to find:
 
 - **Never `page.setViewport` after load under Firefox BiDi.** It swaps the realm,
@@ -69,6 +69,11 @@ to find:
   full render and comes back looking merely uninteresting rather than wrong. The
   screening harness reports what didn't land; check that line before believing a
   dull tile.
+- **Don't forward every page console message.** React's dev build logs a line per
+  component per render, and shipping all of them back over BiDi is enough to stall
+  a harness mid-run — it hangs on an `evaluate` that never returns, which reads as
+  the app deadlocking rather than the transport drowning. Filter to warnings,
+  errors, and the lines the harness is actually looking for.
 
 ## MIDI without a controller
 
@@ -93,6 +98,36 @@ The fake device is installed with `page.evaluate` after load, never
 `evaluateOnNewDocument`: under Firefox BiDi a preload script runs in a sandbox
 realm, and the app then trips over Xray vision reading `.length` off a message
 built on the other side of it.
+
+## Surviving a lost GPU device
+
+```
+node scripts/deviceloss.mjs http://localhost:5199/ [restore|giveup|retry] [outDir]
+```
+
+Sleep/wake and driver resets fire `device.lost`, and the session is meant to
+rebuild itself rather than land on `FatalScreen` (see **The React layer** in
+`ARCHITECTURE.md`). That path can't be unit-tested — it needs a real `GPUDevice`
+to lose — so this drives it in the browser, injecting the loss through the
+engine's own `onDeviceLost`, which is what the browser calls on a real one. The
+device is still alive when the harness calls it, so the replacement really does
+have to come up under a predecessor being torn down.
+
+- `restore` — a configured session (a look, a still on A, a still on B, a routing
+  in the bay) loses its device twice, then a clip does. Checks the controls, the
+  debug tap, B's enable flag and **A's texture dimensions** come back — that last
+  one is what catches a still silently reverting to bars, since A's texture is
+  sized to its source.
+- `giveup` — four losses in a row must stop rebuilding and say so, rather than
+  looping behind a picture that dies every second.
+- `retry` — stubs `requestAdapter` to fail twice and then work, which is the
+  shape of a wake-up where the GPU stack is still coming back; and the case where
+  it never returns, which has to end on the fatal screen rather than a banner.
+
+The rebuild lands in about 100 ms on the dev box, which is faster than a
+puppeteer round trip — so the banner check fires the loss and watches for it
+inside a single `page.evaluate`. Sampling it from Node misses it every time and
+reads as "the banner never rendered".
 
 ## Screening candidate looks
 

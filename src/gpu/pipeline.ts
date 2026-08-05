@@ -103,6 +103,22 @@ const texDesc = (usage: number): GPUTextureDescriptor => ({
   usage,
 })
 
+export interface EngineOptions {
+  // An audio graph to adopt rather than build. A media element binds to one
+  // AudioContext for life, so an engine rebuilt under playing clips has to
+  // inherit the graph they are already bound to — a fresh AudioContext could
+  // never re-adopt them, and createMediaElementSource would throw on the first
+  // routeMedia. See the device-loss rebuild in useEngine.
+  audio?: AudioState
+}
+
+export interface DestroyOptions {
+  // Leave the audio graph open, because a successor engine is taking it over.
+  // Only the rebuild path passes this; every other teardown means the audio is
+  // going away too.
+  keepAudio?: boolean
+}
+
 export class Engine {
   readonly controls: Controls = { ...DEFAULT_CONTROLS }
   // React reads this immutable snapshot via useSyncExternalStore; it's refreshed
@@ -133,7 +149,9 @@ export class Engine {
   private frame = 0
   private filtersDirty = true
   private lineState = new LineState()
-  readonly audioState = new AudioState()
+  // Not built here: an engine replacing a lost one inherits its predecessor's
+  // graph, so ownership arrives through the constructor. See EngineOptions.
+  readonly audioState: AudioState
   private mixState = new MixState()
   private modState = new ModState()
   private tapeState = new TapeState()
@@ -197,14 +215,18 @@ export class Engine {
   private presentPl: GPURenderPipeline
   private presentBg: GPUBindGroup
 
-  static async create(canvas: HTMLCanvasElement): Promise<Engine> {
+  static async create(
+    canvas: HTMLCanvasElement,
+    opts: EngineOptions = {},
+  ): Promise<Engine> {
     const gpu = await initGpu(canvas, gpuPowerFromSearch(location.search))
-    return new Engine(gpu, canvas)
+    return new Engine(gpu, canvas, opts.audio ?? new AudioState())
   }
 
-  private constructor(gpu: Gpu, canvas: HTMLCanvasElement) {
+  private constructor(gpu: Gpu, canvas: HTMLCanvasElement, audio: AudioState) {
     this.gpu = gpu
     this.canvas = canvas
+    this.audioState = audio
     const d = gpu.device
     this.paramsBuf = d.createBuffer({
       size: PARAM_BYTES,
@@ -797,6 +819,14 @@ export class Engine {
     this.sources.setSourceBEnabled(on)
   }
 
+  // Whether B is summing into the picture. The flag lives in Sources rather than
+  // in React (the panel's mode enum is a different question — 'none' is only one
+  // of the ways B ends up off), so the rebuild path reads it back off the engine
+  // it is replacing.
+  get sourceBOn(): boolean {
+    return this.sources.bEnabled
+  }
+
   // Slot A's view is the only binding that changes when its raster resizes.
   private makeComposeBg(): GPUBindGroup {
     return this.gpu.device.createBindGroup({
@@ -817,10 +847,21 @@ export class Engine {
   // turned teardown into a no-op in exactly that case — so the HMR dispose hook
   // and the pagehide handler both silently leaked a whole GPUDevice, which is
   // what stacks up until Firefox's WebGPU wedges the tab.
-  destroy(): void {
+  destroy(opts: DestroyOptions = {}): void {
     if (!this.destroyed) {
       this.destroyed = true
       this.loop.stop()
+      // Stop reporting. Destroying the buffers below makes the frame already in
+      // flight reference destroyed resources, and the `uncapturederror` that
+      // raises is delivered asynchronously — so an engine torn down to make way
+      // for a replacement would otherwise put "Buffer with '' label has been
+      // destroyed" on the banner of the session that succeeded it. Nothing this
+      // object has left to say is news to anyone.
+      this.onStats = NOOP
+      this.onGpuError = NOOP
+      this.onDeviceLost = NOOP
+      this.onHang = NOOP
+      this.onFrozen = NOOP
       const bufs = [
         this.paramsBuf,
         this.genParamsBuf,
@@ -846,8 +887,10 @@ export class Engine {
       this.sources.destroy()
       // The audio graph is not the device's, so nothing above releases it — and
       // a mic left open keeps the browser's recording indicator lit long after
-      // the picture is gone.
-      this.audioState.close()
+      // the picture is gone. `keepAudio` is the one case where that is wrong:
+      // the successor engine is adopting the graph, and closing it would strand
+      // every <video> already bound to its context.
+      if (opts.keepAudio !== true) this.audioState.close()
       // Frees everything else the device owns (pipelines, bind groups) and drops
       // the swap-chain configuration.
       this.gpu.device.destroy()

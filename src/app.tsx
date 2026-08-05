@@ -698,6 +698,7 @@ export function App() {
         canvasRef={eng.canvasRef}
         error={eng.error}
         frozen={eng.frozen}
+        rebuilding={eng.rebuilding}
         fullscreen={fullscreen}
         poppedOut={popout !== null}
         recording={capture.recording}

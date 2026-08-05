@@ -69,6 +69,13 @@
   font-size: 13px;
   line-height: 1.5;
 }
+/* Same box, different news: this one is the app working rather than the app
+   stuck, so it reads cool instead of warning-coloured — and it carries no
+   button, because there is nothing for the user to do but wait a second. */
+.rebuilding {
+  border-color: #68a;
+  color: #9cf;
+}
 /* overlay controls over the canvas. Every direct child is one --ctl-h-tall
    pill; nothing here is allowed to size itself off its content. */
 .overlayBar {

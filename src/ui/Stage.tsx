@@ -228,6 +228,7 @@ export function Stage(props: {
   canvasRef: RefObject<HTMLCanvasElement | null>
   error: string
   frozen: boolean
+  rebuilding: boolean
   fullscreen: boolean
   poppedOut: boolean
   recording: boolean
@@ -321,7 +322,22 @@ export function Stage(props: {
         <div className={styles.marquee} style={marquee} />
       )}
       {props.error !== '' && <div className={styles.error}>{props.error}</div>}
-      {props.frozen ? (
+      {/* The GPU handed the device back — a driver reset, a sleep/wake. The
+          session rebuilds itself, so this says what the gap is rather than
+          offering a button; it clears itself when the picture returns. Ahead of
+          the frozen notice and exclusive with it: a loss can land on a tab that
+          was already stalled, and two centred boxes would sit on top of each
+          other — this one is the newer news and the one that resolves itself. */}
+      {props.rebuilding ? (
+        <div className={cx(styles.frozen, styles.rebuilding)}>
+          <b>the GPU device was lost — rebuilding</b>
+          <span>
+            Your look, the modulation and the sources are all being put back.
+            Anything the picture had built up — phosphor trails, the frame
+            store, the tape loop — starts over.
+          </span>
+        </div>
+      ) : props.frozen ? (
         <div className={styles.frozen}>
           <b>the browser stopped painting this tab</b>
           <span>
