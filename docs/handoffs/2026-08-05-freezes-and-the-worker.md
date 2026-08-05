@@ -86,6 +86,34 @@ Run the app with a video or webcam source for a while. **If it still freezes,
 finish the wiring** — that is evidence the main thread is still the problem. If
 it does not, the four fixes above were the answer and this stays parked.
 
+That is `scripts/soak.mjs` now, rather than a thing someone does by eye.
+
+**Answered as far as this box allows, and the answer so far is no freeze.** Over
+**21.6 minutes** of a clip playing on a deliberately expensive look
+(`fbMix:0.45,cfbMix:0.3,phosphor:0.6,crtGlow:0.7,dubGens:3`), across **259**
+five-second windows with the tab actually on screen: **zero** windows where the
+frame counter failed to advance, zero throttle episodes, zero stalls, zero
+device losses, video rolling at 0.96x wall, and the slowest single window still
+14.8 fps. Main-thread lateness sat at a median of 0–1 ms with blocks over 50 ms
+at 0.02% of samples, against the 0.3% the staging fix left behind.
+
+Two things stop that being conclusive, and both are the environment rather than
+the app:
+
+- Firefox under BiDi **detaches the frame at around twelve minutes** of
+  continuous WebGPU, which ends a run early. The harness tells that apart from
+  the app dying by reading the app's own trace back from a fresh page; do not
+  let it be re-reported as a freeze, because it was once.
+- This machine is shared with other agents driving headed browsers, so the soak
+  window kept losing the foreground, and a hidden tab stops rAF _by design_. The
+  harness accumulates visible minutes rather than wall clock for that reason,
+  and refuses to give a clean verdict on a run that spent much of itself hidden.
+
+**So: no freeze in 21.6 measured minutes, and the parked work stays parked.** A
+single uninterrupted run on a quiet machine would settle it properly; if that
+run is also clean, the four fixes were the answer and the worker can be deleted
+rather than merely parked.
+
 ### If it is picked back up
 
 - **Nothing tells the worker whether the page is on screen, and it cannot find
