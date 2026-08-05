@@ -34,6 +34,34 @@ export const FALLBACK_BUDGET_MS = 5000
 export const HANG_MS = 4000
 export const HANG_STRIKES = 2
 
+// A hang strike is only honest if the main thread was running during the probe.
+// Firefox resolves onSubmittedWorkDone from a main-thread timer, so a blocked
+// main thread makes a perfectly healthy GPU look wedged: measured on Firefox
+// Nightly, spinning the main thread for 6 s with *nothing submitted and the GPU
+// idle* left the promise unresolved for 6001 ms. The timeout that scores the
+// strike is on that same thread, so when it fires far past its due time that is
+// the tell — the browser could not have run the completion callback either, and
+// the probe says nothing about the GPU. Score the strike only if the timer was
+// roughly punctual.
+export const HANG_LATE_FACTOR = 1.5
+
+// How many submitted-but-unconfirmed frames the rAF path may run ahead by.
+//
+// rAF is not backpressure. It paces *submission* to the display, not to the
+// device: if a frame costs more GPU time than a refresh interval, every callback
+// adds more work than the GPU retires and the queue grows without bound. That is
+// slow and quiet — at ~21 ms a frame against a 16.7 ms budget it accumulates
+// only ~4 ms per frame — which is exactly why it reads as "it freezes after a
+// while" rather than as a frame-rate problem. Measured: 120 frames submit in
+// 27 ms of JS and take 1121 ms of GPU to drain.
+//
+// The cap has to clear Firefox's completion latency or it would throttle a
+// healthy session. Firefox polls wgpu from a 100 ms timer (bug 1870699), so
+// onSubmittedWorkDone resolves in ~100 ms even on an idle queue — about six
+// frames' worth at 60 Hz. Twelve leaves 2x headroom over that floor while still
+// bounding the backlog at a fifth of a second instead of unbounded.
+export const MAX_QUEUED_FRAMES = 12
+
 export interface RenderLoopHost {
   // Narrowed to the completion probe the loop actually uses — a real GPUDevice
   // satisfies it, and the lifecycle tests don't have to fake the rest of one.
@@ -88,6 +116,15 @@ export class RenderLoop {
   // bridge rather than inheriting a spent one.
   private stallSince = 0
   private gaveUp = false
+  // Frames handed to the device, and how many of those the device has confirmed
+  // finished. The difference is the backlog the rAF path is allowed to build.
+  // Monotonic rather than a live count because onSubmittedWorkDone resolves for
+  // *everything submitted before it was called*, so the only thing a resolution
+  // proves is a high-water mark.
+  private submitted = 0
+  private confirmed = 0
+  private drainProbe = false
+  private throttled = false
 
   constructor(host: RenderLoopHost) {
     this.host = host
@@ -115,6 +152,10 @@ export class RenderLoop {
     this.frameAcc = 0
     this.frameCount = 0
     this.hangStrikes = 0
+    this.submitted = 0
+    this.confirmed = 0
+    this.drainProbe = false
+    this.throttled = false
     trace.add('start')
     this.startRender()
     this.startProbe()
@@ -188,8 +229,82 @@ export class RenderLoop {
           `rAF resumed at frame ${this.host.frameNo()}; leaving fallback`,
         )
       }
+      // Drop this frame rather than deepen a backlog the device is not keeping
+      // up with. Dropping is the whole point: the picture is already however
+      // many frames stale, and the only way back is to submit less than the GPU
+      // retires. The canvas keeps showing its last presented frame, so a skipped
+      // frame costs nothing visually that the backlog had not already cost.
+      //
+      // `lastTime` is deliberately left alone. Stats accumulate dt only on
+      // rendered frames, so leaving it means the next one measures the whole gap
+      // it actually waited and the readout reports the rate the user is seeing.
+      // Advancing it here would charge that gap to nobody and report a serene 60
+      // while the picture visibly stuttered — hiding the one symptom that says
+      // the signal path has outgrown the device.
+      if (this.backlog() >= MAX_QUEUED_FRAMES) {
+        this.setThrottled(true)
+        this.startDrainProbe()
+        return
+      }
+      this.setThrottled(false)
       this.runFrame(time)
     })
+  }
+
+  // Submitted-but-unconfirmed frames. See MAX_QUEUED_FRAMES.
+  private backlog(): number {
+    return this.submitted - this.confirmed
+  }
+
+  private noteSubmission(): void {
+    this.submitted += 1
+    this.startDrainProbe()
+  }
+
+  // One completion probe outstanding at a time, re-armed while a backlog
+  // remains. Re-arming matters more than it looks: once the loop is throttling
+  // it stops submitting, so if the probe that would clear the backlog were only
+  // started by a submission the loop would gate itself off permanently.
+  private startDrainProbe(): void {
+    if (!this.drainProbe && this.backlog() > 0) {
+      this.drainProbe = true
+      const mark = this.submitted
+      const settle = () => {
+        this.drainProbe = false
+        // max(), never assignment: probes can settle out of order, and a stale
+        // one must not walk the high-water mark backwards into a phantom
+        // backlog that throttles a healthy loop.
+        this.confirmed = Math.max(this.confirmed, mark)
+        this.startDrainProbe()
+      }
+      try {
+        void this.host.device.queue.onSubmittedWorkDone().then(settle, settle)
+      } catch {
+        // A device too broken to take the probe is the hang watchdog's business,
+        // not this gate's; leaving the backlog uncleared would only stop the
+        // picture on top of it.
+        this.drainProbe = false
+        this.confirmed = mark
+      }
+    }
+  }
+
+  private setThrottled(v: boolean): void {
+    if (this.throttled !== v) {
+      this.throttled = v
+      if (v) {
+        trace.add(
+          'throttle',
+          `frame ${this.host.frameNo()} backlog ${this.backlog()}`,
+        )
+        trace.flush(true)
+        console.warn(
+          `GPU is ${this.backlog()} frames behind; dropping frames until it catches up (the signal path is costing more than a refresh interval)`,
+        )
+      } else {
+        trace.add('throttleEnd', `frame ${this.host.frameNo()}`)
+      }
+    }
   }
 
   // One frame: stats + render, shared by the rAF loop and the setTimeout
@@ -218,6 +333,13 @@ export class RenderLoop {
         console.error(`render error #${this.renderErrors} (loop continues):`, e)
       }
     }
+    // Counted here rather than at the rAF call site so the fallback pump lands
+    // in the same accounting. The pump's own gate keeps it a frame deep at most,
+    // but if rAF resumes mid-stall the backlog it inherits has to be real.
+    // A frame whose render threw is still counted: the probe that clears it does
+    // not care whether anything reached the queue, and guessing wrong in the
+    // other direction would gate the loop off permanently.
+    this.noteSubmission()
   }
 
   // setTimeout-driven fallback for when rAF has stopped being delivered. Runs
@@ -380,10 +502,24 @@ export class RenderLoop {
     if (this.probing) return
     this.probing = true
     let settled = false
+    const probeStart = performance.now()
     const strike = () => {
       if (!settled) {
         settled = true
         this.probing = false
+        // A timer that fired far past its due time proves the main thread was
+        // blocked, and on Firefox the completion callback rides that same
+        // thread — so the probe learned nothing about the GPU. See
+        // HANG_LATE_FACTOR. Forgive the strike rather than call a healthy device
+        // hung and tear the loop down under a picture that was only stuttering.
+        const late = performance.now() - probeStart
+        if (late > HANG_MS * HANG_LATE_FACTOR) {
+          trace.add('gpuProbeLate', `${Math.round(late)}ms, not scored`)
+          console.warn(
+            `GPU completion probe came back ${Math.round(late)}ms late (due at ${HANG_MS}ms) — the main thread was blocked, so this says nothing about the GPU; not scoring a strike`,
+          )
+          return
+        }
         // Only score strikes against a live loop: a probe outstanding when the
         // loop was torn down rejects on the destroyed device, which is expected
         // rather than a hang.

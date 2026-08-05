@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   FALLBACK_BUDGET_MS,
   FALLBACK_MS,
+  HANG_LATE_FACTOR,
   HANG_MS,
   HANG_STRIKES,
+  MAX_QUEUED_FRAMES,
   RenderLoop,
   WATCHDOG_MS,
 } from './renderloop'
@@ -39,6 +41,15 @@ function harness() {
     hasFocus: () => focused,
   })
   vi.stubGlobal('window', globalThis)
+
+  // The loop reads the clock to judge how late a timer was, which is how it
+  // tells a blocked main thread from a wedged GPU. Fake timers move the clock
+  // and the timers together, so a test needs a way to slip them apart: skew is
+  // wall-clock time passing with no callback getting to run, which is precisely
+  // what a blocked main thread looks like from inside the page.
+  const realNow = performance.now.bind(performance)
+  let skew = 0
+  vi.stubGlobal('performance', { now: () => realNow() + skew })
 
   const loop = new RenderLoop({
     device: {
@@ -91,6 +102,10 @@ function harness() {
     },
     setVisibility: (v: string) => {
       visibility = v
+    },
+    // Advance wall-clock time without letting any callback run.
+    blockMainThread: (ms: number) => {
+      skew += ms
     },
   }
 }
@@ -338,5 +353,88 @@ describe('RenderLoop', () => {
     h.deliverRaf(99999)
     await vi.advanceTimersByTimeAsync(WATCHDOG_MS * 3)
     expect(h.frames()).toBe(seen)
+  })
+
+  it('stops running ahead of a device that is not keeping up', async () => {
+    const h = harness()
+    h.loop.start()
+
+    // rAF keeps arriving and the device confirms nothing. rAF paces submission
+    // to the display, not to the GPU, so without a cap this renders a frame per
+    // callback forever and the queue grows without bound — the slow, quiet path
+    // to a wedged tab.
+    for (let i = 0; i < MAX_QUEUED_FRAMES * 4; i++) h.deliverRaf(i * 16)
+    expect(h.frames()).toBe(MAX_QUEUED_FRAMES)
+
+    // ...and it picks straight back up when the device catches up, rather than
+    // latching off.
+    h.completeGpu()
+    await vi.advanceTimersByTimeAsync(0)
+    h.deliverRaf(99999)
+    expect(h.frames()).toBe(MAX_QUEUED_FRAMES + 1)
+  })
+
+  it('never throttles a device that is keeping up', async () => {
+    const h = harness()
+    h.loop.start()
+
+    // A healthy session must not lose a single frame to the cap. This is the
+    // case the cap has to clear by a wide margin: Firefox resolves completion
+    // from a 100ms poll, so even a device finishing instantly looks several
+    // frames behind at 60Hz.
+    const n = MAX_QUEUED_FRAMES * 5
+    for (let i = 0; i < n; i++) {
+      h.deliverRaf(i * 16)
+      h.completeGpu()
+      await vi.advanceTimersByTimeAsync(0)
+    }
+    expect(h.frames()).toBe(n)
+  })
+
+  it('clears a backlog built while rAF was gone', async () => {
+    const h = harness()
+    h.loop.start()
+    for (let i = 0; i < MAX_QUEUED_FRAMES * 2; i++) h.deliverRaf(i * 16)
+    expect(h.frames()).toBe(MAX_QUEUED_FRAMES)
+
+    // The gate stops submitting once it is capped, so nothing it does can start
+    // the probe that would clear it. Only the probe re-arming itself gets the
+    // loop out of this — otherwise a single backlog gates the picture off for
+    // the rest of the session.
+    h.completeGpu()
+    await vi.advanceTimersByTimeAsync(0)
+    for (let i = 0; i < MAX_QUEUED_FRAMES; i++) {
+      h.deliverRaf(2000 + i * 16)
+      h.completeGpu()
+      await vi.advanceTimersByTimeAsync(0)
+    }
+    expect(h.frames()).toBe(MAX_QUEUED_FRAMES * 2)
+  })
+
+  it('does not call a blocked main thread a hung GPU', async () => {
+    const h = harness()
+    h.loop.start()
+
+    // Enough late probes to hang the loop, if lateness counted. On Firefox the
+    // completion callback rides the main thread, so a blocked one leaves the
+    // probe unresolved no matter how healthy the device is — measured at 6001ms
+    // with nothing submitted and an idle GPU. The strike timer is on that same
+    // thread and comes back just as late, and that lateness is the evidence
+    // that the probe learned nothing about the GPU.
+    for (let i = 0; i < HANG_STRIKES; i++) {
+      await vi.advanceTimersByTimeAsync(WATCHDOG_MS) // opens a probe
+      h.blockMainThread(HANG_MS * HANG_LATE_FACTOR + 1000)
+      await vi.advanceTimersByTimeAsync(HANG_MS) // its deadline expires
+    }
+    expect(h.hangs()).toBe(0)
+
+    // ...and a device that really is wedged is still caught once the main
+    // thread is back, or forgiving lateness would disable hang detection
+    // outright rather than make it honest.
+    for (let t = 0; t < (HANG_MS + WATCHDOG_MS * 2) * HANG_STRIKES; t += 500) {
+      h.deliverRaf(t)
+      await vi.advanceTimersByTimeAsync(500)
+    }
+    expect(h.hangs()).toBe(1)
   })
 })
