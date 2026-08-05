@@ -62,6 +62,7 @@ import tapeRecSrc from './shaders/tape_rec.wgsl?raw'
 import timebaseSrc from './shaders/timebase.wgsl?raw'
 import underDownSrc from './shaders/under_down.wgsl?raw'
 import { Sources } from './sources'
+import { VideoPump } from './videopump'
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { LineStateControls } from '../signal/linestate'
@@ -199,6 +200,9 @@ export class Engine {
 
   // The two input slots: staging, capping, aspect and the noise generators all
   // live in there, so the chain below only sees two texture views.
+  // Owns the <video> elements and turns them into bitmaps. Main-thread only by
+  // nature, which is exactly why it is not part of Sources.
+  private pump = new VideoPump()
   private sources: Sources
   private inputTex: GPUTexture
   private outTex: GPUTexture
@@ -793,28 +797,34 @@ export class Engine {
   // (useEngine and the window.vf harness both drive it), but none of the
   // staging, capping, or aspect handling lives here any more.
   setImageSource(source: OffscreenCanvas | ImageBitmap, aspect = 4 / 3): void {
+    this.pump.setA(null)
     this.sources.setImageSource(source, aspect)
   }
 
   setVideoSource(el: HTMLVideoElement | null): void {
-    this.sources.setVideoSource(el)
+    if (el !== null) this.sources.setNoiseSource(0)
+    this.pump.setA(el)
   }
 
   // A GPU-generated noise field (1 TV static, 2 VHS static); 0 restores the
   // texture path. Any real image/video source clears it.
   setNoiseSource(kind: number): void {
+    this.pump.setA(null)
     this.sources.setNoiseSource(kind)
   }
 
   setImageSourceB(source: OffscreenCanvas | ImageBitmap): void {
+    this.pump.setB(null)
     this.sources.setImageSourceB(source)
   }
 
   setVideoSourceB(el: HTMLVideoElement | null): void {
-    this.sources.setVideoSourceB(el)
+    if (el !== null) this.sources.setNoiseSourceB(0)
+    this.pump.setB(el)
   }
 
   setNoiseSourceB(kind: number): void {
+    this.pump.setB(null)
     this.sources.setNoiseSourceB(kind)
   }
 
@@ -887,6 +897,7 @@ export class Engine {
       ]
       for (const b of bufs) b.destroy()
       for (const t of [this.inputTex, this.outTex, this.faceTex]) t.destroy()
+      this.pump.destroy()
       this.sources.destroy()
       // The audio graph is not the device's, so nothing above releases it — and
       // a mic left open keeps the browser's recording indicator lit long after
@@ -1232,9 +1243,12 @@ export class Engine {
 
   private renderFrame(): void {
     const d = this.gpu.device
-    this.sources.uploadFrames()
+    this.pump.pump(this.sources)
     if (this.frame % 30 === 0 && this.debug) {
-      console.log('DEBUG frame', this.frame, this.sources.debugInfo())
+      console.log('DEBUG frame', this.frame, {
+        ...this.pump.info(),
+        stagedPixelA: this.sources.stagedPixelA,
+      })
     }
     if (this.filtersDirty) this.rebuildFilters()
     const c = this.controls

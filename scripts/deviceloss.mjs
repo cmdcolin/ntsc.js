@@ -129,13 +129,9 @@ const probe = () =>
       texA: [vf.sources.texA.width, vf.sources.texA.height],
       // A live <video> has to be attached AND still rolling: a re-attached
       // element that stopped decoding leaves one frozen frame on the slot.
-      videoA:
-        vf.sources.videoA === null
-          ? null
-          : {
-              ready: vf.sources.videoA.readyState,
-              paused: vf.sources.videoA.paused,
-            },
+      // The elements live on VideoPump, not Sources — Sources only sees the
+      // bitmaps the pump decodes for it.
+      videoA: vf.pump.info().videoA,
       frame: vf.frameNo(),
       audio: vf.audioState.graph === null ? 'none' : 'open',
       mod: vf.modSlots.length,
