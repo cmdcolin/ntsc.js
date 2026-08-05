@@ -130,6 +130,45 @@ puppeteer round trip — so the banner check fires the loss and watches for it
 inside a single `page.evaluate`. Sampling it from Node misses it every time and
 reads as "the banner never rendered".
 
+## Does it still freeze?
+
+```
+npx vite build --outDir /var/tmp/soak-build
+npx vite preview --outDir /var/tmp/soak-build --port 5382
+node scripts/soak.mjs http://localhost:5382/ [minutes] [out.json]
+```
+
+The freeze this project chased is slow and quiet by construction — a queue
+growing a few ms a frame, a main thread stalling the completion callbacks the
+loop reads liveness from — so it does not show in a six-second shot. It shows
+after a while with a video playing, which is why the answer needs a soak rather
+than a look. It runs a **production build** (the dev build's per-render logging
+is its own failure mode over BiDi at this length, and a build is what a user
+runs) on a bundled clip with a deliberately expensive look.
+
+Samples every five seconds, and the readings are chosen so that different
+failures cannot look alike:
+
+- `droppedToGate` — rAF callbacks the backpressure gate declined. On a device
+  keeping up this is **0**; anything else is the gate acting, and the gate
+  acting on a healthy device is the bug fixed in `f4e7db9`.
+- `videoSeconds` — accumulated _positive_ `currentTime` deltas, never
+  end-minus-start. A looping clip measured over roughly one loop period reads as
+  frozen, and three A/B runs were once discarded believing exactly that.
+- `lateness` — `setInterval` drift, the same main-thread-blocked proxy the
+  handoff used, so a run is comparable against its numbers.
+- `everStalled` / `everGaveUp` / `everFatal` / `loopStopped` — the loop's own
+  verdicts, which are what the stage banner and `FatalScreen` show.
+
+**Read `onscreenFraction` first.** An occluded window throttles rAF to about 1
+Hz, so a run that lost the foreground says nothing about rAF, and the harness
+reports that rather than calling it a stall. Below ~0.9, re-run with the window
+in front.
+
+A page that stops answering `evaluate` is itself a result: that is what "needs
+the tab closed" looks like from Node, and it is recorded as `died` rather than
+crashing the run.
+
 ## The engine in a worker
 
 ```
