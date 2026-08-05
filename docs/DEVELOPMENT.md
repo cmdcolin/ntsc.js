@@ -300,6 +300,8 @@ the other GPU" wants answering without a rebuild.
 
 ## Further reading
 
+- [`handoffs/`](handoffs/) — why a past piece of work landed the way it did,
+  and what was deliberately left undone
 - [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md) — the signal path, pass by pass
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — pass graph, buffer layouts, adding a
   control end to end
