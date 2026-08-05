@@ -224,6 +224,16 @@ Everything below follows from that trip.
 
 - **Dropouts** — shed oxide; the head reads nothing for a moment, leaving white
   streaks and scarred lines.
+- **Dropout compensator** — the circuit that patches those streaks out of a
+  delay line holding what played a line or two ago, rather than letting the
+  head's silence reach the screen. A line of NTSC is 227.5 subcarrier cycles, so
+  one line back the colour arrives exactly out of phase: the patch is invisible
+  in brightness and comes out in the _complementary hue_, which is the coloured
+  streak a cheap deck leaves down a worn tape. Two lines back is a whole number
+  of cycles, so the hue is right — at the price of a patch two lines stale,
+  which smears across anything moving. Neither can help where the line it is
+  holding lost the same samples, and there the raw dropout shows through. Nobody
+  draws any of that; it falls out of where the half cycle lands.
 - **Tracking error** — the head reading off-track: a band of noise the picture
   tears and bends through, parked where you set it.
 - **Shuttle (picture search)** — off play speed each head sweep crosses several

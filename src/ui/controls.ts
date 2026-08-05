@@ -909,6 +909,16 @@ export const GROUPS: Group[] = [
         help: 'How many dropout events happen per frame. Shed oxide or a clogged head means the head reads nothing for a moment, leaving white streaks and, on a bad one, a scarred line the decoder cannot reconstruct.',
       },
       {
+        key: 'dropoutComp',
+        label: 'dropout compensator',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['none', '1-line', '2-line'],
+        help: "The circuit that patches a dropout instead of letting the head's silence reach the screen, filling the gap from a delay line holding what played a line or two ago. A line of NTSC is 227.5 subcarrier cycles, so one line back the colour arrives exactly out of phase: the patch is invisible in brightness and comes out in the complementary hue, which is the coloured streak a cheap deck leaves down a worn tape. Two lines back is a whole number of cycles, so the hue is right — at the price of a patch two lines stale, which smears across anything moving. Neither can help where the line it is holding lost the same samples, and there the raw dropout shows through.",
+      },
+      {
         key: 'dropoutLenUs',
         label: 'dropout len',
         min: 1,
@@ -1751,6 +1761,12 @@ export const NEEDS: Partial<Record<ControlKey, SliderNeed>> = {
   pipKeyLevel: pipKeyed,
   pipKeySoft: pipKeyed,
   dropoutLenUs: {
+    key: 'dropoutRate',
+    ok: above0,
+    fix: 10,
+    hint: 'dropouts above 0',
+  },
+  dropoutComp: {
     key: 'dropoutRate',
     ok: above0,
     fix: 10,

@@ -38,6 +38,21 @@ fn stepPhasor(p: vec2f) -> vec2f {
   return vec2f(p.x * c - p.y * s, p.x * s + p.y * c);
 }
 
+// Is this sample inside a dropout — shed oxide, so for a moment the head reads
+// nothing? Factored out of main because the compensator has to ask the same
+// question of the line its delay line is holding.
+fn droppedAt(row: u32, s: u32) -> bool {
+  let lp = lineParams[row];
+  if (lp.w >= P.dropoutRate / f32(NLINES)) {
+    return false;
+  }
+  let h = pcg(bitcast<u32>(lp.w) ^ 0x51ed270bu);
+  let start = f32(h % SPL);
+  let len = P.dropoutLen * (0.4 + 1.2 * rand01(h ^ 0x9134u));
+  let fs = f32(s);
+  return fs >= start && fs < start + len;
+}
+
 var<workgroup> tileLc: array<f32, TILE>; // luma-path source: comp - chroma
 var<workgroup> tileUn: array<f32, TILE>; // color-under signal
 // Snow, one deviate per sample plus a neighbour either side. The 1-2-1 kernel
@@ -198,14 +213,27 @@ fn main(
     out = out + P.soundIre * sin(2.0 * PI * ph + buzz);
   }
 
-  // RF dropout: per-line chance, a span of the line collapses to demodulated snow
-  let lp = lineParams[row];
-  if (lp.w < P.dropoutRate / f32(NLINES)) {
-    let h = pcg(bitcast<u32>(lp.w) ^ 0x51ed270bu);
-    let start = f32(h % SPL);
-    let len = P.dropoutLen * (0.4 + 1.2 * rand01(h ^ 0x9134u));
-    let fs = f32(s);
-    if (fs >= start && fs < start + len) {
+  // RF dropout: per-line chance, a span of the line loses its carrier.
+  if (droppedAt(row, s)) {
+    // Dropout compensator. Rather than let the head's silence reach the screen,
+    // a deck patches the gap out of a delay line holding what it played a line
+    // or two ago. NTSC puts 227.5 subcarrier cycles in a line, so one line back
+    // the subcarrier arrives exactly out of phase: the patch is invisible in
+    // luma and *complementary in hue*, which is the coloured streak a cheap 1H
+    // compensator leaves down a worn tape. Two lines back is 455 cycles — a
+    // whole number, so the hue is right, at the price of a patch two lines
+    // stale that smears across anything moving. Nobody draws either; both fall
+    // out of where the half cycle lands.
+    //
+    // Substituting the difference rather than the sample keeps the noise, hum
+    // and buzz this line already carries: the delay line sits inside the
+    // playback path, so what it hands back has come through the same channel.
+    let bl = select(2u, 1u, P.dropoutComp < 1.5);
+    // Nothing to patch with if the line it is holding lost the same samples, or
+    // at the top of the frame where it has not seen a good line yet.
+    if (P.dropoutComp > 0.5 && row >= bl && !droppedAt(row - bl, s)) {
+      out = out + comp[clampIdx(i32(n) - i32(bl * SPL))] - comp[n];
+    } else {
       let snow = 55.0 + 45.0 * gauss(n ^ pcg(P.frame * 977u + P.gen * 7919u));
       out = mix(out, snow, 0.95);
     }

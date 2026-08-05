@@ -79,6 +79,7 @@ export const DEFAULT_CONTROLS = {
   underJitterDeg: 0,
   dropoutRate: 0,
   dropoutLenUs: 5,
+  dropoutComp: 0, // dropout compensator: 0 none, 1 one-line delay, 2 two-line
   headSwitchNoise: 0,
   headSwitchShiftUs: 0,
   tbJitterNs: 0,

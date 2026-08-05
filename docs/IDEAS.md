@@ -182,16 +182,16 @@ remains of it.
 
 Shipped out of this batch: the receiver **tint** knob, non-quadrature **demod
 axes**, **audio → demod reference phase**, a chroma bandwidth ceiling raised to
-3 MHz, and **output stage clip**. The rest of the pass, in rough
-payoff-per-effort order.
+3 MHz, **output stage clip**, and the **dropout compensator**. The rest of the
+pass, in rough payoff-per-effort order.
 
-- **Dropout compensator.** Every deck and TBC had one, and `channel.wgsl`
-  already produces the dropouts it would conceal. 910 samples is 227.5
-  subcarrier cycles, so a 1H delay line lands the substituted line 180° out of
-  phase: a cheap DOC hides the dropout and paints it in the _complementary hue_,
-  while a 2H one is colour-correct but two lines stale. Off / 1H / 2H, reading
-  back from the same composite buffer. Under tracking error or shuttle it turns
-  whole noise bands into a second, wrong-coloured picture.
+- ~~**Dropout compensator.**~~ Shipped as `dropoutComp`, and the half cycle did
+  all the work: 1-line patches come back complementary, 2-line come back clean,
+  and neither helps where the held line lost the same samples. One thing learned
+  building it — substitute the _difference_ (`comp[n - bl*SPL] - comp[n]`)
+  rather than the sample, and the patch keeps the noise, hum and buzz the line
+  already carries, which is what a delay line inside the playback path would
+  hand back. Replacing the sample outright leaves a conspicuously clean streak.
 - **Differential gain and differential phase.** On the spec sheet of every VTR
   and proc amp ever sold, and absent here. The video amplifier's gain is not
   flat against DC level, so chroma riding bright luma is compressed (DG) and its

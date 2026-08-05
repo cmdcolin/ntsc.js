@@ -120,6 +120,7 @@ export const PARAM_DEFS = [
   ['chromaNoise', 'f32'], // noise injected into the color-under signal, IRE rms
   ['dropoutRate', 'f32'], // expected dropout events per frame
   ['dropoutLen', 'f32'], // mean dropout length, samples
+  ['dropoutComp', 'f32'], // dropout compensator delay: 0 none, 1 one line, 2 two
   ['headSwitchNoise', 'f32'], // 0..1
   ['polarityFlip', 'f32'], // hard signal/ground swap: negate whole composite incl. sync
   ['termination', 'f32'], // cable termination fault: <0 double-terminated (dim), >0 open (hot + ringing)

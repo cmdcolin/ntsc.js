@@ -1009,6 +1009,7 @@ export class Engine implements EngineApi {
       chromaNoise: c.chromaNoiseIre,
       dropoutRate: c.dropoutRate,
       dropoutLen: c.dropoutLenUs * 1e-6 * SAMPLE_RATE,
+      dropoutComp: c.dropoutComp,
       headSwitchNoise: c.headSwitchNoise,
       polarityFlip: c.polarityFlip,
       termination: c.termination,
