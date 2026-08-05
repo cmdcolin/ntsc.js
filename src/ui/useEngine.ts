@@ -8,6 +8,7 @@ import { clipUrl, isClipId } from '../sources/clips'
 import { smpteBars, sweep } from '../sources/pattern'
 import { TELETYPE_DEFAULT } from '../sources/teletype'
 import { ytId } from '../sources/youtube'
+import { backingStoreSize } from './canvasSize'
 import {
   canPickHandle,
   clearStash,
@@ -245,21 +246,17 @@ export function useEngine() {
   // for it, so React keeps a mirror the same way it does for the render scale.
   const [tap, setTap] = useState(0)
 
-  // Backing-store size = css size × min(dpr,2) × render scale, then clamped so
-  // the long edge never exceeds MAX_EDGE. The picture is a 754-wide face texture
-  // upscaled by the present pass, so past ~2560 the extra output pixels buy no
-  // detail — they just pile per-pixel present cost onto the GPU/compositor,
-  // which on a big fullscreen display is exactly when the freezes bite.
-  const MAX_EDGE = 2560
+  // The arithmetic lives in canvasSize.ts, where it is testable; what is left
+  // here is reading the element and writing back to it.
   const applyCanvasSize = () => {
     const canvas = canvasRef.current
     if (canvas) {
-      const dpr = Math.min(window.devicePixelRatio, 2) * renderScaleRef.current
-      const w = Math.max(1, Math.round(canvas.clientWidth * dpr))
-      const h = Math.max(1, Math.round(canvas.clientHeight * dpr))
-      const clamp = Math.min(1, MAX_EDGE / Math.max(w, h))
-      const bufW = Math.max(1, Math.round(w * clamp))
-      const bufH = Math.max(1, Math.round(h * clamp))
+      const [bufW, bufH] = backingStoreSize(
+        canvas.clientWidth,
+        canvas.clientHeight,
+        window.devicePixelRatio,
+        renderScaleRef.current,
+      )
       // Only on a real change: assigning canvas.width/height reallocates the
       // drawing buffer and reconfigures the WebGPU swapchain even when the value
       // written is the one already there. This runs from a ResizeObserver, so
