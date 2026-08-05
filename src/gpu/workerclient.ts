@@ -229,12 +229,12 @@ export class WorkerEngine implements EngineApi {
 
   setImageSource(source: OffscreenCanvas | ImageBitmap, aspect = 4 / 3): void {
     this.pump.setA(null)
-    this.send({ t: 'imageA', bmp: toBitmap(source), aspect })
+    this.send({ t: 'imageA', bmp: ownedBitmap(source), aspect })
   }
 
   setImageSourceB(source: OffscreenCanvas | ImageBitmap): void {
     this.pump.setB(null)
-    this.send({ t: 'imageB', bmp: toBitmap(source) })
+    this.send({ t: 'imageB', bmp: ownedBitmap(source) })
   }
 
   setVideoSource(el: HTMLVideoElement | null): void {
@@ -349,8 +349,27 @@ export class WorkerEngine implements EngineApi {
 
 const geom = (f: PumpedFrame) => ({ w: f.w, h: f.h, aspect: f.aspect })
 
-// An OffscreenCanvas cannot be transferred as pixels, so anything that is not
-// already a bitmap becomes one. `transferToImageBitmap` hands over the canvas's
-// backing store rather than copying it.
-const toBitmap = (src: OffscreenCanvas | ImageBitmap): ImageBitmap =>
-  src instanceof ImageBitmap ? src : src.transferToImageBitmap()
+// A bitmap this side can hand over, leaving the caller's source untouched.
+//
+// Ownership is the whole point, and it is the one place the two engines could
+// disagree while presenting the same signature. `Engine.setImageSource` copies
+// into a texture and leaves the source alone (gpu/sources.ts), and useEngine
+// depends on exactly that: it keeps the still in `lastSrc` so a device-loss
+// rebuild can re-issue it. The obvious implementation here broke that in both
+// directions — transferring the caller's ImageBitmap detaches it, and
+// `transferToImageBitmap` on a canvas hands over its backing store, which
+// *empties* the teletype's own canvas. Either way the rebuild would re-issue a
+// source with nothing in it, and only after a lost device, with a still on the
+// slot, on the worker path.
+//
+// Per *frame* this copy would be precisely the cost moving the engine off the
+// main thread exists to avoid — which is why frames are transferred instead
+// (VideoPump makes those and nothing else holds a reference). Stills change when
+// someone picks a source, not sixty times a second.
+const ownedBitmap = (src: OffscreenCanvas | ImageBitmap): ImageBitmap => {
+  const copy = new OffscreenCanvas(src.width, src.height)
+  const g = copy.getContext('2d')
+  if (g === null) throw new Error('no 2d context to copy a source through')
+  g.drawImage(src, 0, 0)
+  return copy.transferToImageBitmap()
+}

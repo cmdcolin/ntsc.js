@@ -90,6 +90,16 @@ export interface EngineApi {
   // A keeps its own aspect (hence the argument) and B is always staged to the
   // raster with a 4:3 crop. See gpu/sources.ts.
 
+  // **The engine does not take ownership of a still.** It copies what it needs
+  // and leaves the source usable, because the caller keeps it: useEngine records
+  // the still in `lastSrc` so a device-loss rebuild can re-issue the same
+  // picture. An implementation that transferred it (detaching an ImageBitmap) or
+  // drained it (`transferToImageBitmap` on a canvas hands over the backing
+  // store) would satisfy this signature and still be wrong — silently, and only
+  // once a device is lost with a still on the slot.
+  //
+  // Decoded *video frames* are the opposite and do not appear here: ownership
+  // passes, because VideoPump made them and nothing else holds a reference.
   setImageSource: (
     source: OffscreenCanvas | ImageBitmap,
     aspect?: number,

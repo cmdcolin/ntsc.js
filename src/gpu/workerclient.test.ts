@@ -54,8 +54,33 @@ class StubWorker {
 
 class StubBitmap {
   closed = false
+  width = 754
+  height = 480
   close(): void {
     this.closed = true
+  }
+}
+
+class StubCanvas {
+  drawn: unknown[] = []
+  drained = 0
+  constructor(
+    public width: number,
+    public height: number,
+  ) {}
+
+  getContext(): { drawImage: (s: unknown) => void } {
+    return {
+      drawImage: (s: unknown) => {
+        this.drawn.push(s)
+      },
+    }
+  }
+
+  transferToImageBitmap(): StubBitmap {
+    // The real one hands over the canvas's backing store, leaving it empty.
+    this.drained += 1
+    return new StubBitmap()
   }
 }
 
@@ -63,6 +88,7 @@ function setup() {
   StubWorker.instances = []
   vi.stubGlobal('Worker', StubWorker)
   vi.stubGlobal('ImageBitmap', StubBitmap)
+  vi.stubGlobal('OffscreenCanvas', StubCanvas)
   vi.stubGlobal('requestAnimationFrame', () => 1)
   vi.stubGlobal('cancelAnimationFrame', () => {})
   vi.stubGlobal('location', { search: '?dbg=0' })
@@ -187,6 +213,35 @@ describe('WorkerEngine', () => {
       )
     expect(carrying).toHaveLength(2)
     for (const p of carrying) expect(p.transfer).toHaveLength(1)
+  })
+
+  it('leaves a still where the caller can still use it', async () => {
+    const h = setup()
+    const e = await h.create()
+    const mine = new StubBitmap()
+    e.setImageSource(mine as unknown as ImageBitmap)
+
+    // `Engine.setImageSource` copies into a texture and leaves the source alone,
+    // and useEngine leans on that: it keeps the still in `lastSrc` so a
+    // device-loss rebuild can re-issue it. Sending the caller's own bitmap would
+    // detach it in the transfer, and the rebuild would hand the replacement
+    // engine an empty source — only after a lost device, only with a still on
+    // the slot, only on the worker path.
+    const sent = h.worker().posted.find(p => p.m.t === 'imageA')
+    expect(sent?.transfer[0]).not.toBe(mine)
+    expect(mine.closed).toBe(false)
+  })
+
+  it('does not drain the canvas a caller handed it', async () => {
+    const h = setup()
+    const e = await h.create()
+    const card = new StubCanvas(754, 480)
+    e.setImageSourceB(card as unknown as OffscreenCanvas)
+
+    // transferToImageBitmap hands over the backing store, so calling it on the
+    // teletype's own canvas empties the card the user is looking at.
+    expect(card.drained).toBe(0)
+    expect(h.worker().sent('imageB')).toHaveLength(1)
   })
 
   it('clears a slot before putting something else on it', async () => {
