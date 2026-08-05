@@ -2,6 +2,24 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.15.0](https://github.com/cmdcolin/ntsc.js/compare/v0.14.0...v0.15.0) - 2026-08-05
+
+### Features
+- *(signal)* [`5d32f4b`](https://github.com/cmdcolin/ntsc.js/commit/5d32f4b32735c44640b16318b0a76f38a74e72e2) unlock the demodulator's axes, and let the sound turn them
+
+### Fixes
+- *(gpu)* [`f4e7db9`](https://github.com/cmdcolin/ntsc.js/commit/f4e7db9f411bd765bb61b8ec803fed7f651560e0) bound the queue by how long work waits, not by how many frames
+- *(gpu)* [`4c0bf8b`](https://github.com/cmdcolin/ntsc.js/commit/4c0bf8b4803cacaa09be50592ef6b91cfca2035d) let a slot ask again after a decode it could not get
+- *(gpu)* [`5e9b32b`](https://github.com/cmdcolin/ntsc.js/commit/5e9b32bdbcd14eadc9f5c68e0d0caea4d4e2c073) give the worker its device back before the thread goes
+
+### Refactor
+- *(gpu)* [`0d29c26`](https://github.com/cmdcolin/ntsc.js/commit/0d29c26724e7a078a5baa3aec7a2700faf8926f9) one seam both engines answer to
+- *(ui)* [`c7c0da5`](https://github.com/cmdcolin/ntsc.js/commit/c7c0da536caf04c46a3942aa83c2be595e75dc38) make the give-up policy something a test can reach
+
+### Documentation
+- [`de3f371`](https://github.com/cmdcolin/ntsc.js/commit/de3f371ca60f18abd375e887315757f5ce029267) what the freeze review found, including in its own fix
+- [`4159966`](https://github.com/cmdcolin/ntsc.js/commit/4159966e35558546cb5b9a8acdbe6e2c51203089) measure the two worker rAF questions instead of reasoning about them
+
 ## [0.14.0](https://github.com/cmdcolin/ntsc.js/compare/v0.13.1...v0.14.0) - 2026-08-05
 
 ### Features
