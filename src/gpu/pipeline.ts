@@ -30,7 +30,7 @@ import { LineState } from '../signal/linestate'
 import { MixState } from '../signal/mixstate'
 import { ModState } from '../signal/modstate'
 import { TapeState, tapeRecording } from '../signal/tapeloop'
-import { initGpu } from './context'
+import { gpuPowerFromSearch, initGpu } from './context'
 import {
   GEN_OFFSET,
   PARAM_BYTES,
@@ -198,7 +198,7 @@ export class Engine {
   private presentBg: GPUBindGroup
 
   static async create(canvas: HTMLCanvasElement): Promise<Engine> {
-    const gpu = await initGpu(canvas)
+    const gpu = await initGpu(canvas, gpuPowerFromSearch(location.search))
     return new Engine(gpu, canvas)
   }
 

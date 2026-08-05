@@ -6,7 +6,30 @@ export interface Gpu {
 
 export class WebGpuUnavailableError extends Error {}
 
-export async function initGpu(canvas: HTMLCanvasElement): Promise<Gpu> {
+export type GpuPower = 'high-performance' | 'low-power'
+
+// `?gpu=low-power` sends the session to the integrated chip. Two reasons to
+// want that, and neither is a preference about frame rate:
+//
+//   - Battery. Firefox pins a GPU awake for as long as a device is open on it,
+//     so a discrete card that would otherwise autosuspend after a few seconds
+//     idle stays powered for the whole session — measured on the dev laptop,
+//     which never once suspended while the app was up.
+//   - Bisecting a fault. "Does it still do it on the other GPU" is the first
+//     question worth asking about a driver-shaped bug, and it should not need
+//     a rebuild to answer.
+//
+// Anything else, including a missing param, means the discrete card.
+export function gpuPowerFromSearch(search: string): GpuPower {
+  return new URLSearchParams(search).get('gpu') === 'low-power'
+    ? 'low-power'
+    : 'high-performance'
+}
+
+export async function initGpu(
+  canvas: HTMLCanvasElement,
+  power: GpuPower = 'high-performance',
+): Promise<Gpu> {
   // the types say navigator.gpu always exists; browsers without WebGPU disagree
   // oxlint-disable-next-line typescript/no-unnecessary-condition
   if (!navigator.gpu) {
@@ -24,7 +47,7 @@ export async function initGpu(canvas: HTMLCanvasElement): Promise<Gpu> {
   // real gap is wider. Presenting a swapchain from the discrete adapter works on
   // that PRIME setup; if a machine can't, requestAdapter falls back on its own.
   const adapter = await navigator.gpu.requestAdapter({
-    powerPreference: 'high-performance',
+    powerPreference: power,
   })
   if (!adapter) {
     throw new WebGpuUnavailableError(

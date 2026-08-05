@@ -219,8 +219,18 @@ A link specifies a look — **copy link** in the app writes one.
 | `?src=` / `?srcb=`   | source kind for A / B                        |
 | `?dbg=1..5`          | scope views (composite, luma, chroma, burst) |
 | `?surprise`          | roll a random preset stack on load           |
+| `?gpu=low-power`     | run on the integrated GPU instead of the discrete one |
 
 Example: `?iurl=/sample.jpg&preset=dirty%20mix`
+
+`?gpu=low-power` is the exception to "a link specifies a look" — it changes
+nothing about the picture, only which chip draws it. The app asks for the
+discrete GPU because the integrated one a hybrid laptop hands out by default
+measured 3x the frame time (9.34 vs 3.38 ms on the dev box). Two reasons to
+override it: Firefox keeps a GPU awake for as long as a device is open on it, so
+the discrete card never autosuspends while the app is up and a battery session
+pays for that; and when something looks driver-shaped, "does it still happen on
+the other GPU" wants answering without a rebuild.
 
 ## Further reading
 
