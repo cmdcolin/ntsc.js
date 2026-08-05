@@ -27,7 +27,9 @@ callback adds more work than the GPU retires, and the queue grows without
 bound — measured, 120 frames submit in 27 ms of JS and take 1121 ms of GPU to
 drain. The growth is slow and quiet, which is exactly why it reads as "it
 freezes after a while" rather than as a frame-rate problem. Fixed in 8eb9fa0
-with a bounded backlog (`MAX_QUEUED_FRAMES`).
+with a bounded backlog (`MAX_QUEUED_FRAMES`) — and re-fixed afterwards, because
+that bound was a frame count and a frame count cannot be sized here. See the
+postscript.
 
 **The hang watchdog was lying.** It raced `onSubmittedWorkDone()` against a
 timeout and called a miss a dead GPU. But Firefox resolves that promise from a
@@ -88,6 +90,23 @@ If it does not, the four fixes above were the answer and this stays parked.
 
 ### If it is picked back up
 
+- **Nothing tells the worker whether the page is on screen.** `env.ts` answers
+  "visible and focused" wherever there is no document, and the reasoning behind
+  that (an absent page must not read as a hidden one) is right for the *loop*
+  and wrong for the *watchdog*. Worker rAF is driven by the owning document's
+  rendering opportunities, so a hidden tab stops delivering it — which the
+  watchdog can only read as a stall. It would then bridge with the setTimeout
+  pump into a surface nothing composites, spend the 5 s budget, reconfigure the
+  swapchain, and latch `frozen` — so switching tabs would raise "the browser
+  stopped painting this tab" over a page that is merely in the background. The
+  page knows and the worker cannot, so `workerproto.ts` needs a visibility
+  message whatever Firefox turns out to do here. Reasoned from the spec, not
+  measured.
+- **The black-box recorder goes dark.** `sessionStore()` is null in a worker, so
+  `trace.flush()` serializes the ring and drops it on the floor. The recorder
+  that found most of what is written above stops recording at exactly the point
+  the engine moves to a thread that is harder to observe. It needs a `trace`
+  message the page can persist on the worker's behalf.
 - The remaining work is `useEngine` wiring behind `?worker=1`. Keep it opt-in.
   `perf.mjs --ablate` reaches into `vf.prePasses`, `deviceloss.mjs` into
   `vf.sources` and `vf.audioState` — direct object-graph access no message
@@ -171,3 +190,82 @@ in `DEVELOPMENT.md`; these are the ones specific to this work.
 | parked: worker engine | `src/gpu/engine.worker.ts`, `workerproto.ts` |
 | parked: page-side proxy | `src/gpu/workerclient.ts` |
 | parked: its harness | `scripts/workercheck.mjs` |
+
+## Postscript: the backpressure gate was counting the wrong thing
+
+**2026-08-05, same day.** A review of the above found the second fix — the
+bounded backlog — throttling healthy sessions. It is worth writing down because
+the reasoning that produced it was sound and still wrong, and because the dev
+box is constitutionally unable to show it.
+
+`MAX_QUEUED_FRAMES = 12` bounded *submitted minus confirmed*, sized against
+Firefox's 100 ms poll as "about six frames' worth at 60 Hz, so twelve leaves 2x
+headroom". What that missed is that `confirmed` can only ever advance to a mark
+one whole poll period stale: a probe armed at T reports on work submitted before
+T, but not until T+100 ms, and another poll's worth of frames is submitted in
+between. The steady-state peak is therefore **2n, not n**, where n is frames per
+poll period. At 60 Hz that is 12 against a cap of 12 — the headroom was zero.
+
+Measured, against a device with *no* GPU cost at all, so the only thing between a
+submission and its confirmation is the poll:
+
+| refresh | poll | frames rendered |
+| --- | --- | --- |
+| 60 Hz | 100 ms | 120 of 120 |
+| 60 Hz | 120 ms | 101 of 120 |
+| 75 Hz | 100 ms | 121 of 151 |
+| 120 Hz | 100 ms | 121 of 241 |
+| 144 Hz | 100 ms | 121 of 289 |
+
+Every dropped frame announced as "the signal path is costing more than a refresh
+interval". The gate was capping throughput at one cap-full per poll — about
+120 fps, whatever the hardware could actually do.
+
+**Why this box cannot show it.** Instrumented live, the dev laptop sits at
+~40 fps with the poll returning in **30 ms**, not the 99–101 ms recorded above —
+that figure was an *idle* queue on the Intel path, and a busy queue on the
+discrete card answers far quicker. So n=1.4, peak backlog 3, cap 12. The 2n model
+checks out (peak 3 against 2n=2.8) and the fault is nowhere near reachable here.
+It needs a fast display or a slow poll, and this machine has neither.
+
+Replaced with a *wait*: `MAX_QUEUE_WAIT_MS`, how long submitted work may sit
+unconfirmed. On a device that is keeping up the probe settles at the poll floor
+however many frames went into it, so the refresh rate drops out of the question
+entirely and the only thing that carries it past the threshold is the queue
+genuinely taking longer to drain. It also deleted the `submitted`/`confirmed`
+high-water-mark bookkeeping.
+
+Two things it needs that a count did not:
+
+- **A generation guard on the probe.** One is now kept outstanding at all times,
+  so a probe living across a stop/start would re-arm on top of the new one —
+  doubling the probes in flight on every restart, each settling one clobbering
+  the arm time the gate reads.
+- **The same honesty the hang watchdog has.** Firefox resolves
+  `onSubmittedWorkDone` from a main-thread timer, so a blocked main thread leaves
+  the probe outstanding on a perfectly idle GPU. The gate only counts a slow
+  probe against the device if frames were actually submitted into it — nothing
+  submitted means nothing to be behind on. That is `HANG_LATE_FACTOR`'s argument,
+  applied to the second consumer of the same lying signal.
+
+**The lesson worth keeping:** every unit test passed, because the harness
+resolved completion *instantly*. The one property the constant was chosen
+against — the poll latency it had to clear — was the one property the tests did
+not model. A test that confirms the GPU on the same tick can say nothing about a
+gate whose whole job is tolerating a 100 ms confirmation delay. `renderloop.test.ts`
+now takes a `pollMs`, and the table above is in it.
+
+Two smaller things the same review turned up, both in `videopump.ts`:
+
+- A decode that *rejected* left `lastTime` advanced, and `due()` only re-fires
+  once currentTime moves past it — which a playing clip does on its own and a
+  paused element never does. One rejected decode on a still-framed source (an
+  element mid-seek when it was attached, a blocked autoplay) parked that slot on
+  whatever texture it already had for the rest of the session.
+- `retarget` left `inFlight` for the outgoing decode's handler to clear, so a
+  stale decode cleared a flag the *incoming* one had set and the next pump
+  started a second decode of a source already being decoded. Retiring a
+  generation now resets the slot completely, and neither handler touches a slot
+  whose generation has moved on.
+
+`videopump.ts` had no unit tests at all before this; it has ten now.
