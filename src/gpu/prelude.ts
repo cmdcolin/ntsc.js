@@ -118,8 +118,12 @@ export const PARAM_DEFS = [
   ['agc', 'f32'], // receiver AGC action, 0 fixed gain .. 1 full
   ['abl', 'f32'], // beam limiter: 0 generous flyback .. 1 undersized and underdamped (hunts)
   ['noiseSigma', 'f32'], // additive noise, IRE rms
-  ['impulseRate', 'f32'], // impulse (ignition/arc) noise events per frame
+  ['impulseRate', 'f32'], // impulse (ignition/arc) noise events per frame, storm-clustered CPU-side
   ['impulseIre', 'f32'], // impulse peak amplitude, IRE
+  ['impulseTrainPos', 'f32'], // ignition train: sample offset of the frame's first event
+  ['impulseTrainStep', 'f32'], // ignition train: samples between events (0 = no train)
+  ['impulseMains', 'f32'], // random hits bunched at the dimmer's mains firing phase
+  ['strikeRate', 'f32'], // millisecond multi-line strikes per second
   ['ghostDelay', 'f32'], // samples
   ['ghostGain', 'f32'],
   ['humAmp', 'f32'], // IRE

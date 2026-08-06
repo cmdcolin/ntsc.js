@@ -53,6 +53,29 @@ fn droppedAt(row: u32, s: u32) -> bool {
   return fs >= start && fs < start + len;
 }
 
+// One impulse event's contribution at distance d past its start. The comet
+// shape is the IF filter's impulse response: instant attack, exponential
+// tail — and a ring at some frequency inside the passband, because a filter's
+// impulse response oscillates at its own centre. Which frequency the ring
+// lands on decides what the decoder makes of the streak: near the subcarrier
+// the demodulator reads it as saturated colour and the comet comes out as a
+// hue streak, near the band edges it stays a white dash. Per-event frequency
+// and ripple depth, so a storm throws a mixture of both.
+fn comet(d: f32, eh: u32, ire: f32) -> f32 {
+  let len = 8.0 + 60.0 * rand01(eh ^ 0x77u);
+  if (d < 0.0 || d >= len * 4.0) {
+    return 0.0;
+  }
+  let amp = ire * (0.5 + rand01(eh ^ 0x1234u));
+  let pol = select(1.0, -0.4, rand01(eh ^ 0x9u) < 0.25);
+  let cyc = 0.08 + 0.34 * rand01(eh ^ 0x51u);
+  let rip = 0.3 + 0.6 * rand01(eh ^ 0x33u);
+  // ripple rides ON the core rather than replacing it: the dash stays a
+  // bright slam whatever its ring frequency, and the ring is what the
+  // decoder turns into colour
+  return pol * amp * exp(-d / len) * (0.7 + 0.5 * rip * cos(2.0 * PI * cyc * d));
+}
+
 var<workgroup> tileLc: array<f32, TILE>; // luma-path source: comp - chroma
 var<workgroup> tileUn: array<f32, TILE>; // color-under signal
 // Snow, one deviate per sample plus a neighbour either side. The 1-2-1 kernel
@@ -181,22 +204,88 @@ fn main(
   }
 
   // Impulse noise — ignition, arcing thermostats, a dying flyback next door.
-  // The opposite texture from the Gaussian floor above: sparse microsecond
-  // events at carrier-scale amplitude, nothing in between. Each one is a
-  // comet — instant attack, exponential tail, which is the IF filter ringing
-  // after the hit — and mostly bright, because an impulse saturates toward
-  // peak carrier before the detector ever sees it. On a dark picture with
-  // phosphor persistence these read as single photons slamming the glass.
+  // The opposite texture from the Gaussian floor above: sparse events at
+  // carrier-scale amplitude, nothing in between, and mostly bright, because
+  // an impulse saturates toward peak carrier before the detector ever sees
+  // it. An event is a run of *signal time* — an arc does not respect line
+  // boundaries — so its duration decides its whole shape on screen: tens of
+  // microseconds is a ringing comet on one line, hundreds is a stepped
+  // diagonal streak folded across a few, milliseconds is a torn slab of hash
+  // that flattens sync tips and spikes the beam load, so the PLL tears and
+  // the sag and beam-limiter servos flinch with no further code. The rate
+  // arrives storm-clustered from the CPU: flurries with real quiet between.
   if (P.impulseRate > 0.0) {
-    let lh = pcg(row * 48271u + P.frame * 2654435761u + P.gen * 1299709u);
-    if (rand01(lh) < P.impulseRate / f32(NLINES)) {
-      let start = f32(pcg(lh ^ 0xabcd11u) % SPL);
-      let d = f32(s) - start;
-      let len = 8.0 + 60.0 * rand01(lh ^ 0x77u);
-      if (d >= 0.0 && d < len * 4.0) {
-        let amp = P.impulseIre * (0.5 + rand01(lh ^ 0x1234u));
-        let pol = select(1.0, -0.4, rand01(lh ^ 0x9u) < 0.25);
-        out = out + pol * amp * exp(-d / len);
+    let want = clamp(P.impulseRate, 0.0, 8.0);
+    let fh0 = pcg(P.frame * 2654435761u + P.gen * 2246822519u + 0x1ce4u);
+    for (var i = 0u; i < 8u; i = i + 1u) {
+      let eh = pcg(fh0 + i * 747796405u);
+      if (f32(i) + rand01(eh ^ 0xf00du) >= want) {
+        continue;
+      }
+      let s0 = f32(eh % BUF_LEN);
+      // A triac dimmer fires twice per mains cycle at its set angle, so its
+      // hits bunch at two phases of the hum — bands that roll with the hum
+      // bar, because they are the same mains.
+      if (P.impulseMains > 0.0) {
+        let mrow = s0 / f32(SPL);
+        let mph = 2.0 * PI * (mrow / f32(NLINES) + f32(P.frame) * 0.0037);
+        let w = pow(0.5 + 0.5 * cos(2.0 * mph - 2.2), 6.0);
+        if (rand01(eh ^ 0x6fu) > mix(1.0, clamp(w * 5.0, 0.0, 1.0), P.impulseMains)) {
+          continue;
+        }
+      }
+      let d = f32(n) - s0;
+      // arc duration, log-uniform from a tick to a rip
+      let dur = exp(mix(log(60.0), log(22000.0), rand01(eh ^ 0x3du)));
+      if (d < 0.0 || d >= dur) {
+        continue;
+      }
+      let amp = P.impulseIre * (0.5 + rand01(eh ^ 0x1234u));
+      let pol = select(1.0, -0.4, rand01(eh ^ 0x9u) < 0.15);
+      let cyc = 0.08 + 0.34 * rand01(eh ^ 0x51u);
+      let rip = 0.3 + 0.6 * rand01(eh ^ 0x33u);
+      let env = exp(-d / (0.35 * dur));
+      // short events ring cleanly; a sustained arc is chaos, so long ones
+      // hand back hash with a lift instead of a tone
+      let ring = 0.7 + 0.5 * rip * cos(2.0 * PI * cyc * d);
+      let hash = 0.5 + 1.1 * (rand01(pcg(n ^ eh)) - 0.5);
+      out = out + pol * amp * env * mix(ring, hash, smoothstep(400.0, 3000.0, dur));
+    }
+  }
+
+  // Ignition train: a spark plug fires periodically, so its impulses land on
+  // a strict lattice in signal time — and a period incommensurate with the
+  // line rate walks the hits sideways a fixed step per event, drawing the
+  // drifting diagonal dash lattices ignition interference is known by. The
+  // CPU accumulates the train's phase (and wanders its rate like an engine
+  // revving, which is what tilts the lattice live); here each row just asks
+  // whether an event lands on it.
+  if (P.impulseTrainStep > 0.0) {
+    let q = (f32(row) * f32(SPL) - P.impulseTrainPos) / P.impulseTrainStep;
+    let k = ceil(q);
+    let start = (k - q) * P.impulseTrainStep;
+    if (start < f32(SPL)) {
+      let eh = pcg((P.frame * 977u) ^ (u32(max(k, 0.0)) * 7919u) ^ (P.gen * 271u));
+      let jit = 8.0 * (rand01(eh ^ 0xe1u) - 0.5);
+      out = out + comet(f32(s) - start - jit, eh, P.impulseIre);
+    }
+  }
+
+  // The big strike: lightning, an arcing breaker, a compressor kicking on.
+  // Milliseconds, not microseconds — dozens of full lines of dense hash with
+  // a DC lift, decaying down the raster. Spanning whole lines is what makes
+  // it punch the rest of the rig with no further code: it lands on sync tips
+  // so the PLL tears at the strike, it spikes the measured beam load so HV
+  // sag lurches the geometry, and the beam limiter dims and blooms back.
+  if (P.strikeRate > 0.0) {
+    let fh = pcg(P.frame * 68111u + P.gen * 3571u);
+    if (rand01(fh) < P.strikeRate / 60.0) {
+      let l0 = f32(pcg(fh ^ 0x77bu) % NLINES);
+      let span = 6.0 + 26.0 * rand01(fh ^ 0x2fu);
+      let dr = f32(row) - l0;
+      if (dr >= 0.0 && dr < span) {
+        let env = exp(-dr / (span * 0.45));
+        out = out + env * P.impulseIre * (0.55 + 0.8 * (rand01(pcg(n ^ fh)) - 0.35));
       }
     }
   }

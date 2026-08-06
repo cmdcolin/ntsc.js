@@ -29,6 +29,7 @@ import {
 import { LineState } from '../signal/linestate'
 import { MixState } from '../signal/mixstate'
 import { ModState } from '../signal/modstate'
+import { valueNoise } from '../signal/noise'
 import { TapeState, tapeRecording } from '../signal/tapeloop'
 import { gpuPowerFromSearch, initGpu } from './context'
 import { pageSearch } from './env'
@@ -81,6 +82,15 @@ const MAX_GENS = 4
 // grows, per composite sample.
 const loRadPerSample = (detuneKHz: number): number =>
   (2 * Math.PI * detuneKHz * 1e3) / SAMPLE_RATE
+
+// Impulse interference arrives in storms, not rain: trains of hits with real
+// quiet between flurries. A bursty aperiodic envelope on the random-hit rate —
+// rectified-and-squared so the quiet stretches are genuinely silent — and
+// deterministic in the frame count, so harness runs stay reproducible.
+const impulseStorm = (t: number): number => {
+  const e = Math.max(0, 0.4 + 1.3 * valueNoise(t * 0.6, 5))
+  return e * e * (1 + 0.4 * valueNoise(t * 2.7, 9))
+}
 
 const FILTER_KEYS: ReadonlySet<string> = new Set([
   'encChromaMHz',
@@ -162,6 +172,9 @@ export class Engine implements EngineApi {
   private scPhase = 0
   // picture-search crossing pattern phase, accumulated per frame (crossings)
   private shuttlePhase = 0
+  // ignition train: sample offset of the next event, and the current period
+  private impulseTrainPos = 0
+  private impulseTrainStep = 0
   // slow motion: sim-time owed, in frames; a step fires when it reaches 1
   private simAcc = 0
   private paramScratch = new ArrayBuffer(PARAM_BYTES)
@@ -1038,8 +1051,12 @@ export class Engine implements EngineApi {
       audioIre: c.audioIre,
       audioHue: (c.audioHueDeg * Math.PI) / 180,
       noiseSigma: c.noiseIre,
-      impulseRate: c.impulseRate,
+      impulseRate: c.impulseRate * impulseStorm(this.frame / 60),
       impulseIre: c.impulseIre,
+      impulseTrainPos: this.impulseTrainPos,
+      impulseTrainStep: this.impulseTrainStep,
+      impulseMains: c.impulseMains,
+      strikeRate: c.strikeRate,
       ghostDelay: c.ghostDelayUs * 1e-6 * SAMPLE_RATE,
       ghostGain: c.ghostGain,
       humAmp: c.humAmp,
@@ -1252,6 +1269,20 @@ export class Engine implements EngineApi {
         (this.shuttlePhase + (shuttleX - 1) * 0.0035 + 0.0008) % 1024
   }
 
+  // Ignition train phase: events every SAMPLE_RATE/f samples, continuous
+  // across frames, with the source's rate wandering like an engine revving —
+  // which is what tilts the dash lattice live instead of freezing it.
+  private advanceImpulseTrain(hz: number): void {
+    if (hz <= 0) {
+      this.impulseTrainStep = 0
+      return
+    }
+    const fEff = hz * (1 + 0.25 * valueNoise((this.frame / 60) * 0.4, 3))
+    this.impulseTrainStep = SAMPLE_RATE / fEff
+    const m = this.impulseTrainStep
+    this.impulseTrainPos = (((this.impulseTrainPos - N) % m) + m) % m
+  }
+
   // Slow motion gates the whole simulation on a fractional accumulator: below
   // 1, sim steps fire on a fraction of display frames and everything — noise,
   // rolls, sweeps, feedback, phosphor — slows together, exactly like slowed
@@ -1309,6 +1340,7 @@ export class Engine implements EngineApi {
     const c = this.controls
     this.advanceScPhase(c.scDetuneKHz)
     this.advanceShuttle(c.shuttleX)
+    this.advanceImpulseTrain(c.impulseHz)
     const mixU = this.mixState.update({
       bLineHz: c.bLineHz,
       bDetuneHz: c.bDetuneHz,
