@@ -54,7 +54,7 @@
 /* the stage carries an edit — the same amber the rest of the sidebar marks one
    with */
 .mapNodeTouched {
-  color: #ceba64;
+  color: var(--edit);
 }
 .mapNodeOn {
   color: var(--accent);
