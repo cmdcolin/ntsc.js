@@ -1243,6 +1243,8 @@ export class Engine implements EngineApi {
       ycDelay: Math.round(c.ycDelayNs * 1e-9 * SAMPLE_RATE),
       diffGain: c.diffGain,
       diffPhase: (c.diffPhaseDeg * Math.PI) / 180,
+      fmOverdev: c.fmOverdev,
+      fmStreak: Math.max(c.fmStreakUs * 1e-6 * SAMPLE_RATE, 1),
       polarityFlip: c.polarityFlip,
       termination: c.termination,
       chromaPinOnly: c.chromaPinOnly,

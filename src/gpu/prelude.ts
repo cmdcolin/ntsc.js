@@ -158,6 +158,8 @@ export const PARAM_DEFS = [
   ['ycDelay', 'f32'], // chroma-path group delay vs luma, whole samples (colour displaced, hue held)
   ['diffGain', 'f32'], // differential gain: fraction of chroma gain lost at peak luma
   ['diffPhase', 'f32'], // differential phase: chroma phase swing at peak luma, radians
+  ['fmOverdev', 'f32'], // FM over-deviation: 0 off .. 1 white clip set far too hot
+  ['fmStreak', 'f32'], // inversion-streak recovery (deemphasis) time constant, samples
   ['polarityFlip', 'f32'], // hard signal/ground swap: negate whole composite incl. sync
   ['termination', 'f32'], // cable termination fault: <0 double-terminated (dim), >0 open (hot + ringing)
   ['chromaPinOnly', 'f32'], // only the chroma pin fed to composite: color, no luma, no sync

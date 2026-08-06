@@ -163,6 +163,47 @@ fn main(
     luma = mix(luma, soft, P.rfSoften);
   }
 
+  // FM over-deviation. The deck records luma as FM with the video pre-
+  // emphasized, so a hard dark->bright edge overshoots the deviation the
+  // head/tape response can carry, and past the response cliff the
+  // discriminator's S-curve folds back: more input frequency comes out as
+  // *less* video — the black streak trailing bright edges on a deck whose
+  // white clip is set too hot. Recovery is the deemphasis time constant, so
+  // the fold smears rightward for about a microsecond (the causal window
+  // below). The onset sits on a cliff, so it is re-decided per source sample
+  // per frame with the demod's own noise on the threshold: the streak's
+  // length and edge boil instead of holding a drawn shape. Luma-FM only —
+  // colour is color-under, a separate recording, so chroma rides on into the
+  // fold and the streak carries saturated colour over black, which is
+  // exactly what an over-deviated deck hands a TV. Only the bright side
+  // folds: the deviation floor under sync has margin, the response cliff
+  // above white does not.
+  if (P.fmOverdev > 0.0) {
+    // Ceiling of the emphasized signal, IRE: slides from beyond any real
+    // edge down toward the picture as the knob advances — but never below
+    // sustained peak white, because the deviation range is designed to carry
+    // flat 100 IRE and it is only the emphasized *transient* that can
+    // overrun it. At full knob a 10 IRE edge is enough to fold; flat fields
+    // of any brightness never do.
+    let ceilIre = mix(240.0, 112.0, P.fmOverdev);
+    let fseed = pcg(P.frame * 48271u + P.gen * 2246822519u + 0x0f37u);
+    var streak = 0.0;
+    for (var d = 0u; d <= 30u; d = d + 1u) {
+      // record-side pre-emphasis: the edge boost that makes overshoot
+      let e = tileLc[cl - d] + 1.3 * (tileLc[cl - d] - tileLc[cl - d - 2u]);
+      // threshold noise keyed to the *source* sample, so one edge's fold is
+      // one decision per frame however many outputs its tail crosses
+      let th = ceilIre + 9.0 * (rand01((n - d) ^ fseed) - 0.5);
+      streak = streak + max(e - th, 0.0) * exp(-f32(d) / P.fmStreak);
+    }
+    if (streak > 0.0) {
+      // the fold bottoms out at the deviation floor, not at sync level, so
+      // a slammed streak reads black without handing the separator edges
+      let writhe = 1.0 + 0.4 * gauss(n ^ pcg(fseed ^ 0x6b8bu));
+      luma = max(luma - 0.6 * streak * writhe, -15.0);
+    }
+  }
+
   // Differential gain and phase: the video amplifier's gain and delay are not
   // flat against the DC level they sit on, so chroma riding bright luma is
   // compressed (DG) and shifted in time (DP) — saturation dies in the

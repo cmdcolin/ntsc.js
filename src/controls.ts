@@ -103,6 +103,8 @@ export const DEFAULT_CONTROLS = {
   ycDelayNs: 0, // chroma path late (+) or early (-) vs luma: colour displaced off its edges
   diffGain: 0, // differential gain: chroma compressed as the luma it rides brightens
   diffPhaseDeg: 0, // differential phase: hue swings with brightness
+  fmOverdev: 0, // FM over-deviation: hard bright edges fold the luma demod to black streaks
+  fmStreakUs: 0.4, // inversion-streak recovery (deemphasis) time constant
   tbJitterNs: 0,
   tbWowNs: 0,
   dubGens: 1, // tape dub generations: the channel block runs this many times
