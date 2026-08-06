@@ -2,6 +2,20 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.18.0](https://github.com/cmdcolin/ntsc.js/compare/v0.17.0...v0.18.0) - 2026-08-06
+
+### Features
+- *(gpu)* [`c482f06`](https://github.com/cmdcolin/ntsc.js/commit/c482f0667b5d98e67d000e20861254d8cd2d2d49) give the scope the persistence an instrument has, and derive its graticule
+
+### Fixes
+- *(gpu)* [`567ab9d`](https://github.com/cmdcolin/ntsc.js/commit/567ab9dd4ea54e4cf1d84cdfede03cea1362173e) soak for visible minutes, not wall-clock ones
+
+### Refactor
+- *(ui)* [`0867f69`](https://github.com/cmdcolin/ntsc.js/commit/0867f69b53b39ef9f1153503a583cf387c58d490) make the canvas sizing arithmetic something a test can see
+
+### Documentation
+- [`977a58c`](https://github.com/cmdcolin/ntsc.js/commit/977a58ca6b2eef1ed951208a64278bcdbdcaa242) answer the trigger this handoff set, as far as the box allows
+
 ## [0.17.0](https://github.com/cmdcolin/ntsc.js/compare/v0.16.0...v0.17.0) - 2026-08-05
 
 ### Features
