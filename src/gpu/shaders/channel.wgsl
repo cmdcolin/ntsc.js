@@ -322,9 +322,15 @@ fn main(
   // the sag and beam-limiter servos flinch with no further code. The rate
   // arrives storm-clustered from the CPU: flurries with real quiet between.
   if (P.impulseRate > 0.0) {
-    let want = clamp(P.impulseRate, 0.0, 8.0);
+    let want = clamp(P.impulseRate, 0.0, 24.0);
     let fh0 = pcg(P.frame * 2654435761u + P.gen * 2246822519u + 0x1ce4u);
-    for (var i = 0u; i < 8u; i = i + 1u) {
+    // Only the slots that can fire. A slot lands when f32(i) + rand01 < want,
+    // so every i at or above `want` takes the continue below no matter what it
+    // rolls, and stopping there is the same picture for strictly less work.
+    // That is what makes the ceiling raisable at all: this body runs per
+    // sample, so a fixed count would have charged every patch for the loudest.
+    let slots = u32(ceil(want));
+    for (var i = 0u; i < slots; i = i + 1u) {
       let eh = pcg(fh0 + i * 747796405u);
       if (f32(i) + rand01(eh ^ 0xf00du) >= want) {
         continue;

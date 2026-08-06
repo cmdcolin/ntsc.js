@@ -32,7 +32,10 @@ const SPLICE_LEN = 3.0 * f32(SPL);
 
 // How many playback heads will fit in the path. Three is the classic tape-echo
 // count; four leaves room to overrun it.
-const MAX_HEADS = 4u;
+// Playback heads a lap can return through. Only a loop bound — nothing is
+// sized by it — and the loop runs to the control, not to this, so the cost of
+// raising the ceiling is paid only by a patch that asks for the heads.
+const MAX_HEADS = 8u;
 
 // Position on the loop, wrapped. u32 throughout: the loop holds 57 million
 // samples, well past the 2^24 where an f32 stops counting integers one at a

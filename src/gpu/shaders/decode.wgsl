@@ -327,7 +327,11 @@ fn main(
   // films a persisting screen, as a real camera-at-monitor rig would.
   let pi = gid.y * ACTIVE_W + gid.x;
   if (P.phosphor > 0.0) {
-    let p = min(P.phosphor, 0.995);
+    // Held just off 1.0: at 1 the layer never gives the light back and the
+    // screen keeps every frame it was ever shown, with nothing in the pass that
+    // could clear it. 0.9995 is a tail of thousands of frames — a smear that
+    // outlasts the gesture that made it, but still one that ends.
+    let p = min(P.phosphor, 0.9995);
     let decay = vec3f(pow(p, 1.0 + P.phosphorSkew), p, pow(p, 1.0 + 2.0 * P.phosphorSkew));
     var glowing = heldLight(i32(gid.x), i32(gid.y));
     // Lateral scatter in the layer: light does not leave through the grain that
