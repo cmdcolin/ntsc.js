@@ -144,9 +144,17 @@ const printOn = (
   printCard(slot, slot.card(), !live)
 }
 
+const ignoreStats = () => {}
+
 // Owns the singleton Engine (a GPUDevice + rAF loop), its lifecycle, and every
 // video/image source path (patterns, files, webcam/USB capture, source B).
-export function useEngine() {
+//
+// `wantStats` is whether anything is reading the frame rate. The loop reports it
+// every fifteen frames — four times a second — and each report is a fresh object,
+// so leaving it wired re-renders the whole app at that rate for a readout that is
+// off by default and not persisted, which is to say: for almost every session,
+// forever, for nothing. See the effect below.
+export function useEngine(wantStats = false) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<EngineApi | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -182,6 +190,18 @@ export function useEngine() {
   }, [frozen])
   const [stats, setStats] = useState<FrameStats>({ fps: 0 })
   const [engine, setEngine] = useState<EngineApi | null>(null)
+  // The frame rate is reported whether or not anyone asked, so this is where the
+  // asking happens. `engine` is the trigger rather than the target: it is what
+  // changes when a device-loss rebuild swaps the engine out, while the write goes
+  // through the ref, because the compiler will not let a value taken from state
+  // be mutated. Between a fresh engine and this effect the engine's own field is
+  // already a no-op, which costs a few frames of history and nothing else.
+  useEffect(() => {
+    const live = engineRef.current
+    if (live !== null) {
+      live.onStats = wantStats ? setStats : ignoreStats
+    }
+  }, [engine, wantStats])
   const [sourceMode, setSourceMode] = useState<SourceMode>('bars')
   // Picked/loaded filename, shown while the source is 'file'; '' otherwise.
   const [sourceName, setSourceName] = useState('')
@@ -923,7 +943,6 @@ export function useEngine() {
         engineRef.current = created
         setEngine(created)
         window.vf = created
-        created.onStats = setStats
         created.onGpuError = m => {
           trace.add('gpuError', m.slice(0, 120))
           trace.flush(true)

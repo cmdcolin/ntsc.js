@@ -245,6 +245,11 @@ export function Stage(props: {
   onShowHelp: () => void
   onShowAdvanced: () => void
 }) {
+  // Pulled out rather than read as `props.canvasRef` at the <canvas>: a ref read
+  // off the props object marks the whole object as ref-ish to the React Compiler,
+  // which then refuses every other `props.x` read as a ref access during render
+  // and drops this component's memoization entirely.
+  const { canvasRef } = props
   const [barHidden, setBarHidden] = usePersistedFlag(BAR_HIDDEN_STORE)
   const [drag, setDrag] = useState<Drag | null>(null)
   const zoomed = clampZoom(props.lens.zoom) > 1
@@ -297,7 +302,7 @@ export function Stage(props: {
   return (
     <div className={styles.stage}>
       <canvas
-        ref={props.canvasRef}
+        ref={canvasRef}
         className={styles.canvas}
         style={{
           cursor:

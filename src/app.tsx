@@ -77,7 +77,15 @@ const toggleFullscreen = () => {
 }
 
 export function App() {
-  const eng = useEngine()
+  // Off every session, and not persisted: a counter that moves every frame pulls
+  // the eye, and you want it only while chasing a stall. Two switches reach it —
+  // the × on the readout and the stage menu — so it lives here rather than in
+  // either of them. Declared ahead of the engine because it is also what decides
+  // whether the loop's frame stats are wired up at all: reported four times a
+  // second, each one a fresh object, they re-render this component (and so the
+  // whole panel) at that rate for a readout almost no session ever opens.
+  const [showFps, setShowFps] = useState(false)
+  const eng = useEngine(showFps)
   // Both pulled off in one destructure, and `engine` is read through the local
   // rather than as `eng.engine` for the rest of the render. Reading a ref out of
   // an object marks the whole object as ref-ish to the React Compiler, so a
@@ -128,11 +136,6 @@ export function App() {
   const [showHelp, setShowHelp] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
   const [comparing, setComparing] = useState(false)
-  // Off every session, and not persisted: a counter that moves every frame
-  // pulls the eye, and you want it only while chasing a stall. Two switches
-  // reach it — the × on the readout and the stage menu — so it lives here
-  // rather than in either of them.
-  const [showFps, setShowFps] = useState(false)
   const [filter, setFilter] = useState('')
   // Whether the masthead is showing the filter box rather than the wordmark.
   // Held open by a live query as well as by the ⌕, so the box can't disappear
