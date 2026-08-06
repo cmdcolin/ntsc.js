@@ -81,13 +81,19 @@
 /* the teletype card's text box: monospace and full width, because what is
    typed here lands on a 40-column grid and both the wrap and the shape of a
    drawing want to be visible while typing rather than a surprise on the
-   picture */
+   picture.
+
+   Skinned, unlike the panel's selects. A textarea is the one control the UA
+   still draws as a 1998 widget: a 2px inset 3D border, 2px of padding with the
+   text up against it, and square corners inside an 8px-radius card. The select
+   gave up its skin and came out identical but tighter; this was tried the same
+   way and had to be put back. */
 .textArea {
   box-sizing: border-box;
   width: 100%;
   margin-bottom: 8px;
   padding: 6px 8px;
-  background: #16161c;
+  background: var(--panel-bg);
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -116,7 +122,7 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: #16161c;
+  background: var(--panel-bg);
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 3px;

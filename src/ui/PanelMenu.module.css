@@ -4,16 +4,10 @@
 
    An <a> can't be a MenuItem — that renders a <button>, and a link has to stay
    a link to get the middle-click, the context menu and the visited state. So it
-   borrows the menu row's box here and the label/icon spans from the shared
-   module, which is what keeps it lined up with the rows above it. */
+   wears the menu row's own box, which is the only way it stays lined up with
+   the rows above it through any change to either. All this adds is the one
+   thing a link needs and a button does not. */
 .menuLink {
-  display: flex;
-  align-items: center;
-  border-radius: 3px;
-  padding: 6px 8px;
-  color: var(--fg);
+  composes: menuItem from './Popover.module.css';
   text-decoration: none;
-}
-.menuLink:hover {
-  background: rgba(60, 60, 70, 0.6);
 }

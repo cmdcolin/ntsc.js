@@ -16,7 +16,11 @@
     max-width: 420px;
   }
 }
-.mapWire {
+/* A wire and a box are drawn identically — a hairline in the map's idle colour.
+   What differs is which of the state rules below reaches for which, so they
+   keep separate names and share the one declaration block. */
+.mapWire,
+.mapBox {
   fill: none;
   stroke: var(--border);
   stroke-width: 1;
@@ -90,11 +94,6 @@
   fill: var(--fg2);
   font-size: 8px;
   font-weight: 700;
-}
-.mapBox {
-  fill: none;
-  stroke: var(--border);
-  stroke-width: 1;
 }
 .mapNode:hover .mapBox,
 .mapNodeTouched .mapBox,

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 
+import { cx } from './cx'
 import styles from './Meter.module.css'
 
 import type { AudioState } from '../signal/audiostate'
@@ -39,13 +40,13 @@ export function Meter({
     return () => cancelAnimationFrame(id)
   }, [audio, orient])
 
-  return orient === 'h' ? (
-    <div className={styles.meter}>
-      <div ref={unlitRef} className={styles.meterUnlitH} />
-    </div>
-  ) : (
-    <div className={styles.meterV}>
-      <div ref={unlitRef} className={styles.meterUnlitV} />
+  const h = orient === 'h'
+  return (
+    <div className={cx(styles.meter, h ? styles.meterH : styles.meterV)}>
+      <div
+        ref={unlitRef}
+        className={cx(styles.unlit, h ? styles.unlitH : styles.unlitV)}
+      />
     </div>
   )
 }

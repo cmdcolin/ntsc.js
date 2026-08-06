@@ -51,6 +51,32 @@
     cursor: pointer;
   }
 
+  /* The panel's section heading: a name with a rule under it, at the top of
+     everything that divides the panel. Two things wear it and have to keep the
+     same rank — a Section, whose title folds and so is a button, and the signal
+     path's own head, which does not fold. They were a copy each, one of them
+     carrying a comment promising it was "the same type and rule as" the other,
+     which is how two things that must match stop matching.
+
+     The gap above a header is the whole separation between two sections, so it
+     is the panel's most-repeated cost: six of these are on screen before a
+     single control is, and every pixel here is spent six times over. The
+     border-bottom already draws the division, so the margin only has to keep
+     the header off the section above it. */
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 9px 0 4px;
+    padding: 2px 2px;
+    border-bottom: 1px solid var(--border);
+    color: var(--fg);
+    font-size: var(--fs-md);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    user-select: none;
+  }
+
   /* A range input with a drawn track: the fill and the tick come from
      --track-bg, the handle from --thumb-size, and both are the caller's to set.
      Each engine needs its own rule — a selector list mixing ::-webkit- and
@@ -147,6 +173,9 @@
   );
   touch-action: pan-y;
 }
+.presetBtn:hover {
+  cursor: ew-resize;
+}
 
 /* The masthead's icon buttons — the pointer tool, the ⌕, the ⋮. One square box
    for all three, which is what makes them read as one row of chrome rather than
@@ -186,34 +215,28 @@
   color: var(--accent);
   border-color: var(--accent);
 }
-.presetBtn:hover {
-  cursor: ew-resize;
-}
 
+/* Structure only. The dark box this used to draw by hand — a fill, a border, a
+   radius, a padding and a hover — is what the UA already draws now that :root
+   carries color-scheme: dark, and it draws it a platform at a time rather than
+   one guess for all of them. Dropping it also took ~10px off each row, which is
+   the panel's scarcest thing; what is left here is the two facts the browser
+   cannot know (this select is a flex item, and it must be allowed to be narrow)
+   plus the font, which is the app's and not the widget toolkit's. */
 .select {
   flex: 1;
   /* a flex item floors at min-content, and a native select's min-content is its
      widest option — long clip names were pushing the whole panel sideways */
   min-width: 0;
-  background: #20202a;
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 5px 8px;
   font: inherit;
-  cursor: pointer;
-}
-.select:hover {
-  border-color: var(--fg4);
 }
 
+/* Underlined, because that is what a link is. It used to hide the underline and
+   put it back on hover, which left the colour carrying the whole affordance —
+   and --accent is also what a slider's reading is drawn in. */
 .link {
   color: var(--accent);
   font-size: var(--fs-sm);
-  text-decoration: none;
-}
-.link:hover {
-  text-decoration: underline;
 }
 
 /* prose: a line of guidance under a control, and a paragraph inside a card */
@@ -274,11 +297,12 @@
   color: var(--edit-hi);
 }
 
-/* Touch: these were sized for a cursor. --ctl-h in theme.css covers the stage
-   overlay; this covers the panel. */
+/* Touch: .btn was sized for a cursor. The select is not here any more — it has
+   no padding of ours left to grow, and a UA that has been told the pointer is
+   coarse already sizes its own widgets for one. --ctl-h in theme.css covers the
+   stage overlay; this covers the panel. */
 @media (pointer: coarse) {
-  .btn,
-  .select {
+  .btn {
     padding: 8px 11px;
   }
 }

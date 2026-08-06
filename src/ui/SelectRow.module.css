@@ -18,11 +18,12 @@
 }
 /* The teletype card's text, edited in place under its picker (TeletypeRow.tsx).
    It stands in for .fileName on that source: there is no file to name, and the
-   words are the thing you came back to change. */
+   words are the thing you came back to change. Skinned rather than left to the
+   UA, for the reason dialog's .textArea gives. */
 .cardInput {
   flex: 1;
   min-width: 0;
-  background: #20202a;
+  background: var(--panel-bg);
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 4px;

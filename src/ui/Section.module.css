@@ -3,24 +3,12 @@
    Sync, Deflection, Display). The nested level must read as subordinate to its
    own contents' labels, which is why it is the quieter of the two: before, both
    levels were identical and dimmer than the sliders under them, so nesting was
-   invisible and the hierarchy read upside down. */
-/* The gap above a header is the whole separation between two sections, so it is
-   the panel's most-repeated cost: six top-level headers are on screen at once
-   before a single control is, and every pixel here is spent six times over. The
-   border-bottom already draws the division, so the margin only has to keep the
-   header off the section above it rather than carry the separation by itself. */
+   invisible and the hierarchy read upside down.
+
+   The shape itself is ui.module.css's .head, shared with the signal path's
+   heading. Everything below is what a *foldable* one adds. */
 .head {
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--fg);
-  margin: 9px 0 4px;
-  padding: 2px 2px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  user-select: none;
-  letter-spacing: 0.02em;
+  composes: head from './ui.module.css';
 }
 .head:hover {
   color: #fff;

@@ -26,6 +26,10 @@
      three hand-rolled rings this replaced were dimmer than the UA's and had
      already drifted to two different greys. */
   color-scheme: dark;
+  /* The app's face. A token rather than a stack repeated per file, because
+     FatalScreen renders outside .app and so cannot inherit it — and a five-name
+     fallback chain written twice is one that drifts. */
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
   /* For text made of block characters — the teletype card and its palette.
      --mono's first choices are UI faces whose block elements are narrow and
@@ -44,7 +48,7 @@
   --fs-xl: 1.25rem; /* 20px */
   --accent: #7fd0a0;
   /* Two edges, because the panel draws two kinds of thing. --border is a
-     surface's own edge: a card, a select, a filled button, the map's wires.
+     surface's own edge: a card, a filled button, the map's wires.
      --border-quiet is the outline of *chrome* — the masthead icons, the look
      bar, the catalog handle — which sits beside the controls it acts on and
      must not read as loud as they do. Both lift to --border-hover under the
@@ -80,9 +84,9 @@
   --ctl-bg-hover: rgba(40, 40, 48, 0.85);
 }
 
-/* Touch: --ctl-h sets every overlay pill at once. The panel's own buttons,
-   selects and sliders grow beside their own rules, in ui.module.css and
-   Slider.module.css. */
+/* Touch: --ctl-h sets every overlay pill at once. The panel's own buttons and
+   sliders grow beside their own rules, in ui.module.css and Slider.module.css;
+   its selects and text fields are the UA's now and size themselves. */
 @media (pointer: coarse) {
   :root {
     --ctl-h: 2.125rem; /* 34px */

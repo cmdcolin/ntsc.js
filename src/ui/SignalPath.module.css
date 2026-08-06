@@ -1,21 +1,14 @@
 /* The map's header, at the same rank as the panel's other section headers —
    the map is not a decoration between two of them, it is the way to nearly
-   every control in the app. Same type and rule as Section's .head; it is not
-   composed from it because nothing here folds, so there is no toggle to carry
-   the heading's role. */
+   every control in the app. Same shape as a Section's, from the same rule, so
+   "same rank" is a fact rather than two files agreeing; what it does not take
+   is the fold, because nothing here folds. Baseline rather than centre: the
+   diagram link beside the title is smaller type, and centred it sat high. */
 .pathHead {
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--fg);
-  margin: 9px 0 0;
-  padding: 2px 2px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
+  composes: head from './ui.module.css';
   justify-content: space-between;
   align-items: baseline;
-  gap: 6px;
-  user-select: none;
-  letter-spacing: 0.02em;
+  margin-bottom: 0;
 }
 .pathTitle {
   flex-shrink: 0;
