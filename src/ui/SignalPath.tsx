@@ -17,6 +17,46 @@ export interface PathNode extends ChainStage {
   groups: Group[]
 }
 
+// A stage's name, its off-stock count and its blurb. The two layouts below
+// render exactly this and differ only in what the two buttons *do*: on the
+// spine the name folds the stage and the count opens its first touched group,
+// while on the bench nothing folds, so the name marks the stage on the map and
+// the count scrolls to it. Kept as one component so the pair can't drift.
+function StageHead(props: {
+  node: PathNode
+  nameHint: string
+  countHint: string
+  onName: () => void
+  onCount: () => void
+}) {
+  const { node } = props
+  return (
+    <>
+      <div className={styles.stageHead}>
+        <button
+          className={styles.stageName}
+          title={`${node.blurb} — ${props.nameHint}`}
+          onClick={props.onName}
+        >
+          {node.name}
+        </button>
+        {node.touched === 0 ? null : (
+          <button
+            className={styles.phaseDot}
+            title={`${node.touched} control${node.touched === 1 ? '' : 's'} in this stage off stock — ${props.countHint}`}
+            onClick={props.onCount}
+          >
+            • {node.touched}
+          </button>
+        )}
+      </div>
+      <div className={styles.stageBlurb} title={node.blurb}>
+        {node.blurb}
+      </div>
+    </>
+  )
+}
+
 // The signal path, navigated from the map at its head: the map picks a stage,
 // and only that stage's groups render below — so the sidebar holds the knobs
 // you are using rather than a flat list of sixteen headers. On the bench, where
@@ -36,6 +76,14 @@ export function SignalPath(props: {
   openGroup: string | null
   onOpenGroup: (name: string) => void
 }) {
+  // A filter can leave no stage standing, and there is no chain to draw then:
+  // ChainMap divides the width by the stage count, so an empty spine came out as
+  // wires between boxes that aren't there (NaN coordinates the browser rejects),
+  // under a "click a stage to open its controls — 0 of them" door sitting right
+  // above app.tsx's own "nothing matches" line.
+  if (props.nodes.length === 0) {
+    return null
+  }
   if (props.bench) {
     return (
       <Bench
@@ -75,27 +123,13 @@ export function SignalPath(props: {
       <div className={styles.stages}>
         {shown.map(node => (
           <div key={node.name} className={styles.stageRow}>
-            <div className={styles.stageHead}>
-              <button
-                className={styles.stageName}
-                title={`${node.blurb} — click to fold this stage`}
-                onClick={() => props.onOpen(node.name)}
-              >
-                {node.name}
-              </button>
-              {node.touched === 0 ? null : (
-                <button
-                  className={styles.phaseDot}
-                  title={`${node.touched} control${node.touched === 1 ? '' : 's'} in this stage off stock — click to see`}
-                  onClick={() => node.onJumpTouched()}
-                >
-                  • {node.touched}
-                </button>
-              )}
-            </div>
-            <div className={styles.stageBlurb} title={node.blurb}>
-              {node.blurb}
-            </div>
+            <StageHead
+              node={node}
+              nameHint="click to fold this stage"
+              countHint="click to see"
+              onName={() => props.onOpen(node.name)}
+              onCount={() => node.onJumpTouched()}
+            />
             <NestedSections>
               <Accordion openId={props.openGroup} onToggle={props.onOpenGroup}>
                 {node.groups.map(group => (
@@ -153,27 +187,13 @@ function Bench(props: {
                 else heads.current.set(node.name, el)
               }}
             >
-              <div className={styles.stageHead}>
-                <button
-                  className={styles.stageName}
-                  title={`${node.blurb} — click to mark this stage on the map`}
-                  onClick={() => props.onOpen(node.name)}
-                >
-                  {node.name}
-                </button>
-                {node.touched === 0 ? null : (
-                  <button
-                    className={styles.phaseDot}
-                    title={`${node.touched} control${node.touched === 1 ? '' : 's'} in this stage off stock — click to bring the stage up`}
-                    onClick={() => jump(node.name)}
-                  >
-                    • {node.touched}
-                  </button>
-                )}
-              </div>
-              <div className={styles.stageBlurb} title={node.blurb}>
-                {node.blurb}
-              </div>
+              <StageHead
+                node={node}
+                nameHint="click to mark this stage on the map"
+                countHint="click to bring the stage up"
+                onName={() => props.onOpen(node.name)}
+                onCount={() => jump(node.name)}
+              />
             </div>
             {node.groups.map(group => (
               <div key={group.name} className={styles.groupCard}>
