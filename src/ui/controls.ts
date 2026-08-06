@@ -42,6 +42,12 @@ export type Phase = (typeof PHASE_ORDER)[number]
 //   a Phase — in that stage of the browsable signal-path spine;
 //   'ab'    — in the A/B Mix section, shown only when source B is on;
 //   'audio' — inside the Audio section, next to its enable button.
+//
+// 'ab' is the one placement that can take a control off screen entirely, so it
+// is only for controls that genuinely have nothing to do without a second
+// source. A control that still bites with B switched off — anything on input
+// A's own feed, say — belongs on the spine, or a preset or a randomize can set
+// it with no row anywhere to put it back.
 export type Placement = Phase | 'ab' | 'audio'
 
 export interface Group {
@@ -80,7 +86,7 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 1,
         unit: '',
-        help: "The furniture broadcasters parked in the vertical blanking interval: VITS multiburst and a modulated staircase on lines 17-18 (the transmission-test signals engineers measured the plant with), a VIR reference on 19, and line-21 caption data — a clock run-in and dashes that change every frame, because captions are live. Invisible in normal framing; roll the picture or shrink v size and the black bar turns out to have all of this in it. On by default because a broadcast signal genuinely carried it; switch it off for a bare studio feed.",
+        help: 'The furniture broadcasters parked in the vertical blanking interval: VITS multiburst and a modulated staircase on lines 17-18 (the transmission-test signals engineers measured the plant with), a VIR reference on 19, and line-21 caption data — a clock run-in and dashes that change every frame, because captions are live. Invisible in normal framing; roll the picture or shrink v size and the black bar turns out to have all of this in it. On by default because a broadcast signal genuinely carried it; switch it off for a bare studio feed.',
       },
     ],
   },
@@ -172,6 +178,96 @@ export const GROUPS: Group[] = [
         step: 1,
         unit: 'deg',
         help: "The later half of the process: colourbursts on walking bands of picture lines are rotated off the house phase by this much. The decoder corrects each line's hue by the burst it just gated, so the poisoned bands come out rotated the other way — hue banding crawling down the frame. A set that trusts its burst less (burst lock) or averages bursts over lines (chroma AGC lag) shrugs it off, which is exactly the difference between the TV this was invisible on and the VCR it was aimed at.",
+      },
+    ],
+  },
+  // Input A's own deck, cable and head-end, ahead of the mixer. The same faults
+  // as the program-bus Cable/Wiring and Scrambling groups further down the
+  // chain, but on this one signal — so when B is patched in, the other input,
+  // the sync fight and the receiver all react to the difference instead of
+  // sharing the damage.
+  //
+  // On the Source spine rather than in the A/B section, because none of it
+  // needs B: this is the cable into input A, and the pass runs whether or not
+  // anything is patched into the other input. Filed under 'ab' it vanished the
+  // moment source B was switched off, which left a randomize free to park the
+  // house deck on pause with no row anywhere to put it back.
+  {
+    name: 'Feed A (pre-mix)',
+    place: 'Source',
+    sliders: [
+      {
+        key: 'aPolarity',
+        label: 'A polarity (flips sync)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "A signal/ground swap on A's own connector: A's waveform is negated, sync included, before it reaches the mixer. Unlike pulling A gain negative this holds even when the mixer path is idle, and unlike the program-bus hard polarity it leaves B's signal — and B's sync, which the receiver may latch onto instead — untouched.",
+      },
+      {
+        key: 'aTermination',
+        label: 'A termination (-1 daisy, +1 open)',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "Termination fault on A's cable alone. Negative is double-terminated: A arrives dim and shallow, so it loses the sync fight against a healthy B. Positive is unterminated: A runs hot and rings with a short reflection echo while B stays clean.",
+      },
+      {
+        key: 'aNoiseIre',
+        label: 'A noise',
+        min: 0,
+        max: 40,
+        step: 0.1,
+        unit: 'IRE',
+        help: "Snow on A's feed only — a long antenna run or a bad patch cable ahead of the mixer. B sums in clean over the top, which is what tells a noisy input apart from a noisy program bus.",
+      },
+      {
+        key: 'aScramble',
+        label: 'A sync suppression',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "Head-end scrambling on input A alone — a premium channel is scrambled per channel, not per set. A's sync tips are lifted toward blanking before the mix, so the receiver is left choosing between A's mutilated pulses and whatever B is offering — mixing in a little clean B is exactly the pirate trick of feeding a decoder substitute sync.",
+      },
+      {
+        key: 'aScrambleMode',
+        label: 'A system',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['gated', 'alternate', 'ssavi'],
+        help: "Which scrambling system A's channel uses. Gated suppresses every line, alternate every other line, and SSAVI also inverts the active video — so A leaks through as a negative while B stays a positive.",
+      },
+      {
+        key: 'aDropoutRate',
+        label: 'A dropouts',
+        min: 0,
+        max: 60,
+        step: 1,
+        unit: '/frame',
+        help: 'Dropout events per frame on the tape feeding input A alone. Shed oxide means the head reads nothing for a moment and the detector hands back snow — and this feed has no delay-line compensator, so every gap stays a raw streak. B sums in over the scars untouched.',
+      },
+      {
+        key: 'aDropoutLenUs',
+        label: 'A dropout len',
+        min: 1,
+        max: 25,
+        step: 0.5,
+        unit: 'us',
+        help: "How long each of A's dropouts lasts, in microseconds of the 63.5 µs line.",
+      },
+      {
+        key: 'aPause',
+        label: 'A pause (deck held)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "The pause button on the deck feeding input A, at how badly the deck copes with it. The frame holds — the drum keeps re-reading one track — but pause defeats the capstan servo, so every line of the program's own signal scatters sideways on its own around a slow wander, the raster hops when the servo hunts vertically, and a mistrack stripe of snow creeps through the picture. A is the house reference, so the receiver's PLL hunts on every line and hue wobbles with the displacement — and if B is up, B's clean sync starts winning fights it used to lose.",
       },
     ],
   },
@@ -667,7 +763,7 @@ export const GROUPS: Group[] = [
         max: 1.2,
         step: 0.01,
         unit: 'x',
-        help: "How much of source B reaches the composite line. With genlock off this is the level B is summed in at — a wiring fault, not a clean dissolve — and negative inverts B's whole signal, sync tips included, the same hard polarity trick A gain plays. With genlock on it is the crossfade fader: 0 full A, 1 full B. Everything below detunes B's timebase relative to A (dirty path only).",
+        help: "How much of source B reaches the composite line. With genlock off this is the level B is summed in at — a wiring fault, not a clean dissolve — and negative inverts B's whole signal, sync tips included, the same hard polarity trick A gain plays. With genlock on it is the crossfade fader: 0 full A, 1 full B, and anything below 0 is simply a closed fader, since a dissolve has nothing to invert. Everything below detunes B's timebase relative to A (dirty path only).",
       },
       {
         key: 'bRing',
@@ -735,100 +831,12 @@ export const GROUPS: Group[] = [
         fine: true,
         help: "Inverts B's picture. Mixed against A this reads as a difference key — where the two agree they cancel toward flat grey, where they differ the mix lights up.",
       },
-      {
-        key: 'bPause',
-        label: 'B pause (deck held)',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: "The pause button on the B deck, at how badly the deck copes with it. The frame holds — the drum keeps re-reading one track — but pause defeats the capstan servo, so B's timebase wanders aperiodically and scatters line to line; the head sweeps off the parked track through a mistrack stripe of snow that creeps down the frame on its own; and the drum's two reads never had their colour-under phase interleaved, so B's hue flickers at frame rate. All of it feeds the dirty sum, which is the classic rig: a paused VCR into a mixer, two fighting syncs, one of them broken. When the stripe drifts through B's vertical interval it takes B's field pulses with it and the fight turns into rolls nobody scheduled.",
-      },
     ],
   },
-  // Each input's own cable and head-end, ahead of the mix. The same faults as
-  // the program-bus Cable/Wiring and Scrambling groups, but on one signal
-  // alone — so the other input, the sync fight, and the receiver all react to
-  // the difference instead of sharing the damage.
-  {
-    name: 'Feed A (pre-mix)',
-    place: 'ab',
-    sliders: [
-      {
-        key: 'aPolarity',
-        label: 'A polarity (flips sync)',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: "A signal/ground swap on A's own connector: A's waveform is negated, sync included, before it reaches the mixer. Unlike pulling A gain negative this holds even when the mixer path is idle, and unlike the program-bus hard polarity it leaves B's signal — and B's sync, which the receiver may latch onto instead — untouched.",
-      },
-      {
-        key: 'aTermination',
-        label: 'A termination (-1 daisy, +1 open)',
-        min: -1,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: "Termination fault on A's cable alone. Negative is double-terminated: A arrives dim and shallow, so it loses the sync fight against a healthy B. Positive is unterminated: A runs hot and rings with a short reflection echo while B stays clean.",
-      },
-      {
-        key: 'aNoiseIre',
-        label: 'A noise',
-        min: 0,
-        max: 40,
-        step: 0.1,
-        unit: 'IRE',
-        help: "Snow on A's feed only — a long antenna run or a bad patch cable ahead of the mixer. B sums in clean over the top, which is what tells a noisy input apart from a noisy program bus.",
-      },
-      {
-        key: 'aScramble',
-        label: 'A sync suppression',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: "Head-end scrambling on input A alone — a premium channel is scrambled per channel, not per set. A's sync tips are lifted toward blanking before the mix, so the receiver is left choosing between A's mutilated pulses and whatever B is offering — mixing in a little clean B is exactly the pirate trick of feeding a decoder substitute sync.",
-      },
-      {
-        key: 'aScrambleMode',
-        label: 'A system',
-        min: 0,
-        max: 2,
-        step: 1,
-        unit: '',
-        choices: ['gated', 'alternate', 'ssavi'],
-        help: "Which scrambling system A's channel uses. Gated suppresses every line, alternate every other line, and SSAVI also inverts the active video — so A leaks through as a negative while B stays a positive.",
-      },
-      {
-        key: 'aDropoutRate',
-        label: 'A dropouts',
-        min: 0,
-        max: 60,
-        step: 1,
-        unit: '/frame',
-        help: "Dropout events per frame on the tape feeding input A alone. Shed oxide means the head reads nothing for a moment and the detector hands back snow — and this feed has no delay-line compensator, so every gap stays a raw streak. B sums in over the scars untouched.",
-      },
-      {
-        key: 'aDropoutLenUs',
-        label: 'A dropout len',
-        min: 1,
-        max: 25,
-        step: 0.5,
-        unit: 'us',
-        help: "How long each of A's dropouts lasts, in microseconds of the 63.5 µs line.",
-      },
-      {
-        key: 'aPause',
-        label: 'A pause (deck held)',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: "The pause button on the deck feeding input A, at how badly the deck copes with it. The frame holds — the drum keeps re-reading one track — but pause defeats the capstan servo, so every line of the program's own signal scatters sideways on its own around a slow wander, the raster hops when the servo hunts vertically, and a mistrack stripe of snow creeps through the picture. A is the house reference, so the receiver's PLL hunts on every line and hue wobbles with the displacement — and if B is up, B's clean sync starts winning fights it used to lose.",
-      },
-    ],
-  },
+  // B's own cable and head-end, ahead of the mix — the mirror of Feed A over in
+  // the Source stage, listing the same faults in the same order so the two
+  // decks read alike. Only this one is contextual: A's feed is A's cable
+  // whether or not anything is patched into B.
   {
     name: 'Feed B (pre-mix)',
     place: 'ab',
@@ -861,24 +869,6 @@ export const GROUPS: Group[] = [
         help: "Snow on B's feed only. It rides B's own raster through the slip and roll, so the noise tears and rolls with B's picture instead of sitting still on the screen the way program-bus noise does.",
       },
       {
-        key: 'bDropoutRate',
-        label: 'B dropouts',
-        min: 0,
-        max: 60,
-        step: 1,
-        unit: '/frame',
-        help: "Dropout events per frame on B's own tape. The streaks land on B's raster, so they slip, skew and roll with B's picture through the mix — which is what tells B's worn tape apart from damage on the program bus.",
-      },
-      {
-        key: 'bDropoutLenUs',
-        label: 'B dropout len',
-        min: 1,
-        max: 25,
-        step: 0.5,
-        unit: 'us',
-        help: "How long each of B's dropouts lasts, in microseconds of the 63.5 µs line.",
-      },
-      {
         key: 'bScramble',
         label: 'B sync suppression',
         min: 0,
@@ -897,6 +887,33 @@ export const GROUPS: Group[] = [
         choices: ['gated', 'alternate', 'ssavi'],
         help: "Which scrambling system B's channel uses. Gated suppresses every line, alternate every other line, and SSAVI also inverts B's active video — a negative picture drifting through a positive one.",
       },
+      {
+        key: 'bDropoutRate',
+        label: 'B dropouts',
+        min: 0,
+        max: 60,
+        step: 1,
+        unit: '/frame',
+        help: "Dropout events per frame on B's own tape. The streaks land on B's raster, so they slip, skew and roll with B's picture through the mix — which is what tells B's worn tape apart from damage on the program bus.",
+      },
+      {
+        key: 'bDropoutLenUs',
+        label: 'B dropout len',
+        min: 1,
+        max: 25,
+        step: 0.5,
+        unit: 'us',
+        help: "How long each of B's dropouts lasts, in microseconds of the 63.5 µs line.",
+      },
+      {
+        key: 'bPause',
+        label: 'B pause (deck held)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "The pause button on the B deck, at how badly the deck copes with it. The frame holds — the drum keeps re-reading one track — but pause defeats the capstan servo, so B's timebase wanders aperiodically and scatters line to line; the head sweeps off the parked track through a mistrack stripe of snow that creeps down the frame on its own; and the drum's two reads never had their colour-under phase interleaved, so B's hue flickers at frame rate. All of it lands on B's own raster and then rides the dirty sum, which is the classic rig: a paused VCR into a mixer, two fighting syncs, one of them broken. When the stripe drifts through B's vertical interval it takes B's field pulses with it and the fight turns into rolls nobody scheduled. Genlock implies a time-base corrector, so on the clean-dissolve path the button just freezes the frame.",
+      },
     ],
   },
   {
@@ -911,7 +928,7 @@ export const GROUPS: Group[] = [
         step: 1,
         unit: '',
         choices: ['off', 'h', 'v', 'box', 'diamond'],
-        help: 'Selects the switcher wipe pattern that decides which parts of the frame show B instead of A: 0 off, 1 horizontal, 2 vertical, 3 box, 4 diamond.',
+        help: "Selects the switcher wipe pattern that decides which parts of the frame show B instead of A: 0 off, 1 horizontal, 2 vertical, 3 box, 4 diamond. The pattern shapes the picture only — on the dirty path B's sync and burst keep summing across the whole raster whatever the wipe is doing, so engaging one shapes what you see without calling off the sync fight underneath it.",
       },
       {
         key: 'wipePos',
@@ -1238,7 +1255,7 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.01,
         unit: '',
-        help: "IF noise into the envelope detector, which is what weak-signal snow actually is. The picture rides a negative-modulation carrier — sync is peak power, white is 12.5% — so the noise is not spread evenly: whites boil first, blacks stay quiet longest, and sync is the last thing to die, so the picture fights through the snow instead of sinking into flat grey fuzz. Wind it up and the sync tips themselves go statistical: the line hunt starts missing, the AGC chases a depth that no longer means anything, and the set loses the station the way a set actually loses a station.",
+        help: 'IF noise into the envelope detector, which is what weak-signal snow actually is. The picture rides a negative-modulation carrier — sync is peak power, white is 12.5% — so the noise is not spread evenly: whites boil first, blacks stay quiet longest, and sync is the last thing to die, so the picture fights through the snow instead of sinking into flat grey fuzz. Wind it up and the sync tips themselves go statistical: the line hunt starts missing, the AGC chases a depth that no longer means anything, and the set loses the station the way a set actually loses a station.',
       },
       {
         key: 'ingress',
@@ -1247,7 +1264,7 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.01,
         unit: '',
-        help: "A two-way radio getting into the cable through a cracked shield or corroded fitting. The carrier owes nothing to any NTSC frequency, so its beat draws a herringbone at no fixed angle, wandering as the transmitter drifts — and it arrives in transmissions: the operator keys the mic for stretches with real silence between. The program audio stands in for the speech, AM and FM at once, so the weave swells and sways when someone talks and drops back to a bare idling carrier between words.",
+        help: 'A two-way radio getting into the cable through a cracked shield or corroded fitting. The carrier owes nothing to any NTSC frequency, so its beat draws a herringbone at no fixed angle, wandering as the transmitter drifts — and it arrives in transmissions: the operator keys the mic for stretches with real silence between. The program audio stands in for the speech, AM and FM at once, so the weave swells and sways when someone talks and drops back to a bare idling carrier between words.',
       },
     ],
   },
@@ -2113,6 +2130,18 @@ export const NEEDS: Partial<Record<ControlKey, SliderNeed>> = {
     ok: above0,
     fix: 10,
     hint: 'dropouts above 0',
+  },
+  aDropoutLenUs: {
+    key: 'aDropoutRate',
+    ok: above0,
+    fix: 10,
+    hint: "A's dropouts above 0",
+  },
+  bDropoutLenUs: {
+    key: 'bDropoutRate',
+    ok: above0,
+    fix: 10,
+    hint: "B's dropouts above 0",
   },
   dropoutComp: {
     key: 'dropoutRate',
