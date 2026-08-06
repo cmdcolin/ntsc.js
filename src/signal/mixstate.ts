@@ -8,13 +8,12 @@
 // the thing that held the timebase steady — has nothing to serve, so the
 // timing wanders aperiodically; the parked tape creeps, walking the
 // head-mistrack stripe; and the servo hunts vertically in whole-line hops.
-// B's deck feeds the accumulators the dirty sum already carries, which is why
-// a paused deck into the mixer beats and fights instead of sitting still.
-// A's deck feeds the feedA pass instead — A is the house reference, so its
-// pause scatters the program's own timing before anything else touches it.
+// Each deck feeds its own feed pass (feedA, feedB), which scatters that
+// source's waveform on its own raster — so B's mistrack stripe lives on B's
+// rows and rolls with B's picture, the way damage on the tape must.
 // B's drum additionally alternates two reads whose colour-under phase was
 // never interleaved, so B's hue flickers at frame rate; that phase machinery
-// stays B's own, on its carrier accumulator.
+// stays B's own, baked into its carrier by encode_composite_b.
 
 import { F_H, LINES, SAMPLES_PER_LINE } from './constants'
 import { Wow, valueNoise } from './noise'
@@ -78,10 +77,13 @@ export interface MixUniforms {
   bPause: number
   bPauseBar: number
   wipePos: number
-  // A's paused deck, consumed by the feedA uniform pack rather than PARAM_DEFS
+  // The paused decks' servo state, consumed by the feed uniform packs rather
+  // than PARAM_DEFS: wander (samples), stripe row, and vertical hop (lines).
   aPauseShift: number
   aPauseBar: number
   aPauseRow: number
+  bPauseShift: number
+  bPauseRow: number
 }
 
 export class MixState {
@@ -118,16 +120,18 @@ export class MixState {
 
     return {
       wipePos: wp < 1 ? wp : 2 - wp,
-      bShift0: wrap(this.hShift + b.shift, SAMPLES_PER_LINE),
+      bShift0: wrap(this.hShift, SAMPLES_PER_LINE),
       bShiftLine: shiftPerLine,
       bPhase0: this.scPhase * 2 * Math.PI + pausePhase,
       bPhaseLine: 2 * Math.PI * c.bDetuneHz * LINE_S,
-      bRowOff: Math.floor(this.vRoll) + b.kick,
+      bRowOff: Math.floor(this.vRoll),
       bPause: c.bPause,
       bPauseBar: b.bar,
       aPauseShift: a.shift,
       aPauseBar: a.bar,
       aPauseRow: a.kick,
+      bPauseShift: b.shift,
+      bPauseRow: b.kick,
     }
   }
 }

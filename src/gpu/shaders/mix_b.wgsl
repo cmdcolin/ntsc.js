@@ -78,23 +78,13 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     }
   } else {
     // Dirty sum: B free-runs. Its raster position for this output sample is the
-    // accumulated horizontal slip plus per-line skew, and vertical roll.
+    // accumulated horizontal slip plus per-line skew, and vertical roll. The
+    // pause button lives upstream in feedB — a paused deck's scatter and
+    // mistrack stripe are damage on B's own raster, which is what makes the
+    // stripe roll with B's picture through this resample instead of parking
+    // on the output raster.
     let spl = f32(SPL);
-    var sp = f32(s) + P.bShift0 + P.bShiftLine * f32(row);
-    // The pause button. The drum re-reads one track with the capstan servo
-    // defeated, so on top of the slow wander (folded into bShift0 by MixState)
-    // each line's timing scatters on its own, and the head loses its track
-    // approaching the mistrack stripe — a coherent hook that drags the lines
-    // above the crossing sideways. When the walking stripe drifts through B's
-    // vertical interval it takes B's broad pulses with it, and the summed
-    // sync fight downstream turns into intermittent rolls nobody scheduled.
-    var dBar = 0.0;
-    if (P.bPause > 0.0) {
-      let dr = abs(f32(row) - P.bPauseBar);
-      dBar = min(dr, f32(NLINES) - dr);
-      sp = sp + P.bPause * 7.0 * (rand01(pcg(row * 613u + P.frame * 40961u)) - 0.5)
-        + P.bPause * 28.0 * exp(-dBar / 9.0);
-    }
+    let sp = f32(s) + P.bShift0 + P.bShiftLine * f32(row);
     let su = sp - floor(sp / spl) * spl;
     let si = u32(su);
     let frac = su - f32(si);
@@ -105,18 +95,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     // 90-degrees-per-sample hue rotation that used to be an explicit phase
     // term falls out of the interpolation. Catmull keeps the carrier's
     // amplitude flat where linear interpolation would pump it (see prelude).
-    var b = catmull(bComp[clampIdx(np - 1)], bComp[clampIdx(np)], bComp[clampIdx(np + 1)], bComp[clampIdx(np + 2)], frac);
-    // The mistrack stripe itself: where the parked head sweeps off the
-    // recorded track the RF nulls and the deck's detector hands back snow —
-    // sync, burst and all, since the null does not care what it lands on.
-    if (P.bPause > 0.0) {
-      let half = 5.0 + 13.0 * P.bPause;
-      if (dBar < half) {
-        let edge = 1.0 - dBar / half;
-        let snow = 45.0 * gauss(u32(n) ^ pcg(P.frame * 15187u + row * 5u));
-        b = mix(b, snow, clamp(edge * 1.6 * P.bPause, 0.0, 0.95));
-      }
-    }
+    let b = catmull(bComp[clampIdx(np - 1)], bComp[clampIdx(np)], bComp[clampIdx(np + 1)], bComp[clampIdx(np + 2)], frac);
 
     // sum at the composite level; A rides its own bus fader (signed, so a
     // negative aGain inverts A into a difference key), ring mod multiplies

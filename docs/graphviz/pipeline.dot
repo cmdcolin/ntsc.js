@@ -65,7 +65,7 @@ digraph ntsc_js {
     encodeComp [passes="encodeComposite" fillcolor="@ENC1@"
                 label="encodeComposite\nY + chroma modulated on Fsc\nsync · burst · blanking\n525 lines × 910 samples"];
     feedA      [passes="feedA" fillcolor="@ENC2@" style="rounded,filled,dashed"
-                label="feedA — A's own cable & head-end\nscramble · termination · snow · polarity\n525 lines × 910 samples"];
+                label="feedA — A's own deck, cable & head-end\npause · scramble · termination · snow · polarity\n525 lines × 910 samples"];
     composeB   [passes="composeB" fillcolor="@ENC2@" style="rounded,filled,dashed"
                 label="composeB\n754 × 480 px, 8×8 tiles"];
     encodeYuvB [passes="encodeYuvB" fillcolor="@ENC2@" style="rounded,filled,dashed"
@@ -75,7 +75,7 @@ digraph ntsc_js {
     encodeCompB [passes="encodeCompositeB" fillcolor="@ENC2@" style="rounded,filled,dashed"
                 label="encodeCompositeB\nB as a real waveform on its own raster\nsync · burst · detuned carrier\n525 lines × 910 samples"];
     feedB      [passes="feedB" fillcolor="@ENC2@" style="rounded,filled,dashed"
-                label="feedB — B's own cable & head-end\nscramble · termination · snow · polarity\n525 lines × 910 samples"];
+                label="feedB — B's own deck, cable & head-end\npause · scramble · termination · snow · polarity\n525 lines × 910 samples"];
     mixB       [passes="mixB" fillcolor="@ENC2@" style="rounded,filled,dashed"
                 label="mixB\ndirty resample · ring · wipe · PiP\n525 lines × 910 samples"];
   }

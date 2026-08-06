@@ -231,7 +231,8 @@ export class Engine implements EngineApi {
       (c.bScramble > 0 ||
         c.bTermination !== 0 ||
         c.bNoiseIre > 0 ||
-        c.bPolarity > 0)
+        c.bPolarity > 0 ||
+        c.bPause > 0)
     )
   }
 
@@ -1584,10 +1585,13 @@ export class Engine implements EngineApi {
           termination: c.bTermination,
           noiseSigma: c.bNoiseIre,
           polarityFlip: c.bPolarity,
-          // B's pause lives on the mix_b resample, not its feed
-          bPause: 0,
-          bShift0: 0,
-          bRowOff: 0,
+          // B's paused deck rides the same pause fields feedA uses — the
+          // scatter and stripe land on B's own raster, so they roll with B
+          // through the mix_b resample
+          bPause: c.bPause,
+          bPauseBar: mixU.bPauseBar,
+          bShift0: mixU.bPauseShift,
+          bRowOff: mixU.bPauseRow,
         },
         this.feedScratch,
       )
