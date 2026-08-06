@@ -121,6 +121,22 @@ the app:
   "Target closed". Aperiodic and workload-shaped fits one run dying at twelve
   and the next passing twenty-two; a fixed period does not.
 
+  **That crash is upstream, and not ours to fix.** The string is a `wgpu-core`
+  storage panic —
+  [gfx-rs/wgpu#5372](https://github.com/gfx-rs/wgpu/issues/5372), an epoch
+  mismatch on an id being freed from the registry twice, filed against
+  bevy with crashes 5–30 s into a run. Our minidump says `UptimeTS 13.7`, inside
+  that window. A page cannot panic Rust in the browser except by reaching a
+  browser bug, so the app-side question is only which pattern reaches it — and
+  three candidates are now ruled out on this box, none of which reproduced it:
+  12 tab teardowns in one browser, 12 renavigations of one tab, and 200 rounds
+  of canvas resize with swapchain reconfigure and source B toggling. All clean,
+  no minidumps, no page errors. If it recurs the harness now keeps the `.extra`
+  and the `.dmp`; until then it is one occurrence with a fingerprint and no
+  recipe. (Those 12 sessions in one browser are also worth noting against the
+  "spent after a dozen or so" rule in `DEVELOPMENT.md` — right at its boundary,
+  and entirely healthy.)
+
   And there is a third reading, found by instrumenting for the second. A cycling
   run ended with its browser **SIGKILLed** — a signal no process sends itself —
   while `journalctl` showed **five Firefox Nightly instances launched by
