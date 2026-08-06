@@ -22,6 +22,7 @@ import fbComposite from './shaders/fb_composite.wgsl?raw'
 import lineAnalyze from './shaders/line_analyze.wgsl?raw'
 import mixB from './shaders/mix_b.wgsl?raw'
 import present from './shaders/present.wgsl?raw'
+import scope_decay from './shaders/scope_decay.wgsl?raw'
 import storePrev from './shaders/store_prev.wgsl?raw'
 import sync from './shaders/sync.wgsl?raw'
 import syncMeasure from './shaders/sync_measure.wgsl?raw'
@@ -50,6 +51,7 @@ const SHADERS: Record<string, string> = {
   line_analyze: lineAnalyze,
   mix_b: mixB,
   present,
+  scope_decay,
   store_prev: storePrev,
   sync,
   sync_measure: syncMeasure,
@@ -88,6 +90,38 @@ describe('WGSL shaders pass naga validation', () => {
       .filter(f => f.endsWith('.wgsl'))
       .map(f => f.replace(/\.wgsl$/, ''))
     expect(Object.keys(SHADERS).sort()).toEqual(onDisk.sort())
+  })
+
+  // Naga cannot catch this one: a shader that declares a binding and never
+  // reads it is perfectly valid WGSL, but WebGPU derives the bind group layout
+  // from *statically used* resources only, so the unread binding is dropped and
+  // a bind group supplying it fails validation against the layout its own
+  // pipeline produced. That surfaces at runtime as "BindGroup with '' label is
+  // invalid" on set_bind_group, nowhere near the shader that caused it — which
+  // is exactly how scope_decay shipped a dead Params binding.
+  it('declares no binding it does not read', () => {
+    // Comments would otherwise count as uses and mask the very thing this
+    // looks for — the dead binding's own explanatory comment names it.
+    const stripComments = (text: string) =>
+      text.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/[^\n]*/g, '')
+    for (const [name, src] of Object.entries(SHADERS)) {
+      const body = stripComments(src)
+      const decls = [
+        ...body.matchAll(
+          /@group\(\d+\)\s*@binding\(\d+\)\s*var(?:<[^>]*>)?\s+(\w+)\s*:/g,
+        ),
+      ]
+      expect(decls.length, `${name} declares no bindings`).toBeGreaterThan(0)
+      for (const [decl, binding] of decls) {
+        const uses = body
+          .replace(decl, '')
+          .match(new RegExp(`\\b${binding}\\b`, 'g'))
+        expect(
+          uses?.length ?? 0,
+          `${name}: binding \`${binding}\` is never read`,
+        ).toBeGreaterThan(0)
+      }
+    }
   })
 
   for (const [name, src] of Object.entries(SHADERS)) {

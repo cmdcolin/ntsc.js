@@ -281,15 +281,11 @@ fn main(
   // stays vivid at the clipping point rather than rotating hue toward whatever
   // channel didn't overflow. crt_face works in the headroom this leaves.
   //
-  // A real set extends no such courtesy. The three output amplifiers hit their
-  // rails one at a time, and the first gun to clip drags the hue toward the two
-  // still in range, so an overdriven picture doesn't just saturate — it migrates
-  // toward the primaries as it does. matrixClip crossfades to those rails.
-  var outc = mix(
-    gamutFit(rgb),
-    clamp(rgb, vec3f(0.0), vec3f(1.0)),
-    P.matrixClip,
-  );
+  // A real set extends no such courtesy, and matrixClip is how much of the
+  // pullback this one declines to apply: at 1 the three output amplifiers just
+  // hit their rails one at a time, and the first gun to clip drags the hue
+  // toward the two still in range. See gamutLimit in the prelude.
+  var outc = gamutLimit(rgb, P.matrixClip);
   if (P.phosphorMode > 0.5) {
     // matrix output can leave the cube (the 1953 fit has negative lobes), so
     // fit again — same hue-preserving desaturation

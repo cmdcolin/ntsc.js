@@ -148,8 +148,13 @@ fn scopeOver(base: vec3f, px: vec2f, cs: vec2f) -> vec3f {
   // one bin while the transition between two bars leaves single hits along the
   // path between them — and the second is half of what a scope is for. The
   // floor keeps a lone hit visible instead of fading it to nothing.
+  //
+  // Scaled for what the decay settles at, not for one frame: holding 3/4 each
+  // frame means a steady trace accumulates to about four times its per-frame
+  // count, so the range this has to span sits two octaves higher than the
+  // arithmetic would suggest.
   if (acc > 0.0) {
-    let lit = max(0.22, clamp(log2(1.0 + acc) / 10.0, 0.0, 1.0));
+    let lit = max(0.14, clamp(log2(1.0 + acc) / 13.0, 0.0, 1.0));
     col = col + vec3f(0.25, 1.0, 0.4) * lit;
   }
   // Fade the panel's own edge rather than butting it against the picture.

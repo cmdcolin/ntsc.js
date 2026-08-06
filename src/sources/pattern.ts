@@ -44,25 +44,40 @@ export function sweep(): OffscreenCanvas {
   return cv
 }
 
+// The top band's seven bars, as 0..1 triples, and the single source the drawn
+// pattern is built from. Exported because the vectorscope's graticule is a 75%
+// bar graticule and `bars.spec.ts` checks that what this actually draws still
+// lands in those boxes — otherwise the two would drift in different files and
+// the instrument would quietly start lying. 0xC0 rather than exactly 0.75 is
+// the conventional 8-bit value for 75% bars, and is what this has always drawn.
+const B = 0xc0 / 0xff
+export const SMPTE_BAR_RGB: readonly (readonly [number, number, number])[] = [
+  [B, B, B],
+  [B, B, 0],
+  [0, B, B],
+  [0, B, 0],
+  [B, 0, B],
+  [B, 0, 0],
+  [0, 0, B],
+]
+
+const hex = (v: number) =>
+  Math.round(v * 0xff)
+    .toString(16)
+    .padStart(2, '0')
+const css = ([r, g, b]: readonly [number, number, number]) =>
+  `#${hex(r)}${hex(g)}${hex(b)}`
+
 export function smpteBars(): OffscreenCanvas {
   const cv = new OffscreenCanvas(ACTIVE_WIDTH, ACTIVE_HEIGHT)
   const g = cv.getContext('2d')
   if (!g) throw new Error('no 2d context')
   const W = ACTIVE_WIDTH
   const H = ACTIVE_HEIGHT
-  const bars = [
-    '#c0c0c0',
-    '#c0c000',
-    '#00c0c0',
-    '#00c000',
-    '#c000c0',
-    '#c00000',
-    '#0000c0',
-  ]
   const topH = Math.round(H * 0.67)
   const bw = W / 7
-  bars.forEach((col, i) => {
-    g.fillStyle = col
+  SMPTE_BAR_RGB.forEach((rgb, i) => {
+    g.fillStyle = css(rgb)
     g.fillRect(Math.round(i * bw), 0, Math.ceil(bw), topH)
   })
   const castH = Math.round(H * 0.08)

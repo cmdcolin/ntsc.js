@@ -44,3 +44,37 @@ export const IRE_VIDEO_RANGE = IRE_WHITE - IRE_BLACK // 92.5
 export const BURST_AMP_IRE = 20 // +-20 IRE (40 IRE p-p)
 
 export const usToSamples = (us: number) => us * 1e-6 * SAMPLE_RATE
+
+// The six 75% colour-bar targets a vectorscope graticule marks, derived from
+// the encoding matrix rather than copied off a graticule face:
+//
+//   Y = 0.299R + 0.587G + 0.114B,  U = 0.492(B - Y),  V = 0.877(R - Y)
+//
+// The boxes sit at *different* radii — yellow and blue carry about a third of
+// the chroma red and cyan do — which is arithmetic rather than decoration, and
+// is why a real graticule's targets are not spaced around a ring. The angles
+// this produces are the published NTSC ones (yellow 167.1 deg, cyan 283.5,
+// green 240.7, magenta 60.7, red 103.5, blue 347.1); `bars.spec.ts` holds the
+// derivation to them, so a wrong matrix cannot quietly move the graticule and
+// leave the instrument lying about where colour is landing.
+export const BAR_LEVEL = 0.75
+const BAR_RGB = [
+  [1, 0, 0], // red
+  [1, 1, 0], // yellow
+  [0, 1, 0], // green
+  [0, 1, 1], // cyan
+  [0, 0, 1], // blue
+  [1, 0, 1], // magenta
+] as const
+
+export const BAR_TARGETS: readonly (readonly [number, number])[] = BAR_RGB.map(
+  ([r, g, b]) => {
+    const y = 0.299 * r + 0.587 * g + 0.114 * b
+    return [BAR_LEVEL * 0.492 * (b - y), BAR_LEVEL * 0.877 * (r - y)] as const
+  },
+)
+
+// 100% bars reach further than 75% ones by exactly the level ratio, and that
+// magnitude is what the scope's outer circle means: full scale is where an
+// undamaged 100% bar lands, so anything outside it is genuinely out of range.
+export const BAR_FULL_SCALE = Math.hypot(...BAR_TARGETS[0]) / BAR_LEVEL

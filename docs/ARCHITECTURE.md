@@ -108,11 +108,24 @@ fault through `timing[]` will spin hue that should have stayed put.
 - **`audioBuf`** — one float per line, the audio waveform at line rate.
 - **`scopeBuf`** — the vectorscope's bins, `SCOPE_N`² `atomic<u32>`. The only
   buffer written by one shader stage and read by another _kind_: `decode`
-  scatters into it and `present` reads it in a fragment shader. It is an
-  accumulator for exactly one frame, so it is cleared (`enc.clearBuffer`) at the
-  top of every render that has the scope on — and not cleared at all when it is
-  off, which is also when `decode` skips the scatter. Deliberately not a pass,
-  so the pass graph above is untouched.
+  scatters into it and `present` reads it in a fragment shader. It decays rather
+  than clearing (`scopeDecayPass`, run before the pre-passes when the scope is
+  on), because a scope's trace is integrated by the instrument's own phosphor —
+  clearing each frame would make it a one-frame sample that strobes on moving
+  content. That pass is deliberately outside the three arrays above: it belongs
+  to the instrument, not the signal path, and listing it there would claim the
+  picture goes through it.
+
+  Two traps here, both already paid for. `decode` views the buffer as
+  `array<atomic<u32>>` and the decay pass as plain `array<u32>`, which is fine —
+  but **a binding a shader never statically reads is dropped from the
+  auto-derived layout**, so a dead uniform in the decay pass made its own bind
+  group invalid and surfaced far away as `BindGroup with '' label is invalid`.
+  `shaders.test.ts` now fails on an unread binding, which naga cannot see. And
+  the decay changes what `present` is scaling: a steady trace settles at about
+  four times its per-frame count, so the log mapping is calibrated for the
+  accumulation rather than for one frame's hits.
+
 - **`tapeBuf`** — the loop bin, `TAPE_FRAMES` (120) composite frames as f16
   pairs packed into `u32`, two seconds at 60 fps for 109 MiB. It is a _medium_,
   not a frame store: `tapeRec` writes the slot `frame % TAPE_FRAMES` and

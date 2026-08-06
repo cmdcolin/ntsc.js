@@ -7,6 +7,8 @@ import {
   ACTIVE_START,
   ACTIVE_TOP,
   ACTIVE_WIDTH,
+  BAR_FULL_SCALE,
+  BAR_TARGETS,
   BURST_AMP_IRE,
   BURST_LEN,
   BURST_START,
@@ -287,26 +289,18 @@ const TILE = ${TILE_WG + 64}u;
 const HALO = 32u;
 
 // Vectorscope, shared by the pass that fills it and the one that draws it.
-// Full scale is the U/V magnitude 100% colour bars reach (100% red is 0.632),
-// which is the calibration that lands 75% bars on a real graticule's boxes.
-// The lattice step is why a flat area of colour does not serialize a hundred
-// thousand atomic adds onto one bin — a trace only needs enough hits to read.
+// Full scale is where an undamaged 100% bar lands, so the outer circle means
+// "out of range" rather than being a decorative edge. The lattice step is why
+// a flat area of colour does not serialize a hundred thousand atomic adds onto
+// one bin — a trace only needs enough hits to read.
 const SCOPE_N = ${SCOPE_N}u;
 const SCOPE_STEP = 2u;
-const SCOPE_FS = 0.632;
+const SCOPE_FS = ${BAR_FULL_SCALE};
 
-// The six 75% colour-bar targets in the same U = 0.492(B-Y), V = 0.877(R-Y)
-// the decode matrix consumes. Their angles are the textbook NTSC graticule —
-// yellow 167.1, cyan 283.5, green 240.7, magenta 60.7, red 103.5, blue 347.1
-// degrees — and the boxes sit at *different* radii, which is arithmetic rather
-// than decoration: yellow and blue carry far less chroma than red and cyan.
+// Graticule targets, generated from BAR_TARGETS in signal/constants.ts so the
+// boxes cannot drift from the matrix they describe. See the derivation there.
 const BAR_UV = array<vec2f, 6>(
-  vec2f(-0.11033, 0.46108),  // red
-  vec2f(-0.32693, 0.07498),  // yellow
-  vec2f(-0.21660, -0.38610), // green
-  vec2f(0.11033, -0.46108),  // cyan
-  vec2f(0.32693, -0.07498),  // blue
-  vec2f(0.21660, 0.38610),   // magenta
+${BAR_TARGETS.map(([u, v]) => `  vec2f(${u}, ${v}),`).join('\n')}
 );
 
 ${paramStruct}
@@ -408,13 +402,21 @@ fn luma(c: vec3f) -> f32 {
   return dot(c, vec3f(0.299, 0.587, 0.114));
 }
 
-// Gamut fit by desaturation. A hard per-channel clamp on an out-of-gamut colour
-// only clips the overflowing channel, which rotates hue toward the remaining
-// primaries — saturated content goes duller and wrong at the clipping point. This
-// instead pulls the colour toward its own (clamped) luma along the chroma axis
-// just far enough to re-enter the cube, so hue is preserved and a real tube's
-// saturated highlights stay electric. In-gamut colours are returned unchanged.
-fn gamutFit(c: vec3f) -> vec3f {
+// Gamut limit by desaturation. A hard per-channel clamp on an out-of-gamut
+// colour only clips the overflowing channel, which rotates hue toward the
+// remaining primaries — saturated content goes duller and wrong at the clipping
+// point. This instead pulls the colour toward its own (clamped) luma along the
+// chroma axis just far enough to re-enter the cube, so hue is preserved and a
+// real tube's saturated highlights stay electric. In-gamut colours are returned
+// unchanged.
+//
+// slack is how much of that pullback the limiter declines to apply — a ratio on
+// one operation, not a crossfade between two different mappings. At 0 the
+// colour is brought fully inside; at 1 nothing is pulled back and the three
+// guns simply run into their rails one at a time, which is what a set with no
+// limiter ahead of them does, and is why an overdriven picture on one migrates
+// toward the primaries instead of holding its hue.
+fn gamutLimit(c: vec3f, slack: f32) -> vec3f {
   let y = luma(c);
   let l = clamp(y, 0.0, 1.0);
   let d = c - vec3f(y);
@@ -424,7 +426,11 @@ fn gamutFit(c: vec3f) -> vec3f {
   let room = select(vec3f(l), vec3f(1.0 - l), d > vec3f(0.0));
   let reach = select(vec3f(1.0), room / max(abs(d), vec3f(1e-5)), moves);
   let s = clamp(min(reach.x, min(reach.y, reach.z)), 0.0, 1.0);
-  return clamp(vec3f(l) + s * d, vec3f(0.0), vec3f(1.0));
+  return clamp(vec3f(l) + mix(s, 1.0, slack) * d, vec3f(0.0), vec3f(1.0));
+}
+
+fn gamutFit(c: vec3f) -> vec3f {
+  return gamutLimit(c, 0.0);
 }
 
 // Catmull-Rom fractional-delay read. Linear interpolation is -6 dB at fsc for

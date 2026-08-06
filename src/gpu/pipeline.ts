@@ -37,6 +37,7 @@ import {
   PARAM_BYTES,
   PRELUDE,
   SCOPE_BYTES,
+  SCOPE_N,
   TILE_WG,
   packParams,
 } from './prelude'
@@ -55,6 +56,7 @@ import fbCompositeSrc from './shaders/fb_composite.wgsl?raw'
 import lineAnalyzeSrc from './shaders/line_analyze.wgsl?raw'
 import mixBSrc from './shaders/mix_b.wgsl?raw'
 import presentSrc from './shaders/present.wgsl?raw'
+import scopeDecaySrc from './shaders/scope_decay.wgsl?raw'
 import storePrevSrc from './shaders/store_prev.wgsl?raw'
 import syncSrc from './shaders/sync.wgsl?raw'
 import syncMeasureSrc from './shaders/sync_measure.wgsl?raw'
@@ -193,6 +195,9 @@ export class Engine implements EngineApi {
   // sees settled neighbours rather than a buffer mid-overwrite.
   private persistBufs: [GPUBuffer, GPUBuffer]
   private decodePass: Pass
+  // Not in the three pass arrays: it belongs to the instrument, not the signal
+  // path, and putting it there would claim the picture goes through it.
+  private scopeDecayPass: Pass
   private decodeBgs: [GPUBindGroup, GPUBindGroup]
 
   // The two input slots: staging, capping, aspect and the noise generators all
@@ -630,6 +635,14 @@ export class Engine implements EngineApi {
       bg: this.decodeBgs[0],
       x: perPixelT[0],
       y: perPixelT[1],
+    }
+    const scopeDecayPl = compute(scopeDecaySrc)
+    this.scopeDecayPass = {
+      label: 'scopeDecay',
+      pl: scopeDecayPl,
+      bg: bindGroup(scopeDecayPl, [{ buffer: this.scopeBuf }]),
+      x: Math.ceil((SCOPE_N * SCOPE_N) / 64),
+      y: 1,
     }
     this.postPasses = [
       // The enhancer is an outboard box between the deck and the set, so it
@@ -1341,9 +1354,6 @@ export class Engine implements EngineApi {
     }
 
     const enc = d.createCommandEncoder()
-    // The scope bins are an accumulator for one frame's worth of decode, so
-    // they have to start empty. Off, nothing writes them and this is skipped.
-    if (c.scope > 0) enc.clearBuffer(this.scopeBuf)
     const run = (p: Pass) => {
       if (p.when === undefined || p.when()) {
         const cp = enc.beginComputePass()
@@ -1353,6 +1363,9 @@ export class Engine implements EngineApi {
         cp.end()
       }
     }
+    // Ages the trace before decode writes this frame's hits into it; see
+    // scope_decay.wgsl for why it decays rather than clearing.
+    if (c.scope > 0) run(this.scopeDecayPass)
     for (const p of this.prePasses) run(p)
     for (let g = 0; g < gens; g++) {
       if (g > 0) {
