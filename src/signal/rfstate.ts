@@ -20,12 +20,17 @@ export interface RfUniforms {
   rfAdjTau: number
   rfAdjPhase: number
   rfAdjPhaseS: number
+  ingressCps: number
+  ingressRowCyc: number
+  ingressPhase: number
+  ingressKey: number
 }
 
 export class RfState {
   private tau = 0
   private phV = 0
   private phS = 0
+  private phI = 0
 
   update(frame: number): RfUniforms {
     const t = frame / 60
@@ -50,11 +55,33 @@ export class RfState {
           60,
       TAU,
     )
+    // The ingress rig: a two-way radio whose carrier owes nothing to any NTSC
+    // frequency. Its visible beat wanders around ~2.3 MHz — the herringbone
+    // holds no fixed angle — and the operator keys the mic in stretches, so
+    // the interference arrives in transmissions with real silence between,
+    // not as a steady tone.
+    const cps =
+      0.16 + 0.045 * valueNoise(t * 0.19, 33) + 0.008 * valueNoise(t * 1.7, 34)
+    this.phI = wrap(this.phI + TAU * cps * N, TAU)
+    // Biased so a turned-up knob shows something within a few seconds, while
+    // the slow term still drops the sum below zero for real off-air stretches.
+    const key = Math.min(
+      1,
+      Math.max(
+        0,
+        0.2 + 1.5 * valueNoise(t * 0.34, 31) + 0.7 * valueNoise(t * 1.2, 32),
+      ),
+    )
     return {
       rfAdjEps: eps,
       rfAdjTau: this.tau,
       rfAdjPhase: this.phV,
       rfAdjPhaseS: this.phS,
+      ingressCps: cps,
+      ingressRowCyc:
+        SAMPLES_PER_LINE * cps - Math.floor(SAMPLES_PER_LINE * cps),
+      ingressPhase: this.phI,
+      ingressKey: key,
     }
   }
 }

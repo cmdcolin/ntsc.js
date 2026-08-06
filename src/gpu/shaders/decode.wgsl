@@ -170,10 +170,23 @@ fn main(
   // roll wraps over the whole 525-line frame, so the VBI decodes as the
   // classic rolling black bar instead of the picture wrapping seamlessly
   let vroll = timing[525u];
-  let row = wrapRow(i32(ACTIVE_TOP + gid.y) + i32(floor(vroll)));
+  // Vertical size is the deflection amplitude, so it is glass geometry:
+  // shrinking the scan squeezes all 525 raster lines onto less screen, and
+  // what comes into view past the picture is the raster itself — equalizing
+  // pulses, the vertical interval and whatever is parked in it, the head
+  // switch — with beam-off black beyond the retrace, never wrapped picture.
+  // The roll offset still selects the *content* within the raster, so a
+  // rolling picture slides through an underscanned frame the same way it
+  // slides through a full-size one. A function of gid.y alone, so it stays
+  // row-uniform, which is what decode's tiling requires of any offset.
+  let rrF = f32(ACTIVE_TOP) + 240.0
+    + (f32(gid.y) - 240.0) / clamp(P.vSize, 0.2, 4.0);
+  let offRaster = rrF < 0.0 || rrF > f32(NLINES) - 1.0;
+  let rr = u32(clamp(rrF, 0.0, f32(NLINES) - 1.0));
+  let row = wrapRow(i32(rr) + i32(floor(vroll)));
   // parametric bend, the signal-driven supply sag, and audio patched straight
   // at the yoke — all deflection-domain, all indexed by raster line
-  let ry = ACTIVE_TOP + gid.y;
+  let ry = rr;
   let sag = P.hvSag * timing[SAG_BASE + ry];
   let hoff = i32(round(timing[row] + bendAt(f32(gid.y)) + sag + P.audioBend * audio[ry]));
   let base = i32(row * SPL + ACTIVE_START + wid.x * TILE_WG) + hoff - i32(HALO);
@@ -268,7 +281,7 @@ fn main(
   // whole reason to tap it there. Content that overdrives the display is
   // dropped rather than clamped, so the trace leaves the graticule the way a
   // real one does instead of piling up a false bright rim.
-  if (P.scope > 0.0 && (gid.x % SCOPE_STEP) == 0u && (gid.y % SCOPE_STEP) == 0u) {
+  if (P.scope > 0.0 && !offRaster && (gid.x % SCOPE_STEP) == 0u && (gid.y % SCOPE_STEP) == 0u) {
     let q = vec2f(un, vn) / SCOPE_FS;
     if (max(abs(q.x), abs(q.y)) < 1.0) {
       let b = vec2u((q * 0.5 + vec2f(0.5)) * f32(SCOPE_N));
@@ -300,6 +313,11 @@ fn main(
     // matrix output can leave the cube (the 1953 fit has negative lobes), so
     // fit again — same hue-preserving desaturation
     outc = gamutFit(phosphorRgb(outc));
+  }
+  if (offRaster) {
+    // past the vertical retrace the beam never scans: no light, though the
+    // phosphor below still owes whatever it was holding there
+    outc = vec3f(0.0);
   }
   // Phosphor persistence: the screen still holds last frame's decaying light.
   // Skewed exponents make blue die first and green linger, so trails cool

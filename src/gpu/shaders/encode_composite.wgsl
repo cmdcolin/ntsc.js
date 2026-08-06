@@ -45,6 +45,64 @@ fn main(
     out = activeComposite(yuv[n].x, uf, vf, carrier(n, P.frame), 1.0, P.invert);
   }
 
+  // What broadcasters actually parked in the vertical interval: test and
+  // reference signals on 17-19 and caption data on 21, invisible in normal
+  // framing and then real content in the roll bar or an underscanned raster.
+  // Multiburst's fifth packet sits on the subcarrier itself, so the decoder
+  // colours it; the modulated staircase on 18 is the DG/DP instrument line;
+  // 19 is a VIR-shaped reference; 21 is a clock run-in and dashes that
+  // re-roll per frame, because captions are live data.
+  if (P.vbi > 0.5 && row >= 17u && row <= 21u && row != 20u
+      && s >= ACTIVE_START && s < ACTIVE_START + ACTIVE_W) {
+    let x = s - ACTIVE_START;
+    if (row == 17u) {
+      if (x < 70u) {
+        out = 100.0; // the white flag multiburst opens with
+      } else {
+        let pk = (x - 70u) / 114u;
+        let xin = (x - 70u) % 114u;
+        out = 50.0;
+        if (pk < 6u && xin < 92u) {
+          // packet frequencies stepping 0.5 -> 4.2 MHz, in cycles/sample;
+          // the 0.25 packet is 3.58 MHz exactly — the subcarrier
+          var cps = 0.0349;
+          if (pk == 1u) { cps = 0.0698; }
+          else if (pk == 2u) { cps = 0.1397; }
+          else if (pk == 3u) { cps = 0.2095; }
+          else if (pk == 4u) { cps = 0.25; }
+          else if (pk == 5u) { cps = 0.2933; }
+          out = 50.0 + 25.0 * sin(2.0 * PI * cps * f32(x));
+        }
+      }
+    } else if (row == 18u) {
+      // five-step staircase with the subcarrier riding every step
+      let stair = f32(min(x / 151u, 4u));
+      out = 10.0 + 20.0 * stair + 10.0 * carrier(n, P.frame).y;
+    } else if (row == 19u) {
+      // VIR: chroma reference at burst phase on 70 IRE, then luma and black
+      if (x < 380u) {
+        out = 70.0 - 20.0 * carrierRot(n, P.frame, 0.0).x;
+      } else if (x < 570u) {
+        out = 50.0;
+      } else {
+        out = 7.5;
+      }
+    } else {
+      // line 21: caption clock run-in, a start bit, and two characters of
+      // data at 32 cycles per line (the 503 kHz caption clock)
+      let cellW = f32(SPL) / 32.0;
+      let cell = u32(f32(x) / cellW);
+      if (cell < 7u) {
+        out = 25.0 + 25.0 * sin(2.0 * PI * f32(x) / cellW);
+      } else if (cell >= 8u && cell < 27u) {
+        let bit = (pcg(P.frame * 40503u ^ 0x2101u) >> (cell - 8u)) & 1u;
+        out = select(0.0, 50.0, bit == 1u || cell == 8u);
+      } else {
+        out = 0.0;
+      }
+    }
+  }
+
   // Macrovision, stamped where a protected pressing stamps it: the vertical
   // interval, lines 12-19 — exactly the window the receiver's AGC averages
   // sync depth over (sync.wgsl gates on row > VSYNC_LAST + 3). The process is

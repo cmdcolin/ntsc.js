@@ -84,6 +84,10 @@ var<workgroup> tileUn: array<f32, TILE>; // color-under signal
 // three times over. gauss() is Box-Muller — two hashes, a log and a cos — which
 // makes that the most expensive redundancy in the pass.
 var<workgroup> tileNs: array<f32, TILE_WG + 2u>;
+// The quadrature arm of the IF noise, for the Rician detector below: an
+// envelope is |a + n| with n complex, so it needs two independent
+// band-limited deviate fields. Only staged while rfSnow is on.
+var<workgroup> tileNq: array<f32, TILE_WG + 2u>;
 
 @compute @workgroup_size(TILE_WG, 1, 1)
 fn main(
@@ -114,12 +118,18 @@ fn main(
       tileUn[i] = v;
     }
   }
-  if (P.noiseSigma > 0.0) {
+  if (P.noiseSigma > 0.0 || P.rfSnow > 0.0) {
     let ns = pcg(P.frame * 2654435761u + P.gen * 2246822519u);
     // slot 1 is this workgroup's first sample, so slot i is global index n0+i-1
     let n0 = row * SPL + wid.x * TILE_WG;
     for (var i = lid.x; i < TILE_WG + 2u; i = i + TILE_WG) {
       tileNs[i] = gauss((n0 + i - 1u) ^ ns);
+    }
+    if (P.rfSnow > 0.0) {
+      let nq = pcg(P.frame * 1717986917u + P.gen * 374761393u + 40503u);
+      for (var i = lid.x; i < TILE_WG + 2u; i = i + TILE_WG) {
+        tileNq[i] = gauss((n0 + i - 1u) ^ nq);
+      }
     }
   }
   workgroupBarrier();
@@ -396,6 +406,38 @@ fn main(
     let a = max(1.0 - 0.00625 * (out + 40.0), 0.12);
     out = out + b * sin(phV) + 0.45 * P.rfAdjIre * sin(phS)
       - min(b * b / (200.0 * a), 25.0);
+  }
+
+  // Envelope detection of a weak signal. The picture rides a negative-
+  // modulation carrier — sync tip is peak power, white is 12.5% — and what a
+  // detector recovers is |carrier + IF noise|, which is Rician: where the
+  // carrier is strong the noise adds almost linearly, where it is weak the
+  // envelope goes Rayleigh. So grain density tracks picture level, whites
+  // boil first, and sync is the last thing to die — which is why fringe
+  // reception reads as a picture fighting through instead of the flat grey
+  // fuzz the additive noiseSigma above lays down. Same carrier map as the
+  // adjacent-channel term: they are the same detector.
+  if (P.rfSnow > 0.0) {
+    let sig = 0.28 * P.rfSnow;
+    let cn = lid.x + 1u;
+    let nI = sig * 0.4082 * (tileNs[cn - 1u] + 2.0 * tileNs[cn] + tileNs[cn + 1u]);
+    let nQ = sig * 0.4082 * (tileNq[cn - 1u] + 2.0 * tileNq[cn] + tileNq[cn + 1u]);
+    let a = max(1.0 - 0.00625 * (out + 40.0), 0.0);
+    let e = sqrt((a + nI) * (a + nI) + nQ * nQ);
+    out = 160.0 * (1.0 - e) - 40.0;
+  }
+
+  // Ingress: a two-way radio into a cracked shield. An unrelated carrier at
+  // no NTSC-friendly frequency, so its beat draws a herringbone that holds
+  // no fixed angle — the rig's frequency wanders (CPU-side, with the keyed
+  // stretches of silence a real transmission has), and the program audio
+  // stands in for the speech that AMs and FMs it, so the weave swells and
+  // sways when someone talks and drops back to a bare carrier between words.
+  if (P.ingressIre * P.ingressKey > 0.0) {
+    let ph = 2.0 * PI * (fract(P.ingressCps * f32(s)) + fract(P.ingressRowCyc * f32(row)))
+      + P.ingressPhase;
+    out = out + P.ingressIre * P.ingressKey * (0.6 + abs(audio[row]))
+      * sin(ph + 5.0 * audio[row]);
   }
 
   // RF dropout: per-line chance, a span of the line loses its carrier.

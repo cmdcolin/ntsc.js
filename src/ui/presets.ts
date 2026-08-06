@@ -168,6 +168,20 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'fringe reception',
+    group: 'RF / Broadcast',
+    blurb:
+      'A station at the edge of its range, through the envelope detector that makes weak signal mean something: whites boil into snow first, blacks hold longest, sync dies last — a picture fighting through rather than sinking into grey fuzz, while a far-off reflection ghosts it and the AGC leans on what depth it can still find.',
+    patch: {
+      rfSnow: 0.5,
+      agc: 0.7,
+      ghostDelayUs: 3.5,
+      ghostGain: 0.14,
+      rfMistuneMHz: 0.1,
+      hHold: 0.3,
+    },
+  },
+  {
     name: 'ignition storm',
     group: 'RF / Broadcast',
     blurb:

@@ -24,7 +24,29 @@ describe('RfState', () => {
       expect(u.rfAdjPhase).toBeLessThan(2 * Math.PI)
       expect(u.rfAdjPhaseS).toBeGreaterThanOrEqual(0)
       expect(u.rfAdjPhaseS).toBeLessThan(2 * Math.PI)
+      expect(u.ingressPhase).toBeGreaterThanOrEqual(0)
+      expect(u.ingressPhase).toBeLessThan(2 * Math.PI)
+      expect(u.ingressRowCyc).toBeGreaterThanOrEqual(0)
+      expect(u.ingressRowCyc).toBeLessThan(1)
+      expect(u.ingressKey).toBeGreaterThanOrEqual(0)
+      expect(u.ingressKey).toBeLessThanOrEqual(1)
+      expect(u.ingressCps).toBeGreaterThan(0.1)
+      expect(u.ingressCps).toBeLessThan(0.22)
     }
+  })
+
+  it('keys the ingress mic in stretches, with real silence between', () => {
+    const rf = new RfState()
+    let quiet = 0
+    let talking = 0
+    for (let f = 0; f < 60 * 600; f++) {
+      const { ingressKey } = rf.update(f)
+      if (ingressKey === 0) quiet++
+      if (ingressKey === 1) talking++
+    }
+    // both saturated states occur for real stretches of a ten-minute watch
+    expect(quiet).toBeGreaterThan(60 * 30)
+    expect(talking).toBeGreaterThan(60 * 30)
   })
 
   it('bounds the line-rate mismatch and lets it change sign', () => {

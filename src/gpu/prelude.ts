@@ -95,6 +95,7 @@ export const PARAM_DEFS = [
   ['bendAmt', 'f32'], // horizontal displacement amplitude, samples
   ['bendShape', 'f32'], // 0 flag, 1 skew, 2 bow, 3 sine
   ['bendPeriod', 'f32'], // flag decay constant / sine period, screen lines
+  ['vSize', 'f32'], // vertical deflection amplitude: <1 underscans, raster and retrace come into view
   ['hvSag', 'f32'], // beam-current deflection sag amplitude, samples
   ['hvRing', 'f32'], // supply damping: 0 smooth droop .. 1 ringing / chaotic
   ['hRate', 'f32'], // horizontal oscillator free-run drift, samples/line
@@ -124,6 +125,12 @@ export const PARAM_DEFS = [
   ['rfAdjTau', 'f32'], // the neighbour raster's time offset at frame start, samples (accumulated)
   ['rfAdjPhase', 'f32'], // their vision-carrier beat phase at frame start, radians (accumulated)
   ['rfAdjPhaseS', 'f32'], // their sound-carrier beat phase, radians (their audio FM rides here)
+  ['rfSnow', 'f32'], // weak signal: IF noise into the envelope detector (Rician, whites first)
+  ['ingressIre', 'f32'], // shield ingress: the radio's carrier amplitude, IRE
+  ['ingressKey', 'f32'], // whether the mic is keyed right now, 0..1 (CPU-walked stretches)
+  ['ingressCps', 'f32'], // its visible beat frequency, cycles/sample (wanders)
+  ['ingressRowCyc', 'f32'], // fract(cps * SPL): the beat's per-line phase step
+  ['ingressPhase', 'f32'], // beat phase at frame start, radians (accumulated)
   ['agc', 'f32'], // receiver AGC action, 0 fixed gain .. 1 full
   ['abl', 'f32'], // beam limiter: 0 generous flyback .. 1 undersized and underdamped (hunts)
   ['noiseSigma', 'f32'], // additive noise, IRE rms
@@ -152,6 +159,7 @@ export const PARAM_DEFS = [
   // copy protection authored onto the source tape's vertical interval
   ['mvAgcIre', 'f32'], // Macrovision AGC-pulse level at full cycle, IRE (0 = unprotected)
   ['mvStripe', 'f32'], // colorstripe burst rotation on walking line bands, radians
+  ['vbi', 'f32'], // VBI test signals: VITS on 17-18, VIR on 19, line-21 captions (1 = broadcast furniture on)
   // bent video enhancer, inline between the deck and the set
   ['enhClampOff', 'f32'], // clamp gate displaced off the back porch, samples
   ['enhDroop', 'f32'], // coupling-capacitor leak per sample (0 = DC coupled)

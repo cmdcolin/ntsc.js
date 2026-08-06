@@ -62,19 +62,20 @@ decay never engages — the change only bites where sync is genuinely gone.
 
 ## RF / tuner front end
 
-The whole chain is baseband. Everything from the transmitter or head-end to the
-tuner is missing, and several existing effects are baseband stand-ins for
-mechanisms that behave differently on a carrier. The two beat items below
-shipped as terms in `channel.wgsl` — the detector's _output_ for two carriers
-is computable at baseband (linear beat + B²/2A second-order term), so they
-never needed the carrier-domain pass. Envelope detection's Rician snow still
-does; that pass is still open.
+All four items shipped, and the "one new pass between encode and channel"
+this section predicted was never needed: every mechanism turned out to be the
+detector's _output_, computable in place in `channel.wgsl` — the beats as
+linear + B²/2A terms, the Rician snow by mapping IRE onto the carrier and
+back through `|a + n|`. The lesson for the next RF-shaped idea: model what
+the detector hands the video amp, not the carrier itself.
 
-- **Envelope detection, negative modulation.** Sync tip is peak carrier, white
-  is 12.5%. Weak-signal snow is therefore multiplicative and Rician, not the
-  additive Gaussian `noiseIre` adds: grain density tracks picture level and sync
-  is the last thing to die. That asymmetry is what makes fringe reception read
-  as fringe reception instead of grey fuzz.
+- ~~**Envelope detection, negative modulation.**~~ Shipped as `rfSnow`, and it
+  never needed the carrier-domain pass either: the detector's output is
+  computable in place — map IRE onto the negative-modulation carrier, add two
+  band-limited Gaussian fields (I and Q, a second workgroup tile), take
+  `|a + n|`, map back. Whites boil first, sync dies last, and past ~0.7 the
+  tips themselves go statistical and the set loses the station the way a set
+  loses a station. The `fringe reception` preset is this.
 - ~~**Tuner mistune.**~~ Shipped as `rfMistuneMHz`, signed like the knob it
   models. Positive folds a leak into the existing `soundIre` term (the coupling
   this entry asked for) and multiplies the loose carrier against the video, so
@@ -92,9 +93,13 @@ does; that pass is still open.
   vertical-interval wiper band, and the confetti colour where their sidebands
   cross our chroma band all emerge from one envelope and two lattices. The
   wander crosses zero, where the wiper hangs and reverses.
-- **Ingress.** CB or ham into a cracked shield — a herringbone that sweeps and
-  comes and goes with speech. Reuses the `audio[row]` trick `soundIre` already
-  uses for intercarrier buzz.
+- ~~**Ingress.**~~ Shipped as `ingress`, with the `audio[row]` trick as
+  planned (speech AMs and FMs the weave at once). The part not planned: the
+  keying. A carrier that is simply on reads as another filter; what sells the
+  mechanism is the operator — `RfState` walks a biased-noise key with real
+  off-air stretches, tuned after measurement showed the first envelope idled
+  30+ seconds at a time, which is honest for a radio but useless for a knob
+  someone just turned.
 
 ## Vertical interval content
 
@@ -113,12 +118,17 @@ the payoff is.
   ride the VBI into view, as the section intro promised) and colorstripe's
   crawling hue bands, which `accLagLines`/`burstLock` shrug off exactly along
   the TV/VCR line.
-- **VITS / VIR, and line-21 caption data.** A multiburst and staircase on 17–18,
-  a dashed data burst on 21. Invisible in normal framing and then the roll bar
-  has real content in it. Cheap.
-- **Underscan.** `vSize` (see Deflection below) is what makes head switch, the
-  VBI, and everything above visible rather than cropped. Build it first if any
-  of this is wanted.
+- ~~**VITS / VIR, and line-21 caption data.**~~ Shipped as the `vbi` toggle,
+  default on — a broadcast really carried it. Multiburst on 17 (its 3.58
+  packet is the subcarrier, so the decoder colours it), the modulated
+  staircase on 18 (which becomes the instrument line if differential gain
+  ever lands), a VIR shape on 19, and line-21 dashes re-rolled per frame. As
+  cheap as predicted.
+- ~~**Underscan.**~~ Shipped as `vSize`, and it was the gate this section said
+  it was: the raster row remap is a function of the screen row alone, so it is
+  row-uniform (decode's tiling constraint never bites) and beam-off black past
+  the retrace falls out of an off-raster test rather than a wrap. `vLin` and
+  the horizontal siblings remain under Deflection below.
 
 ## Tape mechanisms not modelled
 
@@ -163,9 +173,10 @@ the payoff is.
   side), pincushion. Blocked on decode's tiling: the workgroup stages one
   contiguous 128-sample span per row, so only _row-uniform_ horizontal offsets
   are free. Non-uniform scaling within a line reads outside the halo.
-- **Vertical geometry.** `vSize` / `vLin` are nearly free by contrast — they
-  only change which source row a screen row picks. `vSize` is also the gate on
-  the vertical-interval work above.
+- **Vertical geometry.** `vSize` shipped (see the vertical-interval section —
+  it was as nearly-free as claimed). `vLin` — the top-of-frame stretch of a
+  failing vertical output stage — is the remaining half, a quadratic term in
+  the same row remap.
 - **Fractional bend.** `hoff` is `round()`ed to whole samples; at large
   amplitudes adjacent rows stair-step. Resampling the tile with `catmull` would
   smooth it, at the cost of restructuring the staging.
@@ -301,15 +312,15 @@ tunes that control's look.
   graticule, where sync depth, setup and the AGC's pumping would be readable
   instead of inferred. `?dbg=2` already paints the composite; this is that with
   a scale on it.
-- **Nothing asserts a rendered pixel.** `shaders.test.ts` proves the WGSL
-  compiles, `pipeline-graph.test.ts` proves the pass order matches these docs,
-  and the `signal/` specs cover the DSP — but every visual claim in the repo
-  rests on someone having looked at a screenshot. The pieces for a cheap
-  regression exist: `scripts/shot.mjs` drives Firefox Nightly, `?set=`
-  configures a session, `vf.step()` is deterministic with the CPU-side jitter
-  controls at zero. Decode SMPTE bars, assert the six hues land within
-  tolerance. Too heavy for `pnpm test`; right for a script CI runs on its own
-  schedule.
+- ~~**Nothing asserts a rendered pixel.**~~ First brick laid:
+  `scripts/pixelcheck.mjs` serves the repo, drives Firefox Nightly, and
+  asserts two facts — the six SMPTE hues land (one assertion through encoder
+  matrix, channel, burst lock, demod axes and the RGB matrix), and the
+  fine-tuning cliff (colour alive through the ACC at −0.5 MHz, killed at
+  −0.9). Deliberately outside `pnpm test`, as this entry asked. The pattern
+  is cheap to extend: any deterministic `?set=` look plus a probe is one more
+  pinned fact — candidates: burst-lock hue rotation, the killer threshold,
+  scramble's wash-out level.
 
 ## Digital cable tier
 
