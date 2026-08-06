@@ -2,6 +2,43 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.19.0](https://github.com/cmdcolin/ntsc.js/compare/v0.18.0...v0.19.0) - 2026-08-06
+
+### Features
+- *(gpu)* [`0cd7042`](https://github.com/cmdcolin/ntsc.js/commit/0cd7042623a4c49a321be0896ddaa664cc537336) tell a tab that stopped painting from one that stopped being asked
+- *(ui)* [`0dc7e08`](https://github.com/cmdcolin/ntsc.js/commit/0dc7e081ccd588bdcecd1dfdefa9bc7ac0a4a238) hold one wobble still without unpatching it
+- *(ui)* [`67434cc`](https://github.com/cmdcolin/ntsc.js/commit/67434cca4546577144e1f9ffd9e19ea96a2abdbf) make the picture's pointer tool a switch instead of a guess
+- *(signal)* [`a630273`](https://github.com/cmdcolin/ntsc.js/commit/a63027390aed220f566c26f41784d4f31ff989ca) servos that hunt, and a loop that rewrites its own timebase
+- *(signal)* [`399a3ff`](https://github.com/cmdcolin/ntsc.js/commit/399a3ff084ac1569327e8b01ec026825ab0c14c0) the pause button, impulse sparks, and honest lock decay
+- *(signal)* [`af397cf`](https://github.com/cmdcolin/ntsc.js/commit/af397cfd718032a5e1106c5275ef395263fbc818) impulse arcs whose duration is the shape, and a rig that flinches
+- *(signal)* [`7b29768`](https://github.com/cmdcolin/ntsc.js/commit/7b297680ef0840538c5ab4e3921485c503cd991b) per-source feeds, an RF front end, Macrovision, and B as a true waveform
+- *(signal)* [`2543eee`](https://github.com/cmdcolin/ntsc.js/commit/2543eeea348ea1d0734f67abc8090a7701d6d443) the mistune cliff, the beat presets, and the ledger
+- *(signal)* [`db3a7dd`](https://github.com/cmdcolin/ntsc.js/commit/db3a7dd45a9494554a27a904ec3a50f7cb7b3c04) the pause button on the house deck
+- *(ui)* [`cf19818`](https://github.com/cmdcolin/ntsc.js/commit/cf198187168ccd4513fdf088b924261cc8ff33a1) three presets that sell the per-source feeds
+- *(signal)* [`9d5695e`](https://github.com/cmdcolin/ntsc.js/commit/9d5695eba4c3ec4dfddd7de2c13d3d42bbec9800) per-source dropouts, and damage that survives the dissolve
+- *(signal)* [`af784f4`](https://github.com/cmdcolin/ntsc.js/commit/af784f43c299aa9cad0c4136709d4b681cfdbfbd) the sky, the service knob, and what the blanking was carrying
+
+### Fixes
+- *(gpu)* [`0860b92`](https://github.com/cmdcolin/ntsc.js/commit/0860b92b02aa00aaf24721708d926296873a42d7) stop the soak measuring the machine instead of the app
+- *(gpu)* [`bb1f6cd`](https://github.com/cmdcolin/ntsc.js/commit/bb1f6cdca3b0c124ae045a2a6c3dab0fbea22c2c) stop the watchdog deferring to a focus the console takes away
+- *(ui)* [`caac14d`](https://github.com/cmdcolin/ntsc.js/commit/caac14d0fce392d7d1b2f17c9fccfff6a3019325) keep focus, and the memoization the panel was quietly losing
+- *(ui)* [`8b4cf2a`](https://github.com/cmdcolin/ntsc.js/commit/8b4cf2a2ebcb0a160bfb01fb0d3b903a395f6531) drop the chain map when a filter leaves no stage standing
+
+### Performance
+- *(ui)* [`ff00935`](https://github.com/cmdcolin/ntsc.js/commit/ff00935ee458f0c250194b908335baf0ca237945) wire the frame stats only while something is reading them
+
+### Refactor
+- *(signal)* [`48f1b3e`](https://github.com/cmdcolin/ntsc.js/commit/48f1b3e8c7454a9e6c0b817cd0f08b9e301333ac) B's pause moves to its own deck, and the stripe rides the tape
+
+### Documentation
+- [`3f4e866`](https://github.com/cmdcolin/ntsc.js/commit/3f4e8661761a2de86bb8fe0fe53847aff2841387) retire the twelve-minute limit, which two runs outlived
+- [`f7c29de`](https://github.com/cmdcolin/ntsc.js/commit/f7c29de0d1896dca3baf2b92cb916b7fddbed164) name the wgpu crash upstream, and what did not reproduce it
+- [`3ba97b0`](https://github.com/cmdcolin/ntsc.js/commit/3ba97b039f659c3851a6286b97f41dcfe89387aa) the impulse bullet catches up with the arc rework
+- [`154eb69`](https://github.com/cmdcolin/ntsc.js/commit/154eb692ade41b0dbcad3eb19cb9bccec004767d) the per-source feeds join the pass-order story
+
+### Style
+- [`0874538`](https://github.com/cmdcolin/ntsc.js/commit/0874538549b9d6312738496b138727382eb2e26b) oxfmt reflow of harness docs and panelcheck
+
 ## [0.18.0](https://github.com/cmdcolin/ntsc.js/compare/v0.17.0...v0.18.0) - 2026-08-06
 
 ### Features
