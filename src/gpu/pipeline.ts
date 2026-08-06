@@ -30,6 +30,7 @@ import { LineState } from '../signal/linestate'
 import { MixState } from '../signal/mixstate'
 import { ModState } from '../signal/modstate'
 import { valueNoise } from '../signal/noise'
+import { RfState } from '../signal/rfstate'
 import { TapeState, tapeRecording } from '../signal/tapeloop'
 import { gpuPowerFromSearch, initGpu } from './context'
 import { pageSearch } from './env'
@@ -51,9 +52,11 @@ import crtFaceSrc from './shaders/crt_face.wgsl?raw'
 import decodeSrc from './shaders/decode.wgsl?raw'
 import encodeChromaBSrc from './shaders/encode_chroma_b.wgsl?raw'
 import encodeCompositeSrc from './shaders/encode_composite.wgsl?raw'
+import encodeCompositeBSrc from './shaders/encode_composite_b.wgsl?raw'
 import encodeYuvSrc from './shaders/encode_yuv.wgsl?raw'
 import enhancerSrc from './shaders/enhancer.wgsl?raw'
 import fbCompositeSrc from './shaders/fb_composite.wgsl?raw'
+import feedSrc from './shaders/feed.wgsl?raw'
 import lineAnalyzeSrc from './shaders/line_analyze.wgsl?raw'
 import mixBSrc from './shaders/mix_b.wgsl?raw'
 import presentSrc from './shaders/present.wgsl?raw'
@@ -114,6 +117,15 @@ interface Pass {
 
 const NOOP = () => {}
 
+// Look a pass up in an array by its label. The graph test parses the pass
+// arrays as literals, so a pass that needs its bind group swapped at render
+// time still has to be constructed inline and found again afterwards.
+const byLabel = (passes: Pass[], label: string): Pass => {
+  const p = passes.find(q => q.label === label)
+  if (p === undefined) throw new Error(`missing pass ${label}`)
+  return p
+}
+
 const texDesc = (usage: number): GPUTextureDescriptor => ({
   size: [ACTIVE_WIDTH, ACTIVE_HEIGHT],
   format: 'rgba8unorm',
@@ -167,6 +179,7 @@ export class Engine implements EngineApi {
   private mixState = new MixState()
   private modState = new ModState()
   private tapeState = new TapeState()
+  private rfState = new RfState()
   private modSlots: ModSlot[] = []
   // bent-crystal demod LO phase error, accumulated per frame (radians)
   private scPhase = 0
@@ -181,15 +194,62 @@ export class Engine implements EngineApi {
   private loop: RenderLoop
   private destroyed = false
 
+  // Feed gates, shared by the pass when() predicates and renderFrame's
+  // bind-group swap + uniform packing so the routing cannot drift from the
+  // gating. A clean feed dispatches nothing and packs nothing.
+  private readonly aFeedOn = (): boolean => {
+    const c = this.controls
+    return (
+      c.aScramble > 0 ||
+      c.aTermination !== 0 ||
+      c.aNoiseIre > 0 ||
+      c.aPolarity > 0
+    )
+  }
+
+  // The dirty sum is the only consumer of B's materialized waveform — the
+  // genlocked crossfade and the PiP inset re-encode from yuvB — and b only
+  // reaches the bus through the fader or the ring mod, so with both at zero
+  // the resample multiplies whatever the buffer holds by nothing.
+  private readonly bWaveOn = (): boolean => {
+    const c = this.controls
+    return (
+      this.sources.bEnabled &&
+      c.bGenlock < 0.5 &&
+      (c.bGain !== 0 || c.bRing !== 0)
+    )
+  }
+
+  private readonly bFeedOn = (): boolean => {
+    const c = this.controls
+    return (
+      this.bWaveOn() &&
+      (c.bScramble > 0 ||
+        c.bTermination !== 0 ||
+        c.bNoiseIre > 0 ||
+        c.bPolarity > 0)
+    )
+  }
+
   private paramsBuf: GPUBuffer
   private genParamsBuf: GPUBuffer
   private genLineParamsBuf: GPUBuffer
+  // The two feeds' uniforms: the same Params struct as paramsBuf, but with the
+  // per-source feed controls packed into the standard damage fields — so
+  // feed.wgsl states each mechanism once and reads whichever source's values
+  // its instance was bound to.
+  private feedParamsA: GPUBuffer
+  private feedParamsB: GPUBuffer
+  private feedScratch = new ArrayBuffer(PARAM_BYTES)
   private filterBuf: GPUBuffer
   private yuvBuf: GPUBuffer
   private yuvBBuf: GPUBuffer
   private uvfBBuf: GPUBuffer
   private compA: GPUBuffer
   private compB: GPUBuffer
+  // B materialized as a composite on its own raster (post-feed); mix_b's dirty
+  // path resamples this rather than synthesizing B analytically.
+  private bCompBuf: GPUBuffer
   private compPrev: GPUBuffer
   // The loop bin: a ring of composite frames the record head writes and the
   // play head reads a couple of seconds behind. Unlike compPrev this is a
@@ -207,6 +267,14 @@ export class Engine implements EngineApi {
   // out of one and writes the new state into the other, so its lateral scatter
   // sees settled neighbours rather than a buffer mid-overwrite.
   private persistBufs: [GPUBuffer, GPUBuffer]
+  // The two encoders carry a bind-group pair like decode's: the second targets
+  // the compB scratch so an engaged feed pass can damage the waveform into its
+  // real destination. renderFrame swaps them off the same predicates that gate
+  // the feed passes, so the routing and the gating cannot disagree.
+  private encodeCompositePass: Pass
+  private encodeCompositeBgs: [GPUBindGroup, GPUBindGroup]
+  private encodeCompositeBPass: Pass
+  private encodeCompositeBBgs: [GPUBindGroup, GPUBindGroup]
   private decodePass: Pass
   // Not in the three pass arrays: it belongs to the instrument, not the signal
   // path, and putting it there would claim the picture goes through it.
@@ -264,6 +332,13 @@ export class Engine implements EngineApi {
       size: MAX_GENS * LINE_PARAM_BYTES,
       usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     })
+    const feedParams = (): GPUBuffer =>
+      d.createBuffer({
+        size: PARAM_BYTES,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      })
+    this.feedParamsA = feedParams()
+    this.feedParamsB = feedParams()
     this.filterBuf = d.createBuffer({
       size: NUM_SECTIONS * FILTER_STRIDE * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -286,6 +361,10 @@ export class Engine implements EngineApi {
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     })
     this.compB = d.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE })
+    this.bCompBuf = d.createBuffer({
+      size: N * 4,
+      usage: GPUBufferUsage.STORAGE,
+    })
     this.compPrev = d.createBuffer({
       size: N * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -392,6 +471,8 @@ export class Engine implements EngineApi {
     const encodeYuvPl = compute(encodeYuvSrc)
     const encodeChromaBPl = compute(encodeChromaBSrc)
     const encodeCompositePl = compute(encodeCompositeSrc)
+    const encodeCompositeBPl = compute(encodeCompositeBSrc)
+    const feedPl = compute(feedSrc)
     const mixBPl = compute(mixBSrc)
     const fbCompositePl = compute(fbCompositeSrc)
     const storePrevPl = compute(storePrevSrc)
@@ -496,6 +577,20 @@ export class Engine implements EngineApi {
         ],
         perLineT,
       ),
+      // A's feed: when engaged, renderFrame points encodeComposite at the
+      // compB scratch and this pass damages it into compA, so everything
+      // downstream sees a fault on A's cable alone.
+      pass(
+        'feedA',
+        feedPl,
+        [
+          { buffer: this.feedParamsA },
+          { buffer: this.compB },
+          { buffer: this.compA },
+        ],
+        perLine,
+        this.aFeedOn,
+      ),
       pass(
         'composeB',
         composeBPl,
@@ -523,6 +618,32 @@ export class Engine implements EngineApi {
         perPixelT,
         bOn,
       ),
+      // B as a real waveform on its own raster — the thing feedB damages and
+      // the dirty sum resamples. Like encodeComposite above, renderFrame
+      // retargets it at the compB scratch while B's feed is engaged.
+      pass(
+        'encodeCompositeB',
+        encodeCompositeBPl,
+        [
+          { buffer: this.paramsBuf },
+          { buffer: this.yuvBBuf },
+          { buffer: this.uvfBBuf },
+          { buffer: this.bCompBuf },
+        ],
+        perLine,
+        this.bWaveOn,
+      ),
+      pass(
+        'feedB',
+        feedPl,
+        [
+          { buffer: this.feedParamsB },
+          { buffer: this.compB },
+          { buffer: this.bCompBuf },
+        ],
+        perLine,
+        this.bFeedOn,
+      ),
       pass(
         'mixB',
         mixBPl,
@@ -531,6 +652,7 @@ export class Engine implements EngineApi {
           { buffer: this.yuvBBuf },
           { buffer: this.uvfBBuf },
           { buffer: this.compA },
+          { buffer: this.bCompBuf },
         ],
         perLine,
         bOn,
@@ -574,6 +696,30 @@ export class Engine implements EngineApi {
         perLineW,
         () => tapeRecording(c),
       ),
+    ]
+    // The two encoders keep their in-array bind groups (straight to their real
+    // destination) as slot 0; slot 1 targets the compB scratch for the frames
+    // where the feed pass sits in between. renderFrame swaps by the same
+    // predicates that gate the feeds.
+    this.encodeCompositePass = byLabel(this.prePasses, 'encodeComposite')
+    this.encodeCompositeBgs = [
+      this.encodeCompositePass.bg,
+      bindGroup(encodeCompositePl, [
+        { buffer: this.paramsBuf },
+        { buffer: this.filterBuf },
+        { buffer: this.yuvBuf },
+        { buffer: this.compB },
+      ]),
+    ]
+    this.encodeCompositeBPass = byLabel(this.prePasses, 'encodeCompositeB')
+    this.encodeCompositeBBgs = [
+      this.encodeCompositeBPass.bg,
+      bindGroup(encodeCompositeBPl, [
+        { buffer: this.paramsBuf },
+        { buffer: this.yuvBBuf },
+        { buffer: this.uvfBBuf },
+        { buffer: this.compB },
+      ]),
     ]
     this.loopPasses = [
       pass(
@@ -934,12 +1080,15 @@ export class Engine implements EngineApi {
         this.paramsBuf,
         this.genParamsBuf,
         this.genLineParamsBuf,
+        this.feedParamsA,
+        this.feedParamsB,
         this.filterBuf,
         this.yuvBuf,
         this.yuvBBuf,
         this.uvfBBuf,
         this.compA,
         this.compB,
+        this.bCompBuf,
         this.compPrev,
         this.chromaBuf,
         this.underBuf,
@@ -1073,6 +1222,8 @@ export class Engine implements EngineApi {
       connectorGlitch: c.connectorGlitch,
       scramble: c.scramble,
       scrambleMode: c.scrambleMode,
+      mvAgcIre: 160 * c.macrovision,
+      mvStripe: (c.mvStripeDeg * Math.PI) / 180,
       enhClampOff: c.enhClampUs * 1e-6 * SAMPLE_RATE,
       // RC leak per sample from the coupling time constant; 0 us is the
       // DC-coupled box, which never lets the level move at all.
@@ -1151,7 +1302,13 @@ export class Engine implements EngineApi {
       tapeHeads: c.tapeHeads,
       tapeHeadSpread: c.tapeHeadSpread,
       tapeColourFrame: c.tapeColourFrame,
-      soundIre: c.soundIre,
+      // Mistuning frees the sound carrier from its trap, so the buzz the
+      // soundIre knob dials in deliberately arrives uninvited — same term,
+      // two causes on one wire.
+      soundIre: c.soundIre + 15 * Math.max(c.rfMistuneMHz, 0) ** 1.5,
+      rfSoften: Math.min(Math.max(-c.rfMistuneMHz, 0), 1),
+      rfIntermod: 0.22 * Math.max(c.rfMistuneMHz, 0),
+      rfAdjIre: 18 * c.rfAdjacent,
       agc: c.agc,
       abl: c.abl,
       chromaCoarse: c.chromaCoarse,
@@ -1365,11 +1522,50 @@ export class Engine implements EngineApi {
       },
       this.frame,
     )
-    packParams(
-      { ...this.uniformValues(), ...mixU, ...tapeU },
-      this.paramScratch,
-    )
+    const vals = {
+      ...this.uniformValues(),
+      ...mixU,
+      ...tapeU,
+      // the adjacent channel's raster slip and beat phases, walked per frame
+      ...this.rfState.update(this.frame),
+    }
+    packParams(vals, this.paramScratch)
     d.queue.writeBuffer(this.paramsBuf, 0, this.paramScratch)
+    // Feed uniforms: the per-source fault controls packed into the standard
+    // damage fields of a second Params buffer, so feed.wgsl states each
+    // mechanism once. The gen offsets sit far above the dub generations
+    // (0..MAX_GENS) purely to decorrelate each feed's noise seeds from the
+    // program-bus channel's and from each other.
+    if (this.aFeedOn()) {
+      packParams(
+        {
+          ...vals,
+          gen: 101,
+          scramble: c.aScramble,
+          scrambleMode: c.aScrambleMode,
+          termination: c.aTermination,
+          noiseSigma: c.aNoiseIre,
+          polarityFlip: c.aPolarity,
+        },
+        this.feedScratch,
+      )
+      d.queue.writeBuffer(this.feedParamsA, 0, this.feedScratch)
+    }
+    if (this.bFeedOn()) {
+      packParams(
+        {
+          ...vals,
+          gen: 102,
+          scramble: c.bScramble,
+          scrambleMode: c.bScrambleMode,
+          termination: c.bTermination,
+          noiseSigma: c.bNoiseIre,
+          polarityFlip: c.bPolarity,
+        },
+        this.feedScratch,
+      )
+      d.queue.writeBuffer(this.feedParamsB, 0, this.feedScratch)
+    }
     const lineControls: LineStateControls = {
       tbJitterNs: c.tbJitterNs,
       tbWowNs: c.tbWowNs,
@@ -1418,6 +1614,12 @@ export class Engine implements EngineApi {
     // Ages the trace before decode writes this frame's hits into it; see
     // scope_decay.wgsl for why it decays rather than clearing.
     if (c.scope > 0) run(this.scopeDecayPass)
+    // An engaged feed sits between its encoder and the buffer downstream
+    // passes read, so the encoder detours through the compB scratch.
+    this.encodeCompositePass.bg =
+      this.encodeCompositeBgs[this.aFeedOn() ? 1 : 0]
+    this.encodeCompositeBPass.bg =
+      this.encodeCompositeBBgs[this.bFeedOn() ? 1 : 0]
     for (const p of this.prePasses) run(p)
     for (let g = 0; g < gens; g++) {
       if (g > 0) {

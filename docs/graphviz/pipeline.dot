@@ -64,14 +64,20 @@ digraph ntsc_js {
                 label="encodeYuv\nRGB → YUV\n754 × 480 px"];
     encodeComp [passes="encodeComposite" fillcolor="@ENC1@"
                 label="encodeComposite\nY + chroma modulated on Fsc\nsync · burst · blanking\n525 lines × 910 samples"];
+    feedA      [passes="feedA" fillcolor="@ENC2@" style="rounded,filled,dashed"
+                label="feedA — A's own cable & head-end\nscramble · termination · snow · polarity\n525 lines × 910 samples"];
     composeB   [passes="composeB" fillcolor="@ENC2@" style="rounded,filled,dashed"
                 label="composeB\n754 × 480 px, 8×8 tiles"];
     encodeYuvB [passes="encodeYuvB" fillcolor="@ENC2@" style="rounded,filled,dashed"
                 label="encodeYuvB\n754 × 480 px"];
     encodeChromaB [passes="encodeChromaB" fillcolor="@ENC2@" style="rounded,filled,dashed"
                 label="encodeChromaB\nB chroma bandlimit, precomputed\n754 × 480 px"];
+    encodeCompB [passes="encodeCompositeB" fillcolor="@ENC2@" style="rounded,filled,dashed"
+                label="encodeCompositeB\nB as a real waveform on its own raster\nsync · burst · detuned carrier\n525 lines × 910 samples"];
+    feedB      [passes="feedB" fillcolor="@ENC2@" style="rounded,filled,dashed"
+                label="feedB — B's own cable & head-end\nscramble · termination · snow · polarity\n525 lines × 910 samples"];
     mixB       [passes="mixB" fillcolor="@ENC2@" style="rounded,filled,dashed"
-                label="mixB\ndirty mix · ring · wipe · PiP\n525 lines × 910 samples"];
+                label="mixB\ndirty resample · ring · wipe · PiP\n525 lines × 910 samples"];
   }
 
   fbComposite [passes="fbComposite" fillcolor="@STORE@" style="rounded,filled,dashed"
@@ -133,11 +139,19 @@ digraph ntsc_js {
   compose -> encodeYuv [label="  frameTex"];
   encodeYuv -> encodeComp [label="  yuv"];
   encodeComp -> mixB [label="  compA"];
+  // engaged feeds sit in line: the encoder detours through the compB scratch
+  encodeComp -> feedA [label="  compB — feed engaged\l"];
+  feedA -> mixB [label="  compA"];
   srcB -> composeB;
   composeB -> encodeYuvB [label="  texB"];
   encodeYuvB -> encodeChromaB [label="  yuvB"];
   encodeYuvB -> mixB [label="  yuvB"];
+  encodeYuvB -> encodeCompB [label="  yuvB"];
+  encodeChromaB -> encodeCompB [label="  uvfB"];
   encodeChromaB -> mixB [label="  uvfB"];
+  encodeCompB -> mixB [label="  bComp"];
+  encodeCompB -> feedB [label="  compB — feed engaged\l"];
+  feedB -> mixB [label="  bComp"];
   mixB -> fbComposite [label="  compA"];
 
   fbComposite -> tapePlay [label="  compA"];

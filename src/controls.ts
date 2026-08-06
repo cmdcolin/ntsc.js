@@ -60,6 +60,9 @@ export const DEFAULT_CONTROLS = {
   // analog premium-channel scrambling, applied at the head-end
   scramble: 0, // sync-tip suppression depth (0 = in the clear)
   scrambleMode: 0, // 0 gated (every line), 1 line-alternate, 2 SSAVI (+ video inversion)
+  // copy protection authored onto the source's vertical interval
+  macrovision: 0, // Macrovision pseudo-sync/AGC pulse depth on VBI lines 12-19
+  mvStripeDeg: 0, // colorstripe: burst rotation on walking line bands, degrees
   // bent video enhancer, patched inline between the deck and the set
   enhClampUs: 0, // clamp gate slid off the back porch (0 = correct)
   enhDroopUs: 0, // coupling-capacitor time constant (0 = DC coupled, no droop)
@@ -76,6 +79,9 @@ export const DEFAULT_CONTROLS = {
   impulseMains: 0, // dimmer lock: random hits bunch into two bands riding the hum
   strikeRate: 0, // big multi-line strikes per second (lightning / arcing breaker)
   soundIre: 0,
+  // RF front end: the tuner between the cable and the detector
+  rfAdjacent: 0, // adjacent-channel leak through the IF trap (carrier beats, not a picture)
+  rfMistuneMHz: 0, // fine tuning error: + frees the sound carrier, - slides down the Nyquist slope
   agc: 0,
   ghostDelayUs: 0,
   ghostGain: 0,
@@ -143,6 +149,19 @@ export const DEFAULT_CONTROLS = {
   tapeHeadSpread: 1, // where they sit along it; 1 = even subdivisions
   tapeWowPct: 0, // capstan wander: moves the delay time, not just the picture
   tapeColourFrame: 1, // hold the delay on a subcarrier cycle (0 = hue spins with it)
+  // per-source feeds: each input's own cable and head-end, ahead of the mix —
+  // a fault here damages one signal alone, unlike the program-bus channel
+  // controls above which damage the mixed output
+  aScramble: 0, // sync suppression on A's feed alone
+  aScrambleMode: 0, // 0 gated, 1 line-alternate, 2 SSAVI (+ video inversion)
+  aTermination: 0, // A's cable termination (<0 double-terminated, >0 open)
+  aNoiseIre: 0, // snow on A's feed alone, IRE rms
+  aPolarity: 0, // hard polarity flip on A's connector, sync included
+  bScramble: 0, // sync suppression on B's feed alone
+  bScrambleMode: 0,
+  bTermination: 0, // B's cable termination fault
+  bNoiseIre: 0, // snow on B's feed alone, IRE rms
+  bPolarity: 0, // hard polarity flip on B's connector, sync included
   // dirty mixer (source B, non-genlocked)
   aGain: 1, // A level on the summing bus, signed (negative inverts A)
   bGain: 0, // defaults are the clean baseline; the landing look adds B on top

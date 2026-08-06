@@ -45,7 +45,7 @@ authenticity gap.
 One frame, driven by `Engine.render()` in `src/gpu/pipeline.ts`:
 
 ```
-prePasses    compose → encodeYuv → encodeComposite → [composeB → encodeYuvB → encodeChromaB → mixB] → [fbComposite] → [tapePlay → tapeRec]
+prePasses    compose → encodeYuv → encodeComposite → [feedA] → [composeB → encodeYuvB → encodeChromaB → encodeCompositeB → feedB → mixB] → [fbComposite] → [tapePlay → tapeRec]
 loopPasses   chromaExtract → [underDown] → channel → timebase     (× dubGens, ≤ 4)
 postPasses   [enhancer] → syncMeasure → sync → lineAnalyze → decode → crtFace → [storePrev]
 present      render pass to the swap chain

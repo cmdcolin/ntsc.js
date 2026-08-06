@@ -138,6 +138,15 @@ fn main(
     luma = luma + filters[SEC_LUMA * FILTER_STRIDE + k] * (tileLc[cl + k - ml] + tileLc[cl + ml - k]);
   }
 
+  // Tuner mistuned toward the low side: the picture carrier slides down the
+  // IF's Nyquist slope and the upper sideband goes first — fine luma detail
+  // here, and the chroma sitting at 3.58 MHz where `chr` is scaled below. A
+  // 1-2-1 smear on top of the channel FIR is the slope's high cut.
+  if (P.rfSoften > 0.0) {
+    let soft = 0.25 * (tileLc[cl - 1u] + 2.0 * tileLc[cl] + tileLc[cl + 1u]);
+    luma = mix(luma, soft, P.rfSoften);
+  }
+
   // chroma: crossfade direct <-> color-under playback (up-convert + bandpass)
   var chr = chroma[n];
   if (P.colorUnderMix > 0.0) {
@@ -155,6 +164,11 @@ fn main(
     }
     // the heterodyne's factor of two, out of the tap loop
     chr = mix(chr, 2.0 * up, P.colorUnderMix);
+  }
+  if (P.rfSoften > 0.0) {
+    // the same slope taking the chroma: saturation dies, and starving the
+    // burst along with it eventually trips the decoder's colour killer
+    chr = chr * (1.0 - 0.85 * P.rfSoften);
   }
 
   // C-pin-only feed: only the chroma pin reaches the composite input, so there
@@ -321,6 +335,62 @@ fn main(
     let ph = f32((11u * s) % 35u) / 35.0;
     let buzz = 2.2 * audio[row];
     out = out + P.soundIre * sin(2.0 * PI * ph + buzz);
+  }
+
+  // Detector intermodulation, the other half of a mistuned tuner: with the
+  // sound carrier out of its trap the video detector multiplies it against
+  // everything else on the wire instead of just adding it. Chroma x sound
+  // lands at 920 kHz — the coarse beat on every proc-amp spec sheet — and
+  // 920 kHz luma detail lands back on 3.58 MHz, where the decoder reads it
+  // as chroma: rainbow crawl on fine detail, colour manufactured by carrier
+  // arithmetic alone. Same lattice and same audio FM as the leak above,
+  // because it is the same loose carrier doing both.
+  if (P.rfIntermod > 0.0) {
+    let ph = f32((11u * s) % 35u) / 35.0;
+    out = out + P.rfIntermod * out * sin(2.0 * PI * ph + 2.2 * audio[row]);
+  }
+
+  // The adjacent channel through a weak IF trap. What leaks in is not a
+  // picture but the neighbour's *carriers*, and the detector renders each as
+  // a beat at its spacing from our own: their vision carrier 6 MHz away
+  // (exactly 44/105 of the sample rate), their sound 1.5 MHz (11/105). The
+  // bare 6 MHz texture mostly dies in the video lowpass — what survives is
+  // its modulation. Their raster runs on its own sync generator, P.rfAdjEps
+  // off our line rate, so their blanking (peak carrier — negative modulation)
+  // sweeps through as slanted bars, their vertical interval as a broad band
+  // crossing at its own rate — the windshield wiper — and their picture
+  // content spreads beat sidebands across our chroma band, which the decoder
+  // demodulates into colour that was never in any picture. The second-order
+  // term is the envelope detector's: two carriers through |.| leave B^2/2A,
+  // so where the neighbour is strong the picture darkens — hardest in
+  // whites, where our own carrier is weakest.
+  if (P.rfAdjIre > 0.0) {
+    let tp = f32(n) * (1.0 + P.rfAdjEps) + P.rfAdjTau;
+    let tLine = tp / f32(SPL);
+    let tRow = fract(tLine / f32(NLINES));
+    let tPh = fract(tLine);
+    let tl = u32(max(tLine, 0.0));
+    // their (unknown) picture: block detail at two scales, re-rolled per
+    // frame — enough mid-band energy to reach across 3.58 MHz
+    let c1 = rand01(pcg(tl * 2246822519u ^ (u32(tPh * 24.0) * 68111u) ^ (P.frame * 40503u)));
+    let c2 = rand01(pcg(tl * 104729u ^ (u32(tPh * 240.0) * 3571u) ^ (P.frame * 977u)));
+    var env = 0.38 + 0.30 * c1 + 0.18 * c2;
+    if (tRow < 0.04) {
+      // their vertical interval: broad pulses, near-peak carrier mid-line
+      env = select(0.72, 1.0, fract(tPh * 2.0) < 0.43);
+    } else if (tPh < 0.074) {
+      env = 1.0; // their sync tip is peak carrier
+    } else if (tPh < 0.147) {
+      env = 0.75; // their blanking
+    }
+    let b = P.rfAdjIre * env;
+    let phV = 2.0 * PI * f32((44u * n) % 105u) / 105.0 + P.rfAdjPhase;
+    let phS = 2.0 * PI * f32((11u * n) % 105u) / 105.0 + P.rfAdjPhaseS;
+    // our own carrier at this sample: negative modulation maps sync -40 ..
+    // white 100 onto 1 .. 0.125 of peak power
+    let a = max(1.0 - 0.00625 * (out + 40.0), 0.12);
+    out = out + b * sin(phV) + 0.45 * P.rfAdjIre * sin(phS)
+      - min(b * b / (200.0 * a), 25.0);
   }
 
   // RF dropout: per-line chance, a span of the line loses its carrier.

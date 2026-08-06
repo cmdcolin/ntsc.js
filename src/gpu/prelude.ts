@@ -115,6 +115,14 @@ export const PARAM_DEFS = [
   ['chromaCoarse', 'f32'], // chroma demod decimation factor; >1 lerps between lattice points (CUE rainbows)
   // channel / tape
   ['soundIre', 'f32'], // 4.5 MHz sound carrier leaking past the trap, IRE
+  // RF front end: what the tuner hands the detector besides our own channel
+  ['rfSoften', 'f32'], // mistuned low: the Nyquist-slope high cut on the luma path, 0..1
+  ['rfIntermod', 'f32'], // detector intermod depth: the loose sound carrier multiplied against the video
+  ['rfAdjIre', 'f32'], // adjacent-channel leak: beat amplitude at the neighbour's peak carrier, IRE
+  ['rfAdjEps', 'f32'], // the neighbour's line rate vs ours, fractional offset (CPU-wandered)
+  ['rfAdjTau', 'f32'], // the neighbour raster's time offset at frame start, samples (accumulated)
+  ['rfAdjPhase', 'f32'], // their vision-carrier beat phase at frame start, radians (accumulated)
+  ['rfAdjPhaseS', 'f32'], // their sound-carrier beat phase, radians (their audio FM rides here)
   ['agc', 'f32'], // receiver AGC action, 0 fixed gain .. 1 full
   ['abl', 'f32'], // beam limiter: 0 generous flyback .. 1 undersized and underdamped (hunts)
   ['noiseSigma', 'f32'], // additive noise, IRE rms
@@ -140,6 +148,9 @@ export const PARAM_DEFS = [
   ['connectorGlitch', 'f32'], // loose connector: intermittent contact drops bands to snow
   ['scramble', 'f32'], // head-end sync suppression depth: sync tip lifted toward blanking
   ['scrambleMode', 'f32'], // 0 gated, 1 line-alternate, 2 SSAVI (suppression + video inversion)
+  // copy protection authored onto the source tape's vertical interval
+  ['mvAgcIre', 'f32'], // Macrovision AGC-pulse level at full cycle, IRE (0 = unprotected)
+  ['mvStripe', 'f32'], // colorstripe burst rotation on walking line bands, radians
   // bent video enhancer, inline between the deck and the set
   ['enhClampOff', 'f32'], // clamp gate displaced off the back porch, samples
   ['enhDroop', 'f32'], // coupling-capacitor leak per sample (0 = DC coupled)
