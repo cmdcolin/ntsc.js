@@ -42,7 +42,11 @@ export const PARAM_DEFS = [
   ['canvasH', 'f32'],
   ['srcAspect', 'f32'],
   ['srcNoise', 'f32'], // GPU-generated source A: 0 texture, 1 TV static, 2 VHS blank-tape static
-  ['srcFrameA', 'u32'], // frame counter A's snow generator crawls on; held while A's deck is paused
+  // Tape time: the frame counter the damage recorded on a deck's own medium
+  // crawls on, held while that deck is paused (a held frame re-reads one track,
+  // so its snow and its dropouts have to come back identical). The program
+  // buffer carries A's; each feed's buffer carries that feed's deck's.
+  ['srcFrame', 'u32'],
   ['invert', 'f32'], // source A polarity flip: negate composite (0.5 = solarized)
   ['deint', 'f32'], // bob-deinterlace source A: rebuild from one field, killing capture combing
   // dirty mixer: source B is a second, non-genlocked composite signal
@@ -412,6 +416,54 @@ fn ntscLineSlot(row: u32, s: u32, n: u32, frame: u32, delta: f32) -> LineSlot {
 fn activeComposite(y: f32, uf: f32, vf: f32, sc: vec2f, vidGain: f32, inv: f32) -> f32 {
   let v = IRE_BLACK + VIDEO_RANGE * (y + uf * sc.x + vf * sc.y) * vidGain;
   return mix(v, 2.0 * IRE_BLACK + VIDEO_RANGE - v, inv);
+}
+
+// Analog premium-channel scrambling, applied at a head-end. The scrambler lifts
+// the carrier during the horizontal sync interval; after envelope detection that
+// is the sync tip pulled up toward blanking, and a set with no decoder box has
+// nothing left to slice a line start out of. Past half depth the tip clears the
+// separator's -20 IRE level entirely and horizontal lock is gone.
+//
+// Only the line-rate gate is modelled, which is why the frame stays roughly
+// framed: the broad vertical pulses are far wider than the gate, so their bodies
+// still read as sync level mid-line and the vertical oscillator keeps
+// triggering. An unauthorized premium channel sheared and pumped rather than
+// tumbling, and that is the mechanism behind it.
+//
+// mode 1 scrambles alternate lines; mode 2 is SSAVI, which suppressed sync *and*
+// inverted the video, so the picture that leaks through is a negative as well as
+// an unstable one. Burst sits in the back porch and is left alone, so hue
+// survives the inversion.
+//
+// One definition for the program bus (channel) and the per-source feeds, which
+// scramble one input alone — a premium channel is scrambled per channel, not
+// per set, so the two differ only in what they are handed.
+fn scrambleAt(v: f32, row: u32, s: u32, depth: f32, mode: f32) -> f32 {
+  if (depth <= 0.0 || (mode >= 0.5 && mode <= 1.5 && (row & 1u) == 1u)) {
+    return v;
+  }
+  var out = v;
+  if (s < SYNC_LEN) {
+    out = mix(out, IRE_BLANK, depth);
+  }
+  let picture = s >= ACTIVE_START && s < ACTIVE_START + ACTIVE_W
+    && row >= ACTIVE_TOP && row < ACTIVE_TOP + ACTIVE_H;
+  if (mode > 1.5 && picture) {
+    out = mix(out, 2.0 * IRE_BLACK + VIDEO_RANGE - out, depth);
+  }
+  return out;
+}
+
+// Cable termination fault. Correct is one 75-ohm terminator (0). An open,
+// unterminated line (>0) reflects the wave back: the signal runs hot and each
+// edge rings with a short round-trip echo. Daisy-chaining a second monitor
+// double-terminates (<0), halving the signal so contrast and sync depth collapse
+// toward a dim, barely-locking roll. The echo argument is the sample one round
+// trip back down the cable, which each caller taps out of its own input buffer:
+// the program bus off the pre-channel signal, a feed off that source's own deck.
+// Callers guard on a non-zero term, so a correct line costs no tap.
+fn terminate(v: f32, term: f32, echo: f32) -> f32 {
+  return v * pow(2.0, term) + max(term, 0.0) * 0.6 * echo;
 }
 
 fn clampIdx(i: i32) -> u32 {

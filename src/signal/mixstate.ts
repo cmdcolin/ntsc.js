@@ -22,10 +22,20 @@ const LINE_S = 1 / F_H
 
 const wrap = (x: number, m: number) => ((x % m) + m) % m
 
-// One paused deck's servo state: its own clock (only advances while held),
-// the defeated capstan's wander, where the tape happened to stop, and the
-// vertical hunt. The noise channels differ per deck so two paused decks
-// wander independently.
+// One paused deck's servo state, as the feed pass consumes it. feed.wgsl reads
+// whichever deck's state its instance was handed off the shared bPause* uniform
+// fields, so this is the shape the feed uniform pack writes — not four loose
+// numbers named for the deck they came from.
+export interface DeckPause {
+  pause: number // the button: 0 play, >0 held with this much servo damage
+  shift: number // the defeated capstan's wander, samples
+  bar: number // head-mistrack stripe centre, source rows (walks on its own)
+  row: number // the vertical servo's hunt, whole lines
+}
+
+// The deck itself: its own clock (only advances while held), the defeated
+// capstan's wander, where the tape happened to stop, and the vertical hunt. The
+// noise channels differ per deck so two paused decks wander independently.
 class PauseDeck {
   t = 0
   private wow = new Wow()
@@ -39,8 +49,8 @@ class PauseDeck {
     this.chanKick = chanKick
   }
 
-  update(pause: number): { shift: number; bar: number; kick: number } {
-    if (pause <= 0) return { shift: 0, bar: this.bar, kick: 0 }
+  update(pause: number): DeckPause {
+    if (pause <= 0) return { pause: 0, shift: 0, bar: this.bar, row: 0 }
     this.t += 1 / 60
     this.wow.advance(1 / 60)
     // the defeated capstan: the same wander machinery the tape loop uses,
@@ -53,8 +63,12 @@ class PauseDeck {
     )
     // the servo hunting vertically: intermittent whole-line hops
     const k = valueNoise(this.t * 2.1, this.chanKick)
-    const kick = k > 0.55 ? Math.round(k * 4 * pause) : 0
-    return { shift, bar: this.bar, kick }
+    return {
+      pause,
+      shift,
+      bar: this.bar,
+      row: k > 0.55 ? Math.round(k * 4 * pause) : 0,
+    }
   }
 }
 
@@ -74,23 +88,20 @@ export interface MixUniforms {
   bPhase0: number
   bPhaseLine: number
   bRowOff: number
-  bPause: number
-  bPauseBar: number
   wipePos: number
-  // The paused decks' servo state, consumed by the feed uniform packs rather
-  // than PARAM_DEFS: wander (samples), stripe row, and vertical hop (lines).
-  aPauseShift: number
-  aPauseBar: number
-  aPauseRow: number
-  bPauseShift: number
-  bPauseRow: number
+  // The two paused decks, consumed by the feed uniform packs rather than by
+  // PARAM_DEFS — the program-bus params describe no deck at all.
+  decks: { a: DeckPause; b: DeckPause }
 }
 
 export class MixState {
   private hShift = 0
   private scPhase = 0 // turns
   private vRoll = 0
+  // The auto-sweep's offset from the wipe lever, and the lever position it was
+  // last seen against — see the parking rule in update().
   private wipeT = 0
+  private wipeLever = 0
   // the two decks park their tape in different places and hunt on their own
   // noise channels, so pausing both never moves them in lockstep
   private deckA = new PauseDeck(0.4 * LINES, 5, 29)
@@ -102,8 +113,20 @@ export class MixState {
     this.hShift = wrap(this.hShift + shiftPerLine * LINES, SAMPLES_PER_LINE)
     this.scPhase = wrap(this.scPhase + c.bDetuneHz * LINE_S * LINES, 1)
     this.vRoll = wrap(this.vRoll + c.bRollLps, LINES)
-    this.wipeT =
-      c.wipeRateHz === 0 ? 0 : wrap(this.wipeT + (2 * c.wipeRateHz) / 60, 2)
+    // The sweep is an offset the auto-sweep walks on top of the wipe lever, and
+    // stopping it parks the boundary where it stopped. Zeroing the offset
+    // instead snapped the boundary back to the lever the instant the rate hit
+    // 0, which is the opposite of why anyone stops a sweep — you stop it
+    // because you like where it is. Touching the lever while stopped drops the
+    // parked offset, so a drag still reads as an absolute position rather than
+    // one measured from wherever the sweep happened to leave off; moving it
+    // while the sweep runs keeps offsetting the sweep, as before.
+    if (c.wipeRateHz !== 0) {
+      this.wipeT = wrap(this.wipeT + (2 * c.wipeRateHz) / 60, 2)
+    } else if (c.wipePos !== this.wipeLever) {
+      this.wipeT = 0
+    }
+    this.wipeLever = c.wipePos
     const wp = wrap(c.wipePos + this.wipeT, 2)
 
     const a = this.deckA.update(c.aPause)
@@ -125,13 +148,7 @@ export class MixState {
       bPhase0: this.scPhase * 2 * Math.PI + pausePhase,
       bPhaseLine: 2 * Math.PI * c.bDetuneHz * LINE_S,
       bRowOff: Math.floor(this.vRoll),
-      bPause: c.bPause,
-      bPauseBar: b.bar,
-      aPauseShift: a.shift,
-      aPauseBar: a.bar,
-      aPauseRow: a.kick,
-      bPauseShift: b.shift,
-      bPauseRow: b.kick,
+      decks: { a, b },
     }
   }
 }

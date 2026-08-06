@@ -34,6 +34,7 @@ import { RfState } from '../signal/rfstate'
 import { TapeState, tapeRecording } from '../signal/tapeloop'
 import { gpuPowerFromSearch, initGpu } from './context'
 import { pageSearch } from './env'
+import { aFeedOn, bFeedOn, bOn, bWaveOn, FEEDS } from './feedgates'
 import {
   GEN_OFFSET,
   PARAM_BYTES,
@@ -73,8 +74,11 @@ import { VideoPump } from './videopump'
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { LineStateControls } from '../signal/linestate'
+import type { DeckPause } from '../signal/mixstate'
 import type { Gpu, RenderTarget } from './context'
 import type { DestroyOptions, EngineApi } from './engineapi'
+import type { FeedSource } from './feedgates'
+import type { ParamName } from './prelude'
 import type { PumpedFrame } from './videopump'
 
 const N = SAMPLES_PER_LINE * LINES
@@ -185,9 +189,11 @@ export class Engine implements EngineApi {
   private scPhase = 0
   // picture-search crossing pattern phase, accumulated per frame (crossings)
   private shuttlePhase = 0
-  // A's snow generator crawls on this instead of the frame counter, so a
-  // paused A deck freezes its static — the crawl was on the tape
-  private snowFrameA = 0
+  // Tape time per deck: everything recorded on a deck's own medium crawls on
+  // these instead of the frame counter, so a paused deck freezes it — the crawl
+  // was on the tape, and a held frame re-reads one track. A's drives its snow
+  // generator (compose) and both drive their feed's dropouts.
+  private tapeFrame = { a: 0, b: 0 }
   // ignition train: sample offset of the next event, and the current period
   private impulseTrainPos = 0
   private impulseTrainStep = 0
@@ -197,45 +203,16 @@ export class Engine implements EngineApi {
   private loop: RenderLoop
   private destroyed = false
 
-  // Feed gates, shared by the pass when() predicates and renderFrame's
-  // bind-group swap + uniform packing so the routing cannot drift from the
-  // gating. A clean feed dispatches nothing and packs nothing.
-  private readonly aFeedOn = (): boolean => {
-    const c = this.controls
-    return (
-      c.aScramble > 0 ||
-      c.aTermination !== 0 ||
-      c.aNoiseIre > 0 ||
-      c.aPolarity > 0 ||
-      c.aPause > 0 ||
-      c.aDropoutRate > 0
-    )
-  }
-
-  // Who consumes B's materialized waveform: the dirty sum resamples it, and
-  // the genlocked dissolve reads it at the output sample — only the PiP inset
-  // still re-encodes from yuvB. b reaches the bus through the fader or (dirty
-  // only) the ring mod, so with those at zero the buffer is never read.
-  private readonly bWaveOn = (): boolean => {
-    const c = this.controls
-    return (
-      this.sources.bEnabled &&
-      (c.bGenlock < 0.5 ? c.bGain !== 0 || c.bRing !== 0 : c.bGain !== 0)
-    )
-  }
-
-  private readonly bFeedOn = (): boolean => {
-    const c = this.controls
-    return (
-      this.bWaveOn() &&
-      (c.bScramble > 0 ||
-        c.bTermination !== 0 ||
-        c.bNoiseIre > 0 ||
-        c.bPolarity > 0 ||
-        c.bDropoutRate > 0 ||
-        (c.bGenlock < 0.5 && c.bPause > 0))
-    )
-  }
+  // The pass graph's gates, bound to this engine's live controls. The
+  // predicates themselves are pure and live in feedgates.ts, where the
+  // containment between them (bFeedOn ⊆ bWaveOn ⊆ bOn) is under test; these
+  // are the closures the pass `when()` callbacks, the bind-group swap and the
+  // uniform packing all share, so the routing cannot drift from the gating.
+  private readonly aFeedOn = (): boolean => aFeedOn(this.controls)
+  private readonly bWaveOn = (): boolean =>
+    bWaveOn(this.controls, this.sources.bEnabled)
+  private readonly bFeedOn = (): boolean =>
+    bFeedOn(this.controls, this.sources.bEnabled)
 
   private paramsBuf: GPUBuffer
   private genParamsBuf: GPUBuffer
@@ -546,16 +523,10 @@ export class Engine implements EngineApi {
     ] as const
     const perRow = [Math.ceil(LINES / 64), 1] as const
     const c = this.controls
-    // What mixB can actually change. The genlocked path is a crossfade against
-    // the program bus, so it reads neither the A fader nor the ring mod — a
-    // value left on either from a session on the dirty path would otherwise
-    // dispatch encodeYuvB and a full re-encode of B for a frame identical to
-    // the one A already wrote.
-    const bOn = () =>
-      this.sources.bEnabled &&
-      (c.bGain !== 0 ||
-        c.pipMix !== 0 ||
-        (c.bGenlock < 0.5 && (c.bRing !== 0 || c.aGain !== 1)))
+    // What mixB can actually change, and so what the whole source-B chain is
+    // dispatched for; see feedgates.ts, which holds it alongside the two
+    // narrower gates it has to contain.
+    const bChainOn = () => bOn(c, this.sources.bEnabled)
 
     this.composePass = {
       label: 'compose',
@@ -604,14 +575,14 @@ export class Engine implements EngineApi {
         perTile,
         // a paused B deck holds its frame, so the snow generator freezes too —
         // the crawl was on the tape, and the tape has stopped
-        () => bOn() && this.sources.srcNoiseB > 0 && c.bPause === 0,
+        () => bChainOn() && this.sources.srcNoiseB > 0 && c.bPause === 0,
       ),
       pass(
         'encodeYuvB',
         encodeYuvPl,
         [this.sources.viewB(), this.linearSamp, { buffer: this.yuvBBuf }],
         perPixel,
-        bOn,
+        bChainOn,
       ),
       pass(
         'encodeChromaB',
@@ -622,7 +593,7 @@ export class Engine implements EngineApi {
           { buffer: this.uvfBBuf },
         ],
         perPixelT,
-        bOn,
+        bChainOn,
       ),
       // B as a real waveform on its own raster — the thing feedB damages and
       // the dirty sum resamples. Like encodeComposite above, renderFrame
@@ -661,7 +632,7 @@ export class Engine implements EngineApi {
           { buffer: this.bCompBuf },
         ],
         perLine,
-        bOn,
+        bChainOn,
       ),
       pass(
         'fbComposite',
@@ -1165,6 +1136,42 @@ export class Engine implements EngineApi {
     this.filtersDirty = false
   }
 
+  // One feed's uniforms: that source's fault controls packed into the standard
+  // damage fields of its own Params buffer, so feed.wgsl states each mechanism
+  // once and reads whichever source it was bound to. The paused deck rides the
+  // bPause* fields the same way — they name B only because B's deck got the
+  // button first; a feed reads them as "this deck's servo state".
+  private packFeed(
+    src: FeedSource,
+    vals: Record<ParamName, number>,
+    buf: GPUBuffer,
+    deck: DeckPause,
+  ): void {
+    const c = this.controls
+    const f = FEEDS[src]
+    packParams(
+      {
+        ...vals,
+        gen: f.gen,
+        // this deck's tape time, so its dropouts freeze when it is paused
+        srcFrame: this.tapeFrame[src],
+        scramble: c[f.scramble],
+        scrambleMode: c[f.scrambleMode],
+        termination: c[f.termination],
+        noiseSigma: c[f.noise],
+        polarityFlip: c[f.polarity],
+        dropoutRate: c[f.dropoutRate],
+        dropoutLen: c[f.dropoutLen] * 1e-6 * SAMPLE_RATE,
+        bPause: deck.pause,
+        bPauseBar: deck.bar,
+        bShift0: deck.shift,
+        bRowOff: deck.row,
+      },
+      this.feedScratch,
+    )
+    this.gpu.device.queue.writeBuffer(buf, 0, this.feedScratch)
+  }
+
   private uniformValues() {
     const c = this.controls
     return {
@@ -1175,7 +1182,7 @@ export class Engine implements EngineApi {
       srcAspect: this.sources.srcAspect,
       srcNoise: this.sources.srcNoise,
       srcNoiseB: this.sources.srcNoiseB,
-      srcFrameA: this.snowFrameA,
+      srcFrame: this.tapeFrame.a,
       invert: c.invert,
       deint: c.deint,
       chromaGain: c.chromaGain,
@@ -1278,6 +1285,10 @@ export class Engine implements EngineApi {
       bHue: (c.bHueDeg * Math.PI) / 180,
       bVidGain: c.bVidGain,
       bInv: c.bInv,
+      // No deck is paused on the program bus — a held deck is a fault on one
+      // source's feed, and packFeed overwrites these with that deck's state.
+      bPause: 0,
+      bPauseBar: 0,
       bGenlock: c.bGenlock,
       wipeMode: c.wipeMode,
       wipeSoft: c.wipeSoft,
@@ -1518,7 +1529,8 @@ export class Engine implements EngineApi {
     const c = this.controls
     this.advanceScPhase(c.scDetuneKHz)
     this.advanceShuttle(c.shuttleX)
-    if (c.aPause === 0) this.snowFrameA += 1
+    if (c.aPause === 0) this.tapeFrame.a += 1
+    if (c.bPause === 0) this.tapeFrame.b += 1
     this.advanceImpulseTrain(c.impulseHz)
     const mixU = this.mixState.update({
       aPause: c.aPause,
@@ -1554,59 +1566,15 @@ export class Engine implements EngineApi {
     }
     packParams(vals, this.paramScratch)
     d.queue.writeBuffer(this.paramsBuf, 0, this.paramScratch)
-    // Feed uniforms: the per-source fault controls packed into the standard
-    // damage fields of a second Params buffer, so feed.wgsl states each
-    // mechanism once. The gen offsets sit far above the dub generations
-    // (0..MAX_GENS) purely to decorrelate each feed's noise seeds from the
-    // program-bus channel's and from each other.
-    if (this.aFeedOn()) {
-      packParams(
-        {
-          ...vals,
-          gen: 101,
-          scramble: c.aScramble,
-          scrambleMode: c.aScrambleMode,
-          termination: c.aTermination,
-          noiseSigma: c.aNoiseIre,
-          polarityFlip: c.aPolarity,
-          dropoutRate: c.aDropoutRate,
-          dropoutLen: c.aDropoutLenUs * 1e-6 * SAMPLE_RATE,
-          // A's paused deck rides the pause fields: feed.wgsl reads whichever
-          // deck's servo state was packed here
-          bPause: c.aPause,
-          bPauseBar: mixU.aPauseBar,
-          bShift0: mixU.aPauseShift,
-          bRowOff: mixU.aPauseRow,
-        },
-        this.feedScratch,
-      )
-      d.queue.writeBuffer(this.feedParamsA, 0, this.feedScratch)
-    }
-    if (this.bFeedOn()) {
-      packParams(
-        {
-          ...vals,
-          gen: 102,
-          scramble: c.bScramble,
-          scrambleMode: c.bScrambleMode,
-          termination: c.bTermination,
-          noiseSigma: c.bNoiseIre,
-          polarityFlip: c.bPolarity,
-          dropoutRate: c.bDropoutRate,
-          dropoutLen: c.bDropoutLenUs * 1e-6 * SAMPLE_RATE,
-          // B's paused deck rides the same pause fields feedA uses — the
-          // scatter and stripe land on B's own raster, so they roll with B
-          // through the mix_b resample. Genlocked, the implied TBC strips the
-          // timing damage, so the pause fields stay zero on that path.
-          bPause: c.bGenlock < 0.5 ? c.bPause : 0,
-          bPauseBar: mixU.bPauseBar,
-          bShift0: mixU.bPauseShift,
-          bRowOff: mixU.bPauseRow,
-        },
-        this.feedScratch,
-      )
-      d.queue.writeBuffer(this.feedParamsB, 0, this.feedScratch)
-    }
+    if (this.aFeedOn()) this.packFeed('a', vals, this.feedParamsA, mixU.decks.a)
+    if (this.bFeedOn())
+      this.packFeed('b', vals, this.feedParamsB, {
+        ...mixU.decks.b,
+        // Genlocked, the TBC the genlock implies strips B's timing damage, so
+        // the pause fields stay zero on that path and feedB carries B's
+        // amplitude damage alone through the clean dissolve.
+        pause: c.bGenlock < 0.5 ? mixU.decks.b.pause : 0,
+      })
     const lineControls: LineStateControls = {
       tbJitterNs: c.tbJitterNs,
       tbWowNs: c.tbWowNs,

@@ -191,31 +191,11 @@ fn main(
   // vertical or horizontal lock.
   var out = luma * (1.0 - P.chromaPinOnly) + chr;
 
-  // Analog premium-channel scrambling, applied at the head-end so everything
-  // below it in this file is damage the cable adds on top. The scrambler lifts
-  // the carrier during the horizontal sync interval; after envelope detection
-  // that is the sync tip pulled up toward blanking, and a set with no decoder
-  // box has nothing left to slice a line start out of. Past half depth the tip
-  // clears the separator's -20 IRE level entirely and horizontal lock is gone.
-  //
-  // Only the line-rate gate is modelled, which is why the frame stays roughly
-  // framed: the broad vertical pulses are far wider than the gate, so their
-  // bodies still read as sync level mid-line and the vertical oscillator keeps
-  // triggering. An unauthorized premium channel sheared and pumped rather than
-  // tumbling, and that is the mechanism behind it.
-  if (P.scramble > 0.0 && (P.scrambleMode < 0.5 || P.scrambleMode > 1.5 || (row & 1u) == 0u)) {
-    if (s < SYNC_LEN) {
-      out = mix(out, IRE_BLANK, P.scramble);
-    }
-    // SSAVI: Zenith suppressed sync *and* inverted the video, so the picture
-    // that leaks through is a negative as well as an unstable one. Burst sits
-    // in the back porch and is left alone, so hue survives the inversion.
-    let picture = s >= ACTIVE_START && s < ACTIVE_START + ACTIVE_W
-      && row >= ACTIVE_TOP && row < ACTIVE_TOP + ACTIVE_H;
-    if (P.scrambleMode > 1.5 && picture) {
-      out = mix(out, 2.0 * IRE_BLACK + VIDEO_RANGE - out, P.scramble);
-    }
-  }
+  // Analog premium-channel scrambling on the program bus, applied at the
+  // head-end so everything below it in this file is damage the cable adds on
+  // top. The mechanism itself lives in the prelude, shared with the per-source
+  // feeds, which scramble one input alone.
+  out = scrambleAt(out, row, s, P.scramble, P.scrambleMode);
 
   // multipath ghost of the pre-channel signal
   if (P.ghostGain != 0.0) {
@@ -521,17 +501,10 @@ fn main(
   // the wrong level and the picture tears and rolls while the colors invert.
   out = mix(out, -out, P.polarityFlip);
 
-  // Cable termination fault. Correct is one 75-ohm terminator (0). An open,
-  // unterminated line (>0) reflects the wave back: the signal runs hot and each
-  // edge rings with a short round-trip echo. Daisy-chaining a second monitor
-  // double-terminates (<0), halving the signal so contrast and sync depth
-  // collapse toward a dim, barely-locking roll.
+  // Cable termination fault on the program bus (prelude `terminate`); the echo
+  // is a round trip back down the cable, tapped off the pre-channel signal.
   if (P.termination != 0.0) {
-    out = out * pow(2.0, P.termination);
-    let refl = max(P.termination, 0.0);
-    if (refl > 0.0) {
-      out = out + refl * 0.6 * comp[clampIdx(i32(n) - 5)];
-    }
+    out = terminate(out, P.termination, comp[clampIdx(i32(n) - 5)]);
   }
 
   outBuf[n] = out;

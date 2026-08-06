@@ -53,22 +53,35 @@ fn main(
   // — a coherent hook dragging nearby lines sideways. The waveform moves whole
   // — sync, burst and all — so the receiver's PLL hunts line by line and hue
   // wobbles with the displacement, exactly what a no-TBC deck hands a set.
+  //
+  // srcS/srcRow are where on this deck's own tape the output sample is reading
+  // from — with the deck playing, the sample itself. They exist because
+  // everything that happened UPSTREAM of the deck has to be evaluated there
+  // rather than at the output position: the head-end scrambled this before it
+  // was ever recorded, and a dropout is missing oxide at a fixed place on the
+  // tape. Read at the output position, that damage stands still on the glass
+  // while the picture it belongs to scatters around it, and the scrambler
+  // lifts whatever has drifted under the sync gate instead of the sync tip —
+  // measurably, a third of the lines kept a full-depth tip under a held deck.
+  // The cable faults further down deliberately keep the output raster: those
+  // happen after the deck, on the way to the mixer.
+  var srcS = s;
+  var srcRow = row;
   var echoBase = i32(n);
   var out: f32;
-  var dBar = 0.0;
   if (P.bPause > 0.0) {
     let dr = abs(f32(row) - P.bPauseBar);
-    dBar = min(dr, f32(NLINES) - dr);
+    let dBar = min(dr, f32(NLINES) - dr);
     let off = P.bShift0
       + P.bPause * 7.0 * (rand01(pcg(row * 613u + P.frame * 40961u)) - 0.5)
       + P.bPause * 28.0 * exp(-dBar / 9.0);
     let spl = f32(SPL);
     var su = f32(s) + off;
     su = su - floor(su / spl) * spl;
-    let si = u32(su);
-    let frac = su - f32(si);
-    let srcRow = wrapRow(i32(row) + i32(P.bRowOff));
-    let np = i32(srcRow * SPL + si);
+    srcS = u32(su);
+    let frac = su - f32(srcS);
+    srcRow = wrapRow(i32(row) + i32(P.bRowOff));
+    let np = i32(srcRow * SPL + srcS);
     out = catmull(src[clampIdx(np - 1)], src[clampIdx(np)], src[clampIdx(np + 1)], src[clampIdx(np + 2)], frac);
     echoBase = np;
     // The mistrack stripe itself: where the parked head sweeps off the
@@ -77,45 +90,47 @@ fn main(
     let half = 5.0 + 13.0 * P.bPause;
     if (dBar < half) {
       let edge = 1.0 - dBar / half;
-      let snow = 45.0 * gauss(u32(n) ^ pcg(P.frame * 15187u + row * 5u));
+      // the deck's RF detector, which keeps running: this snow is live even
+      // while the tape is parked, unlike the dropouts below
+      let snow = 45.0 * gauss(n ^ pcg(P.frame * 15187u + row * 5u));
       out = mix(out, snow, clamp(edge * 1.6 * P.bPause, 0.0, 0.95));
     }
   } else {
     out = src[n];
   }
+  let srcN = srcRow * SPL + srcS;
 
   // Dropouts on this deck's own tape: shed oxide, so for a moment the head
   // reads nothing and the detector hands back snow. Same event model as the
   // program-bus copy in channel.wgsl, but seeded inline (this pass has no
   // lineParams) and uncompensated — the feeds model cheap front ends, and the
   // deck with the delay-line compensator sits on the program bus.
+  //
+  // Placed and seeded on the tape, not the screen: the damage is in the oxide,
+  // so a paused deck re-reading one track has to hand back the same gaps, in
+  // the same places, carried by the same resample as the picture around them.
+  // On frame time and the output raster a held picture sparkled with a fresh
+  // set of streaks sixty times a second and each one stood still while the
+  // frame jittered — an electrical fault, not a worn tape.
   if (P.dropoutRate > 0.0) {
-    let h = pcg(row * 7621u ^ (P.frame * 2654435761u + P.gen * 97911u));
+    let h = pcg(srcRow * 7621u ^ (P.srcFrame * 2654435761u + P.gen * 97911u));
     if (rand01(h) < P.dropoutRate / f32(NLINES)) {
       let start = f32(pcg(h ^ 0x51ed270bu) % SPL);
       let len = P.dropoutLen * (0.4 + 1.2 * rand01(h ^ 0x9134u));
-      let fs = f32(s);
+      let fs = f32(srcS);
       if (fs >= start && fs < start + len) {
-        let snow = 55.0 + 45.0 * gauss(n ^ pcg(P.frame * 977u + P.gen * 7919u));
+        let snow = 55.0 + 45.0 * gauss(srcN ^ pcg(P.srcFrame * 977u + P.gen * 7919u));
         out = mix(out, snow, 0.95);
       }
     }
   }
 
-  // Head-end scrambling on this feed alone — a premium channel is scrambled
-  // per channel by nature. Same mechanism as the program-bus copy in
-  // channel.wgsl: the carrier is lifted during the line-rate sync gate, and
-  // SSAVI inverts the active video on top (burst untouched, so hue survives).
-  if (P.scramble > 0.0 && (P.scrambleMode < 0.5 || P.scrambleMode > 1.5 || (row & 1u) == 0u)) {
-    if (s < SYNC_LEN) {
-      out = mix(out, IRE_BLANK, P.scramble);
-    }
-    let picture = s >= ACTIVE_START && s < ACTIVE_START + ACTIVE_W
-      && row >= ACTIVE_TOP && row < ACTIVE_TOP + ACTIVE_H;
-    if (P.scrambleMode > 1.5 && picture) {
-      out = mix(out, 2.0 * IRE_BLACK + VIDEO_RANGE - out, P.scramble);
-    }
-  }
+  // Head-end scrambling on this feed alone — a premium channel is scrambled per
+  // channel by nature. The mechanism itself lives in the prelude, shared with
+  // the program-bus copy in channel.wgsl. On the tape position, because the
+  // head-end scrambled this before the deck ever recorded it: the sync gate has
+  // to follow the sync tip when a held deck displaces it.
+  out = scrambleAt(out, srcRow, srcS, P.scramble, P.scrambleMode);
 
   // additive noise (snow), 1-2-1 band-limited like the receiver-side copy
   if (P.noiseSigma > 0.0) {
@@ -128,17 +143,11 @@ fn main(
   // what the mixer is doing — the fault is in the cable, not the fader.
   out = mix(out, -out, P.polarityFlip);
 
-  // Cable termination fault on this feed. Open (>0) runs hot and rings with a
-  // short round-trip echo; double-terminated (<0) halves the signal toward a
-  // dim, barely-locking picture.
+  // Cable termination fault on this feed alone (prelude `terminate`). The echo
+  // taps the deck's output, so under pause it follows the resampled position
+  // rather than the nominal raster.
   if (P.termination != 0.0) {
-    out = out * pow(2.0, P.termination);
-    let refl = max(P.termination, 0.0);
-    if (refl > 0.0) {
-      // the echo taps the deck's output, so under pause it follows the
-      // resampled position rather than the nominal raster
-      out = out + refl * 0.6 * src[clampIdx(echoBase - 5)];
-    }
+    out = terminate(out, P.termination, src[clampIdx(echoBase - 5)]);
   }
 
   dst[n] = out;
