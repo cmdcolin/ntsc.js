@@ -44,7 +44,10 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}": "oxfmt"
+    "*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}": [
+      "oxlint --fix",
+      "oxfmt"
+    ]
   },
   "dependencies": {
     "react": "^19.2.8",
