@@ -6,6 +6,7 @@ import { MixState } from './mixstate'
 import type { MixControls } from './mixstate'
 
 const STILL: MixControls = {
+  aPause: 0,
   bLineHz: 0,
   bDetuneHz: 0,
   bRollLps: 0,

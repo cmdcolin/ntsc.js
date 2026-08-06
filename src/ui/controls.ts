@@ -791,6 +791,15 @@ export const GROUPS: Group[] = [
         choices: ['gated', 'alternate', 'ssavi'],
         help: "Which scrambling system A's channel uses. Gated suppresses every line, alternate every other line, and SSAVI also inverts the active video — so A leaks through as a negative while B stays a positive.",
       },
+      {
+        key: 'aPause',
+        label: 'A pause (deck held)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "The pause button on the deck feeding input A, at how badly the deck copes with it. The frame holds — the drum keeps re-reading one track — but pause defeats the capstan servo, so every line of the program's own signal scatters sideways on its own around a slow wander, the raster hops when the servo hunts vertically, and a mistrack stripe of snow creeps through the picture. A is the house reference, so the receiver's PLL hunts on every line and hue wobbles with the displacement — and if B is up, B's clean sync starts winning fights it used to lose.",
+      },
     ],
   },
   {

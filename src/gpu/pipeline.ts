@@ -185,6 +185,9 @@ export class Engine implements EngineApi {
   private scPhase = 0
   // picture-search crossing pattern phase, accumulated per frame (crossings)
   private shuttlePhase = 0
+  // A's snow generator crawls on this instead of the frame counter, so a
+  // paused A deck freezes its static — the crawl was on the tape
+  private snowFrameA = 0
   // ignition train: sample offset of the next event, and the current period
   private impulseTrainPos = 0
   private impulseTrainStep = 0
@@ -203,7 +206,8 @@ export class Engine implements EngineApi {
       c.aScramble > 0 ||
       c.aTermination !== 0 ||
       c.aNoiseIre > 0 ||
-      c.aPolarity > 0
+      c.aPolarity > 0 ||
+      c.aPause > 0
     )
   }
 
@@ -994,6 +998,12 @@ export class Engine implements EngineApi {
   // Sources directly; a worker-owned engine has no elements to pump, so frames
   // arrive here instead. Ownership of the bitmap passes in — Sources closes it.
   pushFrameA(f: PumpedFrame): void {
+    // Same deal as pushFrameB below: a worker-owned engine has frames pushed
+    // from outside, so A's pause gate lives here as well as in the pump.
+    if (this.controls.aPause > 0) {
+      f.bmp.close()
+      return
+    }
     this.sources.pushA(f)
   }
 
@@ -1163,6 +1173,7 @@ export class Engine implements EngineApi {
       srcAspect: this.sources.srcAspect,
       srcNoise: this.sources.srcNoise,
       srcNoiseB: this.sources.srcNoiseB,
+      srcFrameA: this.snowFrameA,
       invert: c.invert,
       deint: c.deint,
       chromaGain: c.chromaGain,
@@ -1486,7 +1497,11 @@ export class Engine implements EngineApi {
 
   private renderFrame(): void {
     const d = this.gpu.device
-    this.pump.pump(this.sources, this.controls.bPause > 0)
+    this.pump.pump(
+      this.sources,
+      this.controls.aPause > 0,
+      this.controls.bPause > 0,
+    )
     if (this.frame % 30 === 0 && this.debug) {
       console.log('DEBUG frame', this.frame, {
         ...this.pump.info(),
@@ -1497,8 +1512,10 @@ export class Engine implements EngineApi {
     const c = this.controls
     this.advanceScPhase(c.scDetuneKHz)
     this.advanceShuttle(c.shuttleX)
+    if (c.aPause === 0) this.snowFrameA += 1
     this.advanceImpulseTrain(c.impulseHz)
     const mixU = this.mixState.update({
+      aPause: c.aPause,
       bLineHz: c.bLineHz,
       bDetuneHz: c.bDetuneHz,
       bRollLps: c.bRollLps,
@@ -1546,6 +1563,12 @@ export class Engine implements EngineApi {
           termination: c.aTermination,
           noiseSigma: c.aNoiseIre,
           polarityFlip: c.aPolarity,
+          // A's paused deck rides the pause fields: feed.wgsl reads whichever
+          // deck's servo state was packed here
+          bPause: c.aPause,
+          bPauseBar: mixU.aPauseBar,
+          bShift0: mixU.aPauseShift,
+          bRowOff: mixU.aPauseRow,
         },
         this.feedScratch,
       )
@@ -1561,6 +1584,10 @@ export class Engine implements EngineApi {
           termination: c.bTermination,
           noiseSigma: c.bNoiseIre,
           polarityFlip: c.bPolarity,
+          // B's pause lives on the mix_b resample, not its feed
+          bPause: 0,
+          bShift0: 0,
+          bRowOff: 0,
         },
         this.feedScratch,
       )

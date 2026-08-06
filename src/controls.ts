@@ -157,6 +157,7 @@ export const DEFAULT_CONTROLS = {
   aTermination: 0, // A's cable termination (<0 double-terminated, >0 open)
   aNoiseIre: 0, // snow on A's feed alone, IRE rms
   aPolarity: 0, // hard polarity flip on A's connector, sync included
+  aPause: 0, // A deck's pause button: held frame, defeated servo, mistrack stripe
   bScramble: 0, // sync suppression on B's feed alone
   bScrambleMode: 0,
   bTermination: 0, // B's cable termination fault

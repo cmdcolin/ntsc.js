@@ -54,7 +54,10 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     src = mix(a, b, f);
   }
   if (P.srcNoise > 0.5) {
-    src = snowSource(P.srcNoise, gid.xy, P.frame);
+    // srcFrameA rather than frame: a paused A deck holds its picture, and the
+    // crawl was on the tape — composeB freezes the same way by skipping, but
+    // this pass must keep running for the feedback camera below.
+    src = snowSource(P.srcNoise, gid.xy, P.srcFrameA);
   }
 
   // transform in 4:3 aspect space so rotation doesn't shear

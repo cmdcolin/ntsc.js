@@ -7,10 +7,10 @@
 // so the mechanisms stay written in exactly one place and `gen` decorrelates
 // this instance's noise from the program-bus channel's.
 //
-// Only per-sample, stateless damage lives here. Anything needing the FIR bank
-// or the color-under path (luma bandwidth, rainbow instability) stays on the
-// program bus — duplicating that per source would triple the expensive work
-// for effects whose per-source value is low.
+// Only per-sample damage and the paused deck's per-line resample live here.
+// Anything needing the FIR bank or the color-under path (luma bandwidth,
+// rainbow instability) stays on the program bus — duplicating that per source
+// would triple the expensive work for effects whose per-source value is low.
 
 @group(0) @binding(0) var<uniform> P: Params;
 @group(0) @binding(1) var<storage, read> src: array<f32>;
@@ -43,7 +43,46 @@ fn main(
     return;
   }
   let n = row * SPL + s;
-  var out = src[n];
+
+  // This feed's deck paused (bPause/bPauseBar/bShift0/bRowOff carry whichever
+  // deck's values pipeline.ts packed — A's servo state for feedA; zeros for
+  // feedB, whose pause still lives on the mix_b resample). The drum re-reads
+  // one track with the capstan servo defeated: each line's timing scatters on
+  // its own around the slow wander, the whole raster hops vertically when the
+  // servo hunts, and the head loses the track approaching the mistrack stripe
+  // — a coherent hook dragging nearby lines sideways. The waveform moves whole
+  // — sync, burst and all — so the receiver's PLL hunts line by line and hue
+  // wobbles with the displacement, exactly what a no-TBC deck hands a set.
+  var echoBase = i32(n);
+  var out: f32;
+  var dBar = 0.0;
+  if (P.bPause > 0.0) {
+    let dr = abs(f32(row) - P.bPauseBar);
+    dBar = min(dr, f32(NLINES) - dr);
+    let off = P.bShift0
+      + P.bPause * 7.0 * (rand01(pcg(row * 613u + P.frame * 40961u)) - 0.5)
+      + P.bPause * 28.0 * exp(-dBar / 9.0);
+    let spl = f32(SPL);
+    var su = f32(s) + off;
+    su = su - floor(su / spl) * spl;
+    let si = u32(su);
+    let frac = su - f32(si);
+    let srcRow = wrapRow(i32(row) + i32(P.bRowOff));
+    let np = i32(srcRow * SPL + si);
+    out = catmull(src[clampIdx(np - 1)], src[clampIdx(np)], src[clampIdx(np + 1)], src[clampIdx(np + 2)], frac);
+    echoBase = np;
+    // The mistrack stripe itself: where the parked head sweeps off the
+    // recorded track the RF nulls and the deck's detector hands back snow —
+    // sync, burst and all, since the null does not care what it lands on.
+    let half = 5.0 + 13.0 * P.bPause;
+    if (dBar < half) {
+      let edge = 1.0 - dBar / half;
+      let snow = 45.0 * gauss(u32(n) ^ pcg(P.frame * 15187u + row * 5u));
+      out = mix(out, snow, clamp(edge * 1.6 * P.bPause, 0.0, 0.95));
+    }
+  } else {
+    out = src[n];
+  }
 
   // Head-end scrambling on this feed alone — a premium channel is scrambled
   // per channel by nature. Same mechanism as the program-bus copy in
@@ -78,7 +117,9 @@ fn main(
     out = out * pow(2.0, P.termination);
     let refl = max(P.termination, 0.0);
     if (refl > 0.0) {
-      out = out + refl * 0.6 * src[clampIdx(i32(n) - 5)];
+      // the echo taps the deck's output, so under pause it follows the
+      // resampled position rather than the nominal raster
+      out = out + refl * 0.6 * src[clampIdx(echoBase - 5)];
     }
   }
 

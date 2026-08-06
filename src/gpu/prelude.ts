@@ -42,6 +42,7 @@ export const PARAM_DEFS = [
   ['canvasH', 'f32'],
   ['srcAspect', 'f32'],
   ['srcNoise', 'f32'], // GPU-generated source A: 0 texture, 1 TV static, 2 VHS blank-tape static
+  ['srcFrameA', 'u32'], // frame counter A's snow generator crawls on; held while A's deck is paused
   ['invert', 'f32'], // source A polarity flip: negate composite (0.5 = solarized)
   ['deint', 'f32'], // bob-deinterlace source A: rebuild from one field, killing capture combing
   // dirty mixer: source B is a second, non-genlocked composite signal
