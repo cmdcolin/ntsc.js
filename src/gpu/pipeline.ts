@@ -207,20 +207,20 @@ export class Engine implements EngineApi {
       c.aTermination !== 0 ||
       c.aNoiseIre > 0 ||
       c.aPolarity > 0 ||
-      c.aPause > 0
+      c.aPause > 0 ||
+      c.aDropoutRate > 0
     )
   }
 
-  // The dirty sum is the only consumer of B's materialized waveform — the
-  // genlocked crossfade and the PiP inset re-encode from yuvB — and b only
-  // reaches the bus through the fader or the ring mod, so with both at zero
-  // the resample multiplies whatever the buffer holds by nothing.
+  // Who consumes B's materialized waveform: the dirty sum resamples it, and
+  // the genlocked dissolve reads it at the output sample — only the PiP inset
+  // still re-encodes from yuvB. b reaches the bus through the fader or (dirty
+  // only) the ring mod, so with those at zero the buffer is never read.
   private readonly bWaveOn = (): boolean => {
     const c = this.controls
     return (
       this.sources.bEnabled &&
-      c.bGenlock < 0.5 &&
-      (c.bGain !== 0 || c.bRing !== 0)
+      (c.bGenlock < 0.5 ? c.bGain !== 0 || c.bRing !== 0 : c.bGain !== 0)
     )
   }
 
@@ -232,7 +232,8 @@ export class Engine implements EngineApi {
         c.bTermination !== 0 ||
         c.bNoiseIre > 0 ||
         c.bPolarity > 0 ||
-        c.bPause > 0)
+        c.bDropoutRate > 0 ||
+        (c.bGenlock < 0.5 && c.bPause > 0))
     )
   }
 
@@ -1199,6 +1200,7 @@ export class Engine implements EngineApi {
       bendAmt: c.bendUs * 1e-6 * SAMPLE_RATE,
       bendShape: c.bendShape,
       bendPeriod: c.bendPeriod,
+      vSize: c.vSize,
       hvSag:
         (c.hvSagUs + c.audioSagUs * this.audioState.hit) * 1e-6 * SAMPLE_RATE,
       hvRing: c.hvRing,
@@ -1236,6 +1238,7 @@ export class Engine implements EngineApi {
       scrambleMode: c.scrambleMode,
       mvAgcIre: 160 * c.macrovision,
       mvStripe: (c.mvStripeDeg * Math.PI) / 180,
+      vbi: c.vbi,
       enhClampOff: c.enhClampUs * 1e-6 * SAMPLE_RATE,
       // RC leak per sample from the coupling time constant; 0 us is the
       // DC-coupled box, which never lets the level move at all.
@@ -1321,6 +1324,8 @@ export class Engine implements EngineApi {
       rfSoften: Math.min(Math.max(-c.rfMistuneMHz, 0), 1),
       rfIntermod: 0.22 * Math.max(c.rfMistuneMHz, 0),
       rfAdjIre: 18 * c.rfAdjacent,
+      rfSnow: c.rfSnow,
+      ingressIre: 11 * c.ingress,
       agc: c.agc,
       abl: c.abl,
       chromaCoarse: c.chromaCoarse,
@@ -1564,6 +1569,8 @@ export class Engine implements EngineApi {
           termination: c.aTermination,
           noiseSigma: c.aNoiseIre,
           polarityFlip: c.aPolarity,
+          dropoutRate: c.aDropoutRate,
+          dropoutLen: c.aDropoutLenUs * 1e-6 * SAMPLE_RATE,
           // A's paused deck rides the pause fields: feed.wgsl reads whichever
           // deck's servo state was packed here
           bPause: c.aPause,
@@ -1585,10 +1592,13 @@ export class Engine implements EngineApi {
           termination: c.bTermination,
           noiseSigma: c.bNoiseIre,
           polarityFlip: c.bPolarity,
+          dropoutRate: c.bDropoutRate,
+          dropoutLen: c.bDropoutLenUs * 1e-6 * SAMPLE_RATE,
           // B's paused deck rides the same pause fields feedA uses — the
           // scatter and stripe land on B's own raster, so they roll with B
-          // through the mix_b resample
-          bPause: c.bPause,
+          // through the mix_b resample. Genlocked, the implied TBC strips the
+          // timing damage, so the pause fields stay zero on that path.
+          bPause: c.bGenlock < 0.5 ? c.bPause : 0,
           bPauseBar: mixU.bPauseBar,
           bShift0: mixU.bPauseShift,
           bRowOff: mixU.bPauseRow,

@@ -22,8 +22,14 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let n = row * SPL + s;
   // B's accumulated subcarrier detune plus the proc-amp hue trim. Line-uniform,
   // so it bakes into the generated waveform; the fractional-slip term does NOT
-  // belong here — it emerges downstream when mix_b resamples.
-  let delta = P.bHue + P.bPhase0 + P.bPhaseLine * f32(row);
+  // belong here — it emerges downstream when mix_b resamples. Genlocked, B is
+  // re-timed to the house reference, so only the hue trim survives: the
+  // dissolve reads this buffer at the output sample directly, which is what
+  // lets feedB's damage ride through a clean production dissolve.
+  var delta = P.bHue;
+  if (P.bGenlock < 0.5) {
+    delta = delta + P.bPhase0 + P.bPhaseLine * f32(row);
+  }
   let slot = ntscLineSlot(row, s, n, P.frame, delta);
   var b = slot.value;
   if (slot.picture) {

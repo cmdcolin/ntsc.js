@@ -72,9 +72,12 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   if (P.bGenlock > 0.5) {
     // Clean switcher: crossfade genlocked B over A on active video only; sync,
     // burst and blanking stay on the program bus. bGain is the fader level, the
-    // wipe gate shapes it spatially — so B replaces A instead of summing.
+    // wipe gate shapes it spatially — so B replaces A instead of summing. B
+    // arrives from encode_composite_b house-locked (and through feedB when its
+    // faults are up), so a scrambled or ringing B survives the clean dissolve
+    // — the TBC implied by genlock strips timing damage, not amplitude damage.
     if (inActive) {
-      comp[n] = mix(a, encodeBHouse(n, n), clamp(gate * P.bGain, 0.0, 1.0));
+      comp[n] = mix(a, bComp[n], clamp(gate * P.bGain, 0.0, 1.0));
     }
   } else {
     // Dirty sum: B free-runs. Its raster position for this output sample is the

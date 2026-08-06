@@ -34,6 +34,7 @@ export const DEFAULT_CONTROLS = {
   bendUs: 0, // horizontal displacement amplitude
   bendShape: 0, // 0 flag, 1 skew, 2 bow, 3 ripple
   bendPeriod: 60, // flag decay constant / ripple period, screen lines
+  vSize: 1, // vertical deflection amplitude: <1 underscans, showing the raster past the picture
   hvSagUs: 0, // beam-current deflection sag: bright content bends the scan
   hvRing: 0.5, // supply damping: 0 smooth droop .. 1 ringing / chaotic
   abl: 0, // beam limiter: 0 generous flyback .. 1 undersized and underdamped (pumps)
@@ -63,6 +64,7 @@ export const DEFAULT_CONTROLS = {
   // copy protection authored onto the source's vertical interval
   macrovision: 0, // Macrovision pseudo-sync/AGC pulse depth on VBI lines 12-19
   mvStripeDeg: 0, // colorstripe: burst rotation on walking line bands, degrees
+  vbi: 1, // VBI test signals: VITS multiburst/staircase, VIR, line-21 captions (broadcast furniture)
   // bent video enhancer, patched inline between the deck and the set
   enhClampUs: 0, // clamp gate slid off the back porch (0 = correct)
   enhDroopUs: 0, // coupling-capacitor time constant (0 = DC coupled, no droop)
@@ -82,6 +84,8 @@ export const DEFAULT_CONTROLS = {
   // RF front end: the tuner between the cable and the detector
   rfAdjacent: 0, // adjacent-channel leak through the IF trap (carrier beats, not a picture)
   rfMistuneMHz: 0, // fine tuning error: + frees the sound carrier, - slides down the Nyquist slope
+  rfSnow: 0, // weak signal into the envelope detector: Rician snow, whites boil first
+  ingress: 0, // CB/ham through a cracked shield: a keyed carrier's sweeping herringbone
   agc: 0,
   ghostDelayUs: 0,
   ghostGain: 0,
@@ -158,11 +162,15 @@ export const DEFAULT_CONTROLS = {
   aNoiseIre: 0, // snow on A's feed alone, IRE rms
   aPolarity: 0, // hard polarity flip on A's connector, sync included
   aPause: 0, // A deck's pause button: held frame, defeated servo, mistrack stripe
+  aDropoutRate: 0, // dropout events per frame on A's own tape
+  aDropoutLenUs: 5, // mean dropout length on A's feed
   bScramble: 0, // sync suppression on B's feed alone
   bScrambleMode: 0,
   bTermination: 0, // B's cable termination fault
   bNoiseIre: 0, // snow on B's feed alone, IRE rms
   bPolarity: 0, // hard polarity flip on B's connector, sync included
+  bDropoutRate: 0, // dropout events per frame on B's own tape
+  bDropoutLenUs: 5, // mean dropout length on B's feed
   // dirty mixer (source B, non-genlocked)
   aGain: 1, // A level on the summing bus, signed (negative inverts A)
   bGain: 0, // defaults are the clean baseline; the landing look adds B on top

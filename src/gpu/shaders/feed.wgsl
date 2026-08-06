@@ -84,6 +84,24 @@ fn main(
     out = src[n];
   }
 
+  // Dropouts on this deck's own tape: shed oxide, so for a moment the head
+  // reads nothing and the detector hands back snow. Same event model as the
+  // program-bus copy in channel.wgsl, but seeded inline (this pass has no
+  // lineParams) and uncompensated — the feeds model cheap front ends, and the
+  // deck with the delay-line compensator sits on the program bus.
+  if (P.dropoutRate > 0.0) {
+    let h = pcg(row * 7621u ^ (P.frame * 2654435761u + P.gen * 97911u));
+    if (rand01(h) < P.dropoutRate / f32(NLINES)) {
+      let start = f32(pcg(h ^ 0x51ed270bu) % SPL);
+      let len = P.dropoutLen * (0.4 + 1.2 * rand01(h ^ 0x9134u));
+      let fs = f32(s);
+      if (fs >= start && fs < start + len) {
+        let snow = 55.0 + 45.0 * gauss(n ^ pcg(P.frame * 977u + P.gen * 7919u));
+        out = mix(out, snow, 0.95);
+      }
+    }
+  }
+
   // Head-end scrambling on this feed alone — a premium channel is scrambled
   // per channel by nature. Same mechanism as the program-bus copy in
   // channel.wgsl: the carrier is lifted during the line-rate sync gate, and
