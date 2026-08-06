@@ -77,6 +77,11 @@ export function InputSection(props: {
   audioInput: ReactNode
   audioHint: ReactNode
 }) {
+  // Pulled out rather than read as `props.fileInputRef` at each <input>: a ref
+  // read off the props object marks the whole object as ref-ish to the React
+  // Compiler, which then refuses every other `props.x` read as a ref access
+  // during render and drops this component's memoization entirely.
+  const { fileInputRef, fileInputBRef } = props
   const summary =
     shortName(props.sourceMode, props.sourceName) +
     (props.sourceBMode === 'none'
@@ -170,7 +175,7 @@ export function InputSection(props: {
       {/* Hidden pickers stay mounted outside the collapsible Section, so a
           collapsed Input can still fire the file dialog through its ref. */}
       <input
-        ref={props.fileInputRef}
+        ref={fileInputRef}
         type="file"
         accept="video/*,image/*"
         style={{ display: 'none' }}
@@ -180,7 +185,7 @@ export function InputSection(props: {
         }}
       />
       <input
-        ref={props.fileInputBRef}
+        ref={fileInputBRef}
         type="file"
         accept="video/*,image/*"
         style={{ display: 'none' }}

@@ -78,7 +78,13 @@ const toggleFullscreen = () => {
 
 export function App() {
   const eng = useEngine()
-  const engineRef = eng.engineRef
+  // Both pulled off in one destructure, and `engine` is read through the local
+  // rather than as `eng.engine` for the rest of the render. Reading a ref out of
+  // an object marks the whole object as ref-ish to the React Compiler, so a
+  // later `eng.engine` read during render trips "cannot access refs during
+  // render" — one error, and the compiler drops *all* memoization for this
+  // component, which is the one that builds the entire panel.
+  const { engine, engineRef } = eng
   const {
     status: midiStatus,
     bindings: midiBindings,
@@ -101,8 +107,8 @@ export function App() {
   // The engine IS the store: React reads controls straight from it via
   // useSyncExternalStore, so there's no separate `values` copy to keep in sync.
   const controls = useSyncExternalStore(
-    eng.engine === null ? subscribeNever : eng.engine.subscribeControls,
-    eng.engine === null ? getDefaultControls : eng.engine.getControls,
+    engine === null ? subscribeNever : engine.subscribeControls,
+    engine === null ? getDefaultControls : engine.getControls,
   )
   const { cycleSync, syncLabel, displayValue } = useClockSync({
     controls,
@@ -138,7 +144,7 @@ export function App() {
   // The modulation bay, owned here so the panel, the rows and the mix all see
   // one copy. The engine is written to and never read from — it applies the
   // routings inside its own frame and restores, so React has to be the store.
-  const modApi = useModSlots(eng.engine)
+  const modApi = useModSlots(engine)
   const mix = useMix({
     controls,
     writeControls,
@@ -234,7 +240,7 @@ export function App() {
   const { copyLink, copied } = useUrlState({
     controls,
     mod: slotsToRoutings(modApi.slots),
-    engineReady: eng.engine !== null,
+    engineReady: engine !== null,
     sourceMode: eng.sourceMode,
     sourceBMode: eng.sourceBMode,
     ytUrlA: eng.ytUrlA,
@@ -246,7 +252,7 @@ export function App() {
     reverb: eng.reverb,
   })
 
-  const audio = useAudio(eng.engine)
+  const audio = useAudio(engine)
 
   // Everything the palette can run that isn't a preset or a control. Hold-to-
   // compare is deliberately absent: it's a gesture, not a command.
@@ -441,8 +447,12 @@ export function App() {
               className={styles.filter}
               type="search"
               // Mounted by the ⌕, so the press that opened it is also the press
-              // that should have landed in the box.
-              ref={el => el?.focus()}
+              // that should have landed in the box. On mount and only there: an
+              // inline `ref={el => el?.focus()}` is a new function every render,
+              // which React reattaches — and the fps counter re-renders this
+              // component four times a second, so the box took focus back off
+              // whatever you had just clicked, four times a second.
+              autoFocus
               placeholder="rainbow, ghost, tear…"
               title="matches names and descriptions, so artifact words work: rainbow, ghost, dot crawl, tear, roll… — and “moving” (or ∿) for whatever the bay is driving"
               value={filter}
@@ -640,7 +650,7 @@ export function App() {
               speedB={eng.speedB}
               reverb={eng.reverb}
               playAudio={eng.playAudio}
-              audioState={eng.engine === null ? null : eng.engine.audioState}
+              audioState={engine === null ? null : engine.audioState}
               onSpeedA={eng.changeSpeedA}
               onSpeedB={eng.changeSpeedB}
               onReverb={eng.changeReverb}

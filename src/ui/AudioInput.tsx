@@ -60,6 +60,11 @@ export function AudioInput(props: {
   onFile: (file: File | undefined) => void
   onSeek: (time: number) => void
 }) {
+  // Pulled out rather than read as `props.fileInputRef` at the <input>: a ref
+  // read off the props object marks the whole object as ref-ish to the React
+  // Compiler, which then refuses every other `props.x` read as a ref access
+  // during render and drops this component's memoization entirely.
+  const { fileInputRef } = props
   const live = props.mode === 'off' ? null : props.audioState
   return (
     <>
@@ -84,7 +89,7 @@ export function AudioInput(props: {
         />
       )}
       <input
-        ref={props.fileInputRef}
+        ref={fileInputRef}
         type="file"
         accept="audio/*,video/*"
         style={{ display: 'none' }}
