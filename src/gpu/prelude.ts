@@ -154,6 +154,10 @@ export const PARAM_DEFS = [
   ['dropoutLen', 'f32'], // mean dropout length, samples
   ['dropoutComp', 'f32'], // dropout compensator delay: 0 none, 1 one line, 2 two
   ['headSwitchNoise', 'f32'], // 0..1
+  ['headClog', 'f32'], // one of the two video heads clogged: its alternate-sweep RF collapses to snow
+  ['ycDelay', 'f32'], // chroma-path group delay vs luma, whole samples (colour displaced, hue held)
+  ['diffGain', 'f32'], // differential gain: fraction of chroma gain lost at peak luma
+  ['diffPhase', 'f32'], // differential phase: chroma phase swing at peak luma, radians
   ['polarityFlip', 'f32'], // hard signal/ground swap: negate whole composite incl. sync
   ['termination', 'f32'], // cable termination fault: <0 double-terminated (dim), >0 open (hot + ringing)
   ['chromaPinOnly', 'f32'], // only the chroma pin fed to composite: color, no luma, no sync

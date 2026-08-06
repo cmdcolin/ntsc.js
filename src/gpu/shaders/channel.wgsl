@@ -38,6 +38,18 @@ fn stepPhasor(p: vec2f) -> vec2f {
   return vec2f(p.x * c - p.y * s, p.x * s + p.y * c);
 }
 
+// Color-under sample at global index ci, carrier noise included. Seeded on the
+// global sample index so the staged tile, overlapping workgroup halos and the
+// Y/C-delayed reads below all agree on the same deviate for the same sample.
+fn underAt(ci: u32) -> f32 {
+  var v = under[ci];
+  if (P.chromaNoise > 0.0) {
+    let cns = pcg(P.frame * 1103515245u + P.gen * 88888933u);
+    v = v + P.chromaNoise * gauss(ci ^ cns);
+  }
+  return v;
+}
+
 // Is this sample inside a dropout — shed oxide, so for a moment the head reads
 // nothing? Factored out of main because the compensator has to ask the same
 // question of the line its delay line is holding.
@@ -106,16 +118,9 @@ fn main(
     // chroma on a 629 kHz carrier with far less headroom than the luma FM, so
     // the two have nothing like the same SNR — and this noise still has to come
     // back through the narrow chroma bandpass, which turns it into slow
-    // blotches of wrong hue instead of the fine grain luma gets. Seeded on the
-    // global sample index so overlapping workgroup halos agree on it.
-    let cns = pcg(P.frame * 1103515245u + P.gen * 88888933u);
+    // blotches of wrong hue instead of the fine grain luma gets.
     for (var i = lid.x; i < TILE; i = i + TILE_WG) {
-      let ci = clampIdx(base + i32(i));
-      var v = under[ci];
-      if (P.chromaNoise > 0.0) {
-        v = v + P.chromaNoise * gauss(ci ^ cns);
-      }
-      tileUn[i] = v;
+      tileUn[i] = underAt(clampIdx(base + i32(i)));
     }
   }
   if (P.noiseSigma > 0.0 || P.rfSnow > 0.0) {
@@ -158,24 +163,76 @@ fn main(
     luma = mix(luma, soft, P.rfSoften);
   }
 
+  // Differential gain and phase: the video amplifier's gain and delay are not
+  // flat against the DC level they sit on, so chroma riding bright luma is
+  // compressed (DG) and shifted in time (DP) — saturation dies in the
+  // highlights, hue swings with brightness. Keyed on the luma the chroma is
+  // riding; burst sits at blanking where the key is zero, so the decoder's
+  // reference holds still while the picture's colour moves — which is what
+  // makes DP a level-dependent hue *error* rather than a flat tint.
+  var lvl = 0.0;
+  if (P.diffGain != 0.0 || P.diffPhase != 0.0) {
+    lvl = clamp((luma - IRE_BLACK) / VIDEO_RANGE, 0.0, 1.0);
+  }
+  let dp = P.diffPhase * lvl;
+
+  // Y/C delay mistrim: the chroma path runs this many samples of group delay
+  // off the luma path, so colour sits bodily sideways off the edges it belongs
+  // to. The burst rides the same mistrimmed path, so the decoder's reference
+  // moves with the picture's chroma and hue holds — displacement without a hue
+  // spin, which is what tells a Y/C delay from a timebase error.
+  let ycd = i32(P.ycDelay);
+  let cc = i32(n) - ycd;
+
   // chroma: crossfade direct <-> color-under playback (up-convert + bandpass)
-  var chr = chroma[n];
+  var chr = chroma[clampIdx(cc)];
+  if (dp != 0.0) {
+    // Sampling at 4x fsc puts the quadrature arm one sample either side, so a
+    // narrowband phase shift is two neighbour reads instead of a Hilbert FIR.
+    let cq = 0.5 * (chroma[clampIdx(cc - 1)] - chroma[clampIdx(cc + 1)]);
+    chr = chr * cos(dp) - cq * sin(dp);
+  }
   if (P.colorUnderMix > 0.0) {
     let mb = (CHROMA_BP_TAPS - 1u) / 2u;
-    let cb = lid.x + HALO;
-    let ph = upPhasor(row, f32(s));
+    var ph = upPhasor(row, f32(s));
+    if (dp != 0.0) {
+      // the regenerated carrier is ours to phase: advancing the up-conversion
+      // phasor by dp is the same rotation the direct path pays neighbours for
+      let cd = cos(dp);
+      let sd = sin(dp);
+      ph = vec2f(ph.x * cd - ph.y * sd, ph.y * cd + ph.x * sd);
+    }
     var w = vec2f(1.0, 0.0); // (cos dS, sin dS), walked outward from d = 0
-    var up = filters[SEC_CHROMA_BP * FILTER_STRIDE + mb] * tileUn[cb] * ph.x;
-    for (var d = 1u; d <= mb; d = d + 1u) {
-      w = stepPhasor(w);
-      let lo = tileUn[cb - d];
-      let hi = tileUn[cb + d];
-      up = up + filters[SEC_CHROMA_BP * FILTER_STRIDE + mb - d]
-        * (ph.x * w.x * (lo + hi) + ph.y * w.y * (lo - hi));
+    var up: f32;
+    if (ycd == 0) {
+      let cb = lid.x + HALO;
+      up = filters[SEC_CHROMA_BP * FILTER_STRIDE + mb] * tileUn[cb] * ph.x;
+      for (var d = 1u; d <= mb; d = d + 1u) {
+        w = stepPhasor(w);
+        let lo = tileUn[cb - d];
+        let hi = tileUn[cb + d];
+        up = up + filters[SEC_CHROMA_BP * FILTER_STRIDE + mb - d]
+          * (ph.x * w.x * (lo + hi) + ph.y * w.y * (lo - hi));
+      }
+    } else {
+      // The delay reaches past the staged halo (the bandpass kernel already
+      // uses most of it), so this arm reads storage; it only runs while a
+      // Y/C mistrim is actually dialled in.
+      up = filters[SEC_CHROMA_BP * FILTER_STRIDE + mb] * underAt(clampIdx(cc)) * ph.x;
+      for (var d = 1u; d <= mb; d = d + 1u) {
+        w = stepPhasor(w);
+        let lo = underAt(clampIdx(cc - i32(d)));
+        let hi = underAt(clampIdx(cc + i32(d)));
+        up = up + filters[SEC_CHROMA_BP * FILTER_STRIDE + mb - d]
+          * (ph.x * w.x * (lo + hi) + ph.y * w.y * (lo - hi));
+      }
     }
     // the heterodyne's factor of two, out of the tap loop
     chr = mix(chr, 2.0 * up, P.colorUnderMix);
   }
+  // DG takes the crossfaded chroma whichever path produced it: the amplifier
+  // is downstream of both.
+  chr = chr * (1.0 - P.diffGain * lvl);
   if (P.rfSoften > 0.0) {
     // The same slope taking the chroma — but a flat loss on chroma and burst
     // together is exactly what the decoder's ACC re-normalizes away, so
@@ -449,6 +506,23 @@ fn main(
   // head-switch disturbance band at the bottom of the picture
   if (P.headSwitchNoise > 0.0 && row >= HEAD_SWITCH_LINE && row < HEAD_SWITCH_LINE + 3u) {
     out = out + P.headSwitchNoise * 25.0 * gauss(n ^ pcg(P.frame * 3121u + row + P.gen * 4423u));
+  }
+
+  // Head clog: one of the two spinning heads has picked up oxide and reads
+  // weak or nothing. The heads alternate sweeps, so picture and snow alternate
+  // at field rate — a flicker, never a static veil — and the head switch near
+  // the bottom of the picture is where the *other* head is already reading:
+  // on the clogged head's sweep those last lines survive, on the good head's
+  // sweep they are the part that dies. Keyed to P.frame, not tape time,
+  // because the drum spins whatever the tape is doing. Losing the sweep takes
+  // its sync tips with it, so the separator tears through the snow field for
+  // free.
+  if (P.headClog > 0.0) {
+    let cloggedSweep = select(row >= HEAD_SWITCH_LINE, row < HEAD_SWITCH_LINE, (P.frame & 1u) == 0u);
+    if (cloggedSweep) {
+      let snow = 45.0 * gauss(n ^ pcg(P.frame * 15013u + row * 5u + P.gen * 131u));
+      out = mix(out, snow, clamp(P.headClog * 1.15, 0.0, 0.95));
+    }
   }
 
   // VHS tracking error: a mistracked head can't read a band of lines, which

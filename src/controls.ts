@@ -99,6 +99,10 @@ export const DEFAULT_CONTROLS = {
   dropoutComp: 0, // dropout compensator: 0 none, 1 one-line delay, 2 two-line
   headSwitchNoise: 0,
   headSwitchShiftUs: 0,
+  headClog: 0, // one of the two video heads clogged: alternate sweeps collapse to snow
+  ycDelayNs: 0, // chroma path late (+) or early (-) vs luma: colour displaced off its edges
+  diffGain: 0, // differential gain: chroma compressed as the luma it rides brightens
+  diffPhaseDeg: 0, // differential phase: hue swings with brightness
   tbJitterNs: 0,
   tbWowNs: 0,
   dubGens: 1, // tape dub generations: the channel block runs this many times

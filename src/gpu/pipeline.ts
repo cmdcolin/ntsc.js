@@ -1237,6 +1237,12 @@ export class Engine implements EngineApi {
       dropoutLen: c.dropoutLenUs * 1e-6 * SAMPLE_RATE,
       dropoutComp: c.dropoutComp,
       headSwitchNoise: c.headSwitchNoise,
+      headClog: c.headClog,
+      // whole samples: the shader indexes with it, and sub-sample trims are
+      // below what a delay-line mistrim resolves anyway
+      ycDelay: Math.round(c.ycDelayNs * 1e-9 * SAMPLE_RATE),
+      diffGain: c.diffGain,
+      diffPhase: (c.diffPhaseDeg * Math.PI) / 180,
       polarityFlip: c.polarityFlip,
       termination: c.termination,
       chromaPinOnly: c.chromaPinOnly,
