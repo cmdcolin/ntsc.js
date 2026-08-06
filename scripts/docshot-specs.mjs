@@ -187,7 +187,12 @@ export const SPECS = [
     {
       name: 'filter',
       height: 1150,
+      // The box is mounted by the ⌕ rather than sitting in the masthead all
+      // session — it takes the wordmark's width, so it only appears once asked
+      // for. Without this click the shot had nothing to set and nothing to
+      // frame, and had been failing silently.
       actions: [
+        { click: { title: 'filter the controls' } },
         { set: { selector: 'input[type="search"]' }, value: 'rainbow' },
         { wait: 400 },
       ],
@@ -249,9 +254,18 @@ export const SPECS = [
         { target: 'chromaGain', source: 'lorenz', rateHz: 0.12, depth: 0.25 },
       ]),
     },
-    // The one row in the open group that is routed, so this reaches horizontal
-    // hold's ∿ and no other.
-    actions: [{ click: { title: 'modulated — click to change' } }],
+    // Horizontal hold's editor, which is now two clicks rather than one: the
+    // row's ∿ used to open it, and the hold switch took that button over (it
+    // stops the wobble instead), so the editor moved into the ⋮ menu beside it.
+    // The shot had been failing silently on a title nothing carries any more.
+    // The ⋮ is matched per row, so this reaches the one routed row in the open
+    // group and no other.
+    actions: [
+      { click: { title: 'more for “horizontal hold”' } },
+      { wait: 200 },
+      { click: { text: 'change what is driving it' } },
+      { wait: 400 },
+    ],
     annotations: [
       { target: { selector: 'div[class*="strip_"]' }, box: true },
       { target: { selector: 'div[class*="editor_"]' }, box: true },
