@@ -291,7 +291,7 @@
   color: #e08484;
 }
 .blue {
-  color: #9dbcea;
+  color: var(--midi);
 }
 .amber {
   color: var(--edit-hi);

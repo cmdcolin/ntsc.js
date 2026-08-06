@@ -15,7 +15,7 @@
 
 .label {
   font-size: var(--fs-sm);
-  color: #7cbf9a;
+  color: var(--mod);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -23,7 +23,7 @@
 .range {
   flex: 1;
   min-width: 0;
-  accent-color: #7cbf9a;
+  accent-color: var(--mod);
 }
 
 .freeze {
@@ -31,7 +31,7 @@
   padding: 0 2px;
   font-size: var(--fs-sm);
   line-height: 1;
-  color: #7cbf9a;
+  color: var(--mod);
 }
 .frozen {
   color: var(--edit-hi);
@@ -47,7 +47,7 @@
   color: var(--fg3);
 }
 .count:hover {
-  color: #7cbf9a;
+  color: var(--mod);
 }
 
 /* the ⚟ that puts this fader on a knob — same three states as a control row's,
@@ -59,7 +59,7 @@
   color: var(--fg4);
 }
 .bindSet {
-  color: #9dbcea;
+  color: var(--midi);
 }
 .bindArmed {
   color: var(--edit-hi);

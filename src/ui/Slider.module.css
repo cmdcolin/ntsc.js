@@ -202,14 +202,18 @@ button.badge {
 .iconOn {
   color: var(--edit-hi);
 }
+/* Locked to the clock — the amber family's quieter step, because a lock is a
+   standing arrangement rather than something you just did. It used to be a gold
+   of its own that was also, elsewhere, the colour of an unmet gate: one shade
+   carrying two meanings while one meaning ran under two shades. */
 .iconSyncSet {
-  color: #b6a058;
+  color: var(--edit);
 }
 /* something is driving this control. A static tint and nothing else: the mark
    says the lever is wired, and animating it would put a second moving thing on
    screen competing with the picture, which is the thing meant to move. */
 .iconModSet {
-  color: #7cbf9a;
+  color: var(--mod);
 }
 /* the same routing, held still. Struck through rather than merely dimmed: at
    --fg4 alone it reads as an unset badge, and this row has to say "there is a
@@ -219,7 +223,7 @@ button.badge {
   text-decoration: line-through;
 }
 .iconMidiSet {
-  color: #9dbcea;
+  color: var(--midi);
 }
 /* the ? that opens this control's explainer */
 .what {
@@ -271,7 +275,7 @@ button.badge {
   margin: -2px 0 2px;
   font-size: var(--fs-sm);
   text-align: left;
-  color: #c0a95e;
+  color: var(--gate);
 }
 .needs:hover {
   color: var(--edit-hi);

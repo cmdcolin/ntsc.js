@@ -65,13 +65,22 @@
   /* and its lit state, the one place the panel inverts its text */
   --ctl-on-bg: #4a7a62;
   --ctl-on-fg: #101014;
-  /* one sharp amber, for a count of anything off stock */
-  --amber: #ffb02e;
   /* The panel's word for "this has been moved off stock", as the resting/hover
-     pair every revert, dot and touched-count wears. Quieter than --amber, which
-     is reserved for a count sitting on the picture. */
+     pair every revert, dot and touched-count wears. */
   --edit: #ceba64;
   --edit-hi: #e8c464;
+  /* A control whose prerequisite is unmet — the note under a gated slider, and
+     the one banner that stands in for a group of them. It was two golds a
+     hundredth apart for the same sentence; this is the one that clears the 8:1
+     the theme sets for anything meant to be read (9.08 against the app's black,
+     where the other managed 8.16). Both lift to --edit-hi on hover, because
+     pressing one is how you meet the gate. */
+  --gate: #c0a95e;
+  /* Something is driving this control, and something is bound to it. Both are
+     statements about *wiring* rather than about value, which is why neither is
+     an amber: a routed knob has not been moved, it is being moved. */
+  --mod: #7cbf9a;
+  --midi: #9dbcea;
   /* prose wraps to 3–5 lines in a panel this narrow; 1.2 is unreadable there */
   --prose-lh: 1.45;
   /* One height for every control that can end up sitting beside another one.

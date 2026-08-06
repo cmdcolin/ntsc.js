@@ -11,7 +11,7 @@
 .tag {
   width: 13px;
   flex-shrink: 0;
-  color: #9dbcea;
+  color: var(--midi);
   font-family: var(--mono);
   font-size: var(--fs);
   font-weight: 700;

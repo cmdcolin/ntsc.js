@@ -144,4 +144,49 @@ describe('css modules', () => {
     }
     expect(dead).toEqual([])
   })
+
+  // The pass above only sees classes, and a token is the other half of the
+  // stylesheet. --amber outlived its last caller this way: still declared, still
+  // carrying a comment explaining what it was for, referenced nowhere — which is
+  // worse than a dead class, because the comment reads as documentation of a
+  // decision the app no longer makes.
+  it('declares no token nothing reads', () => {
+    const theme = readFileSync(join(SRC, 'theme.css'), 'utf8')
+    const declared = [
+      ...theme
+        .replaceAll(/\/\*[\s\S]*?\*\//g, '')
+        .matchAll(/^\s*(--[\w-]+):/gm),
+    ].map(m => m[1])
+    expect(declared.length).toBeGreaterThan(20)
+
+    // Every stylesheet plus every component, since a token can also be read
+    // from an inline style on an element. The theme counts as a reader of
+    // itself — --mono-blocks falls back through var(--mono) — and only `var(…)`
+    // is a use, so a token's own declaration line never props it up.
+    const readers = [
+      theme,
+      ...files.map(f => readFileSync(f, 'utf8')),
+      ...[...sheetPaths()].map(p => readFileSync(p, 'utf8')),
+    ].join('\n')
+
+    const uses = new Set(
+      [...readers.matchAll(/var\(\s*(--[\w-]+)/g)].map(m => m[1]),
+    )
+    expect(declared.filter(t => !uses.has(t))).toEqual([])
+  })
 })
+
+// every .module.css any component imports, plus any they compose from
+function sheetPaths(): Set<string> {
+  const out = new Set<string>()
+  for (const file of files) {
+    const raw = readFileSync(file, 'utf8')
+    for (const { path } of moduleImports(raw, file)) out.add(path)
+  }
+  for (const path of [...out]) {
+    for (const key of composedClasses(readFileSync(path, 'utf8'), path)) {
+      out.add(key.slice(0, key.lastIndexOf(':')))
+    }
+  }
+  return out
+}

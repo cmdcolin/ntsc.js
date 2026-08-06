@@ -8,7 +8,7 @@
   padding: 2px 0;
   margin: 2px 0;
   font-size: var(--fs-sm);
-  color: #b6a058;
+  color: var(--gate);
 }
 .groupNeeds:hover {
   color: var(--edit-hi);
@@ -24,7 +24,7 @@
    uses, because the touched count next to it cannot say this: modulation never
    moves the resting value it compares against */
 .fineMod {
-  color: #7cbf9a;
+  color: var(--mod);
 }
 
 /* Put the whole group back, beside the dice. Amber rather than the dice's dim
