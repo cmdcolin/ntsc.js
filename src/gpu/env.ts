@@ -44,6 +44,20 @@ export const isFocused = (): boolean =>
 export const isFullscreen = (): boolean =>
   typeof document !== 'undefined' && document.fullscreenElement !== null
 
+// The refresh driver's own clock, or null where there is nothing to read it
+// from. rAF callbacks and this advance from the same driver, so when the loop's
+// rAF chains go flat this separates "the driver stopped" from "the driver is
+// running and only the animation-frame callbacks are being dropped" — two
+// faults that look identical from inside the page and want opposite fixes.
+export const timelineNow = (): number | null => {
+  if (typeof document === 'undefined') return null
+  // the types say a document always has a timeline; a stubbed one disagrees
+  // oxlint-disable-next-line typescript/no-unnecessary-condition
+  const t = document.timeline?.currentTime ?? null
+  // CSSNumberish: a number everywhere that matters, and not worth a cast.
+  return typeof t === 'number' ? t : null
+}
+
 // The black-box recorder's backing store. Absent in a worker, and absent in the
 // unit tests, which is why every call site already tolerates losing a write.
 export const sessionStore = (): Storage | null =>

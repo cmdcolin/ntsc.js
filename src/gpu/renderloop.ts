@@ -1,7 +1,9 @@
-import { isFocused, isFullscreen, isVisible } from './env'
-import { trace } from './trace'
+import { isFocused, isFullscreen, isVisible, timelineNow } from './env'
+import { watchRenderStep } from './renderstep'
+import { clearFramelessStarts, recordFramelessStart, trace } from './trace'
 
 import type { FrameStats } from '../controls'
+import type { RenderStep } from './renderstep'
 
 // Frames per stats window. Shorter windows update the readout more responsively;
 // ~15 frames is roughly a quarter-second at 60 fps.
@@ -120,6 +122,13 @@ export class RenderLoop {
   private probing = false
   private rafTicks = 0
   private lastRafTicks = 0
+  // A second baseline, for the recorded line only. `lastRafTicks` is the stall
+  // logic's and is deliberately *not* refreshed on every beat — a hidden tab
+  // returns early and leaves it standing — so reading the trace off it printed
+  // a rAF delta accumulated over several beats next to a step delta measured
+  // over one, which is how a hidden beat came to claim 57 frames and a dead
+  // rendering step in the same line.
+  private lastBeatRaf = 0
   // Second rAF chain, counting only. See startProbe.
   private probeTicks = 0
   private lastProbeTicks = 0
@@ -145,6 +154,19 @@ export class RenderLoop {
   // number in flight, each one clobbering the arm time the gate reads.
   private drainGen = 0
   private throttled = false
+  // Whether this session has *ever* been given an animation frame. A loop that
+  // stalls after running is a different fault from one that was never ticked at
+  // all: the first is a pause worth bridging, the second says the tab was
+  // already broken when the document arrived, and no reload of that document
+  // can fix what predates it.
+  private everRaf = false
+  // The rendering step, watched through ResizeObserver rather than rAF, and the
+  // refresh driver's own clock. Together they say whether a flat rAF count means
+  // the step stopped or only its animation-frame callbacks were dropped — see
+  // renderstep.ts.
+  private step: RenderStep | null = null
+  private lastStepTicks = 0
+  private lastTimeline: number | null = null
 
   constructor(host: RenderLoopHost) {
     this.host = host
@@ -166,6 +188,7 @@ export class RenderLoop {
     this.probing = false
     this.rafTicks = 0
     this.lastRafTicks = 0
+    this.lastBeatRaf = 0
     this.probeTicks = 0
     this.lastProbeTicks = 0
     this.lastTime = 0
@@ -176,6 +199,11 @@ export class RenderLoop {
     this.probeArmedAt = 0
     this.framesSinceProbe = 0
     this.throttled = false
+    this.everRaf = false
+    this.step?.stop()
+    this.step = watchRenderStep()
+    this.lastStepTicks = 0
+    this.lastTimeline = timelineNow()
     trace.add('start')
     this.startRender()
     this.startProbe()
@@ -230,6 +258,8 @@ export class RenderLoop {
     this.live = false
     this.stalled = false
     this.pumping = false
+    this.step?.stop()
+    this.step = null
     clearInterval(this.watchdogId)
     clearTimeout(this.fallbackId)
     this.fallbackId = 0
@@ -238,6 +268,13 @@ export class RenderLoop {
   private startRender(): void {
     this.startChain('render', time => {
       this.rafTicks += 1 // proof rAF is being delivered (watchdog reads it)
+      if (!this.everRaf) {
+        this.everRaf = true
+        // This tab can be ticked, so whatever run of frameless sessions came
+        // before it is over. Recorded across sessions rather than in the ring
+        // because the run length is the diagnosis: see trace.ts.
+        clearFramelessStarts()
+      }
       if (this.stalled) {
         // Leave the fallback the instant rAF returns rather than waiting for the
         // watchdog, otherwise both drivers run frames for up to WATCHDOG_MS and
@@ -470,16 +507,36 @@ export class RenderLoop {
     // is compared, so a steady session doesn't record a line every two seconds.
     const probeDelta = this.probeTicks - this.lastProbeTicks
     this.lastProbeTicks = this.probeTicks
+    const rafDelta = this.rafTicks - this.lastBeatRaf
+    this.lastBeatRaf = this.rafTicks
+    // The rendering step and the refresh driver's clock: two readings of the
+    // thing rAF rides on, taken by routes that are not rAF. Sampled every beat
+    // rather than only on a stall, so a session that goes on to wedge has a run
+    // of known-good readings in front of the break to compare against.
+    const stepTicks = this.step?.ticks() ?? 0
+    const stepDelta = this.step === null ? null : stepTicks - this.lastStepTicks
+    this.lastStepTicks = stepTicks
+    const now = timelineNow()
+    const timeDelta =
+      now === null || this.lastTimeline === null
+        ? null
+        : Math.round(now - this.lastTimeline)
+    this.lastTimeline = now
     trace.beat(
       [
         isVisible() ? 'visible' : 'hidden',
         isFocused() ? 'focused' : 'unfocused',
         isFullscreen() ? 'fullscreen' : 'windowed',
+        // Qualitative on purpose, so it costs nothing while it stays true and
+        // records a line the moment it stops being true.
+        stepDelta === null ? 'step?' : stepDelta > 0 ? 'step' : 'STEP-DEAD',
         this.stalled ? (this.gaveUp ? 'GAVE-UP' : 'STALLED') : 'ok',
       ].join(' '),
-      `frame ${this.host.frameNo()} raf ${this.rafTicks - this.lastRafTicks}/beat probe ${probeDelta}/beat`,
+      `frame ${this.host.frameNo()} raf ${rafDelta}/beat probe ${probeDelta}/beat step ${stepDelta ?? '?'}/beat clock +${timeDelta ?? '?'}ms`,
     )
     trace.flush()
+    // Give the observer something to deliver before the next beat reads it.
+    this.step?.nudge()
     if (!this.live || !isVisible()) return
     // A device that threw the probe back synchronously left the gate unarmed and
     // therefore blind. This is the only thing still running that can offer it
@@ -499,20 +556,44 @@ export class RenderLoop {
           this.stalled = true
           this.stallSince = performance.now()
           this.setGaveUp(false)
-          // The probe delta is the diagnosis, and the two readings want
-          // opposite fixes.
+          // Three readings, narrowing. The probe chain separates "our render
+          // chain was dropped" from "the document is getting nothing"; the
+          // step witness then splits that second case into the one the
+          // fallback can bridge and the one no reload can.
           const verdict =
-            probeDelta === 0
-              ? 'the document is getting no rAF at all'
-              : 'the document IS ticking, so the render chain was dropped on our side'
+            probeDelta > 0
+              ? 'the document IS ticking, so the render chain was dropped on our side'
+              : stepDelta === null
+                ? 'the document is getting no rAF at all'
+                : stepDelta > 0
+                  ? 'the rendering step is still running, so only animation-frame callbacks are being dropped — frames the fallback draws should still reach the screen'
+                  : 'the rendering step has stopped for this tab, so nothing drawn can reach the screen'
           trace.add(
             'stall',
-            `frame ${this.host.frameNo()} probe ${probeDelta}/beat`,
+            `frame ${this.host.frameNo()} probe ${probeDelta}/beat step ${stepDelta ?? '?'}/beat clock +${timeDelta ?? '?'}ms`,
           )
           trace.flush(true)
           console.warn(
-            `rAF not delivering (frame ${this.host.frameNo()}, independent probe ${probeDelta}/beat — ${verdict}); driving via setTimeout fallback`,
+            `rAF not delivering (frame ${this.host.frameNo()}, independent probe ${probeDelta}/beat, rendering step ${stepDelta ?? '?'}/beat, refresh clock +${timeDelta ?? '?'}ms — ${verdict}); driving via setTimeout fallback`,
           )
+          // Never ticked at all, as opposed to stalled after running. Worth
+          // saying separately and loudly: this is the one the user meets after
+          // a reload, and the advice it wants is the opposite of "try again".
+          if (!this.everRaf) {
+            const run = recordFramelessStart()
+            trace.add(
+              'coldStall',
+              `${run} frameless session${run === 1 ? '' : 's'} in a row`,
+            )
+            trace.flush(true)
+            console.error(
+              `This page has never been given an animation frame since it loaded${
+                run > 1
+                  ? `, and neither were the ${run - 1} before it. The fault has outlived a document, so reloading cannot clear it — open this URL in a new tab.`
+                  : '. If a reload lands here again, the fault has outlived the document and only a new tab will clear it.'
+              }`,
+            )
+          }
         }
         this.startPump()
         this.kick() // still give rAF a chance to wake on its own
