@@ -40,7 +40,11 @@
     "docshots": "node scripts/docshots.mjs",
     "guide": "node scripts/build-guide.mjs",
     "docs": "node scripts/diagrams.mjs",
-    "docs:check": "node scripts/diagrams.mjs --check"
+    "docs:check": "node scripts/diagrams.mjs --check",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}": "oxfmt"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -57,6 +61,8 @@
     "@webgpu/types": "^0.1.71",
     "babel-plugin-react-compiler": "^1.0.0",
     "git-cliff": "^2.13.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
     "markdown-it": "^15.0.0",
     "oxfmt": "^0.61.0",
     "oxlint": "^1.76.0",
