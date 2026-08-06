@@ -48,26 +48,17 @@ These read like naked periodic waves but are physically correct — don't
 - **Decode bend ripple** (`decode.wgsl`) — spatial, not animated; nothing to
   make aperiodic in time.
 
-## The unlocked H-osc coasts too cleanly
+## ~~The unlocked H-osc coasts too cleanly~~
 
-Found while building sync suppression, and it caps how good several existing
-effects can look. When `sync_measure` finds no edge, `sync.wgsl` models the line
-as `pll + 0.15 * (rand01() - 0.45)` — a tiny random walk. `P.hRate` (the
-`hDetuneHz` free-run drift) is added separately and unconditionally. So a
-receiver sitting exactly on 15.734 kHz that loses sync entirely keeps drawing an
-almost perfect raster, which no real set does: a free-running line oscillator
-has phase noise, and a slicer hunting in noise triggers on noise.
-
-Consequence: sync suppression, `chromaPinOnly`, `polarityFlip` and the no-signal
-presets all need `hDetuneHz` dialled in before they look like anything, and the
-knob that is nominally causing the fault is not the knob doing the work. Worth
-fixing at the source — give the unlocked branch honest oscillator jitter scaled
-by how long it has been since the last good measurement, so lock decays instead
-of coasting. Everything above then reads correctly at its own setting, and the
-presets can stop carrying a detune to compensate.
-
-Check `presets.ts` afterwards: `scrambled channel`, `ssavi`, `dead channel` and
-`chroma only` all lean on that compensation today.
+Shipped: the free-run branch now carries a lock age (`timing[LOCK_AGE]`,
+persistent across frames) that scales its phase noise, so lock decays over
+roughly a frame of lost lines instead of coasting — plus an occasional
+phantom-edge trigger the flywheel chases at the hold gain, because a slicer
+hunting in noise triggers on noise. Full scramble now writhes with no
+`hDetuneHz` dialled in. The presets that carried the compensation
+(`scrambled channel`, `ssavi`, `dead channel`, `chroma only`) were rechecked:
+their looks hold, since below the slicer level the tip is still found and the
+decay never engages — the change only bites where sync is genuinely gone.
 
 ## RF / tuner front end
 

@@ -110,14 +110,18 @@ export class VideoPump {
   // Once per rendered frame: hand over anything that finished decoding, then
   // ask for the next. Delivery comes first so a bitmap that arrived during the
   // last frame reaches the GPU now rather than waiting a further frame behind a
-  // fresh request.
-  pump(sink: VideoFrameSink): void {
+  // fresh request. freezeB is the B deck's pause button: the slot stops
+  // delivering and stops asking, so the GPU keeps the frame it has — a decoded
+  // frame already waiting stays queued for the moment the button comes up.
+  pump(sink: VideoFrameSink, freezeB = false): void {
     const readyA = this.take(this.a)
     if (readyA !== null) sink.pushA(readyA)
-    const readyB = this.take(this.b)
-    if (readyB !== null) sink.pushB(readyB)
+    if (!freezeB) {
+      const readyB = this.take(this.b)
+      if (readyB !== null) sink.pushB(readyB)
+    }
     this.requestA()
-    this.requestB()
+    if (!freezeB) this.requestB()
   }
 
   private take(slot: Slot): PumpedFrame | null {

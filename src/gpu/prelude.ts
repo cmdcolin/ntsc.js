@@ -57,6 +57,8 @@ export const PARAM_DEFS = [
   ['bHue', 'f32'], // B proc-amp hue trim, radians
   ['bVidGain', 'f32'], // B proc-amp video gain
   ['bInv', 'f32'], // B video inversion amount (0.5 = solarized midpoint)
+  ['bPause', 'f32'], // B deck's pause button: 0 play, >0 held frame with servo damage
+  ['bPauseBar', 'f32'], // head-mistrack stripe centre, source rows (walks on its own)
   ['bGenlock', 'f32'], // 0 dirty sum, 1 clean genlocked crossfade (dissolve/wipe)
   ['wipeMode', 'f32'], // 0 off, 1 h, 2 v, 3 box, 4 diamond
   ['wipePos', 'f32'], // wipe position incl. auto-sweep (accumulated)
@@ -116,6 +118,8 @@ export const PARAM_DEFS = [
   ['agc', 'f32'], // receiver AGC action, 0 fixed gain .. 1 full
   ['abl', 'f32'], // beam limiter: 0 generous flyback .. 1 undersized and underdamped (hunts)
   ['noiseSigma', 'f32'], // additive noise, IRE rms
+  ['impulseRate', 'f32'], // impulse (ignition/arc) noise events per frame
+  ['impulseIre', 'f32'], // impulse peak amplitude, IRE
   ['ghostDelay', 'f32'], // samples
   ['ghostGain', 'f32'],
   ['humAmp', 'f32'], // IRE
@@ -266,7 +270,10 @@ const ABL_GAIN = ${LINES + 3}u;
 const ABL_VEL = ${LINES + 4}u;
 const IRIS_GAIN = ${LINES + 5}u;
 const IRIS_VEL = ${LINES + 6}u;
-const SAG_BASE = ${LINES + 7}u; // deflection sag region of the timing buffer
+// Lines since the sync separator last found a real edge. The free-running
+// H-osc's phase noise grows with it, so lock decays instead of coasting.
+const LOCK_AGE = ${LINES + 7}u;
+const SAG_BASE = ${LINES + 8}u; // deflection sag region of the timing buffer
 const VSYNC_FIRST = ${VSYNC_FIRST}u;
 const VSYNC_LAST = ${VSYNC_LAST}u;
 const HEAD_SWITCH_LINE = ${HEAD_SWITCH_LINE}u;

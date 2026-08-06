@@ -135,6 +135,21 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'ignition storm',
+    group: 'RF / Broadcast',
+    blurb:
+      'Impulse interference over a dim signal: sparse carrier-scale hits, each a bright comet with a ringing tail, slamming a phosphor that holds the flash after the picture has moved on.',
+    patch: {
+      impulseRate: 150,
+      impulseIre: 110,
+      aGain: 0.3,
+      agc: 0,
+      crtCutoff: 0.1,
+      phosphor: 0.8,
+      phosphorDecayMix: 0.15,
+    },
+  },
+  {
     name: 'dead channel',
     group: 'RF / Broadcast',
     blurb:
@@ -473,6 +488,18 @@ export const PRESETS: PresetDef[] = [
       bRollLps: 0.2,
       hHold: 0.22,
       noiseIre: 2,
+    },
+  },
+  {
+    name: 'pause fight',
+    group: 'A/B mixing',
+    blurb:
+      'The old rig: a VCR on pause into the dirty mixer. The held frame shreds through the live picture in torn bands — the paused deck free-runs with its servo defeated, the mistrack stripe walks, hue flickers between the drum’s two reads, and when the stripe crosses B’s vertical interval the sync fight rolls.',
+    patch: {
+      bGain: 0.5,
+      bPause: 0.8,
+      bLineHz: 0.2,
+      bDetuneHz: 25,
     },
   },
   {

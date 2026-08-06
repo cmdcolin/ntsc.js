@@ -116,6 +116,10 @@ fn main() {
   var depthCount = 0.0;
   var loadSum = 0.0;
   var loadCount = 0.0;
+  // How long the separator has gone without a real edge, carried across
+  // frames: a flywheel keeps an unlocked oscillator honest for a while, but
+  // not forever, and the decay below is scaled by this.
+  var lockAge = timing[LOCK_AGE];
   for (var row = 0u; row < NLINES; row = row + 1u) {
     // Vertical retrace hammers the sync separator: serrations and equalizing
     // pulses run at twice line rate right through the blanking interval, so the
@@ -144,14 +148,29 @@ fn main() {
       // flywheel: blend measurement in at the hold gain, within pull-in range
       let auth = P.hHold * H_PULL_MAX;
       pll = pll + clamp(P.hHold * (m.x - pll), -auth, auth);
+      lockAge = 0.0;
       // gated AGC depth on picture lines
       if (row > VSYNC_LAST + 3u) {
         depthSum = depthSum + m.y;
         depthCount = depthCount + 1.0;
       }
     } else {
-      // free-run with slight drift when sync is lost
-      pll = pll + 0.15 * (rand01(pcg(row * 7919u + P.frame * 104729u)) - 0.45);
+      // Free-run. A line oscillator with no reference does not coast on a
+      // perfect raster: its phase noise accumulates, and the longer since the
+      // last real edge the drunker the walk — so lock *decays* rather than
+      // holding, and a scrambled or dead channel writhes at its own setting
+      // instead of needing a detune dialled in to look broken. On top of the
+      // walk, the slicer is still hunting, and in noise it occasionally
+      // triggers on garbage: a phantom edge the flywheel chases as hard as
+      // the hold control says to chase anything.
+      lockAge = min(lockAge + 1.0, 5000.0);
+      let coast = min(lockAge / 600.0, 1.0);
+      let sigma = 0.15 + 2.2 * coast;
+      let h = pcg(row * 7919u + P.frame * 104729u);
+      pll = pll + sigma * (rand01(h) - 0.45);
+      if (rand01(h ^ 0x5bd1e995u) < 0.02 * coast) {
+        pll = pll + (rand01(h ^ 0x2545f491u) - 0.5) * 30.0 * P.hHold;
+      }
     }
     timing[row] = pll;
   }
@@ -245,4 +264,5 @@ fn main() {
   timing[ABL_VEL] = ablV;
   timing[IRIS_GAIN] = irisG;
   timing[IRIS_VEL] = irisV;
+  timing[LOCK_AGE] = lockAge;
 }

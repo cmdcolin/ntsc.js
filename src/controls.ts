@@ -70,6 +70,8 @@ export const DEFAULT_CONTROLS = {
   enhSliceIre: -20, // regenerator slice level
   lumaPeak: 0,
   noiseIre: 0,
+  impulseRate: 0, // ignition/arc impulse noise, events per frame
+  impulseIre: 90, // impulse peak amplitude
   soundIre: 0,
   agc: 0,
   ghostDelayUs: 0,
@@ -148,6 +150,7 @@ export const DEFAULT_CONTROLS = {
   bHueDeg: 0,
   bVidGain: 1,
   bInv: 0,
+  bPause: 0, // B deck's pause button: held frame, defeated servo, mistrack stripe
   bGenlock: 0, // 0 dirty sum .. 1 clean genlocked crossfade (dissolve/wipe)
   wipeMode: 0,
   wipePos: 0.5,

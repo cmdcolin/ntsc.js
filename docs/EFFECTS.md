@@ -190,7 +190,15 @@ into a clean switcher dissolve.
 - **Line offset / subcarrier detune / frame roll** — B's oscillators off A's:
   continuous sideways skew, rainbow hue crawl, independent vertical creep.
 - **B hue / gain / invert** — proc-amp trims; inverted B against A reads as a
-  difference key.
+  difference key, and negative B gain flips B's whole signal, sync included.
+- **B pause** — the pause button on the B deck. The frame holds (the drum
+  re-reads one parked track) but the capstan servo is defeated, so B's timebase
+  wanders and scatters line to line; the head sweeps off-track through a
+  mistrack stripe of snow that creeps on its own; and the drum's two reads never
+  had their colour-under phase interleaved, so hue flickers at frame rate.
+  Summed dirty against A this is the classic rig — a paused VCR into a mixer,
+  two fighting syncs, one of them broken — and when the stripe drifts through
+  B's vertical interval the fight turns into rolls.
 - **Wipes** — horizontal, vertical, box, diamond, with softness and an
   auto-sweep.
 - **PiP inset** — B squeezed into a genlocked DVE window, with matte border and
@@ -213,6 +221,12 @@ stage can run more than once — see **dub generations**.
 
 - **Noise** — tape grain and RF snow on the whole waveform, degrading sync and
   burst along with the picture.
+- **Impulse noise** — ignition, arcing contacts, a dying flyback next door:
+  sparse microsecond events at carrier-scale amplitude, each a bright comet with
+  an instant attack and the IF filter's ringing tail. The opposite texture from
+  snow, and on a dark picture with phosphor persistence they read as single
+  photons slamming the glass. Enough of them land on sync tips and burst to take
+  timing and colour with them.
 - **Ghosting** — multipath: a delayed, possibly phase-inverted echo displaced
   right of everything.
 - **Hum bar** — ground-loop mains hum, a soft bright bar drifting up the

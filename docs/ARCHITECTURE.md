@@ -96,13 +96,15 @@ fault through `timing[]` will spin hue that should have stayed put.
 
 ## Buffer layouts worth knowing
 
-- **`timingBuf`** (`(LINES * 2 + 7)` floats) — `[0..524]` per-line horizontal
+- **`timingBuf`** (`(LINES * 2 + 8)` floats) — `[0..524]` per-line horizontal
   offset; `[525]` vertical oscillator phase, signed and fractional; `[526]` PLL
   state; `[527]` AGC gain; `[528..531]` the two second-order gain servos (beam
   limiter and camera auto-iris, gain + velocity each — `sync` updates them,
   `decode` applies the ABL drive, `compose` applies the iris a frame late);
-  `[SAG_BASE..]` normalized deflection sag per raster line. Indices 525–531 are
-  persistent across frames; treat them as state.
+  `[532]` the sync separator's lock age, lines since the last real edge, which
+  scales the free-running H-osc's phase noise so lock decays instead of
+  coasting; `[SAG_BASE..]` normalized deflection sag per raster line. Indices
+  525–532 are persistent across frames; treat them as state.
 - **`lineParamsBuf`** — one `vec4f` per line from `LineState`:
   `(tbOffsetSamples, underBasePhase, underJitterPhase, seed)`. All four slots
   are taken; a new per-line CPU quantity needs its own buffer.

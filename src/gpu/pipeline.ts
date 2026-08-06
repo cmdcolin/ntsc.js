@@ -300,11 +300,11 @@ export class Engine implements EngineApi {
       size: LINE_PARAM_BYTES,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
-    // per-line hoff + 7 persistent scalars (v-osc, PLL, AGC, and the two
-    // second-order gain servos: beam limiter and camera iris, gain + velocity
-    // each) + a per-raster-line deflection sag
+    // per-line hoff + 8 persistent scalars (v-osc, PLL, AGC, the two
+    // second-order gain servos — beam limiter and camera iris, gain + velocity
+    // each — and the sync separator's lock age) + a per-raster-line sag
     this.timingBuf = d.createBuffer({
-      size: (LINES * 2 + 7) * 4,
+      size: (LINES * 2 + 8) * 4,
       usage: GPUBufferUsage.STORAGE,
     })
     this.syncMeasureBuf = d.createBuffer({
@@ -488,7 +488,9 @@ export class Engine implements EngineApi {
         composeBPl,
         [{ buffer: this.paramsBuf }, this.sources.viewB()],
         perTile,
-        () => bOn() && this.sources.srcNoiseB > 0,
+        // a paused B deck holds its frame, so the snow generator freezes too —
+        // the crawl was on the tape, and the tape has stopped
+        () => bOn() && this.sources.srcNoiseB > 0 && c.bPause === 0,
       ),
       pass(
         'encodeYuvB',
@@ -837,6 +839,13 @@ export class Engine implements EngineApi {
   }
 
   pushFrameB(f: PumpedFrame): void {
+    // A worker-owned engine has frames pushed from outside, so the B deck's
+    // pause gate lives here as well as in the pump. Dropped frames must close
+    // their bitmap — ownership arrived with the push.
+    if (this.controls.bPause > 0) {
+      f.bmp.close()
+      return
+    }
     this.sources.pushB(f)
   }
 
@@ -1029,6 +1038,8 @@ export class Engine implements EngineApi {
       audioIre: c.audioIre,
       audioHue: (c.audioHueDeg * Math.PI) / 180,
       noiseSigma: c.noiseIre,
+      impulseRate: c.impulseRate,
+      impulseIre: c.impulseIre,
       ghostDelay: c.ghostDelayUs * 1e-6 * SAMPLE_RATE,
       ghostGain: c.ghostGain,
       humAmp: c.humAmp,
@@ -1287,7 +1298,7 @@ export class Engine implements EngineApi {
 
   private renderFrame(): void {
     const d = this.gpu.device
-    this.pump.pump(this.sources)
+    this.pump.pump(this.sources, this.controls.bPause > 0)
     if (this.frame % 30 === 0 && this.debug) {
       console.log('DEBUG frame', this.frame, {
         ...this.pump.info(),
@@ -1302,6 +1313,7 @@ export class Engine implements EngineApi {
       bLineHz: c.bLineHz,
       bDetuneHz: c.bDetuneHz,
       bRollLps: c.bRollLps,
+      bPause: c.bPause,
       wipePos: c.wipePos,
       wipeRateHz: c.wipeRate,
     })

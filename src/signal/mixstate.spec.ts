@@ -9,6 +9,7 @@ const STILL: MixControls = {
   bLineHz: 0,
   bDetuneHz: 0,
   bRollLps: 0,
+  bPause: 0,
   wipePos: 0.5,
   wipeRateHz: 0,
 }
@@ -82,6 +83,24 @@ describe('MixState', () => {
     // a pure sawtooth would never decrease; the fold has to send it back down
     expect(seen.some((v, i) => i > 0 && v < seen[i - 1])).toBe(true)
     expect(seen.some((v, i) => i > 0 && v > seen[i - 1])).toBe(true)
+  })
+
+  it('wanders the timing and walks the stripe only while paused', () => {
+    const m = new MixState()
+    // in play, the deck is steady: no wobble reaches the accumulators
+    expect(step(m, {}, 10).bShift0).toBe(0)
+    // held, the defeated servo wanders the shift and the stripe stays a row
+    const held = new Set<number>()
+    for (let i = 0; i < 60; i++) {
+      const out = m.update({ ...STILL, bPause: 1 })
+      held.add(out.bShift0)
+      expect(out.bPauseBar).toBeGreaterThanOrEqual(0)
+      expect(out.bPauseBar).toBeLessThan(LINES)
+      expect(out.bPause).toBe(1)
+    }
+    expect(held.size).toBeGreaterThan(1)
+    // releasing the button stops the wander where the accumulators stand
+    expect(m.update({ ...STILL }).bPause).toBe(0)
   })
 
   it('snaps the sweep back to the slider when the rate returns to zero', () => {

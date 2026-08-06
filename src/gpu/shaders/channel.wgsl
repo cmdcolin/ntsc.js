@@ -180,6 +180,27 @@ fn main(
     out = out + P.noiseSigma * 0.4082 * (tileNs[cn - 1u] + 2.0 * tileNs[cn] + tileNs[cn + 1u]);
   }
 
+  // Impulse noise — ignition, arcing thermostats, a dying flyback next door.
+  // The opposite texture from the Gaussian floor above: sparse microsecond
+  // events at carrier-scale amplitude, nothing in between. Each one is a
+  // comet — instant attack, exponential tail, which is the IF filter ringing
+  // after the hit — and mostly bright, because an impulse saturates toward
+  // peak carrier before the detector ever sees it. On a dark picture with
+  // phosphor persistence these read as single photons slamming the glass.
+  if (P.impulseRate > 0.0) {
+    let lh = pcg(row * 48271u + P.frame * 2654435761u + P.gen * 1299709u);
+    if (rand01(lh) < P.impulseRate / f32(NLINES)) {
+      let start = f32(pcg(lh ^ 0xabcd11u) % SPL);
+      let d = f32(s) - start;
+      let len = 8.0 + 60.0 * rand01(lh ^ 0x77u);
+      if (d >= 0.0 && d < len * 4.0) {
+        let amp = P.impulseIre * (0.5 + rand01(lh ^ 0x1234u));
+        let pol = select(1.0, -0.4, rand01(lh ^ 0x9u) < 0.25);
+        out = out + pol * amp * exp(-d / len);
+      }
+    }
+  }
+
   // 60 Hz hum: one cycle per field, slowly rolling
   if (P.humAmp > 0.0 || P.humMod > 0.0) {
     let ph = 2.0 * PI * (f32(row) / f32(NLINES) + f32(P.frame) * 0.0037);
