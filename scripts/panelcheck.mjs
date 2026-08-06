@@ -164,7 +164,8 @@ await phase('filter', { seed: OLD_BAY }, async page => {
     window.vf.setControl('crtScan', c.crtScan === 0 ? 0.5 : 0)
     return new Promise(res =>
       setTimeout(
-        () => res({ before, after: document.activeElement?.getAttribute('type') }),
+        () =>
+          res({ before, after: document.activeElement?.getAttribute('type') }),
         250,
       ),
     )
@@ -183,7 +184,10 @@ await phase('filter', { seed: OLD_BAY }, async page => {
     stages: [...document.querySelectorAll('svg[aria-label="signal chain"] g[role=button]')]
       .map(g => (g.getAttribute('aria-label') ?? '').split(' — ')[0]),
   }`)
-  check(cleared.chain, 'the chain map did not come back when the filter cleared')
+  check(
+    cleared.chain,
+    'the chain map did not come back when the filter cleared',
+  )
   check(
     cleared.stages.length === 5,
     `the map came back with ${cleared.stages.length} stages: ${cleared.stages}`,
@@ -208,7 +212,10 @@ await phase('hold', { seed: OLD_BAY }, async page => {
     parked.strip === '0∿',
     `holding one routing left the count at ${parked.strip}`,
   )
-  check(parked.struck === true, 'a held routing is not marked as held on its row')
+  check(
+    parked.struck === true,
+    'a held routing is not marked as held on its row',
+  )
 
   // The switch is coalesced to localStorage like the rest of the bay.
   await settle(1200)
@@ -219,45 +226,57 @@ await phase('hold', { seed: OLD_BAY }, async page => {
 })
 
 // --- …and it is still held when the link brings the routing back ------------
-await phase('held survives the link', { seed: HELD_BAY, query: MOD_QUERY }, async page => {
-  const { run, settle } = runner(page)
-  const back = await run(`return { strip: strip()?.textContent ?? null }`)
-  check(
-    back.strip === '0∿',
-    `?mod= cleared the hold on load — strip read ${back.strip}`,
-  )
+await phase(
+  'held survives the link',
+  { seed: HELD_BAY, query: MOD_QUERY },
+  async page => {
+    const { run, settle } = runner(page)
+    const back = await run(`return { strip: strip()?.textContent ?? null }`)
+    check(
+      back.strip === '0∿',
+      `?mod= cleared the hold on load — strip read ${back.strip}`,
+    )
 
-  await run(`press(strip()); return 0`)
-  await settle(500)
-  await run(`press(byText('∿')); return 0`)
-  await settle(500)
-  const restarted = await run(`return { strip: strip()?.textContent ?? null }`)
-  check(
-    restarted.strip === '1∿',
-    `restarting a held routing left the count at ${restarted.strip}`,
-  )
+    await run(`press(strip()); return 0`)
+    await settle(500)
+    await run(`press(byText('∿')); return 0`)
+    await settle(500)
+    const restarted = await run(
+      `return { strip: strip()?.textContent ?? null }`,
+    )
+    check(
+      restarted.strip === '1∿',
+      `restarting a held routing left the count at ${restarted.strip}`,
+    )
 
-  // remove folds the editor rather than leaving it claiming the bay is full.
-  await run(`press(byTitle('more for')); return 0`)
-  await settle(400)
-  await run(`press(byPart('driving it')); return 0`)
-  await settle(500)
-  const editorUp = await run(`return {
+    // remove folds the editor rather than leaving it claiming the bay is full.
+    await run(`press(byTitle('more for')); return 0`)
+    await settle(400)
+    await run(`press(byPart('driving it')); return 0`)
+    await settle(500)
+    const editorUp = await run(`return {
     open: byText('remove') !== undefined,
     holdable: document.body.innerText.includes('hold still'),
   }`)
-  check(editorUp.open, 'the ⋮ did not open the row editor')
-  check(editorUp.holdable, 'the row editor offers no way to hold the routing still')
+    check(editorUp.open, 'the ⋮ did not open the row editor')
+    check(
+      editorUp.holdable,
+      'the row editor offers no way to hold the routing still',
+    )
 
-  await run(`press(byText('remove')); return 0`)
-  await settle(500)
-  const afterRemove = await run(`return {
+    await run(`press(byText('remove')); return 0`)
+    await settle(500)
+    const afterRemove = await run(`return {
     busy: document.body.innerText.includes('modulation slots are busy'),
     editor: byText('remove') !== undefined,
   }`)
-  check(!afterRemove.busy, 'remove left the row claiming every slot is busy')
-  check(!afterRemove.editor, 'remove left the editor open with nothing to edit')
-})
+    check(!afterRemove.busy, 'remove left the row claiming every slot is busy')
+    check(
+      !afterRemove.editor,
+      'remove left the editor open with nothing to edit',
+    )
+  },
+)
 
 // --- the fps stat is wired only while something reads it --------------------
 // The loop reports the frame rate every fifteen frames and each report is a
@@ -274,7 +293,10 @@ await phase('fps stat', {}, async page => {
   const noop = s => s.replace(/\s/g, '') === '()=>{}'
 
   const off = await handler()
-  check(noop(off), `frame stats are wired with the readout closed: ${off.slice(0, 60)}`)
+  check(
+    noop(off),
+    `frame stats are wired with the readout closed: ${off.slice(0, 60)}`,
+  )
 
   await run(`press(byTitle('menu (s: still')); return 0`)
   await settle(400)
@@ -284,7 +306,10 @@ await phase('fps stat', {}, async page => {
     const el = [...document.querySelectorAll('span')]
       .find(s => /^\\d+ fps$/.test(s.textContent ?? ''))
     return { text: el?.textContent ?? null }`)
-  check(shown.text !== null, 'the fps readout did not appear from the stage menu')
+  check(
+    shown.text !== null,
+    'the fps readout did not appear from the stage menu',
+  )
   const on = await handler()
   check(!noop(on), 'the readout is open and the frame stats are still no-oped')
 

@@ -52,11 +52,11 @@ find:
 - **"Target closed" is three different failures wearing one error.** The frame
   detached, the browser crashed, or something outside killed the browser — and
   from Node they are indistinguishable, so ask rather than guess. A crash leaves
-  `<profile>/minidumps/*.extra` naming the reason (`MozCrashReason = Cannot
-  remove a vacant resource` is a wgpu one, seen here) and a non-zero exit; an
-  outside kill shows up as `signal: 'SIGKILL'`, which no process can send
-  itself. Salvage the minidump _before_ `browser.close()`, which deletes the
-  profile it lives in.
+  `<profile>/minidumps/*.extra` naming the reason
+  (`MozCrashReason = Cannot remove a vacant resource` is a wgpu one, seen here)
+  and a non-zero exit; an outside kill shows up as `signal: 'SIGKILL'`, which no
+  process can send itself. Salvage the minidump _before_ `browser.close()`,
+  which deletes the profile it lives in.
 - **This box is shared, and neighbours reap browsers.** Five other Firefox
   Nightly instances launched inside one three-minute run, and that run ended
   with its browser SIGKILLed. Any harness that cleans up with `pkill firefox`
