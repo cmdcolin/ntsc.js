@@ -1,5 +1,6 @@
 import { cx } from './cx'
 import styles from './LookBar.module.css'
+import { mutateAmountFor } from './mutate'
 
 import type { MutateAmount } from './mutate'
 
@@ -57,10 +58,8 @@ export function LookBar(props: {
       </button>
       <button
         className={styles.btn}
-        onClick={e =>
-          props.onMutate(e.shiftKey ? 'wild' : e.altKey ? 'gentle' : 'normal')
-        }
-        title="jitter every control around the current look, for a related variation (also happy accidents) — shift for a wilder roll, alt for a gentle one"
+        onClick={e => props.onMutate(mutateAmountFor(e))}
+        title="jitter every control around the current look, for a related variation (also happy accidents) — shift for a wilder roll, alt for a gentle one, ctrl (or cmd) for turbo, which throws most controls past anything a real set would do"
       >
         mutate
       </button>

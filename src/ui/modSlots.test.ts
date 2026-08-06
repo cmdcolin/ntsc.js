@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { SLIDER_BY_KEY } from './controls'
 import {
   EMPTY_SLOT,
   N_SLOTS,
@@ -85,9 +86,14 @@ describe('toEngineSlots', () => {
   })
 
   it('attaches the target range from the live schema', () => {
+    // Read from the schema rather than repeating a pair of numbers: depth is a
+    // fraction of this span, so the span moving is exactly what this has to
+    // keep following. Written out, it just asserted a range that has since been
+    // widened, and failed for the one reason it should not have.
+    const def = SLIDER_BY_KEY.get('fbZoom')
     const [out] = toEngineSlots([slot({ target: 'fbZoom' })])
-    expect(out.min).toBe(0.7)
-    expect(out.max).toBe(1.6)
+    expect(out.min).toBe(def?.min)
+    expect(out.max).toBe(def?.max)
   })
 
   it('drops off and zero-depth slots', () => {

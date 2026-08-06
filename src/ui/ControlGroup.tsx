@@ -10,6 +10,7 @@ import { SYNCABLE_KEYS } from './midi'
 import { ModRowEditor } from './ModRowEditor'
 import { EMPTY_SLOT } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
+import { mutateAmountFor } from './mutate'
 import { PipFrame } from './PipFrame'
 import { Section } from './Section'
 import { Slider } from './Slider'
@@ -55,6 +56,7 @@ export function ControlSlider(props: {
       onChange={v => api.writeControl(s.key, v)}
       choices={s.choices}
       curve={s.curve}
+      redline={s.redline}
       help={s.help}
       needs={unmet ? needsNote(need, api) : undefined}
       favorite={{
@@ -299,14 +301,9 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
           ) : null}
           <button
             className={styles.dice}
-            title={`shake only this stage's controls around where they sit — shift for a wilder roll, alt for a gentle one (${group.name})`}
+            title={`shake only this stage's controls around where they sit — shift for a wilder roll, alt for a gentle one, ctrl (or cmd) for turbo (${group.name})`}
             aria-label={`jitter ${group.name}`}
-            onClick={e =>
-              mutateGroup(
-                group.sliders,
-                e.shiftKey ? 'wild' : e.altKey ? 'gentle' : 'normal',
-              )
-            }
+            onClick={e => mutateGroup(group.sliders, mutateAmountFor(e))}
           >
             ⚄
           </button>

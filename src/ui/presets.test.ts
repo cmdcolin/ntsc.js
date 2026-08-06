@@ -75,7 +75,11 @@ describe('blendPresets', () => {
         ['mistuned rf', 1],
       ]),
     )
-    expect(piled.noiseIre).toBeLessThanOrEqual(40)
+    // Against the schema's own ceiling, not a copy of it — the point is that
+    // the sum lands inside the slider, wherever the slider now ends.
+    expect(piled.noiseIre).toBeLessThanOrEqual(
+      SLIDER_BY_KEY.get('noiseIre')?.max ?? 0,
+    )
   })
 })
 

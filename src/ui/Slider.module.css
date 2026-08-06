@@ -126,6 +126,24 @@
   display: block;
   position: relative;
 }
+/* Where the tuned range used to end. Past this notch the control is beyond
+   anything the hardware being modelled would do — every path that takes one is
+   railed or clamped downstream so it stays stable, but the picture stops being
+   a broken TV and starts being an abstraction. Its own red rather than the
+   panel's amber: amber means "you moved this", and a notch is a property of the
+   track, not of the value sitting on it. Half height so it reads as a scale
+   marking under the thumb instead of competing with the default tick. */
+.redline {
+  position: absolute;
+  top: 7px;
+  width: 2px;
+  height: 6px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: #b0554c;
+  opacity: 0.85;
+  pointer-events: none;
+}
 /* where the physical knob sits while it hasn't caught the value yet */
 .pickup {
   position: absolute;
@@ -249,6 +267,10 @@ button.badge {
   .pickup {
     top: 7px;
     height: 16px;
+  }
+  .redline {
+    top: 12px;
+    height: 9px;
   }
   .badge,
   .what {

@@ -175,6 +175,10 @@ export function Slider(props: {
   // group in place of the range input, still reading/writing the same number.
   choices?: string[]
   curve?: 'magnifier'
+  // The tuned range, when the travel now runs past it: a notch on the track at
+  // each end that was widened, so extended territory is visible on the way in
+  // rather than a surprise at the stop.
+  redline?: readonly [number, number]
   help?: string
   // Present only while the control's prerequisite is unmet: this knob is
   // physically inert until another control opens its path. Clicking the note
@@ -217,6 +221,7 @@ export function Slider(props: {
   const help = props.help
   const favorite = props.favorite
   const choices = props.choices
+  const redline = props.redline
   // Live clock first: it narrows away the undefined case, so the division check
   // isn't comparing `null` against a value that may not exist.
   const locked = sync?.live === true && sync.label !== null
@@ -431,6 +436,20 @@ export function Slider(props: {
           title="the knob is here — sweep it across the value to take over"
         />
       )}
+      {/* Only the ends that actually grew get a notch: most widened controls
+          were extended one way only, and a mark sitting on the stop is noise. */}
+      {redline === undefined
+        ? null
+        : redline.map((edge, i) =>
+            (i === 0 ? edge > props.min : edge < props.max) ? (
+              <span
+                key={edge}
+                className={styles.redline}
+                style={{ left: `${pct(edge)}%` }}
+                title={`past here is beyond what the hardware would do — stable, but no longer a broken TV (stock range ends at ${reading(edge)})`}
+              />
+            ) : null,
+          )}
     </span>
   )
 

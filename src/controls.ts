@@ -75,7 +75,7 @@ export const DEFAULT_CONTROLS = {
   enhSliceIre: -20, // regenerator slice level
   lumaPeak: 0,
   noiseIre: 0,
-  impulseRate: 0, // arc events per frame, 0..8 (storm-clustered; duration sets shape)
+  impulseRate: 0, // arc events per frame, 0..24 (storm-clustered; duration sets shape)
   impulseIre: 90, // impulse peak amplitude
   impulseHz: 0, // periodic ignition train rate; hits form drifting diagonal lattices
   impulseMains: 0, // dimmer lock: random hits bunch into two bands riding the hum
