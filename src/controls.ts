@@ -107,6 +107,8 @@ export const DEFAULT_CONTROLS = {
   fmStreakUs: 0.4, // inversion-streak recovery (deemphasis) time constant
   tbJitterNs: 0,
   tbWowNs: 0,
+  tbStickNs: 0, // sticky-shed stick-slip: relaxation-oscillator shear bands
+
   dubGens: 1, // tape dub generations: the channel block runs this many times
   // feedback
   fbMix: 0,

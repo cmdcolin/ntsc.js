@@ -319,6 +319,13 @@ Everything below follows from that trip.
   color-under phase. Pause at 0, cue past 1, review negative.
 - **Flutter / wow** — fast and slow timebase error; signal-domain, so the burst
   moves with the picture and hue wobbles too.
+- **Sticky shed** — binder hydrolysis making the tape grab the drum: tension
+  builds, breaks free, re-sticks — a relaxation oscillator, chaotic rather than
+  periodic, the mechanism behind squealing tapes. Bands of shear lean further
+  line by line, snap back in a few, and hang where a strong patch holds; every
+  grab's grip is random and a re-grab caught mid-recoil strands tension, so the
+  rhythm never repeats. Signal-domain like its neighbours, so the color-under
+  phase rainbows at every slip boundary.
 - **Head switch** — the two-head timing mismatch and settling noise that make
   the torn hook at the bottom of every VHS frame.
 - **Dub generations** — the whole tape stage run up to four times, each with its

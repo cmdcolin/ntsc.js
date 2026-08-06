@@ -94,6 +94,27 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'sticky shed',
+    group: 'Tape wear',
+    blurb:
+      'A tape whose binder has gone hygroscopic, played unbaked: it grabs the drum, tension builds, breaks free, re-sticks — the relaxation oscillator behind squealing tapes. Bands of shear lean line by line, snap back, and hang where a strong patch holds, and because it is real timebase error the color-under phase rainbows at every slip boundary. Shedding oxide takes the RF down with it: heavy grain and a rash of dropouts where the coating let go.',
+    patch: {
+      tbStickNs: 1800,
+      tbJitterNs: 100,
+      lumaMHz: 2.5,
+      lumaPeak: 1,
+      noiseIre: 5,
+      colorUnderMix: 1,
+      chromaNoiseIre: 6,
+      underJitterDeg: 6,
+      headSwitchShiftUs: 1,
+      headSwitchNoise: 0.5,
+      dropoutRate: 18,
+      dropoutLenUs: 7,
+      demodMHz: 0.45,
+    },
+  },
+  {
     name: 'picture search',
     group: 'Tape wear',
     blurb:
@@ -158,7 +179,7 @@ export const PRESETS: PresetDef[] = [
     name: 'adjacent channel',
     group: 'RF / Broadcast',
     blurb:
-      "The next channel up the cable through a worn-out trap: not their picture — their carriers. Their sound lays a fine 1.5 MHz weave, their blanking crosses as slanted dark bars with the broad windshield-wiper band sweeping at its own drifting rate, and where their content beats into our chroma band the decoder invents confetti colour no camera ever shot.",
+      'The next channel up the cable through a worn-out trap: not their picture — their carriers. Their sound lays a fine 1.5 MHz weave, their blanking crosses as slanted dark bars with the broad windshield-wiper band sweeping at its own drifting rate, and where their content beats into our chroma band the decoder invents confetti colour no camera ever shot.',
     patch: {
       rfAdjacent: 0.7,
       rfMistuneMHz: 0.2,

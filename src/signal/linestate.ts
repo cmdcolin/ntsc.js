@@ -1,7 +1,8 @@
 // CPU-side per-line processes that must be continuous across frames: time-base
-// error (wow + flutter random walk of an un-TBC'd deck), color-under phase
-// wander, head-switch offset, per-line dropout seeds. Uploaded each frame as
-// one vec4 per line: (tbOffsetSamples, underBasePhase, underJitterPhase, seed)
+// error (wow + flutter random walk + sticky-shed stick-slip of an un-TBC'd
+// deck), color-under phase wander, head-switch offset, per-line dropout seeds.
+// Uploaded each frame as one vec4 per line:
+// (tbOffsetSamples, underBasePhase, underJitterPhase, seed)
 
 import {
   FSC,
@@ -11,7 +12,7 @@ import {
   SAMPLE_RATE,
   usToSamples,
 } from './constants'
-import { Wow } from './noise'
+import { StickSlip, Wow } from './noise'
 
 const F_UNDER = (40 * FSC) / 227.5 // 629.37 kHz color-under carrier
 const F_DOWN = FSC - F_UNDER // heterodyne frequency
@@ -20,6 +21,7 @@ const DOWN_PER_SAMPLE = F_DOWN / SAMPLE_RATE
 export interface LineStateControls {
   tbJitterNs: number // flutter: rms of per-line random walk step
   tbWowNs: number // wow: slow sinusoidal wander amplitude
+  tbStickNs: number // sticky shed: stick-slip shear amplitude
   underJitterDeg: number // color-under phase wander per line
   headSwitchShiftUs: number // horizontal shift after the head switch point
   trackAmt: number // VHS tracking error severity
@@ -48,6 +50,9 @@ export class LineState {
   // generation wander the same way and their offsets sum coherently, which is a
   // deeper wobble rather than the independent wander of another machine.
   private wows: Wow[] = []
+  // Same reasoning for the stick-slip: each generation's deck has its own drum
+  // and its own tape, so the patches grab independently.
+  private slips: StickSlip[] = []
 
   // `rand` is injectable, like ModState's and Wow's, so the per-line geometry
   // (shuttle strips, the tracking-band tear, the flutter walk) can be pinned in
@@ -71,6 +76,11 @@ export class LineState {
     }
     const wow = this.wowFor(this.gen)
     wow.advance(1 / 60)
+    // Gated so an idle control neither costs work nor consumes the rand
+    // stream; the walk resumes from rest when the slider comes up, which is
+    // what a freshly threaded tape would do anyway.
+    const slip = c.tbStickNs > 0 ? this.slipFor(this.gen) : null
+    const stickAmp = usToSamples(c.tbStickNs * 1e-3)
     for (let row = 0; row < LINES; row++) {
       // flutter: random walk with a restoring pull, advanced per line
       this.flutter +=
@@ -78,6 +88,9 @@ export class LineState {
       this.flutter *= 0.995
       // wow: quasi-periodic wander of the rotating parts, never a naked sine
       const wander = usToSamples(c.tbWowNs * 1e-3) * wow.at(this.t, row / LINES)
+      // sticky shed: stick-slip against the drum, stepped per line so the
+      // ramps and snaps land as bands of shear down the raster
+      const stick = slip ? stickAmp * slip.step() : 0
       const headSwitched = row >= HEAD_SWITCH_LINE
       const hs = headSwitched ? usToSamples(c.headSwitchShiftUs) : 0
 
@@ -122,7 +135,7 @@ export class LineState {
       this.underWalk *= 0.99
 
       const o = row * 4
-      this.data[o] = this.flutter + wander + hs + track + shuttle
+      this.data[o] = this.flutter + wander + stick + hs + track + shuttle
       this.data[o + 1] = base * 2 * Math.PI
       this.data[o + 2] = this.underWalk + (headSwitched ? 0.9 : 0) + shuttleHue
       this.data[o + 3] = this.rand()
@@ -133,6 +146,11 @@ export class LineState {
   private wowFor(gen: number): Wow {
     while (this.wows.length <= gen) this.wows.push(new Wow(this.rand))
     return this.wows[gen]
+  }
+
+  private slipFor(gen: number): StickSlip {
+    while (this.slips.length <= gen) this.slips.push(new StickSlip(this.rand))
+    return this.slips[gen]
   }
 }
 

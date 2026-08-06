@@ -1586,6 +1586,7 @@ export class Engine implements EngineApi {
     const lineControls: LineStateControls = {
       tbJitterNs: c.tbJitterNs,
       tbWowNs: c.tbWowNs,
+      tbStickNs: c.tbStickNs,
       underJitterDeg: c.underJitterDeg,
       headSwitchShiftUs: c.headSwitchShiftUs,
       trackAmt: c.trackAmt,

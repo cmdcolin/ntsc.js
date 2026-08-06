@@ -45,6 +45,52 @@ export class Lorenz {
   }
 }
 
+// Sticky-shed stick-slip. Binder hydrolysis makes the tape grab the head drum:
+// the transport keeps pulling, so the span between capstan and stuck patch
+// stretches until the pull beats the patch's static friction, then the patch
+// breaks free, the stretched span snaps it forward, rings down, and re-grabs —
+// a relaxation oscillator, the mechanism behind squealing tapes. Chaotic rather
+// than periodic: hydrolysis is patchy along the tape so every grab's grip is
+// random, and a re-grab caught mid-ring strands tension in the span, so each
+// ramp starts from an irregular baseline and no two cycles match. Stepped once
+// per scan line. Output is the stretch — how late the tape is — building
+// slowly, snapping back fast, hanging where a strong patch holds; ~[-0.5, 1.4].
+export class StickSlip {
+  private x = 0 // span stretch: the timing delay the stuck patch causes
+  private v = 0 // slip velocity once the patch is free
+  private stuck = true
+  private grip: number
+
+  constructor(private rand: () => number = Math.random) {
+    this.grip = this.nextGrip()
+  }
+
+  // Squared to skew toward light grabs that chatter, with the occasional
+  // strong patch that hangs on for a hundred-plus lines.
+  private nextGrip(): number {
+    const r = this.rand()
+    return 0.25 + 1.1 * r * r
+  }
+
+  step(): number {
+    if (this.stuck) {
+      this.x += 0.008
+      if (this.x > this.grip) this.stuck = false
+    } else {
+      // free flight: the span's spring against kinetic drag, underdamped
+      // enough to overshoot — the recoil past neutral is what lets a re-grab
+      // strand tension of either sign
+      this.v = (this.v - 0.3 * this.x) * 0.75
+      this.x += this.v
+      if (Math.abs(this.v) < 0.02) {
+        this.stuck = true
+        this.grip = this.nextGrip()
+      }
+    }
+    return this.x
+  }
+}
+
 // Quasi-periodic tape wow. Real wow is the superposition of every rotating
 // part's eccentricity — capstan, pinch roller, scanner — plus a reel term whose
 // rate drifts as the tape-pack radius shrinks. Three incommensurate sinusoids

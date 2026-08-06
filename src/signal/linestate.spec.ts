@@ -8,6 +8,7 @@ import type { LineStateControls } from './linestate'
 const CLEAN: LineStateControls = {
   tbJitterNs: 0,
   tbWowNs: 0,
+  tbStickNs: 0,
   underJitterDeg: 0,
   headSwitchShiftUs: 0,
   trackAmt: 0,
@@ -125,6 +126,44 @@ describe('LineState', () => {
     const ls = new LineState(lcg)
     const gen0 = offsets(ls.update({ ...CLEAN, tbWowNs: 900 }, 0))
     const gen1 = offsets(ls.update({ ...CLEAN, tbWowNs: 900 }, 0))
+    expect(gen1).not.toEqual(gen0)
+  })
+
+  it('shears in bands that build and snap under sticky shed', () => {
+    const ls = new LineState(mid)
+    const amp = usToSamples(1)
+    const out = offsets(ls.update({ ...CLEAN, tbStickNs: 1000 }, 0))
+    const diffs = out.slice(1).map((v, i) => v - out[i])
+    // stick: runs of lines leaning further by exactly the build step
+    const build = amp * 0.008
+    // f32 storage rounds each line, so allow a hair over the exact step
+    expect(
+      diffs.filter(d => d > 0 && d <= build + 1e-4).length,
+    ).toBeGreaterThan(300)
+    // slip: snaps far steeper than any build, several per frame
+    expect(diffs.filter(d => d < -build * 5).length).toBeGreaterThan(2)
+    // the walk is continuous across the frame boundary — the next frame picks
+    // the oscillator up mid-cycle rather than restarting the ramp
+    const next = offsets(ls.update({ ...CLEAN, tbStickNs: 1000 }, 1))
+    expect(Math.abs(next[0] - out[LINES - 1])).toBeLessThan(amp * 0.5)
+    // and bounded: stick only ever delays, recoil overshoots a little
+    for (const v of [...out, ...next]) {
+      expect(v).toBeGreaterThan(-amp)
+      expect(v).toBeLessThan(amp * 1.5)
+    }
+  })
+
+  it('gives each dub generation its own stuck patch', () => {
+    // Two decks, two drums: the generations' walks must differ, or a dub would
+    // double the same shear instead of layering independent ones.
+    let seed = 7
+    const lcg = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648
+      return seed / 2147483648
+    }
+    const ls = new LineState(lcg)
+    const gen0 = offsets(ls.update({ ...CLEAN, tbStickNs: 1000 }, 0))
+    const gen1 = offsets(ls.update({ ...CLEAN, tbStickNs: 1000 }, 0))
     expect(gen1).not.toEqual(gen0)
   })
 

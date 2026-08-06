@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { Lorenz, Wow, valueNoise } from './noise'
+import { Lorenz, StickSlip, Wow, valueNoise } from './noise'
 
 describe('valueNoise', () => {
   it('is bounded, continuous, and returns lattice points exactly', () => {
@@ -28,6 +28,46 @@ describe('Lorenz', () => {
     for (let i = 0; i < 500; i++) last = l.step(0.2)
     expect(Number.isFinite(last)).toBe(true)
     expect(Math.abs(last)).toBeLessThan(1.2)
+  })
+})
+
+describe('StickSlip', () => {
+  it('builds slowly, snaps back fast, and stays bounded', () => {
+    const s = new StickSlip(() => 0.5)
+    const xs: number[] = []
+    for (let i = 0; i < 2000; i++) xs.push(s.step())
+    expect(Math.max(...xs.map(Math.abs))).toBeLessThan(1.5)
+    const diffs = xs.slice(1).map((v, i) => v - xs[i])
+    // a relaxation oscillator is asymmetric: most lines are the slow build...
+    expect(
+      diffs.filter(d => d > 0 && d <= 0.008 + 1e-9).length,
+    ).toBeGreaterThan(1200)
+    // ...punctuated by snaps an order of magnitude steeper than any build step
+    expect(diffs.filter(d => d < -0.05).length).toBeGreaterThan(5)
+  })
+
+  it('never settles into one period', () => {
+    // Random grips plus tension stranded by re-grabs mid-ring: with a varying
+    // rand the gaps between snaps must not collapse to a single cycle length.
+    let seed = 1
+    const lcg = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648
+      return seed / 2147483648
+    }
+    const s = new StickSlip(lcg)
+    const xs: number[] = []
+    for (let i = 0; i < 6000; i++) xs.push(s.step())
+    const snaps: number[] = []
+    for (let i = 1; i < xs.length; i++) {
+      if (xs[i] - xs[i - 1] < -0.05) snaps.push(i)
+    }
+    const gaps = new Set(
+      snaps
+        .slice(1)
+        .map((v, i) => v - snaps[i])
+        .filter(g => g > 3),
+    )
+    expect(gaps.size).toBeGreaterThan(3)
   })
 })
 

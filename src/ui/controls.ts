@@ -1421,6 +1421,15 @@ export const GROUPS: Group[] = [
         help: 'Slow timebase error from tape or capstan wow. Where flutter shakes line to line, wow drifts over many lines, so whole regions of the picture lean and breathe sideways together.',
       },
       {
+        key: 'tbStickNs',
+        label: 'sticky shed',
+        min: 0,
+        max: 3000,
+        step: 10,
+        unit: 'ns',
+        help: 'Binder hydrolysis making the tape grab the head drum — tension builds until the patch breaks free, snaps forward, and re-sticks: a relaxation oscillator, chaotic rather than periodic, the mechanism behind squealing tapes. Down the raster that is bands of shear that lean further line by line, snap back in a few, and hang where a strong patch holds on. Signal-domain, so the color-under phase rainbows at every slip boundary.',
+      },
+      {
         key: 'headSwitchShiftUs',
         label: 'head switch',
         min: -3,
