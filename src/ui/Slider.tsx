@@ -54,7 +54,7 @@ function IconButton(props: {
 function RowMenu(props: {
   label: string
   favorite?: { on: boolean; onToggle: () => void }
-  mod?: { routed: boolean; open: boolean; onToggle: () => void }
+  mod?: { routed: boolean; on: boolean; open: boolean; onToggle: () => void }
   midi?: { label: string | null; armed: boolean; onArm: () => void }
   sync?: { label: string | null; live: boolean; onCycle: () => void }
 }) {
@@ -112,11 +112,16 @@ function RowMenu(props: {
                 <MenuItem
                   icon="∿"
                   label={
-                    mod.routed
-                      ? 'change what is driving it'
-                      : 'wobble it with an LFO'
+                    !mod.routed
+                      ? 'wobble it with an LFO'
+                      : mod.open
+                        ? 'hide what is driving it'
+                        : 'change what is driving it'
                   }
-                  hint={mod.routed ? 'on' : ''}
+                  // The badge beside the reading is the on/off; this says which
+                  // way it is set, so the menu doesn't have to be opened to find
+                  // out whether a patched row is running.
+                  hint={mod.routed ? (mod.on ? 'on' : 'held') : ''}
                   closes={id}
                   onClick={mod.onToggle}
                 />
@@ -185,11 +190,19 @@ export function Slider(props: {
   }
   sync?: { label: string | null; live: boolean; onCycle: () => void }
   favorite?: { on: boolean; onToggle: () => void }
-  // Whether something is driving this control, and the way in to change it.
-  // The lever is marked, never the value: the readout keeps showing where the
-  // slider rests, because that is what presets, links and scenes store, and
-  // because a number that moves every frame is unreadable anyway.
-  mod?: { routed: boolean; open: boolean; onToggle: () => void }
+  // Whether something is driving this control, whether it is currently running,
+  // and the two ways in. The lever is marked, never the value: the readout keeps
+  // showing where the slider rests, because that is what presets, links and
+  // scenes store, and because a number that moves every frame is unreadable.
+  mod?: {
+    routed: boolean
+    on: boolean
+    open: boolean
+    // Park/restart — what the ∿ badge does.
+    onToggleOn: () => void
+    // Show/hide the editor — what the ⋮ does.
+    onToggle: () => void
+  }
   // The editor itself, rendered by the caller under the row.
   modEditor?: ReactNode
 }) {
@@ -303,18 +316,26 @@ export function Slider(props: {
           CC{midi.label}
         </span>
       )}
+      {/* The one badge that is a switch rather than a way into a form. Turning a
+          wobble off and back on is what a session reaches for — you patch one to
+          hear what it does, then want the picture without it, then want it back —
+          and until this it was the one modulation verb with no button at all:
+          `remove` throws the routing away, and dragging depth to zero throws away
+          the depth. Changing *what* is driving the control is set-up by
+          comparison, so it moved to the ⋮ beside this, which is where the row
+          keeps its wiring. */}
       {props.mod?.routed !== true ? null : (
         <IconButton
           title={
-            props.mod.open
-              ? 'close what is driving it'
-              : 'modulated — click to see what is driving it'
+            props.mod.on
+              ? 'wobbling — click to hold this one still (⋮ to change what drives it)'
+              : 'held still — click to start it wobbling again, as you set it'
           }
           className={cx(
             styles.badge,
-            props.mod.open ? styles.iconOn : styles.iconModSet,
+            props.mod.on ? styles.iconModSet : styles.iconModOff,
           )}
-          onClick={props.mod.onToggle}
+          onClick={props.mod.onToggleOn}
         >
           ∿
         </IconButton>

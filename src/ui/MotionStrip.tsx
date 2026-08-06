@@ -35,10 +35,20 @@ export function MotionStrip(props: {
   // with no memory of why would just look broken.
   const [held, setHeld] = useState(1)
 
-  const driven = slots.flatMap(s =>
-    s.target === '' || s.depth === 0 ? [] : [sliderFor(s.target).label],
-  )
-  if (driven.length === 0) return null
+  // Everything the bay holds, split by whether it is running. The strip stands
+  // as long as anything is *patched* — park every routing and the master fader
+  // would otherwise vanish along with the count that is the one way to find the
+  // parked rows again — but it counts only what is moving, because that is the
+  // question `N∿` is answering.
+  const driven: string[] = []
+  const stilled: string[] = []
+  for (const s of slots) {
+    if (s.target === '' || s.depth === 0) continue
+    const label = sliderFor(s.target).label
+    if (s.on) driven.push(label)
+    else stilled.push(label)
+  }
+  if (driven.length === 0 && stilled.length === 0) return null
 
   const frozen = master === 0
   // The same ⚟ every control row carries, on the one fader that is not a
@@ -77,12 +87,22 @@ export function MotionStrip(props: {
         max={1}
         step={0.01}
         value={master}
-        title={`scales every routing's depth at once — driving ${driven.join(', ')}`}
+        title={
+          driven.length === 0
+            ? 'scales every routing’s depth at once — every one of them is held still'
+            : `scales every routing's depth at once — driving ${driven.join(', ')}`
+        }
         onChange={e => setMaster(Number(e.target.value))}
       />
       <button
         className={styles.count}
-        title={`${driven.join(', ')} — click to filter the panel down to them`}
+        title={[
+          driven.length === 0 ? 'nothing is moving' : driven.join(', '),
+          stilled.length === 0 ? '' : `held still: ${stilled.join(', ')}`,
+          'click to filter the panel down to them',
+        ]
+          .filter(s => s !== '')
+          .join(' — ')}
         onClick={props.onReveal}
       >
         {driven.length}∿

@@ -264,6 +264,13 @@ button.badge {
 .iconModSet {
   color: #7cbf9a;
 }
+/* the same routing, held still. Struck through rather than merely dimmed: at
+   --fg4 alone it reads as an unset badge, and this row has to say "there is a
+   wobble patched here and it is not running" in one glyph. */
+.iconModOff {
+  color: var(--fg4);
+  text-decoration: line-through;
+}
 .iconMidiSet {
   color: #9dbcea;
 }

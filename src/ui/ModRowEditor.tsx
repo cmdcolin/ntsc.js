@@ -1,6 +1,7 @@
 import { PASS_THROUGH } from '../signal/modstate'
 import { sliderFor } from './controls'
 import { useControlsApi } from './ControlsContext'
+import { cx } from './cx'
 import styles from './ModRowEditor.module.css'
 import { EMPTY_SLOT, MOD_SOURCES, RATE_MAX, RATE_MIN } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
@@ -15,14 +16,26 @@ import type { ControlKey } from '../controls'
 // popout's own document, and it fits the ~300px column the wide bench gives a
 // panel. The `needs` note under a gated row is the same shape, so the panel
 // already reads this way.
-export function ModRowEditor(props: { controlKey: ControlKey }) {
-  const { slots, modFor, setSlotForKey } = useModSlotsApi()
+export function ModRowEditor(props: {
+  controlKey: ControlKey
+  // Folds the editor away once there is nothing left to edit — the row owns
+  // that flag, and remove is the one action here that ends the editor's subject.
+  onDone: () => void
+}) {
+  const { slots, modFor, setSlotForKey, setSlotOn } = useModSlotsApi()
   const { controls } = useControlsApi()
   const key = props.controlKey
   const slot = modFor(key)
   const def = sliderFor(key)
 
   if (slot === null) {
+    // Nothing drives this control and the bay has room, so the claim was never
+    // made or has since been handed back — e.g. the Modulation section switched
+    // this slot off from the other side. There is nothing to say and nothing to
+    // edit; the busy note below would be a flat lie about a bay with free slots.
+    if (slots.some(s => s.target === '')) {
+      return null
+    }
     // Every slot busy, and none of them this control's. Naming the holders
     // beats an auto-evict: the bay is small enough that quietly unpatching
     // someone else's routing to make room would be the surprise, not the fix.
@@ -98,13 +111,34 @@ export function ModRowEditor(props: { controlKey: ControlKey }) {
           wobble.
         </div>
       )}
-      <button
-        className={styles.remove}
-        title={`stop modulating ${def.label}`}
-        onClick={() => setSlotForKey(key, null)}
-      >
-        remove
-      </button>
+      {/* The two kinds of off, side by side, which is the only place they are
+          legible as a pair: hold it still and it comes back exactly as it is set
+          here, remove it and the slot goes back to the bay. The ∿ on the row
+          above is the same switch — this one is here because a reader who opened
+          the editor to turn the wobble off should find it where they looked. */}
+      <div className={styles.actions}>
+        <button
+          className={styles.action}
+          title={
+            slot.on
+              ? `hold ${def.label} still, keeping this patch`
+              : `start ${def.label} wobbling again`
+          }
+          onClick={() => setSlotOn(key, !slot.on)}
+        >
+          {slot.on ? '❚❚ hold still' : '▶ start again'}
+        </button>
+        <button
+          className={cx(styles.action, styles.remove)}
+          title={`stop modulating ${def.label} and hand the slot back`}
+          onClick={() => {
+            setSlotForKey(key, null)
+            props.onDone()
+          }}
+        >
+          remove
+        </button>
+      </div>
     </div>
   )
 }

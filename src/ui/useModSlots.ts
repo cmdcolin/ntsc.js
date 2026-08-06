@@ -25,10 +25,20 @@ function loadSlots(): UiSlot[] {
   // A link's routings beat the stored bay, and the address bar still holds them
   // at first render: useUrlState's rewrite is gated on the engine existing and
   // debounced behind it, so nothing has overwritten the query yet.
+  const stored = normalizeSlots(readArray<unknown>(MOD_STORE, []))
   const fromLink = parseSessionParams(location.search).mod
-  return fromLink === null
-    ? normalizeSlots(readArray<unknown>(MOD_STORE, []))
-    : routingsToSlots(fromLink)
+  if (fromLink === null) return stored
+  // …except for the run switches, which the link does not carry and must not
+  // clear. `?mod=` is written on every change, so without this a reload of your
+  // own tab would arrive with every parked routing running again — and worse,
+  // the park would look like it had thrown the patch away. Matched by target,
+  // not by position: the link decides where the routings sit.
+  const parked = new Set(
+    stored.flatMap(s => (s.target !== '' && !s.on ? [s.target] : [])),
+  )
+  return routingsToSlots(fromLink).map(s =>
+    s.target !== '' && parked.has(s.target) ? { ...s, on: false } : s,
+  )
 }
 
 // Deliberately not on the URL: the routing is the look, the gesture is not.
@@ -89,11 +99,17 @@ export function useModSlots(engine: EngineApi | null): ModSlotsApi {
         if (at !== -1) commit(slots.map((s, j) => (j === at ? EMPTY_SLOT : s)))
         return
       }
-      const free = at === -1 ? slots.findIndex(s => s.target === '') : at
-      if (free === -1) return
+      const claiming = at === -1
+      const index = claiming ? slots.findIndex(s => s.target === '') : at
+      if (index === -1) return
       commit(
         slots.map((s, j) =>
-          j === free ? { ...s, ...routing, target: key } : s,
+          j === index
+            ? // A fresh claim always runs; a patch to an existing routing keeps
+              // the switch where it is, so changing a parked routing's rate from
+              // the editor doesn't quietly start it up again.
+              { ...s, ...routing, target: key, on: claiming ? true : s.on }
+            : s,
         ),
       )
       // Patching while the motion amount is at zero would otherwise be silent:
@@ -101,6 +117,15 @@ export function useModSlots(engine: EngineApi | null): ModSlotsApi {
       // wobble is unambiguous, and a freeze is a gesture within a set rather
       // than a setting, so the ask wins.
       if (master === 0) writeMaster(1)
+    },
+    setSlotOn: (key, on) => {
+      const at = indexFor(key)
+      if (at === -1) return
+      commit(slots.map((s, j) => (j === at ? { ...s, on } : s)))
+      // Same rule the claim above follows, and for the same reason: starting a
+      // routing while the whole bay is frozen would light the row up and move
+      // nothing at all.
+      if (on && master === 0) writeMaster(1)
     },
   }
 }

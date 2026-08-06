@@ -41,6 +41,11 @@ export interface ModSlotsApi {
     key: ControlKey,
     routing: Omit<ModRouting, 'target'> | null,
   ) => void
+  // Park or restart the routing driving `key`, keeping what it is patched with.
+  // The one-click "off" a set needs: `setSlotForKey(key, null)` is the other
+  // kind of off — it hands the slot back and the patch with it. A no-op when
+  // nothing is driving the control.
+  setSlotOn: (key: ControlKey, on: boolean) => void
 }
 
 export const ModSlotsContext = createContext<ModSlotsApi | null>(null)

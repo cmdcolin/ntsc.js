@@ -35,6 +35,17 @@ export interface UiSlot {
   source: ModSource
   rateHz: number
   depth: number
+  // Whether this routing is running, as opposed to whether it exists. A patch
+  // you can park: `remove` throws the routing away and dragging depth to zero
+  // throws away the depth you dialed in, so neither was a way to see the picture
+  // without one wobble and then have it back the way it was.
+  //
+  // Deliberately *not* part of ModRouting, on the same rule the motion amount
+  // follows: the routing is the look and the switch is a gesture, so a link
+  // hands over the patch and leaves the reader to decide what runs. Absent from
+  // a stored bay it reads as on, so every localStorage entry and every link
+  // written before this existed still loads as a bay that moves.
+  on: boolean
 }
 
 // What an unrouted slot holds, and what a row claims when it first asks for
@@ -45,6 +56,7 @@ export const EMPTY_SLOT: UiSlot = {
   source: 'sine',
   rateHz: 0.5,
   depth: 0.2,
+  on: true,
 }
 
 export const MOD_SOURCES: { value: ModSource; label: string }[] = [
@@ -99,6 +111,11 @@ function readSlot(raw: unknown): UiSlot | null {
     source,
     rateHz: clamp(rateHz, RATE_MIN, RATE_MAX),
     depth: clamp(depth, 0, 1),
+    // Only an explicit `false` parks a routing. Anything else — a bay stored
+    // before the switch existed, a link's ModRouting, a hand-edited entry — is
+    // a routing that should run, and reading it as parked would silently stop
+    // every wobble a returning user had patched.
+    on: field(raw, 'on') !== false,
   }
 }
 
@@ -128,7 +145,8 @@ export function normalizeSlots(stored: readonly unknown[]): UiSlot[] {
 // is what makes the freeze resume rather than restart.
 export function toEngineSlots(slots: readonly UiSlot[], master = 1): ModSlot[] {
   return slots.flatMap((s, id): ModSlot[] => {
-    const def = s.target === '' ? undefined : SLIDER_BY_KEY.get(s.target)
+    const def =
+      s.target === '' || !s.on ? undefined : SLIDER_BY_KEY.get(s.target)
     const depth = s.depth * master
     return def === undefined || depth === 0
       ? []
@@ -151,6 +169,11 @@ export function routingsToSlots(mod: readonly ModRouting[]): UiSlot[] {
   return normalizeSlots(mod.slice(0, N_SLOTS))
 }
 
+// What the look is made of, for a link or a scene. A *parked* routing is still
+// a routing and goes in: the patch is the look, the switch is a gesture on top
+// of it (the same division the motion amount is on the wrong side of the URL
+// for), so a link carries the routing and the browser that threw the switch is
+// the one that remembers it — see loadSlots.
 export function slotsToRoutings(slots: readonly UiSlot[]): ModRouting[] {
   return slots.flatMap((s): ModRouting[] =>
     s.target === '' || s.depth === 0

@@ -41,7 +41,8 @@ export function ControlSlider(props: {
   // modulate a control whose path is shut would start an LFO nothing can show.
   const inert = need !== undefined && !need.ok(api.controls[need.key])
   const unmet = inert && props.muted?.has(need.key) !== true
-  const routed = mod.modFor(s.key) !== null
+  const slot = mod.modFor(s.key)
+  const routed = slot !== null
   return (
     <Slider
       label={s.label}
@@ -90,7 +91,16 @@ export function ControlSlider(props: {
         routed || (!inert && s.choices === undefined)
           ? {
               routed,
+              // Running, as opposed to merely patched. The badge is the switch
+              // and this is what it reads.
+              on: slot?.on === true,
               open: modOpen,
+              // The one-click park, from the row you are already looking at. It
+              // keeps the source, rate and depth — the point of it is that the
+              // wobble comes back exactly as you dialed it.
+              onToggleOn: () => {
+                if (slot !== null) mod.setSlotOn(s.key, !slot.on)
+              },
               onToggle: () => {
                 // Claim on open, so the first press already moves the picture
                 // rather than handing over an editor with nothing patched into
@@ -102,7 +112,11 @@ export function ControlSlider(props: {
             }
           : undefined
       }
-      modEditor={modOpen ? <ModRowEditor controlKey={s.key} /> : undefined}
+      modEditor={
+        modOpen ? (
+          <ModRowEditor controlKey={s.key} onDone={() => setModOpen(false)} />
+        ) : undefined
+      }
     />
   )
 }
@@ -215,7 +229,8 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   // stands in for.
   const [showFramed, setShowFramed] = useState(false)
   const [showFine, setShowFine] = useState(false)
-  const frame = FRAMES.find(f => f.group === group.name && query === '')
+  const frame =
+    query === '' ? FRAMES.find(f => f.group === group.name) : undefined
 
   const matched = matchedSliders(group, query, key => mod.modFor(key) !== null)
   const unframed =
@@ -227,7 +242,10 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   // jump lands on the row itself rather than on a toggle that hides it.
   const fine = query === '' ? unframed.filter(s => s.fine === true) : []
   const shown = query === '' ? unframed.filter(s => s.fine !== true) : unframed
-  const sliders = showFine ? [...shown, ...fine] : shown
+  // Every row actually on screen, which is what the gate scan below counts: a
+  // banner is a summary of the notes it replaces, so a trim folded behind the
+  // fine tier must not be one of the three that raises it.
+  const onScreen = showFine ? [...shown, ...fine] : shown
   const touched = group.sliders.some(
     s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
   )
@@ -242,7 +260,7 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   // behind loop mix), one banner beats a stack of identical per-row notes; the
   // notes stay only for the odd ones out.
   const unmet = new Map<ControlKey, { need: SliderNeed; n: number }>()
-  for (const s of sliders) {
+  for (const s of onScreen) {
     const need = NEEDS[s.key]
     if (need !== undefined && !need.ok(controls[need.key])) {
       const seen = unmet.get(need.key)
@@ -253,7 +271,9 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   const banners = [...unmet.values()].filter(e => e.n >= 3)
   const muted: ReadonlySet<ControlKey> = new Set(banners.map(e => e.need.key))
 
-  return sliders.length === 0 &&
+  // A group the query left with nothing — no rows, no folded trims to offer,
+  // and no miniature — is a header over an empty body, so it drops out entirely.
+  return shown.length === 0 &&
     fine.length === 0 &&
     frame === undefined ? null : (
     <Section
