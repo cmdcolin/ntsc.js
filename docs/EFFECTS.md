@@ -217,6 +217,33 @@ stage can run more than once — see **dub generations**.
 - **Peaking** — the crispening boost VCRs fake detail back with; bright/dark
   ringing outlines on every edge.
 
+### Nonlinearity
+
+The electronics are not flat against the level they carry — the two numbers on
+every VTR spec sheet, and the FM cliff a white-clip circuit exists to guard.
+
+- **Differential gain** — the video amplifier's gain moves with the brightness
+  it is amplifying at that instant, so the colour subcarrier riding bright
+  picture comes through smaller than the same colour on dark picture:
+  saturation drains out of the highlights while the shadows keep theirs.
+  Negative is the opposite misdesign, colour swelling in the brights.
+- **Differential phase** — the same amplifier's delay moves with brightness,
+  and a delay at 3.58 MHz is a phase shift, so hue swings with the luma under
+  it. The burst sits at blanking level where the shift is zero, so the
+  decoder's reference never moves: this is hue error against a still
+  reference, not a tint that could be dialled back out — and inside the mixer
+  loop it separates a feedback trail into colour layers by brightness.
+- **FM over-deviation** — the deck records luma as FM with the video
+  pre-emphasized, and a hard dark→bright edge overshoots the deviation the
+  head and tape can carry; past the response cliff the discriminator folds
+  back, so more frequency comes out as _less_ video. Every sharp bright edge
+  trails a black streak that smears rightward for about a microsecond (the
+  deemphasis recovery, on its own trim) and boils frame to frame, because the
+  fold sits on a threshold the demod's own noise keeps re-deciding. Colour is
+  recorded separately (color-under), so it rides straight through the fold and
+  the streaks carry saturated colour over black. Only edges trigger it, so it
+  lives where the picture has detail and moves with the image.
+
 ### Noise and interference
 
 - **Noise** — tape grain and RF snow on the whole waveform, degrading sync and
@@ -254,6 +281,12 @@ Everything below follows from that trip.
   headroom than the luma FM. It comes back through the narrow chroma bandpass,
   so it lands as slow smears of wrong hue rather than grain: why VHS colour is
   blotchy while its luma is merely noisy.
+- **Y/C delay** — the chroma path through a deck or proc amp runs its own
+  filters and delay lines, and mistrimmed against the luma path the colour
+  arrives late or early: every coloured area sits bodily sideways off the edge
+  it belongs to. The burst travels the same mistrimmed path, so the decoder's
+  reference moves with the picture's chroma and hue stays correct — displaced
+  colour, not rotated, which is what tells this from a timebase error.
 
 ### The tape and the heads
 
@@ -271,6 +304,15 @@ Everything below follows from that trip.
   draws any of that; it falls out of where the half cycle lands.
 - **Tracking error** — the head reading off-track: a band of noise the picture
   tears and bends through, parked where you set it.
+- **Head clog** — oxide packed into the gap of one of the two spinning heads,
+  so that head reads weak or nothing. The heads take turns, one sweep each,
+  which is why a clogged head never shows as a steady veil: picture and snow
+  alternate at field rate, a hard flicker between the good head's sweep and the
+  dead one's. The head switch near the bottom of the picture is where the other
+  head is already reading, so a few last lines always belong to the opposite
+  head — they survive the snowed sweeps and die on the clean ones. Sync goes
+  down with the sweep, so the receiver tears through the snow instead of
+  framing it.
 - **Shuttle (picture search)** — off play speed each head sweep crosses several
   recorded tracks; the RF nulls at every crossing sweep the frame as noise bars,
   and each strip between them is a different track with its own timing and

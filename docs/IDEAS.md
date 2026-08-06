@@ -48,88 +48,6 @@ These read like naked periodic waves but are physically correct — don't
 - **Decode bend ripple** (`decode.wgsl`) — spatial, not animated; nothing to
   make aperiodic in time.
 
-## ~~The unlocked H-osc coasts too cleanly~~
-
-Shipped: the free-run branch now carries a lock age (`timing[LOCK_AGE]`,
-persistent across frames) that scales its phase noise, so lock decays over
-roughly a frame of lost lines instead of coasting — plus an occasional
-phantom-edge trigger the flywheel chases at the hold gain, because a slicer
-hunting in noise triggers on noise. Full scramble now writhes with no
-`hDetuneHz` dialled in. The presets that carried the compensation
-(`scrambled channel`, `ssavi`, `dead channel`, `chroma only`) were rechecked:
-their looks hold, since below the slicer level the tip is still found and the
-decay never engages — the change only bites where sync is genuinely gone.
-
-## RF / tuner front end
-
-All four items shipped, and the "one new pass between encode and channel"
-this section predicted was never needed: every mechanism turned out to be the
-detector's _output_, computable in place in `channel.wgsl` — the beats as
-linear + B²/2A terms, the Rician snow by mapping IRE onto the carrier and
-back through `|a + n|`. The lesson for the next RF-shaped idea: model what
-the detector hands the video amp, not the carrier itself.
-
-- ~~**Envelope detection, negative modulation.**~~ Shipped as `rfSnow`, and it
-  never needed the carrier-domain pass either: the detector's output is
-  computable in place — map IRE onto the negative-modulation carrier, add two
-  band-limited Gaussian fields (I and Q, a second workgroup tile), take
-  `|a + n|`, map back. Whites boil first, sync dies last, and past ~0.7 the
-  tips themselves go statistical and the set loses the station the way a set
-  loses a station. The `fringe reception` preset is this.
-- ~~**Tuner mistune.**~~ Shipped as `rfMistuneMHz`, signed like the knob it
-  models. Positive folds a leak into the existing `soundIre` term (the coupling
-  this entry asked for) and multiplies the loose carrier against the video, so
-  the 920 kHz beat and the 3.58 MHz rainbow crawl on fine detail both fall out
-  of one intermod product. Negative is the Nyquist slope. One thing learned:
-  a _flat_ chroma loss is exactly what the decoder's ACC re-normalizes away,
-  so saturation holds while the burst shrinks and then colour falls off the
-  killer's cliff all at once — which is how fine tuning actually loses colour,
-  and the receiver taught the channel model that.
-- ~~**Adjacent channel.**~~ Shipped as `rfAdjacent` + `RfState`
-  (`signal/rfstate.ts`). What leaks is the neighbour's carriers: their vision
-  beat at exactly 44/105 of the sample rate, their sound at 11/105 (1.5 MHz),
-  amplitude-modulated by a synthetic negative-modulation envelope of their
-  raster running `rfAdjEps` off our line rate — so the slanted bars, the
-  vertical-interval wiper band, and the confetti colour where their sidebands
-  cross our chroma band all emerge from one envelope and two lattices. The
-  wander crosses zero, where the wiper hangs and reverses.
-- ~~**Ingress.**~~ Shipped as `ingress`, with the `audio[row]` trick as
-  planned (speech AMs and FMs the weave at once). The part not planned: the
-  keying. A carrier that is simply on reads as another filter; what sells the
-  mechanism is the operator — `RfState` walks a biased-noise key with real
-  off-air stretches, tuned after measurement showed the first envelope idled
-  30+ seconds at a time, which is honest for a radio but useless for a knob
-  someone just turned.
-
-## Vertical interval content
-
-The VBI carries nothing today. `decode` already wraps rolled rows into view, so
-anything put there shows up in the rolling bar for free — which is where most of
-the payoff is.
-
-- ~~**Macrovision.**~~ Shipped as `macrovision` + `mvStripeDeg`, stamped in
-  `encode_composite` with no decode-side changes, as predicted — the porch
-  pulse lands exactly on the sample `sync_measure` calls "porch", and the AGC
-  answers. What the prediction missed: an averaging AGC dilutes 8 poisoned
-  lines across ~500 measured ones, so the honest outcome on a TV is a ~5%
-  breathe (measured, on the pulse level's own staircase cycle), not a crush —
-  which is historically right, since the process was aimed at a VCR's gated
-  AGC, not a set's. The visible payoffs are the rolling bar (the pulse trains
-  ride the VBI into view, as the section intro promised) and colorstripe's
-  crawling hue bands, which `accLagLines`/`burstLock` shrug off exactly along
-  the TV/VCR line.
-- ~~**VITS / VIR, and line-21 caption data.**~~ Shipped as the `vbi` toggle,
-  default on — a broadcast really carried it. Multiburst on 17 (its 3.58
-  packet is the subcarrier, so the decoder colours it), the modulated
-  staircase on 18 (which becomes the instrument line if differential gain
-  ever lands), a VIR shape on 19, and line-21 dashes re-rolled per frame. As
-  cheap as predicted.
-- ~~**Underscan.**~~ Shipped as `vSize`, and it was the gate this section said
-  it was: the raster row remap is a function of the screen row alone, so it is
-  row-uniform (decode's tiling constraint never bites) and beam-off black past
-  the retrace falls out of an off-raster test rather than a wrap. `vLin` and
-  the horizontal siblings remain under Deflection below.
-
 ## Tape mechanisms not modelled
 
 - **Azimuth crosstalk from the adjacent track** (EP/SLP). Narrow tracks plus
@@ -137,17 +55,15 @@ the payoff is.
   track bleeds through as a _low-frequency-only_ ghost — a soft, colourless
   second picture that swims when tracking is off. Distinct from the multipath
   ghost, which is sharp and full-bandwidth.
-- ~~**Crease / edge damage.**~~ Shipped as the loop bin's `tapeWear`, though
-  only on the loop: defects seeded on _position on the tape_ so they recur every
-  lap. The same idea on the main deck still wants doing — it has no
-  tape-position coordinate to hang a defect off, which is exactly what the ring
-  gave the loop.
+- **Crease / edge damage on the main deck.** The loop bin's `tapeWear` seeds
+  defects on _position on the tape_ so they recur every lap; the same idea on
+  the main deck still wants doing — it has no tape-position coordinate to hang
+  a defect off, which is exactly what the ring gave the loop.
 - **Servo hunting.** `trackPos` is a static knob; a real auto-tracking deck
   searches and settles after a scene change or on exiting shuttle.
 - **Luma FM beating the 629 kHz color-under carrier.** The fine crawling chroma
   noise in saturated reds. Modelling the luma FM properly is expensive; the
   honest cheap version is the beat product alone.
-
 ## Capture / deinterlace (grown out of the RCA-input work)
 
 - **Motion-adaptive deinterlace.** Current `deint` is an unconditional
@@ -173,10 +89,11 @@ the payoff is.
   side), pincushion. Blocked on decode's tiling: the workgroup stages one
   contiguous 128-sample span per row, so only _row-uniform_ horizontal offsets
   are free. Non-uniform scaling within a line reads outside the halo.
-- **Vertical geometry.** `vSize` shipped (see the vertical-interval section —
-  it was as nearly-free as claimed). `vLin` — the top-of-frame stretch of a
-  failing vertical output stage — is the remaining half, a quadratic term in
-  the same row remap.
+- **Vertical geometry.** `vSize` shipped and was nearly free (the raster row
+  remap is a function of the screen row alone, so decode's row-uniform
+  constraint never bites). `vLin` — the top-of-frame stretch of a failing
+  vertical output stage — is the remaining half, a quadratic term in the same
+  row remap.
 - **Fractional bend.** `hoff` is `round()`ed to whole samples; at large
   amplitudes adjacent rows stair-step. Resampling the tile with `catmull` would
   smooth it, at the cost of restructuring the staging.
@@ -197,26 +114,11 @@ remains of it.
 
 ## Boxes in the rack (from the commercial-processing-unit pass)
 
-Shipped out of this batch: the receiver **tint** knob, non-quadrature **demod
-axes**, **audio → demod reference phase**, a chroma bandwidth ceiling raised to
-3 MHz, **output stage clip**, and the **dropout compensator**. The rest of the
-pass, in rough payoff-per-effort order.
+What is left of the pass, in rough payoff-per-effort order. (A preset worth
+authoring off the shipped `diffPhaseDeg`: inside the mixer loop, differential
+phase separates a feedback trail into colour layers by brightness, because
+`cfbDelay`'s rotation per generation stops being uniform.)
 
-- ~~**Dropout compensator.**~~ Shipped as `dropoutComp`, and the half cycle did
-  all the work: 1-line patches come back complementary, 2-line come back clean,
-  and neither helps where the held line lost the same samples. One thing learned
-  building it — substitute the _difference_ (`comp[n - bl*SPL] - comp[n]`)
-  rather than the sample, and the patch keeps the noise, hum and buzz the line
-  already carries, which is what a delay line inside the playback path would
-  hand back. Replacing the sample outright leaves a conspicuously clean streak.
-- **Differential gain and differential phase.** On the spec sheet of every VTR
-  and proc amp ever sold, and absent here. The video amplifier's gain is not
-  flat against DC level, so chroma riding bright luma is compressed (DG) and its
-  phase shifts (DP): saturation dies in the highlights and hue swings with
-  brightness. A soft nonlinearity on the composite in `channel.wgsl` gives DG
-  for free; DP needs an explicit amplitude-dependent delay. Inside the mixer
-  loop it separates a feedback trail into colour layers by brightness, because
-  `cfbDelay`'s rotation per generation stops being uniform.
 - **Convergence, purity, and the magnet on the tube.** The screen section models
   beam, phosphor, mask and glass, but the three guns are perfectly registered,
   which no tube is. Two per-channel offsets in `crt_face`: convergence error
@@ -228,16 +130,6 @@ pass, in rough payoff-per-effort order.
   redistributes asymmetrically across the edge — white overshoot one side, black
   notch the other. Lives in `crt_face` over the decoded image, so it sidesteps
   the decode-tiling constraint that blocks intra-line geometry.
-- ~~**ABL (automatic beam limiter).**~~ Shipped as `abl`, as a second-order
-  servo with the damping on the knob — underdamped it genuinely hunts at its own
-  couple of Hz, and its natural frequency is deliberately unequal to the
-  auto-iris's so the two pumps beat. It also throttles the beam current the HV
-  sag integrates, one field late.
-- ~~**Chroma AGC with a time constant.**~~ Shipped as `accLagLines`, in exactly
-  the bounded-exponential-FIR shape this entry asked for: `line_analyze`
-  re-measures the previous bursts per line into `lineInfo.w`, and decode's gain
-  and killer read the lagged value. Phase stays instantaneous — the AFPC is a
-  faster loop than the gain leg.
 - **A DVE / framestore, as the digital box in the analog last mile.** Distinct
   from the digital cable tier below, and more era-correct. An ADO / A53 /
   WJ-MX50 cannot work on composite, so it decodes to 4:2:2 601 on a 720×486,
@@ -256,23 +148,14 @@ pass, in rough payoff-per-effort order.
   plateaus and the picture goes plasticky; above it, motion drags a soft trail
   with a hard edge where the gate trips. Put the threshold in the noise floor
   and the grain drives the detector, so still areas breathe.
-- ~~**Auto-iris hunting in the camera loop.**~~ Shipped as `fbIris` — GPU state
-  rather than the CPU floats proposed here (two more slots in `timingBuf`,
-  updated in `sync`'s serial pass, applied by `compose` a frame late), which
-  avoided a readback entirely. Second-order like the ABL, and the light it
-  meters is beam load × the ABL's drive, so the two servos share a sense line as
-  well as a loop.
 - **Rutt/Etra scan deflection.** The source's own luma patched into the vertical
   deflection amplifier: the raster becomes a relief map of the picture, and the
   brightness comes free from line bunching (line density _is_ luminance). Fits
   the deflection domain exactly — geometry detonates while hue stays put. The
   catch is that it is a per-pixel _vertical_ gather, so it wants `crt_face` over
   the decoded image with a bounded column search, not `decode`.
-- **Smaller trims.** A **Y/C delay** mistrim (colour shifted bodily sideways off
-  edges, distinct from `chromaTail`'s asymmetric smear); **head clog** (one of
-  the two heads dead, so alternating segments go to snow, keyed off the existing
-  head-switch point); **setup mismatch** (a 0 IRE deck into a 7.5 IRE set and
-  back, for crushed or milky blacks).
+- **Setup mismatch** — a 0 IRE deck into a 7.5 IRE set and back, for crushed or
+  milky blacks. The last of the smaller trims (Y/C delay and head clog shipped).
 
 Considered and not worth it: **PAL / Hanover bars** (a raster change, not an
 effect — `constants.ts` is 525/60 throughout) and **standards-converter
@@ -299,27 +182,18 @@ does not care — but the patch would visibly come from further away, which on
 fine horizontal detail is a different artifact. Worth knowing before anyone
 tunes that control's look.
 
-## Instruments, and the fact that nothing tests a pixel
+## Instruments and pixel checks
 
-- ~~**Vectorscope.**~~ Shipped as `scope`. Notes for whoever adds the next
-  instrument: it is _not_ a pass — `decode` scatters into `scopeBuf` and
-  `present` reads it in the fragment shader — which is what keeps
-  `pipeline-graph.test.ts` and the pass diagram out of it. And a histogram of a
-  flat field lands every sample in one bin, so it needs a finite spot on the way
-  out or it draws as a one-pixel speck; the 3x3 tap in `present` is that, for
-  the same reason the picture has a beam spot.
-- **A waveform monitor** is the obvious companion — line-rate luma against IRE
-  graticule, where sync depth, setup and the AGC's pumping would be readable
-  instead of inferred. `?dbg=2` already paints the composite; this is that with
-  a scale on it.
-- ~~**Nothing asserts a rendered pixel.**~~ First brick laid:
-  `scripts/pixelcheck.mjs` serves the repo, drives Firefox Nightly, and
-  asserts two facts — the six SMPTE hues land (one assertion through encoder
-  matrix, channel, burst lock, demod axes and the RGB matrix), and the
-  fine-tuning cliff (colour alive through the ACC at −0.5 MHz, killed at
-  −0.9). Deliberately outside `pnpm test`, as this entry asked. The pattern
-  is cheap to extend: any deterministic `?set=` look plus a probe is one more
-  pinned fact — candidates: burst-lock hue rotation, the killer threshold,
+- **A waveform monitor** is the obvious companion to the shipped vectorscope —
+  line-rate luma against IRE graticule, where sync depth, setup and the AGC's
+  pumping would be readable instead of inferred. `?dbg=2` already paints the
+  composite; this is that with a scale on it. Build it the way the scope was
+  built: not a pass (`decode` scatters, `present` draws), and with a finite
+  spot on the way out, or a flat field lands every sample in one bin and draws
+  as a speck.
+- **Extend pixelcheck.** `scripts/pixelcheck.mjs` pins the six SMPTE hues and
+  the fine-tuning cliff; any deterministic `?set=` look plus a probe is one
+  more pinned fact. Candidates: burst-lock hue rotation, the killer threshold,
   scramble's wash-out level.
 
 ## Digital cable tier
@@ -340,13 +214,6 @@ webcam through a Syphon→virtual-camera bridge; and output back out by pointing
 an OBS browser source at the page. The gaps below are what would make it feel
 like a patchable module rather than a coincidence.
 
-- ~~**Screen capture as a source mode.**~~ Shipped: `screen` on both A and B
-  (`useEngine.startScreen`). The browser's picker is the only confirmation, so
-  there is no dialog of our own; the share names itself in the caption, which
-  reopens the picker; ending the share from the browser's bar drops A to snow
-  and switches B off. It cannot round-trip through a link — the grant dies with
-  the page and the picker needs a gesture the loader hasn't got — so `screen` is
-  filtered out of the `?src=` contract alongside `file`.
 - **OSC control, via a local WebSocket bridge.** Browsers can't speak UDP, so
   this needs a small node process doing OSC↔WebSocket. Worth it because
   `DEFAULT_CONTROLS` is already a flat named record and `useMidi` already
@@ -390,17 +257,6 @@ routings alongside controls. What was deliberately left:
   several-controls-per-gesture case. If macros come back they need their own
   routing table, not a berth in the LFO bay — or they are a slider that does
   less than the slider it is standing in for.
-- ~~**The filter and the palette don't know about modulation.**~~ Shipped: the
-  filter takes a motion query (`∿`, or the words `moving` / `modulated` /
-  `motion` / `lfo`, unioned with the text match so prose still hits), and the
-  motion strip's `N∿` count is the button that asks it. `sliderMatches` /
-  `groupMatches` take the bay as an `isRouted` predicate rather than reading a
-  context, so `filter.ts` stays pure and the bay stays in its own context. The
-  spine narrows with everything else, which turns the chain map into a
-  where-is-the-motion display for free. The palette still indexes controls by
-  their static def — it reaches this through a `show what is moving` action
-  rather than by ranking routed controls higher, since the palette has no
-  per-item place to say "and this one is moving".
 - **Modulating the five filter controls** (`encChromaMHz`, `demodMHz`,
   `chromaTail`, `lumaMHz`, `lumaPeak`) rebuilds the FIR bank every frame.
   Allowed from the UI deliberately — it is a real patch someone may want — but
@@ -433,17 +289,12 @@ block. Two things were considered and left:
 Worth doing if the loop ever needs to sound like a _different deck_ from the
 main one, which is the case the current model cannot express.
 
-- ~~**Transport speeds other than ±1 and 0.**~~ Shipped as `tapeShuttle`, with
-  the track-crossing model it needed: the loop carries its own `speed - 1`
-  crossings and drives the same bar the deck's `shuttleX` does. Falling out of
-  that rather than being special-cased: a paused loop has one bar and a reversed
-  one has two, so only play speed forwards is clean. What is still missing is
-  the deck's _second_ half — `linestate` gives each strip between the deck's
-  bars its own timing and colour-under phase, so the picture tears and rainbows
-  at the boundaries. The loop's strips come off one contiguous read, so they are
-  clean between bars. Doing it would need per-line offsets on the loop read,
-  which `decode`'s row-uniform constraint does not block but `tape_play` has no
-  per-line buffer for yet.
+- **Per-strip timing on the loop's shuttle bars.** The deck's shuttle gives
+  each strip between its noise bars its own timing and colour-under phase (via
+  `linestate`), so the picture tears and rainbows at the boundaries; the loop's
+  strips come off one contiguous read, so they are clean between bars. Doing it
+  would need per-line offsets on the loop read, which `decode`'s row-uniform
+  constraint does not block but `tape_play` has no per-line buffer for yet.
 
 ## In flight — preset screening, round 2
 
@@ -457,8 +308,8 @@ depends on it; the shipped presets stand alone.
 
 - **Cochannel interference.** Already reachable: source B's dirty-sum path is a
   second non-genlocked composite beating against A, with its own line and
-  subcarrier detune. That _is_ cochannel. (Adjacent-channel is not — see the RF
-  section.)
+  subcarrier detune. That _is_ cochannel. (Adjacent-channel is not — that one
+  shipped as `rfAdjacent`, and is carrier beats rather than a second picture.)
 - **A TBC.** A corrective box that removes `tbJitter`/`tbWow`. Considered and
   declined; inverse-effect controls are interesting for performance but nobody
   has wanted one.
