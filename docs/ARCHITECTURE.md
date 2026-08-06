@@ -68,6 +68,21 @@ outboard box between the deck and the set — it runs after the last dub
 generation and before anything measures sync, so the pulses it stamps are the
 pulses the receiver has to lock to.
 
+**Each input also has its own feed** (`feedA`, `feedB`) — the deck, cable and
+head-end between that one source and the mixer, so a fault there (scramble,
+termination, snow, polarity, the pause button) damages one signal alone and
+everything downstream reacts to the difference. The two passes are one shader
+bound to different uniform buffers: `renderFrame` packs each source's fault
+controls — and its paused deck's servo state — into the standard damage fields
+of a second `Params` block, so each mechanism is written once in `feed.wgsl`
+and reused fields cost no `PARAM_DEFS` growth. An engaged feed makes its
+encoder detour through the `compB` scratch (a bind-group pair swapped off the
+same predicate that gates the feed). What makes feedB possible at all is
+`encodeCompositeB`: B exists as a real composite on its own raster, which
+`mix_b`'s dirty path then resamples — so B's damage, its pause stripe
+included, rides B's raster through the slip and roll instead of parking on
+the output.
+
 ## The three domains
 
 The single most important distinction in this codebase, and the easiest to get
