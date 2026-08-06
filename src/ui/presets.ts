@@ -1011,6 +1011,129 @@ export const PRESETS: PresetDef[] = [
       phosphor: 0.45,
     },
   },
+  // Past the redline: every patch below sets at least one control beyond the
+  // range it was tuned to, so none of these were reachable before the travel
+  // was widened — which is the argument for writing them down rather than
+  // leaving the extra range to be found by dragging a slider into its stop.
+  //
+  // Still the house rule: model the mechanism, let the look emerge. What is
+  // different out here is only that the mechanisms are being driven past
+  // anything the hardware would have survived, so what they interfere into is
+  // no longer a broken television. They are aimed at disagreeing across the
+  // frame rather than pumping all of it together — eight heads at uneven
+  // spacing, arcs that cluster, a loop ringing against its own rails.
+  {
+    name: 'past the yoke',
+    group: 'Past the redline',
+    blurb:
+      'The scan magnified far past anything the tube would frame, then rippled: a narrow band of raster standing in for a picture, bending against its own beam current.',
+    patch: {
+      vSize: 3.4,
+      bendUs: 70,
+      bendShape: 3,
+      bendPeriod: 9,
+      hvSagUs: 60,
+      hvRing: 0.9,
+      abl: 0.5,
+      hDetuneHz: 900,
+      phosphor: 0.6,
+      noiseIre: 3,
+    },
+  },
+  {
+    name: 'arc storm',
+    group: 'Past the redline',
+    blurb:
+      'Eighteen arcs a frame at three times peak white, over a tape that has shed most of its oxide. The hits arrive clustered and the stick-slip shear moves under them, so nothing lands twice in the same place.',
+    patch: {
+      impulseRate: 18,
+      impulseIre: 320,
+      strikeRate: 11,
+      dropoutRate: 220,
+      dropoutLenUs: 40,
+      // Enough snow to read as a failing front end, not so much that it buries
+      // the arcs and the shear — those are the mechanisms this is about, and
+      // past about 40 IRE the uniform noise is all that is left.
+      noiseIre: 32,
+      tbStickNs: 8000,
+      tbJitterNs: 2200,
+      phosphor: 0.45,
+    },
+  },
+  {
+    name: 'eight-head lap',
+    group: 'Past the redline',
+    blurb:
+      'Eight heads crowded toward the record end of a six-millimetre loop, running five times play speed. A lap returns eight times at uneven spacing, so the echoes interfere across the frame instead of ticking.',
+    patch: {
+      tapeMix: 0.85,
+      // Unity, not above it. Eight taps summing into a loop that only clips
+      // (the play path rails at 140 IRE) means any spare gain is spent whiting
+      // the whole frame out inside a second — the taps stop being separable,
+      // which is the one thing this patch is for. The wear and the HF loss are
+      // what keep it moving instead.
+      tapeGain: 1,
+      tapeHeads: 8,
+      tapeHeadSpread: 2.4,
+      tapeLoopMm: 6,
+      tapeWear: 0.35,
+      tapeSplice: 0.8,
+      tapeHfLoss: 0.5,
+      colorUnderMix: 0.6,
+      phosphor: 0.4,
+    },
+  },
+  {
+    name: 'rail slam',
+    group: 'Past the redline',
+    blurb:
+      'The composite bus fed back at more than unity, ninety lines up, through a resonance that howls. The loop clips to a square and stays there — it cannot run away, so what it does instead is ring.',
+    patch: {
+      // Just over unity, not far over. The loop clips instead of diverging, so
+      // gain this side of the rail rings and gain well past it just pins every
+      // sample to +110 and hands back a flat white frame — the saturation is
+      // the sound, but only while something still gets through unsaturated.
+      cfbMix: 0.93,
+      cfbGain: 1.1,
+      cfbTrail: 0.96,
+      cfbLines: 90,
+      cfbDelayUs: 22,
+      cfbFilterMHz: 2.4,
+      cfbFilterQ: 0.85,
+      cfbFilterBoost: 5,
+      cfbRing: 0.5,
+      noiseIre: 2,
+    },
+  },
+  {
+    name: 'light that stays',
+    group: 'Past the redline',
+    blurb:
+      'A phosphor that gives almost nothing back, scattering sideways as it goes, under a gun with its gamma turned inside out. Everything the beam has touched is still on the glass, spreading.',
+    patch: {
+      phosphor: 0.999,
+      phosphorBleed: 0.9,
+      phosphorSkew: 5,
+      phosphorDecayMix: 0.6,
+      // Gamma this far under 1 lifts the floor as hard as it lifts the mids,
+      // and a tube whose black is white has nothing for the glow to sit on. The
+      // cutoff puts the floor back: the gun stays off below the knee, so the
+      // lifted part is only what the beam actually lit.
+      crtGamma: 0.4,
+      crtCutoff: 0.15,
+      crtSat: 4.5,
+      crtBloom: 3,
+      crtHalation: 2.5,
+      crtSpot: 6,
+    },
+    // A phosphor that holds this long has nothing to show on a still frame —
+    // the trail IS the motion, so with a static source the whole patch reads as
+    // a slightly soft picture. Lorenz rather than an LFO because a periodic
+    // sweep would lay its trail back down on itself every cycle and average
+    // out; the chaotic one never quite repeats, so the light accumulates
+    // somewhere new each pass and the smear stays spatial.
+    mod: [{ target: 'bendUs', source: 'lorenz', rateHz: 0.08, depth: 0.04 }],
+  },
 ]
 
 export function presetControls(patch: Partial<Controls>): Controls {
