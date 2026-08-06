@@ -23,11 +23,30 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
+// `composes: bare from './ui.module.css'` — the name pulled in, and from where.
+// Both passes below have to know about these: the path is a string with dots in
+// it, so left in place `./ui.module.css` reads as definitions of `.module` and
+// `.css`, and the name is a use of the *other* sheet's class that no component
+// spells out.
+const COMPOSES = /composes:\s*([\w\s-]+?)\s+from\s+'([^']+)'\s*;/g
+
+function stripComposes(css: string): string {
+  return css.replaceAll(COMPOSES, '').replaceAll(/composes:[^;]*;/g, '')
+}
+
 // Class names a stylesheet defines. Comments go first so a name mentioned in
 // prose doesn't count as a definition.
 function definedClasses(css: string): Set<string> {
-  const code = css.replaceAll(/\/\*[\s\S]*?\*\//g, '')
+  const code = stripComposes(css.replaceAll(/\/\*[\s\S]*?\*\//g, ''))
   return new Set([...code.matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map(m => m[1]))
+}
+
+// What a sheet reaches for in another sheet, as `<abs path>:<class>` — the same
+// key the tsx scan produces, so a composed primitive counts as referenced.
+function composedClasses(css: string, file: string): string[] {
+  return [...css.matchAll(COMPOSES)].flatMap(m =>
+    m[1].split(/\s+/).map(name => `${resolve(dirname(file), m[2])}:${name}`),
+  )
 }
 
 // Every `import styles from './X.module.css'` in a file, as identifier -> path.
@@ -79,7 +98,9 @@ describe('css modules', () => {
     // Dead rules outlive the markup that used them; .title survived a redesign
     // this way. A class only ever named by another selector (.a .b) still shows
     // up as defined *and* is not referenced from tsx — hence the second pass
-    // over the stylesheets themselves.
+    // over the stylesheets themselves. A shared primitive reached by `composes`
+    // is the same case one file further out: ui.module.css's .bare is never
+    // spelled `ui.bare` anywhere, and it is not dead.
     const dead: string[] = []
     const referenced = new Set<string>()
     const sheets = new Set<string>()
@@ -95,8 +116,18 @@ describe('css modules', () => {
         }
       }
     }
+    // Second sweep, once every sheet is known: a sheet can compose from one no
+    // component imports directly.
+    for (const path of [...sheets]) {
+      for (const key of composedClasses(readFileSync(path, 'utf8'), path)) {
+        referenced.add(key)
+        sheets.add(key.slice(0, key.lastIndexOf(':')))
+      }
+    }
     for (const path of sheets) {
-      const css = readFileSync(path, 'utf8').replaceAll(/\/\*[\s\S]*?\*\//g, '')
+      const css = stripComposes(
+        readFileSync(path, 'utf8').replaceAll(/\/\*[\s\S]*?\*\//g, ''),
+      )
       // a name used as a descendant/compound part is spoken for by the sheet
       const usedBySheet = new Set(
         [

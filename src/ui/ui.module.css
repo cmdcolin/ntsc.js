@@ -4,13 +4,87 @@
    which layer a class comes from: `ui.btn` is shared and changing it is felt
    everywhere, `styles.barBtn` belongs to the component you are reading.
 
+   Two ways in, and the difference matters. Most of this file is worn directly
+   as `ui.btn` / `ui.select` / `ui.dim` — one class, the same look wherever it
+   lands. The `prim` layer below is worn through `composes` instead, because it
+   is the *start* of a look rather than the whole of it: every caller overrides
+   part of it, which is what the layer makes safe.
+
    Anything used by exactly one component belongs in that component's own
    module instead — this file is for the shared few, and it stays small on
    purpose. Tokens live in src/theme.css. */
 
+/* The two primitives other modules build on with `composes`, in a layer of
+   their own so the module that composes one always wins the tie. Both are
+   single-class rules, so without the layer the winner between `.bare`'s
+   `font: inherit` and a local `font-size` would be decided by whichever
+   stylesheet the bundler happened to emit second — the hazard .presetBtn below
+   documents. An unlayered rule beats a layered one whatever the order, so a
+   composing module can override any part of these without knowing they exist.
+   Nothing here is referenced as `ui.x` from a component; `composes` is how you
+   reach them. */
+@layer prim {
+  /* A button that is a glyph or a word rather than a box: the ⋮ at the end of a
+     control row, a revert, a fold. Written out twenty-odd times before this,
+     and five of those copies had forgotten `font: inherit` — which a <button>
+     needs to stop using the UA's own font family, whatever font-size the rule
+     goes on to set. Colour and padding stay with the caller: they are what
+     each of these is actually saying. */
+  .bare {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  /* A range input with a drawn track: the fill and the tick come from
+     --track-bg, the handle from --thumb-size, and both are the caller's to set.
+     Each engine needs its own rule — a selector list mixing ::-webkit- and
+     ::-moz- is dropped whole by both — which is exactly why this is worth
+     sharing: it is five rules to keep in step, and there were two copies of
+     them (a control row's slider and the audio scrubber). */
+  .range {
+    --thumb-size: 12px;
+    margin: 0;
+    appearance: none;
+    background: none;
+  }
+  .range::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--track-bg);
+  }
+  .range::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--track-bg);
+  }
+  .range::-moz-range-progress {
+    background: none;
+  }
+  .range::-webkit-slider-thumb {
+    appearance: none;
+    width: var(--thumb-size);
+    height: var(--thumb-size);
+    /* centre the thumb on the 4px track */
+    margin-top: calc((4px - var(--thumb-size)) / 2);
+    border-radius: 50%;
+    border: none;
+    background: #b8b8c8;
+  }
+  .range::-moz-range-thumb {
+    width: var(--thumb-size);
+    height: var(--thumb-size);
+    border-radius: 50%;
+    border: none;
+    background: #b8b8c8;
+  }
+}
+
 /* buttons */
 .btn {
-  background: #26262e;
+  background: var(--ctl-face);
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -20,7 +94,7 @@
   cursor: pointer;
 }
 .btn:hover {
-  border-color: #63637a;
+  border-color: var(--border-hover);
 }
 /* a .btn standing alone (dialog actions, close) rather than in a flowing row */
 .btnFlush {
@@ -38,7 +112,7 @@
 }
 .slotEmpty {
   color: var(--fg4);
-  border-color: #2e2e38;
+  border-color: var(--border-faint);
 }
 
 /* Preset buttons double as weight sliders: drag one sideways to dial the preset
@@ -56,9 +130,48 @@
   background: linear-gradient(
     to right,
     #3a6355 var(--w, 0%),
-    #26262e var(--w, 0%)
+    var(--ctl-face) var(--w, 0%)
   );
   touch-action: pan-y;
+}
+
+/* The masthead's icon buttons — the pointer tool, the ⌕, the ⋮. One square box
+   for all three, which is what makes them read as one row of chrome rather than
+   three unrelated glyphs; there were three byte-identical copies of this rule in
+   two files, each carrying a comment saying it matched the one beside it.
+   No height: the icon sits in a text line box exactly as a glyph does, so the
+   pair stay level through any change to the type scale. Laying it out with flex
+   instead sizes the button to the 13px icon and leaves it 4px short — and an
+   explicit height would have to carry the padding and border with it, since a
+   <button> is border-box from the UA stylesheet whatever this file says. */
+.chromeBtn {
+  flex-shrink: 0;
+  width: 22px;
+  padding: 1px 0;
+  border: 1px solid var(--border-quiet);
+  border-radius: 4px;
+  background: var(--panel-bg);
+  color: var(--fg3);
+  font-size: var(--fs-md);
+  line-height: 1.2;
+  cursor: pointer;
+}
+.chromeBtn:hover {
+  border-color: var(--fg4);
+  color: var(--fg);
+}
+.chromeBtn svg {
+  vertical-align: middle;
+}
+/* Lit in the accent rather than filled the way a segmented toggle is: this is
+   masthead chrome, and a solid block would be the loudest thing in the row. */
+.chromeBtnOn {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.chromeBtnOn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 .presetBtn:hover {
   cursor: ew-resize;
@@ -109,15 +222,12 @@
   margin-top: 1px;
 }
 .hintX {
+  composes: bare;
   flex-shrink: 0;
   padding: 0 2px;
-  border: 0;
-  background: transparent;
   color: var(--fg3);
-  font: inherit;
   font-size: var(--fs-lg);
   line-height: 1;
-  cursor: pointer;
 }
 .hintX:hover {
   color: var(--fg);
@@ -148,7 +258,7 @@
   color: #9dbcea;
 }
 .amber {
-  color: #e8c464;
+  color: var(--edit-hi);
 }
 
 /* Touch: these were sized for a cursor. --ctl-h in theme.css covers the stage

@@ -15,7 +15,7 @@
   color: var(--fg);
   margin: 9px 0 4px;
   padding: 2px 2px;
-  border-bottom: 1px solid #3c3c4a;
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -30,7 +30,7 @@
   font-weight: 600;
   color: var(--fg2);
   margin: 7px 0 2px;
-  border-bottom-color: #2e2e38;
+  border-bottom-color: var(--border-faint);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-size: var(--fs-sm);
@@ -43,20 +43,16 @@
    setting its own, and any accessory (the ? explainer) sits beside it in .head
    so its clicks are its own. */
 .headBtn {
+  composes: bare from './ui.module.css';
   flex: 1;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 6px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
   color: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
   text-align: left;
-  cursor: pointer;
 }
 .caret {
   color: var(--fg3);
@@ -85,5 +81,5 @@
 }
 /* section holds a control that's off its default */
 .dot {
-  color: #ceba64;
+  color: var(--edit);
 }

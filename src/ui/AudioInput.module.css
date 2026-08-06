@@ -13,11 +13,11 @@
   font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
-/* The track and thumb have to be written once per engine — a selector list
-   mixing ::-webkit- and ::-moz- is dropped whole by both — so the parts that
-   would drift live in custom properties here and each engine's rule is a
-   reference. --p (progress) is set inline by the component. */
+/* The track and thumb rules are `ui.range`'s — this is a control row's slider
+   with a different fill, not a different kind of control. --p (progress) is set
+   inline by the component. */
 .scrub {
+  composes: range from './ui.module.css';
   --track-bg: linear-gradient(
     to right,
     var(--accent) var(--p),
@@ -27,38 +27,5 @@
   flex: 1;
   min-width: 0;
   height: 12px;
-  margin: 0;
-  appearance: none;
-  background: none;
   cursor: pointer;
-}
-.scrub::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--track-bg);
-}
-.scrub::-moz-range-track {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--track-bg);
-}
-.scrub::-moz-range-progress {
-  background: none;
-}
-.scrub::-webkit-slider-thumb {
-  appearance: none;
-  width: var(--thumb-size);
-  height: var(--thumb-size);
-  /* centre the thumb on the 4px track */
-  margin-top: calc((4px - var(--thumb-size)) / 2);
-  border-radius: 50%;
-  border: none;
-  background: #b8b8c8;
-}
-.scrub::-moz-range-thumb {
-  width: var(--thumb-size);
-  height: var(--thumb-size);
-  border-radius: 50%;
-  border: none;
-  background: #b8b8c8;
 }

@@ -56,7 +56,7 @@
 }
 .tab {
   padding: 5px 14px;
-  background: #26262e;
+  background: var(--ctl-face);
   color: var(--fg2);
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -65,12 +65,12 @@
   cursor: pointer;
 }
 .tab:hover {
-  border-color: #63637a;
+  border-color: var(--border-hover);
 }
 .tabOn {
-  color: #101014;
-  background: #4a7a62;
-  border-color: #4a7a62;
+  color: var(--ctl-on-fg);
+  background: var(--ctl-on-bg);
+  border-color: var(--ctl-on-bg);
 }
 .cardRow {
   display: flex;
@@ -96,7 +96,6 @@
   resize: vertical;
 }
 .textArea:focus {
-  outline: none;
   border-color: var(--accent);
 }
 /* the mosaic palette: a keyboard has no key for these, so they are chips you

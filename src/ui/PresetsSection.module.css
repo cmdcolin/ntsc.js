@@ -2,12 +2,16 @@
    catalog, and the group headings inside it. The chips themselves are .btn
    variants and live in ui.module.css beside the rest of the button family. */
 
-/* the ? explainer beside the section title */
+/* The ? explainer beside the section title. Round rather than square — it is
+   the one thing in the header that explains rather than does — but on the same
+   --border-quiet as the ⌕ above it and the handle beside it: at --fg4 it was the
+   brightest outline in the panel, drawn around the least consequential button
+   in it, and the header read as three unrelated kinds of thing. */
 .helpBtn {
   width: 16px;
   height: 16px;
   padding: 0;
-  border: 1px solid var(--fg4);
+  border: 1px solid var(--border-quiet);
   border-radius: 50%;
   background: transparent;
   color: var(--fg3);
@@ -40,8 +44,8 @@
   align-items: center;
   gap: 5px;
   padding: 1px 7px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--border-quiet);
+  border-radius: 4px;
   background: transparent;
   color: var(--fg3);
   font: inherit;
@@ -52,7 +56,7 @@
   cursor: pointer;
 }
 .allBtn:hover {
-  border-color: #63637a;
+  border-color: var(--fg4);
   color: var(--fg);
 }
 .allBtnOn {

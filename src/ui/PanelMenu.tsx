@@ -1,6 +1,7 @@
 import styles from './PanelMenu.module.css'
 import { MenuItem, Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
+import ui from './ui.module.css'
 
 // Everything about the panel itself, behind one ⋮ in the masthead.
 //
@@ -32,7 +33,7 @@ export function PanelMenu(props: {
     <Popover
       trigger={attrs => (
         <button
-          className={styles.trigger}
+          className={ui.chromeBtn}
           popoverTarget={attrs.popoverTarget}
           style={attrs.style}
           title="panel options"

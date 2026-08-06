@@ -14,7 +14,7 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: #26262e;
+  background: var(--ctl-face);
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -24,12 +24,12 @@
   cursor: pointer;
 }
 .tool:hover {
-  border-color: #63637a;
+  border-color: var(--border-hover);
 }
 .on {
-  color: #101014;
-  background: #4a7a62;
-  border-color: #4a7a62;
+  color: var(--ctl-on-fg);
+  background: var(--ctl-on-bg);
+  border-color: var(--ctl-on-bg);
 }
 .clear {
   margin-left: auto;

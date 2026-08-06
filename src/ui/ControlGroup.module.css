@@ -1,26 +1,23 @@
 /* one banner for a group whose controls share an unmet gate, in place of a
    stack of identical per-slider notes; clicking sets the prerequisite */
 .groupNeeds {
+  composes: bare from './ui.module.css';
   display: block;
   width: 100%;
   text-align: left;
-  background: none;
-  border: none;
-  cursor: pointer;
   padding: 2px 0;
   margin: 2px 0;
-  font: inherit;
   font-size: var(--fs-sm);
   color: #b6a058;
 }
 .groupNeeds:hover {
-  color: #e8c464;
+  color: var(--edit-hi);
 }
 
 /* how many of the hidden trims are off default — the same amber the Section dot
    uses, so touched state behind a fold reads as touched state anywhere else */
 .fineTouched {
-  color: #ceba64;
+  color: var(--edit);
 }
 
 /* one of the hidden trims is being driven — the same green the row's own ∿
@@ -35,46 +32,36 @@
    stock — it is a statement about this group's state as much as an affordance,
    and it is the same amber the dot in the heading beside it already wears. */
 .revert {
-  background: none;
-  border: none;
-  cursor: pointer;
+  composes: bare from './ui.module.css';
   padding: 0 2px;
-  font: inherit;
   font-size: var(--fs-sm);
   line-height: 1;
-  color: #ceba64;
+  color: var(--edit);
 }
 .revert:hover {
-  color: #e8c464;
+  color: var(--edit-hi);
 }
 
 /* Per-stage jitter, in the header's accessory slot. Dim by default and lit on
    hover: it sits on every group heading, so at full contrast thirty of them
    would read as a column of decoration down the panel. */
 .dice {
-  background: none;
-  border: none;
-  cursor: pointer;
+  composes: bare from './ui.module.css';
   padding: 0 2px;
-  font: inherit;
   font-size: var(--fs-sm);
   line-height: 1;
   color: var(--fg4);
 }
 .dice:hover {
-  color: #e8c464;
+  color: var(--edit-hi);
 }
 
 /* reveals the sliders a direct-manipulation miniature stands in for, and the
    fine trims a group folds away */
 .sliderToggle {
+  composes: bare from './ui.module.css';
   display: block;
   margin: -4px 0 6px;
-  padding: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
   font-size: var(--fs-sm);
   color: var(--fg3);
 }

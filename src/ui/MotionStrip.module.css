@@ -27,30 +27,24 @@
 }
 
 .freeze {
+  composes: bare from './ui.module.css';
   padding: 0 2px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
   font-size: var(--fs-sm);
   line-height: 1;
   color: #7cbf9a;
 }
 .frozen {
-  color: #e8c464;
+  color: var(--edit-hi);
 }
 
 /* also the way in: it filters the panel down to the rows it is counting, so it
    is a button rather than a readout — hover lifts it to the strip's own green
    to say so, since a count that looks inert is one nobody presses */
 .count {
+  composes: bare from './ui.module.css';
   font-family: var(--mono);
   font-size: var(--fs-xs);
   color: var(--fg3);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
 }
 .count:hover {
   color: #7cbf9a;
@@ -59,11 +53,7 @@
 /* the ⚟ that puts this fader on a knob — same three states as a control row's,
    so the strip reads as one of them rather than as a different kind of thing */
 .bind {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  font: inherit;
+  composes: bare from './ui.module.css';
   font-size: var(--fs-xs);
   line-height: 1;
   color: var(--fg4);
@@ -72,7 +62,7 @@
   color: #9dbcea;
 }
 .bindArmed {
-  color: #e8c464;
+  color: var(--edit-hi);
 }
 
 /* the strip is a live-set control, so its hit targets follow the same rule the

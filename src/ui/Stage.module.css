@@ -123,14 +123,10 @@
   accent-color: var(--accent);
 }
 .zoomReset {
+  composes: bare from './ui.module.css';
   min-width: 34px;
-  background: none;
-  border: 0;
-  padding: 0;
   color: var(--accent);
-  font: inherit;
   font-family: var(--mono);
-  cursor: pointer;
 }
 .zoomReset:hover {
   text-decoration: underline;
@@ -146,7 +142,7 @@
    Amber rather than the accent — a tap is a mode you are meant to leave, which
    is the colour the panel already uses for "this is off stock". */
 .triggerTap {
-  color: #e8c464;
+  color: var(--edit-hi);
   font-family: var(--mono);
 }
 /* the region being chosen by a drag on the picture */

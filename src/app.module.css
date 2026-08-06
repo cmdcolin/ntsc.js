@@ -105,13 +105,10 @@
 }
 /* color-bars glyph + wordmark + version, doubling as the help trigger */
 .brand {
+  composes: bare from './ui/ui.module.css';
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
   line-height: 1;
 }
 .brandMark {
@@ -147,62 +144,10 @@
   gap: 5px;
   margin-left: auto;
 }
-/* Panel chrome, not a control over the picture — the same quiet outline the ⋮
-   beside it wears. */
-.searchBtn {
-  flex-shrink: 0;
-  width: 22px;
-  padding: 1px 0;
-  border: 1px solid #33333f;
-  border-radius: 4px;
-  background: var(--panel-bg);
-  color: var(--fg3);
-  font-size: var(--fs-md);
-  line-height: 1.2;
-  cursor: pointer;
-}
-.searchBtn:hover {
-  border-color: var(--fg4);
-  color: var(--fg);
-}
-/* The picture's pointer tool. Deliberately the same box as the ⌕ beside it, and
-   by the same means rather than by arithmetic: no height here, so the icon sits
-   in a text line box exactly as that button's glyph does and the pair stay level
-   through any change to the type scale. Laying it out with flex instead sizes
-   the button to the 13px icon and leaves it 4px short — and an explicit height
-   would have to carry the padding and border with it, since a <button> is
-   border-box from the UA stylesheet whatever this file says. Lit in the accent
-   rather than filled the way a segmented toggle is: this is masthead chrome, and
-   a solid block would be the loudest thing in the row. */
-.modeBtn {
-  flex-shrink: 0;
-  width: 22px;
-  padding: 1px 0;
-  border: 1px solid #33333f;
-  border-radius: 4px;
-  background: var(--panel-bg);
-  color: var(--fg3);
-  font-size: var(--fs-md);
-  line-height: 1.2;
-  cursor: pointer;
-}
-.modeBtn svg {
-  vertical-align: middle;
-}
-.modeBtn:hover {
-  border-color: var(--fg4);
-  color: var(--fg);
-}
-.modeBtnOn {
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-}
-.modeBtnOn:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
+/* The ⌕, the pointer tool and the ⋮ are all `ui.chromeBtn` — one box for the
+   row, defined once in ui.module.css.
 
-/* The control filter, in the masthead rather than in a row of its own.
+   The control filter, in the masthead rather than in a row of its own.
    It used to be a 25px input plus a 12px margin sitting above the chain map,
    permanently, for a feature most sessions never use — and the masthead beside
    it was two thirds empty. Opened from the ⌕, it takes the width the wordmark
@@ -224,7 +169,7 @@
   box-sizing: border-box;
   background: var(--panel-bg);
   color: var(--fg);
-  border: 1px solid #33333f;
+  border: 1px solid var(--border-quiet);
   border-radius: 4px;
   padding: 1px 7px;
   font: inherit;
@@ -233,22 +178,20 @@
 .filter::placeholder {
   color: var(--fg4);
 }
+/* the ring is the UA's — with color-scheme: dark it draws the right one, and a
+   border-colour shift on its own was never a focus indicator */
 .filter:focus {
   border-color: var(--fg4);
-  outline: none;
 }
 /* Clears the query and hands the row back to the wordmark. Escape does both
    too (useShortcuts), but the × is the only one of the two that is visible. */
 .filterClear {
+  composes: bare from './ui/ui.module.css';
   flex-shrink: 0;
   padding: 0 4px;
-  border: 0;
-  background: none;
   color: var(--fg3);
-  font: inherit;
   font-size: var(--fs-md);
   line-height: 1;
-  cursor: pointer;
 }
 .filterClear:hover {
   color: var(--fg);

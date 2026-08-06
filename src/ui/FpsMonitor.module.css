@@ -26,13 +26,11 @@
    and an × bright enough to notice would read as a third thing in the
    masthead rather than a handle on the second. */
 .dismiss {
-  background: none;
-  border: none;
+  composes: bare from './ui.module.css';
   color: var(--fg4);
   font-size: var(--fs-md);
   line-height: 1;
   padding: 0 1px;
-  cursor: pointer;
 }
 .dismiss:hover {
   color: var(--fg);

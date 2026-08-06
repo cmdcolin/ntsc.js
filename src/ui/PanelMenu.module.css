@@ -1,27 +1,8 @@
-/* The ⋮ in the masthead and the one row of its menu that is a link rather than
-   a button. The menu itself is Popover.module.css — this file is only what that
-   module has no opinion about. */
+/* The one row of the ⋮'s menu that is a link rather than a button. The trigger
+   itself is `ui.chromeBtn` (it is the same box as the ⌕ beside it) and the menu
+   is Popover.module.css — this file is only what neither has an opinion about.
 
-/* Wears the same quiet outline as the ⌕ beside it: both are panel chrome, not
-   controls over the picture, which is the line the masthead draws. */
-.trigger {
-  flex-shrink: 0;
-  width: 22px;
-  padding: 1px 0;
-  border: 1px solid #33333f;
-  border-radius: 4px;
-  background: var(--panel-bg);
-  color: var(--fg3);
-  font-size: var(--fs-md);
-  line-height: 1.2;
-  cursor: pointer;
-}
-.trigger:hover {
-  border-color: var(--fg4);
-  color: var(--fg);
-}
-
-/* An <a> can't be a MenuItem — that renders a <button>, and a link has to stay
+   An <a> can't be a MenuItem — that renders a <button>, and a link has to stay
    a link to get the middle-click, the context menu and the visited state. So it
    borrows the menu row's box here and the label/icon spans from the shared
    module, which is what keeps it lined up with the rows above it. */

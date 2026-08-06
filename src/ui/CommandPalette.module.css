@@ -30,6 +30,9 @@
   font: inherit;
   font-size: var(--fs-lg);
 }
+/* The one place the UA ring is still suppressed: this input is autofocused, is
+   the only focusable thing in the card, and runs its full width — a ring here
+   frames the top of the dialog rather than pointing at anything. */
 .paletteInput:focus {
   outline: none;
 }
@@ -41,17 +44,14 @@
   overflow-y: auto;
 }
 .paletteRow {
+  composes: bare from './ui.module.css';
   display: flex;
   align-items: baseline;
   gap: 8px;
   width: 100%;
   padding: 6px 14px;
-  border: 0;
-  background: transparent;
   color: var(--fg);
-  font: inherit;
   text-align: left;
-  cursor: pointer;
 }
 .paletteRowOn {
   background: #22303a;

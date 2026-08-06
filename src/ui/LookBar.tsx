@@ -11,16 +11,22 @@ import type { MutateAmount } from './mutate'
 // wherever it happens to be, undo walks the history: all of them apply just as
 // much to a look built slider by slider as to one picked off a chip.
 //
-// Chrome, not controls, so they wear the quiet outline the bench switch and the
-// palette key wear rather than the filled look of the preset chips and the
-// control rows. That is the distinction the row is drawing: these do things to
-// the board, the buttons below it are the board.
+// Chrome, not controls, so they wear the quiet outline the masthead icons and
+// the catalog handle wear rather than the filled look of the preset chips and
+// the control rows. That is the distinction the row is drawing: these do things
+// to the board, the buttons below it are the board.
+//
+// "copy link" used to be the widest of them, and it was a button for something
+// the address bar was already doing: useUrlState mirrors the live look into the
+// query string every time it changes, so the URL is always the link and copying
+// it is the browser's own gesture. It survives in the ⌘K palette for anyone who
+// wants one keystroke for it. Losing it is what lets the row carry the panel's
+// ordinary type size and still hold all five verbs — including redo, which
+// never fit before at either size.
 export function LookBar(props: {
   comparing: boolean
   onStartCompare: () => void
   onEndCompare: () => void
-  copied: boolean
-  onCopyLink: () => void
   onSurprise: () => void
   onMutate: (amount: MutateAmount) => void
   canUndo: boolean
@@ -41,15 +47,6 @@ export function LookBar(props: {
         title="hold to preview the clean signal, release to return (or hold C)"
       >
         {props.comparing ? 'showing clean…' : 'compare'}
-      </button>
-      {/* "copied!" is wider than "copy link", and a button that grows on click
-          shoves its neighbours along the row. The min-width holds both. */}
-      <button
-        className={cx(styles.btn, styles.btnLink, props.copied && styles.btnOn)}
-        onClick={props.onCopyLink}
-        title="put this look on the clipboard as a URL"
-      >
-        {props.copied ? 'copied!' : 'copy link'}
       </button>
       <button
         className={styles.btn}

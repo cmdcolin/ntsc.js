@@ -6,9 +6,7 @@
 }
 /* drop a binding */
 .iconX {
-  background: none;
-  border: none;
-  cursor: pointer;
+  composes: bare from './ui.module.css';
   font-size: var(--fs-sm);
   color: #d87878;
 }

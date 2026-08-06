@@ -29,13 +29,9 @@ button.from:hover {
    the group's own "▸ N fine tweaks", because it is the same move: a fold that
    keeps a long tail from pushing the signal path off the screen. */
 .more {
+  composes: bare from './ui.module.css';
   display: block;
   margin: 2px 0 4px;
-  padding: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
   font-size: var(--fs-sm);
   color: var(--fg3);
 }

@@ -94,13 +94,10 @@
 }
 /* Track fills from the *default* position (--def) out to the thumb (--lo/--hi
    from Slider.tsx), with a faint tick marking the default. Kept minimal so it
-   still reads as a native control.
-
-   Each engine needs its own rule — a selector list mixing ::-webkit- and
-   ::-moz- is dropped whole by both — so the two things that would drift, the
-   track's gradient stack and the thumb's size, are written once here and each
-   engine's rule just references them. */
+   still reads as a native control. The per-engine track and thumb rules are
+   `ui.range`'s — all this sets is what is particular to a control row. */
 .range {
+  composes: range from './ui.module.css';
   --track-bg:
     linear-gradient(
       to right,
@@ -112,56 +109,16 @@
     linear-gradient(
       to right,
       #31313c var(--lo),
-      #4a7a62 var(--lo),
-      #4a7a62 var(--hi),
+      var(--ctl-on-bg) var(--lo),
+      var(--ctl-on-bg) var(--hi),
       #31313c var(--hi)
     );
-  --thumb-size: 12px;
   width: 100%;
   height: 14px;
-  /* the grid centres the track against the label column; the old top margin was
-     the gap under a label sitting above it */
-  margin: 0;
   display: block;
-  appearance: none;
-  background: none;
 }
 .range:disabled {
   opacity: 0.45;
-}
-.range:focus-visible {
-  outline: 1px solid #5a5a68;
-  outline-offset: 1px;
-}
-.range::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--track-bg);
-}
-.range::-moz-range-track {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--track-bg);
-}
-.range::-moz-range-progress {
-  background: none;
-}
-.range::-webkit-slider-thumb {
-  appearance: none;
-  width: var(--thumb-size);
-  height: var(--thumb-size);
-  /* centre the thumb on the 4px track */
-  margin-top: calc((4px - var(--thumb-size)) / 2);
-  border-radius: 50%;
-  border: none;
-  background: #b8b8c8;
-}
-.range::-moz-range-thumb {
-  width: var(--thumb-size);
-  height: var(--thumb-size);
-  border-radius: 50%;
-  border: none;
-  background: #b8b8c8;
 }
 
 /* holds the soft-takeover mark over the track */
@@ -177,7 +134,7 @@
   height: 12px;
   margin-left: -1px;
   border-radius: 1px;
-  background: #e8c464;
+  background: var(--edit-hi);
   opacity: 0.75;
   pointer-events: none;
 }
@@ -189,19 +146,11 @@
    behind the ⋮ rides the element that was already there, at the cost of one
    glyph on the rows that have something to put back. */
 .revert {
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  color: #ceba64;
-  cursor: pointer;
+  composes: bare from './ui.module.css';
+  color: var(--edit);
 }
 .revert:hover {
-  color: #e8c464;
-}
-.revert:focus-visible {
-  outline: 1px solid #5a5a68;
-  outline-offset: 1px;
+  color: var(--edit-hi);
 }
 /* The same amber as the number it trails, one notch quieter, rather than the
    panel's dimmest grey: at --fs-xs in --fg4 it read as a speck of punctuation
@@ -224,8 +173,8 @@
    ⋮ next to it is where the changing happens. Two of them are buttons rather
    than marks (a routed ∿, an armed ⚟) and take the same box either way. */
 .badge {
-  background: none;
-  border: none;
+  composes: bare from './ui.module.css';
+  /* a mark on most rows and a button on two, so the hand comes from the tag */
   cursor: inherit;
   padding: 0 0 0 6px;
   font-size: var(--fs-xs);
@@ -238,9 +187,7 @@ button.badge {
    open on every row. Quiet at rest — it sits at the end of 121 rows, and at the
    reading's weight it would read as part of the number. */
 .rowMenu {
-  background: none;
-  border: none;
-  cursor: pointer;
+  composes: bare from './ui.module.css';
   padding: 0 0 0 5px;
   font-size: var(--fs-md);
   line-height: 1;
@@ -253,7 +200,7 @@ button.badge {
   color: var(--fg);
 }
 .iconOn {
-  color: #e8c464;
+  color: var(--edit-hi);
 }
 .iconSyncSet {
   color: #b6a058;
@@ -276,9 +223,7 @@ button.badge {
 }
 /* the ? that opens this control's explainer */
 .what {
-  background: none;
-  border: none;
-  cursor: pointer;
+  composes: bare from './ui.module.css';
   padding: 0 0 0 4px;
   font-size: var(--fs-xs);
   color: var(--fg4);
@@ -321,17 +266,13 @@ button.badge {
   opacity: 0.4;
 }
 .needs {
+  composes: bare from './ui.module.css';
   display: block;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
   margin: -2px 0 2px;
-  font: inherit;
   font-size: var(--fs-sm);
   text-align: left;
   color: #c0a95e;
 }
 .needs:hover {
-  color: #e8c464;
+  color: var(--edit-hi);
 }

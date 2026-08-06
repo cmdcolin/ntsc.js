@@ -18,6 +18,14 @@
    a reader who set their browser's default font size to something other than
    16px. The comments give the px each one lands on at that default. */
 :root {
+  /* Tells the UA the app is dark, which is worth more than it sounds: the
+     panel's scrollbar, a <select>'s dropped list, an <input type=search>'s
+     clear affordance and every focus ring are all UA-drawn, and without this
+     they come out light-on-light over a black app. It also means the default
+     focus ring is the right colour, so nothing here has to draw its own — the
+     three hand-rolled rings this replaced were dimmer than the UA's and had
+     already drifted to two different greys. */
+  color-scheme: dark;
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
   /* For text made of block characters — the teletype card and its palette.
      --mono's first choices are UI faces whose block elements are narrow and
@@ -35,10 +43,31 @@
   --fs-lg: 1rem; /* 16px */
   --fs-xl: 1.25rem; /* 20px */
   --accent: #7fd0a0;
+  /* Two edges, because the panel draws two kinds of thing. --border is a
+     surface's own edge: a card, a select, a filled button, the map's wires.
+     --border-quiet is the outline of *chrome* — the masthead icons, the look
+     bar, the catalog handle — which sits beside the controls it acts on and
+     must not read as loud as they do. Both lift to --border-hover under the
+     pointer, so a hover means the same thing whichever family it lands on. */
   --border: #44444f;
+  --border-quiet: #33333f;
+  --border-hover: #63637a;
+  /* below both: a hairline that only has to exist — a group card's outline, a
+     subheading's rule, the edge of an empty slot */
+  --border-faint: #2e2e38;
   --panel-bg: #16161a;
+  /* the face of a filled control — a preset chip, a segmented toggle, a tab */
+  --ctl-face: #26262e;
+  /* and its lit state, the one place the panel inverts its text */
+  --ctl-on-bg: #4a7a62;
+  --ctl-on-fg: #101014;
   /* one sharp amber, for a count of anything off stock */
   --amber: #ffb02e;
+  /* The panel's word for "this has been moved off stock", as the resting/hover
+     pair every revert, dot and touched-count wears. Quieter than --amber, which
+     is reserved for a count sitting on the picture. */
+  --edit: #ceba64;
+  --edit-hi: #e8c464;
   /* prose wraps to 3–5 lines in a panel this narrow; 1.2 is unreadable there */
   --prose-lh: 1.45;
   /* One height for every control that can end up sitting beside another one.

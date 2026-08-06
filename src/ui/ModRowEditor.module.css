@@ -15,11 +15,7 @@
   margin-top: 2px;
 }
 .action {
-  padding: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
+  composes: bare from './ui.module.css';
   font-size: var(--fs-sm);
   color: var(--fg3);
 }

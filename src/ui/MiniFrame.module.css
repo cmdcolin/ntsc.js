@@ -29,8 +29,9 @@
   cursor: move;
   touch-action: none;
 }
+/* the frame sits on the picture, so the UA's own ring needs clearance from the
+   accent border to stay readable over whatever is behind it */
 .window:focus-visible {
-  outline: 1px solid #8a8a98;
   outline-offset: 2px;
 }
 .grip {

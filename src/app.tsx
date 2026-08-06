@@ -249,7 +249,9 @@ export function App() {
     resetGroup: mix.resetGroup,
   }
 
-  const { copyLink, copied } = useUrlState({
+  // `copied` (the flash on the old copy-link button) went with that button; the
+  // ⌘K entry below is the only caller left, and a palette row closes on run.
+  const { copyLink } = useUrlState({
     controls,
     mod: slotsToRoutings(modApi.slots),
     engineReady: engine !== null,
@@ -490,7 +492,7 @@ export function App() {
               the picture is the other half of the readout, and this is the half
               that is still on screen when the pointer is somewhere else. */}
           <button
-            className={cx(styles.modeBtn, boxZoom && styles.modeBtnOn)}
+            className={cx(ui.chromeBtn, boxZoom && ui.chromeBtnOn)}
             aria-pressed={boxZoom}
             aria-label="pointer tool over the picture"
             title={
@@ -504,7 +506,7 @@ export function App() {
           </button>
           {searching ? null : (
             <button
-              className={styles.searchBtn}
+              className={ui.chromeBtn}
               title="filter the controls — artifact words work: rainbow, ghost, tear, roll (⌘K jumps to one by name)"
               aria-label="filter the controls"
               onClick={() => setSearchOpen(true)}
@@ -530,8 +532,6 @@ export function App() {
         comparing={comparing}
         onStartCompare={startCompare}
         onEndCompare={endCompare}
-        copied={copied}
-        onCopyLink={copyLink}
         onSurprise={mix.surprise}
         onMutate={mix.mutateLook}
         canUndo={mix.canUndo}

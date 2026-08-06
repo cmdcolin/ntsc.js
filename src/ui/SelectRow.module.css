@@ -34,16 +34,13 @@
   resize: vertical;
 }
 .cardInput:focus {
-  outline: none;
   border-color: var(--accent);
 }
 .fileName {
+  composes: bare from './ui.module.css';
   display: block;
   width: 100%;
   margin: -1px 0 4px 19px;
-  padding: 0;
-  border: 0;
-  background: none;
   text-align: left;
   color: var(--fg3);
   font-family: var(--mono);
@@ -51,7 +48,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: pointer;
 }
 .fileName:hover {
   color: var(--fg);

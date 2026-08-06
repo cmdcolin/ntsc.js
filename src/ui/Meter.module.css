@@ -23,11 +23,11 @@
   position: absolute;
   inset: 0 0 0 auto;
   width: 100%;
-  background: #26262e;
+  background: var(--ctl-face);
 }
 .meterUnlitV {
   position: absolute;
   inset: 0 0 auto 0;
   height: 100%;
-  background: #26262e;
+  background: var(--ctl-face);
 }
