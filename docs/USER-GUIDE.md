@@ -105,9 +105,9 @@ through a link like the words do. The shades are worth a try on their own: a
 dither is a half-rate checker by the time it reaches the decoder, which is
 exactly what dot crawl and chroma bleed feed on. Tick **crawl** and it rolls up
 the frame instead of holding still. **B** is a second source, deliberately not
-genlocked, so mixing it in beats and tears against A; its controls appear in
-**A/B Mix**. **♪** is audio in, which does nothing until you turn up a knob in
-**Sound into the picture**.
+genlocked, so mixing it in beats and tears against A; its controls are the
+**Mix** box on the map below. **♪** is audio in, which does nothing until you
+turn up a knob in **Sound into the picture**.
 
 Running locally adds a **YouTube…** source (`yt-dlp` on the dev server); the
 hosted build has no server to do that with.
@@ -117,9 +117,15 @@ hosted build has no server to do that with.
 ![The app window, the chain map at the head of the sidebar boxed in red](img/chain.jpg)
 
 Controls live where they sit in the signal path, not in one long list. The map
-at the head of the sidebar is the whole path — five stages, plus the two loops
-that feed the picture back into it. Amber is a stage you've moved something in.
-Click one to open its controls below:
+at the head of the sidebar is the whole path: **A** comes in on the top wire
+through five stages, **B** joins from below at **Mix**, and the two loops feed
+the picture back into it. Amber is a stage you've moved something in, and a
+dashed **Mix** means nothing is patched into B yet. Click one to open its
+controls below:
+
+**diagram ⤢**, beside the map's heading, draws the same path with room for the
+parts the miniature has to leave out — each source's own feed, and which loop is
+the camera and which the mixer. Every box there opens its controls too.
 
 ![The app window with the Tape stage opened at VHS Tracking, the stage list boxed in red](img/signal-path.jpg)
 

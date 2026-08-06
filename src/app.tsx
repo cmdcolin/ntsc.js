@@ -8,7 +8,14 @@ import { AudioHint, AudioInput } from './ui/AudioInput'
 import { AudioSection } from './ui/AudioSection'
 import { CommandPalette } from './ui/CommandPalette'
 import { ControlGroup, ControlSlider } from './ui/ControlGroup'
-import { AB_GROUPS, ALL_SLIDERS, AUDIO_GROUPS, PHASES } from './ui/controls'
+import {
+  AB_GROUPS,
+  ALL_SLIDERS,
+  AUDIO_GROUPS,
+  MIX_BLURB,
+  MIX_STAGE,
+  PHASES,
+} from './ui/controls'
 import { ControlsContext } from './ui/ControlsContext'
 import { cx } from './ui/cx'
 import { FatalScreen } from './ui/FatalScreen'
@@ -36,6 +43,7 @@ import { PresetsSection } from './ui/PresetsSection'
 import { ScenesSection } from './ui/ScenesSection'
 import { Section } from './ui/Section'
 import { SignalPath } from './ui/SignalPath'
+import { SignalPathDialog } from './ui/SignalPathDialog'
 import { Stage } from './ui/Stage'
 import { usePersistedFlag } from './ui/storage'
 import { TeletypeDialog } from './ui/TeletypeDialog'
@@ -62,8 +70,9 @@ import { gitSha, versionLabel } from './version'
 
 import type { ControlKey, Controls } from './controls'
 import type { PaletteAction } from './ui/CommandPalette'
+import type { Group } from './ui/controls'
 import type { ControlsApi } from './ui/ControlsContext'
-import type { PathNode } from './ui/SignalPath'
+import type { PathBranch, PathNode } from './ui/SignalPath'
 
 // useSyncExternalStore fallbacks for the window before the async engine exists.
 const subscribeNever = () => () => {}
@@ -134,6 +143,7 @@ export function App() {
   const bench = benchOn && (popout !== null || roomy)
   const [fullscreen, setFullscreen] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [showDiagram, setShowDiagram] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
   const [comparing, setComparing] = useState(false)
@@ -340,6 +350,12 @@ export function App() {
       run: () => openPopout(benchOn),
     },
     {
+      name: 'signal path',
+      blurb:
+        'the whole chain as a diagram — both inputs, the mixer, both loops',
+      run: () => setShowDiagram(true),
+    },
+    {
       name: 'advanced settings',
       blurb: 'render scale and MIDI setup',
       run: () => setShowAdvanced(true),
@@ -379,49 +395,61 @@ export function App() {
   const abGroups = AB_GROUPS.filter(g => groupMatches(g, query, isRouted))
   const audioGroups = AUDIO_GROUPS.filter(g => groupMatches(g, query, isRouted))
 
-  // Roll the per-group touched state up to the phase, so the chain reads as a
+  // Roll the per-group touched state up to the stage, so the chain reads as a
   // status map — you see which stages you're in without opening any. The count
   // is a button: it jumps into the first touched group, which is the path from
   // "this preset looks cool" to the knobs that made it. Data only: the open
   // stage builds its own sections.
-  const pathNodes = PHASES.flatMap((phase): PathNode[] => {
-    const groups = phase.groups.filter(g => groupMatches(g, query, isRouted))
+  const pathNode = (name: string, blurb: string, groups: Group[]): PathNode => {
     // What the stage can do to the picture, group by group — the counts the
     // map colours a stage by, and the jump target behind its count.
     const parts = groups.map(group => ({
-      name: group.name,
       touched: group.sliders.filter(
         s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
       ).length,
-      onOpen: () => nav.openAt(phase.name, group.name),
+      onOpen: () => nav.openAt(name, group.name),
     }))
+    return {
+      name,
+      blurb,
+      groups,
+      touched: parts.reduce((n, p) => n + p.touched, 0),
+      onJumpTouched: () => {
+        const first = parts.find(p => p.touched > 0)
+        if (first !== undefined) first.onOpen()
+      },
+    }
+  }
+  const pathNodes = PHASES.flatMap((phase): PathNode[] => {
+    const groups = phase.groups.filter(g => groupMatches(g, query, isRouted))
     return groups.length === 0
       ? []
-      : [
-          {
-            name: phase.name,
-            blurb: phase.blurb,
-            groups,
-            touched: parts.reduce((n, p) => n + p.touched, 0),
-            onJumpTouched: () => {
-              const first = parts.find(p => p.touched > 0)
-              if (first !== undefined) first.onOpen()
-            },
-          },
-        ]
+      : [pathNode(phase.name, phase.blurb, groups)]
   })
+  // Input B's branch, drawn under the trunk. Unlike a trunk stage it survives
+  // having nothing patched into it: with B off it is the only thing on screen
+  // saying a second input exists, so it is dropped only when a live filter has
+  // left it nothing. Its count goes to zero then too — a stage that cannot be
+  // opened has no business wearing the amber that says "you changed something
+  // in here", and nothing in it is reaching the picture anyway.
+  const bOn = eng.sourceBMode !== 'none'
+  const mixNode = pathNode(MIX_STAGE, MIX_BLURB, abGroups)
+  const branch: PathBranch | null =
+    filtering && abGroups.length === 0
+      ? null
+      : { ...mixNode, touched: bOn ? mixNode.touched : 0, on: bOn }
 
   // Whether the query reached anything at all, across every place a result can
-  // land — not the spine alone. A routed mixer control lives in A/B and a routed
-  // pin lives in Favorites, so keying "nothing matches" off the spine would deny
-  // a result the panel is showing right above the message. Mirrors each
-  // section's own render condition rather than restating it.
+  // land — not the trunk alone. A routed mixer control lives on B's branch and a
+  // routed pin lives in Favorites, so keying "nothing matches" off the trunk
+  // would deny a result the panel is showing right above the message. Mirrors
+  // each section's own render condition rather than restating it.
   const anyResult =
     pathNodes.length > 0 ||
     pinned.length > 0 ||
     edited.some(s => sliderMatches(s, query, isRouted(s.key))) ||
     audioGroups.length > 0 ||
-    (eng.sourceBMode !== 'none' && abGroups.length > 0)
+    (bOn && abGroups.length > 0)
 
   const panelBody = (
     <>
@@ -597,20 +625,6 @@ export function App() {
         audioHint={<AudioHint mode={audio.mode} error={audio.error} />}
       />
 
-      {/* Collapsed by default: source B is on out of the box, and ten mixer
-          sliders unfurled here is what used to push the presets off screen. */}
-      {eng.sourceBMode === 'none' || abGroups.length === 0 ? null : (
-        <Section title="A/B Mix" defaultOpen={false} openOnFilter>
-          {abGroups.map((group, i) => (
-            <ControlGroup
-              key={group.name}
-              group={group}
-              defaultOpen={i === 0}
-            />
-          ))}
-        </Section>
-      )}
-
       {/* Pinned controls, gathered from wherever they live in the chain into one
           spot near the front door. Shown only once something is starred, so it
           costs nothing until used; ordered by the signal path, not pin order, so
@@ -632,9 +646,11 @@ export function App() {
       <MotionStrip onReveal={() => setFilter(MOVING_QUERY)} />
       <SignalPath
         nodes={pathNodes}
+        branch={branch}
         open={nav.openPhase}
         expandAll={filtering}
         bench={bench}
+        onShowDiagram={() => setShowDiagram(true)}
         // Which of the two returns is actually carrying signal. Read off the
         // two loop mixes rather than the whole group: a loop with its mix at
         // zero is patched but silent, and the map is answering "is it running".
@@ -832,6 +848,15 @@ export function App() {
             eng.setAskTeletype(null)
           }}
           onClose={() => eng.setAskTeletype(null)}
+        />
+      ) : null}
+      {showDiagram ? (
+        <SignalPathDialog
+          controls={controls}
+          live={{ camera: controls.fbMix > 0, mixer: controls.cfbMix > 0 }}
+          bOn={eng.sourceBMode !== 'none'}
+          onOpen={nav.openAt}
+          onClose={() => setShowDiagram(false)}
         />
       ) : null}
       {showHelp ? <HelpDialog onClose={() => setShowHelp(false)} /> : null}

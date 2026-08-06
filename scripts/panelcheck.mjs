@@ -188,9 +188,17 @@ await phase('filter', { seed: OLD_BAY }, async page => {
     cleared.chain,
     'the chain map did not come back when the filter cleared',
   )
+  // Six openable boxes, not five: the five trunk stages plus input B's branch,
+  // which is a stage of the panel without being a Phase. B is on out of the
+  // box, so it is openable here — with it off the branch is drawn and inert and
+  // this count drops back to five.
   check(
-    cleared.stages.length === 5,
+    cleared.stages.length === 6,
     `the map came back with ${cleared.stages.length} stages: ${cleared.stages}`,
+  )
+  check(
+    cleared.stages.includes('Mix'),
+    `the B branch is missing from the map: ${cleared.stages}`,
   )
 })
 

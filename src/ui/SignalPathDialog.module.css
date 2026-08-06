@@ -1,0 +1,149 @@
+/* The path drawn large (see SignalPathDialog.tsx). Same vocabulary as the
+   sidebar's miniature — boxes on a wire, the two loops routed over the top,
+   colour carried on one element per node — at a size that can hold the two
+   feeds and the loops' names as well. */
+.diagram {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 4px 0 14px;
+}
+.wire {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.25;
+}
+.arrow {
+  fill: var(--border);
+}
+/* a feedback return, wire and arrowhead as one colour so a running loop lights
+   both — dashed for the optical path, solid for the electrical one */
+.return {
+  color: var(--border);
+}
+.return .wire {
+  stroke: currentColor;
+}
+.return .arrow {
+  fill: currentColor;
+}
+.optical .wire {
+  stroke-dasharray: 3 3;
+}
+.live {
+  color: var(--accent);
+}
+.loopLabel {
+  fill: var(--fg4);
+  font-size: 9.5px;
+}
+.live .loopLabel {
+  fill: var(--accent);
+}
+/* the A and B labels on the two input wires */
+.tag {
+  fill: var(--fg2);
+  font-size: 11px;
+  font-weight: 700;
+}
+.dimTag {
+  fill: var(--border);
+}
+/* B's run with nothing patched into it */
+.dim .wire {
+  stroke: var(--border-faint);
+}
+.dim .arrow {
+  fill: var(--border-faint);
+}
+.node {
+  color: var(--fg2);
+  cursor: pointer;
+}
+.node:hover {
+  color: var(--accent);
+}
+.box {
+  fill: var(--panel-bg);
+  stroke: var(--border);
+  stroke-width: 1.25;
+}
+.node:hover .box,
+.nodeTouched .box {
+  stroke: currentColor;
+}
+/* the box holds something off stock — the same amber the panel marks one with */
+.nodeTouched {
+  color: var(--edit);
+}
+/* nothing patched into input B: drawn, so the second input is visible before it
+   is switched on, but there is nothing to open */
+.nodeOff {
+  color: var(--border);
+  cursor: default;
+}
+.nodeOff .box {
+  stroke: currentColor;
+  stroke-dasharray: 3 3;
+}
+.label {
+  fill: currentColor;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* The blurbs in full, under the drawing. A list rather than captions on the
+   svg: svg text does not wrap, and these are sentences. Each row opens the same
+   place its box does, which also makes the diagram reachable by keyboard in
+   reading order rather than only as eight tab stops on a picture. */
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.legend li + li {
+  border-top: 1px solid var(--border-faint);
+}
+.legendBtn {
+  composes: bare from './ui.module.css';
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 2px;
+  text-align: left;
+  color: var(--fg2);
+  line-height: var(--prose-lh);
+}
+.legendBtn:hover:not(:disabled) {
+  color: var(--fg);
+  background: var(--ctl-bg-hover);
+}
+.legendBtn:disabled {
+  color: var(--fg4);
+  cursor: default;
+}
+/* The name holds its width so the eight of them line up into a column the eye
+   can run down; the sentence beside it is what wraps. */
+.legendName {
+  flex: 0 0 5.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: var(--fs-sm);
+}
+.legendBtn:disabled .legendName {
+  color: var(--fg4);
+}
+.legendWhat {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+}
+.legendCount {
+  flex-shrink: 0;
+  color: var(--edit);
+  font-size: var(--fs-sm);
+}

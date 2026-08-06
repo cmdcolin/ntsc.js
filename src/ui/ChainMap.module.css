@@ -1,7 +1,8 @@
 /* The chain in miniature at the head of the signal path: one labeled box per
    stage, wired left to right, with the two feedback returns looping back over
-   the top. Box and label take currentColor, so one rule per state
-   (idle / touched / open) colors a whole stage. */
+   the top and input B's branch joining from below. Box and label take
+   currentColor, so one rule per state (idle / touched / open / off) colors a
+   whole stage — and, on the branch, its wires with it. */
 .map {
   display: block;
   width: 100%;
@@ -57,6 +58,38 @@
 }
 .mapNodeOn {
   color: var(--accent);
+}
+/* A stage that cannot be opened: input B with nothing patched into it. Drawn
+   rather than dropped — it is the one thing on screen saying a second input
+   exists — so it has to read as absent rather than merely unvisited, which is
+   what the dashed outline and the dimmer-than-idle colour are for. */
+.mapNodeOff {
+  color: var(--border);
+  cursor: default;
+}
+.mapNodeOff .mapBox {
+  stroke: currentColor;
+  stroke-dasharray: 2 2;
+}
+/* The whole B run — its tag, its lead-in and the wire up into the trunk — goes
+   with the node, so an unpatched input reads as one dim thing rather than a
+   dim box on live wiring. */
+.mapBranchOff .mapWire {
+  stroke: var(--border-faint);
+}
+.mapBranchOff .mapArrow {
+  fill: var(--border-faint);
+}
+.mapBranchOff .mapTag {
+  fill: var(--border);
+}
+/* The A and B labels on the two input wires. Bold and in the panel's own
+   colour rather than the map's: they name the signals, and the boxes are what
+   the map's state colours belong to. */
+.mapTag {
+  fill: var(--fg2);
+  font-size: 8px;
+  font-weight: 700;
 }
 .mapBox {
   fill: none;

@@ -7,14 +7,16 @@ import { useModalDialog } from './useModalDialog'
 
 import type { ReactNode } from 'react'
 
-// Three card widths, named for what goes in them rather than by measurement:
-// 'form' is a couple of rows of controls, 'prose' is text to read, 'paint' is
-// a surface to draw on — the one case where the content has a fixed number of
-// cells across and wants every pixel it can have for them.
+// Four card widths, named for what goes in them rather than by measurement:
+// 'form' is a couple of rows of controls, 'prose' is text to read, and 'paint'
+// and 'diagram' are drawings — the two cases where the content has a fixed
+// number of cells across and wants every pixel it can have for them, which is
+// why they share a width without sharing a name.
 const CARD_SIZE = {
   form: '',
   prose: dlg.cardWide,
   paint: dlg.cardPaint,
+  diagram: dlg.cardPaint,
 }
 
 // Shared modal shell built on the native <dialog> element (see useModalDialog).

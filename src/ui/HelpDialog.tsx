@@ -28,8 +28,10 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         <li>
           Below that is the path itself — <b>source</b>, <b>feedback</b>,{' '}
           <b>tape</b>, <b>receiver</b>, <b>screen</b>, wired in the order the
-          signal travels. Open a stage to reach its controls; the dot beside one
-          counts what you’ve moved there.
+          signal travels, with B joining from below at <b>mix</b>. Open a stage
+          to reach its controls; the dot beside one counts what you’ve moved
+          there. <b>diagram ⤢</b> draws the whole thing large, feeds and loops
+          included.
         </li>
         <li>
           Every slider has a <b>?</b> explaining the hardware fault it models.

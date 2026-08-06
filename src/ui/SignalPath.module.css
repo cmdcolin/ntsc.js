@@ -1,3 +1,38 @@
+/* The map's header, at the same rank as the panel's other section headers —
+   the map is not a decoration between two of them, it is the way to nearly
+   every control in the app. Same type and rule as Section's .head; it is not
+   composed from it because nothing here folds, so there is no toggle to carry
+   the heading's role. */
+.pathHead {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--fg);
+  margin: 9px 0 0;
+  padding: 2px 2px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  user-select: none;
+  letter-spacing: 0.02em;
+}
+.pathTitle {
+  flex-shrink: 0;
+}
+/* The way to the full diagram. In the header's row but at the panel's ordinary
+   weight, like a Section's .summary: it is an offer, not part of the heading. */
+.pathDiagram {
+  composes: bare from './ui.module.css';
+  color: var(--fg3);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  letter-spacing: normal;
+}
+.pathDiagram:hover {
+  color: var(--accent);
+}
+
 /* The stage the map has open: its name (click to fold), what it does, then its
    groups. Navigation lives in the map, so these rows carry no rail. */
 .stages {

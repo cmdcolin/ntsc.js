@@ -5,7 +5,7 @@ import { ControlGroup } from './ControlGroup'
 import { Accordion, NestedSections } from './Section'
 import styles from './SignalPath.module.css'
 
-import type { ChainStage } from './ChainMap'
+import type { ChainBranch, ChainStage } from './ChainMap'
 import type { Group } from './controls'
 
 // A stage as the panel needs it: what the map draws, plus its groups as data.
@@ -16,6 +16,12 @@ export interface PathNode extends ChainStage {
   onJumpTouched: () => void
   groups: Group[]
 }
+
+// Input B's branch: a stage in every respect the panel cares about, plus
+// whether there is a source patched into it. With `on` false it is drawn on the
+// map and opens nothing — the groups under it would be a wall of controls that
+// cannot move the picture.
+export interface PathBranch extends PathNode, ChainBranch {}
 
 // A stage's name, its off-stock count and its blurb. The two layouts below
 // render exactly this and differ only in what the two buttons *do*: on the
@@ -57,12 +63,38 @@ function StageHead(props: {
   )
 }
 
+// The map's own header, at the weight its peers in the panel are headed at.
+// Without one the map was an unlabeled 37px strip sitting between two named
+// sections while holding the route to 96% of the controls — the line of prose
+// under it was doing a heading's work, and only until a stage was open.
+//
+// It is also where the full diagram is offered from. The miniature has room for
+// the five trunk stages and B's branch and no more; the names on the two feeds,
+// on the two loops, and on what each stage does need a card, so they get one.
+function PathHead(props: { onShowDiagram: () => void }) {
+  return (
+    <div className={styles.pathHead}>
+      <span className={styles.pathTitle}>Signal path</span>
+      <button
+        className={styles.pathDiagram}
+        title="the whole path drawn large — both inputs, their feeds, the mixer and the two loops, each one a way into its controls"
+        onClick={props.onShowDiagram}
+      >
+        diagram ⤢
+      </button>
+    </div>
+  )
+}
+
 // The signal path, navigated from the map at its head: the map picks a stage,
 // and only that stage's groups render below — so the sidebar holds the knobs
 // you are using rather than a flat list of sixteen headers. On the bench, where
 // there is width for two columns, the same map heads every stage at once.
 export function SignalPath(props: {
   nodes: PathNode[]
+  // Input B, drawn under the trunk. null when a live filter has left it
+  // nothing to show.
+  branch: PathBranch | null
   // null = no stage picked, which is where exploration starts. Ignored while a
   // filter is live: then every stage with a match shows at once.
   open: string | null
@@ -75,6 +107,9 @@ export function SignalPath(props: {
   // Which group inside the open stage is unfolded — one at a time.
   openGroup: string | null
   onOpenGroup: (name: string) => void
+  // Opens the full diagram, where there is room to draw both feeds and the
+  // returns with their names on them.
+  onShowDiagram: () => void
 }) {
   // A filter can leave no stage standing, and there is no chain to draw then:
   // ChainMap divides the width by the stage count, so an empty spine came out as
@@ -84,23 +119,32 @@ export function SignalPath(props: {
   if (props.nodes.length === 0) {
     return null
   }
+  // The branch is a stage like any other once B is patched in; with B off it
+  // is drawn on the map and opens nothing.
+  const openable =
+    props.branch !== null && props.branch.on
+      ? [...props.nodes, props.branch]
+      : props.nodes
   if (props.bench) {
     return (
       <Bench
         nodes={props.nodes}
+        openable={openable}
+        branch={props.branch}
         open={props.open}
         live={props.live}
         onOpen={props.onOpen}
+        onShowDiagram={props.onShowDiagram}
       />
     )
   }
-  const shown = props.nodes.filter(
-    n => props.expandAll || props.open === n.name,
-  )
+  const shown = openable.filter(n => props.expandAll || props.open === n.name)
   return (
     <>
+      <PathHead onShowDiagram={props.onShowDiagram} />
       <ChainMap
         stages={props.nodes}
+        branch={props.branch}
         open={props.open}
         live={props.live}
         onOpen={name => props.onOpen(name)}
@@ -113,7 +157,7 @@ export function SignalPath(props: {
       {shown.length > 0 ? null : (
         <div className={styles.door}>
           click a stage to open its controls —{' '}
-          {props.nodes.reduce(
+          {openable.reduce(
             (n, s) => n + s.groups.reduce((m, g) => m + g.sliders.length, 0),
             0,
           )}{' '}
@@ -154,10 +198,16 @@ export function SignalPath(props: {
 // leaves empty, and each group's Section opens itself on a live query — which is
 // also why `expandAll` has no bench equivalent.
 function Bench(props: {
+  // The trunk, which is what the map draws.
   nodes: PathNode[]
+  // The trunk plus the branch when B is patched in — every stage the bench
+  // mounts a heading and a set of cards for.
+  openable: PathNode[]
+  branch: PathBranch | null
   open: string | null
   live: { camera: boolean; mixer: boolean }
   onOpen: (name: string) => void
+  onShowDiagram: () => void
 }) {
   // The stage headings, by name, as scroll targets. Element-relative
   // scrollIntoView only: the panel also renders inside the popout's document,
@@ -171,14 +221,16 @@ function Bench(props: {
   }
   return (
     <>
+      <PathHead onShowDiagram={props.onShowDiagram} />
       <ChainMap
         stages={props.nodes}
+        branch={props.branch}
         open={props.open}
         live={props.live}
         onOpen={jump}
       />
       <div className={styles.bench}>
-        {props.nodes.map(node => (
+        {props.openable.map(node => (
           <Fragment key={node.name}>
             <div
               className={styles.benchStage}

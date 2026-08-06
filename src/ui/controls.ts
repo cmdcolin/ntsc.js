@@ -40,7 +40,8 @@ export type Phase = (typeof PHASE_ORDER)[number]
 // Where a group lives in the panel — its single source of placement truth, so
 // nothing can silently fail to render:
 //   a Phase — in that stage of the browsable signal-path spine;
-//   'ab'    — in the A/B Mix section, shown only when source B is on;
+//   'ab'    — on the map's B branch (the Mix stage), openable only when source
+//             B is on;
 //   'audio' — inside the Audio section, next to its enable button.
 //
 // 'ab' is the one placement that can take a control off screen entirely, so it
@@ -55,6 +56,14 @@ export interface Group {
   place: Placement
   sliders: SliderDef[]
 }
+
+// The two per-source feeds, named here because the full diagram draws each as a
+// box of its own and opens the panel at it. One mechanism (feed.wgsl bound to
+// two uniform blocks) that the panel files in two places — A's on the Source
+// stage, B's on the branch — so the names have to be reachable from outside the
+// group list rather than retyped at the one place that addresses them.
+export const FEED_A_GROUP = 'Feed A (pre-mix)'
+export const FEED_B_GROUP = 'Feed B (pre-mix)'
 
 export const GROUPS: Group[] = [
   {
@@ -193,7 +202,7 @@ export const GROUPS: Group[] = [
   // moment source B was switched off, which left a randomize free to park the
   // house deck on pause with no row anywhere to put it back.
   {
-    name: 'Feed A (pre-mix)',
+    name: FEED_A_GROUP,
     place: 'Source',
     sliders: [
       {
@@ -838,7 +847,7 @@ export const GROUPS: Group[] = [
   // decks read alike. Only this one is contextual: A's feed is A's cable
   // whether or not anything is patched into B.
   {
-    name: 'Feed B (pre-mix)',
+    name: FEED_B_GROUP,
     place: 'ab',
     sliders: [
       {
@@ -2202,13 +2211,35 @@ const PHASE_BLURBS: Record<Phase, string> = {
 
 // The signal-path phases, in order — the spine the panel is browsed along.
 // The browsable spine, derived straight from each group's `place` so a group's
-// stage lives in one spot (the group) and can't drift from a parallel list. ab
-// and audio groups carry no phase and surface contextually instead.
+// stage lives in one spot (the group) and can't drift from a parallel list.
+// Audio groups carry no phase and surface contextually instead; the ab groups
+// are the B branch below.
 export const PHASES = PHASE_ORDER.map(name => ({
   name,
   blurb: PHASE_BLURBS[name],
   groups: GROUPS.filter(g => g.place === name),
 }))
+
+// Input B's branch, which is a stage of the panel without being a Phase: the
+// second signal joins the trunk rather than dividing it, so it hangs off the
+// map's own row and is opened by the same click. Named separately because
+// PHASE_ORDER is the trunk, and a sixth entry there would have drawn B as
+// something the picture passes *through* on its way from A.
+//
+// Where it sits is not a choice: feedA / feedB → mixB → fbComposite, so the
+// branch joins the run between Source and Feedback.
+export const MIX_STAGE = 'Mix'
+export const MIX_BLURB =
+  'the second signal joining the first — B’s own feed, the mixer that beats them together, the wipe and the PiP inset'
+
+// The groups behind an openable stage name, trunk or branch. One lookup rather
+// than two, so anything that opens a stage (the map, the palette, the panel's
+// own nav) reaches the branch without knowing it is not a Phase.
+export function stageGroups(name: string): Group[] {
+  return name === MIX_STAGE
+    ? AB_GROUPS
+    : (PHASES.find(p => p.name === name)?.groups ?? [])
+}
 
 // Every control, in signal-path order. The one flattening of GROUPS.
 export const ALL_SLIDERS = GROUPS.flatMap(g => g.sliders)

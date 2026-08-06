@@ -14,7 +14,6 @@ const sections = open =>
   JSON.stringify({
     Presets: true,
     Input: true,
-    'A/B Mix': false,
     Scenes: false,
     Modulation: false,
     'Sound into the picture': false,

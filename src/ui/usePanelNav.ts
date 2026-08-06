@@ -1,4 +1,4 @@
-import { PHASES } from './controls'
+import { stageGroups } from './controls'
 import { usePersistedString } from './storage'
 
 // Which stage, and which group inside it, are unfolded — one of each, so the
@@ -26,9 +26,10 @@ export function usePanelNav() {
     // there) instead of unfolding one stage and closing another.
     jumpPhase: (name: string) => setOpenPhase(name),
     // Opening a stage opens its first group too, so reaching a knob stays one
-    // click deep rather than two.
+    // click deep rather than two. Through stageGroups rather than PHASES: the B
+    // branch is opened by the same click and is not one of them.
     togglePhase: (name: string) => {
-      const first = PHASES.find(p => p.name === name)?.groups[0]
+      const first = stageGroups(name)[0]
       if (openPhase === name) setOpenPhase(null)
       else if (first === undefined) setOpenPhase(name)
       else openAt(name, first.name)

@@ -2,12 +2,18 @@ import { describe, expect, it } from 'vitest'
 
 import { CONTROL_KEYS } from '../controls'
 import {
+  AB_GROUPS,
   ALL_SLIDERS,
   AUTOMAP_KEYS,
+  FEED_A_GROUP,
+  FEED_B_GROUP,
   GROUPS,
+  MIX_STAGE,
   NEEDS,
+  PHASE_ORDER,
   SLIDER_BY_KEY,
   sliderFor,
+  stageGroups,
   VIEW_KEYS,
 } from './controls'
 
@@ -30,6 +36,38 @@ describe('control tables', () => {
   it('names every group once', () => {
     const names = GROUPS.map(g => g.name)
     expect(new Set(names).size).toBe(names.length)
+  })
+
+  // Every group has to be behind some stage the map can open, or its controls
+  // exist and nothing reaches them. This is the check that would have caught
+  // the A/B groups being orphaned when their section went away: `place` is the
+  // single source of placement truth, and stageGroups is what turns it back
+  // into a stage — so the two have to agree over the whole table.
+  it('puts every group behind a stage the map opens', () => {
+    const reachable = new Set(
+      [...PHASE_ORDER, MIX_STAGE].flatMap(name =>
+        stageGroups(name).map(g => g.name),
+      ),
+    )
+    for (const g of GROUPS)
+      if (g.place !== 'audio') expect(reachable.has(g.name)).toBe(true)
+  })
+
+  // The branch is not a Phase, and the lookup that opens a stage has to know
+  // it anyway — a miss returns [], which is a stage that opens onto nothing.
+  it('finds the B branch’s groups by name', () => {
+    expect(stageGroups(MIX_STAGE)).toBe(AB_GROUPS)
+    expect(AB_GROUPS.length).toBeGreaterThan(0)
+    expect(stageGroups('Screen').length).toBeGreaterThan(0)
+    expect(stageGroups('nonesuch')).toEqual([])
+  })
+
+  // The two feeds are one shader bound twice, and the diagram draws a box per
+  // feed that opens the panel at that group by name. A rename that touched
+  // only the group would leave a box opening its stage at nothing.
+  it('keeps the two feed groups’ names reachable', () => {
+    for (const name of [FEED_A_GROUP, FEED_B_GROUP])
+      expect(GROUPS.some(g => g.name === name)).toBe(true)
   })
 })
 
