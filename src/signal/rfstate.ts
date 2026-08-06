@@ -45,7 +45,8 @@ export class RfState {
     // herringbone sways with a programme nobody can hear.
     this.phS = wrap(
       this.phS +
-        (TAU * (160 * valueNoise(t * 0.23, 24) + 45 * valueNoise(t * 2.3, 25))) /
+        (TAU *
+          (160 * valueNoise(t * 0.23, 24) + 45 * valueNoise(t * 2.3, 25))) /
           60,
       TAU,
     )

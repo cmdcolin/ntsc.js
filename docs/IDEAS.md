@@ -64,23 +64,34 @@ decay never engages — the change only bites where sync is genuinely gone.
 
 The whole chain is baseband. Everything from the transmitter or head-end to the
 tuner is missing, and several existing effects are baseband stand-ins for
-mechanisms that behave differently on a carrier. This is one new pass between
-encode and channel, not a scatter of knobs.
+mechanisms that behave differently on a carrier. The two beat items below
+shipped as terms in `channel.wgsl` — the detector's _output_ for two carriers
+is computable at baseband (linear beat + B²/2A second-order term), so they
+never needed the carrier-domain pass. Envelope detection's Rician snow still
+does; that pass is still open.
 
 - **Envelope detection, negative modulation.** Sync tip is peak carrier, white
   is 12.5%. Weak-signal snow is therefore multiplicative and Rician, not the
   additive Gaussian `noiseIre` adds: grain density tracks picture level and sync
   is the last thing to die. That asymmetry is what makes fringe reception read
   as fringe reception instead of grey fuzz.
-- **Tuner mistune.** Off-channel, the vestigial-sideband filter cuts
-  asymmetrically: detail drops, the 4.5 MHz sound carrier climbs out of its
-  trap, 920 kHz beat appears. Couples straight into the existing `soundIre`
-  herringbone — mistuning makes the buzz louder, which is the interaction the
-  premise wants.
-- **Adjacent channel.** Cable is a 6 MHz comb; a weak trap lets the neighbour
-  through as the drifting diagonal windshield-wiper bars, plus its sound carrier
-  1.5 MHz into the picture. Needs the RF domain: what leaks in is a _carrier
-  beat_, not a summed picture, so the source-B path does not cover it.
+- ~~**Tuner mistune.**~~ Shipped as `rfMistuneMHz`, signed like the knob it
+  models. Positive folds a leak into the existing `soundIre` term (the coupling
+  this entry asked for) and multiplies the loose carrier against the video, so
+  the 920 kHz beat and the 3.58 MHz rainbow crawl on fine detail both fall out
+  of one intermod product. Negative is the Nyquist slope. One thing learned:
+  a _flat_ chroma loss is exactly what the decoder's ACC re-normalizes away,
+  so saturation holds while the burst shrinks and then colour falls off the
+  killer's cliff all at once — which is how fine tuning actually loses colour,
+  and the receiver taught the channel model that.
+- ~~**Adjacent channel.**~~ Shipped as `rfAdjacent` + `RfState`
+  (`signal/rfstate.ts`). What leaks is the neighbour's carriers: their vision
+  beat at exactly 44/105 of the sample rate, their sound at 11/105 (1.5 MHz),
+  amplitude-modulated by a synthetic negative-modulation envelope of their
+  raster running `rfAdjEps` off our line rate — so the slanted bars, the
+  vertical-interval wiper band, and the confetti colour where their sidebands
+  cross our chroma band all emerge from one envelope and two lattices. The
+  wander crosses zero, where the wiper hangs and reverses.
 - **Ingress.** CB or ham into a cracked shield — a herringbone that sweeps and
   comes and goes with speech. Reuses the `audio[row]` trick `soundIre` already
   uses for intercarrier buzz.
@@ -91,13 +102,17 @@ The VBI carries nothing today. `decode` already wraps rolled rows into view, so
 anything put there shows up in the rolling bar for free — which is where most of
 the payoff is.
 
-- **Macrovision.** Pseudo-sync and AGC pulses on lines 12–19. `sync.wgsl`
-  averages sync depth over `row > VSYNC_LAST + 3` (= row >= 12), which is
-  exactly the window Macrovision was built to poison, so the existing `agc`
-  control makes the picture breathe and crush with no decode-side changes at
-  all. Colorstripe is a burst-phase inversion on a subset of lines, which the
-  burst-lock path already turns into hue banding. Best mechanism-composition
-  payoff left on the list.
+- ~~**Macrovision.**~~ Shipped as `macrovision` + `mvStripeDeg`, stamped in
+  `encode_composite` with no decode-side changes, as predicted — the porch
+  pulse lands exactly on the sample `sync_measure` calls "porch", and the AGC
+  answers. What the prediction missed: an averaging AGC dilutes 8 poisoned
+  lines across ~500 measured ones, so the honest outcome on a TV is a ~5%
+  breathe (measured, on the pulse level's own staircase cycle), not a crush —
+  which is historically right, since the process was aimed at a VCR's gated
+  AGC, not a set's. The visible payoffs are the rolling bar (the pulse trains
+  ride the VBI into view, as the section intro promised) and colorstripe's
+  crawling hue bands, which `accLagLines`/`burstLock` shrug off exactly along
+  the TV/VCR line.
 - **VITS / VIR, and line-21 caption data.** A multiburst and staircase on 17–18,
   a dashed data burst on 21. Invisible in normal framing and then the roll bar
   has real content in it. Cheap.

@@ -141,9 +141,10 @@ fn main(
   // Tuner mistuned toward the low side: the picture carrier slides down the
   // IF's Nyquist slope and the upper sideband goes first — fine luma detail
   // here, and the chroma sitting at 3.58 MHz where `chr` is scaled below. A
-  // 1-2-1 smear on top of the channel FIR is the slope's high cut.
+  // 1-4-6-4-1 smear on top of the channel FIR is the slope's high cut.
   if (P.rfSoften > 0.0) {
-    let soft = 0.25 * (tileLc[cl - 1u] + 2.0 * tileLc[cl] + tileLc[cl + 1u]);
+    let soft = 0.0625 * (tileLc[cl - 2u] + 4.0 * tileLc[cl - 1u]
+      + 6.0 * tileLc[cl] + 4.0 * tileLc[cl + 1u] + tileLc[cl + 2u]);
     luma = mix(luma, soft, P.rfSoften);
   }
 
@@ -166,9 +167,13 @@ fn main(
     chr = mix(chr, 2.0 * up, P.colorUnderMix);
   }
   if (P.rfSoften > 0.0) {
-    // the same slope taking the chroma: saturation dies, and starving the
-    // burst along with it eventually trips the decoder's colour killer
-    chr = chr * (1.0 - 0.85 * P.rfSoften);
+    // The same slope taking the chroma — but a flat loss on chroma and burst
+    // together is exactly what the decoder's ACC re-normalizes away, so
+    // saturation holds while the burst shrinks and then colour falls off a
+    // cliff when the killer trips: the way fine tuning actually loses colour,
+    // all at once. Quadratic so the cliff sits inside the knob's travel.
+    let cut = 1.0 - 0.9 * P.rfSoften;
+    chr = chr * cut * cut;
   }
 
   // C-pin-only feed: only the chroma pin reaches the composite input, so there

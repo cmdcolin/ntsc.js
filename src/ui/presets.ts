@@ -50,6 +50,26 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'protected tape',
+    group: 'Tape wear',
+    blurb:
+      "A rental pressing with Macrovision on it, into a set whose AGC believes the lie: pulses in the vertical interval balloon the measured sync depth, so the gain crushes and recovers on the process's own slow cycle; colorstripe bands crawl down the frame wrong-hued; and a vertical hold this marginal lets the flashing bar itself ride into view.",
+    patch: {
+      macrovision: 0.9,
+      mvStripeDeg: 110,
+      agc: 1,
+      vFreqHz: 59.9,
+      vHold: 0.02,
+      lumaMHz: 3,
+      lumaPeak: 0.6,
+      noiseIre: 2.5,
+      colorUnderMix: 0.8,
+      tbJitterNs: 120,
+      headSwitchShiftUs: 0.6,
+      headSwitchNoise: 0.3,
+    },
+  },
+  {
     name: 'worn tape',
     group: 'Tape wear',
     blurb:
@@ -124,14 +144,27 @@ export const PRESETS: PresetDef[] = [
     name: 'mistuned rf',
     group: 'RF / Broadcast',
     blurb:
-      'Tuner off-station: sound-carrier buzz, snow, a hard ghost and struggling AGC.',
+      'Tuner off-station: the sound carrier climbs out of its trap and the detector multiplies it against the picture — buzz weave, a coarse 920 kHz beat, rainbow crawl on fine detail — over snow, a hard ghost and a struggling AGC.',
     patch: {
-      soundIre: 3.5,
+      rfMistuneMHz: 0.55,
       noiseIre: 6,
       ghostDelayUs: 2.4,
       ghostGain: 0.18,
       agc: 0.4,
       tbJitterNs: 80,
+    },
+  },
+  {
+    name: 'adjacent channel',
+    group: 'RF / Broadcast',
+    blurb:
+      "The next channel up the cable through a worn-out trap: not their picture — their carriers. Their sound lays a fine 1.5 MHz weave, their blanking crosses as slanted dark bars with the broad windshield-wiper band sweeping at its own drifting rate, and where their content beats into our chroma band the decoder invents confetti colour no camera ever shot.",
+    patch: {
+      rfAdjacent: 0.7,
+      rfMistuneMHz: 0.2,
+      noiseIre: 2,
+      agc: 0.5,
+      demodMHz: 0.8,
     },
   },
   {
