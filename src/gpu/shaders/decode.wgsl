@@ -223,14 +223,18 @@ fn main(
   let lum = comp[n] * gif - chromaRecon * (1.0 - 2.0 * P.svideoBleed);
 
   // burst lock: hue from burst phase error, gain from burst amplitude (ACC),
-  // color killer when burst is gone
+  // color killer when burst is gone. The amplitude decisions read the lagged
+  // measurement (lineInfo.w): a real ACC's control voltage sits on an RC and
+  // cannot follow line-rate damage, so gain and the killer answer a burst
+  // fault tens of lines late — colour blooms back instead of snapping, and a
+  // marginal burst makes the killer chatter in bands
   let li = lineInfo[row];
-  let locked = li.z > P.killThresh;
+  let locked = li.w > P.killThresh;
   // phase error measured about the expected 180 degrees: negating the burst
   // components keeps the angle wrapped near zero, so a partial burstLock
   // scales a continuous error instead of jumping a 2*pi branch on noise
   let e = select(0.0, atan2(-li.y, -li.x), locked) * P.burstLock;
-  let acc = select(0.0, clamp(BURST_AMP / max(li.z, 0.5), 0.0, 4.0), locked);
+  let acc = select(0.0, clamp(BURST_AMP / max(li.w, 0.5), 0.0, 4.0), locked);
   let g = mix(1.0, acc, P.burstLock) * P.chromaGain;
 
   let ev = loPhaseErr(n, row);
@@ -272,7 +276,13 @@ fn main(
     }
   }
 
-  let rgb = vec3f(
+  // The drive the beam-limiter servo decided the flyback can afford this
+  // frame (sync.wgsl). It throttles the guns as one — contrast, not black
+  // level — so black stays black while everything above it breathes with the
+  // servo. Ahead of the gamut fit, since it is drive into the amplifiers, not
+  // light out of them.
+  let ablG = timing[ABL_GAIN];
+  let rgb = ablG * vec3f(
     yn + 1.140 * vn,
     yn - 0.395 * un - 0.581 * vn,
     yn + 2.032 * un,

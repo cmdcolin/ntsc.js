@@ -169,4 +169,6 @@ digraph ntsc_js {
                        color="@GOLD@" fontcolor="@GOLD@" constraint=false];
   crtFace -> compose [label="  faceTex\l  camera-at-monitor\l" style=dashed
                       color="@GREEN@" fontcolor="@GREEN@" constraint=false];
+  sync -> compose [label="  timing[] auto-iris\l  next frame\l" style=dashed
+                   color="@GREEN@" fontcolor="@GREEN@" constraint=false];
 }

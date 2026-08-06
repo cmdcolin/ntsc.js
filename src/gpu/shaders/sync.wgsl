@@ -10,6 +10,10 @@
 // timing[526]         PLL state (persistent)
 // timing[527]         AGC gain state (persistent): IF gain normalizing the
 //                     measured sync-tip depth to 40 IRE, slewed per frame
+// timing[ABL_GAIN/VEL]   beam-limiter servo state (persistent): the video
+//                     drive the flyback can afford, plus its slew velocity
+// timing[IRIS_GAIN/VEL]  camera auto-iris servo state (persistent): exposure
+//                     correction on the feedback loop, plus its velocity
 // timing[SAG_BASE..]  normalized deflection sag per *raster* line (not source
 //                     row), scaled by hvSag at read time
 
@@ -80,6 +84,15 @@ fn main() {
   //
   // Indexed by raster line, so the sag stays put on the glass while a rolling
   // picture slides through it — the roll offset selects the source row here.
+  // Last frame's beam-limiter drive. The limiter throttles the guns, and beam
+  // current is what loads the supply — so a limiter clamping down relieves the
+  // very sag the bright content caused, one field late. Fresh state (zeros)
+  // means no correction yet, not zero drive.
+  var ablHeld = timing[ABL_GAIN];
+  if (ablHeld < 0.05) {
+    ablHeld = 1.0;
+  }
+
   if (P.hvSag != 0.0) {
     let ring = clamp(P.hvRing, 0.0, 1.0);
     let w = mix(0.35, 0.08, ring); // tank frequency, rad/line
@@ -91,7 +104,7 @@ fn main() {
       // beam current plus whatever audio is patched in: the tank cannot tell
       // them apart, so a bass transient rings the geometry exactly like a
       // bright band does
-      let load = (measure[wrapRow(i32(ry) + roll)].z - 50.0) / 50.0
+      let load = (measure[wrapRow(i32(ry) + roll)].z * ablHeld - 50.0) / 50.0
         + P.audioLoad * audio[ry];
       vel = vel + w * (load - sag) - damp * vel;
       sag = clamp(sag + w * vel, -3.0, 3.0);
@@ -101,6 +114,8 @@ fn main() {
 
   var depthSum = 0.0;
   var depthCount = 0.0;
+  var loadSum = 0.0;
+  var loadCount = 0.0;
   for (var row = 0u; row < NLINES; row = row + 1u) {
     // Vertical retrace hammers the sync separator: serrations and equalizing
     // pulses run at twice line rate right through the blanking interval, so the
@@ -120,6 +135,11 @@ fn main() {
     // more every line and the raster shears into diagonal bars.
     pll = pll + P.hRate;
     let m = measure[row];
+    // beam current is drawn whether or not this line's sync was findable
+    if (row > VSYNC_LAST + 3u) {
+      loadSum = loadSum + m.z;
+      loadCount = loadCount + 1.0;
+    }
     if (m.x > -999.0) {
       // flywheel: blend measurement in at the hold gain, within pull-in range
       let auth = P.hHold * H_PULL_MAX;
@@ -151,6 +171,68 @@ fn main() {
     agc = agc + 0.25 * (want - agc);
   }
 
+  // Mean beam current over the picture, in IRE — the sense input for both gain
+  // servos below. Post-IF, because the guns are driven by the gain-corrected
+  // video: a pumping AGC feeds its pumping straight into both loops.
+  let beamIre = clamp(loadSum / max(loadCount, 1.0), 0.0, 160.0);
+
+  // Automatic beam limiter. The flyback can only source so much average beam
+  // current; past that the set pulls video drive down to protect it. The sense
+  // point is the current the picture asks for and the loop has a real time
+  // constant, so the correction always lands after the content that provoked
+  // it — and because the target is one-sided (a limiter only ever pulls down,
+  // it never boosts past full drive) a marginal picture is answered with a
+  // relaxation pump rather than a settled dim one. The knob undersizes the
+  // flyback and strips the servo's damping: wound up, the loop gain outruns
+  // its phase margin and the whole picture hunts at the servo's own couple of
+  // Hz — a rhythm set by nothing on screen. Feed either feedback loop and the
+  // drive term is inside the loop, so the servo and the loop beat against
+  // each other instead of settling.
+  var ablG = timing[ABL_GAIN];
+  var ablV = timing[ABL_VEL];
+  if (ablG < 0.05) {
+    ablG = 1.0;
+  }
+  if (P.abl > 0.0) {
+    // what the supply can sustain: the knob shrinks the flyback
+    let ceilIre = mix(85.0, 28.0, P.abl);
+    let want = min(1.0, ceilIre / max(beamIre, 6.0));
+    let wn = 0.16; // servo natural frequency, rad/frame (~1.5 Hz)
+    let zeta = mix(0.9, 0.1, P.abl); // damping the knob takes away
+    ablV = clamp(ablV + wn * wn * (want - ablG) - 2.0 * zeta * wn * ablV, -0.25, 0.25);
+    // headroom past 1: the AC-coupled drive overshoots on release, which is
+    // the rebound flash after a clamp-down
+    ablG = clamp(ablG + ablV, 0.06, 1.15);
+  } else {
+    ablG = 1.0;
+    ablV = 0.0;
+  }
+
+  // Camera auto-iris on the feedback loop. The camera meters the screen it is
+  // pointed at — beam current times the drive the limiter just granted — and
+  // servos its aperture toward mid-grey through a mechanical lag. The exposure
+  // it settles on multiplies the loop gain (compose reads it next frame), so
+  // the iris is metering a loop it is part of: brighten the loop and the iris
+  // clamps, the loop starves, the iris reopens, and round again. Its natural
+  // frequency is deliberately unequal to the beam limiter's, so when both hunt
+  // the two rhythms beat.
+  var irisG = timing[IRIS_GAIN];
+  var irisV = timing[IRIS_VEL];
+  if (irisG < 0.05) {
+    irisG = 1.0;
+  }
+  if (P.fbIris > 0.0) {
+    let light = max(beamIre, 4.0) / 50.0 * ablG;
+    let want = clamp(1.0 / light, 0.08, 4.0);
+    let wn = 0.34; // rad/frame (~3 Hz): a faster servo than the ABL
+    let zeta = mix(0.85, 0.07, P.fbIris);
+    irisV = clamp(irisV + wn * wn * (want - irisG) - 2.0 * zeta * wn * irisV, -0.5, 0.5);
+    irisG = clamp(irisG + irisV, 0.05, 4.0);
+  } else {
+    irisG = 1.0;
+    irisV = 0.0;
+  }
+
   timing[525u] = vroll;
   // A detuned H-osc ramps the phase every line without ever relocking, so the
   // carried-over state has to wrap or it grows without bound. One full line of
@@ -159,4 +241,8 @@ fn main() {
   let spl = f32(SPL);
   timing[526u] = pll - spl * floor(pll / spl + 0.5);
   timing[527u] = clamp(agc, 0.25, 4.0);
+  timing[ABL_GAIN] = ablG;
+  timing[ABL_VEL] = ablV;
+  timing[IRIS_GAIN] = irisG;
+  timing[IRIS_VEL] = irisV;
 }

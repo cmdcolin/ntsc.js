@@ -23,6 +23,7 @@ export const DEFAULT_CONTROLS = {
   matrixClip: 0, // RGB output stage: 0 hue-preserving fit, 1 hard per-gun rails
   scDetuneKHz: 0, // bent 3.58 MHz crystal: demod LO pulled off-frequency
   killThresh: 2, // IRE
+  accLagLines: 0, // chroma AGC time constant, lines of burst memory (0 = instantaneous)
   svideoBleed: 0, // Y/C miswire: bleed chroma into luma (S-video pins into composite)
   combMode: 0,
   hHold: 0.35,
@@ -35,6 +36,7 @@ export const DEFAULT_CONTROLS = {
   bendPeriod: 60, // flag decay constant / ripple period, screen lines
   hvSagUs: 0, // beam-current deflection sag: bright content bends the scan
   hvRing: 0.5, // supply damping: 0 smooth droop .. 1 ringing / chaotic
+  abl: 0, // beam limiter: 0 generous flyback .. 1 undersized and underdamped (pumps)
   hDetuneHz: 0, // horizontal oscillator detune off nominal line rate
   // audio patched at the yoke, one sample per line
   audioGain: 1, // input trim after auto-normalization
@@ -92,6 +94,7 @@ export const DEFAULT_CONTROLS = {
   fbShiftX: 0,
   fbShiftY: 0,
   fbGain: 1,
+  fbIris: 0, // auto-iris servo on the loop: 0 manual exposure .. 1 underdamped hunting
   fbFocus: 0.7,
   fbVign: 0.2,
   fbBlack: 0.03,
@@ -118,6 +121,8 @@ export const DEFAULT_CONTROLS = {
   cfbFilterMHz: 0, // loop resonance center, 0 = flat loop
   cfbFilterQ: 0.5, // loop resonance selectivity
   cfbFilterBoost: 2, // added in-band loop gain once a center is set
+  cfbServoUs: 0, // varactor on the loop delay: us of pull per 100 IRE of its own video
+  cfbRing: 0, // loop bus ring-modulated against the live program
   // tape loop (a loop of tape threaded record head -> play head)
   tapeMix: 0,
   tapeLoopMm: 20, // record head to play head; delay = length / 33.35 mm/s

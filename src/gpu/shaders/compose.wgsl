@@ -11,6 +11,7 @@
 @group(0) @binding(2) var prevTex: texture_2d<f32>;
 @group(0) @binding(3) var samp: sampler;
 @group(0) @binding(4) var inputTex: texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(5) var<storage, read> timing: array<f32>;
 
 // lens defocus: center tap + 6-point ring at the focus radius
 fn cam(uv: vec2f) -> vec3f {
@@ -67,7 +68,15 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let inside = all(fuv >= vec2f(0.0)) && all(fuv <= vec2f(1.0));
   var fb = vec3f(0.0);
   if (inside) {
-    fb = cam(fuv) * P.fbGain;
+    // Auto-iris: the exposure the camera's own metering servo picked, one
+    // frame late (sync.wgsl runs the servo after this pass; see the loop it
+    // closes there). Fresh state — zeros before the first sync — means no
+    // correction yet, not a closed aperture.
+    var iris = timing[IRIS_GAIN];
+    if (iris < 0.05) {
+      iris = 1.0;
+    }
+    fb = cam(fuv) * P.fbGain * iris;
     // lens vignette, in sensor coordinates
     fb = fb * max(1.0 - P.fbVign * 1.45 * dot(rel0, rel0), 0.0);
     // sensor black cut, then full-well saturation

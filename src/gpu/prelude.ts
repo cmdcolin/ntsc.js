@@ -108,11 +108,13 @@ export const PARAM_DEFS = [
   ['scDetunePhase', 'f32'], // bent-crystal demod LO phase error at frame start, radians (accumulated)
   ['scDetunePerSample', 'f32'], // LO phase error growth per sample, radians
   ['killThresh', 'f32'], // IRE of burst amplitude below which color killer engages
+  ['accLines', 'f32'], // chroma AGC time constant, lines of burst memory (0 = instantaneous)
   ['svideoBleed', 'f32'], // Y/C cross-wire: chroma bled into luma (0.5 defeats the trap)
   ['chromaCoarse', 'f32'], // chroma demod decimation factor; >1 lerps between lattice points (CUE rainbows)
   // channel / tape
   ['soundIre', 'f32'], // 4.5 MHz sound carrier leaking past the trap, IRE
   ['agc', 'f32'], // receiver AGC action, 0 fixed gain .. 1 full
+  ['abl', 'f32'], // beam limiter: 0 generous flyback .. 1 undersized and underdamped (hunts)
   ['noiseSigma', 'f32'], // additive noise, IRE rms
   ['ghostDelay', 'f32'], // samples
   ['ghostGain', 'f32'],
@@ -149,6 +151,7 @@ export const PARAM_DEFS = [
   ['fbVign', 'f32'], // lens vignette strength
   ['fbBlack', 'f32'], // sensor black cut level (trails die into black)
   ['fbKnee', 'f32'], // sensor s-curve amount (bloom + highlight compression)
+  ['fbIris', 'f32'], // camera auto-iris: 0 manual exposure .. 1 underdamped servo (hunts)
   // CRT faceplate: the emissive screen the camera photographs (and the display
   // shows). Sits between the decoded signal and the camera/lens model above.
   ['crtCutoff', 'f32'], // beam cutoff: drive below the knee emits no light (true black background)
@@ -171,6 +174,8 @@ export const PARAM_DEFS = [
   ['cfbFilterFc', 'f32'], // loop resonance center, cycles/sample (0 = flat loop)
   ['cfbFilterQ', 'f32'], // loop resonance selectivity, 0 broad .. 1 narrow/ringing
   ['cfbFilterBoost', 'f32'], // added in-band loop gain (self-oscillates past unity round trip)
+  ['cfbServo', 'f32'], // varactor on the loop delay: samples of pull per 100 IRE of its own video
+  ['cfbRing', 'f32'], // loop bus ring-modulated against the live program
   // tape loop: a loop of tape threaded record head -> play head, seconds long
   ['tapeMix', 'f32'], // crossfader position toward the play head, 0 = loop out of circuit
   ['tapeGain', 'f32'], // playback proc-amp trim, negative inverts
@@ -254,7 +259,14 @@ const ACTIVE_START = ${ACTIVE_START}u;
 const ACTIVE_W = ${ACTIVE_WIDTH}u;
 const ACTIVE_TOP = ${ACTIVE_TOP}u;
 const ACTIVE_H = ${ACTIVE_HEIGHT}u;
-const SAG_BASE = ${LINES + 3}u; // deflection sag region of the timing buffer
+// Persistent servo state in the timing buffer, past the three sync scalars.
+// The two gain servos each carry (gain, velocity): they are second-order loops
+// on purpose, so an under-damped setting genuinely overshoots and hunts.
+const ABL_GAIN = ${LINES + 3}u;
+const ABL_VEL = ${LINES + 4}u;
+const IRIS_GAIN = ${LINES + 5}u;
+const IRIS_VEL = ${LINES + 6}u;
+const SAG_BASE = ${LINES + 7}u; // deflection sag region of the timing buffer
 const VSYNC_FIRST = ${VSYNC_FIRST}u;
 const VSYNC_LAST = ${VSYNC_LAST}u;
 const HEAD_SWITCH_LINE = ${HEAD_SWITCH_LINE}u;

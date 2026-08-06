@@ -300,9 +300,11 @@ export class Engine implements EngineApi {
       size: LINE_PARAM_BYTES,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
-    // per-line hoff + 3 persistent scalars + a per-raster-line deflection sag
+    // per-line hoff + 7 persistent scalars (v-osc, PLL, AGC, and the two
+    // second-order gain servos: beam limiter and camera iris, gain + velocity
+    // each) + a per-raster-line deflection sag
     this.timingBuf = d.createBuffer({
-      size: (LINES * 2 + 3) * 4,
+      size: (LINES * 2 + 7) * 4,
       usage: GPUBufferUsage.STORAGE,
     })
     this.syncMeasureBuf = d.createBuffer({
@@ -880,6 +882,7 @@ export class Engine implements EngineApi {
         { binding: 2, resource: this.faceTex.createView() },
         { binding: 3, resource: this.linearSamp },
         { binding: 4, resource: this.inputTex.createView() },
+        { binding: 5, resource: { buffer: this.timingBuf } },
       ],
     })
   }
@@ -999,6 +1002,7 @@ export class Engine implements EngineApi {
       scDetunePhase: this.scPhase,
       scDetunePerSample: loRadPerSample(c.scDetuneKHz),
       killThresh: c.killThresh,
+      accLines: c.accLagLines,
       svideoBleed: c.svideoBleed,
       combMode: c.combMode,
       hHold: c.hHold,
@@ -1065,6 +1069,7 @@ export class Engine implements EngineApi {
       fbVign: c.fbVign,
       fbBlack: c.fbBlack,
       fbKnee: c.fbKnee,
+      fbIris: c.fbIris,
       crtCutoff: c.crtCutoff,
       crtGamma: c.crtGamma,
       crtSat: c.crtSat,
@@ -1107,6 +1112,8 @@ export class Engine implements EngineApi {
       cfbFilterFc: (c.cfbFilterMHz * 1e6) / SAMPLE_RATE,
       cfbFilterQ: c.cfbFilterQ,
       cfbFilterBoost: c.cfbFilterBoost,
+      cfbServo: c.cfbServoUs * 1e-6 * SAMPLE_RATE,
+      cfbRing: c.cfbRing,
       tapeMix: c.tapeMix,
       tapeGain: c.tapeGain,
       tapeHfLoss: c.tapeHfLoss,
@@ -1118,6 +1125,7 @@ export class Engine implements EngineApi {
       tapeColourFrame: c.tapeColourFrame,
       soundIre: c.soundIre,
       agc: c.agc,
+      abl: c.abl,
       chromaCoarse: c.chromaCoarse,
       scanBeam: c.scanBeam,
       scanBloom: c.scanBloom,

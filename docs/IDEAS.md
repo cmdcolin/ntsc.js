@@ -211,20 +211,16 @@ pass, in rough payoff-per-effort order.
   redistributes asymmetrically across the edge — white overshoot one side, black
   notch the other. Lives in `crt_face` over the decoded image, so it sidesteps
   the decode-tiling constraint that blocks intra-line geometry.
-- **ABL (automatic beam limiter).** `syncMeasureBuf` already carries mean beam
-  load per line, so the data is there. HV sag is one half of what bright content
-  does; ABL is the other — the set pulls drive down to protect the flyback, so a
-  white flash dims the whole picture and it pumps back. Cheapest item here, and
-  it puts a global gain term inside every feedback loop.
-- **Chroma AGC with a time constant.** `decode.wgsl` computes
-  `acc = clamp(BURST_AMP / max(li.z, 0.5), 0, 4)` instantaneously per line. A
-  real ACC has a lag, so it overshoots on a scene change and pumps when burst is
-  noisy — which would make everything that damages burst (noise, dropouts,
-  tracking, scrambling) bloom and hunt in colour rather than scale cleanly.
-  Deferred on shape, not on value: the lag is a recurrence down the lines, and
-  `line_analyze` runs after `sync` so it cannot borrow the existing serial loop.
-  Wants a bounded exponential FIR over the last N lines (parallel, cheap) rather
-  than a third `workgroup_size(1)` pass — see the note in `ARCHITECTURE.md`.
+- ~~**ABL (automatic beam limiter).**~~ Shipped as `abl`, as a second-order
+  servo with the damping on the knob — underdamped it genuinely hunts at its own
+  couple of Hz, and its natural frequency is deliberately unequal to the
+  auto-iris's so the two pumps beat. It also throttles the beam current the HV
+  sag integrates, one field late.
+- ~~**Chroma AGC with a time constant.**~~ Shipped as `accLagLines`, in exactly
+  the bounded-exponential-FIR shape this entry asked for: `line_analyze`
+  re-measures the previous bursts per line into `lineInfo.w`, and decode's gain
+  and killer read the lagged value. Phase stays instantaneous — the AFPC is a
+  faster loop than the gain leg.
 - **A DVE / framestore, as the digital box in the analog last mile.** Distinct
   from the digital cable tier below, and more era-correct. An ADO / A53 /
   WJ-MX50 cannot work on composite, so it decodes to 4:2:2 601 on a 720×486,
@@ -243,11 +239,12 @@ pass, in rough payoff-per-effort order.
   plateaus and the picture goes plasticky; above it, motion drags a soft trail
   with a hard edge where the gate trips. Put the threshold in the noise floor
   and the grain drives the detector, so still areas breathe.
-- **Auto-iris hunting in the camera loop.** `fbGain` is fixed, but a real camera
-  pointed at its own monitor is metering the loop it is part of, so it hunts:
-  bloom, clamp, collapse, reopen. A one-pole lag on `fbGain` driven by mean
-  frame luma — two floats of CPU state, and the breathing is emergent rather
-  than an LFO, which is what the modulation section above keeps asking for.
+- ~~**Auto-iris hunting in the camera loop.**~~ Shipped as `fbIris` — GPU state
+  rather than the CPU floats proposed here (two more slots in `timingBuf`,
+  updated in `sync`'s serial pass, applied by `compose` a frame late), which
+  avoided a readback entirely. Second-order like the ABL, and the light it
+  meters is beam load × the ABL's drive, so the two servos share a sense line as
+  well as a loop.
 - **Rutt/Etra scan deflection.** The source's own luma patched into the vertical
   deflection amplifier: the raster becomes a relief map of the picture, and the
   brightness comes free from line bunching (line density _is_ luminance). Fits

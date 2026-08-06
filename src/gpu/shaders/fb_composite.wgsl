@@ -5,7 +5,7 @@
 // whiting out. The loop delay knob is the cable length: each 70ns sample of
 // delay spins fed-back hue 90 degrees per generation. Fed-back burst replaces
 // part of live burst, so ACC pumping and color killer dropout at high mix are
-// emergent. Amplifier rails clip the output.
+// emergent. The output stage compresses into its rails rather than clipping.
 
 // The luma keyer gates the crossfade with a sliced level of the fed-back
 // signal itself (self-key): the loop only regenerates where its own picture
@@ -14,6 +14,25 @@
 @group(0) @binding(0) var<uniform> P: Params;
 @group(0) @binding(1) var<storage, read> prev: array<f32>;
 @group(0) @binding(2) var<storage, read_write> comp: array<f32>;
+
+// The loop amplifier's output stage. A hard rail pins runaway energy into
+// flat white; a real stage compresses into its rails, so past the knee the
+// gain falls away smoothly and a loop above unity folds into glowing bands
+// that keep their structure instead of whiting out. The compression also
+// manufactures harmonics, which is what an overdriven bus genuinely does —
+// more sidebands for the next lap to chew on. Identity below the knee, so a
+// loop that never runs away never notices the stage is there.
+fn rails(v: f32) -> f32 {
+  if (v > 110.0) {
+    let t = (v - 110.0) / 30.0;
+    return 110.0 + 30.0 * t / (1.0 + t);
+  }
+  if (v < -50.0) {
+    let t = (-50.0 - v) / 10.0;
+    return -50.0 - 10.0 * t / (1.0 + t);
+  }
+  return v;
+}
 
 // keyer's luma lowpass: a 4-sample boxcar spans one subcarrier cycle exactly
 fn keyLuma(pos: f32) -> f32 {
@@ -55,11 +74,43 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     return;
   }
   let n = row * SPL + s;
-  let pos = f32(n) - P.cfbDelay - P.cfbLines * f32(SPL);
+  let pos0 = f32(n) - P.cfbDelay - P.cfbLines * f32(SPL);
+  var pos = pos0;
+  if (P.cfbServo != 0.0) {
+    // The loop's delay trimmer replaced by a varactor hanging off the video
+    // bus: the fed-back waveform tunes the very delay it is riding through.
+    // Sensed through a short aperture (a control line has nothing like video
+    // bandwidth), referenced to mid-video so dark and bright pull opposite
+    // ways — and since a sample of delay is 90 degrees of subcarrier, the
+    // picture is repainting its own hue and its own geometry at once, again
+    // every generation. Sync tips are the deepest thing on the wire, so they
+    // yank hardest, and once a line's pull walks its sync into the next
+    // line's territory the receiver's problems compound on their own. Nothing
+    // here repeats: the displacement field is the picture, and the picture is
+    // the displacement field one lap later.
+    var lvl = 0.0;
+    let c0 = i32(round(pos0));
+    for (var k = -8; k <= 7; k = k + 1) {
+      lvl = lvl + prev[clampIdx(c0 + k * 2)];
+    }
+    pos = pos0 - P.cfbServo * (lvl / 16.0 - 40.0) / 100.0;
+  }
   let i0 = i32(floor(pos));
   var fb = catmull(prev[clampIdx(i0 - 1)], prev[clampIdx(i0)], prev[clampIdx(i0 + 1)], prev[clampIdx(i0 + 2)], fract(pos));
   if (P.cfbFilterFc > 0.0 && P.cfbFilterBoost != 0.0) {
     fb = fb + P.cfbFilterBoost * loopResonance(pos);
+  }
+  if (P.cfbRing != 0.0) {
+    // The loop bus multiplied against the live program in a doubly-balanced
+    // bridge: both inputs referenced to mid-video, so both carriers are
+    // suppressed and the product straddles zero. (Single-quadrant — raw
+    // fb * live — has the DC of both inputs in it, and a loop integrates that
+    // bias into a white-out within a few laps.) Every component of each beats
+    // against every component of the other — subcarrier against subcarrier
+    // lands chroma at sum and difference phases, sync against picture mints
+    // pulses where none belong — and because one input is the loop's own
+    // past, the products it makes are re-multiplied next frame.
+    fb = fb + P.cfbRing * (fb - 40.0) * (comp[n] - 40.0) * 0.01;
   }
   var m = P.cfbMix;
   if (P.cfbKey != 0.0) {
@@ -69,5 +120,5 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     }
     m = m * mix(1.0, gate, abs(P.cfbKey));
   }
-  comp[n] = clamp(mix(comp[n], P.cfbGain * fb, m), -60.0, 140.0);
+  comp[n] = rails(mix(comp[n], P.cfbGain * fb, m));
 }

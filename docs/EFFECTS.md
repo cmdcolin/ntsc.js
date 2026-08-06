@@ -58,6 +58,10 @@ A camera pointed at its own monitor, re-photographed every frame.
   pixel noise; corner falloff that confines the loop to frame center.
 - **Black cut / s-curve** — sensor floor that snaps trails off, and highlight
   compression that stabilizes runaway loops into glowing bands.
+- **Auto-iris hunt** — exposure handed to the camera's own metering servo, which
+  is metering the monitor it feeds: the loop brightens, the iris clamps a beat
+  late, the loop starves, the iris reopens. Underdamped it never settles, and it
+  runs at a different rhythm from the beam limiter, so the two pumps beat.
 - **CRT faceplate** — what the camera photographs: beam cutoff, gun gamma,
   saturation, bloom, warm halation, faceplate glow — each compounded per pass.
 
@@ -70,6 +74,19 @@ The previous frame's composite waveform patched electrically back into the input
   polarity frame to frame.
 - **Loop delay** — microseconds on the return; since chroma rides the same wire,
   delay is also a hue rotation (70 ns = 90°).
+- **Loop timebase pull** — the delay trimmer replaced by a varactor hanging off
+  the video bus, so the fed-back waveform tunes the delay it rides through.
+  Bright content and sync tips pull opposite ways, every 70 ns of pull is
+  another 90° of hue, and the displacement field is the picture itself one
+  generation late — so geometry, colour and sync integrity all become functions
+  of the image, compounding per lap, and none of it can repeat.
+- **Loop ring mod** — the loop bus multiplied against the live program in a
+  doubly-balanced bridge: colour lands at sum and difference phases neither
+  frame contained, sync against picture mints pulses mid-line, and every product
+  goes round to be re-multiplied a lap later.
+- **Soft rails** — the loop amplifier compresses into its rails instead of
+  clipping flat, so a loop past unity folds into glowing structure rather than
+  whiting out, and the compression manufactures harmonics for the next lap.
 - **Vertical offset** — lines of slide per generation; trails stack into
   ladders.
 - **Luma key** — only bright (or dark) areas feed back, so feedback follows the
@@ -291,6 +308,12 @@ faults move the picture; decoding faults move its color.
   downstream of decoding, so geometry warps but hue stays put.
 - **HV sag / supply ring** — bright content loads the high-voltage supply and
   stretches the scan; underdamped, a bright edge sets off decaying wobble.
+- **Beam limiter** — the flyback can only source so much average beam current,
+  so past a threshold the set pulls video drive down to protect it, through a
+  real time constant: the dimming lands after the content that caused it, an
+  undersized supply pumps the whole picture at a couple of Hz, and inside any
+  feedback loop the drive term joins the loop and beats against it. It also
+  throttles the very beam current HV sag integrates.
 
 ### Color decoding
 
@@ -318,6 +341,10 @@ faults move the picture; decoding faults move its color.
   reference crystal; unlocked, hue sweeps the whole wheel.
 - **Color killer** — the burst level below which the set decides the signal is
   monochrome; weak signals make color cut out in patches.
+- **Chroma AGC lag** — the ACC's control voltage sits on an RC, so colour gain
+  and the killer answer burst damage tens of lines late: colour blooms back
+  after a dropout band instead of snapping, overshoots on scene changes, and a
+  marginal burst makes the killer chatter down the frame.
 - **Output stage clip** — how the RGB amplifiers run out of headroom. Fitted
   back into gamut, overdriven color stays vivid and keeps its hue; run into the
   rails instead and the three guns clip one at a time, so the first to go drags
