@@ -100,14 +100,52 @@ at 0.02% of samples, against the 0.3% the staging fix left behind.
 Two things stop that being conclusive, and both are the environment rather than
 the app:
 
-- Firefox under BiDi **detaches the frame at around twelve minutes** of
-  continuous WebGPU, which ends a run early. The harness tells that apart from
-  the app dying by reading the app's own trace back from a fresh page; do not
-  let it be re-reported as a freeze, because it was once.
+- An earlier run ended with a **detached frame at about twelve minutes**, which
+  this document first recorded as a Firefox/BiDi limit. **It is not one.** That
+  was a single observation whose `soak.json` was not kept, so the only surviving
+  record of it is a sentence in `137ed96`. The lore it leaned on counts a
+  different thing — a browser is spent after *a dozen or so WebGPU sessions*
+  (`DEVELOPMENT.md`), a session count, and a soak opens exactly one. And the run
+  reported above refutes it: 259 adjacent five-second windows with the tab
+  visible are 259 disjoint intervals, so that session held continuous WebGPU for
+  **at least 21.6 minutes**, nearly twice the supposed limit. A deliberate
+  re-test on a quiet box agrees: **20.3 minutes wall, 17.5 of them rendering**
+  at ~45 fps on the expensive look, still healthy and still answering when it
+  was stopped by hand. Two observations past twelve, none at it.
+
+  There is a likelier mechanism, with evidence. Firefox Nightly's WebGPU crashes
+  the browser process on this box — a minidump left in a puppeteer profile on
+  2026-08-05 carries `MozCrashReason = Cannot remove a vacant resource`, a wgpu
+  resource-registry assertion, with `SecondsSinceLastCrash = 342`: twice inside
+  six minutes. From Node a crashed browser and a dropped frame are the same
+  "Target closed". Aperiodic and workload-shaped fits one run dying at twelve
+  and the next passing twenty-two; a fixed period does not.
+
+  And there is a third reading, found by instrumenting for the second. A cycling
+  run ended with its browser **SIGKILLed** — a signal no process sends itself —
+  while `journalctl` showed **five Firefox Nightly instances launched by
+  something else inside those three minutes**. This box is shared with other
+  agents driving browsers, and any harness that reaps with `pkill firefox` reaps
+  this one too. So "the browser stopped answering" has covered, at various
+  times: a detached frame, a wgpu crash, and a neighbour's cleanup. None of the
+  three is the app, and only one of them is even Firefox's fault.
+
+  That distinction matters more than the number. A wgpu crash carrying this
+  app's workload **is** a user-visible freeze, and the harness used to file
+  every such death under "the browser's problem, not ours" — the honesty fix
+  for one false verdict overshot into the opposite one. It now asks the process
+  for an exit code and salvages `<profile>/minidumps/*.extra` before puppeteer
+  deletes the profile, counts a crash as a freeze, and records `diedAt` so a
+  second observation can be compared with the first instead of confirming it.
+
 - This machine is shared with other agents driving headed browsers, so the soak
   window kept losing the foreground, and a hidden tab stops rAF _by design_. The
   harness accumulates visible minutes rather than wall clock for that reason,
   and refuses to give a clean verdict on a run that spent much of itself hidden.
+  It also **raises its own window**: puppeteer's opens behind whatever is
+  already there, a fully covered window reads as `hidden` here, and a run
+  started that way sat at frame 61 for its whole first ten seconds — measuring
+  nothing, quietly, which is the same failure as the rest of this section.
 
 **So: no freeze in 21.6 measured minutes, and the parked work stays parked.** A
 single uninterrupted run on a quiet machine would settle it properly; if that
@@ -182,9 +220,20 @@ advice on several of these is wrong _here_.
   for stability, bad for battery — hence `?gpu=low-power`.
 
 **Red herring worth not re-chasing:** the kernel log shows the amdgpu card fully
-re-initialising ~2400 times in 14 days. It is not the freeze. The AMD card sat
-at 0.00% while the app ran (on the Intel chip), and once Firefox holds a device
-on it, it stays active rather than cycling.
+re-initialising ~2400 times in 14 days (re-measured: 2717 in 20 days, so the
+rate holds). It is not the freeze — but check the reasoning, because half of it
+has gone stale. "The AMD card sat at 0.00% while the app ran" was true when the
+app ran on the **Intel** chip, and 95f2a85 in this same document moved it to
+`high-performance`, which on this box _is_ the amdgpu card: measured during a
+soak, card2 (`0x1002`) busy and card1 idle. The app now renders on the card that
+re-initialises 2400 times a fortnight.
+
+What still carries the dismissal is the other leg, and it is the stronger one.
+The re-init sequence (`PCIE GART` / `UVD` / `VCE`) is a runtime-PM resume, and
+it stops dead for the whole length of a session: zero of them in the kernel log
+across a 20-minute soak, and none at all for the 90 minutes the card had been
+held awake before it. The cycling happens **between** sessions, never during
+one, so it cannot be what wedges a session that is already running.
 
 ## Measurement traps this cost real time to find
 
@@ -203,6 +252,12 @@ Several of these invalidated a result before being caught. Full versions live in
 - **Reading a worker-owned canvas back from the page lags what the worker has
   presented.** The same frame read twice gave `0,0,0` then the real pixel.
   Stepping the engine is not enough; the compositor has to have picked it up.
+- **A crashed browser and a dropped frame are the same error from Node** —
+  "Target closed" for both. The shape of the error cannot tell them apart and
+  neither can the app's trace, since a process that died never flushed one. Ask
+  the process for an exit code and read `<profile>/minidumps/*.extra`, and do it
+  before `browser.close()`, which deletes the profile the evidence is in. A
+  guess made here once hardened into a browser limit that does not exist.
 - **One WebGPU session per browser.** Three devices in one browser killed
   Firefox outright, with no crash report. `workercheck.mjs` gives each phase its
   own browser and retries once on a spent one. (A headed window being tabbed

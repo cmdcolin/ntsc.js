@@ -46,7 +46,22 @@ find:
 - **One Firefox does not survive a long WebGPU batch.** After a dozen or so
   sessions it detaches the frame and every later page dies with "Target closed",
   so a batch recycles browsers and treats any failure as the browser being
-  spent.
+  spent. Note the axis: that is a count of _sessions_, not elapsed time. It was
+  once restated as a twelve-minute limit and stood in the handoff as a browser
+  property until two runs held a session past twenty minutes.
+- **"Target closed" is three different failures wearing one error.** The frame
+  detached, the browser crashed, or something outside killed the browser — and
+  from Node they are indistinguishable, so ask rather than guess. A crash leaves
+  `<profile>/minidumps/*.extra` naming the reason (`MozCrashReason = Cannot
+  remove a vacant resource` is a wgpu one, seen here) and a non-zero exit; an
+  outside kill shows up as `signal: 'SIGKILL'`, which no process can send
+  itself. Salvage the minidump _before_ `browser.close()`, which deletes the
+  profile it lives in.
+- **This box is shared, and neighbours reap browsers.** Five other Firefox
+  Nightly instances launched inside one three-minute run, and that run ended
+  with its browser SIGKILLed. Any harness that cleans up with `pkill firefox`
+  takes yours with it. Before believing a long run's death, check the signal and
+  check `journalctl` for launches you did not make.
 - **An occluded window throttles rAF to about 1Hz.** Frames are stepped
   (`window.vf.step()`) rather than waited for; a clip, which samples the canvas
   as it paints, has to own the only window on screen.
