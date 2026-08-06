@@ -2,7 +2,7 @@
    --border-quiet family as the masthead's ⌕ and ⋮ above it and the catalog
    handle below, rather than ui.module.css's filled .btn, which is what the
    board itself is made of. This is the widest of that family: a word rather
-   than a glyph, so it is padding and --fs-sm instead of a 22px box. */
+   than a glyph, so it is padding instead of a 22px box. */
 .bar {
   display: flex;
   flex-wrap: wrap;
@@ -29,7 +29,7 @@
   border-color: var(--fg4);
   color: var(--fg);
 }
-/* live: comparing is held down, copied has just fired */
+/* live: compare is being held down */
 .btnOn {
   border-color: var(--accent);
   color: var(--accent);
@@ -40,10 +40,10 @@
   cursor: default;
 }
 
-/* Touch: same treatment the shared .btn gets — these were sized for a cursor.
-   Tighter than it, though: at 11px sides the six labels are 372px, which wraps
-   a phone's row, and a wrapped row of fingertip-tall buttons is 76px of panel
-   before the first control. */
+/* Touch: fingertip height, like the shared .btn — but narrower than its 11px
+   sides, which put the six labels at 334px against a 332px row and wrapped it.
+   At 8px they come to 304px and stay on one line, and a second line of
+   fingertip-tall buttons is 40px of panel spent above the first control. */
 @media (pointer: coarse) {
   .btn {
     padding: 7px 8px;

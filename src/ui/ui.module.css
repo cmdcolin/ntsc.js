@@ -22,7 +22,20 @@
    documents. An unlayered rule beats a layered one whatever the order, so a
    composing module can override any part of these without knowing they exist.
    Nothing here is referenced as `ui.x` from a component; `composes` is how you
-   reach them. */
+   reach them.
+
+   What must NOT come in here: a primitive with a *lit* modifier. The segmented
+   toggle is the standing example — ToggleButtonGroup's .button/.on, the paint
+   tools, the teletype card's tabs are three copies of one face and one lit
+   state, and hoisting them looks like the same move. It is the opposite one.
+   The layer works for .bare because a caller only ever *adds* to it, so losing
+   every tie is exactly right; a lit modifier has to beat the face, and a face
+   the caller declares itself is unlayered, so `.chipOn { background }` down
+   here would lose to `.button { background }` up there and the toggle would
+   simply never light. Every one of those three declares its own background and
+   border, and one of them uses --fg where the others use --fg2, so composing
+   would mean stripping all three and changing how the paint tools read. They
+   share the tokens instead, which is where the retheme value was. */
 @layer prim {
   /* A button that is a glyph or a word rather than a box: the ⋮ at the end of a
      control row, a revert, a fold. Written out twenty-odd times before this,
