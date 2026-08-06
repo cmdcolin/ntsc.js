@@ -221,12 +221,16 @@ stage can run more than once — see **dub generations**.
 
 - **Noise** — tape grain and RF snow on the whole waveform, degrading sync and
   burst along with the picture.
-- **Impulse noise** — ignition, arcing contacts, a dying flyback next door:
-  sparse microsecond events at carrier-scale amplitude, each a bright comet with
-  an instant attack and the IF filter's ringing tail. The opposite texture from
-  snow, and on a dark picture with phosphor persistence they read as single
-  photons slamming the glass. Enough of them land on sync tips and burst to take
-  timing and colour with them.
+- **Impulse noise (arcs)** — ignition, arcing contacts, a dying flyback next
+  door: sparse events at carrier-scale amplitude whose _duration_ decides their
+  shape, since an arc is a run of signal time and does not respect line
+  boundaries. Tens of microseconds is a ringing comet whose tone the decoder
+  turns into a colour streak; hundreds fold into stepped diagonal streaks;
+  milliseconds are torn slabs of hash that land on sync tips and the beam load,
+  so the raster tears and the sag and beam-limiter servos flinch at the hit —
+  the rig reacting is most of the look. Hits arrive in storms, an optional
+  ignition train draws drifting dash lattices, big strikes get their own rate,
+  and a dimmer lock bunches hits into bands that roll with the hum.
 - **Ghosting** — multipath: a delayed, possibly phase-inverted echo displaced
   right of everything.
 - **Hum bar** — ground-loop mains hum, a soft bright bar drifting up the
