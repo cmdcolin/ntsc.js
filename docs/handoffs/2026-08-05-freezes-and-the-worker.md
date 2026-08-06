@@ -104,7 +104,7 @@ the app:
   this document first recorded as a Firefox/BiDi limit. **It is not one.** That
   was a single observation whose `soak.json` was not kept, so the only surviving
   record of it is a sentence in `137ed96`. The lore it leaned on counts a
-  different thing — a browser is spent after *a dozen or so WebGPU sessions*
+  different thing — a browser is spent after _a dozen or so WebGPU sessions_
   (`DEVELOPMENT.md`), a session count, and a soak opens exactly one. And the run
   reported above refutes it: 259 adjacent five-second windows with the tab
   visible are 259 disjoint intervals, so that session held continuous WebGPU for
@@ -124,18 +124,18 @@ the app:
   **That crash is upstream, and not ours to fix.** The string is a `wgpu-core`
   storage panic —
   [gfx-rs/wgpu#5372](https://github.com/gfx-rs/wgpu/issues/5372), an epoch
-  mismatch on an id being freed from the registry twice, filed against
-  bevy with crashes 5–30 s into a run. Our minidump says `UptimeTS 13.7`, inside
-  that window. A page cannot panic Rust in the browser except by reaching a
-  browser bug, so the app-side question is only which pattern reaches it — and
-  three candidates are now ruled out on this box, none of which reproduced it:
-  12 tab teardowns in one browser, 12 renavigations of one tab, and 200 rounds
-  of canvas resize with swapchain reconfigure and source B toggling. All clean,
-  no minidumps, no page errors. If it recurs the harness now keeps the `.extra`
-  and the `.dmp`; until then it is one occurrence with a fingerprint and no
-  recipe. (Those 12 sessions in one browser are also worth noting against the
-  "spent after a dozen or so" rule in `DEVELOPMENT.md` — right at its boundary,
-  and entirely healthy.)
+  mismatch on an id being freed from the registry twice, filed against bevy with
+  crashes 5–30 s into a run. Our minidump says `UptimeTS 13.7`, inside that
+  window. A page cannot panic Rust in the browser except by reaching a browser
+  bug, so the app-side question is only which pattern reaches it — and three
+  candidates are now ruled out on this box, none of which reproduced it: 12 tab
+  teardowns in one browser, 12 renavigations of one tab, and 200 rounds of
+  canvas resize with swapchain reconfigure and source B toggling. All clean, no
+  minidumps, no page errors. If it recurs the harness now keeps the `.extra` and
+  the `.dmp`; until then it is one occurrence with a fingerprint and no recipe.
+  (Those 12 sessions in one browser are also worth noting against the "spent
+  after a dozen or so" rule in `DEVELOPMENT.md` — right at its boundary, and
+  entirely healthy.)
 
   And there is a third reading, found by instrumenting for the second. A cycling
   run ended with its browser **SIGKILLed** — a signal no process sends itself —
@@ -148,9 +148,9 @@ the app:
 
   That distinction matters more than the number. A wgpu crash carrying this
   app's workload **is** a user-visible freeze, and the harness used to file
-  every such death under "the browser's problem, not ours" — the honesty fix
-  for one false verdict overshot into the opposite one. It now asks the process
-  for an exit code and salvages `<profile>/minidumps/*.extra` before puppeteer
+  every such death under "the browser's problem, not ours" — the honesty fix for
+  one false verdict overshot into the opposite one. It now asks the process for
+  an exit code and salvages `<profile>/minidumps/*.extra` before puppeteer
   deletes the profile, counts a crash as a freeze, and records `diedAt` so a
   second observation can be compared with the first instead of confirming it.
 
@@ -376,3 +376,63 @@ Two smaller things the same review turned up, both in `videopump.ts`:
   whose generation has moved on.
 
 `videopump.ts` had no unit tests at all before this; it has ten now.
+
+## Postscript: the watchdog deferred to focus, and devtools takes focus
+
+**2026-08-06.** A reported freeze surviving reloads produced this trace, from a
+session that was still running when it was read:
+
+```
+62|resize|1499x960
+70|lifecycle|pageshow (persisted=false)
+79|start|
+1529|lifecycle|blur
+2080|beat|visible unfocused windowed STEP-DEAD ok frame 0 raf 0/beat probe 0/beat step 0/beat clock +0ms
+```
+
+Every reading is zero, and they are zero by four independent routes: no render
+rAF, no probe rAF, no ResizeObserver delivery, and `document.timeline` not
+advanced by a single millisecond in two seconds — at `frame 0`, so the document
+was never given one frame from load. That is the tab's rendering step dead on
+arrival, which is the fault this instrumentation was built to name: it belongs
+to the tab rather than the document, so a reload lands in the same hole.
+
+**The watchdog did not say so, and the reason is the fifth word of the beat.**
+`blur` at 1529 ms, the first beat 551 ms later, and the stall branch gated on
+`isFocused()` — so it took no verdict at all. No `stall`, no `coldStall`, no
+`recordFramelessStart()`, which is the counter that lets the _next_ load open
+with "the fault has outlived a document, so reloading cannot clear it". The
+recording survived and the diagnosis did not.
+
+The gate had a reason — rAF throttling in a background window is expected and
+must not read as a stall — but `document.hasFocus()` is false whenever devtools
+has focus, so it also switched the watchdog off for exactly as long as anyone
+was reading the console. **The act of looking disabled the thing being looked
+at**, which is the same shape as the single-slot recorder overwriting the trace
+of the session it was opened to investigate.
+
+Fixed by making focus decide less. The loop already has two witnesses that are
+not rAF and not focus-dependent, added in `0cd7042` for a neighbouring question;
+a throttled driver still runs the rendering step and still advances the
+timeline, only less often, so one tick of either says it is alive and zero on
+both says it has stopped. The stall branch now runs when focused **or** when
+both witnesses read dead. A `null` from either is no reading rather than a dead
+driver, so a worker and the pre-witness test harness are unaffected — which is
+also why the existing "does not declare a stall against an unfocused window"
+test still passes untouched.
+
+`renderloop.test.ts` grew a `driver: 'absent' | 'live' | 'stopped'` harness
+option to model the witnesses at all: it stubs `ResizeObserver`,
+`document.timeline` and a probe element whose width setter arms a delivery, and
+runs the rendering step off a 16 ms fake timer, so stopping that one timer stops
+both witnesses the way a stopped driver does. Mutation-checked against the old
+gate — the new test goes red, the old one stays green.
+
+Two things this does not do. It does not make the freeze recoverable: the
+fallback pump cannot bridge a dead rendering step, and the on-canvas frozen
+notice cannot be painted by a browser that is not painting. What gets through is
+the tab title (`⏸ frozen — `, already handled in `useEngine.ts` for exactly this
+reason) and the console. And it does not explain what stopped the driver;
+`STEP-DEAD` with `clock +0ms` on a visible tab is the browser's rendering step,
+not the signal path, and the likeliest suspect on this box remains the wgpu
+crash documented above.

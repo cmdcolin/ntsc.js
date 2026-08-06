@@ -10,6 +10,7 @@ import {
   RenderLoop,
   WATCHDOG_MS,
 } from './renderloop'
+import { framelessStarts } from './trace'
 
 // The loop only does interesting work when the browser misbehaves, so the
 // harness models the two misbehaviours directly: rAF callbacks are queued but
@@ -21,7 +22,22 @@ import {
 // went into it (bug 1870699, measured at 99-101 ms on an idle queue). A device
 // with no GPU cost at all still looks that far behind, so the backpressure gate
 // cannot be judged without it.
-function harness({ noDocument = false, pollMs = 0 } = {}) {
+//
+// `driver` is the browser's rendering step, which the loop reads through two
+// witnesses that are not rAF: ResizeObserver delivery, and `document.timeline`.
+// Telling its two states apart is the whole reason both exist, and neither is
+// visible to a harness that stubs a document too thin to build the probe —
+// which is what `'absent'` models, and what every test written before the
+// witnesses ran under.
+function harness({
+  noDocument = false,
+  pollMs = 0,
+  driver = 'absent',
+}: {
+  noDocument?: boolean
+  pollMs?: number
+  driver?: 'absent' | 'live' | 'stopped'
+} = {}) {
   let rafSeq = 0
   let frames = 0
   let focused = true
@@ -40,6 +56,54 @@ function harness({ noDocument = false, pollMs = 0 } = {}) {
   vi.stubGlobal('cancelAnimationFrame', (id: number) => {
     rafCbs.delete(id)
   })
+  // The rendering step, and the two things that ride it. `roDirty` is an
+  // observation or a size change waiting to be delivered; the step below is the
+  // only thing that ever delivers it, and the only thing that advances the
+  // timeline. Stopping that one timer stops both witnesses at once, which is
+  // precisely what a tab whose refresh driver has stopped looks like.
+  let timelineMs = 0
+  let roDirty = false
+  const observers = new Set<() => void>()
+  if (driver !== 'absent') {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private cb: () => void) {}
+        observe() {
+          observers.add(this.cb)
+          roDirty = true // observing delivers once on its own
+        }
+        disconnect() {
+          observers.delete(this.cb)
+        }
+      },
+    )
+  }
+  if (driver === 'live') {
+    setInterval(() => {
+      timelineMs += 16
+      if (roDirty) {
+        roDirty = false
+        for (const cb of observers) cb()
+      }
+    }, 16)
+  }
+  const probe = () => ({
+    setAttribute: () => {},
+    remove: () => {},
+    style: {
+      cssText: '',
+      // A size change is delivered at the next rendering step — which is what
+      // `nudge` counts on, and what a stopped step never gets to.
+      get width(): string {
+        return ''
+      },
+      set width(_v: string) {
+        roDirty = true
+      },
+    },
+  })
+
   // `noDocument` is the worker case: there is no document to read visibility or
   // focus from, and the loop has to run anyway rather than mistake the absence
   // for a hidden tab.
@@ -49,9 +113,27 @@ function harness({ noDocument = false, pollMs = 0 } = {}) {
         return visibility
       },
       hasFocus: () => focused,
+      ...(driver === 'absent'
+        ? {}
+        : {
+            get timeline() {
+              return { currentTime: timelineMs }
+            },
+            createElement: probe,
+            body: { appendChild: () => {} },
+          }),
     })
   }
   vi.stubGlobal('window', globalThis)
+  // The recorder's backing store. Fresh per harness, so a frameless run counted
+  // by one test cannot be read by the next.
+  const cells = new Map<string, string>()
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => cells.get(k) ?? null,
+    setItem: (k: string, v: string) => cells.set(k, v),
+    removeItem: (k: string) => cells.delete(k),
+  })
+  vi.stubGlobal('navigator', { userAgent: 'test' })
 
   // The loop reads the clock to judge how late a timer was, which is how it
   // tells a blocked main thread from a wedged GPU. Fake timers move the clock
@@ -244,6 +326,40 @@ describe('RenderLoop', () => {
     h.loop.start()
     await vi.advanceTimersByTimeAsync(WATCHDOG_MS * 2)
     expect(h.frames()).toBe(0)
+  })
+
+  it('leaves an unfocused window alone while its refresh driver runs', async () => {
+    // The same deference, now with a witness backing it: the rendering step is
+    // ticking and the timeline is advancing, so a flat rAF count in a
+    // background window is the throttling it has always been assumed to be.
+    const h = harness({ driver: 'live' })
+    h.setFocused(false)
+    h.loop.start()
+    await vi.advanceTimersByTimeAsync(WATCHDOG_MS * 2)
+    expect(h.frames()).toBe(0)
+  })
+
+  it('judges an unfocused window whose refresh driver has stopped', async () => {
+    // Focus is not evidence about the driver, and reading it as evidence had a
+    // specific cost: `document.hasFocus()` goes false when devtools takes
+    // focus, so the watchdog switched itself off for exactly as long as anyone
+    // was reading the console. A recorded trace caught that — a session dead
+    // from load, blur at 1529ms, and the first beat 551ms later declining to
+    // judge `raf 0/beat probe 0/beat step 0/beat clock +0ms` at frame 0.
+    // Neither witness ticking is not throttling; a throttled driver still runs
+    // the step and still advances the timeline, only less often.
+    const h = harness({ driver: 'stopped' })
+    h.setFocused(false)
+    h.loop.start()
+    expect(framelessStarts()).toBe(0)
+
+    await vi.advanceTimersByTimeAsync(WATCHDOG_MS)
+    expect(h.frames()).toBe(1)
+    // And the count the *next* load reads, which is the whole difference
+    // between "reload it" and "this tab is gone, open another". Losing this was
+    // the more expensive half: the fallback cannot bridge a dead rendering step
+    // anyway, but only this can tell the user that.
+    expect(framelessStarts()).toBe(1)
   })
 
   it('keeps bridging a stall when the window loses focus mid-stall', async () => {

@@ -542,13 +542,36 @@ export class RenderLoop {
     // therefore blind. This is the only thing still running that can offer it
     // another one.
     this.startDrainProbe()
-    // The watchdog firing at all proves the main thread is alive. rAF throttling
-    // while the window is unfocused/occluded is expected, so only judge rAF
-    // liveness when focused: if rafTicks hasn't advanced since the last check,
-    // the browser has stopped delivering rAF even though we're visible+focused
-    // (Firefox/Linux does this across fullscreen transitions, and re-requesting
-    // doesn't wake it). Drive the loop from setTimeout until rAF resumes.
-    if (isFocused()) {
+    // Both witnesses flat across a whole beat. Throttling cannot produce this: a
+    // throttled driver still runs the rendering step and still advances the
+    // timeline, only less often, so a single tick of either says it is alive.
+    // Zero on both says it has stopped. A `null` from either is *no reading* —
+    // a worker, a stubbed document — and the `=== 0` comparisons exclude it,
+    // because absence of a witness must never be read as a dead driver.
+    const driverDead = stepDelta === 0 && timeDelta === 0
+    // The watchdog firing at all proves the main thread is alive. If rafTicks
+    // hasn't advanced since the last check, the browser has stopped delivering
+    // rAF even though we're visible (Firefox/Linux does this across fullscreen
+    // transitions, and re-requesting doesn't wake it). Drive the loop from
+    // setTimeout until rAF resumes.
+    //
+    // Focus used to be the sole gate on that judgement, on the grounds that rAF
+    // throttling in a background window is expected. But `document.hasFocus()`
+    // goes false when devtools takes focus, so the gate also switched the
+    // watchdog off for exactly as long as anyone was *reading* the console —
+    // and a recorded trace caught it: a session dead from load, `blur` at
+    // 1529 ms, and the first beat 551 ms later declining to judge the evidence
+    // it had just written down (`frame 0 raf 0/beat probe 0/beat step 0/beat
+    // clock +0ms`). No stall, no `coldStall`, no frameless start recorded, so
+    // the next load could not say "reloading will not clear this" either. The
+    // recording survived and the diagnosis did not, which is the same way the
+    // single-slot recorder used to destroy its own evidence.
+    //
+    // So focus now only decides what a flat rAF count is allowed to mean *on
+    // its own*. When the two witnesses that are not rAF both say the refresh
+    // driver has stopped, that is not throttling and there is nothing about
+    // being in the background left to defer to.
+    if (isFocused() || driverDead) {
       const rafAlive = this.rafTicks !== this.lastRafTicks
       this.lastRafTicks = this.rafTicks
       if (!rafAlive) {
@@ -599,7 +622,9 @@ export class RenderLoop {
         this.kick() // still give rAF a chance to wake on its own
       }
     } else {
-      // Only the baseline is refreshed, so refocusing isn't read as a stall.
+      // Unfocused, with the refresh driver either demonstrably alive or not
+      // readable at all. Only the baseline is refreshed, so refocusing isn't
+      // read as a stall.
       // The stall flag deliberately survives: a recorded trace showed a visible
       // unfocused window delivering 93 rAF callbacks in a single 2s beat, so
       // losing focus is not throttling and is no reason to call a stall over.
