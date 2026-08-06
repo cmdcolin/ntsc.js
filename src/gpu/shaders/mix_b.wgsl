@@ -42,32 +42,35 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   }
   let n = row * SPL + s;
 
-  // wipe pattern generator, running on the output (house) raster. A switcher
-  // only switches during active picture — blanking stays on the program bus —
-  // so an engaged wipe excludes B's sync and burst; wipe off is a full-frame
-  // fade (gate = 1 everywhere), the hardwired dirty sum blanking and all.
-  var gate = 1.0;
-  if (P.wipeMode > 0.5) {
-    let u = (f32(s) - f32(ACTIVE_START)) / f32(ACTIVE_W);
-    let v = (f32(row) - f32(ACTIVE_TOP)) / f32(ACTIVE_H);
-    if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0) {
-      gate = 0.0;
-    } else {
-      var d = P.wipePos - u;
-      if (P.wipeMode > 1.5 && P.wipeMode < 2.5) {
-        d = P.wipePos - v;
-      } else if (P.wipeMode > 2.5 && P.wipeMode < 3.5) {
-        d = P.wipePos - max(abs(u - 0.5), abs(v - 0.5)) * 2.0;
-      } else if (P.wipeMode > 3.5) {
-        d = P.wipePos - (abs(u - 0.5) + abs(v - 0.5));
-      }
-      gate = smoothstep(-max(P.wipeSoft, 0.002), max(P.wipeSoft, 0.002), d);
-    }
-  }
-
   let a = comp[n];
   let inActive = s >= ACTIVE_START && s < ACTIVE_START + ACTIVE_W &&
     row >= ACTIVE_TOP && row < ACTIVE_TOP + ACTIVE_H;
+  // picture coordinates, shared by the wipe pattern and the PiP window below
+  let u = (f32(s) - f32(ACTIVE_START)) / f32(ACTIVE_W);
+  let v = (f32(row) - f32(ACTIVE_TOP)) / f32(ACTIVE_H);
+
+  // Wipe pattern generator, running on the output (house) raster. A wipe is a
+  // pattern across the *picture*, so it is only evaluated inside active video
+  // and blanking is left wide open at gate = 1.
+  //
+  // That distinction is load-bearing on the dirty path. Gating blanking down
+  // with the picture took B's sync tips, burst and field pulses out of the sum,
+  // which quietly switched off the sync fight — the entire point of a
+  // non-genlocked mix — the moment a wipe was engaged; the "wipe fight" preset
+  // could not do what its name says. The genlocked branch writes active video
+  // only anyway, so a switcher still keeps its blanking on the program bus.
+  var gate = 1.0;
+  if (P.wipeMode > 0.5 && inActive) {
+    var d = P.wipePos - u;
+    if (P.wipeMode > 1.5 && P.wipeMode < 2.5) {
+      d = P.wipePos - v;
+    } else if (P.wipeMode > 2.5 && P.wipeMode < 3.5) {
+      d = P.wipePos - max(abs(u - 0.5), abs(v - 0.5)) * 2.0;
+    } else if (P.wipeMode > 3.5) {
+      d = P.wipePos - (abs(u - 0.5) + abs(v - 0.5));
+    }
+    gate = smoothstep(-max(P.wipeSoft, 0.002), max(P.wipeSoft, 0.002), d);
+  }
 
   if (P.bGenlock > 0.5) {
     // Clean switcher: crossfade genlocked B over A on active video only; sync,
@@ -112,8 +115,6 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // where B's own sync would otherwise fight. Active picture only; blanking,
   // sync and burst stay on the program bus.
   if (P.pipMix > 0.001 && inActive) {
-    let u = (f32(s) - f32(ACTIVE_START)) / f32(ACTIVE_W);
-    let v = (f32(row) - f32(ACTIVE_TOP)) / f32(ACTIVE_H);
     let x0 = P.pipX - 0.5 * P.pipW;
     let y0 = P.pipY - 0.5 * P.pipH;
     // signed distance to the nearest window edge: >0 inside, grows toward center
@@ -127,7 +128,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
       let bsi = ACTIVE_START + u32(bu * f32(ACTIVE_W - 1u));
       let bsrow = ACTIVE_TOP + u32(bv * f32(ACTIVE_H - 1u));
       let bnp = bsrow * SPL + bsi;
-      var bp = encodeBHouse(n, bnp);
+      let bp = encodeBHouse(n, bnp);
       // matte border: a solid frame just inside the window edge
       let isBorder = dIn < P.pipBorder;
       let inset = select(bp, IRE_BLACK + VIDEO_RANGE * 0.9, isBorder);
