@@ -234,6 +234,11 @@ export function Stage(props: {
   recording: boolean
   lens: Lens
   onLens: (lens: Lens) => void
+  // Which tool a plain drag on the picture is: the crosshair that boxes a region
+  // to zoom into, or the hand that pushes the magnified picture around. Armed
+  // from the masthead rather than decided here, which is why it arrives as a
+  // prop — see the switch in app.tsx for what it replaced.
+  boxZoom: boolean
   tap: number
   onTap: (v: number) => void
   onToggleRecord: () => void
@@ -253,13 +258,19 @@ export function Stage(props: {
   const [barHidden, setBarHidden] = usePersistedFlag(BAR_HIDDEN_STORE)
   const [drag, setDrag] = useState<Drag | null>(null)
   const zoomed = clampZoom(props.lens.zoom) > 1
-  // Box first: a drag with nothing magnified yet, or one held with shift, picks
-  // the region to look at. Once you are already in close a plain drag pushes the
-  // glass around under a fixed lens instead, which is what you then want.
+  // The armed tool, and shift for the other one. Shift used to mean "box" flatly
+  // — which said nothing when box was already what a plain drag did — so reading
+  // it as "the tool you are not holding" costs nothing and buys the whole pair
+  // back in fullscreen and the popout, where the masthead switch is off screen.
   const down = (e: PointerEvent<HTMLCanvasElement>) => {
     const { p } = at(e)
     e.currentTarget.setPointerCapture(e.pointerId)
-    setDrag({ a: p, b: p, box: e.shiftKey || !zoomed, from: props.lens })
+    setDrag({
+      a: p,
+      b: p,
+      box: e.shiftKey ? !props.boxZoom : props.boxZoom,
+      from: props.lens,
+    })
   }
   const move = (e: PointerEvent<HTMLCanvasElement>) => {
     if (drag !== null) {
@@ -304,18 +315,26 @@ export function Stage(props: {
       <canvas
         ref={canvasRef}
         className={styles.canvas}
+        // The armed tool, except that the hand is only offered where there is
+        // something to move: `panLens` returns the lens untouched at 1×, so a
+        // grab cursor over an unmagnified picture would promise a drag that
+        // does nothing.
         style={{
           cursor:
             drag !== null && !drag.box
               ? 'grabbing'
-              : zoomed
-                ? 'grab'
-                : 'crosshair',
+              : props.boxZoom
+                ? 'crosshair'
+                : zoomed
+                  ? 'grab'
+                  : 'default',
         }}
         title={
-          zoomed
-            ? 'drag to move around the glass · shift-drag a box to close in · double-click to pull back'
-            : 'drag a box to zoom into it'
+          props.boxZoom
+            ? 'drag a box to zoom into it · shift-drag moves the glass · double-click pulls back to 1×'
+            : zoomed
+              ? 'drag to move around the glass · shift-drag a box to close in · double-click pulls back to 1×'
+              : 'nothing to move at 1× — shift-drag a box to close in, or switch back to the crosshair'
         }
         onPointerDown={e => down(e)}
         onPointerMove={e => move(e)}

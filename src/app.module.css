@@ -165,6 +165,42 @@
   border-color: var(--fg4);
   color: var(--fg);
 }
+/* The picture's pointer tool. Deliberately the same box as the ⌕ beside it, and
+   by the same means rather than by arithmetic: no height here, so the icon sits
+   in a text line box exactly as that button's glyph does and the pair stay level
+   through any change to the type scale. Laying it out with flex instead sizes
+   the button to the 13px icon and leaves it 4px short — and an explicit height
+   would have to carry the padding and border with it, since a <button> is
+   border-box from the UA stylesheet whatever this file says. Lit in the accent
+   rather than filled the way a segmented toggle is: this is masthead chrome, and
+   a solid block would be the loudest thing in the row. */
+.modeBtn {
+  flex-shrink: 0;
+  width: 22px;
+  padding: 1px 0;
+  border: 1px solid #33333f;
+  border-radius: 4px;
+  background: var(--panel-bg);
+  color: var(--fg3);
+  font-size: var(--fs-md);
+  line-height: 1.2;
+  cursor: pointer;
+}
+.modeBtn svg {
+  vertical-align: middle;
+}
+.modeBtn:hover {
+  border-color: var(--fg4);
+  color: var(--fg);
+}
+.modeBtnOn {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.modeBtnOn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
 
 /* The control filter, in the masthead rather than in a row of its own.
    It used to be a 25px input plus a 12px margin sitting above the chain map,

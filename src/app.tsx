@@ -21,6 +21,7 @@ import {
 } from './ui/filter'
 import { FpsMonitor } from './ui/FpsMonitor'
 import { HelpDialog } from './ui/HelpDialog'
+import { CrosshairIcon } from './ui/icons'
 import { InputSection } from './ui/InputSection'
 import { LookBar } from './ui/LookBar'
 import { LookSection } from './ui/LookSection'
@@ -136,6 +137,14 @@ export function App() {
   const [showHelp, setShowHelp] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
   const [comparing, setComparing] = useState(false)
+  // Which tool a drag on the picture is. It used to be neither — the mode was
+  // inferred from the magnification, so one gesture meant two things depending
+  // on a number elsewhere on screen, and the only way to ask for the other one
+  // was to already know shift did that. Armed by default: at 1× there is nothing
+  // to pan, so the crosshair is the only tool a fresh session has a use for, and
+  // it is what says the magnifier exists at all. Not persisted — a pointer tool
+  // is a thing you pick up for a minute, not a setting.
+  const [boxZoom, setBoxZoom] = useState(true)
   const [filter, setFilter] = useState('')
   // Whether the masthead is showing the filter box rather than the wordmark.
   // Held open by a live query as well as by the ⌕, so the box can't disappear
@@ -475,6 +484,24 @@ export function App() {
           </div>
         ) : null}
         <div className={styles.chrome}>
+          {/* Stays through a live query, unlike the ⌕ beside it: the filter box
+              takes the wordmark's width, and this is not the thing that has
+              gone redundant. Lit while it is the crosshair — the cursor over
+              the picture is the other half of the readout, and this is the half
+              that is still on screen when the pointer is somewhere else. */}
+          <button
+            className={cx(styles.modeBtn, boxZoom && styles.modeBtnOn)}
+            aria-pressed={boxZoom}
+            aria-label="pointer tool over the picture"
+            title={
+              boxZoom
+                ? 'crosshair: drag the picture to box a region and zoom into it (shift-drag moves the glass instead)'
+                : 'hand: drag the picture to move around the glass (shift-drag boxes a region to zoom into)'
+            }
+            onClick={() => setBoxZoom(!boxZoom)}
+          >
+            <CrosshairIcon />
+          </button>
           {searching ? null : (
             <button
               className={styles.searchBtn}
@@ -720,6 +747,7 @@ export function App() {
           x: controls.crtZoomX,
           y: controls.crtZoomY,
         }}
+        boxZoom={boxZoom}
         tap={eng.tap}
         onTap={eng.changeTap}
         // One write for all three, so a gesture notifies the engine once.

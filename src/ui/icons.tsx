@@ -55,6 +55,24 @@ export function GraphIcon() {
   )
 }
 
+// A reticle with a gap at the centre, for the button that arms the box-zoom
+// tool: the same shape the cursor over the picture turns into, so the switch and
+// what it does to the pointer are recognisably one thing.
+export function CrosshairIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M11 2h2v6h-2V2zm0 14h2v6h-2v-6zM2 11h6v2H2v-2zm14 0h6v2h-6v-2z" />
+      <circle cx="12" cy="12" r="1.8" />
+    </svg>
+  )
+}
+
 export function GearIcon() {
   return (
     <svg

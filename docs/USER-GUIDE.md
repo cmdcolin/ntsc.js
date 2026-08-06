@@ -34,6 +34,12 @@ The rest of this page is how you get there one stage at a time.
 **2** the stage menu — stills, recording, fullscreen, settings · **3** presets ·
 **4** input, A and B · **5** the way into all ~130 controls.
 
+What a drag on the picture does is set by the crosshair button at the top right
+of the panel: lit, a drag boxes a region to zoom into; dark, it moves the
+magnified picture around under your eye. Shift-drag is always the other one, so
+both are still there in fullscreen and the popped-out panel, where that button
+is off screen.
+
 ## Start with a preset
 
 ![The app window, the Presets section at the top of the panel boxed in red](img/presets.jpg)

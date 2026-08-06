@@ -383,9 +383,10 @@ and what you see looking at one.
   everything that lives on the screen rather than in the image magnifies with
   it: triads, scanline gaps, grain, the beam spot's bleed between samples. Below
   1× it pulls back off the set instead — the faceplate bulges the way a real one
-  does, and the cabinet holding it comes out of the dark. Scroll or drag a box
-  on the picture to close in, drag to move around the glass, double-click for
-  1×.
+  does, and the cabinet holding it comes out of the dark. The crosshair button
+  at the top right of the panel says which of the two a drag on the picture is —
+  boxing a region to close in, or moving around the glass — with shift-drag
+  always the other one; double-click for 1×.
 - **Vectorscope** — the instrument, in the corner: the chroma plane itself, with
   the demodulated colour plotted as U across and V up. The circle is where 100%
   bars reach, the six boxes are the 75% bar targets — at their real radii, which
