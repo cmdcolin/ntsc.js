@@ -539,6 +539,44 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'pirate feed',
+    group: 'A/B mixing',
+    blurb:
+      'A scrambled premium channel on input A — sync suppressed at the head-end — with a pirate box summing a whisper of clean B in as substitute sync. The receiver almost saves the picture around the borrowed pulses, which is exactly how the real boxes worked; pull B gain to zero to watch it collapse into shear.',
+    patch: {
+      aScramble: 1,
+      bGain: 0.22,
+      bLineHz: 0.05,
+      bDetuneHz: 15,
+      bRollLps: 0,
+    },
+  },
+  {
+    name: 'negative drifter',
+    group: 'A/B mixing',
+    blurb:
+      "SSAVI scrambling on input B alone: its sync goes toothless before the mix, so A holds the raster steady while B's picture leaks through as a negative — a ghost image in complementary luma drifting and beating through the program.",
+    patch: {
+      bScramble: 1,
+      bScrambleMode: 2,
+      bGain: 0.6,
+      bDetuneHz: 60,
+      bRollLps: 0.15,
+    },
+  },
+  {
+    name: 'house deck held',
+    group: 'A/B mixing',
+    blurb:
+      "The pause button on the deck feeding input A — the house reference itself. Every line of the program scatters around the defeated servo's wander, a mistrack stripe creeps through the picture, and the clean B summed underneath starts winning sync fights it used to lose.",
+    patch: {
+      aPause: 0.75,
+      bGain: 0.35,
+      bLineHz: 0.1,
+      bDetuneHz: 30,
+    },
+  },
+  {
     name: 'difference key',
     group: 'A/B mixing',
     blurb:
