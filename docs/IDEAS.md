@@ -65,6 +65,61 @@ These read like naked periodic waves but are physically correct — don't
   noise in saturated reds. Modelling the luma FM properly is expensive; the
   honest cheap version is the beat product alone.
 
+## Noise mechanisms not modelled
+
+Shipped from this pass: the generated no-signal sources became one parameterized
+generator (`snowSource` in `prelude.ts`, four statistics on the Source stage),
+and the program-bus floor got a spectrum (`noiseTilt`, an RF lowpass against an
+FM discriminator's first difference over the same deviates in `channel.wgsl`).
+Two things learned there, for whoever adds the next one. A **first** difference
+is triangular (power ∝ f²) and a 1-2-1 signed pair is not (∝ f⁴) — the honest FM
+shape is the cheaper kernel. And the two arms share taps, so holding the floor's
+level constant across the tilt needs the covariance, not just the weights;
+without it the knob reads as a noise-amount control with a side effect. The
+algebra is in `noiseTiltWeights` (`pipeline.ts`), CPU-side.
+
+What is left, in rough payoff order:
+
+- **Camera sensor noise, in the feedback camera.** `compose.wgsl` models an iris
+  servo, a black cut and a full-well knee, and has no noise at all. Three
+  mechanisms, all cheap, and this is the one that _compounds_: shot noise (σ ∝
+  √signal, so highlights are noisiest — the opposite weighting from tape grain,
+  and the tell that separates a photographed screen from an electronic path);
+  **fixed-pattern noise**, which is fixed to the _sensor_ rather than to the
+  glass, so each pass zooms and rotates the previous generation's pattern and
+  adds its own, breeding grain into structure with nothing drawing it; and gain
+  noise coupled to the camera's own auto-gain, so noise pumps against the iris
+  hunt at a third rhythm alongside the beam limiter.
+- **Flicker (1/f) and popcorn noise in the video amplifier.** Everything
+  aperiodic in the chain is per-sample and everything slow is periodic (hum).
+  Missing: a random-walk level, so black level and brightness breathe sub-Hz,
+  and **burst/RTS noise** — a defective junction switching the DC between two
+  discrete states at random intervals, so the picture level _clunks_ rather than
+  drifts. CPU-side out of `signal/noise.ts` (an OU term, and a two-state Markov
+  chain for the popcorn) into one DC uniform; the AGC, the clamp and the killer
+  then react to it for free.
+- **A wandering spurious carrier (switching-supply birdie).** Every periodic
+  interference here is locked to line rate (`soundIre`, `rfAdjacent`) or to
+  mains (`humAmp`). A switch-mode supply or a nearby computer sits at some
+  arbitrary 15–60 kHz that _drifts with load_, so it draws a herringbone that
+  creeps and breathes instead of standing still — the drift is what identifies
+  it — and it intermodulates with the subcarrier. Same CPU-accumulated-phase
+  pattern as the deferred hum-drift item above, and it is what the "kill the
+  naked periodic waves" section actually wants.
+- **Noise on decisions rather than on picture.** The dropout _detector_ is the
+  good one: a real DOC fires on an RF envelope dip, so a noisy floor trips it on
+  lines that were fine and it patches them anyway — and the patch comes back in
+  the complementary hue, by the 227.5-cycle logic `dropoutComp` already has. A
+  corrective box misfiring on noise is more interesting than noise you can see.
+  The sync slicer and the colour killer are the same idea, and the killer's is
+  partly reachable already through `accLagLines`.
+- **A fixed noise floor with a varying signal, instead of substituted snow.**
+  Structural rather than a knob: `channel.wgsl` mixes snow in at a set level per
+  band (tracking, head clog, shuttle, head switch). If the preamp's floor were
+  fixed and the _RF level_ varied, noise would appear wherever signal is weak
+  from one mechanism, and the four blocks would collapse into it. The honest
+  version, and it would delete code; also the largest of these.
+
 ## Per-input feeds — what is still on the program bus
 
 The feeds (`feed.wgsl`, the `FEEDS` table in `feedgates.ts`) give each input its
