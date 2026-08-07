@@ -70,17 +70,29 @@ pulses the receiver has to lock to.
 
 **Each input also has its own feed** (`feedA`, `feedB`) — the deck, cable and
 head-end between that one source and the mixer, so a fault there (scramble,
-termination, snow, polarity, the pause button) damages one signal alone and
-everything downstream reacts to the difference. The two passes are one shader
-bound to different uniform buffers: `renderFrame` packs each source's fault
-controls — and its paused deck's servo state — into the standard damage fields
-of a second `Params` block, so each mechanism is written once in `feed.wgsl` and
-reused fields cost no `PARAM_DEFS` growth. An engaged feed makes its encoder
-detour through the `compB` scratch (a bind-group pair swapped off the same
-predicate that gates the feed). What makes feedB possible at all is
-`encodeCompositeB`: B exists as a real composite on its own raster, which
-`mix_b`'s dirty path then resamples — so B's damage, its pause stripe included,
-rides B's raster through the slip and roll instead of parking on the output.
+termination, snow, polarity, a ground loop, a loose plug, the pause button)
+damages one signal alone and everything downstream reacts to the difference. The
+two passes are one shader bound to different uniform buffers: `renderFrame`
+packs each source's fault controls — and its paused deck's servo state — into
+the standard damage fields of a second `Params` block, so each mechanism is
+written once in `feed.wgsl` and reused fields cost no `PARAM_DEFS` growth.
+
+That reuse sets one trap, and it is the trap to know before adding a per-source
+fault. `packFeed` spreads the program-bus pack and overrides only the fields
+`FEEDS` names, so **every other `Params` field reaches a feed still holding the
+bus's value**. A block in `feed.wgsl` that reads a field nobody overrode applies
+a program-bus knob to one source and looks like it works. The declaration is
+therefore one table entry (`feedgates.ts`), one `packFeed` override, one shader
+block, and one line in `feedFaults` — and `feedgates.spec.ts` fails if the last
+is missed, because a fault the gate does not know about dispatches no pass and
+its slider does nothing until some unrelated fault on the same input is up.
+
+An engaged feed makes its encoder detour through the `compB` scratch (a
+bind-group pair swapped off the same predicate that gates the feed). What makes
+feedB possible at all is `encodeCompositeB`: B exists as a real composite on its
+own raster, which `mix_b`'s dirty path then resamples — so B's damage, its pause
+stripe included, rides B's raster through the slip and roll instead of parking
+on the output.
 
 ## The three domains
 

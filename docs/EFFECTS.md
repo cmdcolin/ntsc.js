@@ -10,6 +10,7 @@ control panel and the same order the signal travels.
 | Stage                               | Where it sits                                       |
 | ----------------------------------- | --------------------------------------------------- |
 | [Source / wiring](#source--wiring)  | the cable between the deck and everything else      |
+| [Per-input feeds](#per-input-feeds) | one input's own deck and cable, ahead of the mixer  |
 | [Camera feedback](#camera-feedback) | a camera pointed at the monitor it's driving        |
 | [Mixer loop](#mixer-loop)           | the composite waveform patched back into itself     |
 | [Tape loop](#tape-loop)             | a loop of tape between a record and a play head     |
@@ -33,8 +34,22 @@ them.
   or unterminated (hot signal, ringing overshoot on every edge).
 - **Chroma-pin only** — S-video miswired into composite: bare subcarrier with no
   luma or sync, floating color over an unlocked black raster.
-- **Loose connector** — intermittent contact; bands of snow cut in and out and
-  take sync with them when they land on a sync tip.
+- **Loose connector** — intermittent contact, decided per band of lines and
+  re-rolled every frame the way a plug hanging on its own cable weight makes and
+  breaks. An RCA plug has two contacts and they fail into two different
+  pictures. The **centre pin** breaks the signal path, so the jack sees an open
+  through its own terminator and those bands collapse to the input stage's noise
+  floor — sync included, so they tear. The **shell** breaks the ground reference
+  and leaves the signal alone: the return current goes looking for the mains
+  earth through both boxes' supplies, so a ground loop's hum lands on the bad
+  bands and the level walks and buzzes while the picture and its sync survive.
+  Both is a genuinely wiggled plug, the two on independent bands so they
+  interleave rather than doubling one fault.
+- **Ground loop** — two earthed boxes joined by a shield, the loop's current
+  landing in series with the video. It belongs to one cable run, which is why it
+  is a per-input fault (below) rather than only a program-bus one: a hum bar on
+  the mixed output cannot say which cable is carrying it. Signed, because the
+  two legs of a split-phase service are 180° apart.
 - **Cable scrambling** — the head-end lifting the carrier over each sync pulse,
   so a set with no decoder box has nothing to slice a line start out of. Partial
   suppression only fools the AGC, which washes the picture out; past the
@@ -45,6 +60,51 @@ them.
   way: the broad pulses are wider than the line-rate gate.
 - **Bob deinterlace** — rebuilds frames from one field to kill capture-card
   combing, at the cost of half the vertical detail.
+
+## Per-input feeds
+
+Everything above damages the **program bus** — the mixed output, so both sources
+share it. Each input also has a feed of its own: the deck it comes off, the
+head-end that recorded it, and the cable between that one source and the mixer.
+The same faults again, on one signal alone.
+
+That difference is the whole point. A fault on the bus is something you see; a
+fault on one feed is something the rig has to _react_ to, because the two inputs
+stop agreeing and everything downstream — the other input, the sync fight, the
+receiver's AGC and hold — is downstream of the disagreement. Nothing new is
+drawn. The panel files each input's faults as two groups, the deck and the
+cable, because those are two different diagnoses.
+
+**The deck** carries the pause button (a held frame with the capstan servo
+defeated — see the A/B section), dropouts on that input's own tape, and head-end
+scrambling of that channel. Damage here is placed on the _tape_, so a held deck
+re-reads it in place: the gaps come back in the same places, carried by the same
+resample as the picture around them.
+
+**The cable** carries the loose plug and the ground loop described above, snow,
+a termination fault and a hard polarity flip. Damage here is placed on the
+_output_ raster, because it happens after the deck, on the way to the mixer.
+
+Three things fall out of the split that no single-signal version can do:
+
+- **Sync hand-off.** A break that takes one input's sync tips leaves the
+  receiver the _other_ input's pulses to lock to, so the line start is handed
+  over for the length of a bad band and taken back when contact returns. The
+  picture snaps between two geometries and nothing draws the switch.
+- **A ground loop that rolls.** Hum on one feed lifts that input's sync tips
+  with its picture, so which source wins the sync fight alternates with the hum
+  phase — the reason a ground loop in a two-deck rig rolls the picture rather
+  than merely barring it. Two feeds on opposite mains legs push against each
+  other.
+- **Damage that travels with its own picture.** B's feed damage lands on B's
+  raster and is then resampled by the dirty sum, so B's hum bar, snow and
+  dropouts slip and roll with B's picture while A's stay put on the glass. That
+  is what tells the two cables apart on screen.
+
+What is deliberately _not_ per-input: anything needing the FIR bank or the
+color-under path (luma bandwidth, rainbow instability). Duplicating those would
+triple the expensive work for effects whose per-source value is low, so they
+stay on the program bus.
 
 ## Camera feedback
 
@@ -228,25 +288,25 @@ every VTR spec sheet, and the FM cliff a white-clip circuit exists to guard.
 
 - **Differential gain** — the video amplifier's gain moves with the brightness
   it is amplifying at that instant, so the colour subcarrier riding bright
-  picture comes through smaller than the same colour on dark picture:
-  saturation drains out of the highlights while the shadows keep theirs.
-  Negative is the opposite misdesign, colour swelling in the brights.
-- **Differential phase** — the same amplifier's delay moves with brightness,
-  and a delay at 3.58 MHz is a phase shift, so hue swings with the luma under
-  it. The burst sits at blanking level where the shift is zero, so the
-  decoder's reference never moves: this is hue error against a still
-  reference, not a tint that could be dialled back out — and inside the mixer
-  loop it separates a feedback trail into colour layers by brightness.
+  picture comes through smaller than the same colour on dark picture: saturation
+  drains out of the highlights while the shadows keep theirs. Negative is the
+  opposite misdesign, colour swelling in the brights.
+- **Differential phase** — the same amplifier's delay moves with brightness, and
+  a delay at 3.58 MHz is a phase shift, so hue swings with the luma under it.
+  The burst sits at blanking level where the shift is zero, so the decoder's
+  reference never moves: this is hue error against a still reference, not a tint
+  that could be dialled back out — and inside the mixer loop it separates a
+  feedback trail into colour layers by brightness.
 - **FM over-deviation** — the deck records luma as FM with the video
-  pre-emphasized, and a hard dark→bright edge overshoots the deviation the
-  head and tape can carry; past the response cliff the discriminator folds
-  back, so more frequency comes out as _less_ video. Every sharp bright edge
-  trails a black streak that smears rightward for about a microsecond (the
-  deemphasis recovery, on its own trim) and boils frame to frame, because the
-  fold sits on a threshold the demod's own noise keeps re-deciding. Colour is
-  recorded separately (color-under), so it rides straight through the fold and
-  the streaks carry saturated colour over black. Only edges trigger it, so it
-  lives where the picture has detail and moves with the image.
+  pre-emphasized, and a hard dark→bright edge overshoots the deviation the head
+  and tape can carry; past the response cliff the discriminator folds back, so
+  more frequency comes out as _less_ video. Every sharp bright edge trails a
+  black streak that smears rightward for about a microsecond (the deemphasis
+  recovery, on its own trim) and boils frame to frame, because the fold sits on
+  a threshold the demod's own noise keeps re-deciding. Colour is recorded
+  separately (color-under), so it rides straight through the fold and the
+  streaks carry saturated colour over black. Only edges trigger it, so it lives
+  where the picture has detail and moves with the image.
 
 ### Noise and interference
 
@@ -308,15 +368,14 @@ Everything below follows from that trip.
   draws any of that; it falls out of where the half cycle lands.
 - **Tracking error** — the head reading off-track: a band of noise the picture
   tears and bends through, parked where you set it.
-- **Head clog** — oxide packed into the gap of one of the two spinning heads,
-  so that head reads weak or nothing. The heads take turns, one sweep each,
-  which is why a clogged head never shows as a steady veil: picture and snow
-  alternate at field rate, a hard flicker between the good head's sweep and the
-  dead one's. The head switch near the bottom of the picture is where the other
-  head is already reading, so a few last lines always belong to the opposite
-  head — they survive the snowed sweeps and die on the clean ones. Sync goes
-  down with the sweep, so the receiver tears through the snow instead of
-  framing it.
+- **Head clog** — oxide packed into the gap of one of the two spinning heads, so
+  that head reads weak or nothing. The heads take turns, one sweep each, which
+  is why a clogged head never shows as a steady veil: picture and snow alternate
+  at field rate, a hard flicker between the good head's sweep and the dead
+  one's. The head switch near the bottom of the picture is where the other head
+  is already reading, so a few last lines always belong to the opposite head —
+  they survive the snowed sweeps and die on the clean ones. Sync goes down with
+  the sweep, so the receiver tears through the snow instead of framing it.
 - **Shuttle (picture search)** — off play speed each head sweep crosses several
   recorded tracks; the RF nulls at every crossing sweep the frame as noise bars,
   and each strip between them is a different track with its own timing and
@@ -491,8 +550,8 @@ and what you see looking at one.
   speaker set too close, or a set moved without degaussing. The field bends all
   three beams together, but a triad is three dots 120° apart, so the same nudge
   over-excites the dot it moves toward and starves the one opposite. The stain
-  turns hue across itself rather than tinting flat, and it is fixed on the
-  glass — a rolling picture travels through it instead of carrying it along.
+  turns hue across itself rather than tinting flat, and it is fixed on the glass
+  — a rolling picture travels through it instead of carrying it along.
 
 ### Looking at it
 

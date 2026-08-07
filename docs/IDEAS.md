@@ -57,13 +57,91 @@ These read like naked periodic waves but are physically correct — don't
   ghost, which is sharp and full-bandwidth.
 - **Crease / edge damage on the main deck.** The loop bin's `tapeWear` seeds
   defects on _position on the tape_ so they recur every lap; the same idea on
-  the main deck still wants doing — it has no tape-position coordinate to hang
-  a defect off, which is exactly what the ring gave the loop.
+  the main deck still wants doing — it has no tape-position coordinate to hang a
+  defect off, which is exactly what the ring gave the loop.
 - **Servo hunting.** `trackPos` is a static knob; a real auto-tracking deck
   searches and settles after a scene change or on exiting shuttle.
 - **Luma FM beating the 629 kHz color-under carrier.** The fine crawling chroma
   noise in saturated reds. Modelling the luma FM properly is expensive; the
   honest cheap version is the beat product alone.
+
+## Per-input feeds — what is still on the program bus
+
+The feeds (`feed.wgsl`, the `FEEDS` table in `feedgates.ts`) give each input its
+own deck, head-end and cable. The loose connector and the ground loop shipped
+per input, which is what the split is for: a fault on one feed makes the two
+signals disagree, and the sync fight, the AGC and the other input are all
+downstream of the disagreement.
+
+Everything below still damages the **mixed bus**, which for several of them is
+physically incoherent once two decks are patched in — the fault belongs to one
+machine. Adding one is a `FEEDS` entry, a `packFeed` override, a shader block
+and a `feedFaults` line; see `ARCHITECTURE.md` for the trap in the middle of
+that. Rough payoff order:
+
+- **Transport (shuttle / rewind / still), per input.** The biggest one.
+  `shuttleX` sits on the summed bus (`channel.wgsl`), but shuttle bars are _one
+  deck's head_ crossing tracks — `tape_play.wgsl` already says so out loud. Per
+  input it gives B rewinding under a playing A, with B's bars sweeping B's
+  raster and rolling with B's picture through the dirty sum, each strip between
+  bars a different recorded track with its own timing and colour-under phase.
+  The strips that lose sync hand the fight to A and the ones that don't fight
+  back, so the picture flickers between two geometries at bar rate. Most of the
+  machinery is already there: `feed.wgsl`'s pause path computes a per-row offset
+  and `catmull`- resamples, and shuttle is that path with a per-strip offset
+  instead of a random scatter. `decode`'s row-uniform constraint does not bind
+  here — a feed is 1-D on the composite. It also makes `aPause`/`bPause` the
+  _zero_ of a transport continuum rather than a separate button, the way
+  `tapeTransport` already reads.
+- **Head clog, per input.** Cheapest violent effect left, ~6 lines keyed on
+  `P.frame`. The heads alternate sweeps, so a clogged head on one input makes
+  the receiver alternate _which source it locks to_ at field rate.
+- **Multipath ghost, per input.** One input off-air, one on a line. Under the
+  dirty sum the ghost is a third sync edge arriving late, so the PLL has three
+  candidates per line. Same shape as `terminate`'s echo tap.
+- **Tracking error, per input.** A band parked on one deck that then rides that
+  source's roll. Cheap; less novel than the three above.
+- **Macrovision is A-only.** `mvAgcIre`/`mvStripe` live in
+  `encode_composite.wgsl`; `encode_composite_b.wgsl` has no equivalent, so B can
+  never carry a protected tape. Narrow, but it is a real asymmetry, and a
+  protected B summed against a clean A makes the receiver's `agc` pump against a
+  signal whose sync is fine.
+
+## The mixer has no hardware model
+
+`mix_b.wgsl` combines the two inputs with arithmetic —
+`aGain * a + gate * (bGain * b + ...)`. Three real mechanisms are missing, all
+of them cheap:
+
+- **Crosspoint crosstalk.** A cheap switcher leaks the unselected input at about
+  −40 dB, and the leak path is stray capacitance, so it is _high-pass_: what
+  gets through is B's subcarrier and edges, never B's flat areas. With the fader
+  fully closed you still get a faint moving rainbow from B's detuned carrier
+  beating the burst-locked decoder, and no visible picture — "there's something
+  else on this wire", which is not drawable. Note it interacts with the gates: a
+  non-zero crosstalk floor has to appear in `bWaveOn`/`bOn` or B's chain is
+  switched off underneath it.
+- **Summing-bus rails.** Two full composites summed is 2× amplitude going into
+  `channel` unclipped. `rails()` in `fb_composite.wgsl` is the model already
+  written. It squashes the sum's sync tips, changing the character of the fight,
+  and the compression manufactures sum/difference products between A's and B's
+  subcarriers — the honest version of what `bRing` fakes with an explicit
+  multiply.
+- **Genlock that can lose lock.** `bGenlock` is an absolute TBC today. Real
+  genlock has a capture range: push B's pause wander or wow past it and lock
+  drops, B rips for a few lines, and it re-hunts. That makes the corrective
+  box's _failure_ a function of how hard B is driven — crank B's pause and the
+  clean dissolve starts breaking on its own.
+- **Mid-field cut.** A switcher cuts at the vertical interval; a cheap A/B box
+  or a relay cuts wherever you pressed it, tearing one frame into two
+  half-pictures with a broken field sequence. Cheap in `mix_b` (a cut position
+  in raster time rather than a crossfade), and it is the natural performance
+  gesture.
+
+Considered and left: **a house-reference selector** (letting B be the raster
+instead of A) would double the expressive range of all of the above, but B _is_
+the second raster — it is a restructure, not a knob.
+
 ## Capture / deinterlace (grown out of the RCA-input work)
 
 - **Motion-adaptive deinterlace.** Current `deint` is an unconditional
@@ -121,13 +199,13 @@ phase separates a feedback trail into colour layers by brightness, because
 
 The two tube items from this list shipped together: convergence error
 (`crtConverge`) and the magnetised purity patch (`crtPurity`), plus scan
-velocity modulation (`crtSvm`), all in `crt_face`. Two things learned there,
-for whoever adds the next screen fault. Convergence has to re-run the whole
-beam-spot integral per channel — blurring one shared sample averages the
-landing error away instead of leaving a fringe — so it costs 3× the spot taps
-whenever it is non-zero, behind a uniform branch. And every new mechanism has
-to be added to the identity-copy early-out at the top of `main`, or turning it
-on by itself reads as a dead control.
+velocity modulation (`crtSvm`), all in `crt_face`. Two things learned there, for
+whoever adds the next screen fault. Convergence has to re-run the whole
+beam-spot integral per channel — blurring one shared sample averages the landing
+error away instead of leaving a fringe — so it costs 3× the spot taps whenever
+it is non-zero, behind a uniform branch. And every new mechanism has to be added
+to the identity-copy early-out at the top of `main`, or turning it on by itself
+reads as a dead control.
 
 - **A DVE / framestore, as the digital box in the analog last mile.** Distinct
   from the digital cable tier below, and more era-correct. An ADO / A53 /
@@ -187,12 +265,12 @@ tunes that control's look.
   line-rate luma against IRE graticule, where sync depth, setup and the AGC's
   pumping would be readable instead of inferred. `?dbg=2` already paints the
   composite; this is that with a scale on it. Build it the way the scope was
-  built: not a pass (`decode` scatters, `present` draws), and with a finite
-  spot on the way out, or a flat field lands every sample in one bin and draws
-  as a speck.
+  built: not a pass (`decode` scatters, `present` draws), and with a finite spot
+  on the way out, or a flat field lands every sample in one bin and draws as a
+  speck.
 - **Extend pixelcheck.** `scripts/pixelcheck.mjs` pins the six SMPTE hues and
-  the fine-tuning cliff; any deterministic `?set=` look plus a probe is one
-  more pinned fact. Candidates: burst-lock hue rotation, the killer threshold,
+  the fine-tuning cliff; any deterministic `?set=` look plus a probe is one more
+  pinned fact. Candidates: burst-lock hue rotation, the killer threshold,
   scramble's wash-out level.
 
 ## Digital cable tier
@@ -288,8 +366,8 @@ block. Two things were considered and left:
 Worth doing if the loop ever needs to sound like a _different deck_ from the
 main one, which is the case the current model cannot express.
 
-- **Per-strip timing on the loop's shuttle bars.** The deck's shuttle gives
-  each strip between its noise bars its own timing and colour-under phase (via
+- **Per-strip timing on the loop's shuttle bars.** The deck's shuttle gives each
+  strip between its noise bars its own timing and colour-under phase (via
   `linestate`), so the picture tears and rainbows at the boundaries; the loop's
   strips come off one contiguous read, so they are clean between bars. Doing it
   would need per-line offsets on the loop read, which `decode`'s row-uniform
