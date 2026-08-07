@@ -237,13 +237,12 @@ advice on several of these is wrong _here_.
   fully covered by another window reports `visibilityState: 'hidden'` here too,
   so "occluded" and "hidden" are not separable on this setup — which is also why
   the worker's benefit in an occluded-but-visible window could not be measured.)
-- **~~Firefox pins a GPU awake while a device is open on it.~~** The discrete
-  card never suspended across a 60 s idle test despite a 5 s autosuspend delay.
-  **Overturned by the last postscript — what pins the card is _submission_, not
-  an open device, and that 60 s test held the tab in the foreground.** A hidden
-  tab submits nothing and the card suspends underneath a live `GPUDevice`. Still
-  bad for battery while the app is on screen, so `?gpu=low-power` keeps its
-  other reason.
+- **Firefox pins a GPU awake while a device is open on it.** The discrete card
+  never suspended across a 60 s idle test despite a 5 s autosuspend delay. Good
+  for stability, bad for battery — hence `?gpu=low-power`. **Challenged and
+  re-confirmed on 2026-08-07** against the specific doubt that what pins it is
+  _submission_ rather than an open device, which would make a hidden tab enough
+  to power-cycle the card. It is not; see the last postscript.
 
 **Red herring worth not re-chasing:** the kernel log shows the amdgpu card fully
 re-initialising ~2400 times in 14 days (re-measured: 2717 in 20 days, so the
@@ -261,13 +260,18 @@ across a 20-minute soak, and none at all for the 90 minutes the card had been
 held awake before it. The cycling happens **between** sessions, never during
 one, so it cannot be what wedges a session that is already running.
 
-> **This dismissal was too broad, and the last postscript overturns half of
-> it.** Every measurement behind it was taken with the tab _visible and
-> rendering_, which is exactly the condition that pins the card awake — so
-> "never during a session" was really "never while we were looking". A
-> **hidden** tab submits nothing, the card's 5 s autosuspend expires underneath
-> a device that is still open, and coming back is a resume _inside_ a live
-> session. Read the paragraph above as being about the foreground case only.
+> **This dismissal was challenged on 2026-08-07 and held.** The challenge was
+> that every measurement behind it had been taken with the tab _visible and
+> rendering_, which is the condition that pins the card awake — so "never during
+> a session" might only have meant "never while we were looking", and a
+> **hidden** tab, submitting nothing, would let the 5 s autosuspend expire
+> underneath a live `GPUDevice`. That was a good doubt and it is wrong: measured
+> in the one state nobody had measured, the card stays awake for the whole life
+> of an open device however long the tab is hidden. The last postscript has the
+> numbers and the control that makes them mean something. **"Between sessions,
+> never during one" now covers the hidden case too**, and the resume count has a
+> mundane explanation: one resume per session start, on a box that starts a
+> great many.
 
 ## Measurement traps this cost real time to find
 
@@ -297,6 +301,18 @@ Several of these invalidated a result before being caught. Full versions live in
   own browser and retries once on a spent one. (A headed window being tabbed
   away from mid-run is at least as plausible a cause as anything in the code; no
   root cause was confirmed.)
+- **Your own edits are HMR, and HMR resets what you are measuring.** A long run
+  against your own dev server is spoiled by any `src/` write while it is in
+  flight — a 12-minute measurement here shows `frame 0` at +210 s because of
+  one. The `start|`/`stop|frame 0` pattern that means "a neighbour is editing"
+  means exactly the same thing when the neighbour is you. Run long ones from a
+  `git worktree --detach` copy.
+- **A harness that degrades quietly reports the wrong experiment.** A
+  `--mode=minimize` run whose window lookup missed fell back to a tab switch and
+  reported it under the minimize label. Match on your own browser's pid — on a
+  shared box a title match can find a neighbour's window — and abort rather than
+  fall back. Same shape as a soak measuring a covered window and calling it a
+  session.
 - **A test that cannot fail is worthless.** Two written this day passed
   vacuously before being mutation-checked — one asserted on `hangs()` when
   `HANG_STRIKES` is 2 so a single strike could never trip it, and one claimed a
@@ -315,6 +331,8 @@ Several of these invalidated a result before being caught. Full versions live in
 | parked: worker engine         | `src/gpu/engine.worker.ts`, `workerproto.ts` |
 | parked: page-side proxy       | `src/gpu/workerclient.ts`                    |
 | parked: its harness           | `scripts/workercheck.mjs`                    |
+| hang → rebuild, fault kinds   | `src/ui/useEngine.ts`, `rebuildPolicy.ts`    |
+| GPU runtime-PM vs a live tab  | `scripts/gpusleep.mjs`                       |
 
 ## Postscript: the backpressure gate was counting the wrong thing
 
@@ -622,12 +640,19 @@ workload-shaped, and reliably early in a session.
   `present` pass is the one that scales with the canvas, and 4K is still
   extrapolated rather than measured.
 
-## Postscript: the card sleeps when you tab away, and the hang now rebuilds
+## Postscript: a hang that rebuilds, and a card that turned out not to sleep
 
 **2026-08-07.** The postscript above named the tab's rendering step and left the
-frequent case unexplained. The user supplied the missing half from their own use
-— _"tabbing away can affect it"_, _"maybe it is the low power mode"_ — and those
-are one mechanism, with the evidence sitting in `/sys` the whole time:
+frequent case unexplained. A mechanism was proposed for it, the recovery it
+argued for was built — and then the mechanism was tested and **did not
+reproduce**. Both halves are written up here, in that order, because the
+recovery is worth keeping and the mechanism is worth not believing.
+
+### The hypothesis
+
+The user supplied a symptom from their own use — _"tabbing away can affect it"_,
+_"maybe it is the low power mode"_ — and there was evidence sitting in `/sys`
+that looked like the other half of it:
 
 ```
 /sys/class/drm/card2/device/power: control=auto autosuspend_delay_ms=5000 runtime_status=suspended
@@ -635,31 +660,113 @@ are one mechanism, with the evidence sitting in `/sys` the whole time:
 
 `card2` is the Radeon the app renders on since `95f2a85` asked for
 `high-performance`. It has a **five-second** runtime-PM autosuspend delay, and
-the kernel log shows it resuming about **a hundred times in two hours**,
-occasionally every nine seconds. So:
+the kernel log shows it resuming about **a hundred times in two hours**. So:
 
 **Tab away → rAF stops → nothing is submitted → 5 s later the card suspends
 underneath a live `GPUDevice` → tab back → the card re-initialises and the
 device on the far side of that is stale.** Firefox does not always fire
-`device.lost` for it, so the app saw only its own symptom: submitted work that
-never completes.
+`device.lost` for it, so the app would see only its own symptom: submitted work
+that never completes.
 
-This is why the "red herring" dismissal above needed the correction now attached
-to it. Every measurement behind it held the tab in the foreground, which pins
-the card awake — the cycling was never absent, it was absent _while anyone was
-looking_. The soak has the same blind spot by construction: it accumulates
-visible minutes and refuses a verdict on a run that spent itself hidden, so the
-one state that provokes this is the one state it discards.
-
-Confirmed as a known class of fault rather than something exotic — the kernel
-carries
+It is a good story. It explains the user's trigger, it explains why every
+earlier measurement missed it (they all held the tab in the foreground, which
+pins the card awake), it explains why the soak cannot see it (it accumulates
+_visible_ minutes and discards runs that spend themselves hidden), and it is a
+known class of fault elsewhere — the kernel carries
 [drm/amdgpu: don't runtime suspend if there are displays attached](https://lkml.iu.edu/hypermail/linux/kernel/2205.0/04263.html)
 for a neighbouring symptom, and wgpu has a long tail of devices left unusable
 after a PM resume ([gfx-rs/wgpu#983](https://github.com/gfx-rs/wgpu/issues/983),
-[wgpu-rs#392](https://github.com/gfx-rs/wgpu-rs/issues/392)). There is no
-Firefox-side fix to wait for, so the app has to survive it.
+[wgpu-rs#392](https://github.com/gfx-rs/wgpu-rs/issues/392)).
+
+None of that is evidence that it happens here. See "The hypothesis does not
+reproduce", below, which is what happened when it was asked directly.
+
+### The hypothesis does not reproduce
+
+`scripts/gpusleep.mjs` asks it directly: sample
+`/sys/class/drm/cardN/device/power/runtime_status` from Node, four times a
+second, while driving the app tab in and out of the foreground with a blank
+second tab. Nothing inside the page can see this reading, which is the whole
+reason the app only ever saw its own symptom.
+
+**The card does not suspend under a hidden tab.** Across runs of 3 × 20 s, 120 s
+and 180 s hidden, `card2` read `active` at every one of hundreds of samples, and
+every return brought the picture straight back — no strike, no rebuild, no
+fatal, ~1200 frames in the following 30 s.
+
+The hidden state was real, not a harness that failed to hide anything: the
+page's own `visibilityState` was sampled every 15 s and read `hidden` **every
+time** (12/12 across the 180 s run), and the loop rendered **11 frames in those
+180 seconds** against ~37 fps while visible. Nothing was being submitted. The
+card stayed awake anyway.
+
+**The control is what turns that absence into evidence.** Same run, same
+browser, seconds later: close the page — which destroys the device but leaves
+the browser process up — and `card2` goes `active → suspended` within about six
+seconds, its 5 s delay plus a poll. So runtime PM is working, the delay is what
+it says it is, and the thing holding the card awake is the **open device**,
+exactly as the "Firefox facts" bullet said before it was doubted. Not
+submission.
+
+**The kernel log agrees, and explains the resume count.** Four browser launches
+during this work produced four `PCIE GART` re-inits — 08:53:22, 08:58:22,
+09:03:10, 09:07:54 — one per launch, and **none during any run**, including the
+180 s hidden stretch. "About a hundred in two hours" is not a card cycling under
+a live session; it is about a hundred sessions being started, which on a box
+where several agents launch headed browsers all day is unremarkable.
+
+**And the real recordings have no GPU fault in them at all.** The interactive
+Nightly profile's trace ring (read off disk per the postscript above) holds five
+complete sessions — the largest is 64 lines against `MAX = 200`, so nothing was
+evicted — and across all five there is not one `gpuStrike`, `deviceLost`,
+`deviceHung`, `hang`, `gpuProbeLate`, `gpuError` or `rebuilt`. What there is
+instead is this, from a real session:
+
+```
+ 17348|beat|hidden unfocused windowed step ok frame 559 raf 23/beat ...
+ 19529|beat|hidden unfocused windowed STEP-DEAD ok frame 559 raf 0/beat ... clock +0ms
+155596|lifecycle|focus
+156807|beat|visible focused windowed step ok frame 579 raf 20/beat ... clock +141730ms
+```
+
+**A tab hidden for 136 seconds, in the user's own browser, coming back
+healthy.** That is the hypothesis's own scenario, on the real profile, with the
+real GPU, and the device on the far side was fine.
+
+So: the mechanism is not established, and three independent lines of evidence
+point away from it. What remains true is only the part that was true before —
+the card cycles **between** sessions and is pinned awake **during** one, hidden
+or not.
+
+The freeze itself is not thereby explained away. It is the fault the previous
+postscript names: `frame 0`, `STEP-DEAD`, `clock +0ms` — the tab's rendering
+step dead before the document ran a line. Both `stall`/`coldStall` pairs in the
+ring are that one, and both were bridged by the fallback pump
+(`resume|frame 40`, `resume|frame 5`). Nothing here moves that diagnosis; it
+removes a rival to it.
+
+Two traps this walked into, both now in the list above:
+
+- **Editing `src/` during your own run is HMR, and HMR resets the engine.** The
+  12-minute run has `frame 0` at +210 s because of an edit made while it was in
+  flight. Its numbers survive — the card never suspended, before or after — but
+  it measures two devices where it claims one. Run long ones from a
+  `git worktree --detach` copy, as `b6437ae`'s measurement did.
+- **A `--mode=minimize` variant silently fell back to a tab switch** when its
+  window lookup missed, and reported the tab-switch result under the minimize
+  label. It now matches on the browser's own pid and aborts rather than
+  degrading — the same failure as a soak that measures a covered window and
+  calls it a session.
 
 ### What changed
+
+The recovery below was built while the hypothesis still looked right. It is kept
+because it does not depend on it: what it does is stop a hang from ending the
+session outright, and that is the correct behaviour whatever the hang turns out
+to be. `HEAD` reached a fatal "close this browser tab" the first time submitted
+work stopped completing, on reasoning about a wedged GPU process that was never
+tested. Trying a fresh device first costs one rebuild when the guess is wrong
+and saves the session when it is right.
 
 **A hang now escalates to a rebuild instead of to a fatal screen.** The old
 `onHang` reasoning — a wedged GPU process outlives the page, so a fresh device
@@ -733,19 +840,26 @@ fresh branch — the test only bites on it once it also reads `attempt`.
 
 ### What this does not do
 
-- **It does not stop the card sleeping.** Recovery costs whatever VRAM was
-  holding — phosphor trails, the frame store, the tape loop all start over — so
-  a long feedback build-up still does not survive a tab-away. Prevention would
-  mean either `?gpu=low-power` (the Intel chip drives the panel and never
-  suspends; ~3x the frame cost, which the budget above has room for) or
-  `echo on | sudo tee /sys/class/drm/card2/device/power/control` at the system
-  level, at the cost of battery. (Not `echo on > …` — the redirect is opened by
-  the shell as you, before `sudo` applies to anything.)
-- **It does not help the dead rendering step.** That fault lands at `frame 0`
-  with nothing submitted, so there is no hang to detect and no device to
-  replace. It is still a new tab, and the channel gap in the previous
-  postscript's "what this leaves" is still open.
-- **The soak still cannot see any of this.** A run that reproduces it has to
-  hide the tab for longer than the autosuspend delay and then come back, and
-  `--cycle` was built to model ordinary use rather than to sit past a 5 s
-  threshold. Worth pointing at the mechanism now that there is one.
+- **It does not explain the freeze.** Rebuilding through a hang is worth having
+  and is not a diagnosis. The recorded fault is still the dead rendering step,
+  and this recovery cannot touch it: that one lands at `frame 0` with nothing
+  ever submitted, so there is no hang to detect and no device to replace. It is
+  still a new tab, and the channel gap in the previous postscript's "what this
+  leaves" is still open — which is now the most valuable thing on this list,
+  because it is the one that addresses the fault we can actually see.
+- **`?gpu=low-power` is not the remedy it was written up as.** It was offered
+  here as a way to escape the sleep; there is no sleep to escape. It keeps its
+  two original reasons — battery, and bisecting a driver-shaped fault by asking
+  "does it still do it on the other GPU" — and that second one is still worth
+  doing for the dead rendering step, on its own merits rather than this one's.
+  Likewise `echo on | sudo tee /sys/class/drm/card2/device/power/control`: it
+  pins a card that an open device already pins. (Not `echo on > …` — the
+  redirect is opened by the shell as you, before `sudo` applies to anything.)
+- **The soak's blind spot is real but was not hiding this.** It accumulates
+  visible minutes and refuses a verdict on a run that spent itself hidden, so it
+  genuinely cannot see anything that only happens while hidden. That gap now has
+  a harness pointed at it (`gpusleep.mjs`) and the first thing it found there
+  was nothing. Worth noting against the earlier claim that `--cycle` "was built
+  to model ordinary use rather than to sit past a 5 s threshold":
+  `CYCLE_HIDE_MS` is 15 s, three times the delay, so it was already sitting past
+  it.

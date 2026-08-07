@@ -15,23 +15,24 @@ export type GpuPower = 'high-performance' | 'low-power'
 // `?gpu=low-power` sends the session to the integrated chip. Two reasons to
 // want that, and neither is a preference about frame rate:
 //
-//   - Battery. A discrete card stays powered for as long as the app is actually
-//     rendering on it: work is submitted every frame, so runtime PM never sees
-//     it idle long enough to suspend. The integrated chip is on regardless,
-//     because it drives the panel.
-//   - Not being woken and slept. The corollary of the above, and the more
-//     useful reason on Linux: what pins the card awake is submission, not an
-//     open device, so a *hidden* tab submits nothing and the card suspends
-//     underneath a GPUDevice that is still open — measured on the dev laptop,
-//     `card2` at `control=auto` with a 5 s autosuspend delay, resuming about a
-//     hundred times in two hours. Coming back re-initialises the card and the
-//     device on the far side of that does not always still work, which the app
-//     survives (useEngine rebuilds through it) but cannot make free: everything
-//     VRAM was holding starts over. The integrated chip never suspends, so this
-//     is the way to keep a long feedback build-up across a tab-away.
-//     (An earlier note here said Firefox pins a GPU awake for as long as a
-//     device is open on it, on the strength of a 60 s idle test. That test held
-//     the tab in the foreground, which is the one condition that makes it true.)
+//   - Battery. Firefox pins a GPU awake for as long as a device is open on it,
+//     so a discrete card that would otherwise autosuspend after a few seconds
+//     idle stays powered for the whole session. The integrated chip is on
+//     regardless, because it drives the panel.
+//
+//     Held against a specific doubt and survived, which is why it is stated this
+//     strongly. The doubt was that what pins the card is *submission* rather
+//     than an open device — in which case a hidden tab, which submits nothing,
+//     would let the card suspend underneath a live GPUDevice and hand back a
+//     stale one on return. `scripts/gpusleep.mjs` reads
+//     /sys/class/drm/card2/device/power/runtime_status while driving the tab in
+//     and out of the foreground, and the card does not suspend: not across a
+//     genuinely hidden tab (`visibilityState` sampled throughout, ~11 frames in
+//     three minutes), and not on any of the returns. The control in the same run
+//     is what makes it evidence rather than an absence — close the page, leaving
+//     the browser up, and the card suspends within seconds of the device going.
+//     So it is the device that holds it, and `?gpu=low-power` does not buy any
+//     protection from a power cycle, because there is no power cycle to be had.
 //   - Bisecting a fault. "Does it still do it on the other GPU" is the first
 //     question worth asking about a driver-shaped bug, and it should not need
 //     a rebuild to answer.
