@@ -45,6 +45,7 @@ import {
   packParams,
 } from './prelude'
 import { RenderLoop } from './renderloop'
+import blitExtSrc from './shaders/blit_ext.wgsl?raw'
 import channelSrc from './shaders/channel.wgsl?raw'
 import chromaExtractSrc from './shaders/chroma_extract.wgsl?raw'
 import composeSrc from './shaders/compose.wgsl?raw'
@@ -292,7 +293,14 @@ export class Engine implements EngineApi {
   // live in there, so the chain below only sees two texture views.
   // Owns the <video> elements and turns them into bitmaps. Main-thread only by
   // nature, which is exactly why it is not part of Sources.
-  private pump = new VideoPump()
+  private pump: VideoPump
+  // The direct video path's two blits (A fit, B cover-crop), or null where the
+  // device has no importExternalTexture — Firefox — in which case the pump
+  // stays on its bitmap path and none of this exists. Guarded rather than
+  // created unconditionally because a browser without the API has no reason to
+  // accept `texture_external` in a shader module either.
+  private blitFitPl: GPUComputePipeline | null = null
+  private blitCropPl: GPUComputePipeline | null = null
   private sources: Sources
   private inputTex: GPUTexture
   private outTex: GPUTexture
@@ -495,6 +503,25 @@ export class Engine implements EngineApi {
     const lineAnalyzePl = compute(lineAnalyzeSrc)
     const decodePl = compute(decodeSrc)
     const crtFacePl = compute(crtFaceSrc)
+
+    // Zero-copy video: where the device can import the decoder's own frame
+    // (Chrome), the pump skips createImageBitmap entirely and blit_ext samples
+    // the frame straight into the slot texture. ?vidbitmap forces the bitmap
+    // path so a harness can A/B the two on the same browser.
+    const directVideo =
+      typeof d.importExternalTexture === 'function' &&
+      !pageSearch().includes('vidbitmap')
+    if (directVideo) {
+      const blitModule = module(blitExtSrc)
+      const blit = (entryPoint: string) =>
+        d.createComputePipeline({
+          layout: 'auto',
+          compute: { module: blitModule, entryPoint },
+        })
+      this.blitFitPl = blit('blit_fit')
+      this.blitCropPl = blit('blit_crop43')
+    }
+    this.pump = new VideoPump(directVideo)
 
     const presentModule = module(presentSrc)
     this.presentPl = d.createRenderPipeline({
@@ -1045,6 +1072,34 @@ export class Engine implements EngineApi {
   // it is replacing.
   get sourceBOn(): boolean {
     return this.sources.bEnabled
+  }
+
+  // One direct-path video blit: import the decoder's frame and sample it into
+  // the slot texture. The bind group is per-frame by nature — an external
+  // texture is only valid for the task that imported it — which is the pattern
+  // importExternalTexture is optimized for.
+  private blitExt(
+    enc: GPUCommandEncoder,
+    pl: GPUComputePipeline,
+    el: HTMLVideoElement,
+    view: GPUTextureView,
+    w: number,
+    h: number,
+  ): void {
+    const d = this.gpu.device
+    const bg = d.createBindGroup({
+      layout: pl.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: d.importExternalTexture({ source: el }) },
+        { binding: 1, resource: this.linearSamp },
+        { binding: 2, resource: view },
+      ],
+    })
+    const cp = enc.beginComputePass()
+    cp.setPipeline(pl)
+    cp.setBindGroup(0, bg)
+    cp.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8))
+    cp.end()
   }
 
   // Slot A's view is the only binding that changes when its raster resizes.
@@ -1696,6 +1751,24 @@ export class Engine implements EngineApi {
         cp.end()
       }
     }
+    // Fresh video frames on the direct path, imported and blitted before
+    // compose reads the slot textures. Imported here, inside the frame that
+    // submits them, because an external texture expires with the task that
+    // imported it — the pump only parked the elements.
+    const ext = this.sources.takePendingExt()
+    if (ext.a !== null && this.blitFitPl !== null) {
+      const [w, h] = this.sources.sizeA
+      this.blitExt(enc, this.blitFitPl, ext.a, this.sources.viewA(), w, h)
+    }
+    if (ext.b !== null && this.blitCropPl !== null)
+      this.blitExt(
+        enc,
+        this.blitCropPl,
+        ext.b,
+        this.sources.viewB(),
+        ACTIVE_WIDTH,
+        ACTIVE_HEIGHT,
+      )
     // Ages the trace before decode writes this frame's hits into it; see
     // scope_decay.wgsl for why it decays rather than clearing.
     if (c.scope > 0) run(this.scopeDecayPass)

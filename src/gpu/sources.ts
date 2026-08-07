@@ -51,7 +51,10 @@ export const coverFit43 = (
 
 // Anything that can be drawn into a 2D canvas or copied straight to a texture.
 // Notably not an HTMLVideoElement: Firefox rejects one outright, which is what
-// sends video through VideoPump and arrives back here as a bitmap.
+// sends video through VideoPump and arrives back here as a bitmap. Where the
+// device has importExternalTexture instead (Chrome), the pump hands the
+// element itself to pushExtA/pushExtB and the engine blits the decoder's own
+// frame on the GPU — see blit_ext.wgsl.
 type Drawable = OffscreenCanvas | ImageBitmap
 
 export interface SourcesHost {
@@ -81,6 +84,10 @@ export class Sources {
   private noiseB = 0
   private enabledB = true
 
+  // Direct-path video frames waiting for this frame's import (see pushExtA).
+  private extA: HTMLVideoElement | null = null
+  private extB: HTMLVideoElement | null = null
+
   // The centre staged pixel, kept for the ?debug readout only — see debugInfo.
   // Sampling it costs a getImageData, so it is only taken when asked for.
   private readonly debug = pageSearch().includes('debug')
@@ -104,6 +111,12 @@ export class Sources {
   // What the chain reads: two views and the scalars that describe the slots.
   viewA(): GPUTextureView {
     return this.texA.createView()
+  }
+
+  // Slot A's current texture size, for the direct path's blit dispatch (B is
+  // always raster-sized, so only A's needs asking).
+  get sizeA(): [number, number] {
+    return [this.texA.width, this.texA.height]
   }
 
   viewB(): GPUTextureView {
@@ -133,7 +146,9 @@ export class Sources {
       usage:
         GPUTextureUsage.TEXTURE_BINDING |
         GPUTextureUsage.COPY_DST |
-        GPUTextureUsage.RENDER_ATTACHMENT,
+        GPUTextureUsage.RENDER_ATTACHMENT |
+        // the direct video path writes it from blit_ext.wgsl
+        GPUTextureUsage.STORAGE_BINDING,
     })
   }
 
@@ -158,6 +173,35 @@ export class Sources {
       [f.w, f.h],
     )
     f.bmp.close()
+  }
+
+  // The direct path's half of pushA/pushB: settle the slot's geometry now (the
+  // same fitSrc cap and aspect the bitmap path bakes into its decode request),
+  // and park the element for the engine to import while it encodes this frame
+  // — an external texture expires with the task that imported it, so the
+  // import itself cannot happen here.
+  pushExtA(el: HTMLVideoElement): void {
+    this.noiseA = 0
+    const [w, h] = fitSrc(el.videoWidth, el.videoHeight)
+    this.ensureTexA(w, h, el.videoWidth / el.videoHeight)
+    this.extA = el
+  }
+
+  pushExtB(el: HTMLVideoElement): void {
+    this.noiseB = 0
+    this.extB = el
+  }
+
+  // What the engine drains once per frame: which slots have a fresh video
+  // frame waiting to be imported and blitted.
+  takePendingExt(): {
+    a: HTMLVideoElement | null
+    b: HTMLVideoElement | null
+  } {
+    const out = { a: this.extA, b: this.extB }
+    this.extA = null
+    this.extB = null
+    return out
   }
 
   // Patterns are drawn on the signal raster (non-square pixels): aspect is 4:3.

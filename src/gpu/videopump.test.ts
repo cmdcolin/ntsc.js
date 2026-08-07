@@ -49,11 +49,17 @@ function stubBitmaps() {
 const sink = () => {
   const a: PumpedFrame[] = []
   const b: PumpedFrame[] = []
+  const extA: HTMLVideoElement[] = []
+  const extB: HTMLVideoElement[] = []
   return {
     a,
     b,
+    extA,
+    extB,
     pushA: (f: PumpedFrame) => a.push(f),
     pushB: (f: PumpedFrame) => b.push(f),
+    pushExtA: (el: HTMLVideoElement) => extA.push(el),
+    pushExtB: (el: HTMLVideoElement) => extB.push(el),
   }
 }
 
@@ -232,5 +238,35 @@ describe('VideoPump', () => {
     // which reads as a live source unless the readout says otherwise.
     expect(pump.info().videoA).toEqual({ ready: 2, time: 4.26, paused: true })
     expect(pump.info().videoB).toBe(null)
+  })
+
+  it('direct mode hands over the element, once per video frame, no decode', () => {
+    const bmps = stubBitmaps()
+    const pump = new VideoPump(true)
+    const s = sink()
+    const el = videoEl({ currentTime: 1.5 })
+    pump.setA(el)
+
+    // Same dedup as the bitmap path: only a moved currentTime is a new frame.
+    for (let i = 0; i < 5; i++) pump.pump(s)
+    expect(s.extA).toEqual([el])
+    el.currentTime = 1.54
+    pump.pump(s)
+    expect(s.extA).toHaveLength(2)
+    // The whole point of the mode: nothing was decoded on the CPU.
+    expect(bmps.calls).toHaveLength(0)
+    expect(s.a).toHaveLength(0)
+  })
+
+  it('direct mode respects the freeze flags like the bitmap path', () => {
+    stubBitmaps()
+    const pump = new VideoPump(true)
+    const s = sink()
+    pump.setB(videoEl({ currentTime: 2 }))
+
+    pump.pump(s, false, true) // B's deck is paused: hold the frame it has
+    expect(s.extB).toHaveLength(0)
+    pump.pump(s)
+    expect(s.extB).toHaveLength(1)
   })
 })

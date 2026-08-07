@@ -36,10 +36,14 @@ export interface PumpedFrame {
 }
 
 // Where finished frames go. Slot A keeps its own aspect and may resize its
-// texture; slot B always arrives at raster size, pre-cropped.
+// texture; slot B always arrives at raster size, pre-cropped. The pushExt
+// pair is the direct path: no bitmap was made, the element itself is handed
+// over for the engine to importExternalTexture this frame (see blit_ext.wgsl).
 export interface VideoFrameSink {
   pushA: (f: PumpedFrame) => void
   pushB: (f: PumpedFrame) => void
+  pushExtA: (el: HTMLVideoElement) => void
+  pushExtB: (el: HTMLVideoElement) => void
 }
 
 interface Slot {
@@ -81,6 +85,13 @@ export class VideoPump {
   private b = emptySlot()
   private disposed = false
 
+  // Direct mode: the device can sample the decoder's own frame
+  // (importExternalTexture), so the pump never makes a bitmap — it just says
+  // which element has a fresh frame and lets the engine import it. The same
+  // currentTime dedup gates both modes: a 30 fps clip under a faster loop
+  // still only hands over ~30 frames a second.
+  constructor(private readonly direct = false) {}
+
   // Point a slot at an element, or at nothing. A re-attached element may sit
   // paused at the same currentTime, so the next frame must be requested
   // regardless or the slot goes on showing whatever was there before.
@@ -116,6 +127,11 @@ export class VideoPump {
   // — a decoded frame already waiting stays queued for the moment the button
   // comes up.
   pump(sink: VideoFrameSink, freezeA = false, freezeB = false): void {
+    if (this.direct) {
+      if (!freezeA) this.deliverDirect(this.a, el => sink.pushExtA(el))
+      if (!freezeB) this.deliverDirect(this.b, el => sink.pushExtB(el))
+      return
+    }
     if (!freezeA) {
       const readyA = this.take(this.a)
       if (readyA !== null) sink.pushA(readyA)
@@ -126,6 +142,19 @@ export class VideoPump {
     }
     if (!freezeA) this.requestA()
     if (!freezeB) this.requestB()
+  }
+
+  // Direct mode's whole delivery: the frame test the bitmap path uses, minus
+  // the decode it exists to pace.
+  private deliverDirect(
+    slot: Slot,
+    push: (el: HTMLVideoElement) => void,
+  ): void {
+    const el = slot.el
+    if (el !== null && this.due(slot)) {
+      slot.lastTime = el.currentTime
+      push(el)
+    }
   }
 
   private take(slot: Slot): PumpedFrame | null {
