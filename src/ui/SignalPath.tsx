@@ -5,23 +5,21 @@ import { ControlGroup } from './ControlGroup'
 import { Accordion, NestedSections } from './Section'
 import styles from './SignalPath.module.css'
 
-import type { ChainBranch, ChainStage } from './ChainMap'
+import type { ChainStage } from './ChainMap'
 import type { Group } from './controls'
 
 // A stage as the panel needs it: what the map draws, plus its groups as data.
-// Only the open stage builds sections — building all five to throw four away
+// Only the open stage builds sections — building all six to throw five away
 // cost every control write a rebuild of all 121 rows.
+//
+// `off` (from ChainStage) is the one that opens nothing: input B with nothing
+// patched into it, and the Mix stage beside it, whose groups would be a wall of
+// controls that cannot move the picture.
 export interface PathNode extends ChainStage {
   // Opens the stage at its first touched group.
   onJumpTouched: () => void
   groups: Group[]
 }
-
-// Input B's branch: a stage in every respect the panel cares about, plus
-// whether there is a source patched into it. With `on` false it is drawn on the
-// map and opens nothing — the groups under it would be a wall of controls that
-// cannot move the picture.
-export interface PathBranch extends PathNode, ChainBranch {}
 
 // A stage's name, its off-stock count and its blurb. The two layouts below
 // render exactly this and differ only in what the two buttons *do*: on the
@@ -68,13 +66,20 @@ function StageHead(props: {
 // sections while holding the route to 96% of the controls — the line of prose
 // under it was doing a heading's work, and only until a stage was open.
 //
+// It carries the standing instruction for the same reason. "Click a stage" used
+// to live only in the empty state under the map, which meant it was below the
+// graphic it was about and gone for good after the first click — and the open
+// stage is persisted, so a returning session never saw it at all. Here it costs
+// no row of its own and it is still there on the visit where you have forgotten.
+//
 // It is also where the full diagram is offered from. The miniature has room for
-// the five trunk stages and B's branch and no more; the names on the two feeds,
+// the six trunk stages and B's branch and no more; the names on the two feeds,
 // on the two loops, and on what each stage does need a card, so they get one.
 function PathHead(props: { onShowDiagram: () => void }) {
   return (
     <div className={styles.pathHead}>
       <span className={styles.pathTitle}>Signal path</span>
+      <span className={styles.pathHint}>click a stage</span>
       <button
         className={styles.pathDiagram}
         title="the whole path drawn large — both inputs, their feeds, the mixer and the two loops, each one a way into its controls"
@@ -92,9 +97,9 @@ function PathHead(props: { onShowDiagram: () => void }) {
 // there is width for two columns, the same map heads every stage at once.
 export function SignalPath(props: {
   nodes: PathNode[]
-  // Input B, drawn under the trunk. null when a live filter has left it
-  // nothing to show.
-  branch: PathBranch | null
+  // Input B, drawn under the head of the trunk. null when a live filter has
+  // left it nothing to show.
+  branch: PathNode | null
   // null = no stage picked, which is where exploration starts. Ignored while a
   // filter is live: then every stage with a match shows at once.
   open: string | null
@@ -112,19 +117,19 @@ export function SignalPath(props: {
   onShowDiagram: () => void
 }) {
   // A filter can leave no stage standing, and there is no chain to draw then:
-  // ChainMap divides the width by the stage count, so an empty spine came out as
-  // wires between boxes that aren't there (NaN coordinates the browser rejects),
-  // under a "click a stage to open its controls — 0 of them" door sitting right
-  // above app.tsx's own "nothing matches" line.
+  // an empty spine came out as wires between boxes that aren't there, under a
+  // "0 controls, in the order the picture travels" door sitting right above
+  // app.tsx's own "nothing matches" line.
   if (props.nodes.length === 0) {
     return null
   }
-  // The branch is a stage like any other once B is patched in; with B off it
-  // is drawn on the map and opens nothing.
-  const openable =
-    props.branch !== null && props.branch.on
-      ? [...props.nodes, props.branch]
-      : props.nodes
+  // Every stage that opens onto something. The branch is a stage like any other
+  // once B is patched in; without B it and the Mix stage are drawn on the map
+  // and open nothing, so neither can be the thing the panel is showing.
+  const openable = [
+    ...props.nodes,
+    ...(props.branch === null ? [] : [props.branch]),
+  ].filter(n => n.off !== true)
   if (props.bench) {
     return (
       <Bench
@@ -149,19 +154,19 @@ export function SignalPath(props: {
         live={props.live}
         onOpen={name => props.onOpen(name)}
       />
-      {/* The empty state, and the panel's only door onto its own subject: with
-          no stage picked the map renders five small boxes over nothing, and
-          every one of the 132 controls is behind them. It said so in `title`
-          attributes, which a first visit never hovers. Gone the moment a stage
-          is open, since by then the answer is on screen. */}
+      {/* The empty state, saying how much is behind the boxes and in what order
+          — the header carries the instruction itself now, so this is the part
+          that only pays for its row while there is nothing in the row's place
+          anyway. Gone the moment a stage is open, since by then the answer is
+          on screen. */}
       {shown.length > 0 ? null : (
         <div className={styles.door}>
-          click a stage to open its controls —{' '}
           {openable.reduce(
             (n, s) => n + s.groups.reduce((m, g) => m + g.sliders.length, 0),
             0,
           )}{' '}
-          of them, in the order the picture travels
+          controls, in the order the picture travels — A and B are your two
+          inputs, and they meet at the mixer
         </div>
       )}
       <div className={styles.stages}>
@@ -203,7 +208,7 @@ function Bench(props: {
   // The trunk plus the branch when B is patched in — every stage the bench
   // mounts a heading and a set of cards for.
   openable: PathNode[]
-  branch: PathBranch | null
+  branch: PathNode | null
   open: string | null
   live: { camera: boolean; mixer: boolean }
   onOpen: (name: string) => void

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { ControlSlider } from './ControlGroup'
-import { GROUPS, PHASES } from './controls'
+import { GROUPS, SOURCE_B_STAGE } from './controls'
 import { sliderMatches, useFilterQuery } from './filter'
 import styles from './LookSection.module.css'
 import { useModSlotsApi } from './ModSlotsContext'
@@ -23,9 +23,6 @@ const CAP = 6
 // panel's own headers are built from.
 const GROUP_OF = new Map<ControlKey, Group>()
 for (const g of GROUPS) for (const s of g.sliders) GROUP_OF.set(s.key, g)
-// Which placements are stages on the map, as opposed to the two that surface
-// contextually ('ab', 'audio') and have nothing for the map to open.
-const STAGES = new Set<string>(PHASES.map(p => p.name))
 
 // What the look on screen is actually made of: every control sitting off stock,
 // in signal-path order, as live rows under the group each came from.
@@ -33,7 +30,7 @@ const STAGES = new Set<string>(PHASES.map(p => p.name))
 // This is the panel's answer to the question a session asks most and could not
 // ask here at all. Picking a preset is one click; understanding it was five —
 // the chain map colours the stages that carry an edit and counts them, but each
-// count is a fold, and the controls behind it are scattered down five stages
+// count is a fold, and the controls behind it are scattered down six stages
 // that only open one at a time. So "what does vhs actually do?" and "which knob
 // is making that?" both ended in a hunt, and the panel's resting state was
 // 414px of chrome with not one slider in it.
@@ -49,6 +46,8 @@ const STAGES = new Set<string>(PHASES.map(p => p.name))
 // list, and app.tsx doesn't render the section.
 export function LookSection(props: {
   sliders: readonly SliderDef[]
+  // The stages a caption can jump to right now — see GroupCaption.
+  openStages: ReadonlySet<string>
   onOpenGroup: (stage: string, group: string) => void
 }) {
   const [all, setAll] = useState(false)
@@ -85,7 +84,7 @@ export function LookSection(props: {
       summary={`${matched.length} off stock`}
     >
       {/* One rack over the whole list, not one per caption: these rows are
-          gathered out of five stages and the captions between them are
+          gathered out of six stages and the captions between them are
           headings, not divisions — tracks that stepped left and right down the
           list would read as the section being several lists. Sized off
           `matched` so unfolding the tail doesn't shift the rows above it. */}
@@ -99,7 +98,11 @@ export function LookSection(props: {
           return (
             <div key={s.key}>
               {group === prev ? null : (
-                <GroupCaption group={group} onOpen={props.onOpenGroup} />
+                <GroupCaption
+                  group={group}
+                  openStages={props.openStages}
+                  onOpen={props.onOpenGroup}
+                />
               )}
               <ControlSlider slider={s} />
             </div>
@@ -120,19 +123,26 @@ export function LookSection(props: {
 }
 
 // Which module the rows under it came from, and the way back to it on the map.
-// Only a button for a group that is on the spine: the A/B and audio groups
-// surface in sections of their own, which the map has no fold for.
+// Only a button for a group in a stage that will actually open: the audio
+// groups surface in a section of their own, which the map has no fold for, and
+// the mixer and input B open onto nothing while there is no B patched in — a
+// look can still carry a wipe from a preset with B switched off since, so this
+// is a live question rather than a property of the table.
 function GroupCaption(props: {
   group: Group | undefined
+  openStages: ReadonlySet<string>
   onOpen: (stage: string, group: string) => void
 }) {
   const group = props.group
   if (group === undefined) return null
-  return STAGES.has(group.place) ? (
+  // 'b' is a placement; Source B is the stage it opens. Every other placement
+  // is already the stage's own name.
+  const stage = group.place === 'b' ? SOURCE_B_STAGE : group.place
+  return props.openStages.has(stage) ? (
     <button
       className={styles.from}
-      title={`open ${group.name} in the ${group.place} stage`}
-      onClick={() => props.onOpen(group.place, group.name)}
+      title={`open ${group.name} in the ${stage} stage`}
+      onClick={() => props.onOpen(stage, group.name)}
     >
       {group.name}
     </button>

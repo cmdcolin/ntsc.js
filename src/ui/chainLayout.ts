@@ -1,5 +1,5 @@
 // The chain map's arithmetic, with none of its markup (see ChainMap.tsx for the
-// drawing). Its own module because a filter hands the map any subset of the five
+// drawing). Its own module because a filter hands the map any subset of the six
 // stages, and every bug it has shipped has been in this arithmetic rather than
 // in the elements: an empty chain divided the width by zero and wrote `NaN` into
 // every attribute, which the browser drops; a one-stage chain divided it by one
@@ -11,22 +11,47 @@
 // the units are px at the sidebar's width, so the labels come out at the size
 // they say.
 export const W = 304
-export const H = 54
-// Gap between boxes — the run each wire has to cross.
-export const GAP = 12
-// The left margin the two input tags sit in, ahead of the first box.
-export const GUTTER = 13
+export const H = 60
+// Gap between boxes — the run each wire has to cross — and how far one opens
+// when a filter leaves the row with room to spare.
+export const GAP = 10
+export const GAP_MAX = 26
+// The stubs the signal arrives and leaves on, so the chain reads as something
+// fed and something delivered rather than six stages that begin nowhere.
+export const LEAD = 8
+export const OUT = 10
 export const MID_Y = 26
-// The B branch's own row, under the trunk.
-export const BRANCH_Y = 46
-export const BOX_H = 13
-// Half-width of a return wire's arrowhead.
+// Input B's own row, under the trunk.
+export const BRANCH_Y = 50
+// Taller than the 13 the map shipped with: at that height a box was 14 screen
+// pixels of hairline outline, which is a legend, not something a first visit
+// reads as pressable. See ChainMap.module.css for the other half of that.
+export const BOX_H = 16
+// Half-width of a wire's arrowhead.
 export const HEAD = 2.5
 // Corner radius on a routed wire.
 export const TURN = 4
-// What a stage gets when all five trunk stages are on the map. It is also the
-// most one may have — see the 280px bar above.
-const MAX_STEP = (W - GUTTER) / 5
+
+// What a label costs, per uppercase character at the map's 8px type. Measured
+// in Firefox against .mapLabel's own rules (system-ui, letter-spacing .02em):
+// the widest real label averages 5.07 units a character and a lone 'A' costs
+// 5.28, so 5.4 buys slack on a platform whose system font is wider than this
+// one's. It only has to be *proportionally* right in any case — `fit` below
+// scales the whole row to the width available, so a generous estimate spends
+// padding rather than overflowing the map.
+const CHAR = 5.4
+// Breathing room inside a box, both sides together.
+const PAD = 8
+// A short label still needs to read as a box rather than a dot on the wire.
+const MIN_BOX = 20
+
+// Boxes are sized to what they say rather than to an equal share of the width.
+// That is what let a sixth box onto the row: at equal columns six stages gave
+// RECEIVER 38 units for 37 units of text, while TAPE sat in the same 38 with 19.
+// MIX asks for a third of what FEEDBACK does, and the difference is exactly the
+// room the mixer's own box needed.
+export const boxWidth = (name: string) =>
+  Math.max(MIN_BOX, name.length * CHAR + PAD)
 
 // The two feedback returns, which are two different loops around two different
 // parts of the chain — not one arrow drawn twice. The camera loop is optical:
@@ -76,54 +101,102 @@ export function returnPath(
   return `M${from} ${top}V${y + turn}Q${from} ${y} ${from - turn} ${y}H${to + turn}Q${to} ${y} ${to} ${y + turn}V${top}`
 }
 
-// The B branch's wire: out of its box, along its own row, then up into the
-// trunk. Same routing vocabulary as the returns — orthogonal with a rounded
-// corner — so the one wire that comes from below reads as the same kind of
-// thing as the two that come from above.
-export function branchPath(from: number, to: number, y: number) {
-  return `M${from} ${y}H${to - TURN}Q${to} ${y} ${to} ${y - TURN}V${MID_Y + 3}`
+// A box on the map: where it sits and how wide its own name made it.
+export interface ChainBox {
+  name: string
+  x: number
+  w: number
+}
+
+// Input B's box and the run out of it. Same routing vocabulary as the returns —
+// orthogonal with a rounded corner — so the one wire that comes from below
+// reads as the same kind of thing as the two that come from above.
+export interface ChainBranch extends ChainBox {
+  // Where the wire turns up into the trunk: the centre of the Mix box, because
+  // that is the stage B arrives at (feedA / feedB → mixB).
+  join: number
+}
+
+// B's run: out of its box, along its own row, then up into the box above the
+// join. Degenerates to a straight riser when the join is not to the right —
+// which is what a filter that has dropped Mix leaves, and the box directly
+// above B is then the one it should arrive in anyway.
+export function branchPath(b: ChainBranch) {
+  const top = MID_Y + BOX_H / 2
+  const right = b.x + b.w / 2
+  return b.join > right + TURN
+    ? `M${right} ${BRANCH_Y}H${b.join - TURN}Q${b.join} ${BRANCH_Y} ${b.join} ${BRANCH_Y - TURN}V${top}`
+    : `M${b.join} ${BRANCH_Y - BOX_H / 2}V${top}`
 }
 
 // Every coordinate the map draws, worked out from the stage names alone.
-export function chainLayout(names: string[]) {
-  const step = Math.min((W - GUTTER) / names.length, MAX_STEP)
-  const boxW = step - GAP
-  const centers = names.map((_, i) => GUTTER + step * (i + 0.5))
-  const last = names.length - 1
-  const feedbackAt = names.indexOf('Feedback')
+export function chainLayout(names: string[], branchName: string | null = null) {
+  const asked = names.map(boxWidth)
+  const total = asked.reduce((n, w) => n + w, 0)
+  const runs = Math.max(names.length - 1, 0)
+  // The row is laid out at the width its labels ask for, then made to fit: with
+  // room to spare the gaps open (up to GAP_MAX) and the boxes keep their size,
+  // and when there is not enough the gaps hold at GAP and every box is scaled
+  // by the same factor. One of the two is always in play, so the drawing can
+  // never run off the right edge however the estimate above lands.
+  const spare = W - LEAD - OUT - total
+  const gap =
+    runs === 0 ? 0 : Math.max(GAP, Math.min(GAP_MAX, spare / Math.max(runs, 1)))
+  // Never above 1: a box is only ever squeezed to fit the row, never stretched
+  // to fill it. Growing one was the old bug — dividing the full width by a
+  // filtered-down stage count drew a 280px bar where a miniature belongs.
+  const fit =
+    spare < GAP * runs ? Math.min(1, (W - LEAD - OUT - gap * runs) / total) : 1
+  let cursor = LEAD
+  const boxes: ChainBox[] = names.map((name, i) => {
+    const w = asked[i] * fit
+    const box = { name, x: cursor + w / 2, w }
+    cursor += w + gap
+    return box
+  })
+  const centers = boxes.map(b => b.x)
+  const at = (name: string) => names.indexOf(name)
+  const last = boxes.length - 1
   // Box to box down the row, plus the lead in off the left edge and the lead
-  // out off the right — so the chain reads as something fed and something
-  // delivered, rather than as five stages that begin and end nowhere.
+  // out off the right.
   const wires = [
-    { key: 'in', x0: GUTTER - 4, x1: centers[0] - boxW / 2 },
-    ...centers.slice(0, -1).map((c, i) => ({
-      key: names[i],
-      x0: c + boxW / 2,
-      x1: centers[i + 1] - boxW / 2,
+    ...(boxes.length === 0
+      ? []
+      : [{ key: 'in', x0: 0, x1: boxes[0].x - boxes[0].w / 2 }]),
+    ...boxes.slice(0, -1).map((b, i) => ({
+      key: b.name,
+      x0: b.x + b.w / 2,
+      x1: boxes[i + 1].x - boxes[i + 1].w / 2,
     })),
-    {
-      key: 'out',
-      x0: centers[last] + boxW / 2,
-      x1: Math.min(W, centers[last] + boxW / 2 + 10),
-    },
+    ...(boxes.length === 0
+      ? []
+      : [{ key: 'out', x0: boxes[last].x + boxes[last].w / 2, x1: W }]),
   ]
   // A return only reads as a return if it comes back from somewhere downstream.
+  const feedbackAt = at('Feedback')
   const returns = RETURNS.flatMap(r => {
-    const at = names.indexOf(r.from)
-    return feedbackAt >= 0 && at > feedbackAt
-      ? [{ ...r, from: centers[at], to: centers[feedbackAt] + r.dx }]
+    const tap = at(r.from)
+    return feedbackAt >= 0 && tap > feedbackAt
+      ? [{ ...r, from: centers[tap], to: centers[feedbackAt] + r.dx }]
       : []
   })
-  // Where B joins: the run just after Source, which is where mixB sits in the
-  // pass order (feedA / feedB → mixB → fbComposite). A filter can leave Source
-  // out, and then there is no such run — B joins the lead-in instead, which is
-  // still upstream of everything the filter left standing.
-  const sourceAt = names.indexOf('Source')
-  const join =
-    sourceAt < 0
-      ? (GUTTER - 4 + centers[0] - boxW / 2) / 2
-      : sourceAt === last
-        ? centers[last] + boxW / 2 + 5
-        : (centers[sourceAt] + boxW / 2 + centers[sourceAt + 1] - boxW / 2) / 2
-  return { width: W, step, boxW, centers, wires, returns, join }
+  // B sits under the head of the trunk, sharing its left edge — the two inputs
+  // as a column, which is the whole point of drawing them as a pair. Its wire
+  // runs to the Mix box; with Mix filtered out it rises where it stands, which
+  // is upstream of whatever the filter did leave.
+  const mixAt = at('Mix')
+  const branch: ChainBranch | null =
+    branchName === null || boxes.length === 0
+      ? null
+      : (() => {
+          const w = boxWidth(branchName) * fit
+          const x = boxes[0].x - boxes[0].w / 2 + w / 2
+          return {
+            name: branchName,
+            x,
+            w,
+            join: mixAt >= 0 ? centers[mixAt] : x,
+          }
+        })()
+  return { width: W, boxes, centers, wires, returns, branch, gap, fit }
 }

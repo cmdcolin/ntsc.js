@@ -10,12 +10,13 @@ import { AudioSection } from './ui/AudioSection'
 import { CommandPalette } from './ui/CommandPalette'
 import { ControlGroup, ControlSlider } from './ui/ControlGroup'
 import {
-  AB_GROUPS,
   ALL_SLIDERS,
   AUDIO_GROUPS,
-  MIX_BLURB,
+  B_GROUPS,
   MIX_STAGE,
   PHASES,
+  SOURCE_B_BLURB,
+  SOURCE_B_STAGE,
 } from './ui/controls'
 import { ControlsContext } from './ui/ControlsContext'
 import { cx } from './ui/cx'
@@ -74,7 +75,7 @@ import type { PaletteAction } from './ui/CommandPalette'
 import type { Group } from './ui/controls'
 import type { ControlsApi } from './ui/ControlsContext'
 import type { Lens } from './ui/lens'
-import type { PathBranch, PathNode } from './ui/SignalPath'
+import type { PathNode } from './ui/SignalPath'
 
 // Whether the menu over the picture has been dismissed. Persisted across
 // reloads so a collapse sticks — it only ever applies where the masthead is off
@@ -391,7 +392,7 @@ export function App() {
       favorites.has(s.key) &&
       (!filtering || sliderMatches(s, query, isRouted(s.key))),
   )
-  // Everything the current look actually moves, gathered out of the five stages
+  // Everything the current look actually moves, gathered out of the six stages
   // it is scattered across. The same walk the chain map's `• N` does, kept as
   // rows rather than reduced to a count — see LookSection, which does its own
   // filtering because its membership has to be decided before a query narrows
@@ -399,7 +400,7 @@ export function App() {
   const edited = ALL_SLIDERS.filter(s => !atRest(controls[s.key], s.key))
   // The contextual groups, dropped when the filter leaves them nothing: a
   // section header over an empty body is a dead end in a result list.
-  const abGroups = AB_GROUPS.filter(g => groupMatches(g, query, isRouted))
+  const bGroups = B_GROUPS.filter(g => groupMatches(g, query, isRouted))
   const audioGroups = AUDIO_GROUPS.filter(g => groupMatches(g, query, isRouted))
 
   // Roll the per-group touched state up to the stage, so the chain reads as a
@@ -426,24 +427,36 @@ export function App() {
       },
     }
   }
+  // Nothing patched into B leaves two stages with nothing to act on: B itself,
+  // and the mixer beside it, whose every control needs a second signal. Both
+  // are still drawn — together they are the one thing on screen saying a second
+  // input exists — but neither opens, and neither wears the amber that says
+  // "you changed something in here": nothing in them is reaching the picture.
+  const bOn = eng.sourceBMode !== 'none'
+  const B_OFF_HINT = 'no source B — pick one in Input to mix a second signal in'
+  const unpatched = (node: PathNode): PathNode =>
+    bOn ? node : { ...node, touched: 0, off: true, offHint: B_OFF_HINT }
   const pathNodes = PHASES.flatMap((phase): PathNode[] => {
     const groups = phase.groups.filter(g => groupMatches(g, query, isRouted))
+    const node = pathNode(phase.name, phase.blurb, groups)
     return groups.length === 0
       ? []
-      : [pathNode(phase.name, phase.blurb, groups)]
+      : [phase.name === MIX_STAGE ? unpatched(node) : node]
   })
-  // Input B's branch, drawn under the trunk. Unlike a trunk stage it survives
-  // having nothing patched into it: with B off it is the only thing on screen
-  // saying a second input exists, so it is dropped only when a live filter has
-  // left it nothing. Its count goes to zero then too — a stage that cannot be
-  // opened has no business wearing the amber that says "you changed something
-  // in here", and nothing in it is reaching the picture anyway.
-  const bOn = eng.sourceBMode !== 'none'
-  const mixNode = pathNode(MIX_STAGE, MIX_BLURB, abGroups)
-  const branch: PathBranch | null =
-    filtering && abGroups.length === 0
+  // Input B, drawn under the head of the trunk. Unlike a trunk stage it
+  // survives having nothing patched into it, so it is dropped only when a live
+  // filter has left it nothing.
+  const branch: PathNode | null =
+    filtering && bGroups.length === 0
       ? null
-      : { ...mixNode, touched: bOn ? mixNode.touched : 0, on: bOn }
+      : unpatched(pathNode(SOURCE_B_STAGE, SOURCE_B_BLURB, bGroups))
+  // Which stages something outside the map can jump to. Not read off pathNodes:
+  // a live filter drops stages from the map, and a caption in "This look" is
+  // still a way back to the module it came from.
+  const openStages = new Set<string>([
+    ...PHASES.map(p => p.name).filter(name => bOn || name !== MIX_STAGE),
+    ...(bOn ? [SOURCE_B_STAGE] : []),
+  ])
 
   // Whether the query reached anything at all, across every place a result can
   // land — not the trunk alone. A routed mixer control lives on B's branch and a
@@ -455,7 +468,7 @@ export function App() {
     pinned.length > 0 ||
     edited.some(s => sliderMatches(s, query, isRouted(s.key))) ||
     audioGroups.length > 0 ||
-    (bOn && abGroups.length > 0)
+    (bOn && bGroups.length > 0)
 
   // The magnifier, as the stage's gestures and the menu's zoom row both see it.
   // One write for all three, so a gesture notifies the engine once.
@@ -636,7 +649,11 @@ export function App() {
           its rows are real control rows, so the query narrows them like any
           other result. */}
       {edited.length === 0 ? null : (
-        <LookSection sliders={edited} onOpenGroup={nav.openAt} />
+        <LookSection
+          sliders={edited}
+          openStages={openStages}
+          onOpenGroup={nav.openAt}
+        />
       )}
 
       {filtering ? null : (

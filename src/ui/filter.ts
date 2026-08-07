@@ -13,7 +13,7 @@ export const useFilterQuery = () => use(FilterContext)
 // A routing never touches the resting value, so a modulated row is
 // indistinguishable from an untouched one by every other signal the panel has —
 // which left "show me what is wobbling" unaskable while the bay could hold eight
-// of them, scattered across five stages.
+// of them, scattered across six stages.
 //
 // `∿` is what the row's own button is marked, and what the motion strip's count
 // puts in the box; the words are there because nobody types `∿`. They union with

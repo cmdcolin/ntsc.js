@@ -15,8 +15,8 @@
 //
 // Each check below is a regression that shipped:
 //
-//  - a query matching nothing drew the chain map anyway, and ChainMap divides
-//    its width by the stage count, so the wires came out at x="NaN"
+//  - a query matching nothing drew the chain map anyway, over a stage list with
+//    nothing in it, so the wires came out at x="NaN"
 //  - …under a door offering to open "0 of them", directly above the panel's own
 //    "nothing matches" line
 //  - the filter box focused itself from an inline ref callback, so it stole
@@ -139,12 +139,15 @@ await phase('filter', { seed: OLD_BAY }, async page => {
       nan: svg === null ? [] : [...svg.querySelectorAll('*')].flatMap(el =>
         [...el.attributes].filter(a => a.value.includes('NaN'))
           .map(a => el.tagName + '.' + a.name)),
-      door: document.body.innerText.includes('click a stage to open its controls'),
+      door: document.body.innerText.includes('click a stage'),
       saidSo: document.body.innerText.includes('nothing matches'),
     }`)
   check(!empty.chain, 'a query matching nothing still drew the chain map')
   check(empty.nan.length === 0, `NaN attributes on the map: ${empty.nan}`)
-  check(!empty.door, 'the "click a stage" door showed with no stage to open')
+  // The instruction lives on the map's heading now rather than in the empty
+  // state below it, so this covers both: with nothing to open, the whole
+  // section — heading included — is gone.
+  check(!empty.door, 'the "click a stage" cue showed with no stage to open')
   check(empty.saidSo, 'nothing said the query matched nothing')
 
   // The filter box takes focus on mount and must never take it again: with the
@@ -188,18 +191,21 @@ await phase('filter', { seed: OLD_BAY }, async page => {
     cleared.chain,
     'the chain map did not come back when the filter cleared',
   )
-  // Six openable boxes, not five: the five trunk stages plus input B's branch,
-  // which is a stage of the panel without being a Phase. B is on out of the
-  // box, so it is openable here — with it off the branch is drawn and inert and
-  // this count drops back to five.
+  // Seven openable boxes: the six trunk stages plus input B, which is a stage
+  // of the panel without being a Phase. B is on out of the box, so both it and
+  // the mixer are openable here — with it off the two are drawn dashed and
+  // inert and this count drops to five.
   check(
-    cleared.stages.length === 6,
+    cleared.stages.length === 7,
     `the map came back with ${cleared.stages.length} stages: ${cleared.stages}`,
   )
-  check(
-    cleared.stages.includes('Mix'),
-    `the B branch is missing from the map: ${cleared.stages}`,
-  )
+  // The two inputs are peers on the map, and the mixer is a box of its own. All
+  // three were one box called Mix hanging off a wire tagged 'B'.
+  for (const name of ['Source A', 'Source B', 'Mix'])
+    check(
+      cleared.stages.includes(name),
+      `${name} is missing from the map: ${cleared.stages}`,
+    )
 })
 
 // --- a routing can be held still from its own row ---------------------------

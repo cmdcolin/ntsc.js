@@ -1,8 +1,8 @@
 /* The chain in miniature at the head of the signal path: one labeled box per
    stage, wired left to right, with the two feedback returns looping back over
-   the top and input B's branch joining from below. Box and label take
-   currentColor, so one rule per state (idle / touched / open / off) colors a
-   whole stage — and, on the branch, its wires with it. */
+   the top and input B joining from below. Box and label take currentColor, so
+   one rule per state (idle / touched / open / off) colors a whole stage — and,
+   on the branch, its wires with it. */
 .map {
   display: block;
   width: 100%;
@@ -16,12 +16,20 @@
     max-width: 420px;
   }
 }
-/* A wire and a box are drawn identically — a hairline in the map's idle colour.
-   What differs is which of the state rules below reaches for which, so they
-   keep separate names and share the one declaration block. */
-.mapWire,
-.mapBox {
+.mapWire {
   fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+/* A box is a chip sitting *on* the wire, not another hairline drawn in the same
+   colour as one. It used to share the declaration above — same stroke, same
+   nothing for a fill — so the six things in the panel you are meant to click
+   were drawn exactly like the five inert lines joining them, and the only thing
+   that ever said otherwise was a line of prose under the graphic that went away
+   for good after the first click. Everything else clickable in this sidebar is
+   a filled control with a hover state; now this is too. */
+.mapBox {
+  fill: var(--ctl-face);
   stroke: var(--border);
   stroke-width: 1;
 }
@@ -55,6 +63,9 @@
 .mapNode:hover {
   color: var(--fg);
 }
+.mapNode:hover .mapBox {
+  fill: var(--ctl-bg-hover);
+}
 /* the stage carries an edit — the same amber the rest of the sidebar marks one
    with */
 .mapNodeTouched {
@@ -63,37 +74,34 @@
 .mapNodeOn {
   color: var(--accent);
 }
-/* A stage that cannot be opened: input B with nothing patched into it. Drawn
-   rather than dropped — it is the one thing on screen saying a second input
-   exists — so it has to read as absent rather than merely unvisited, which is
-   what the dashed outline and the dimmer-than-idle colour are for. */
+/* The stage that is open, tinted as well as outlined: on a row of six filled
+   chips a stroke alone is a thin claim, and this is the map's answer to "where
+   am I". */
+.mapNodeOn .mapBox {
+  fill: color-mix(in srgb, var(--accent) 14%, var(--ctl-face));
+}
+/* A stage that cannot be opened: Mix and input B with nothing patched into B.
+   Drawn rather than dropped — together they are the one thing on screen saying
+   a second input exists — so they have to read as absent rather than merely
+   unvisited, which is what the dashed outline, the flat fill and the
+   dimmer-than-idle colour are for. */
 .mapNodeOff {
   color: var(--border);
   cursor: default;
 }
 .mapNodeOff .mapBox {
+  fill: none;
   stroke: currentColor;
   stroke-dasharray: 2 2;
 }
-/* The whole B run — its tag, its lead-in and the wire up into the trunk — goes
-   with the node, so an unpatched input reads as one dim thing rather than a
-   dim box on live wiring. */
+/* The whole B run — its lead-in and the wire up into the trunk — goes with the
+   node, so an unpatched input reads as one dim thing rather than a dim box on
+   live wiring. */
 .mapBranchOff .mapWire {
   stroke: var(--border-faint);
 }
 .mapBranchOff .mapArrow {
   fill: var(--border-faint);
-}
-.mapBranchOff .mapTag {
-  fill: var(--border);
-}
-/* The A and B labels on the two input wires. Bold and in the panel's own
-   colour rather than the map's: they name the signals, and the boxes are what
-   the map's state colours belong to. */
-.mapTag {
-  fill: var(--fg2);
-  font-size: 8px;
-  font-weight: 700;
 }
 .mapNode:hover .mapBox,
 .mapNodeTouched .mapBox,
@@ -106,4 +114,7 @@
   font-size: 8px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  /* the box is the target, and a drag that starts on a label should not select
+     the word instead of pressing the stage */
+  user-select: none;
 }

@@ -1,11 +1,11 @@
 import { atRest } from '../controls'
 import {
-  AB_GROUPS,
   FEED_A_GROUP,
   FEED_B_GROUP,
-  MIX_BLURB,
   MIX_STAGE,
   PHASES,
+  SOURCE_B_BLURB,
+  SOURCE_B_STAGE,
   stageGroups,
 } from './controls'
 import { cx } from './cx'
@@ -59,29 +59,42 @@ const phaseBlurb = (name: string) =>
 
 const BOXES: Box[] = [
   {
-    label: 'Source',
-    stage: 'Source',
+    label: 'Source A',
+    stage: 'Source A',
     col: 0,
     row: 'a',
-    what: phaseBlurb('Source'),
+    what: phaseBlurb('Source A'),
   },
   {
     label: 'Feed A',
-    stage: 'Source',
+    stage: 'Source A',
     group: FEED_A_GROUP,
     col: 1,
     row: 'a',
     what: 'input A’s own deck, cable and head-end, ahead of the mixer — damage here lands on this signal alone. Two groups: what the deck did to the tape, and what the wire out of it did after',
   },
   {
+    label: 'Source B',
+    stage: SOURCE_B_STAGE,
+    col: 0,
+    row: 'b',
+    what: SOURCE_B_BLURB,
+  },
+  {
     label: 'Feed B',
-    stage: MIX_STAGE,
+    stage: SOURCE_B_STAGE,
     group: FEED_B_GROUP,
     col: 1,
     row: 'b',
     what: 'the same deck and cable faults again on input B’s own feed, in the same order — so the two signals arrive at the mixer damaged differently and the difference is what the rig reacts to',
   },
-  { label: 'Mix', stage: MIX_STAGE, col: 2, row: 'trunk', what: MIX_BLURB },
+  {
+    label: 'Mix',
+    stage: MIX_STAGE,
+    col: 2,
+    row: 'trunk',
+    what: phaseBlurb(MIX_STAGE),
+  },
   {
     label: 'Feedback',
     stage: 'Feedback',
@@ -154,9 +167,9 @@ export function SignalPathDialog(props: {
   // How much of each box is off stock. A box that narrows to one group counts
   // that group; a stage counts all of its own.
   const touchedIn = (box: Box) => {
-    const groups = (
-      box.stage === MIX_STAGE ? AB_GROUPS : stageGroups(box.stage)
-    ).filter(g => box.group === undefined || g.name === box.group)
+    const groups = stageGroups(box.stage).filter(
+      g => box.group === undefined || g.name === box.group,
+    )
     return groups
       .flatMap(g => g.sliders)
       .filter(s => !atRest(controls[s.key], s.key)).length
@@ -169,9 +182,10 @@ export function SignalPathDialog(props: {
   // B's feed joins the run between Feed A and the mixer, which is where mixB
   // sits in the pass order.
   const join = (colX(1) + colX(2)) / 2
-  // With nothing patched into B, B's feed and the mixer are the two boxes that
-  // have nothing to act on. The rest of the chain is carrying A regardless.
-  const dead = (box: Box) => !props.bOn && box.stage === MIX_STAGE
+  // With nothing patched into B, input B's own boxes and the mixer have nothing
+  // to act on. The rest of the chain is carrying A regardless.
+  const dead = (box: Box) =>
+    !props.bOn && (box.stage === MIX_STAGE || box.stage === SOURCE_B_STAGE)
 
   return (
     <Dialog title="the signal path" size="diagram" onClose={onClose}>
@@ -207,11 +221,17 @@ export function SignalPathDialog(props: {
           className={styles.arrow}
           d={`M${W - 8} ${MID_Y - HEAD}L${W} ${MID_Y}L${W - 8} ${MID_Y + HEAD}Z`}
         />
-        {/* B's run: in, through its feed, and up into the trunk */}
+        {/* B's run: in, through its own two boxes, and up into the trunk — the
+            same two columns A gets on the row above, because it is the same
+            rig. */}
         <g className={cx(!props.bOn && styles.dim)}>
           <path
             className={styles.wire}
-            d={`M10 ${BRANCH_Y}H${colX(1) - BOX_W / 2}`}
+            d={`M10 ${BRANCH_Y}H${colX(0) - BOX_W / 2}`}
+          />
+          <path
+            className={styles.wire}
+            d={`M${colX(0) + BOX_W / 2} ${BRANCH_Y}H${colX(1) - BOX_W / 2}`}
           />
           <path
             className={styles.wire}
@@ -245,18 +265,10 @@ export function SignalPathDialog(props: {
             </text>
           </g>
         ))}
-        {/* the two inputs, named on the wires they arrive on */}
-        <text className={styles.tag} x="2" y={MID_Y} dominantBaseline="central">
-          A
-        </text>
-        <text
-          className={cx(styles.tag, !props.bOn && styles.dimTag)}
-          x="2"
-          y={BRANCH_Y}
-          dominantBaseline="central"
-        >
-          B
-        </text>
+        {/* The two inputs used to be named by an 'A' and a 'B' parked on the
+            wires here, because the first box on each row was named after
+            something else. Each row now opens with the input's own box, so the
+            tags were the label repeated smaller. */}
         {BOXES.map(box => {
           const y = rowY(box.row)
           const n = touchedIn(box)

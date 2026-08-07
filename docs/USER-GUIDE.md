@@ -117,11 +117,12 @@ hosted build has no server to do that with.
 ![The app window, the chain map at the head of the sidebar boxed in red](img/chain.jpg)
 
 Controls live where they sit in the signal path, not in one long list. The map
-at the head of the sidebar is the whole path: **A** comes in on the top wire
-through five stages, **B** joins from below at **Mix**, and the two loops feed
-the picture back into it. Amber is a stage you've moved something in, and a
-dashed **Mix** means nothing is patched into B yet. Click one to open its
-controls below:
+at the head of the sidebar is the whole path, and every box on it is a button.
+**Source A** and **Source B** are your two inputs — the same rig twice, each
+with its own signal, deck and cable — and they meet at **Mix**, after which one
+chain runs to the glass while the two loops feed the picture back into it. Amber
+is a stage you've moved something in, and a dashed **Source B** and **Mix** mean
+nothing is patched into B yet. Click one to open its controls below:
 
 **diagram ⤢**, beside the map's heading, draws the same path with room for the
 parts the miniature has to leave out — each source's own feed, and which loop is
