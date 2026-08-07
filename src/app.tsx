@@ -41,8 +41,8 @@ import { ModSlotsContext } from './ui/ModSlotsContext'
 import { MotionStrip } from './ui/MotionStrip'
 import { matchPreset, presetControls } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
-import { SavedLooks } from './ui/SavedLooks'
-import { suggestLookName } from './ui/savedLooks'
+import { SavedProfiles } from './ui/SavedProfiles'
+import { suggestProfileName } from './ui/savedProfiles'
 import { ScenesSection } from './ui/ScenesSection'
 import { Section } from './ui/Section'
 import { SignalPath } from './ui/SignalPath'
@@ -65,7 +65,7 @@ import { useModSlots } from './ui/useModSlots'
 import { usePageLifecycle } from './ui/usePageLifecycle'
 import { usePanelNav } from './ui/usePanelNav'
 import { usePopout } from './ui/usePopout'
-import { useSavedLooks } from './ui/useSavedLooks'
+import { useSavedProfiles } from './ui/useSavedProfiles'
 import { useScenes } from './ui/useScenes'
 import { useShortcuts } from './ui/useShortcuts'
 import { useUrlState } from './ui/useUrlState'
@@ -79,7 +79,7 @@ import type { PaletteAction } from './ui/CommandPalette'
 import type { Group } from './ui/controls'
 import type { ControlsApi } from './ui/ControlsContext'
 import type { Lens } from './ui/lens'
-import type { SavedLook } from './ui/savedLooks'
+import type { SavedProfile } from './ui/savedProfiles'
 import type { PathNode } from './ui/SignalPath'
 
 // Whether the menu over the picture has been dismissed. Persisted across
@@ -227,6 +227,47 @@ export function App() {
   const lookName = activePreset ? activePreset.name : mix.lastPreset
   const capture = useCapture(eng.canvasRef, lookName ?? 'edit')
 
+  // `copied` (the flash on the old copy-link button) went with that button; the
+  // ⌘K entry below is the only caller left, and a palette row closes on run.
+  const { copyLink, profileQuery, copyQuery } = useUrlState({
+    controls,
+    mod: slotsToRoutings(modApi.slots),
+    engineReady: engine !== null,
+    sourceMode: eng.sourceMode,
+    sourceBMode: eng.sourceBMode,
+    ytUrlA: eng.ytUrlA,
+    ytUrlB: eng.ytUrlB,
+    teletypeA: eng.teletypeA,
+    teletypeB: eng.teletypeB,
+    speedA: eng.speedA,
+    speedB: eng.speedB,
+    reverb: eng.reverb,
+  })
+
+  // The saved-profile library, which is the query string above kept under a name.
+  // Recall is the same move a scene recall makes — snapshot for undo, write the
+  // controls, re-cable the bay — and stops there: the query carries the source
+  // urls so a copied *link* opens on the right clip, but yanking the live input
+  // out from under a running session to put a still back is not what "bring that
+  // look back" means. A look whose stored mod is missing (hand-edited storage; no
+  // saved look this app wrote lacks one) leaves the bay alone rather than
+  // silencing it, the same rule a link without ?mod= follows.
+  const profiles = useSavedProfiles()
+  const recallProfile = (profile: SavedProfile) => {
+    const session = parseSessionParams(`?${profile.query}`)
+    mix.snapshotForUndo()
+    writeControls(presetControls(session.controls))
+    if (session.mod !== null) modApi.setRoutings(session.mod)
+    profiles.markRecalled(profile.name)
+  }
+  // The name to save under, offered by all three ways in. The profile you are
+  // working in wins over the preset the controls still match: one knob past a
+  // recall they match nothing, and "my look" is a worse offer than "my rig 2".
+  const suggestedProfileName = suggestProfileName(
+    profiles.profiles,
+    profiles.lastName ?? lookName ?? '',
+  )
+
   useShortcuts(popout, {
     // Dialogs close themselves (each Dialog binds Escape to its own document);
     // here Escape just backs out of the panel's own modes.
@@ -248,6 +289,11 @@ export function App() {
     onGrabStill: capture.grabStill,
     onSaveScene: saveScene,
     onRecallScene: recallScene,
+    // ctrl+S keeps the board under the name the menu would have offered. The
+    // library sits above this call for that reason: a handler here is read
+    // through a ref every render, but the object it lives in is built now.
+    onSaveProfile: () =>
+      profiles.saveProfile(suggestedProfileName, profileQuery()),
   })
   usePageLifecycle(engineRef, setFullscreen)
 
@@ -274,47 +320,6 @@ export function App() {
     mutateGroup: mix.mutateGroup,
     resetGroup: mix.resetGroup,
   }
-
-  // `copied` (the flash on the old copy-link button) went with that button; the
-  // ⌘K entry below is the only caller left, and a palette row closes on run.
-  const { copyLink, lookQuery, copyQuery } = useUrlState({
-    controls,
-    mod: slotsToRoutings(modApi.slots),
-    engineReady: engine !== null,
-    sourceMode: eng.sourceMode,
-    sourceBMode: eng.sourceBMode,
-    ytUrlA: eng.ytUrlA,
-    ytUrlB: eng.ytUrlB,
-    teletypeA: eng.teletypeA,
-    teletypeB: eng.teletypeB,
-    speedA: eng.speedA,
-    speedB: eng.speedB,
-    reverb: eng.reverb,
-  })
-
-  // The saved-look library, which is the query string above kept under a name.
-  // Recall is the same move a scene recall makes — snapshot for undo, write the
-  // controls, re-cable the bay — and stops there: the query carries the source
-  // urls so a copied *link* opens on the right clip, but yanking the live input
-  // out from under a running session to put a still back is not what "bring that
-  // look back" means. A look whose stored mod is missing (hand-edited storage; no
-  // saved look this app wrote lacks one) leaves the bay alone rather than
-  // silencing it, the same rule a link without ?mod= follows.
-  const savedLooks = useSavedLooks()
-  const recallLook = (look: SavedLook) => {
-    const session = parseSessionParams(`?${look.query}`)
-    mix.snapshotForUndo()
-    writeControls(presetControls(session.controls))
-    if (session.mod !== null) modApi.setRoutings(session.mod)
-    savedLooks.markRecalled(look.name)
-  }
-  // The name to save under, offered by both ways in. The look you are working in
-  // wins over the preset the controls still match: one knob past a recall they
-  // match nothing, and "look" is a worse offer than "my rig 2".
-  const suggestedLookName = suggestLookName(
-    savedLooks.looks,
-    savedLooks.lastName ?? lookName ?? '',
-  )
 
   const audio = useAudio(engine)
 
@@ -372,8 +377,8 @@ export function App() {
       // and a look saved as "vhs 3" is one × in the menu away from gone if that
       // was not the name you wanted.
       name: 'save this look',
-      blurb: `keep the board as “${suggestedLookName}” in the looks menu`,
-      run: () => savedLooks.saveLook(suggestedLookName, lookQuery()),
+      blurb: `keep the board as “${suggestedProfileName}” under saved`,
+      run: () => profiles.saveProfile(suggestedProfileName, profileQuery()),
     },
     {
       name: 'record clip',
@@ -657,14 +662,15 @@ export function App() {
         onEndCompare={endCompare}
         onSurprise={mix.surprise}
         onMutate={mix.mutateLook}
-        looks={
-          <SavedLooks
-            looks={savedLooks.looks}
-            suggestedName={suggestedLookName}
-            onSave={name => savedLooks.saveLook(name, lookQuery())}
-            onRecall={recallLook}
-            onDelete={savedLooks.deleteLook}
-            onCopyLink={look => copyQuery(look.query)}
+        saved={
+          <SavedProfiles
+            profiles={profiles.profiles}
+            suggestedName={suggestedProfileName}
+            saved={profiles.saved}
+            onSave={name => profiles.saveProfile(name, profileQuery())}
+            onRecall={recallProfile}
+            onDelete={profiles.deleteProfile}
+            onCopyLink={profile => copyQuery(profile.query)}
           />
         }
         canUndo={mix.canUndo}

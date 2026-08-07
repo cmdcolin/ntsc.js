@@ -64,9 +64,16 @@ export function Popover(props: {
   // open.
   trigger: (attrs: { popoverTarget: string; style: CSSProperties }) => ReactNode
   children: (id: string) => ReactNode
+  // Called when the browser opens or closes the menu. The point of it is the
+  // *open* edge: a menu with a text field in it wants the caret in that field,
+  // and since nothing here holds open state, this event is the only place that
+  // knows the menu just appeared. React's `autoFocus` cannot do it — the field is
+  // mounted once, while hidden, and never mounts again.
+  onOpen?: () => void
 }) {
   const id = useId()
   const anchorName = `--pop-${id.replaceAll(/\W/g, '')}`
+  const { onOpen } = props
   return (
     <>
       {props.trigger({ popoverTarget: id, style: { anchorName } })}
@@ -75,6 +82,9 @@ export function Popover(props: {
         popover="auto"
         className={styles.menu}
         style={{ positionAnchor: anchorName }}
+        onToggle={e => {
+          if (e.newState === 'open') onOpen?.()
+        }}
       >
         {props.children(id)}
       </div>

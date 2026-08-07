@@ -25,6 +25,7 @@ interface Handlers {
   onGrabStill: () => void
   onSaveScene: (n: number) => void
   onRecallScene: (n: number) => void
+  onSaveProfile: () => void
 }
 
 // Global keyboard shortcuts, bound wherever the panel lives (main window and the
@@ -48,6 +49,17 @@ export function useShortcuts(popout: Window | null, handlers: Handlers) {
         // to be when you decide you wanted the palette instead.
         e.preventDefault()
         h.onPalette()
+      } else if ((e.ctrlKey || e.metaKey) && key === 's') {
+        // The keystroke everything else on a computer uses for "keep this", aimed
+        // at the thing this app makes. Reachable while typing, like ⌘K: the name
+        // box is the likeliest place to be when you decide to save.
+        //
+        // It also takes ctrl+S away from two worse readings. The browser's
+        // save-page dialog was one; the other was the bare-`s` still grab below,
+        // which did not check for a modifier — so ctrl+S used to download a png
+        // *and* open that dialog.
+        e.preventDefault()
+        h.onSaveProfile()
       } else if ((e.ctrlKey || e.metaKey) && key === 'z' && e.shiftKey) {
         // Both spellings of redo, since which one is muscle memory depends on
         // where you learned it.

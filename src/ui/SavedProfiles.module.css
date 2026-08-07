@@ -5,6 +5,14 @@
 .trigger {
   composes: btn from './LookBar.module.css';
 }
+/* Lit for a second and a half after a save. Same accent the held `compare`
+   button wears, because it is saying the same kind of thing — this button just
+   did something — and ctrl+S needs *some* answer on screen or a save that
+   happened is indistinguishable from a keystroke that went nowhere. */
+.justSaved {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 /* Name box and save, on one line at the head of the menu: what you came here to
    do is the first thing under the pointer, and the list below it is the other

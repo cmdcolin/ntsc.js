@@ -281,7 +281,7 @@ export function writeSessionParams(
 // saved look's link open on bars.
 const CARRIED_KEYS = ['iurl', 'iurlb', 'vurl'] as const
 
-export function writeLookParams(
+export function writeProfileParams(
   existing: URLSearchParams,
   state: SessionState,
 ): URLSearchParams {

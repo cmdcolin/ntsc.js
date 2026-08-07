@@ -10,7 +10,7 @@ import {
   REVERB_DEFAULT,
   SPEED_DEFAULT,
   parseSessionParams,
-  writeLookParams,
+  writeProfileParams,
   writeSessionParams,
 } from './urlParams'
 
@@ -266,7 +266,7 @@ describe('session round trip', () => {
 
 describe('a saved look', () => {
   it('carries the source addresses and drops the rest of the live query', () => {
-    const q = writeLookParams(
+    const q = writeProfileParams(
       new URLSearchParams(
         '?iurl=http://x/a.png&vurl=http://x/b.mp4&preset=vhs&debug=1',
       ),
@@ -291,7 +291,7 @@ describe('a saved look', () => {
     const controls = presetControls(vhs?.patch ?? {})
     if (key !== undefined) controls[key] = DEFAULT_CONTROLS[key]
     const back = parseSessionParams(
-      `?${writeLookParams(new URLSearchParams('?preset=vhs'), state({ controls }))}`,
+      `?${writeProfileParams(new URLSearchParams('?preset=vhs'), state({ controls }))}`,
     )
     expect(presetControls(back.controls)).toEqual(controls)
   })

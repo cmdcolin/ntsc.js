@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { writeLookParams, writeSessionParams } from './urlParams'
+import { writeProfileParams, writeSessionParams } from './urlParams'
 
 import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
@@ -125,13 +125,16 @@ export function useUrlState({
   }
 
   // What a saved look records — the same serialization, minus the params that
-  // only make sense for the session that is running (see writeLookParams).
-  const lookQuery = () =>
-    writeLookParams(new URLSearchParams(location.search), session()).toString()
+  // only make sense for the session that is running (see writeProfileParams).
+  const profileQuery = () =>
+    writeProfileParams(
+      new URLSearchParams(location.search),
+      session(),
+    ).toString()
 
   const copyQuery = (query: string) => {
     navigator.clipboard.writeText(linkFor(query)).catch(() => {})
   }
 
-  return { copyLink, copied, lookQuery, copyQuery }
+  return { copyLink, copied, profileQuery, copyQuery }
 }
