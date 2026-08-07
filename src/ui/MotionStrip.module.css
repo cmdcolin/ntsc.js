@@ -1,28 +1,45 @@
-/* One row above the filter box, present only while something is moving. Sits
+/* One row above the signal path, present only while something is patched. Sits
    there rather than inside the Modulation section because it is the control you
    want during a set, and the section it belongs to is folded away below the
-   whole signal path. */
+   whole signal path.
+
+   It used to draw itself as a green card — border, tinted face, an uppercase
+   label in the mod colour — which made it the loudest thing in the panel above
+   the chain map, outranking the presets and the spine that are what the sidebar
+   is for. It is a trim on a feature most sessions never open, so it now reads
+   as a row rather than as a surface: no box, no tint, a label in the panel's
+   own prose grey, and a fader mixed back toward the panel. It still wears the
+   mod green, because that is what says which system it belongs to — just not
+   at a strength that wins the page from three sections away, which at the
+   default of 1 it did across the full width of the track. */
 .strip {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin: 8px 0 2px;
-  padding: 3px 5px;
-  border: 1px solid #2f4a3d;
-  border-radius: 4px;
-  background: #1a221e;
+  margin: 6px 0 2px;
+  padding: 2px 0;
 }
 
 .label {
   font-size: var(--fs-sm);
-  color: var(--mod);
+  color: var(--fg3);
   letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .range {
   flex: 1;
   min-width: 0;
+  /* accent-color fills the whole track up to the thumb, so at the resting value
+     of 1 this is a full-width bar — mixed back toward the panel it reads as a
+     level rather than as a highlight. It lifts to the full mod green under the
+     pointer, which is the moment it is the thing being used. */
+  accent-color: color-mix(in srgb, var(--mod) 50%, var(--panel-bg));
+  /* a trim, not a control row: the track sits at the height of the label beside
+     it rather than at a slider's full weight */
+  height: 14px;
+}
+.range:hover,
+.range:focus-visible {
   accent-color: var(--mod);
 }
 
@@ -31,9 +48,17 @@
   padding: 0 2px;
   font-size: var(--fs-sm);
   line-height: 1;
+  color: var(--fg4);
+}
+.freeze:hover {
   color: var(--mod);
 }
-.frozen {
+/* A held board is a state worth shouting about — it is the reason nothing on
+   screen is moving — so this one keeps its colour while the rest of the strip
+   gives its up. Hover included, or the `:hover` above (one class more specific)
+   would swap the gold for green under the very pointer about to release it. */
+.frozen,
+.frozen:hover {
   color: var(--edit-hi);
 }
 

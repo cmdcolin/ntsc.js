@@ -70,9 +70,12 @@ function PresetsHelpDialog(props: { onClose: () => void }) {
   return (
     <Dialog title="Presets" size="prose" onClose={props.onClose}>
       <p className={ui.helpText}>
-        Each preset is a named look — a bundle of control settings that
-        recreates a particular signal fault or device. Hover one for what it
-        does.
+        A preset is not one switch. Each one is a named look that sets a whole
+        bank of controls at once — five for a simple fault, thirty-odd for “deep
+        end” — spread across every stage of the chain, because that is what it
+        takes to recreate a particular signal fault or device. Hover one for
+        what it does and how many controls it moves; “This look”, right below
+        this section, then lists every one of them as a live row you can drag.
       </p>
       <p className={ui.helpText}>
         Every preset but “clean” is also a fader: click to dial it fully in, or
@@ -117,13 +120,17 @@ function PresetButton(props: {
   const fill: CSSProperties & Record<'--w', string> = {
     '--w': `${Math.round(props.weight * 100)}%`,
   }
+  // How many controls the chip moves — the fact the catalog was not saying. A
+  // preset reads as one switch until you know it is a bundle, and the number is
+  // what makes stacking two of them, or dragging one halfway in, mean anything.
+  const touches = Object.keys(props.def.patch).length
   // "clean" is the reset (an empty patch): blendPresets can never mix it in at
   // any weight, so the drag-to-mix gesture is dead for it — plain click only,
   // hence no resize cursor advertising a gesture that does nothing.
-  const mixable = Object.keys(props.def.patch).length > 0
+  const mixable = touches > 0
   return mixable ? (
     <button
-      title={`${props.def.blurb} — drag sideways to mix it in partially`}
+      title={`sets ${touches} controls at once — ${props.def.blurb} Drag sideways to mix it in partially.`}
       style={fill}
       className={cx(
         ui.btn,
@@ -221,8 +228,16 @@ export function PresetsSection(props: {
     : active
       ? active.blurb
       : props.lastPreset === null
-        ? 'click a preset for an instant look, then tweak the sliders below.'
+        ? 'a preset is a bundle of settings, not one switch — click one for an instant look, then tweak the sliders below.'
         : `modified from "${props.lastPreset}"`
+  // The count rides the caption whenever the caption is describing a particular
+  // preset, so browsing the chips teaches the thing the chips cannot say: this
+  // is not a switch, it is N controls moving together. "clean" has an empty
+  // patch and gets no badge — it is the reset, and "0 controls" would read as
+  // broken rather than as "puts everything back".
+  const captionDef = hoveredDef ?? active
+  const captionTouches =
+    captionDef === undefined ? 0 : Object.keys(captionDef.patch).length
 
   // The shortlist: the reset, whatever is currently dialed into the mix (so a
   // "surprise me" recipe stays legible with the catalog folded), then recents,
@@ -317,6 +332,11 @@ export function PresetsSection(props: {
           grow to five meant sweeping the chips pumped everything below it up
           and down by 60px. */}
       <div className={styles.caption} title={presetCaption}>
+        {captionTouches === 0 ? null : (
+          <span className={styles.captionCount}>
+            {captionTouches} controls ·{' '}
+          </span>
+        )}
         {presetCaption}
       </div>
       {showHelp ? (

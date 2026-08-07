@@ -97,6 +97,16 @@
   margin: 3px 0 2px;
   line-height: var(--prose-lh);
 }
+/* How many controls the described preset moves, leading the caption. In the
+   panel's "this has been moved" gold rather than the caption's own grey: it is
+   a count of edits, which is the one thing the chips read as a single switch
+   and are not. Inline with the prose so it wraps and clamps with it. */
+.captionCount {
+  color: var(--edit);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* a preset group in the unfolded catalog */
 .presetGroup {
   margin: 2px 0 4px;

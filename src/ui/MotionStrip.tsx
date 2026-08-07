@@ -23,7 +23,7 @@ import styles from './MotionStrip.module.css'
 // panel's most prominent control doing nothing.
 export function MotionStrip(props: {
   // Puts the motion query in the filter box, which is the only way to see the
-  // driven rows together: they are scattered down five stages, and a routing
+  // driven rows together: they are scattered down six stages, and a routing
   // leaves the resting value alone, so nothing else in the panel marks them
   // from outside the row.
   onReveal: () => void
@@ -76,8 +76,18 @@ export function MotionStrip(props: {
       >
         {frozen ? '▶' : '❚❚'}
       </button>
-      <label className={styles.label} htmlFor="motion-amount">
-        motion
+      {/* Named after the section that creates it, not after what it does. "motion"
+          was a word this panel uses nowhere else, on the loudest row above the
+          fold, appearing unannounced the first time anything got patched — so it
+          read as a setting that had arrived from somewhere with no way to find
+          out where. "modulation" is the section three folds down that put it
+          there, and the title says so in one line. */}
+      <label
+        className={styles.label}
+        htmlFor="motion-amount"
+        title="one fader over every routing in the Modulation section below — set up there, scaled from here"
+      >
+        modulation
       </label>
       <input
         id="motion-amount"
