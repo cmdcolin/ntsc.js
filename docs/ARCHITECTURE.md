@@ -61,6 +61,15 @@ feature costs nothing. `loopPasses` runs once per tape-dub generation, with
 per-generation params copied over the live buffers in between so each pass gets
 its own noise and time-base walk.
 
+Two dispatches sit deliberately outside those arrays, because they are not the
+signal path: `scopeDecay` (the vectorscope's phosphor, see the buffer notes
+below) and the direct video blit (`blit_ext.wgsl`), which is input staging —
+where the device has `importExternalTexture` (Chrome, feature-detected), a
+slot's fresh video frame is sampled straight off the browser's decoder into
+the slot texture at the top of the frame, replacing the bitmap path's
+per-frame CPU decode/resize/upload. Firefox has no such API and stays on
+`VideoPump`'s bitmap path unchanged.
+
 The split matters: **encode** builds the waveform, **channel/timebase** damage
 it, **enhancer/sync/decode** is the receiver trying to make sense of the damage.
 An effect belongs in the stage that physically causes it. `enhancer` is an
@@ -260,6 +269,21 @@ information a static border carries. Measure with `page.metrics()` deltas
 fps stays at 60 until the budget is already gone.
 
 ## Performance shape
+
+Where the frame time goes (see `DEVELOPMENT.md` › Measuring performance for
+the protocol and the current numbers): every built-in preset fits comfortably
+in a 60 Hz budget on the dev box; the settings that genuinely cost are dub
+generations with colour-under (the `channel`/`underDown` pair per generation),
+a beam spot pushed past a pixel, a many-headed tape loop, and per-source feed
+snow — and they stack. Live frame rate is a different budget from batch GPU
+throughput: video decode/upload lands on it, and the display's vsync steps it
+in jumps. That wavering is what `frameLock` exists for — it renders every Nth
+refresh and submits *nothing* in between (a held re-present made Firefox's
+scheduler slow rAF delivery itself), trading rate the display was stepping
+anyway for a cadence that holds still; `auto` engages it from the loop's own
+interval spread and probes back on a backoff. Note before optimizing shaders
+here: three ALU micro-optimizations have measured exactly zero (the FIR passes
+are not ALU-bound), so ablate an upper bound first.
 
 Almost everything is comfortably parallel. Two exceptions:
 

@@ -100,6 +100,71 @@ find:
   reads as the app deadlocking rather than the transport drowning. Filter to
   warnings, errors, and the lines the harness is actually looking for.
 
+## Measuring performance
+
+```
+node scripts/perf.mjs <url> <label> [batches] [framesPerBatch]
+node scripts/perf.mjs <url> <label> --ablate   # per-pass cost attribution
+```
+
+Best-of wall-clock over batched `vf.step()` runs — the methodology that
+replaced the `?prof` timestamp profiler, which mis-attributed queue backlog to
+whichever pass ran first. Interleave base and patched runs in one sitting and
+compare the best, not the median: contention and thermals only ever add time,
+so the noise is one-sided.
+
+**Batch throughput is not live frame rate.** The batch number is the GPU
+saturated; what a user sees is the rAF loop, which is paced by the display and
+carries costs the batch never meets — video decode and upload land there, and
+on the dev box (a 47.89 Hz panel on the Intel side of a hybrid pair, with the
+signal path on the discrete card) every present crosses PCIe. Two playing
+clips cost more live frame rate than the heaviest preset does. Measure live
+rate with rAF running via `vf.frameNo()` deltas over multi-second windows,
+with video sources attached, before believing a batch number — and note the
+app's own fps readout reports loop cadence, which vsync steps down in jumps
+(48 → 24 on the dev panel), not a gradual slide.
+
+Where the frame time goes, measured 2026-08-08 (all 66 presets land 3.3–5.4 ms
+on the dev box's WX 3200, against a 3.3 ms always-on floor):
+
+- **Dub generations × colour-under** is the big multiplier: `channel` +
+  `underDown` cost ~1.4 ms per generation (worn tape runs 3.3 → 6.5 ms from
+  one generation to four).
+- **The CRT beam spot's** wide tiers (~1.8 ms) on the presets that push
+  `crtSpot` past a pixel; at the 0.6 px default the tap table is small and the
+  pass costs ~0.2 ms.
+- **`tapePlay` with many heads** (~2 ms on eight-head lap).
+- **Per-source feed snow** ~0.9 ms per engaged feed.
+- The true-waveform B chain (`encodeYuvB → encodeChromaB → encodeCompositeB →
+  mixB`) totals ~0.9 ms engaged and dispatches nothing idle.
+
+Two ALU micro-optimizations were implemented, measured dead flat, and
+reverted — the FIR passes are not ALU-bound on this hardware, so arithmetic
+saved there rides idle slots: the filter bank as a uniform buffer (vec4-packed
+for the constant cache) and a Chebyshev recurrence replacing the heterodyne
+phasor walk in `under_down`/`channel` (verified pixel-exact first). A
+one-shot bake of `crt_face`'s grain field met the same fate earlier. Measure
+an ablation upper bound before building any optimization here.
+
+### Chrome
+
+WebGPU in Chrome on Linux needs flags:
+
+```
+google-chrome --enable-unsafe-webgpu --enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE
+```
+
+On the dev box the engine runs clean under those flags — zero validation
+errors, full-speed loop — but the WebGPU canvas never composites: the page
+shows a black picture while `frameNo()` advances. Validate functionally
+instead: read a texture back over `copyTextureToBuffer` (the app's textures
+don't carry `COPY_SRC`, so patch `GPUDevice.prototype.createTexture` at page
+init to add it), and treat "spurious texture-allocation error" reports from
+ANGLE as the driver artifact `CLAUDE.md` describes. Chrome is also the only
+browser with `importExternalTexture`, so the zero-copy video path only runs
+there — `?vidbitmap` forces the bitmap path when the two need comparing in
+one browser.
+
 ## MIDI without a controller
 
 ```
@@ -321,6 +386,7 @@ A link specifies a look — **copy link** in the app writes one.
 | `?dbg=1..5`          | scope views (composite, luma, chroma, burst)          |
 | `?surprise`          | roll a random preset stack on load                    |
 | `?gpu=low-power`     | run on the integrated GPU instead of the discrete one |
+| `?vidbitmap`         | force the bitmap video path where zero-copy exists    |
 
 Example: `?iurl=/sample.jpg&preset=dirty%20mix`
 
