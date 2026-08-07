@@ -1380,6 +1380,13 @@ export class Engine implements EngineApi {
     this.loop.kick()
   }
 
+  // Whether this engine's device ever completed submitted work — read by the
+  // rebuild policy after a hang, to tell a device that worked and then stopped
+  // from one that was never alive. See RenderLoop.confirmedWork.
+  get gpuConfirmed(): boolean {
+    return this.loop.confirmedWork
+  }
+
   // Rebuild the swapchain when the loop has run out of gentler options. A tab
   // that comes back from a long hidden stretch can be left holding a surface
   // the compositor no longer paints, and re-requesting rAF cannot fix that —

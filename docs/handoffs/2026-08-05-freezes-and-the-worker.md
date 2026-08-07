@@ -168,6 +168,12 @@ single uninterrupted run on a quiet machine would settle it properly; if that
 run is also clean, the four fixes were the answer and the worker can be deleted
 rather than merely parked.
 
+Read that verdict narrowly. It says the _main-thread_ freeze this section was
+written to trigger on did not recur — and freezes have since been recorded that
+the soak cannot see, because they land before the first frame and so never move
+any of the counters it samples. See the last postscript; the conclusion for the
+worker is unchanged, but the reasoning behind it is now different and stronger.
+
 ### If it is picked back up
 
 - **Nothing tells the worker whether the page is on screen, and it cannot find
@@ -231,9 +237,13 @@ advice on several of these is wrong _here_.
   fully covered by another window reports `visibilityState: 'hidden'` here too,
   so "occluded" and "hidden" are not separable on this setup — which is also why
   the worker's benefit in an occluded-but-visible window could not be measured.)
-- **Firefox pins a GPU awake while a device is open on it.** The discrete card
-  never suspended across a 60 s idle test despite a 5 s autosuspend delay. Good
-  for stability, bad for battery — hence `?gpu=low-power`.
+- **~~Firefox pins a GPU awake while a device is open on it.~~** The discrete
+  card never suspended across a 60 s idle test despite a 5 s autosuspend delay.
+  **Overturned by the last postscript — what pins the card is _submission_, not
+  an open device, and that 60 s test held the tab in the foreground.** A hidden
+  tab submits nothing and the card suspends underneath a live `GPUDevice`. Still
+  bad for battery while the app is on screen, so `?gpu=low-power` keeps its
+  other reason.
 
 **Red herring worth not re-chasing:** the kernel log shows the amdgpu card fully
 re-initialising ~2400 times in 14 days (re-measured: 2717 in 20 days, so the
@@ -250,6 +260,14 @@ it stops dead for the whole length of a session: zero of them in the kernel log
 across a 20-minute soak, and none at all for the 90 minutes the card had been
 held awake before it. The cycling happens **between** sessions, never during
 one, so it cannot be what wedges a session that is already running.
+
+> **This dismissal was too broad, and the last postscript overturns half of
+> it.** Every measurement behind it was taken with the tab _visible and
+> rendering_, which is exactly the condition that pins the card awake — so
+> "never during a session" was really "never while we were looking". A
+> **hidden** tab submits nothing, the card's 5 s autosuspend expires underneath
+> a device that is still open, and coming back is a resume _inside_ a live
+> session. Read the paragraph above as being about the foreground case only.
 
 ## Measurement traps this cost real time to find
 
@@ -436,3 +454,298 @@ reason) and the console. And it does not explain what stopped the driver;
 `STEP-DEAD` with `clock +0ms` on a visible tab is the browser's rendering step,
 not the signal path, and the likeliest suspect on this box remains the wgpu
 crash documented above.
+
+## Postscript: answered off disk, and a crash pile that was ours
+
+**2026-08-06, later.** A freeze reported with no reproduction attached — "it
+freezes, refreshing does not help, no idea whether it is us or Nightly". Nothing
+was caught live. Both halves of the answer came off disk afterwards, which is
+the part worth writing down: this is now the cheapest route to a verdict, and it
+needs no one to be sitting in front of the machine when it happens.
+
+### The raised ceilings are not it
+
+Earlier the same day three commits widened what the controls can reach —
+`b828bb1` (89 sliders past their tuned travel), `bc17319` (impulse events 8 →
+24, playback heads 4 → 8, phosphor retention 0.995 → 0.9995) and `4904171` (five
+presets living out there). The obvious suspicion is that the new range costs
+more GPU than a refresh interval and walks the session into exactly the queue
+growth the second fix at the top of this document is about. It does not.
+Measured at `b6437ae`, batched `vf.step()` + drain on the AMD path, from a
+`git worktree --detach` copy so a neighbour's HMR could not spoil it:
+
+| look                           | ms/frame @1040x900 | @1560x1200 |
+| ------------------------------ | ------------------ | ---------- |
+| landing (bare load)            | 3.33               | 3.33       |
+| each "Past the redline" preset | 5.00–5.77          | 5.68       |
+| stacked worst case             | 9.13               | 11.52      |
+
+The worst case is `dubGens:4` + `impulseRate:24` + `tapeHeads:8` + `crtSpot:12`
+
+- `phosphor:0.99` + the composite feedback loop, all at once — deliberately
+  worse than anything a preset does, and further out than any look the
+  21.6-minute soak above ever ran. Every row clears a 16.7 ms budget. The
+  `?prof`-era worry that the expensive looks are the ones that wedge a session
+  is now measured and wrong on this box.
+
+The stronger reason it could not have been the signal path is in the recordings
+below: **the freeze lands at `frame 0`**, before a single frame has been
+submitted.
+
+### The trace was in the profile the whole time
+
+`trace.ts` writes to `localStorage`, and `localStorage` is a file. So a freeze
+nobody caught can still be read back, from a shell, days later:
+
+```
+~/.mozilla/firefox/<profile>/storage/default/http+++localhost+<PORT>/ls/data.sqlite
+```
+
+table `data`, key `ntsc.trace`. Three things make it harder than it sounds, all
+of them one-time costs now that they are written down:
+
+- **It is Snappy-compressed** (`compression_type = 1`), as a raw stream: a
+  varint uncompressed-length header, then the standard literal/copy tag bytes.
+  `JSON.parse` fails on it, zlib does not apply, and this box has no python
+  snappy module. About 45 lines of hand-rolled literal/copy decoding is enough,
+  and is the only part of this that needs writing.
+- **Which port matters**, and nobody remembers which dev server a given session
+  ran on. Sweep every `localhost+*` origin for a key matching `ntsc%` instead of
+  guessing; the hit also dates itself by the file's mtime.
+- **It is the real profile, not a puppeteer one.** Everything a harness does
+  lands in `/tmp/puppeteer_dev_firefox_profile-*` and is deleted with the
+  browser. Interactive freezes are the only ones that survive, which is exactly
+  the right filter.
+
+### What the five kept sessions say
+
+The session the previous postscript quotes — `2026-08-06 02:32:39`, dead from
+load, `frame 0` — is one of the five still in the ring. The next one is the
+interesting one, because it is the same fault with the focus-gate fix in place:
+
+```
+163|start|
+2171|beat|visible unfocused windowed STEP-DEAD ok frame 0 raf 0/beat probe 0/beat step 0/beat clock +0ms
+5069|lifecycle|visibility -> hidden
+936250|lifecycle|visibility -> visible
+936939|beat|visible unfocused windowed STEP-DEAD ok frame 0 raf 0/beat probe 0/beat step 0/beat clock +0ms
+936942|stall|frame 0 probe 0/beat step 0/beat clock +0ms
+936943|coldStall|1 frameless session in a row
+938942|beat|visible unfocused windowed STEP-DEAD STALLED frame 19 raf 0/beat probe 0/beat step 0/beat clock +0ms
+941030|lifecycle|visibility -> hidden
+941036|resume|frame 40
+942941|beat|hidden unfocused windowed step ok frame 43 raf 3/beat probe 3/beat step 1/beat clock +942915ms
+```
+
+**That stall is declared on a tab that is visible and _unfocused_**, which is
+precisely what the old gate could not do and what `driverDead` was added for —
+both non-rAF witnesses reading zero, so focus had nothing left to defer to. The
+fix is not just unit-tested, it is confirmed on a real recording, in the very
+next session after the one that motivated it. And what follows it answers the
+"two things this does not do" paragraph above more optimistically than it was
+written: the fallback pump ran frames 0 → 19 → 40 into the dead step, and rAF
+came back. `coldStall` said reloading would not clear it, and it was right —
+nothing about a reload was what cleared it.
+
+So the current best statement of the fault, and the recovery advice that follows
+from it:
+
+- `raf 0` with `step > 0` — only animation-frame callbacks are being dropped.
+  The fallback bridges it; the picture comes back on its own.
+- `raf 0` with `STEP-DEAD` and `clock +0ms` on a **visible** tab at `frame 0` —
+  the tab's rendering step was dead before the document ran a line. It belongs
+  to the tab rather than the document, so a reload lands in the same hole. Give
+  the fallback its five seconds; failing that, a new tab, not a refresh.
+- `STEP-DEAD` while `hidden` — normal. Not a fault, and not worth a line of
+  investigation.
+
+One reading trap, because it cost time here: long runs of `start|` /
+`stop|frame 0` pairs — about thirty across two of the five sessions — are **vite
+HMR**, not engine thrash. Another agent editing `src/` in this shared worktree
+reloads the page and tears the engine down, and the mount-once effect in
+`useEngine` cannot produce that pattern by itself.
+
+### The crash pile is our own harnesses
+
+`~/.mozilla/firefox/Crash Reports/pending/*.extra` is JSON, and looked at first
+glance like the whole answer: thirteen crashes carrying ntsc.js URLs. **Check
+`ProfileDirectory` before reading any of them.** Every one came from
+`/tmp/puppeteer_dev_firefox_profile-*`. None is interactive browsing, so none of
+it is the reported freeze.
+
+Twelve of the thirteen are a harness bug of ours, and the fingerprint is
+unmistakable once the right keys are read (`IPCMessageName`, `IPCMessageSize`):
+`MOZ_CRASH(IPC message size is too large)`, `PWindowGlobal::Msg_RawMessage`,
+**414,259,912 bytes — the identical size in all twelve**. A byte count that
+never varies is a deterministic payload, not a leak: it is a `page.evaluate`
+returning a full-canvas readback, which WebDriver BiDi serializes element by
+element at roughly seventy bytes per byte. Note where this comes from — one
+full-canvas `getImageData` really is far cheaper than the per-pixel reads it
+replaced, but only _in the page_; taking the win and then handing the buffer
+back across the wire moves the whole cost somewhere nothing was measuring.
+**Reduce in the page and return the reduction.** Every committed harness already
+does (`panelshots.mjs` and `pixelcheck.mjs` both read the whole canvas and
+return a handful of numbers), so the offender was an ad-hoc script that is no
+longer on disk — which is the argument for the rule living here rather than in
+whichever throwaway learns it next. The twelve arrived eighteen seconds apart in
+a single browser's uptime, which is a harness looping, and would have read as
+"the app crashes every eighteen seconds and a reload walks straight back into
+it" to anyone who did not check the profile directory.
+
+The thirteenth is the genuine one: `Cannot remove a vacant resource`, parent
+process, `UptimeTS` 21.8 s, 2026-08-06 04:22 — the wgpu-core registry panic
+already catalogued above, still upstream, still without a recipe. It is a
+_further_ occurrence, not one of the pair already recorded: its
+`SecondsSinceLastCrash` of 40552 points back about eleven hours, to the
+2026-08-05 pair, so the count is three. The `UptimeTS` also holds: 13.7 s and
+21.8 s, both inside the 5–30 s window gfx-rs/wgpu#5372 reports. Aperiodic,
+workload-shaped, and reliably early in a session.
+
+### What this leaves
+
+- **The worker stays parked, and the argument is now stronger than the soak's.**
+  A fault that lands at `frame 0`, with `document.timeline` not advancing, is
+  not one a busier or quieter main thread changes. Moving the engine off the
+  main thread cannot help a tab that is not being painted, and per "If it is
+  picked back up" it would actively mis-report this case, since a worker cannot
+  see visibility for itself.
+- **The one gap worth closing is the channel, not the loop.** `Stage.tsx` paints
+  "the browser stopped painting this tab", which a browser that is not painting
+  cannot show. That leaves the tab title, and `useEngine.ts` writes the same
+  `⏸ frozen — ` for a stall the fallback will bridge and for the cold
+  never-ticked case where the loop already knows a reload is useless. The loop
+  has the distinction (`everRaf`, and the `coldStall` it records); `onFrozen`
+  does not carry it. Threading it through would put the one actionable verdict
+  on the one surface still working.
+- **The measurement above is a baseline, not a clearance.** It says the widened
+  travel does not blow a frame budget on _this_ GPU at _these_ canvas sizes. The
+  `present` pass is the one that scales with the canvas, and 4K is still
+  extrapolated rather than measured.
+
+## Postscript: the card sleeps when you tab away, and the hang now rebuilds
+
+**2026-08-07.** The postscript above named the tab's rendering step and left the
+frequent case unexplained. The user supplied the missing half from their own use
+— _"tabbing away can affect it"_, _"maybe it is the low power mode"_ — and those
+are one mechanism, with the evidence sitting in `/sys` the whole time:
+
+```
+/sys/class/drm/card2/device/power: control=auto autosuspend_delay_ms=5000 runtime_status=suspended
+```
+
+`card2` is the Radeon the app renders on since `95f2a85` asked for
+`high-performance`. It has a **five-second** runtime-PM autosuspend delay, and
+the kernel log shows it resuming about **a hundred times in two hours**,
+occasionally every nine seconds. So:
+
+**Tab away → rAF stops → nothing is submitted → 5 s later the card suspends
+underneath a live `GPUDevice` → tab back → the card re-initialises and the
+device on the far side of that is stale.** Firefox does not always fire
+`device.lost` for it, so the app saw only its own symptom: submitted work that
+never completes.
+
+This is why the "red herring" dismissal above needed the correction now attached
+to it. Every measurement behind it held the tab in the foreground, which pins
+the card awake — the cycling was never absent, it was absent _while anyone was
+looking_. The soak has the same blind spot by construction: it accumulates
+visible minutes and refuses a verdict on a run that spent itself hidden, so the
+one state that provokes this is the one state it discards.
+
+Confirmed as a known class of fault rather than something exotic — the kernel
+carries
+[drm/amdgpu: don't runtime suspend if there are displays attached](https://lkml.iu.edu/hypermail/linux/kernel/2205.0/04263.html)
+for a neighbouring symptom, and wgpu has a long tail of devices left unusable
+after a PM resume ([gfx-rs/wgpu#983](https://github.com/gfx-rs/wgpu/issues/983),
+[wgpu-rs#392](https://github.com/gfx-rs/wgpu-rs/issues/392)). There is no
+Firefox-side fix to wait for, so the app has to survive it.
+
+### What changed
+
+**A hang now escalates to a rebuild instead of to a fatal screen.** The old
+`onHang` reasoning — a wedged GPU process outlives the page, so a fresh device
+lands on the same one — describes one cause of a hang and, on Linux, not the
+common one. A power-cycled card is not wedged; its device is merely stale, and a
+replacement works. The two are indistinguishable at the moment of the fault, so
+`useEngine` now decides by trying: a hang takes the same path a loss does, and
+only a hang that survives `RebuildPolicy`'s three fresh devices gets the "close
+this browser tab" screen. That screen is now earned rather than assumed.
+
+**What "survives" means is not the window, and that took a second pass.** The
+first version of this shared one `RebuildPolicy` between the two faults, so a
+hang spent the same budget a loss does: three inside `REBUILD_WINDOW_MS`,
+counted fault to fault, with nothing resetting it on a rebuild that worked. That
+is the wrong clock for this fault. The window was sized for losses, which arrive
+on a suspend/resume cadence; hangs now arrive on a _tab-switching_ cadence,
+because what provokes one is a five-second autosuspend. **Four alt-tabs inside a
+minute would have ended the session** with "three fresh devices did the same" —
+when all three worked, for thirty seconds each. `rebuildPolicy.ts` warns about
+exactly this in its own comment ("a laptop that sleeps four times across a
+day-long session ... telling that user the session is over on the fourth would
+be wrong"); sharing the counter reproduced it on a one-minute clock instead of a
+day.
+
+A hang has better evidence available than elapsed time, so it uses that instead.
+`RenderLoop.confirmedWork` latches whether the device _ever_ completed submitted
+work, and the two cases separate cleanly on it:
+
+| the device that hung         | reading | what it was                               | verdict                 |
+| ---------------------------- | ------- | ----------------------------------------- | ----------------------- |
+| completed work, then stopped | `true`  | a card that suspended under a live device | one-off, always rebuild |
+| never completed anything     | `false` | born onto a wedged GPU process            | counts toward giving up |
+
+So the bounded escalation the `GPUQueue.prototype` wedge verifies is unchanged —
+no replacement there ever completes anything, so it still walks `(1/3)`,
+`(2/3)`, `(3/3)` — while a card that sleeps forty times a day is rebuilt forty
+times, which is the right answer and the one the shared counter could not give.
+The two faults also now hold separate counts, so neither spends the other's
+budget.
+
+**The device is probed on every lifecycle transition, not only on the watchdog's
+beat.** `RenderLoop.kick()` already ran on tab-shown, focus and fullscreen exit
+— precisely the transitions that can have happened across a power cycle — and
+now arms the hang probe too, saving up to `WATCHDOG_MS` of frozen picture before
+detection even starts. `probing` keeps a burst of kicks to one probe. What makes
+this safe is the change above: a false positive costs one rebuild, not the
+session.
+
+Verified end to end rather than by reading the diff. A page-side wedge —
+`onSubmittedWorkDone` replaced with a promise that never settles, which is what
+the far side of a resume looks like — driven against two servers, one at `HEAD`
+and one patched:
+
+| build   | outcome                                                       |
+| ------- | ------------------------------------------------------------- |
+| HEAD    | `FATAL SCREEN` — "Close this browser tab"                     |
+| patched | `RECOVERED` — device replaced, loop running, frames advancing |
+
+and with the wedge installed on `GPUQueue.prototype` instead, so every
+replacement is born hung, the patched build walks `(1/3)`, `(2/3)`, `(3/3)` and
+_then_ shows the fatal screen — the escalation is bounded, not a rebuild loop.
+
+Three unit tests carry the parts that browser run cannot re-check cheaply, and
+all three were mutation-checked rather than assumed (see the trap above about
+tests that cannot fail): the probe on `kick`, `confirmedWork` latching on a
+completion and _not_ on a probe that expired, and a policy that rebuilds
+indefinitely through vouched-for faults while still giving up on the others. The
+first draft of the third caught something on the way: `reset()` clearing `count`
+is redundant to the verdict, because `lastAt = -Infinity` already forces the
+fresh branch — the test only bites on it once it also reads `attempt`.
+
+### What this does not do
+
+- **It does not stop the card sleeping.** Recovery costs whatever VRAM was
+  holding — phosphor trails, the frame store, the tape loop all start over — so
+  a long feedback build-up still does not survive a tab-away. Prevention would
+  mean either `?gpu=low-power` (the Intel chip drives the panel and never
+  suspends; ~3x the frame cost, which the budget above has room for) or
+  `echo on | sudo tee /sys/class/drm/card2/device/power/control` at the system
+  level, at the cost of battery. (Not `echo on > …` — the redirect is opened by
+  the shell as you, before `sudo` applies to anything.)
+- **It does not help the dead rendering step.** That fault lands at `frame 0`
+  with nothing submitted, so there is no hang to detect and no device to
+  replace. It is still a new tab, and the channel gap in the previous
+  postscript's "what this leaves" is still open.
+- **The soak still cannot see any of this.** A run that reproduces it has to
+  hide the tab for longer than the autosuspend delay and then come back, and
+  `--cycle` was built to model ordinary use rather than to sit past a 5 s
+  threshold. Worth pointing at the mechanism now that there is one.

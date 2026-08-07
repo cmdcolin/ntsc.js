@@ -120,6 +120,13 @@ export class RenderLoop {
   private watchdogId = 0
   private hangStrikes = 0
   private probing = false
+  // Whether this device has ever completed submitted work, latched for the
+  // lifetime of the loop rather than reset per run. It answers one question the
+  // owner cannot answer for itself — "was there ever a working device here, or
+  // was this one dead on arrival" — which is what separates a card that
+  // suspended underneath a healthy session from a replacement born onto a
+  // wedged GPU process. See `confirmedWork`.
+  private everConfirmed = false
   private rafTicks = 0
   private lastRafTicks = 0
   // A second baseline, for the recorded line only. `lastRafTicks` is the stall
@@ -174,6 +181,21 @@ export class RenderLoop {
 
   get running(): boolean {
     return this.live
+  }
+
+  // Has this device ever completed submitted work? Deliberately not reset by
+  // `start()` — it is a property of the device, not of a run, and the owner
+  // reads it after the loop has already been stopped by a hang.
+  //
+  // What it is for: a hang says nothing on its own about whether replacing the
+  // device will help. False here means nothing ever worked, so a replacement
+  // that hangs the same way is evidence the fault is behind the device and the
+  // session should stop trying. True means there was a working device that
+  // stopped answering — a card that runtime-suspended under a hidden tab is the
+  // common one — and that is a one-off however many times it happens, because
+  // each rebuild demonstrably fixed it.
+  get confirmedWork(): boolean {
+    return this.everConfirmed
   }
 
   // Every field a previous run could have left dirty is reset here, so a
@@ -489,9 +511,21 @@ export class RenderLoop {
   // Re-arm the loop after a transition (fullscreen exit, tab re-shown) that can
   // leave the browser having stopped delivering rAF callbacks. Safe on a healthy
   // loop and safe in a burst — see startChain.
+  //
+  // It also probes the device, because the transitions that call this are the
+  // ones most likely to have happened *across* a GPU power cycle. A hidden tab
+  // submits nothing, and a discrete card with a runtime-PM autosuspend delay
+  // (5 s on the dev box) then suspends underneath a device that is still open;
+  // coming back re-initialises the card, and the device on the far side of that
+  // does not always still work. Waiting for the next beat to notice costs up to
+  // WATCHDOG_MS of frozen picture on top of the strikes themselves, and there is
+  // nothing to wait for — the transition is the evidence. `probing` makes it a
+  // no-op when one is already outstanding, so a burst of kicks is still one
+  // probe.
   kick(): void {
     if (this.live) {
       this.startRender()
+      this.probeHang()
     }
   }
 
@@ -634,7 +668,16 @@ export class RenderLoop {
       // is the only thing that clears a stall now, and `tick` does that.
       this.lastRafTicks = this.rafTicks
     }
-    if (this.probing) return
+    this.probeHang()
+  }
+
+  // One outstanding liveness probe against the device, scored as a strike if it
+  // misses. Driven by the watchdog every beat, and by `kick` the moment a
+  // lifecycle transition gives independent reason to doubt the device. Both
+  // callers are unconditional: `probing` is what keeps it to one in flight, so
+  // neither has to know about the other.
+  private probeHang(): void {
+    if (this.probing || !this.live) return
     this.probing = true
     let settled = false
     const probeStart = performance.now()
@@ -671,9 +714,11 @@ export class RenderLoop {
           )
           if (this.hangStrikes >= HANG_STRIKES) {
             // A full stop, not just `live = false`: the fallback pump, the
-            // pending rAF and this watchdog all have to come down, and the
-            // owning Engine's destroy() keys off `running` — leaving it half
-            // stopped makes teardown skip the device it most needs to release.
+            // pending rAF and this watchdog all have to come down, or a loop
+            // reported as hung goes on burning frames into a device its owner
+            // is trying to hand back. Teardown itself is safe either way —
+            // Engine.destroy() keys off its own flag, not `running`, precisely
+            // so a loop stopped here still releases its device.
             trace.add('hang')
             this.stop()
             this.host.onHang()
@@ -684,6 +729,11 @@ export class RenderLoop {
     const timer = setTimeout(strike, HANG_MS)
     try {
       void this.host.device.queue.onSubmittedWorkDone().then(() => {
+        // Latched before the `settled` guard, because the fact being recorded is
+        // about the device and not about this probe: a completion that arrives
+        // after the deadline already scored a strike still proves the device
+        // completed work, and that is the whole content of the claim.
+        this.everConfirmed = true
         if (!settled) {
           settled = true
           clearTimeout(timer)

@@ -55,6 +55,39 @@ describe('RebuildPolicy', () => {
     }
   })
 
+  it('rebuilds indefinitely through faults a reset vouches for', () => {
+    const p = new RebuildPolicy()
+    // A card that suspends five seconds into a hidden tab hangs again every time
+    // the user comes back, which on an alt-tab cadence is well inside the
+    // window. Each one was handled — the caller says so by resetting — so the
+    // count must never build, however many arrive or how fast.
+    for (let i = 0; i < MAX_REBUILDS * 3; i++) {
+      p.reset()
+      expect(p.record(i * 1000)).toBe('rebuild')
+      expect(p.attempt).toBe(1)
+    }
+    // A reset leaves the policy exactly as it was constructed, `attempt`
+    // included. The verdict alone does not pin that down — `lastAt` at -Infinity
+    // already forces the fresh branch on the next record — but a reader who
+    // resets and then reads `attempt` should not be told about a run that has
+    // been forgiven.
+    p.reset()
+    expect(p.attempt).toBe(0)
+  })
+
+  it('still gives up on faults no reset vouches for', () => {
+    const p = new RebuildPolicy()
+    // The other half of the same rule: a replacement device that never completed
+    // any work is not vouched for, so it stacks and the escalation stays
+    // bounded. Interleaved with vouched-for ones to prove the reset only
+    // forgives the fault it was called about.
+    p.reset()
+    expect(p.record(0)).toBe('rebuild')
+    for (let i = 1; i <= MAX_REBUILDS; i++) {
+      expect(p.record(i * 10)).toBe(i === MAX_REBUILDS ? 'give-up' : 'rebuild')
+    }
+  })
+
   it('keeps counting past the limit so the verdict stays give-up', () => {
     const p = new RebuildPolicy()
     for (let i = 0; i <= MAX_REBUILDS; i++) p.record(i * 10)

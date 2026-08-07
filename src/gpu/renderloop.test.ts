@@ -432,6 +432,60 @@ describe('RenderLoop', () => {
     expect(h.frames()).toBe(3)
   })
 
+  it('probes the device on a kick, not only on the watchdog beat', async () => {
+    const h = harness()
+    h.loop.start()
+    // Just the backpressure gate's standing probe. The hang probe waits for the
+    // first beat, which is up to WATCHDOG_MS away.
+    expect(h.outstandingWork()).toBe(1)
+
+    // A kick is a lifecycle transition — a tab re-shown, fullscreen exited —
+    // and those are exactly the moments a discrete card can have runtime
+    // suspended and resumed underneath a device that is still open. The
+    // transition is the evidence, so the probe goes out now rather than after
+    // another beat of frozen picture.
+    h.loop.kick()
+    expect(h.outstandingWork()).toBe(2)
+
+    // One at a time, though: eight visibility flips must not leave eight probes
+    // in flight, each with its own deadline scoring its own strike.
+    h.loop.kick()
+    h.loop.kick()
+    expect(h.outstandingWork()).toBe(2)
+
+    // And a kick against a stopped loop probes a device the owner may already
+    // have destroyed.
+    h.loop.stop()
+    h.completeGpu()
+    h.loop.kick()
+    expect(h.outstandingWork()).toBe(0)
+  })
+
+  it('remembers whether the device ever completed work', async () => {
+    const h = harness()
+    h.loop.start()
+    // Asked nothing, answered nothing.
+    expect(h.loop.confirmedWork).toBe(false)
+
+    // A probe that expires unanswered leaves it false, which is the reading the
+    // rebuild policy needs: a device that was never alive is a replacement born
+    // onto a wedged GPU process, and escalating on those is what keeps the
+    // recovery bounded.
+    h.loop.kick()
+    await vi.advanceTimersByTimeAsync(HANG_MS + 1)
+    expect(h.loop.confirmedWork).toBe(false)
+
+    // One completion settles it, even arriving after the strike it was too late
+    // to prevent — the claim is about the device, not about the probe. And it
+    // survives the stop, because the owner reads it after a hang has already
+    // torn the loop down.
+    h.completeGpu()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(h.loop.confirmedWork).toBe(true)
+    h.loop.stop()
+    expect(h.loop.confirmedWork).toBe(true)
+  })
+
   it('reports one frozen edge per stall episode', async () => {
     const h = harness()
     h.loop.start()

@@ -44,6 +44,21 @@ export class RebuildPolicy {
     return this.count > this.max ? 'give-up' : 'rebuild'
   }
 
+  // Forget the run so far: the next fault starts a fresh count.
+  //
+  // The window above asks "did the replacement hold for long enough", which is
+  // the only proof available for a device that goes away. A hang has a better
+  // one — whether the device ever completed any work at all — and it needs it,
+  // because the fault that feeds the hang path most often is a discrete card
+  // suspending under a hidden tab, whose cadence is tab-switching rather than
+  // anything about the GPU. Four of those inside `windowMs` are four one-off
+  // faults the rebuild handled, not a device that came back wrong, and the
+  // caller with that evidence says so here. See useEngine's `rebuild`.
+  reset(): void {
+    this.count = 0
+    this.lastAt = -Infinity
+  }
+
   // Which attempt the loss just recorded is, for the console breadcrumb and the
   // "replaced N times" wording on the fatal screen.
   get attempt(): number {

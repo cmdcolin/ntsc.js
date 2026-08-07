@@ -15,10 +15,23 @@ export type GpuPower = 'high-performance' | 'low-power'
 // `?gpu=low-power` sends the session to the integrated chip. Two reasons to
 // want that, and neither is a preference about frame rate:
 //
-//   - Battery. Firefox pins a GPU awake for as long as a device is open on it,
-//     so a discrete card that would otherwise autosuspend after a few seconds
-//     idle stays powered for the whole session — measured on the dev laptop,
-//     which never once suspended while the app was up.
+//   - Battery. A discrete card stays powered for as long as the app is actually
+//     rendering on it: work is submitted every frame, so runtime PM never sees
+//     it idle long enough to suspend. The integrated chip is on regardless,
+//     because it drives the panel.
+//   - Not being woken and slept. The corollary of the above, and the more
+//     useful reason on Linux: what pins the card awake is submission, not an
+//     open device, so a *hidden* tab submits nothing and the card suspends
+//     underneath a GPUDevice that is still open — measured on the dev laptop,
+//     `card2` at `control=auto` with a 5 s autosuspend delay, resuming about a
+//     hundred times in two hours. Coming back re-initialises the card and the
+//     device on the far side of that does not always still work, which the app
+//     survives (useEngine rebuilds through it) but cannot make free: everything
+//     VRAM was holding starts over. The integrated chip never suspends, so this
+//     is the way to keep a long feedback build-up across a tab-away.
+//     (An earlier note here said Firefox pins a GPU awake for as long as a
+//     device is open on it, on the strength of a 60 s idle test. That test held
+//     the tab in the foreground, which is the one condition that makes it true.)
 //   - Bisecting a fault. "Does it still do it on the other GPU" is the first
 //     question worth asking about a driver-shaped bug, and it should not need
 //     a rebuild to answer.

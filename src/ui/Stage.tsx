@@ -228,7 +228,7 @@ export function Stage(props: {
   canvasRef: RefObject<HTMLCanvasElement | null>
   error: string
   frozen: boolean
-  rebuilding: boolean
+  rebuilding: 'lost' | 'hung' | null
   fullscreen: boolean
   poppedOut: boolean
   recording: boolean
@@ -352,9 +352,19 @@ export function Stage(props: {
           the frozen notice and exclusive with it: a loss can land on a tab that
           was already stalled, and two centred boxes would sit on top of each
           other — this one is the newer news and the one that resolves itself. */}
-      {props.rebuilding ? (
+      {props.rebuilding !== null ? (
         <div className={cx(styles.frozen, styles.rebuilding)}>
-          <b>the GPU device was lost — rebuilding</b>
+          {/* Two faults, one recovery. A device that announced it was going
+              away and a device that just stopped answering want the same
+              sentence about what survives and different ones about what
+              happened — saying "lost" over a hang describes an event that did
+              not occur, and the hang is the one a user is most likely to have
+              caused by tabbing away. */}
+          <b>
+            {props.rebuilding === 'hung'
+              ? 'the GPU stopped responding — rebuilding'
+              : 'the GPU device was lost — rebuilding'}
+          </b>
           <span>
             Your look, the modulation and the sources are all being put back.
             Anything the picture had built up — phosphor trails, the frame

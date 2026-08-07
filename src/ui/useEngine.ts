@@ -113,6 +113,29 @@ type SlotSource =
 const CREATE_TRIES = 3
 const CREATE_RETRY_MS = 700
 
+// The two ways the GPU half of a session ends, and the reason they are handled
+// by one path rather than two.
+//
+// `lost` is a device that said so — driver reset, sleep/wake, a compositor that
+// took it back. `hung` is a device that said nothing and stopped completing
+// submitted work, which used to go straight to a fatal screen on the grounds
+// that a wedged GPU process outlives the page and a fresh device would land on
+// the same one. That is one cause of a hang and, on Linux, not the common one.
+// The common one is a discrete card that runtime-suspended underneath a live
+// device — a hidden tab submits nothing, the card's autosuspend delay expires
+// (5 s on the dev box), and coming back re-initialises a card the device was
+// still open on. Nothing is wedged there; the device is simply stale, and a
+// replacement works.
+//
+// The two are indistinguishable at the moment of the fault, so the rebuild
+// decides it by trying: a hang gets a fresh device like a loss does, and the
+// verdict the old code reached immediately is reached only after `RebuildPolicy`
+// has spent its fresh devices on one that never completed any work — which is
+// the wedged process, and nothing else. The cost of guessing wrong is now one
+// rebuild instead of the session, which is also what makes it safe to probe on
+// every lifecycle transition rather than only on the watchdog's beat.
+type GpuFault = 'lost' | 'hung'
+
 // Hand a slot's picture to a freshly-built engine. The element check comes first
 // and on purpose: a clip, a webcam, a screen share and a YouTube blob all survive
 // a lost device untouched — the <video> is the browser's — so the whole recovery
@@ -169,11 +192,13 @@ export function useEngine(wantStats = false) {
   // The browser stopped painting the tab. Not fatal — it clears itself the
   // moment rAF is delivered again — so it rides over the stage as a banner.
   const [frozen, setFrozen] = useState(false)
-  // A lost device is being replaced. Also a banner rather than a screen: the
+  // A device is being replaced, and why. Also a banner rather than a screen: the
   // whole point of the rebuild is that the session survives it, and the picture
   // is back within a second — but the gap has to say what it is, or it reads as
-  // exactly the freeze this all exists to avoid.
-  const [rebuilding, setRebuilding] = useState(false)
+  // exactly the freeze this all exists to avoid. The cause rides along because
+  // the two look identical from the stage and want different words: one device
+  // announced that it was going away, the other just stopped answering.
+  const [rebuilding, setRebuilding] = useState<GpuFault | null>(null)
 
   // The stage banner rides on the canvas, so it is invisible in the worst
   // version of this — a document the browser has stopped painting entirely,
@@ -931,7 +956,12 @@ export function useEngine(wantStats = false) {
       // whether a replacement is in flight, and the retry timer one may be
       // waiting on. Locals rather than state: the guard has to be true the
       // instant it is set, and nothing renders any of them.
+      // Two counts, not one, because the two faults escalate on different
+      // evidence and must not spend each other's budget: a run of losses should
+      // not be forgiven by a hang that proved a device had worked, and a run of
+      // hangs should not inherit a count left by losses.
       const losses = new RebuildPolicy()
+      const hangs = new RebuildPolicy()
       let busy = false
       let retryId = 0
 
@@ -951,17 +981,12 @@ export function useEngine(wantStats = false) {
         // Bound to the engine that lost its device, not to whatever is live when
         // the promise settles: `lost` can resolve late, and a stale one must not
         // be able to tear down the successor that replaced it.
-        created.onDeviceLost = m => rebuild(created, m)
-        // Not a lost device: the device never reported anything, it just
-        // stopped completing submitted work — so don't title it as one, and
-        // don't rebuild for it. A wedged GPU process is shared across tabs and
-        // outlives this page, so a fresh device would land on the same one.
+        created.onDeviceLost = m => rebuild(created, 'lost', m)
+        // Not a lost device — it never reported anything, it just stopped
+        // completing submitted work — but answered the same way, and see
+        // GpuFault for why that is the right guess to make first.
         created.onHang = () =>
-          setFatal({
-            title: 'The GPU stopped responding',
-            body: 'Submitted work stopped completing, so the picture would be frozen even though the app is still running.',
-            kind: 'hung',
-          })
+          rebuild(created, 'hung', 'submitted work stopped completing')
         created.onFrozen = f => setFrozen(f)
         // Both belong to the engine being replaced: a gpu fault it reported on
         // its way out, and a paint stall latched against its loop. The new loop
@@ -982,38 +1007,78 @@ export function useEngine(wantStats = false) {
       // frame store and the tape loop all start empty, so a feedback look takes
       // a second or two to build back up — which is what a real set does after
       // the power blinks.
-      const rebuild = (dead: Engine, message: string): void => {
-        trace.add('deviceLost', message.slice(0, 120))
+      const rebuild = (
+        dead: Engine,
+        fault: GpuFault,
+        message: string,
+      ): void => {
+        trace.add(
+          fault === 'hung' ? 'deviceHung' : 'deviceLost',
+          message.slice(0, 120),
+        )
         trace.flush(true)
         if (disposed || busy || engineRef.current !== dead) return
-        if (losses.record(performance.now()) === 'give-up') {
-          setFatal({
-            title: 'WebGPU device lost',
-            body: `The GPU device was replaced ${losses.limit} times and kept going away${message === '' ? '' : ` (${message})`}, so the session stopped trying.`,
-            kind: 'lost',
-          })
+        const policy = fault === 'hung' ? hangs : losses
+        // The device that just hung had completed work before it stopped
+        // answering, so replacing it was the right move and it worked — this is
+        // a fresh one-off, not a step toward giving up.
+        //
+        // It matters because the fault feeding this path is a card that
+        // suspends five seconds into a hidden tab, so the interval between two
+        // hangs is how long the user spent in another tab. Counting those
+        // toward a limit ends the session on the fourth alt-tab of a minute
+        // with "three fresh devices did the same", when all three worked. Only
+        // a device that never completed anything — a replacement born onto a
+        // wedged GPU process — leaves this untouched and escalates.
+        if (fault === 'hung' && dead.gpuConfirmed) policy.reset()
+        if (policy.record(performance.now()) === 'give-up') {
+          // Only here does a hang become the verdict the old code reached
+          // immediately: fresh devices were tried and never completed a thing,
+          // so what is wedged is behind them — the GPU process, which is shared
+          // across tabs and outlives this page. That is the one case where
+          // "close the tab" is really the advice, and it is now earned.
+          setFatal(
+            fault === 'hung'
+              ? {
+                  title: 'The GPU stopped responding',
+                  body: `Submitted work stopped completing, and ${policy.limit} fresh devices never completed any, so the fault is behind them rather than in this session.`,
+                  kind: 'hung',
+                }
+              : {
+                  title: 'WebGPU device lost',
+                  body: `The GPU device was replaced ${policy.limit} times and kept going away${message === '' ? '' : ` (${message})`}, so the session stopped trying.`,
+                  kind: 'lost',
+                },
+          )
           return
         }
         busy = true
-        setRebuilding(true)
+        setRebuilding(fault)
         console.warn(
-          `WebGPU device lost (${message || 'no reason given'}); rebuilding on a fresh device (${losses.attempt}/${losses.limit})`,
+          fault === 'hung'
+            ? `GPU work stopped completing (${message}); replacing the device (${policy.attempt}/${policy.limit})`
+            : `WebGPU device lost (${message || 'no reason given'}); rebuilding on a fresh device (${policy.attempt}/${policy.limit})`,
         )
-        // Release what the loss left behind. The audio graph is the exception:
+        // Release what the fault left behind. The audio graph is the exception:
         // the replacement adopts it, because a <video> binds to one AudioContext
         // for life and a fresh one could never re-adopt the clips still playing.
+        //
+        // For a hang this is also the part doing the work. `destroy()` is keyed
+        // off its own flag rather than `loop.running` precisely so a loop the
+        // hang watchdog already stopped still releases its device — which is
+        // what hands the stale one back before another is asked for.
         dead.destroy({ keepAudio: true })
-        replace(dead, CREATE_TRIES)
+        replace(dead, fault, CREATE_TRIES)
       }
 
       // One attempt at standing a new engine up in the old one's place. `dead` is
       // still the store React is reading and every write path is pointed at, so
       // it stays authoritative until the moment `wire` moves them across.
-      const replace = (dead: Engine, tries: number): void => {
+      const replace = (dead: Engine, fault: GpuFault, tries: number): void => {
         Engine.create(canvas, { audio: dead.audioState }).then(
           created => {
             busy = false
-            setRebuilding(false)
+            setRebuilding(null)
             if (disposed) {
               created.destroy()
               return
@@ -1034,7 +1099,10 @@ export function useEngine(wantStats = false) {
             // Forced, like the loss that caused it: if the replacement wedges
             // too, the next session's trace has to show that this one already
             // came back from a loss rather than starting clean.
-            trace.add('rebuilt', `attempt ${losses.attempt}`)
+            trace.add(
+              'rebuilt',
+              `attempt ${fault === 'hung' ? hangs.attempt : losses.attempt}`,
+            )
             trace.flush(true)
             console.warn('engine rebuilt on a fresh device')
           },
@@ -1048,16 +1116,23 @@ export function useEngine(wantStats = false) {
                   `rebuild failed (${reason(e)}); retrying in ${CREATE_RETRY_MS}ms`,
                 )
                 retryId = window.setTimeout(
-                  () => replace(dead, tries - 1),
+                  () => replace(dead, fault, tries - 1),
                   CREATE_RETRY_MS,
                 )
               } else {
                 busy = false
-                setRebuilding(false)
+                setRebuilding(null)
+                // A device that cannot be created at all is the same dead end
+                // whichever fault sent us here, so this one screen covers both —
+                // but it still has to say which, or a hang reads as a loss that
+                // never happened.
                 setFatal({
-                  title: 'WebGPU device lost',
-                  body: `The GPU device went away and could not be replaced: ${reason(e)}`,
-                  kind: 'lost',
+                  title:
+                    fault === 'hung'
+                      ? 'The GPU stopped responding'
+                      : 'WebGPU device lost',
+                  body: `${fault === 'hung' ? 'Submitted work stopped completing' : 'The GPU device went away'} and could not be replaced: ${reason(e)}`,
+                  kind: fault,
                 })
               }
             }
