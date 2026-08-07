@@ -2374,6 +2374,16 @@ export const GROUPS: Group[] = [
         unit: 'x',
         help: 'Steps the whole simulation at a fraction of display rate, like slowed footage of the rig: noise, rolls, sweeps, feedback loops and phosphor all crawl together, and 0 freezes the frame. Modulation stays live, so an LFO or audio envelope here warps time itself. Pair with the speed control in the vaporwave section to slow the source footage to match.',
       },
+      {
+        key: 'frameLock',
+        label: 'frame rate lock',
+        min: 0,
+        max: 3,
+        step: 1,
+        unit: '',
+        choices: ['off', '1/2 rate', '1/3 rate', '1/4 rate'],
+        help: 'Renders every second, third or fourth display refresh instead of chasing every one. A signal path that costs slightly more than a refresh interval otherwise wavers between full rate and half rate, and the wavering reads as stutter where a steady lower cadence reads as intentional. The skipped refreshes do no work at all, so the lock never slows the rig further — but like slow motion, the simulation (modulation included) steps once per rendered frame, so rolls and noise crawl proportionally slower under it.',
+      },
     ],
   },
 ]
@@ -2681,12 +2691,15 @@ export function snapToStep(
 
 // Controls that move where you are looking rather than what the signal does.
 // Still bindable, but they rank last: a knob spent on the magnifier is a knob not
-// spent on the picture.
+// spent on the picture. The frame lock belongs here for the same reason the
+// magnifier does: it shapes how the picture is watched, and a mutate that
+// randomly halved the frame rate would be yanking the viewer, not the signal.
 export const VIEW_KEYS = new Set<ControlKey>([
   'crtZoom',
   'crtZoomX',
   'crtZoomY',
   'scope',
+  'frameLock',
 ])
 
 // The groups that surface contextually rather than on the signal-path spine.

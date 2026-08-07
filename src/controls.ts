@@ -249,6 +249,9 @@ export const DEFAULT_CONTROLS = {
   scope: 0, // vectorscope overlay opacity (0 = off, and the pass does no work)
   // time
   timeScale: 1, // sim steps per display frame: everything slows together, 0 freezes
+  // render every (value+1)th refresh: a steady lower cadence instead of a frame
+  // rate that wavers between vsync steps. 0 = every refresh.
+  frameLock: 0,
 }
 
 export type Controls = typeof DEFAULT_CONTROLS

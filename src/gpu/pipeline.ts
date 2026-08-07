@@ -221,6 +221,8 @@ export class Engine implements EngineApi {
   private impulseTrainStep = 0
   // slow motion: sim-time owed, in frames; a step fires when it reaches 1
   private simAcc = 0
+  // Which refresh of the frame lock's cycle this is; renders happen at 0.
+  private lockPhase = 0
   private paramScratch = new ArrayBuffer(PARAM_BYTES)
   private loop: RenderLoop
   private destroyed = false
@@ -1121,10 +1123,11 @@ export class Engine implements EngineApi {
   }
 
   // Manual frame step for the verification harness (rAF is throttled in
-  // occluded windows). Forces a full sim step regardless of timeScale so
-  // stepping stays deterministic.
+  // occluded windows). Forces a full sim step regardless of timeScale and the
+  // frame lock so stepping stays deterministic.
   step(): void {
     this.simAcc = 1
+    this.lockPhase = -1
     this.render()
   }
 
@@ -1534,6 +1537,19 @@ export class Engine implements EngineApi {
   // canvas survives resizes; modulation still advances at display rate, so an
   // LFO or audio envelope on timeScale warps time live.
   private render(): void {
+    // The frame lock renders every Nth refresh and submits *nothing* on the
+    // refreshes in between — not even a held present. The canvas keeps its
+    // last frame without help, and the idle refreshes have to stay genuinely
+    // idle: re-presenting the held frame on them read as an idle page to
+    // Firefox's scheduler, which slowed rAF delivery itself (measured on the
+    // dev box: rAF fell 48→25 Hz and a 1/2 lock delivered 12 fps, not 24).
+    // A counter rather than a divided accumulator so the cadence is exact for
+    // every divisor, and checked before applyMod so a locked-out refresh does
+    // no work at all — modulation therefore steps once per rendered frame and
+    // slows with the lock, like everything else the sim clocks.
+    const lockDiv = 1 + Math.round(this.controls.frameLock)
+    this.lockPhase = (this.lockPhase + 1) % lockDiv
+    if (this.lockPhase !== 0) return
     const restoreMod = this.applyMod()
     try {
       this.simAcc = Math.min(this.simAcc + this.controls.timeScale, 1)
