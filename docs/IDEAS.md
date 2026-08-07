@@ -101,16 +101,16 @@ These read like naked periodic waves but are physically correct — don't
 ## Screen-domain effects not yet built
 
 The neon phosphor colour work (beam transfer, `phosphorMode` tube identities,
-persistence skew/bleed, the magnifier) shipped in full; these two items are what
-remains of it.
+persistence skew/bleed, the magnifier) shipped in full, and the luma-keyed
+halation radius shipped as `crtHaloKey`; this one item is what remains of it.
 
-- **Luma-keyed halation radius.** `crt_face` already adds a wide warm
-  glass-scatter halo (`crtHalation` × the 15-px golden-angle tap ring, tinted
-  `WARM`), but at a fixed radius. Real glass scatter depends on beam current and
-  so blooms disproportionately on peak whites; keying the halo radius off local
-  luma would read more like an old tube.
 - **Per-channel bloom radius.** One radius for all three channels; the phosphors
-  don't actually scatter alike.
+  don't actually scatter alike. Note that `crtHaloKey` keys the halo radius off
+  the _destination_ pixel's own drive, because a gather has to pick its radius
+  before it samples. That widens how far a bright area reaches _in_, which is
+  the visible half; genuinely widening how far a highlight throws light _out_
+  needs a second, higher-threshold ring rather than a keyed radius. Worth
+  knowing before anyone tries to key the bloom radius the same way.
 
 ## Boxes in the rack (from the commercial-processing-unit pass)
 
@@ -119,17 +119,16 @@ authoring off the shipped `diffPhaseDeg`: inside the mixer loop, differential
 phase separates a feedback trail into colour layers by brightness, because
 `cfbDelay`'s rotation per generation stops being uniform.)
 
-- **Convergence, purity, and the magnet on the tube.** The screen section models
-  beam, phosphor, mask and glass, but the three guns are perfectly registered,
-  which no tube is. Two per-channel offsets in `crt_face`: convergence error
-  growing with radius (colour fringes at the corners), and a magnetized patch of
-  the mask as a fixed soft purity blotch the picture rolls through. Both magnify
-  with the lens.
-- **Scan velocity modulation.** Consumer sets slowed the beam at dark→bright
-  transitions to fake sharpness; emission goes as dwell time, so brightness
-  redistributes asymmetrically across the edge — white overshoot one side, black
-  notch the other. Lives in `crt_face` over the decoded image, so it sidesteps
-  the decode-tiling constraint that blocks intra-line geometry.
+The two tube items from this list shipped together: convergence error
+(`crtConverge`) and the magnetised purity patch (`crtPurity`), plus scan
+velocity modulation (`crtSvm`), all in `crt_face`. Two things learned there,
+for whoever adds the next screen fault. Convergence has to re-run the whole
+beam-spot integral per channel — blurring one shared sample averages the
+landing error away instead of leaving a fringe — so it costs 3× the spot taps
+whenever it is non-zero, behind a uniform branch. And every new mechanism has
+to be added to the identity-copy early-out at the top of `main`, or turning it
+on by itself reads as a dead control.
+
 - **A DVE / framestore, as the digital box in the analog last mile.** Distinct
   from the digital cable tier below, and more era-correct. An ADO / A53 /
   WJ-MX50 cannot work on composite, so it decodes to 4:2:2 601 on a 720×486,

@@ -64,6 +64,10 @@ A camera pointed at its own monitor, re-photographed every frame.
   runs at a different rhythm from the beam limiter, so the two pumps beat.
 - **CRT faceplate** — what the camera photographs: beam cutoff, gun gamma,
   saturation, bloom, warm halation, faceplate glow — each compounded per pass.
+- **Halation ∝ beam current** — glass scatter grows with drive, so a peak white
+  throws light further into the faceplate than a mid grey does. Keys the halo
+  radius off local drive; at zero the halo is one fixed width, which is the tell
+  that gives a drawn glow away.
 
 ## Mixer loop
 
@@ -455,6 +459,19 @@ and what you see looking at one.
   highlights. Why a tube never resolves into hard pixels.
 - **Reconstruction** — bilinear to cubic; how the sampled line becomes
   continuous light without pumping fine patterns.
+- **Convergence error** — three guns fire through one mask from three positions,
+  so they can only be registered over part of the screen. Nulled in the middle
+  and worsening toward the corners, which is why an old tube is clean in the
+  centre and fringes red and blue at the edges. On the glass, so the magnifier
+  shows it; negative crosses the guns the other way.
+- **Scan velocity modulation** — the sharpness circuit consumer sets used:
+  differentiated luma patched into an extra deflection coil, so the beam
+  decelerates through a dark-to-bright transition and accelerates through a
+  bright-to-dark one. Emission follows dwell time, so light is _moved_ across
+  the edge rather than added — a white overshoot on one side, a black notch on
+  the other, and the asymmetry is the whole complaint people had about it.
+  Measured on bars, an edge completes in about two pixels instead of five while
+  total row luma holds within a percent.
 
 ### The phosphor
 
@@ -470,6 +487,12 @@ and what you see looking at one.
   fresh edge stays sharp while old light goes wide and cloudy.
 - **Aperture grille** — the R/G/B stripe mask, with a pitch that moirés near
   small whole-pixel spacings, exactly as photographing a CRT does.
+- **Purity (magnetised patch)** — a patch of the mask left magnetised by a
+  speaker set too close, or a set moved without degaussing. The field bends all
+  three beams together, but a triad is three dots 120° apart, so the same nudge
+  over-excites the dot it moves toward and starves the one opposite. The stain
+  turns hue across itself rather than tinting flat, and it is fixed on the
+  glass — a rolling picture travels through it instead of carrying it along.
 
 ### Looking at it
 
