@@ -32,7 +32,7 @@ import { ModState } from '../signal/modstate'
 import { valueNoise } from '../signal/noise'
 import { RfState } from '../signal/rfstate'
 import { TapeState, tapeRecording } from '../signal/tapeloop'
-import { gpuPowerFromSearch, initGpu } from './context'
+import { gpuPowerFromSearch, initGpu, releaseGpu } from './context'
 import { pageSearch } from './env'
 import { aFeedOn, bFeedOn, bOn, bWaveOn, FEEDS } from './feedgates'
 import { AutoLock } from './framelock'
@@ -194,6 +194,11 @@ export class Engine implements EngineApi {
   // texture): surfaced to the panel banner instead of only the console, so a
   // wedged render loop shows a reason rather than looking frozen.
   onGpuError: (message: string) => void = () => {}
+  // The device-level listener that feeds `onGpuError`, held so teardown can take
+  // it back off a device this engine may not be the last to use.
+  private onUncaptured = (e: Event) => {
+    if (e instanceof GPUUncapturedErrorEvent) this.onGpuError(e.error.message)
+  }
 
   // Initialized from ?dbg=; also switchable live via setDbgView (Advanced).
   private dbgView = Number(new URLSearchParams(pageSearch()).get('dbg') ?? 0)
@@ -958,9 +963,12 @@ export class Engine implements EngineApi {
     // Faults the error scopes don't catch (they only wrap startup frames) land
     // here — chiefly an over-large source texture on a fresh pick — so report
     // them to the UI rather than let the loop wedge silently.
-    this.gpu.device.addEventListener('uncapturederror', e => {
-      if (e instanceof GPUUncapturedErrorEvent) this.onGpuError(e.error.message)
-    })
+    //
+    // Kept as a field so `destroy` can take it off again. That is not tidiness: a
+    // device now outlives the engine that made it (`keepDevice`), so a listener
+    // left behind would accumulate one dead engine per hot update and report every
+    // GPU error once per generation.
+    this.gpu.device.addEventListener('uncapturederror', this.onUncaptured)
 
     // reason 'destroyed' is our own destroy(); anything else is a real loss
     // (driver reset, sleep/wake, GPU hang) — stop and surface it.
@@ -1183,9 +1191,17 @@ export class Engine implements EngineApi {
       // the successor engine is adopting the graph, and closing it would strand
       // every <video> already bound to its context.
       if (opts.keepAudio !== true) this.audioState.close()
+      this.gpu.device.removeEventListener('uncapturederror', this.onUncaptured)
       // Frees everything else the device owns (pipelines, bind groups) and drops
       // the swap-chain configuration.
-      this.gpu.device.destroy()
+      //
+      // `keepDevice` is the successor adopting it instead, and the buffers and
+      // textures above have already been handed back individually, so what is kept
+      // is the device object and not the memory. Without it, `releaseGpu` drops the
+      // device rather than destroying it: destroying one that has been presenting
+      // is what ends the tab's rendering step, and this engine has been presenting
+      // by definition.
+      if (opts.keepDevice !== true) releaseGpu(this.gpu.device)
     }
   }
 

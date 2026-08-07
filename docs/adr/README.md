@@ -23,8 +23,9 @@ renumbered. Keep the shape:
 Where the working-out lives, when it is long: `docs/handoffs/`. An ADR should be
 readable without it.
 
-| #                                          | decision                                                     |
-| ------------------------------------------ | ------------------------------------------------------------ |
-| [0001](0001-hang-rebuilds-not-ends.md)     | A GPU hang rebuilds the device instead of ending the session |
-| [0002](0002-webgpu-sessions-are-scarce.md) | Treat per-tab WebGPU sessions as a scarce budget             |
-| [0003](0003-delete-the-worker-engine.md)   | Delete the worker-hosted engine                              |
+| #                                                 | decision                                                                |
+| ------------------------------------------------- | ----------------------------------------------------------------------- |
+| [0001](0001-hang-rebuilds-not-ends.md)            | A GPU hang rebuilds the device instead of ending the session            |
+| [0002](0002-webgpu-sessions-are-scarce.md)        | Treat per-tab WebGPU sessions as a scarce budget _(superseded by 0004)_ |
+| [0003](0003-delete-the-worker-engine.md)          | Delete the worker-hosted engine                                         |
+| [0004](0004-never-destroy-a-presenting-device.md) | Never destroy a GPUDevice that has been presenting                      |

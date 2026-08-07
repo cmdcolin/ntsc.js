@@ -707,6 +707,35 @@ describe('RenderLoop', () => {
     expect(h.frames()).toBeGreaterThan(1)
   })
 
+  it('does not spend a device on a hang under a tab that is not painting', async () => {
+    const h = harness()
+    h.loop.start()
+    // Stall from the first beat and let the fallback spend its whole bridge: past
+    // that the loop has given up, and nothing it submits can reach a screen.
+    await vi.advanceTimersByTimeAsync(WATCHDOG_MS)
+    for (let t = 0; t < FALLBACK_BUDGET_MS; t += FALLBACK_MS) {
+      h.completeGpu()
+      await vi.advanceTimersByTimeAsync(FALLBACK_MS)
+    }
+    expect(h.frozenEdges()).toContain('cold')
+
+    // Now the device stops answering too. Reporting a hang here buys a fresh
+    // device, which is the one thing a tab this far in cannot afford — a tab is
+    // worth about two, and this is the loop that used to spend fifteen.
+    await vi.advanceTimersByTimeAsync(
+      (HANG_MS + WATCHDOG_MS * 2) * HANG_STRIKES,
+    )
+    expect(h.hangs()).toBe(0)
+
+    // A hold and not an off switch: once rAF is back there is a picture to hang,
+    // and the same silent device is reported.
+    for (let t = 0; t < (HANG_MS + WATCHDOG_MS * 2) * HANG_STRIKES; t += 500) {
+      h.deliverRaf(t)
+      await vi.advanceTimersByTimeAsync(500)
+    }
+    expect(h.hangs()).toBe(1)
+  })
+
   it('does not call a blocked main thread a hung GPU', async () => {
     const h = harness()
     h.loop.start()

@@ -73,8 +73,16 @@ const fatalUp = () =>
     () => document.body.textContent?.includes('WebGPU device lost') ?? false,
   )
 
+// `gpubudget=ignore`, because this harness spends devices on purpose. The app
+// declines to create one in a tab that has spent past what a tab was measured to
+// survive, and offers a new tab instead — right for a user, and the end of every
+// scenario here, since a rebuild that is never attempted cannot be checked. The
+// gate has its own unit tests (context.test.ts); what this file is for is the
+// rebuild behind it.
 const load = async query => {
-  await page.goto(`${base}/?${query}`, { waitUntil: 'networkidle0' })
+  await page.goto(`${base}/?gpubudget=ignore&${query}`, {
+    waitUntil: 'networkidle0',
+  })
   await new Promise(r => setTimeout(r, 4500))
 }
 

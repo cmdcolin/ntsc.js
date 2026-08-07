@@ -49,16 +49,19 @@ find:
   spent. Note the axis: that is a count of _sessions_, not elapsed time. It was
   once restated as a twelve-minute limit and stood in the handoff as a browser
   property until two runs held a session past twenty minutes.
-- **One _tab_ survives far fewer — two or three.** Different failure, much
-  tighter bound, and the one that bites in ordinary use. The third WebGPU
-  session created in a single tab loads fine, gets a working `GPUDevice`, and is
-  never given another animation frame; the tab still reports `visible`, the
-  browser stays responsive, and reloading lands in the same hole.
-  `scripts/rafceiling.mjs` shows it in thirty seconds against a control page
-  that takes 21 reloads without dropping a frame. Spacing the reloads out does
-  not help — it is a count, not a rate — and neither does avoiding HMR, since a
-  full reload is another session too. This is the freeze the 2026-08-05 handoff
-  was written about; see its last postscript.
+- **One _tab_ used to survive two or three loads, and the app was doing it to
+  itself.** The symptom: a load that gets a working `GPUDevice`, renders, and is
+  never given another animation frame, on a tab that still reports `visible` —
+  and reloading lands in the same hole. It was modelled as a per-tab session
+  budget, which fitted every route measured (loads, hot updates, rebuilds)
+  because each of them destroyed a device. It is not a count. **Destroying a
+  `GPUDevice` that has been presenting ends the tab's rendering step**, and the
+  next document inherits it; creating devices and holding several open cost
+  nothing. `scripts/devicetear.mjs` has the discriminating arms and
+  `docs/adr/0004` the numbers. The app no longer calls `device.destroy()`, and
+  `scripts/rafceiling.mjs --page=app` now takes 8 loads in one tab without
+  dropping a frame — treat it as the regression test. This is the freeze the
+  2026-08-05 handoff was written about; see its last postscript.
 - **"Target closed" is three different failures wearing one error.** The frame
   detached, the browser crashed, or something outside killed the browser — and
   from Node they are indistinguishable, so ask rather than guess. A crash leaves
@@ -107,44 +110,45 @@ node scripts/perf.mjs <url> <label> [batches] [framesPerBatch]
 node scripts/perf.mjs <url> <label> --ablate   # per-pass cost attribution
 ```
 
-Best-of wall-clock over batched `vf.step()` runs — the methodology that
-replaced the `?prof` timestamp profiler, which mis-attributed queue backlog to
-whichever pass ran first. Interleave base and patched runs in one sitting and
-compare the best, not the median: contention and thermals only ever add time,
-so the noise is one-sided.
+Best-of wall-clock over batched `vf.step()` runs — the methodology that replaced
+the `?prof` timestamp profiler, which mis-attributed queue backlog to whichever
+pass ran first. Interleave base and patched runs in one sitting and compare the
+best, not the median: contention and thermals only ever add time, so the noise
+is one-sided.
 
 **Batch throughput is not live frame rate.** The batch number is the GPU
 saturated; what a user sees is the rAF loop, which is paced by the display and
-carries costs the batch never meets — video decode and upload land there, and
-on the dev box (a 47.89 Hz panel on the Intel side of a hybrid pair, with the
-signal path on the discrete card) every present crosses PCIe. Two playing
-clips cost more live frame rate than the heaviest preset does. Measure live
-rate with rAF running via `vf.frameNo()` deltas over multi-second windows,
-with video sources attached, before believing a batch number — and note the
-app's own fps readout reports loop cadence, which vsync steps down in jumps
-(48 → 24 on the dev panel), not a gradual slide.
+carries costs the batch never meets — video decode and upload land there, and on
+the dev box (a 47.89 Hz panel on the Intel side of a hybrid pair, with the
+signal path on the discrete card) every present crosses PCIe. Two playing clips
+cost more live frame rate than the heaviest preset does. Measure live rate with
+rAF running via `vf.frameNo()` deltas over multi-second windows, with video
+sources attached, before believing a batch number — and note the app's own fps
+readout reports loop cadence, which vsync steps down in jumps (48 → 24 on the
+dev panel), not a gradual slide.
 
 Where the frame time goes, measured 2026-08-08 (all 66 presets land 3.3–5.4 ms
 on the dev box's WX 3200, against a 3.3 ms always-on floor):
 
 - **Dub generations × colour-under** is the big multiplier: `channel` +
-  `underDown` cost ~1.4 ms per generation (worn tape runs 3.3 → 6.5 ms from
-  one generation to four).
+  `underDown` cost ~1.4 ms per generation (worn tape runs 3.3 → 6.5 ms from one
+  generation to four).
 - **The CRT beam spot's** wide tiers (~1.8 ms) on the presets that push
   `crtSpot` past a pixel; at the 0.6 px default the tap table is small and the
   pass costs ~0.2 ms.
 - **`tapePlay` with many heads** (~2 ms on eight-head lap).
 - **Per-source feed snow** ~0.9 ms per engaged feed.
-- The true-waveform B chain (`encodeYuvB → encodeChromaB → encodeCompositeB →
-  mixB`) totals ~0.9 ms engaged and dispatches nothing idle.
+- The true-waveform B chain
+  (`encodeYuvB → encodeChromaB → encodeCompositeB → mixB`) totals ~0.9 ms
+  engaged and dispatches nothing idle.
 
-Two ALU micro-optimizations were implemented, measured dead flat, and
-reverted — the FIR passes are not ALU-bound on this hardware, so arithmetic
-saved there rides idle slots: the filter bank as a uniform buffer (vec4-packed
-for the constant cache) and a Chebyshev recurrence replacing the heterodyne
-phasor walk in `under_down`/`channel` (verified pixel-exact first). A
-one-shot bake of `crt_face`'s grain field met the same fate earlier. Measure
-an ablation upper bound before building any optimization here.
+Two ALU micro-optimizations were implemented, measured dead flat, and reverted —
+the FIR passes are not ALU-bound on this hardware, so arithmetic saved there
+rides idle slots: the filter bank as a uniform buffer (vec4-packed for the
+constant cache) and a Chebyshev recurrence replacing the heterodyne phasor walk
+in `under_down`/`channel` (verified pixel-exact first). A one-shot bake of
+`crt_face`'s grain field met the same fate earlier. Measure an ablation upper
+bound before building any optimization here.
 
 ### Chrome
 
@@ -154,16 +158,15 @@ WebGPU in Chrome on Linux needs flags:
 google-chrome --enable-unsafe-webgpu --enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE
 ```
 
-On the dev box the engine runs clean under those flags — zero validation
-errors, full-speed loop — but the WebGPU canvas never composites: the page
-shows a black picture while `frameNo()` advances. Validate functionally
-instead: read a texture back over `copyTextureToBuffer` (the app's textures
-don't carry `COPY_SRC`, so patch `GPUDevice.prototype.createTexture` at page
-init to add it), and treat "spurious texture-allocation error" reports from
-ANGLE as the driver artifact `CLAUDE.md` describes. Chrome is also the only
-browser with `importExternalTexture`, so the zero-copy video path only runs
-there — `?vidbitmap` forces the bitmap path when the two need comparing in
-one browser.
+On the dev box the engine runs clean under those flags — zero validation errors,
+full-speed loop — but the WebGPU canvas never composites: the page shows a black
+picture while `frameNo()` advances. Validate functionally instead: read a
+texture back over `copyTextureToBuffer` (the app's textures don't carry
+`COPY_SRC`, so patch `GPUDevice.prototype.createTexture` at page init to add
+it), and treat "spurious texture-allocation error" reports from ANGLE as the
+driver artifact `CLAUDE.md` describes. Chrome is also the only browser with
+`importExternalTexture`, so the zero-copy video path only runs there —
+`?vidbitmap` forces the bitmap path when the two need comparing in one browser.
 
 ## MIDI without a controller
 

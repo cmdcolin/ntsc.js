@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { DEFAULT_CONTROLS } from '../controls'
+import {
+  gpuAtRisk,
+  gpuBuilds,
+  gpuReleases,
+  outOfGpuBudget,
+} from '../gpu/context'
 import { Engine } from '../gpu/pipeline'
 import { MAX_SRC_EDGE } from '../gpu/sources'
 import { reportPreviousTrace, trace } from '../gpu/trace'
@@ -200,6 +206,22 @@ export function useEngine(wantStats = false) {
   // the two look identical from the stage and want different words: one device
   // announced that it was going away, the other just stopped answering.
   const [rebuilding, setRebuilding] = useState<GpuFault | null>(null)
+  // How many WebGPU devices this *page* has created, how many this *tab* has
+  // destroyed, and whether either makes the session worth warning about — mirrored
+  // into React for one reason: the console warning that used to be the only word on
+  // it arrives in the one place nobody is looking, and by the time the picture
+  // stops the DOM is not being painted either. Said on the stage while the stage
+  // still works, the tab is one click from a fresh one.
+  //
+  // `builds` and not the tab's creation total, which is what this used to carry.
+  // The tab total counts reloads, a reload leaves its device behind with its
+  // document, and the banner consequently opened on anyone who refreshed three
+  // times to tell them their working tab kept rebuilding its engine.
+  const [budget, setBudget] = useState(() => ({
+    builds: gpuBuilds(),
+    releases: gpuReleases(),
+    atRisk: gpuAtRisk(),
+  }))
 
   // The stage banner rides on the canvas, so it is invisible in the worst
   // version of this — a document the browser has stopped painting entirely,
@@ -933,6 +955,39 @@ export function useEngine(wantStats = false) {
     if (params.debug) console.log('DEBUG engine ready')
   }
 
+  // The device this tab cannot afford, declined out loud instead of spent.
+  //
+  // A tab that has destroyed a presenting device stops being given animation
+  // frames, and a reload lands in the same hole (docs/adr/0004). So the app stops
+  // one short and says so on a screen that can still be read, offering the one
+  // action that works: this URL in a new tab, which carries the whole look because
+  // the address bar is kept current (useUrlState).
+  //
+  // The override is not a formality. The ceiling is a measurement from one
+  // browser on one OS, and on a browser without the bug a refusal to rebuild
+  // would be the app breaking itself over someone else's fault — so the spend
+  // stays available, it just stops being automatic.
+  const declineDevice = (body: string, spend: () => void) => {
+    trace.add(
+      'gpuBudget',
+      `declined at ${gpuBuilds()} in this page, ${gpuReleases()} destroyed`,
+    )
+    trace.flush(true)
+    console.error(
+      `Declining to create WebGPU device ${gpuBuilds() + 1} in this page: it has built ${gpuBuilds()} and this tab has destroyed ${gpuReleases()}, and a tab that has destroyed a presenting device stops being given animation frames — a reload does not clear that. Open this URL in a new tab (?gpubudget=ignore disables this gate).`,
+    )
+    setFatal({
+      title: 'This tab cannot safely open another GPU device',
+      body,
+      kind: 'budget',
+      onOverride: () => {
+        trace.add('gpuBudget', 'overridden')
+        setFatal(null)
+        spend()
+      },
+    })
+  }
+
   // An effect's cleanup return is conditional by nature (React's own documented pattern).
   // oxlint-disable-next-line typescript/consistent-return
   useEffect(() => {
@@ -945,14 +1000,27 @@ export function useEngine(wantStats = false) {
       // the window enters fullscreen, so the picture never stretches.
       const ro = new ResizeObserver(applyCanvasSize)
       ro.observe(canvas)
-      // A full page reload doesn't run this effect's cleanup, so the GPUDevice
-      // is abandoned rather than destroyed — and a wedged GPU then carries into
-      // the reloaded page's fresh device (why "just refresh" often fails to
-      // recover). Release it on pagehide so the reload starts GPU-clean.
-      // Also latch `disposed`: pagehide can land while Engine.create is still
-      // in flight, when there is no engine to destroy yet but a GPUDevice has
-      // already been handed out. The create callback below then releases it
-      // instead of leaving it to the page teardown.
+      // Stop the loop on the way out of the document, and — this part is the
+      // correction — *do not destroy the device*. `destroy()` without `keepDevice`
+      // now means "let go of it", not "hand it back to the driver" (releaseGpu in
+      // gpu/context.ts).
+      //
+      // This handler used to call `device.destroy()` here on the reasoning that a
+      // reload abandons the device and carries a wedged GPU into the next page, so
+      // releasing it first would start the reload clean. Measured, that is
+      // backwards and it was the bug: the same page reloaded four times in one tab
+      // survives every load when the device is merely abandoned, and dies from load
+      // 2 onward — permanently, exactly the reported freeze — when a `pagehide`
+      // handler destroys it. Destroying a device that has been presenting is what
+      // ends a tab's rendering step.
+      //
+      // The teardown is still worth doing for everything that is not the device:
+      // the loop stops, the audio graph closes, the mic light goes out.
+      //
+      // `disposed` is latched here too: pagehide can land while Engine.create is
+      // still in flight, when there is no engine to tear down yet but a device has
+      // already been handed out. The create callback below then lets go of it
+      // rather than leaving it to the page teardown.
       let disposed = false
       const onPageHide = () => {
         disposed = true
@@ -981,6 +1049,14 @@ export function useEngine(wantStats = false) {
         engineRef.current = created
         setEngine(created)
         window.vf = created
+        // Read after the engine exists, so it counts the device this one is on —
+        // and it does not always go up, because an engine replaced for a reason
+        // that was not the device's fault inherits the one it had.
+        setBudget({
+          builds: gpuBuilds(),
+          releases: gpuReleases(),
+          atRisk: gpuAtRisk(),
+        })
         created.onGpuError = m => {
           trace.add('gpuError', m.slice(0, 120))
           trace.flush(true)
@@ -1076,6 +1152,20 @@ export function useEngine(wantStats = false) {
         // hang watchdog already stopped still releases its device — which is
         // what hands the stale one back before another is asked for.
         dead.destroy({ keepAudio: true })
+        // The device that just failed is gone for good — a lost one already was,
+        // and a hung one must not be handed to the replacement — so this rebuild
+        // has to buy a new one. That is the spend the tab may not be able to
+        // afford, and this is the last moment where declining it still leaves a
+        // page that can say why. `busy` stays set, so nothing tries again behind
+        // the screen.
+        if (outOfGpuBudget()) {
+          setRebuilding(null)
+          declineDevice(
+            `${fault === 'hung' ? 'The GPU stopped completing work' : 'The GPU device was lost'}, and replacing it needs another WebGPU device — but this page has already built ${gpuBuilds()} and this tab has destroyed ${gpuReleases()}, which is past what one was measured to survive. Rather than spend a device on a tab the browser may already have stopped painting, this session stops here. Open this URL in a new tab instead: it starts clean, on the look you have now.`,
+            () => replace(dead, fault, CREATE_TRIES),
+          )
+          return
+        }
         replace(dead, fault, CREATE_TRIES)
       }
 
@@ -1148,31 +1238,54 @@ export function useEngine(wantStats = false) {
         )
       }
 
-      Engine.create(canvas).then(
-        created => {
-          if (disposed) {
-            created.destroy()
-          } else {
-            wire(created)
-            // The engine read `?dbg=` for itself; pick it up so the stage badge
-            // says which tap a link arrived on rather than claiming the picture.
-            setTap(created.getDbgView())
-            // Through the slots rather than straight at the engine, so the
-            // landing bars are recorded like every other source and a device lost
-            // before the user has touched anything still comes back on them.
-            showGenerated(slotA, 'bars')
-            showGenerated(slotB, 'bars')
-            created.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
-            restoreSession(created, parseSessionParams(location.search))
-          }
-        },
-        (e: unknown) =>
-          setFatal({
-            title: 'WebGPU unavailable',
-            body: e instanceof Error ? e.message : String(e),
-            kind: 'unavailable',
-          }),
-      )
+      const boot = () => {
+        Engine.create(canvas).then(
+          created => {
+            if (disposed) {
+              created.destroy()
+            } else {
+              wire(created)
+              // The engine read `?dbg=` for itself; pick it up so the stage badge
+              // says which tap a link arrived on rather than claiming the picture.
+              setTap(created.getDbgView())
+              // Through the slots rather than straight at the engine, so the
+              // landing bars are recorded like every other source and a device
+              // lost before the user has touched anything still comes back on
+              // them.
+              showGenerated(slotA, 'bars')
+              showGenerated(slotB, 'bars')
+              created.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
+              restoreSession(created, parseSessionParams(location.search))
+            }
+          },
+          (e: unknown) =>
+            setFatal({
+              title: 'WebGPU unavailable',
+              body: e instanceof Error ? e.message : String(e),
+              kind: 'unavailable',
+            }),
+        )
+      }
+
+      // Asked before booting, because a tab that arrives here already damaged is a
+      // tab whose next device is the one that kills it, and saying so beforehand
+      // leaves a page that can still be read.
+      //
+      // What can actually be true at this point is worth being precise about, since
+      // this used to fire on an ordinary refresh. A fresh document has built
+      // nothing, so the creation half cannot reach it on a load; the only way past
+      // the gate here is `gpuReleases()`, which is tab-scoped exactly because that
+      // damage is what survives a reload. In other words: reloading is free, and
+      // having destroyed a device once is not, which is the whole of 0004 expressed
+      // as a boot condition.
+      if (outOfGpuBudget()) {
+        declineDevice(
+          `This tab has destroyed ${gpuReleases()} WebGPU device${gpuReleases() === 1 ? '' : 's'} that had been presenting. That stops the browser giving this tab animation frames — nothing drawn reaches the screen, and reloading lands in the same place. Open this URL in a new tab: it starts clean and on the same look.`,
+          boot,
+        )
+      } else {
+        boot()
+      }
       return () => {
         disposed = true
         ro.disconnect()
@@ -1180,7 +1293,12 @@ export function useEngine(wantStats = false) {
         window.removeEventListener('pagehide', onPageHide)
         stopVideo()
         stopVideoB()
-        engineRef.current?.destroy()
+        // The device stays open. This cleanup runs on a remount and on a Vite hot
+        // update — neither of which is the device's fault, and both of which are
+        // immediately followed by an engine that would otherwise spend one of the
+        // two this tab has. A real page teardown goes through `pagehide` above,
+        // which releases it properly so the next load starts GPU-clean.
+        engineRef.current?.destroy({ keepDevice: true })
         engineRef.current = null
       }
     }
@@ -1197,6 +1315,10 @@ export function useEngine(wantStats = false) {
     fatal,
     frozen,
     rebuilding,
+    // What this tab has spent on GPU devices, for the stage notice. The count
+    // rides along with the verdict because the number is the argument: "five
+    // devices" is a reason to move tabs, "at risk" is a mood.
+    budget,
     error,
     stats,
     res,

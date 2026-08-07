@@ -1,6 +1,16 @@
 # 0002 — Treat per-tab WebGPU sessions as a scarce budget
 
-**Status:** accepted, 2026-08-07.
+**Status:** superseded by [0004](0004-never-destroy-a-presenting-device.md),
+2026-08-07 (accepted the same day).
+
+> The measurements below are real and reproduce. The **cause** attributed to
+> them here is wrong: it is not the count of devices a tab creates. A tab
+> creates and holds four without dropping a frame. What ends a tab's rendering
+> step is **destroying a device that has been presenting** — which every route
+> measured here happens to do, once per iteration, which is why a count fitted
+> the data. 0004 has the discriminating runs. Left unedited because the wrong
+> turn is the more useful half: the budget model was falsifiable, the app acted
+> on it, and acting on it is what turned up the real mechanism.
 
 ## Context
 

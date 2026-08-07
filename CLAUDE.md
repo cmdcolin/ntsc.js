@@ -21,32 +21,55 @@ Prefer modelling the mechanism that causes an artifact over drawing the artifact
 — that is the whole premise, and it is why mechanisms here interact for free.
 
 **`docs/adr/`** holds the decisions where the obvious thing is wrong for a
-non-obvious reason. Read [0002](docs/adr/0002-webgpu-sessions-are-scarce.md)
-before touching anything that creates a `GPUDevice` — see below for why.
+non-obvious reason. Read
+[0004](docs/adr/0004-never-destroy-a-presenting-device.md) before touching
+anything that creates, releases or tears down a `GPUDevice` — see below for why.
 
-## A tab is worth about two WebGPU sessions
+## Never destroy a GPUDevice that has been presenting
 
-Measured on Firefox Nightly / Linux: the third `GPUDevice` created in one tab
-loads fine, reports no error, and that tab is never given an animation frame
-again. The tab still reports `visible`, the browser stays responsive, and
-**reloading lands in the same hole** — only a new tab clears it.
-`scripts/rafceiling.mjs` shows it in thirty seconds against a control page that
-takes 21 reloads without dropping a frame.
+Measured on Firefox Nightly / Linux (`scripts/devicetear.mjs`): handing a
+presenting `GPUDevice` back with `device.destroy()` **ends the tab's rendering
+step**. The tab still reports `visible`, the browser stays responsive, nothing
+is logged, and the next document loaded in that tab inherits the damage — which
+is what "reloading lands in the same hole" always was. Creating devices is cheap
+by comparison: four created and four held open, all presenting, cost a tab
+nothing.
+
+This is why the app now **never calls `device.destroy()`**. It lets go of
+devices instead, and hands the live one to the next engine. `docs/adr/0004` has
+the runs; [0002](docs/adr/0002-webgpu-sessions-are-scarce.md) is the superseded
+budget model that fitted the same data for the wrong reason.
 
 What follows for anyone working here:
 
-- **When testing by hand or by harness, do not reload the app over and over in
-  one tab.** Two reloads is the budget. A new tab, or a fresh browser per
-  session, costs nothing and is the difference between a real result and chasing
-  a freeze you caused.
-- **HMR spends it too**, because a hot update recreates the engine. A dev
-  session that edits `src/gpu/` or `src/ui/useEngine.ts` a few times will freeze
-  the tab; that is expected, not a regression you introduced. Open a new tab and
-  carry on. Disabling HMR does not help — a full reload is another session.
-- **Do not add `<StrictMode>`.** It would double device creation per mount and
-  spend the whole budget on first load. `src/main.tsx` carries the reason.
+- **Do not "release" a device on the way out.** Not on `pagehide`, not on
+  unload, not in a cleanup that looks untidy without it. That one line is what
+  made refreshing unsafe: the same page reloaded four times survives every load
+  when the device is merely abandoned and dies from load 2 onward when a
+  `pagehide` handler destroys it. The comment in `useEngine`'s handler carries
+  the measurement.
+- **Reloading the app in one tab is fine again.** `rafceiling.mjs --page=app`
+  now runs 8 loads in one tab at 69-81 rAF/1.5s (`firstDeadSession: null`),
+  where it used to die at session 2. Treat that harness as a regression test for
+  this: if its app arm starts dying again, something has started destroying
+  devices.
+- **HMR is the cheap path.** A hot update recreates the engine, but the engine
+  hands its device on alive (`destroy({keepDevice: true})`) and the successor
+  adopts it from the stash in `gpu/context.ts`, so an editing session costs one
+  device however many saves it takes — the stash lives on `globalThis` precisely
+  so that editing `gpu/context.ts` itself does not throw it away with the
+  module. Disabling HMR is the wrong instinct.
+- **`?gpudestroy=1` puts the destroy back**, for re-measuring the fault against
+  a new browser build. It will kill the tab. `?gpubudget=ignore` switches off
+  the gate that declines devices in a tab that has already spent past what one
+  survives; the harnesses that walk into it on purpose (`rafceiling.mjs`,
+  `deviceloss.mjs`) pass it.
+- **Do not add `<StrictMode>`.** It doubles device creation per mount and wraps
+  a WebGPU canvas in a mount/unmount/mount cycle. `src/main.tsx` carries the
+  reason.
 - A freeze with `frame 0` / `STEP-DEAD` / `clock +0ms` in the console or the
-  recorder is this, not a bug in the signal path.
+  recorder is a tab that has lost its rendering step, not a bug in the signal
+  path.
 
 ## Testing changes for real
 

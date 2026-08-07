@@ -89,11 +89,11 @@ export const MAX_QUEUE_WAIT_MS = 500
 // `cold` — this document has never been given a single animation frame since it
 // loaded. That fault belongs to the *tab*, not the document, so a reload lands
 // in the same hole; only a new tab clears it. This is the one that matters, and
-// it is now a known mechanism rather than a guess: a tab is worth about two
-// WebGPU sessions and every load and every rebuild spends one, after which
-// Firefox stops delivering animation frames to it entirely (TAB_GPU_CEILING in
-// context.ts). Telling someone to reload here is telling them to do the one
-// thing that cannot work.
+// it is now a known mechanism rather than a guess: destroying a WebGPU device
+// that has been presenting ends the tab's rendering step, and the next document
+// in that tab inherits it (measured — see gpu/context.ts and docs/adr/0002).
+// Telling someone to reload here is telling them to do the one thing that cannot
+// work.
 export type FrozenKind = 'stalled' | 'cold'
 
 export interface RenderLoopHost {
@@ -737,6 +737,27 @@ export class RenderLoop {
           trace.add('gpuProbeLate', `${Math.round(late)}ms, not scored`)
           console.warn(
             `GPU completion probe came back ${Math.round(late)}ms late (due at ${HANG_MS}ms) — the main thread was blocked, so this says nothing about the GPU; not scoring a strike`,
+          )
+          return
+        }
+        // A stall the fallback has already given up on. Nothing is being
+        // submitted, nothing drawn is reaching the screen, and a fresh device
+        // cannot change either of those — but the rebuild that asks for one has to
+        // let go of the old one, and letting go of a presenting device is what ends
+        // a tab's rendering step (gpu/context.ts). That is the loop that ate whole
+        // tabs: no animation frames, stall, give up, strike out, rebuild, and round
+        // again with the damage compounding. Of the recorded sessions that died
+        // this way, the two that ended in `coldStall` are the two that restarted
+        // the engine 15 and 16 times.
+        //
+        // So the strike is recorded and not scored. A real hang underneath a
+        // frozen tab is not lost — it is reported the moment rAF comes back and
+        // there is a picture to hang.
+        if (this.gaveUp) {
+          trace.add('gpuStrikeHeld', `frame ${this.host.frameNo()} frozen`)
+          trace.flush(true)
+          console.warn(
+            'GPU work has not completed, but the browser is not painting this tab either — not scoring a hang strike, because the fresh device a hang would ask for is what this tab cannot afford (docs/adr/0002)',
           )
           return
         }

@@ -8,11 +8,12 @@ import './theme.css'
 //
 // StrictMode double-invokes effects in development: mount, clean up, mount
 // again. `useEngine`'s mount effect calls `Engine.create`, so that would be two
-// `GPUDevice`s per page load instead of one — and a tab is worth about two
-// WebGPU sessions before Firefox stops delivering animation frames to it
-// (TAB_GPU_CEILING in gpu/context.ts, reproducible with
-// scripts/rafceiling.mjs). The budget would be spent on the first load, and the
-// first hot update after it would freeze the tab.
+// `GPUDevice`s per page load instead of one — and, worse, a teardown between
+// them. Letting go of a presenting device is cheap now (the app never destroys
+// one; see gpu/context.ts and scripts/devicetear.mjs for what destroying one
+// costs a tab), but a mount/unmount/mount cycle around a WebGPU canvas is the
+// exact shape that used to freeze the tab, and nothing about StrictMode makes
+// the extra device or the extra swapchain configure free.
 //
 // So this is not an oversight to tidy up. If StrictMode is ever wanted for the
 // checks it does bring, the engine has to stop being created per mount first —

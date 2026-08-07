@@ -1,24 +1,37 @@
 import puppeteer from 'puppeteer-core'
 
-// How many WebGPU sessions can one tab create before Firefox stops giving it
+// How many times can one tab load a WebGPU page before Firefox stops giving it
 // animation frames?
 //
-// On this box the answer is two. The third one loads, gets a working GPUDevice,
-// renders nothing, and `requestAnimationFrame` is never called again for that
-// tab — on a tab that reports `visible` throughout. It does not recover, and it
-// survives further reloads, which is exactly the "needs the tab closed, not
-// reloaded" freeze this whole line of work started from.
+// It used to be two. The third load got a working GPUDevice, rendered nothing, and
+// `requestAnimationFrame` was never called again for that tab — on a tab that
+// reported `visible` throughout, and across further reloads. That was the "needs
+// the tab closed, not reloaded" freeze this whole line of work started from.
+//
+// The cause turned out not to be the count: **destroying a device that has been
+// presenting** ends the tab's rendering step, and the app was doing that on
+// `pagehide`. It no longer does (docs/adr/0004, scripts/devicetear.mjs), so the app
+// arm below is now a **regression test**: it takes 8 loads in one tab at
+// 69-81 rAF/1.5s with `firstDeadSession: null`. If it starts dying again, something
+// has started handing devices back.
 //
 // The control is the point. A static page whose entire content is a rAF counter
 // takes the same reloads at the same cadence in the same browser and never drops
 // a frame, so this is not "reloading fast breaks rAF" and not the harness losing
-// the window. Only the page holding a GPUDevice dies.
+// the window. Only a page that handed a presenting GPUDevice back ever died.
 //
 //   node scripts/rafceiling.mjs [--port=5199] [--cycles=8] [--gap=7000]
 //                               [--page=app|control]
 //
-// `--gap` spaces the reloads out; 30000 fails identically to 7000, so the
-// ceiling is a count of sessions and not a rate.
+// `--gap` spaces the reloads out. Back when this died, 30000 failed identically to
+// 7000 — which ruled out a rate and pointed at a count, and the count turned out to
+// be counting teardowns.
+//
+// The app arm carries `gpubudget=ignore` so that what it measures is the browser
+// and never the app's own gate: past what a tab was measured to survive, the app
+// declines to create a device and shows a screen offering a new tab instead (see
+// outOfGpuBudget in src/gpu/context.ts). A page that never asks for a device cannot
+// demonstrate anything about devices, and this harness's whole job is to ask.
 import { createServer } from 'node:http'
 
 const flags = process.argv.slice(2)
@@ -55,7 +68,7 @@ const controlUrl = `http://127.0.0.1:${server.address().port}/`
 const url =
   which === 'control'
     ? controlUrl
-    : `http://localhost:${devPort}/?set=fbMix:0.3,phosphor:0.5`
+    : `http://localhost:${devPort}/?gpubudget=ignore&set=fbMix:0.3,phosphor:0.5`
 
 const t0 = Date.now()
 const at = () => ((Date.now() - t0) / 1000).toFixed(0).padStart(4)

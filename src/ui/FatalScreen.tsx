@@ -10,7 +10,16 @@ export interface Fatal {
   // so a reload lands on the same wedged process. Offering the same button for
   // both is what made the old screen tell the user not to reload next to a
   // reload button.
-  kind: 'unavailable' | 'lost' | 'hung'
+  //
+  // 'budget' is neither: nothing has failed yet. The app needs a WebGPU device in
+  // a tab that has already spent past what one was measured to survive, and it is
+  // saying so while there is still a painting page to say it on. The only action
+  // that works is a new tab, so that is the only button that is offered — a reload
+  // lands right back here, in a tab that is no better off.
+  kind: 'unavailable' | 'lost' | 'hung' | 'budget'
+  // 'budget' only: spend the session anyway. The ceiling is measured from one
+  // browser on one OS, so the gate has to be arguable with — see declineDevice.
+  onOverride?: () => void
 }
 
 export function FatalScreen({ fatal }: { fatal: Fatal }) {
@@ -54,6 +63,39 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
                 caniuse.com/webgpu
               </a>
             </p>
+          </>
+        ) : fatal.kind === 'budget' ? (
+          <>
+            {/* An anchor and not a window.open: a link can be middle-clicked,
+                copied and dragged, and no popup blocker has an opinion about it.
+                `location.href` is the live look — useUrlState keeps the address
+                bar current — so the new tab lands on the picture this one had. */}
+            <a
+              className={cx(ui.btn, ui.active)}
+              href={location.href}
+              target="_blank"
+              rel="noreferrer"
+            >
+              open this look in a new tab
+            </a>
+            <p className={ui.muted} style={{ margin: '14px 0 0' }}>
+              Measured on Firefox Nightly / Linux: handing back a WebGPU device
+              that has been presenting stops the browser giving that tab
+              animation frames, and the next document in the tab inherits it —
+              reloading included. <code>scripts/devicetear.mjs</code> reproduces
+              it in about a minute, and <code>docs/adr/0002</code> has the
+              numbers.
+            </p>
+            {fatal.onOverride === undefined ? null : (
+              <p className={ui.muted} style={{ margin: '14px 0 0' }}>
+                {/* Left available on purpose. If this browser has no such
+                    ceiling, refusing would be the app breaking itself over
+                    another browser's bug. */}
+                <button className={ui.btn} onClick={fatal.onOverride}>
+                  use another device anyway
+                </button>
+              </p>
+            )}
           </>
         ) : fatal.kind === 'hung' ? (
           <>

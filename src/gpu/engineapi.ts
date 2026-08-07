@@ -40,6 +40,15 @@ export interface DestroyOptions {
   // Only the rebuild path passes this; every other teardown means the audio is
   // going away too.
   keepAudio?: boolean
+  // Leave the GPUDevice open for the successor: this engine is going away for a
+  // reason that is not the device's fault — a hot update, a remount — so the next
+  // one should inherit it rather than ask the tab for another. Cheaper than it
+  // looks, because the alternative is a teardown, and a teardown of a presenting
+  // device is what costs a tab its rendering step (gpu/context.ts).
+  //
+  // Not passed for a device that is itself the fault: a lost or hung one must not
+  // be handed on. It is still not *destroyed* — `releaseGpu` only lets go of it.
+  keepDevice?: boolean
 }
 
 export interface EngineApi {
