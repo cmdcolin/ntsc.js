@@ -221,7 +221,7 @@ export function useEngine(wantStats = false) {
       document.title = original
     }
   }, [frozen])
-  const [stats, setStats] = useState<FrameStats>({ fps: 0 })
+  const [stats, setStats] = useState<FrameStats>({ fps: 0, lock: 1 })
   const [engine, setEngine] = useState<EngineApi | null>(null)
   // The frame rate is reported whether or not anyone asked, so this is where the
   // asking happens. `engine` is the trigger rather than the target: it is what

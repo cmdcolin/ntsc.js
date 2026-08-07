@@ -165,8 +165,10 @@ function harness({
     },
     render: () => {
       frames += 1
+      return true
     },
     onStats: () => {},
+    lockDiv: () => 1,
     onHang: () => {
       hangs += 1
     },

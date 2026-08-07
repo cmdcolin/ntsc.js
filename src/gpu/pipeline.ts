@@ -35,6 +35,7 @@ import { TapeState, tapeRecording } from '../signal/tapeloop'
 import { gpuPowerFromSearch, initGpu } from './context'
 import { pageSearch } from './env'
 import { aFeedOn, bFeedOn, bOn, bWaveOn, FEEDS } from './feedgates'
+import { AutoLock } from './framelock'
 import {
   GEN_OFFSET,
   PARAM_BYTES,
@@ -87,33 +88,9 @@ const N = SAMPLES_PER_LINE * LINES
 const LINE_PARAM_BYTES = LINES * 16
 const MAX_GENS = 4
 
-// frameLock's last choice: pick the divisor from the loop's own cadence.
+// frameLock's last choice: pick the divisor from the loop's own cadence —
+// the state machine that does the picking lives in framelock.ts.
 const LOCK_AUTO = 4
-// Cadence is judged one window at a time, on the spread of its own intervals:
-// a loop that keeps its rate — any rate — shows p75 ~ p25, and a loop
-// wavering between vsync steps shows p75 near double p25, because a skipped
-// vsync doubles the interval. The spread is the stutter the eye objects to,
-// it needs no absolute refresh estimate (panels run 48, 60 or 144 as happily),
-// and the quartiles shrug off both rAF's catch-up callbacks (milliseconds
-// apart after a stall, which poison any minimum-based floor) and the odd
-// isolated skip. A window that is slow but STEADY deliberately does not
-// engage: the lock exists to trade rate for steadiness, and that window
-// already has nothing to trade.
-const LOCK_WINDOW = 60
-const LOCK_P_LO = 15
-const LOCK_P_HI = 45
-const LOCK_SPREAD = 1.5
-// How long to hold the lock before probing full rate again. Doubles on every
-// failed probe up to the cap, so a rig that is genuinely too slow settles into
-// a steady half rate with a brief wobble once a minute instead of flapping.
-const LOCK_PROBE_MS = 4000
-const LOCK_PROBE_MS_MAX = 64000
-// Refreshes left unjudged after every divisor change (and after a visibility
-// gap): the browser's frame scheduler needs a moment to settle into the new
-// pacing mode — Firefox paces rAF off vsync while every refresh presents and
-// off a software tick while most submit nothing — and the handover jitter is
-// not load.
-const LOCK_GRACE = 30
 
 // Bent-crystal demod LO: how fast a detuned 3.58 MHz oscillator's phase error
 // grows, per composite sample.
@@ -252,22 +229,12 @@ export class Engine implements EngineApi {
   private simAcc = 0
   // Which refresh of the frame lock's cycle this is; renders happen at 0.
   private lockPhase = 0
-  // frameLock 'auto' state: the divisor it has settled on, the fastest
-  // refresh interval seen (a decaying minimum, so moving the window to a
-  // different display re-adapts), the rolling miss window, and the probe
-  // clock. All of it is engine-internal — auto never writes the control, the
-  // same way wipeRate drives wipePos without moving the slider.
-  private autoDiv = 1
-  private autoLastT = 0
-  private autoDts = new Float32Array(LOCK_WINDOW)
-  private autoN = 0
-  private autoProbeAt = 0
-  private autoProbeWait = LOCK_PROBE_MS
-  private autoProbing = false
-  // Startup grace is longer than a transition's: pipeline compiles and source
-  // loading stutter the first seconds honestly, and locking on them would
-  // start every session at half rate.
-  private autoGrace = 4 * LOCK_GRACE
+  // frameLock 'auto': the cadence judge (framelock.ts), plus the divisor the
+  // last render actually ran under, for the stats readout. Engine-internal —
+  // auto never writes the control, the same way wipeRate drives wipePos
+  // without moving the slider.
+  private autoLock = new AutoLock()
+  private lockDivLive = 1
   private paramScratch = new ArrayBuffer(PARAM_BYTES)
   private loop: RenderLoop
   private destroyed = false
@@ -981,6 +948,7 @@ export class Engine implements EngineApi {
       device: this.gpu.device,
       render: () => this.render(),
       onStats: s => this.onStats(s),
+      lockDiv: () => this.lockDivLive,
       onHang: () => this.onHang(),
       recover: () => this.recoverSurface(),
       onFrozen: f => this.onFrozen(f),
@@ -1629,73 +1597,16 @@ export class Engine implements EngineApi {
     this.impulseTrainPos = (((this.impulseTrainPos - N) % m) + m) % m
   }
 
-  // frameLock 'auto': pick 1 or 2 from the loop's own cadence. A signal path
-  // that costs slightly more than a refresh interval wavers between vsync
-  // steps, and the wavering is what reads as stutter — so sustained misses
-  // engage the half-rate lock, and a probe with exponential backoff keeps
-  // asking whether full rate has become affordable again. Misses are judged
-  // against the fastest interval this display has shown rather than a nominal
-  // 60 Hz, because panels run at 48, 120 or 144 as happily as 60 — and that
-  // floor decays slowly so a window dragged to a faster display re-adapts.
-  private autoLockDiv(): number {
-    const now = performance.now()
-    const dt = now - this.autoLastT
-    this.autoLastT = now
-    // While locked, the only question is whether it is time to try full rate
-    // again; the locked loop's own cadence says nothing about what full rate
-    // would cost.
-    if (this.autoDiv === 2) {
-      if (now >= this.autoProbeAt) {
-        this.autoDiv = 1
-        this.autoProbing = true
-        this.autoGrace = LOCK_GRACE
-        this.autoN = 0
-      }
-      return this.autoDiv
-    }
-    // A gap that long is a hidden tab or a stalled loop, not a slow frame;
-    // judging it would engage the lock the moment the user tabs back. The
-    // frames right after it get grace too — resumption jitter is not load.
-    if (dt <= 0 || dt > 250) {
-      this.autoGrace = Math.max(this.autoGrace, LOCK_GRACE)
-      this.autoN = 0
-      return 1
-    }
-    if (this.autoGrace > 0) {
-      this.autoGrace -= 1
-      return 1
-    }
-    this.autoDts[this.autoN] = dt
-    this.autoN += 1
-    if (this.autoN < LOCK_WINDOW) return 1
-    this.autoN = 0
-    // Judge the completed window on the spread of its own intervals.
-    const sorted = Array.from(this.autoDts).toSorted((a, b) => a - b)
-    if (sorted[LOCK_P_HI] > sorted[LOCK_P_LO] * LOCK_SPREAD) {
-      this.autoDiv = 2
-      // A probe that failed doubles the wait; wavering that arrived on its
-      // own starts the backoff over.
-      this.autoProbeWait = this.autoProbing
-        ? Math.min(this.autoProbeWait * 2, LOCK_PROBE_MS_MAX)
-        : LOCK_PROBE_MS
-      this.autoProbeAt = now + this.autoProbeWait
-      this.autoProbing = false
-      this.autoGrace = LOCK_GRACE
-    } else if (this.autoProbing) {
-      // A clean probe window: full rate is affordable again.
-      this.autoProbing = false
-      this.autoProbeWait = LOCK_PROBE_MS
-    }
-    return this.autoDiv
-  }
-
   // Slow motion gates the whole simulation on a fractional accumulator: below
   // 1, sim steps fire on a fraction of display frames and everything — noise,
   // rolls, sweeps, feedback, phosphor — slows together, exactly like slowed
   // footage of the rig. Skipped frames re-present the held picture so the
   // canvas survives resizes; modulation still advances at display rate, so an
   // LFO or audio envelope on timeScale warps time live.
-  private render(): void {
+  // Returns whether this refresh presented anything — the render loop counts
+  // presented refreshes for the fps readout, so a lock-skipped refresh must
+  // not read as a frame the user saw.
+  private render(): boolean {
     // The frame lock renders every Nth refresh and submits *nothing* on the
     // refreshes in between — not even a held present. The canvas keeps its
     // last frame without help, and the idle refreshes have to stay genuinely
@@ -1707,9 +1618,13 @@ export class Engine implements EngineApi {
     // no work at all — modulation therefore steps once per rendered frame and
     // slows with the lock, like everything else the sim clocks.
     const lockSel = Math.round(this.controls.frameLock)
-    const lockDiv = lockSel === LOCK_AUTO ? this.autoLockDiv() : 1 + lockSel
+    const lockDiv =
+      lockSel === LOCK_AUTO
+        ? this.autoLock.tick(performance.now())
+        : 1 + lockSel
+    this.lockDivLive = lockDiv
     this.lockPhase = (this.lockPhase + 1) % lockDiv
-    if (this.lockPhase !== 0) return
+    if (this.lockPhase !== 0) return false
     const restoreMod = this.applyMod()
     try {
       this.simAcc = Math.min(this.simAcc + this.controls.timeScale, 1)
@@ -1722,6 +1637,7 @@ export class Engine implements EngineApi {
     } finally {
       restoreMod()
     }
+    return true
   }
 
   private presentPass(enc: GPUCommandEncoder): void {

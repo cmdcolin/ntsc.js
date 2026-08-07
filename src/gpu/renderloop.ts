@@ -100,8 +100,13 @@ export interface RenderLoopHost {
   // Narrowed to the completion probe the loop actually uses — a real GPUDevice
   // satisfies it, and the lifecycle tests don't have to fake the rest of one.
   device: { queue: Pick<GPUQueue, 'onSubmittedWorkDone'> }
-  render: () => void
+  // Returns whether the refresh presented anything: the frame lock skips
+  // refreshes outright, and the fps readout counts what reached the glass.
+  render: () => boolean
   onStats: (stats: FrameStats) => void
+  // The frame-lock divisor the last refresh ran under (1 = free-running), so
+  // the readout can say why the presented rate halved.
+  lockDiv: () => number
   // The loop reports only what it can observe — submitted work that never
   // completes. Whether that is a lost device is the owner's call, and the
   // wording shown to the user is the UI's; neither belongs here.
@@ -132,6 +137,8 @@ export class RenderLoop {
   private lastTime = 0
   private frameAcc = 0
   private frameCount = 0
+  // Refreshes in the current stats window whose render presented a frame.
+  private presented = 0
   private gens = { render: 0, probe: 0 }
   private renderErrors = 0
   private watchdogId = 0
@@ -423,14 +430,22 @@ export class RenderLoop {
       this.frameAcc += dt
       this.frameCount += 1
       if (this.frameCount === STATS_WINDOW) {
-        this.host.onStats({ fps: 1000 / (this.frameAcc / STATS_WINDOW) })
+        // Presented frames over elapsed time — the rate the user is seeing.
+        // The loop's own cadence used to stand in for it, but the frame lock
+        // skips refreshes on purpose, and a readout saying 48 while the glass
+        // updates 24 times a second hides the very thing the lock does.
+        this.host.onStats({
+          fps: (this.presented * 1000) / this.frameAcc,
+          lock: this.host.lockDiv(),
+        })
         this.frameAcc = 0
         this.frameCount = 0
+        this.presented = 0
       }
     }
     this.lastTime = time
     try {
-      this.host.render()
+      if (this.host.render()) this.presented += 1
     } catch (e) {
       this.renderErrors += 1
       if (this.renderErrors <= 3 || this.renderErrors % 120 === 0) {

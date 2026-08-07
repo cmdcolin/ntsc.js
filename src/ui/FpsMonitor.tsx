@@ -18,11 +18,19 @@ const SCALE_FPS = 65
 const GOOD_FPS = 60
 const OK_FPS = 30
 
-function barColor(fps: number): string {
-  return fps >= 55 ? '#4a4' : fps >= 28 ? '#cc4' : '#e55'
+// Color judges the rate the loop could reach unlocked (fps x lock): a lock
+// holding a steady 24 on a 48 Hz panel is the lock working, not a stall, and
+// painting it red would send someone hunting a slowdown they asked for. Bar
+// height stays the presented rate — that is what the eye is getting.
+function barColor(fps: number, lock: number): string {
+  const effective = fps * lock
+  return effective >= 55 ? '#4a4' : effective >= 28 ? '#cc4' : '#e55'
 }
 
-function draw(canvas: HTMLCanvasElement, history: number[]) {
+// The lock divisor as the marker the readout shows beside the number.
+const LOCK_MARK: Record<number, string> = { 2: '½', 3: '⅓', 4: '¼' }
+
+function draw(canvas: HTMLCanvasElement, history: [number, number][]) {
   const dpr = Math.min(window.devicePixelRatio, 2)
   const w = canvas.clientWidth
   const h = canvas.clientHeight
@@ -44,9 +52,9 @@ function draw(canvas: HTMLCanvasElement, history: number[]) {
       ctx.stroke()
     }
     const bw = w / HISTORY
-    history.forEach((fps, i) => {
+    history.forEach(([fps, lock], i) => {
       const bh = (Math.min(fps, SCALE_FPS) / SCALE_FPS) * h
-      ctx.fillStyle = barColor(fps)
+      ctx.fillStyle = barColor(fps, lock)
       ctx.fillRect(i * bw, h - bh, Math.max(bw - 0.5, 1), bh)
     })
   }
@@ -57,27 +65,35 @@ export function FpsMonitor(props: {
   res: string
   onHide: () => void
 }) {
-  const { fps } = props.stats
+  const { fps, lock } = props.stats
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const historyRef = useRef<number[]>([])
+  const historyRef = useRef<[number, number][]>([])
 
   // Each new stats object is one window sample; append and redraw the histogram.
   useEffect(() => {
-    historyRef.current = [...historyRef.current, fps].slice(-HISTORY)
+    historyRef.current = [
+      ...historyRef.current,
+      [fps, lock] as [number, number],
+    ].slice(-HISTORY)
     const canvas = canvasRef.current
     if (canvas !== null) draw(canvas, historyRef.current)
-  }, [fps])
+  }, [fps, lock])
 
+  // The lock marker beside the number is what tells a halved readout apart
+  // from a stall: 24 ·½ is the frame lock holding cadence on purpose.
+  const mark = LOCK_MARK[lock]
   // The render resolution rides in the tooltip rather than the line: it is a
   // number you go looking for once, and spelling it out here is what made this
   // too wide for the header. Advanced settings shows it beside its own control.
   return (
     <div
       className={styles.monitor}
-      title={`${fps.toFixed(0)} fps · rendering at ${props.res}`}
+      title={`${fps.toFixed(0)} presented fps${mark === undefined ? '' : ` · frame lock at ${mark} rate`} · rendering at ${props.res}`}
     >
       <canvas ref={canvasRef} className={styles.graph} />
-      <span className={styles.readout}>{fps.toFixed(0)} fps</span>
+      <span className={styles.readout}>
+        {fps.toFixed(0)} fps{mark === undefined ? '' : ` ·${mark}`}
+      </span>
       <button
         className={styles.dismiss}
         onClick={() => props.onHide()}

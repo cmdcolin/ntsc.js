@@ -293,7 +293,12 @@ export const atRest = (value: number, key: ControlKey) =>
   value === DEFAULT_CONTROLS[key] || value === LANDING_LOOK[key]
 
 export interface FrameStats {
+  // Presented frames per second — what actually reaches the glass, which the
+  // frame lock deliberately holds below the display rate.
   fps: number
+  // The frame-lock divisor in effect (1 = free-running), so the readout can
+  // mark a halved rate as intentional rather than letting it read as a stall.
+  lock: number
 }
 
 // A modulation routing: `source`/`rateHz` drive an oscillator in ModState;
