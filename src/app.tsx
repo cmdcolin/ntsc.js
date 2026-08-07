@@ -39,8 +39,10 @@ import { ModSection } from './ui/ModSection'
 import { slotsToRoutings } from './ui/modSlots'
 import { ModSlotsContext } from './ui/ModSlotsContext'
 import { MotionStrip } from './ui/MotionStrip'
-import { matchPreset } from './ui/presets'
+import { matchPreset, presetControls } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
+import { SavedLooks } from './ui/SavedLooks'
+import { suggestLookName } from './ui/savedLooks'
 import { ScenesSection } from './ui/ScenesSection'
 import { Section } from './ui/Section'
 import { SignalPath } from './ui/SignalPath'
@@ -50,6 +52,7 @@ import { Stage } from './ui/Stage'
 import { usePersistedFlag } from './ui/storage'
 import { TeletypeDialog } from './ui/TeletypeDialog'
 import ui from './ui/ui.module.css'
+import { parseSessionParams } from './ui/urlParams'
 import { useAudio } from './ui/useAudio'
 import { useCapture } from './ui/useCapture'
 import { useClockSync } from './ui/useClockSync'
@@ -62,6 +65,7 @@ import { useModSlots } from './ui/useModSlots'
 import { usePageLifecycle } from './ui/usePageLifecycle'
 import { usePanelNav } from './ui/usePanelNav'
 import { usePopout } from './ui/usePopout'
+import { useSavedLooks } from './ui/useSavedLooks'
 import { useScenes } from './ui/useScenes'
 import { useShortcuts } from './ui/useShortcuts'
 import { useUrlState } from './ui/useUrlState'
@@ -75,6 +79,7 @@ import type { PaletteAction } from './ui/CommandPalette'
 import type { Group } from './ui/controls'
 import type { ControlsApi } from './ui/ControlsContext'
 import type { Lens } from './ui/lens'
+import type { SavedLook } from './ui/savedLooks'
 import type { PathNode } from './ui/SignalPath'
 
 // Whether the menu over the picture has been dismissed. Persisted across
@@ -213,13 +218,14 @@ export function App() {
     setComparing(false)
   }
 
-  // Name captures after the active preset (or the last one, edited), so a saved
-  // file says what it is. matchPreset falls through to a plain label otherwise.
+  // What the board is called: the preset it matches, or the last one it was
+  // built from and has since been edited. Null when neither — a look dialed in
+  // from stock has no name until someone gives it one, and the two things that
+  // ask (a capture's filename, the save box's placeholder) fill that blank
+  // differently. matchPreset returns undefined for "matches nothing authored".
   const activePreset = matchPreset(controls)
-  const captureName = activePreset
-    ? activePreset.name
-    : (mix.lastPreset ?? 'edit')
-  const capture = useCapture(eng.canvasRef, captureName)
+  const lookName = activePreset ? activePreset.name : mix.lastPreset
+  const capture = useCapture(eng.canvasRef, lookName ?? 'edit')
 
   useShortcuts(popout, {
     // Dialogs close themselves (each Dialog binds Escape to its own document);
@@ -271,7 +277,7 @@ export function App() {
 
   // `copied` (the flash on the old copy-link button) went with that button; the
   // ⌘K entry below is the only caller left, and a palette row closes on run.
-  const { copyLink } = useUrlState({
+  const { copyLink, lookQuery, copyQuery } = useUrlState({
     controls,
     mod: slotsToRoutings(modApi.slots),
     engineReady: engine !== null,
@@ -285,6 +291,30 @@ export function App() {
     speedB: eng.speedB,
     reverb: eng.reverb,
   })
+
+  // The saved-look library, which is the query string above kept under a name.
+  // Recall is the same move a scene recall makes — snapshot for undo, write the
+  // controls, re-cable the bay — and stops there: the query carries the source
+  // urls so a copied *link* opens on the right clip, but yanking the live input
+  // out from under a running session to put a still back is not what "bring that
+  // look back" means. A look whose stored mod is missing (hand-edited storage; no
+  // saved look this app wrote lacks one) leaves the bay alone rather than
+  // silencing it, the same rule a link without ?mod= follows.
+  const savedLooks = useSavedLooks()
+  const recallLook = (look: SavedLook) => {
+    const session = parseSessionParams(`?${look.query}`)
+    mix.snapshotForUndo()
+    writeControls(presetControls(session.controls))
+    if (session.mod !== null) modApi.setRoutings(session.mod)
+    savedLooks.markRecalled(look.name)
+  }
+  // The name to save under, offered by both ways in. The look you are working in
+  // wins over the preset the controls still match: one knob past a recall they
+  // match nothing, and "look" is a worse offer than "my rig 2".
+  const suggestedLookName = suggestLookName(
+    savedLooks.looks,
+    savedLooks.lastName ?? lookName ?? '',
+  )
 
   const audio = useAudio(engine)
 
@@ -333,6 +363,17 @@ export function App() {
       name: 'copy link',
       blurb: 'put this look on the clipboard as a URL',
       run: copyLink,
+    },
+    {
+      // The one way in that needs no name typed: it takes the same suggestion
+      // the save box offers as a placeholder. A palette row cannot prompt for
+      // text, and refusing to save from here over that would be the wrong half
+      // of the feature to withhold — the row is for hands already on the keys,
+      // and a look saved as "vhs 3" is one × in the menu away from gone if that
+      // was not the name you wanted.
+      name: 'save this look',
+      blurb: `keep the board as “${suggestedLookName}” in the looks menu`,
+      run: () => savedLooks.saveLook(suggestedLookName, lookQuery()),
     },
     {
       name: 'record clip',
@@ -616,6 +657,16 @@ export function App() {
         onEndCompare={endCompare}
         onSurprise={mix.surprise}
         onMutate={mix.mutateLook}
+        looks={
+          <SavedLooks
+            looks={savedLooks.looks}
+            suggestedName={suggestedLookName}
+            onSave={name => savedLooks.saveLook(name, lookQuery())}
+            onRecall={recallLook}
+            onDelete={savedLooks.deleteLook}
+            onCopyLink={look => copyQuery(look.query)}
+          />
+        }
         canUndo={mix.canUndo}
         onUndo={mix.undo}
         canRedo={mix.canRedo}

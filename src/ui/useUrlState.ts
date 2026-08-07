@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { writeSessionParams } from './urlParams'
+import { writeLookParams, writeSessionParams } from './urlParams'
 
 import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
@@ -30,9 +30,17 @@ interface UrlStateArgs {
   reverb: number
 }
 
+// Where a query string points. Split out from the writers because a saved look
+// is stored as the query alone: it outlives the origin it was saved on (a dev
+// server this morning, the deployed page tonight), so the link is assembled at
+// the moment it is copied rather than baked into the store.
+const linkFor = (query: string) =>
+  `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
+
 // Mirrors the live look into the query string so a reload or shared link
 // restores it, and hands back a copy-to-clipboard action with its transient
-// "copied" flash.
+// "copied" flash — plus the two halves the saved-look library needs: the query
+// string for the look on screen, and the link for a query string it kept.
 export function useUrlState({
   controls,
   mod,
@@ -52,8 +60,8 @@ export function useUrlState({
   // The whole query-string rule lives in urlParams beside the parser that has
   // to read it back; what is left here is the browser half — which params are
   // already on the address bar, and where the link points.
-  const stateUrl = useCallback(() => {
-    const q = writeSessionParams(new URLSearchParams(location.search), {
+  const session = useCallback(
+    () => ({
       controls,
       mod,
       sourceMode,
@@ -65,22 +73,32 @@ export function useUrlState({
       speedA,
       speedB,
       reverb,
-    })
-    const query = q.toString()
-    return `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
-  }, [
-    controls,
-    mod,
-    sourceMode,
-    sourceBMode,
-    ytUrlA,
-    ytUrlB,
-    teletypeA,
-    teletypeB,
-    speedA,
-    speedB,
-    reverb,
-  ])
+    }),
+    [
+      controls,
+      mod,
+      sourceMode,
+      sourceBMode,
+      ytUrlA,
+      ytUrlB,
+      teletypeA,
+      teletypeB,
+      speedA,
+      speedB,
+      reverb,
+    ],
+  )
+
+  const stateUrl = useCallback(
+    () =>
+      linkFor(
+        writeSessionParams(
+          new URLSearchParams(location.search),
+          session(),
+        ).toString(),
+      ),
+    [session],
+  )
 
   // Keep the address bar current on every change (replaceState, so it doesn't
   // flood history). Trailing-debounced: a slider drag emits a move per frame,
@@ -106,5 +124,14 @@ export function useUrlState({
       .catch(() => {})
   }
 
-  return { copyLink, copied }
+  // What a saved look records — the same serialization, minus the params that
+  // only make sense for the session that is running (see writeLookParams).
+  const lookQuery = () =>
+    writeLookParams(new URLSearchParams(location.search), session()).toString()
+
+  const copyQuery = (query: string) => {
+    navigator.clipboard.writeText(linkFor(query)).catch(() => {})
+  }
+
+  return { copyLink, copied, lookQuery, copyQuery }
 }

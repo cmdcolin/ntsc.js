@@ -263,6 +263,36 @@ export function writeSessionParams(
   return q
 }
 
+// The params a *saved* look carries, as opposed to a shared link. Same writer —
+// a saved look is a query string, which is the point of it — but it starts from
+// a filtered copy of the live URL rather than from all of it.
+//
+// `preset=` is what forces the distinction. writeSessionParams leaves unmanaged
+// params alone because the loader reads them, and a live address bar that says
+// `?preset=vhs` is telling the truth about how this session started. A saved
+// look is read back weeks later, and by then it is a lie in a specific way: the
+// look records resolved controls in `?set=`, which omits every control resting
+// at its default — so a knob the user dragged back to stock after picking vhs is
+// absent from `?set=` and supplied again by the preset underneath it. The saved
+// look would come back with a value the board did not have when it was saved.
+//
+// What survives is the addresses: a still, a clip or a YouTube url is the one
+// thing about a source that a string can carry, and dropping them would make a
+// saved look's link open on bars.
+const CARRIED_KEYS = ['iurl', 'iurlb', 'vurl'] as const
+
+export function writeLookParams(
+  existing: URLSearchParams,
+  state: SessionState,
+): URLSearchParams {
+  const base = new URLSearchParams()
+  for (const key of CARRIED_KEYS) {
+    const value = existing.get(key)
+    if (value !== null) base.set(key, value)
+  }
+  return writeSessionParams(base, state)
+}
+
 // Last path segment of a URL, for labeling ?iurl/?vurl sources by name.
 export const urlName = (url: string): string => {
   const path = new URL(url, location.href).pathname

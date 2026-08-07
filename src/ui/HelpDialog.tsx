@@ -45,6 +45,11 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
           A dim <b>“inert — needs …”</b> note under a slider means another
           control gates it; click the note to set the prerequisite.
         </li>
+        <li>
+          <b>looks</b> in the top row keeps the board under a name, the way a
+          synth saves a voice: press save, and it is there next session. ⧉
+          beside a saved one copies it as a link.
+        </li>
       </ol>
       <div className={dlg.helpHead}>keyboard</div>
       <ul className={dlg.helpList}>

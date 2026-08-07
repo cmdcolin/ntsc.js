@@ -3,6 +3,7 @@ import styles from './LookBar.module.css'
 import { mutateAmountFor } from './mutate'
 
 import type { MutateAmount } from './mutate'
+import type { ReactNode } from 'react'
 
 // The verbs that act on the whole look, in one row under the masthead.
 //
@@ -30,6 +31,12 @@ export function LookBar(props: {
   onEndCompare: () => void
   onSurprise: () => void
   onMutate: (amount: MutateAmount) => void
+  // The saved-look library, passed in rather than built here: it owns a popover
+  // and a name box, and the row's job is to seat it among the other whole-board
+  // verbs. It goes after the two that produce a look worth keeping — roll
+  // something up with surprise or mutate, then name it — and before the pair
+  // that walk the history, which stay the row's tail.
+  looks: ReactNode
   canUndo: boolean
   onUndo: () => void
   canRedo: boolean
@@ -63,6 +70,7 @@ export function LookBar(props: {
       >
         mutate
       </button>
+      {props.looks}
       <button
         className={cx(styles.btn, !props.canUndo && styles.btnOff)}
         onClick={props.onUndo}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS, LANDING_LOOK } from '../controls'
+import { CONTROL_KEYS, DEFAULT_CONTROLS, LANDING_LOOK } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { TELETYPE_DEFAULT, TELETYPE_MAX } from '../sources/teletype'
 import { ALL_SLIDERS } from './controls'
@@ -10,6 +10,7 @@ import {
   REVERB_DEFAULT,
   SPEED_DEFAULT,
   parseSessionParams,
+  writeLookParams,
   writeSessionParams,
 } from './urlParams'
 
@@ -260,6 +261,39 @@ describe('session round trip', () => {
     expect(q.get('set')).toBe('')
     expect(parseSessionParams('?set=').controls).toEqual({})
     expect(parseSessionParams('').controls).toEqual(LANDING_LOOK)
+  })
+})
+
+describe('a saved look', () => {
+  it('carries the source addresses and drops the rest of the live query', () => {
+    const q = writeLookParams(
+      new URLSearchParams(
+        '?iurl=http://x/a.png&vurl=http://x/b.mp4&preset=vhs&debug=1',
+      ),
+      state({ controls: { ...DEFAULT_CONTROLS, noiseIre: 4 } }),
+    )
+    expect(q.get('iurl')).toBe('http://x/a.png')
+    expect(q.get('vurl')).toBe('http://x/b.mp4')
+    // The two a kept look must not inherit: ?preset= would re-apply an authored
+    // patch under controls this look has since edited back to stock (?set= omits
+    // them), and ?debug= is a state of this session, not of the look.
+    expect(q.has('preset')).toBe(false)
+    expect(q.has('debug')).toBe(false)
+    expect(q.get('set')).toBe('noiseIre:4')
+  })
+
+  it('reads back the look that was saved, over a preset in the live query', () => {
+    // The case ?preset= would have broken: one of the preset's own controls
+    // dragged back to stock before saving. ?set= omits it (it is at its default),
+    // so a preset left alongside would hand the value back on recall.
+    const key = CONTROL_KEYS.find(k => vhs?.patch[k] !== undefined)
+    expect(key).toBeDefined()
+    const controls = presetControls(vhs?.patch ?? {})
+    if (key !== undefined) controls[key] = DEFAULT_CONTROLS[key]
+    const back = parseSessionParams(
+      `?${writeLookParams(new URLSearchParams('?preset=vhs'), state({ controls }))}`,
+    )
+    expect(presetControls(back.controls)).toEqual(controls)
   })
 })
 

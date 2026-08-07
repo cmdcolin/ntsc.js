@@ -1,0 +1,105 @@
+/* The library's button and its popover. The trigger is a member of the look bar
+   above all else, so it wears that row's button rather than a copy of it —
+   composes, not a duplicated rule, because the two sitting side by side is
+   exactly the pair that must not drift. */
+.trigger {
+  composes: btn from './LookBar.module.css';
+}
+
+/* Name box and save, on one line at the head of the menu: what you came here to
+   do is the first thing under the pointer, and the list below it is the other
+   half of the same gesture. */
+.saveRow {
+  display: flex;
+  gap: 4px;
+  padding: 2px 2px 4px;
+}
+.nameInput {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  background: var(--panel-bg);
+  color: var(--fg);
+  border: 1px solid var(--border-quiet);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+.nameInput::placeholder {
+  color: var(--fg4);
+}
+.nameInput:focus {
+  border-color: var(--fg4);
+}
+.saveBtn {
+  composes: btn from './ui.module.css';
+  composes: btnFlush from './ui.module.css';
+  flex-shrink: 0;
+}
+
+/* Scrolls rather than growing without limit: a popover is laid out against the
+   viewport, and a library forty looks deep would otherwise run off the bottom of
+   the screen with no way to reach the end of it. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  max-height: min(320px, 50vh);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 3px 0;
+  margin-bottom: 3px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+/* Takes the whole row's width so the click target is the name and everything
+   after it — the list is read down the left edge, and a hit area that stopped at
+   the end of a three-letter name would make the short ones the hard ones. */
+.recall {
+  composes: bare from './ui.module.css';
+  flex: 1;
+  min-width: 0;
+  border-radius: 3px;
+  padding: 5px 7px;
+  color: var(--fg);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recall:hover {
+  background: rgba(60, 60, 70, 0.6);
+}
+/* The two per-row verbs. Quiet until the pointer is on them: they sit beside
+   every name in the list, and a column of live-looking glyphs would read as the
+   list being made of buttons rather than of looks. */
+.rowBtn {
+  composes: bare from './ui.module.css';
+  flex-shrink: 0;
+  width: 20px;
+  border-radius: 3px;
+  padding: 4px 0;
+  color: var(--fg4);
+  font-size: var(--fs-md);
+  line-height: 1;
+}
+.rowBtn:hover {
+  color: var(--fg);
+  background: rgba(60, 60, 70, 0.6);
+}
+
+/* Touch: the same fingertip height the panel's own rows take. */
+@media (pointer: coarse) {
+  .recall {
+    padding: 9px 7px;
+  }
+  .rowBtn {
+    width: 30px;
+    padding: 9px 0;
+  }
+}
