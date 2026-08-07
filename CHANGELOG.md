@@ -2,6 +2,48 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.20.0](https://github.com/cmdcolin/ntsc.js/compare/v0.19.0...v0.20.0) - 2026-08-07
+
+### Features
+- *(ui)* [`cba887a`](https://github.com/cmdcolin/ntsc.js/commit/cba887aca819d03b4af80417eac44d3d7f60636c) the map grows a second input, and B's controls come onto the spine
+- *(signal)* [`5522856`](https://github.com/cmdcolin/ntsc.js/commit/55228562db356ff9ac9bb5d9e88bf84cf3eee768) differential gain/phase, head clog, and a Y/C delay mistrim
+- *(signal)* [`ac83fb8`](https://github.com/cmdcolin/ntsc.js/commit/ac83fb883d54b6075d1bb6ae0d6cd139d1e80263) FM over-deviation folds hard bright edges into boiling black streaks
+- *(signal)* [`c16c207`](https://github.com/cmdcolin/ntsc.js/commit/c16c207bad6d669fbfe7044cca050033a62c8f11) sticky-shed stick-slip, the relaxation oscillator behind squealing tapes
+- *(gpu)* [`bc17319`](https://github.com/cmdcolin/ntsc.js/commit/bc17319955f40992f444fe85fe2cd3d3e4666015) raise the impulse, head-count and persistence ceilings
+- *(ui)* [`b828bb1`](https://github.com/cmdcolin/ntsc.js/commit/b828bb1945d91b2b0078f66add9ac2cc6c5accb7) let the sliders run past what the hardware would do
+- *(ui)* [`4904171`](https://github.com/cmdcolin/ntsc.js/commit/4904171717a1c5ae990a3dc2d7810fe50d81c873) five presets past the redline
+- *(gpu)* [`7f047b2`](https://github.com/cmdcolin/ntsc.js/commit/7f047b25d54983bcc65d1dcbac99f9186b0301bd) the three guns, the magnet, and the sharpness circuit
+
+### Fixes
+- *(signal)* [`2c62b2e`](https://github.com/cmdcolin/ntsc.js/commit/2c62b2eaf618034acb6c666bb8840bdb59db9386) the wipe was switching off the sync fight it exists to shape
+- *(ui)* [`9b4b65c`](https://github.com/cmdcolin/ntsc.js/commit/9b4b65cf7a5a79bae3c9d905d1d1522ee63d0aea) Feed A is input A's own cable, not part of the A/B section
+- *(signal)* [`de42887`](https://github.com/cmdcolin/ntsc.js/commit/de428877e43674932e107a3ee5b2c3ca4fc900aa) a held deck's damage belongs to its tape, not to the glass
+- [`70fbe8c`](https://github.com/cmdcolin/ntsc.js/commit/70fbe8c190ea4c60bd6678874e8a2138e492aaab) stop the pre-commit hook rejecting whole directories
+
+### Refactor
+- *(gpu)* [`1418d1a`](https://github.com/cmdcolin/ntsc.js/commit/1418d1af69e0f88f0234ca34f138dd21fb9a5f05) the feed gates become a table, and a table can be tested
+- *(ui)* [`bd53169`](https://github.com/cmdcolin/ntsc.js/commit/bd5316927d56e842f1a4ee658102a06302a4b234) the panel's chrome becomes one family, written once
+- *(ui)* [`f26a14c`](https://github.com/cmdcolin/ntsc.js/commit/f26a14cf70856f3a66768ab10878275ec40c1e88) the map's touched stage names the same amber as everything else
+- *(ui)* [`2abb372`](https://github.com/cmdcolin/ntsc.js/commit/2abb37292aae47a51fc19dba53718975369ed9bd) let the browser draw what it draws better, and share the rest
+- *(ui)* [`919f499`](https://github.com/cmdcolin/ntsc.js/commit/919f499060b19ee6e1fe07625d50826d6b626333) three tokens for three meanings, and a guard for the next pass
+
+### Documentation
+- *(ui)* [`850e139`](https://github.com/cmdcolin/ntsc.js/commit/850e139f5cf27208bfa9055effdd08eff057ca93) replace an invented measurement, and say why the toggles stay put
+- [`b789b2f`](https://github.com/cmdcolin/ntsc.js/commit/b789b2f5990451b0c8b3e32205cb74dd31a4c45f) regenerate the figures, and repair two shots that had stopped taking
+- [`4b6a03f`](https://github.com/cmdcolin/ntsc.js/commit/4b6a03f823057eb54eaf0152d30233af97811aaf) catalogue the five new tape effects, and clear shipped items from the backlog
+- [`13e17df`](https://github.com/cmdcolin/ntsc.js/commit/13e17df7c1cba7fd4d19cd2b212784224e62655b) catalogue the four tube faults, and clear them from the backlog
+
+### Tests
+- *(gpu)* [`755d2f8`](https://github.com/cmdcolin/ntsc.js/commit/755d2f8fb9e3590389ccada54c1bbef80371f8a9) pin the two facts that only a rendered frame can show
+
+### Chores
+- [`8248590`](https://github.com/cmdcolin/ntsc.js/commit/82485902b7a0485dd022fcc80cd4b55ef3818023) upgrade to TypeScript 7
+- [`80bd543`](https://github.com/cmdcolin/ntsc.js/commit/80bd5437ff524de2e699e332fbeec939bf04a891) add husky pre-commit hook running lint-staged with oxfmt
+- [`7409467`](https://github.com/cmdcolin/ntsc.js/commit/74094674e4c20bdb8c64bdaa8763e0b473ac2863) lint-fix staged files before formatting in pre-commit
+
+### Other Changes
+- [`49dd213`](https://github.com/cmdcolin/ntsc.js/commit/49dd213d18142f55f8a31dc3e650a98522bb90fc) Update architecture
+
 ## [0.19.0](https://github.com/cmdcolin/ntsc.js/compare/v0.18.0...v0.19.0) - 2026-08-06
 
 ### Features
