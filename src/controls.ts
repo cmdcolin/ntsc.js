@@ -9,6 +9,12 @@ import type { ModWave } from './signal/modstate'
 export const DEFAULT_CONTROLS = {
   // source conditioning
   deint: 0, // bob-deinterlace source A (0 off, 1 on) — kills capture-card field combing
+  // the generated no-signal sources (TV static, blank tape), as statistics of
+  // the path the noise arrived through rather than as two fixed looks
+  srcNoiseBwMHz: 4.2, // bandwidth of that path: sets the grain's correlation length
+  srcNoiseLine: 0.15, // per-sweep gain error (tuner AGC, head contact), 0..1
+  srcNoiseLevel: 1, // noise power reaching the detector
+  srcNoiseHz: 60, // the source's own refresh rate; below 60 each field is held
   // encoder
   encChromaMHz: 1.3,
   invert: 0, // polarity flip on the composite line (alligator-pin swap)
@@ -76,6 +82,7 @@ export const DEFAULT_CONTROLS = {
   enhSliceIre: -20, // regenerator slice level
   lumaPeak: 0,
   noiseIre: 0,
+  noiseTilt: 0, // where the floor comes from: 0 IF-limited RF, 1 FM discriminator (triangular)
   impulseRate: 0, // arc events per frame, 0..24 (storm-clustered; duration sets shape)
   impulseIre: 90, // impulse peak amplitude
   impulseHz: 0, // periodic ignition train rate; hits form drifting diagonal lattices

@@ -42,6 +42,14 @@ export const PARAM_DEFS = [
   ['canvasH', 'f32'],
   ['srcAspect', 'f32'],
   ['srcNoise', 'f32'], // GPU-generated source A: 0 texture, 1 TV static, 2 VHS blank-tape static
+  // The statistics of that generated noise, shared by both slots. Noise cannot
+  // change faster than the path it arrived through lets it, so the grain is a
+  // bandwidth: srcNoiseGrain is the correlation length that bandwidth implies,
+  // in active pixels, converted at the packing boundary.
+  ['srcNoiseGrain', 'f32'],
+  ['srcNoiseLine', 'f32'], // share of the deviate that is one gain error per sweep
+  ['srcNoiseLevel', 'f32'], // noise power reaching the detector, 1 = nominal
+  ['srcNoiseHold', 'f32'], // display frames per noise field: the source's own refresh
   // Tape time: the frame counter the damage recorded on a deck's own medium
   // crawls on, held while that deck is paused (a held frame re-reads one track,
   // so its snow and its dropouts have to come back identical). The program
@@ -138,6 +146,12 @@ export const PARAM_DEFS = [
   ['agc', 'f32'], // receiver AGC action, 0 fixed gain .. 1 full
   ['abl', 'f32'], // beam limiter: 0 generous flyback .. 1 undersized and underdamped (hunts)
   ['noiseSigma', 'f32'], // additive noise, IRE rms
+  // The floor's spectrum, as the two output weights of a lowpass and a highpass
+  // arm sharing the same deviates: an IF-limited RF floor is flat to the top of
+  // the video band, an FM discriminator's is triangular. Normalized CPU-side so
+  // the tilt changes the noise's colour without changing its level.
+  ['noiseLoW', 'f32'],
+  ['noiseHiW', 'f32'],
   ['impulseRate', 'f32'], // impulse (ignition/arc) noise events per frame, storm-clustered CPU-side
   ['impulseIre', 'f32'], // impulse peak amplitude, IRE
   ['impulseTrainPos', 'f32'], // ignition train: sample offset of the frame's first event
@@ -609,22 +623,70 @@ fn catmull3(p0: vec3f, p1: vec3f, p2: vec3f, p3: vec3f, t: f32) -> vec3f {
   return p1 + 0.5 * t * (p2 - p0 + t * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3 + t * (3.0 * (p1 - p2) + p3 - p0)));
 }
 
+// One band-limited deviate field, correlated along the scan and nowhere else.
+// Noise cannot change faster than the path it came through allows, so the field
+// is a lattice of independent deviates at grain active pixels, interpolated
+// along x — and independent line to line, because successive lines are
+// successive moments in time and the noise is not on the picture, it is in the
+// wire. The interpolation costs variance as the grain widens, which is not an
+// artifact to correct: a narrower path passes less noise power.
+fn noiseFieldX(x: f32, y: u32, grain: f32, seed: u32) -> f32 {
+  let p = x / max(grain, 1.0);
+  let i = u32(p);
+  let t = fract(p);
+  let ry = y * 2246822519u ^ seed;
+  let a = gauss(i ^ ry);
+  let b = gauss((i + 1u) ^ ry);
+  // Smoothstep rather than linear: a triangular blend leaves a visible kink at
+  // every lattice point, which reads as a texture the mechanism never had.
+  return mix(a, b, t * t * (3.0 - 2.0 * t));
+}
+
+// The playback head's own aperture, active px. A second bandwidth in series
+// with whatever the noise arrived with, and the reason blank tape is coarse
+// where an untuned tuner is fine.
+const TAPE_APERTURE_PX = 3.4;
+
+// Which noise field is on screen. A source whose own refresh is slower than the
+// display holds each field for several frames, and a non-integer ratio holds
+// them unevenly — the same cadence 3:2 pulldown has, from the same arithmetic.
+fn noiseFrame(frame: u32, hold: f32) -> u32 {
+  return u32(f32(frame) / max(hold, 1.0));
+}
+
 // The GPU-generated no-signal sources, shared by A (compose) and B (compose_b)
-// so the two cannot drift apart. Regenerated every frame, so they crawl.
-// Below 1.5 is broadcast snow: fine, full-contrast luminance noise whose
-// high-frequency energy blooms into rainbow speckle through the encoder. Above
-// it is blank VHS tape: grayer, bluish, smeared along the head's scan with a
-// slow per-line brightness drift.
-fn snowSource(mode: f32, xy: vec2u, frame: u32) -> vec3f {
-  var out: vec3f;
+// so the two cannot drift apart. What separates the two is where the noise is
+// detected, which decides its distribution — the knobs (grain, per-sweep level
+// error, noise power, refresh rate) are statistics of the path and apply to
+// both. Deliberately monochrome: neither source carries a subcarrier, so any
+// colour on screen is the receiver's decoder failing on noise, which is the
+// killer's and the comb's business rather than something to paint in here.
+fn snowSource(mode: f32, xy: vec2u, frame: u32, grain: f32, lineShare: f32, level: f32) -> vec3f {
+  let sd = pcg(frame * 2654435761u);
+  let x = f32(xy.x);
+  var v: f32;
   if (mode < 1.5) {
-    out = vec3f(rand01(pcg(xy.x + xy.y * ACTIVE_W + frame * 2654435761u)));
+    // An untuned tuner: the IF carries noise and no carrier at all, so what the
+    // envelope detector recovers is |n| with n complex — Rayleigh, not Gaussian.
+    // That asymmetry is where snow's sparse hard specks over a dense dark floor
+    // come from; a symmetric field reads as evenly lit fuzz instead.
+    let i = noiseFieldX(x, xy.y, grain, sd ^ 0x9e3779b9u);
+    let q = noiseFieldX(x, xy.y, grain, sd ^ 0x85ebca6bu);
+    v = level * 0.4 * sqrt(i * i + q * q);
   } else {
-    let line = rand01(pcg(xy.y * 2246822519u + frame * 40503u));
-    let fine = rand01(pcg((xy.x / 4u) + xy.y * ACTIVE_W + frame * 2654435761u));
-    let v = 0.32 + 0.30 * fine + 0.14 * line;
-    out = vec3f(v * 0.8, v * 0.9, v);
+    // Blank tape: no RF to lock to, so the FM demodulator's limiter free-runs on
+    // its own noise and the discriminator hands back a level wandering across
+    // the deviation band. Bounded rather than spiky — a limiter cannot hand back
+    // a spike — and centred, because the deemphasis network still sets the DC.
+    let g = noiseFieldX(x, xy.y, sqrt(grain * grain + TAPE_APERTURE_PX * TAPE_APERTURE_PX), sd ^ 0x9e3779b9u);
+    v = 0.5 + level * 0.34 * tanh(g);
   }
-  return out;
+  // A level error is a gain error — the tuner's AGC hunting on the noise it is
+  // measuring, the head's contact varying sweep to sweep — so it multiplies the
+  // noise it is amplifying, and it is one number for the whole line because
+  // that is how long a sweep lasts.
+  let ln = gauss(xy.y * 2654435761u ^ sd ^ 0x5bf03635u);
+  v = v * max(1.0 + lineShare * 0.7 * ln, 0.0);
+  return vec3f(clamp(v, 0.0, 1.0));
 }
 `

@@ -138,7 +138,12 @@ fn main(
   // to follow the sync tip when a held deck displaces it.
   out = scrambleAt(out, srcRow, srcS, P.scramble, P.scrambleMode);
 
-  // additive noise (snow), 1-2-1 band-limited like the receiver-side copy
+  // Additive noise (snow), 1-2-1 band-limited. Deliberately not the program
+  // bus's tilted floor: the tilt is an FM discriminator's triangular noise,
+  // which belongs to a deck's playback electronics, and a feed's snow is what
+  // the cable out of it picks up — RF and thermal, flat across the video band.
+  // (It is also a field packFeed does not override, so taking it here would be
+  // the trap this file's header warns about.)
   if (P.noiseSigma > 0.0) {
     let cn = lid.x + 1u;
     out = out + P.noiseSigma * 0.4082 * (tileNs[cn - 1u] + 2.0 * tileNs[cn] + tileNs[cn + 1u]);

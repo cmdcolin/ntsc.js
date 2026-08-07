@@ -303,11 +303,21 @@ fn main(
       * catmull(comp[clampIdx(g0 - 1)], comp[clampIdx(g0)], comp[clampIdx(g0 + 1)], comp[clampIdx(g0 + 2)], fract(gpos));
   }
 
-  // additive noise (snow), 1-2-1 band-limited: receiver noise comes through
-  // the IF filter, so it has no energy near the top of the 14.3 MHz raster
+  // Additive noise (snow), through one of two paths with the same deviates.
+  // The 1-2-1 sum is an RF floor: receiver noise arrives through the IF filter,
+  // so it is flat across the video band and has no energy near the top of the
+  // 14.3 MHz raster. The signed pair is a first difference, and a difference has
+  // amplitude rising with frequency — which is exactly what an FM discriminator
+  // hands back, because recovering frequency from phase differentiates the noise
+  // riding on it. That is the triangular spectrum every deck's deemphasis
+  // network exists to tilt back, and what is left of it after deemphasis is why
+  // tape hiss lives up near the subcarrier: it lands in the chroma bandpass and
+  // decodes as crawling coloured speckle rather than as grey grain.
   if (P.noiseSigma > 0.0) {
     let cn = lid.x + 1u;
-    out = out + P.noiseSigma * 0.4082 * (tileNs[cn - 1u] + 2.0 * tileNs[cn] + tileNs[cn + 1u]);
+    let lo = 0.4082 * (tileNs[cn - 1u] + 2.0 * tileNs[cn] + tileNs[cn + 1u]);
+    let hi = 0.7071 * (tileNs[cn] - tileNs[cn - 1u]);
+    out = out + P.noiseSigma * (P.noiseLoW * lo + P.noiseHiW * hi);
   }
 
   // Impulse noise — ignition, arcing thermostats, a dying flyback next door.

@@ -121,6 +121,54 @@ export const GROUPS: Group[] = [
       },
     ],
   },
+  // The two generated no-signal sources are one generator with its statistics
+  // exposed, rather than two fixed looks: what separates an untuned tuner from
+  // blank tape is where the noise is detected (which decides its distribution,
+  // and is the source picker's job) and the bandwidth of the path it arrived
+  // through — which is this group. Only bites while a slot is showing TV or VHS
+  // static, the same way deinterlace only bites on an interlaced source.
+  {
+    name: 'Noise source (static)',
+    place: 'Source',
+    sliders: [
+      {
+        key: 'srcNoiseBwMHz',
+        label: 'noise bandwidth',
+        min: 0.2,
+        max: 7,
+        step: 0.05,
+        unit: 'MHz',
+        help: "The bandwidth of the path the noise arrived through, which is what sets the size of the grain: noise cannot change faster than the circuit carrying it allows. A tuner's IF stops at 4.2 MHz, so broadcast snow is fine but not infinitely fine — per-pixel noise is sharper than any real receiver could deliver. Wind it down and the grain coarsens into the smeared streaks of a deck reading unmagnetised tape, since a playback head's own aperture is a second bandwidth in series with this one. Less bandwidth also means less noise power, so the field dims as it coarsens — that is the physics, not a compensation to dial back out.",
+      },
+      {
+        key: 'srcNoiseLevel',
+        label: 'noise power',
+        min: 0,
+        max: 2,
+        step: 0.01,
+        unit: '',
+        help: 'How much noise the detector is handed. On an untuned channel this scales the snow against a black floor, because an envelope detector with no carrier has nothing to lift the dark end off zero; on blank tape it scales the swing around mid grey instead, since the deemphasis network still sets the DC level whatever the demodulator is doing. Past 1 the field clips, which a real front end would only reach with the AGC wound fully open.',
+      },
+      {
+        key: 'srcNoiseLine',
+        label: 'per-sweep level error',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "A gain error that lasts exactly one scan line: the tuner's AGC hunting on the noise it is trying to measure, or a playback head's contact varying sweep to sweep. It multiplies rather than adds, so it shows on the noise it is amplifying, and because a sweep is a whole line the result is horizontal banding that flickers — the difference between snow and blank tape's restless venetian texture. At zero every line is independent and the field reads as flat fuzz.",
+      },
+      {
+        key: 'srcNoiseHz',
+        label: 'field refresh',
+        min: 1,
+        max: 60,
+        step: 0.5,
+        unit: 'Hz',
+        help: 'How often the noise field re-rolls. At 60 it boils at display rate, which is what a live signal does; below it the source is handing over fields more slowly than the set is drawing them, so each one is held for several frames and the boil goes chunky. Non-integer ratios hold fields unevenly — the same cadence 3:2 pulldown has, out of the same arithmetic. A held field is not frozen noise so much as noise you can see the frame rate of, and everything downstream then carries it: the mixer loop breeds structure out of a field that stays still long enough to feed back.',
+      },
+    ],
+  },
   {
     name: 'Cable / Wiring',
     place: 'Source',
@@ -1294,6 +1342,16 @@ export const GROUPS: Group[] = [
         redline: [0, 40],
         unit: 'IRE',
         help: 'Additive noise on the waveform, in IRE: tape grain and RF snow. Because it lands on the whole signal, enough of it will also disturb sync and confuse the colour burst — noise degrades everything downstream, not just the picture.',
+      },
+      {
+        key: 'noiseTilt',
+        label: 'noise spectrum (RF ↔ FM)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        fine: true,
+        help: "Where that floor comes from, which decides its colour. At 0 it is the RF path: noise through the tuner's IF filter, flat across the video band and grainless above it. At 1 it is the deck's own FM demodulator, and recovering frequency from phase differentiates whatever noise rides along — so the floor comes back with its energy rising toward the top of the band, the triangular spectrum every deemphasis network exists to tilt back. What survives that tilt is why tape hiss is not grey: it lives up near 3.58 MHz, lands inside the chroma bandpass, and decodes as crawling coloured speckle rather than as grain. Turn it up with the comb set to notch and the floor pulls colour out of nothing; the level stays put as you turn it, so what changes is character alone.",
       },
       {
         key: 'impulseRate',

@@ -26,6 +26,20 @@ control panel and the same order the signal travels.
 Faults at the connector, before the signal reaches anything that could correct
 them.
 
+- **No-signal sources** — an untuned tuner and a blank tape, which are one
+  generator with its statistics exposed rather than two fixed pictures. What
+  separates them is where the noise is detected: an envelope detector handed
+  noise and no carrier recovers a Rayleigh field, which is why snow is sparse
+  hard specks over a dense dark floor, while a demodulator's limiter free-runs
+  and hands back a bounded level wandering around the DC its deemphasis sets,
+  which is why blank tape is grey. Everything else is a property of the path —
+  the bandwidth it arrived through (which is the grain, because noise cannot
+  change faster than the circuit carrying it), the per-sweep gain error of an
+  AGC hunting on the noise it is measuring, the power reaching the detector, and
+  the rate the field re-rolls. Both are monochrome: neither source carries a
+  subcarrier, so any colour is the receiver failing on noise — which is why
+  winding the bandwidth down drains the colour out of static without touching a
+  colour control, once the grain no longer reaches the chroma passband.
 - **Polarity invert** — the composite waveform negated after the encoder; full
   negative at 1, solarized midpoints partway, hue flipping with it.
 - **Hard polarity flip** — signal/ground swapped at the connector, sync
@@ -312,6 +326,17 @@ every VTR spec sheet, and the FM cliff a white-clip circuit exists to guard.
 
 - **Noise** — tape grain and RF snow on the whole waveform, degrading sync and
   burst along with the picture.
+- **Noise spectrum** — which of the two that floor is, because they are not the
+  same colour. Noise through the tuner's IF is flat across the video band; noise
+  out of a deck's FM discriminator is not, because recovering frequency from
+  phase differentiates whatever rides along, so it comes back with its energy
+  rising toward the top of the band — the triangular spectrum every deemphasis
+  network exists to tilt back. What survives that tilt is why tape hiss is not
+  grey: it sits up near 3.58 MHz, lands inside the chroma bandpass, and decodes
+  as crawling coloured speckle while the luma stays comparatively clean. Nobody
+  draws the colour; a first difference in place of a running sum is the whole
+  mechanism, and the level is held constant across the knob so what changes is
+  character rather than amount.
 - **Impulse noise (arcs)** — ignition, arcing contacts, a dying flyback next
   door: sparse events at carrier-scale amplitude whose _duration_ decides their
   shape, since an arc is a run of signal time and does not respect line

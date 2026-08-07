@@ -100,6 +100,27 @@ const impulseStorm = (t: number): number => {
   return e * e * (1 + 0.4 * valueNoise(t * 2.7, 9))
 }
 
+// The correlation length a bandwidth implies, in active pixels: a path that
+// stops at B Hz cannot change faster than one half-cycle of B, and the source
+// raster is 754 px across the 910 samples of a line.
+const noiseGrainPx = (bwMHz: number): number =>
+  ((SAMPLE_RATE / (2 * Math.max(bwMHz, 0.05) * 1e6)) * ACTIVE_WIDTH) /
+  SAMPLES_PER_LINE
+
+// Output weights for the two arms of the noise floor's spectrum (channel.wgsl):
+// a 1-2-1 lowpass and a first difference over the same three deviates. Because
+// they share taps they are correlated, so holding the floor's level constant
+// across the tilt needs the covariance and not just the weights — with unit
+// deviates, corr(sum, difference) = 1 / (2 * sqrt(3)). Without this the mid
+// positions of the knob are audibly (visibly) quieter than either end, and the
+// tilt would read as a noise-amount control with a side effect.
+const RHO = 1 / (2 * Math.sqrt(3))
+const noiseTiltWeights = (tilt: number): [number, number] => {
+  const t = Math.min(Math.max(tilt, 0), 1)
+  const norm = 1 / Math.sqrt((1 - t) ** 2 + t ** 2 + 2 * t * (1 - t) * RHO)
+  return [(1 - t) * norm, t * norm]
+}
+
 const FILTER_KEYS: ReadonlySet<string> = new Set([
   'encChromaMHz',
   'demodMHz',
@@ -1181,6 +1202,7 @@ export class Engine implements EngineApi {
 
   private uniformValues() {
     const c = this.controls
+    const [noiseLoW, noiseHiW] = noiseTiltWeights(c.noiseTilt)
     return {
       frame: this.frame,
       gen: 0,
@@ -1189,6 +1211,10 @@ export class Engine implements EngineApi {
       srcAspect: this.sources.srcAspect,
       srcNoise: this.sources.srcNoise,
       srcNoiseB: this.sources.srcNoiseB,
+      srcNoiseGrain: noiseGrainPx(c.srcNoiseBwMHz),
+      srcNoiseLine: c.srcNoiseLine,
+      srcNoiseLevel: c.srcNoiseLevel,
+      srcNoiseHold: 60 / Math.max(c.srcNoiseHz, 0.5),
       srcFrame: this.tapeFrame.a,
       invert: c.invert,
       deint: c.deint,
@@ -1228,6 +1254,8 @@ export class Engine implements EngineApi {
       audioIre: c.audioIre,
       audioHue: (c.audioHueDeg * Math.PI) / 180,
       noiseSigma: c.noiseIre,
+      noiseLoW,
+      noiseHiW,
       impulseRate: c.impulseRate * impulseStorm(this.frame / 60),
       impulseIre: c.impulseIre,
       impulseTrainPos: this.impulseTrainPos,

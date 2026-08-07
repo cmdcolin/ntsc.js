@@ -10,5 +10,13 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   if (gid.x >= ACTIVE_W || gid.y >= ACTIVE_H) {
     return;
   }
-  textureStore(srcTexB, vec2i(gid.xy), vec4f(snowSource(P.srcNoiseB, gid.xy, P.frame), 1.0));
+  let v = snowSource(
+    P.srcNoiseB,
+    gid.xy,
+    noiseFrame(P.frame, P.srcNoiseHold),
+    P.srcNoiseGrain,
+    P.srcNoiseLine,
+    P.srcNoiseLevel,
+  );
+  textureStore(srcTexB, vec2i(gid.xy), vec4f(v, 1.0));
 }
