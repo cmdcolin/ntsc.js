@@ -119,7 +119,7 @@ fn main(
   // set of streaks sixty times a second and each one stood still while the
   // frame jittered — an electrical fault, not a worn tape.
   if (P.dropoutRate > 0.0) {
-    let h = pcg(srcRow * 7621u ^ (P.srcFrame * 2654435761u + P.gen * 97911u));
+    let h = pcg((srcRow * 7621u) ^ (P.srcFrame * 2654435761u + P.gen * 97911u));
     if (rand01(h) < P.dropoutRate / f32(NLINES)) {
       let start = f32(pcg(h ^ 0x51ed270bu) % SPL);
       let len = P.dropoutLen * (0.4 + 1.2 * rand01(h ^ 0x9134u));

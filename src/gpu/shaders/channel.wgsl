@@ -481,8 +481,8 @@ fn main(
     let tl = u32(max(tLine, 0.0));
     // their (unknown) picture: block detail at two scales, re-rolled per
     // frame — enough mid-band energy to reach across 3.58 MHz
-    let c1 = rand01(pcg(tl * 2246822519u ^ (u32(tPh * 24.0) * 68111u) ^ (P.frame * 40503u)));
-    let c2 = rand01(pcg(tl * 104729u ^ (u32(tPh * 240.0) * 3571u) ^ (P.frame * 977u)));
+    let c1 = rand01(pcg((tl * 2246822519u) ^ (u32(tPh * 24.0) * 68111u) ^ (P.frame * 40503u)));
+    let c2 = rand01(pcg((tl * 104729u) ^ (u32(tPh * 240.0) * 3571u) ^ (P.frame * 977u)));
     var env = 0.38 + 0.30 * c1 + 0.18 * c2;
     if (tRow < 0.04) {
       // their vertical interval: broad pulses, near-peak carrier mid-line

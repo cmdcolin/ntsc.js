@@ -95,7 +95,7 @@ fn main(
       if (cell < 7u) {
         out = 25.0 + 25.0 * sin(2.0 * PI * f32(x) / cellW);
       } else if (cell >= 8u && cell < 27u) {
-        let bit = (pcg(P.frame * 40503u ^ 0x2101u) >> (cell - 8u)) & 1u;
+        let bit = (pcg((P.frame * 40503u) ^ 0x2101u) >> (cell - 8u)) & 1u;
         out = select(0.0, 50.0, bit == 1u || cell == 8u);
       } else {
         out = 0.0;

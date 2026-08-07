@@ -631,7 +631,7 @@ fn catmull3(p0: vec3f, p1: vec3f, p2: vec3f, p3: vec3f, t: f32) -> vec3f {
 // wire. The interpolation costs variance as the grain widens, which is not an
 // artifact to correct: a narrower path passes less noise power.
 fn noiseFieldX(x: f32, y: u32, grain: f32, seed: u32) -> f32 {
-  let ry = y * 2246822519u ^ seed;
+  let ry = (y * 2246822519u) ^ seed;
   // The lattice gets its own phase per row and per frame (ry carries both).
   // Interpolating two deviates costs variance where it lands mid-cell and none
   // at a lattice point, so a lattice fixed in x would ripple the noise power
@@ -690,7 +690,7 @@ fn snowSource(mode: f32, xy: vec2u, frame: u32, grain: f32, lineShare: f32, leve
   // measuring, the head's contact varying sweep to sweep — so it multiplies the
   // noise it is amplifying, and it is one number for the whole line because
   // that is how long a sweep lasts.
-  let ln = gauss(xy.y * 2654435761u ^ sd ^ 0x5bf03635u);
+  let ln = gauss((xy.y * 2654435761u) ^ sd ^ 0x5bf03635u);
   v = v * max(1.0 + lineShare * 0.7 * ln, 0.0);
   return vec3f(clamp(v, 0.0, 1.0));
 }
