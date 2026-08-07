@@ -2,6 +2,22 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.22.1](https://github.com/cmdcolin/ntsc.js/compare/v0.22.0...v0.22.1) - 2026-08-07
+
+### Features
+- *(ui)* [`8a0c526`](https://github.com/cmdcolin/ntsc.js/commit/8a0c526d316c756152b37514669df3c2c9d808c6) the magnifier miniature takes a box, and its lens becomes a handle
+- *(ui)* [`fbfa0f0`](https://github.com/cmdcolin/ntsc.js/commit/fbfa0f03f58cac3b06d15b688f909869f5d74ead) both inputs get a box, and the mixer stops being one of them
+
+### Fixes
+- *(gpu)* [`f0e3890`](https://github.com/cmdcolin/ntsc.js/commit/f0e3890537713585e76480b618c85e646f70108e) a device dies with the document that made it, so the counts do too
+
+### Refactor
+- *(ui)* [`08148e9`](https://github.com/cmdcolin/ntsc.js/commit/08148e988cedef68269aa7434dbb6cee924168f1) one ☰ in the corner, where a ⋮ and a ☰ used to divide the app
+- *(gpu)* [`c9dfc94`](https://github.com/cmdcolin/ntsc.js/commit/c9dfc94893e57cd4d7fa019d3a73be01e53d9791) the vectorscope goes dark
+
+### Other Changes
+- [`bc5de78`](https://github.com/cmdcolin/ntsc.js/commit/bc5de7899a8f25e067ae710dbceb90fd8fb52d7d) Updates
+
 ## [0.22.0](https://github.com/cmdcolin/ntsc.js/compare/v0.21.0...v0.22.0) - 2026-08-07
 
 ### Features
