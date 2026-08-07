@@ -18,7 +18,16 @@
   margin-top: 6px;
   flex-direction: column;
   gap: 2px;
+  /* Sized by its rows, not by the room left beside its trigger. A popover is
+     laid out against the viewport, so shrink-to-fit reads the space from the
+     anchored left edge to the right of the screen — and the app's menu hangs
+     off a button in the very top right corner, where that is a few pixels. Its
+     longest label wrapped to two lines while an inch of empty menu sat beside
+     it. max-content ignores the space and the translate above grows the box
+     leftwards, which is the direction there is room in. */
+  width: max-content;
   min-width: 170px;
+  max-width: min(340px, 90vw);
   padding: 4px;
   background: rgba(22, 22, 26, 0.95);
   border: 1px solid var(--border);

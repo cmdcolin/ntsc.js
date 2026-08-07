@@ -296,7 +296,7 @@ export const SPECS = [
     },
   ),
   boxed('menu', {
-    name: 'stage-menu',
+    name: 'menu',
     actions: [{ click: { title: 'menu (' } }],
   }),
   {

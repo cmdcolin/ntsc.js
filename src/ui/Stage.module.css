@@ -4,9 +4,9 @@
   position: relative;
   min-width: 0;
   min-height: 0;
-  /* Safe again now the stage menu is a native popover: it renders in the top
-     layer, so this clips the picture without reaching the menu hanging off the
-     bottom of a short stage. */
+  /* Safe again now the menu is a native popover: it renders in the top layer,
+     so this clips the picture without reaching the menu hanging off the bottom
+     of a short stage. */
   overflow: hidden;
 }
 /* Absolutely positioned, not an in-flow `height: 100%`: as a flex item the
@@ -76,8 +76,48 @@
   border-color: #68a;
   color: #9cf;
 }
-/* overlay controls over the canvas. Every direct child is one --ctl-h-tall
-   pill; nothing here is allowed to size itself off its content. */
+/* The session-budget notice: this tab has spent the WebGPU devices it is worth,
+   so the *next* fault is unrecoverable here. Along the bottom rather than
+   centred, and it deliberately does not use the .frozen box — nothing is broken
+   yet, the picture is still live behind it, and a centred box over a working
+   picture reads as a failure that has not happened. It is the last chance to
+   move tabs while the DOM is still being painted, which is why it says so here
+   rather than only in the console. */
+.budget {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, 92%);
+  padding: 8px 10px;
+  border: 1px solid #a86;
+  border-radius: 8px;
+  background: #000000d8;
+  color: #fc9;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.budgetDismiss {
+  flex: none;
+  padding: 0 4px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.budgetDismiss:hover {
+  opacity: 1;
+}
+/* Where the app's menu sits when it is over the picture rather than in the
+   masthead — fullscreen and the popout, which take the panel off this window's
+   screen. Empty otherwise, and not rendered at all: the picture is the point,
+   and chrome duplicating a button 300px to the right of it was not. What goes
+   in here styles itself (AppMenu.module.css); this is the corner it lands in. */
 .overlayBar {
   position: absolute;
   top: 12px;
@@ -86,65 +126,6 @@
   align-items: start;
   gap: 6px;
 }
-.overlayBtn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  box-sizing: border-box;
-  height: var(--ctl-h);
-  background: var(--ctl-bg);
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: var(--ctl-radius);
-  padding: 0 9px;
-  font: inherit;
-  cursor: pointer;
-}
-.overlayBtn:hover {
-  background: var(--ctl-bg-hover);
-}
-/* magnifier: readout and lever at the top of the stage menu, so the drag/scroll
-   gestures on the picture are discoverable and reversible without hunting for
-   the Screen sliders. Sized to the menu's own padding, not the bar's. */
-.zoomRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-}
-.zoomLabel {
-  color: var(--fg3);
-  cursor: help;
-}
-.zoomRange {
-  flex: 1;
-  min-width: 96px;
-  margin: 0;
-  accent-color: var(--accent);
-}
-.zoomReset {
-  composes: bare from './ui.module.css';
-  min-width: 34px;
-  color: var(--accent);
-  font-family: var(--mono);
-}
-.zoomReset:hover {
-  text-decoration: underline;
-}
-/* magnification carried on the closed trigger — a cropped picture with nothing
-   on screen explaining it reads as a bug */
-.triggerZoom {
-  color: var(--accent);
-  font-family: var(--mono);
-}
-/* and the tap, carried the same way and for a stronger version of the same
-   reason: the picture is not the picture, and nothing else on screen says so.
-   Amber rather than the accent — a tap is a mode you are meant to leave, which
-   is the colour the panel already uses for "this is off stock". */
-.triggerTap {
-  color: var(--edit-hi);
-  font-family: var(--mono);
-}
 /* the region being chosen by a drag on the picture */
 .marquee {
   position: absolute;
@@ -152,24 +133,4 @@
   border: 1px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   pointer-events: none;
-}
-.reopenBar {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  opacity: 0.6;
-}
-.reopenBar:hover {
-  opacity: 1;
-}
-/* recording: steady red so it reads at a glance on a projector */
-.recording {
-  color: #ff6060;
-  border-color: #a05050;
-  animation: recPulse 1.2s ease-in-out infinite;
-}
-@keyframes recPulse {
-  50% {
-    opacity: 0.55;
-  }
 }

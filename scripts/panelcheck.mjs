@@ -314,10 +314,7 @@ await phase('fps stat', {}, async page => {
     const el = [...document.querySelectorAll('span')]
       .find(s => /^\\d+ fps$/.test(s.textContent ?? ''))
     return { text: el?.textContent ?? null }`)
-  check(
-    shown.text !== null,
-    'the fps readout did not appear from the stage menu',
-  )
+  check(shown.text !== null, 'the fps readout did not appear from the ☰ menu')
   const on = await handler()
   check(!noop(on), 'the readout is open and the frame stats are still no-oped')
 

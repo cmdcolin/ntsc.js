@@ -4,14 +4,14 @@
 // deliberately not offered, since it says nothing about the signal.
 //
 // Two surfaces show this list — the Advanced dialog, which explains it, and the
-// stage menu, which is where you reach for it while looking at the picture — so
+// app menu, which is where you reach for it while looking at the picture — so
 // it lives here rather than inside either of them.
 
 export interface SignalTap {
   value: number
   // For the dialog's picker, where there is room to say what it is.
   label: string
-  // For the stage: the badge on the menu trigger, and the menu's own row. Short
+  // For the menu: the badge on its closed trigger, and its own row. Short
   // enough to sit next to a zoom readout.
   short: string
 }

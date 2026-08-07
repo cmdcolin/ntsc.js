@@ -109,7 +109,7 @@ function installHelpers() {
     panel: () => stage().nextElementSibling,
     // The modal's inner card, not the full-viewport <dialog> backdrop.
     dialog: () => document.querySelector('dialog')?.firstElementChild ?? null,
-    // An open Popover (the stage menu). CSS modules hash the class, but the
+    // An open Popover (the app menu). CSS modules hash the class, but the
     // local name survives in it.
     menu: () => document.querySelector('div[class*="menu_"]'),
   }

@@ -1,9 +1,15 @@
 import { cx } from './cx'
 import { Dialog } from './Dialog'
 import dlg from './dialog.module.css'
+import {
+  FRAME_LOCK_LABEL,
+  FRAME_LOCK_LABELS,
+  frameLockLabel,
+} from './frameLock'
 import { SelectRow } from './SelectRow'
 import { SIGNAL_TAPS, tapFor } from './signalTap'
 import { Slider } from './Slider'
+import { ToggleButtonGroup } from './ToggleButtonGroup'
 import ui from './ui.module.css'
 
 import type { MidiStatus } from './midi'
@@ -17,11 +23,17 @@ export function AdvancedDialog(props: {
   renderScale: number
   onScaleChange: (v: number) => void
   res: string
-  // The tap on the glass. Owned above rather than here: the stage menu switches
+  // The tap on the glass. Owned above rather than here: the app menu switches
   // it too, and the menu trigger badges it, so this dialog is one writer of a
   // shared value rather than the place it lives.
   tap: number
   onTapChange: (v: number) => void
+  // Same arrangement as the tap: the control lives in the panel and in the app
+  // menu, and this dialog is the one surface with room to say what it is
+  // for. It sits with render scale because the two are the same question —
+  // whether to spend the frame on picture or on cadence.
+  frameLock: number
+  onFrameLockChange: (v: number) => void
   midiStatus: MidiStatus
   onEnableMidi: () => void
   onClose: () => void
@@ -41,6 +53,26 @@ export function AdvancedDialog(props: {
       <div className={ui.dim} style={{ margin: '2px 0 12px' }}>
         backing-store resolution · lower = faster · {props.res}
       </div>
+      <div className={dlg.subhead}>{FRAME_LOCK_LABEL}</div>
+      <ToggleButtonGroup
+        label={FRAME_LOCK_LABEL}
+        options={[...FRAME_LOCK_LABELS]}
+        value={props.frameLock}
+        onChange={props.onFrameLockChange}
+      />
+      <div className={ui.dim} style={{ margin: '4px 0 12px' }}>
+        render every second, third or fourth refresh instead of chasing every
+        one: a steady lower cadence reads as intentional where a rate wavering
+        between full and half reads as stutter. The simulation steps once per
+        rendered frame, so rolls and noise crawl proportionally slower under a
+        lock. <b>auto</b> engages the half-rate lock only once refreshes are
+        genuinely being missed, and retries full rate on its own. Also in the ☰
+        menu
+        {props.frameLock === 0
+          ? ''
+          : `, which is showing “${frameLockLabel(props.frameLock)}”`}
+        .
+      </div>
       <div className={dlg.subhead}>signal tap</div>
       <SelectRow
         tag="◫"
@@ -52,7 +84,7 @@ export function AdvancedDialog(props: {
       <div className={ui.dim} style={{ margin: '2px 0 12px' }}>
         see what the TV sees: the raw waveform, or luma / chroma / burst
         mid-decode — the fastest way to understand what a control is doing. Also
-        on the stage menu, which badges whichever tap is live.
+        in the ☰ menu, which badges whichever tap is live.
       </div>
       <div className={dlg.subhead}>MIDI control</div>
       {props.midiStatus === 'idle' ? (

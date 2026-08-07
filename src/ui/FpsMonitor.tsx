@@ -7,7 +7,7 @@ import type { FrameStats } from '../controls'
 // Rolling histogram of recent per-window fps, sat in the sidebar masthead. It
 // used to float over the bottom-left of the picture, which is the one place in
 // the app that is supposed to stay clear. Whether it is on at all is the app's
-// state, not this component's — the stage menu has the other switch — and it
+// state, not this component's — the app menu has the other switch — and it
 // starts off, because a number that moves every frame pulls the eye whatever
 // corner it is in. Each bar is one stats window; a dip below the 60/30 fps
 // reference lines shows a stall the averaged number alone would smooth over.
@@ -97,7 +97,7 @@ export function FpsMonitor(props: {
       <button
         className={styles.dismiss}
         onClick={() => props.onHide()}
-        title="hide the fps monitor — the stage menu brings it back"
+        title="hide the fps monitor — the ☰ menu brings it back"
       >
         ×
       </button>

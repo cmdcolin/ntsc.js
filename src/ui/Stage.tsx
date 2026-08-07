@@ -1,168 +1,13 @@
 import { useState } from 'react'
 
 import { cx } from './cx'
-import { CameraIcon, GearIcon, GraphIcon, MenuIcon } from './icons'
-import {
-  clampZoom,
-  panLens,
-  pictureUv,
-  zoomAtTravel,
-  zoomToBox,
-  zoomTravel,
-} from './lens'
-import { MenuItem, Popover } from './Popover'
-import popoverStyles from './Popover.module.css'
-import { nextTap, tapFor } from './signalTap'
+import { clampZoom, panLens, pictureUv, zoomToBox } from './lens'
 import styles from './Stage.module.css'
-import { usePersistedFlag } from './storage'
 import ui from './ui.module.css'
 
 import type { FrozenKind } from '../gpu/renderloop'
 import type { Lens } from './lens'
-import type { PointerEvent, RefObject } from 'react'
-
-// Persisted across reloads so a collapse sticks.
-const BAR_HIDDEN_STORE = 'ntsc.js_overlay_bar_hidden'
-
-// Magnification, as the menu trigger and the reset button both say it.
-const zoomLabel = (lens: Lens) =>
-  `${clampZoom(lens.zoom).toFixed(2).replace(/0$/, '')}×`
-
-// Everything the stage can do, behind one button — the picture is the point,
-// and a row of pills competing with it was not. Three states still have to read
-// without opening anything, so they ride on the trigger: recording (which has
-// to carry across a room), a magnifier left anywhere but 1×, which would
-// otherwise be an unexplained crop of the picture, and a live signal tap, which
-// replaces the picture outright — the strongest case of the three, since
-// without a badge the way back is a dialog you have to already know about.
-function StageMenu(props: {
-  recording: boolean
-  fullscreen: boolean
-  poppedOut: boolean
-  lens: Lens
-  onLens: (lens: Lens) => void
-  tap: number
-  onTap: (v: number) => void
-  onGrabStill: () => void
-  onToggleRecord: () => void
-  onToggleFullscreen: () => void
-  onPopout: () => void
-  showFps: boolean
-  onToggleFps: () => void
-  onShowHelp: () => void
-  onShowAdvanced: () => void
-  onHideBar: () => void
-}) {
-  return (
-    <Popover
-      trigger={attrs => (
-        <button
-          className={cx(styles.overlayBtn, props.recording && styles.recording)}
-          popoverTarget={attrs.popoverTarget}
-          style={attrs.style}
-          title={
-            props.recording
-              ? 'recording — click for options'
-              : 'menu (s: still, r: record, f: fullscreen)'
-          }
-        >
-          <MenuIcon />
-          {clampZoom(props.lens.zoom) === 1 ? null : (
-            <span className={styles.triggerZoom}>{zoomLabel(props.lens)}</span>
-          )}
-          {props.tap === 0 ? null : (
-            <span className={styles.triggerTap}>{tapFor(props.tap).short}</span>
-          )}
-          {props.recording ? '● rec' : null}
-        </button>
-      )}
-    >
-      {id => (
-        <>
-          <ZoomRow lens={props.lens} onChange={props.onLens} />
-          <div className={popoverStyles.menuSep} />
-          {/* Sits with the zoom rather than under Advanced only, for the same
-              reason the zoom row does: the gesture-less way in is what says the
-              thing exists at all, and this one is the app's whole premise made
-              visible. A row that steps, not a picker — five taps is a short
-              enough ring that stepping beats a dropdown inside a popover, and
-              it means one place both enters and leaves the mode. */}
-          <MenuItem
-            icon="◫"
-            label={
-              props.tap === 0
-                ? 'signal tap — see inside the decode'
-                : `signal tap: ${tapFor(props.tap).short}`
-            }
-            hint={props.tap === 0 ? '' : 'on'}
-            onClick={() => props.onTap(nextTap(props.tap))}
-          />
-          <div className={popoverStyles.menuSep} />
-          <MenuItem
-            icon={<CameraIcon />}
-            label="save still"
-            hint="s"
-            closes={id}
-            onClick={() => props.onGrabStill()}
-          />
-          <MenuItem
-            icon={props.recording ? '■' : '●'}
-            label={props.recording ? 'stop recording' : 'start recording'}
-            hint="r"
-            closes={id}
-            onClick={() => props.onToggleRecord()}
-          />
-          <div className={popoverStyles.menuSep} />
-          <MenuItem
-            icon={props.fullscreen ? '⤢' : '⛶'}
-            label={props.fullscreen ? 'exit fullscreen' : 'fullscreen'}
-            hint="f"
-            closes={id}
-            onClick={() => props.onToggleFullscreen()}
-          />
-          <MenuItem
-            icon="⧉"
-            label={
-              props.poppedOut ? 'focus controls window' : 'pop out controls'
-            }
-            hint=""
-            closes={id}
-            onClick={() => props.onPopout()}
-          />
-          <div className={popoverStyles.menuSep} />
-          <MenuItem
-            icon={<GraphIcon />}
-            label={props.showFps ? 'hide fps' : 'show fps'}
-            hint=""
-            closes={id}
-            onClick={() => props.onToggleFps()}
-          />
-          <MenuItem
-            icon={<GearIcon />}
-            label="advanced settings"
-            hint=""
-            closes={id}
-            onClick={() => props.onShowAdvanced()}
-          />
-          <MenuItem
-            icon="?"
-            label="help / about"
-            hint=""
-            closes={id}
-            onClick={() => props.onShowHelp()}
-          />
-          <MenuItem
-            icon="×"
-            label="hide this bar"
-            hint=""
-            closes={id}
-            onClick={() => props.onHideBar()}
-          />
-        </>
-      )}
-    </Popover>
-  )
-}
+import type { PointerEvent, ReactNode, RefObject } from 'react'
 
 // A drag this short is a stray click, not a box — zooming to it would slam
 // straight to maximum magnification.
@@ -190,49 +35,17 @@ const at = (e: PointerEvent<HTMLCanvasElement>) => {
   return { p, uv: pictureUv(r, p.x, p.y) }
 }
 
-// Zoom readout and lever, the first row of the stage menu: the gestures on the
-// picture are the fast path, but nothing would otherwise say the magnifier
-// exists. It stays put when used — a drag on the slider must not close the menu
-// out from under the hand doing it.
-function ZoomRow(props: { lens: Lens; onChange: (lens: Lens) => void }) {
-  const { lens } = props
-  const setZoom = (zoom: number) => props.onChange({ ...lens, zoom })
-  return (
-    <div className={styles.zoomRow}>
-      <span
-        className={styles.zoomLabel}
-        title="where your eye is — drag a box on the picture to close in, drag to move around the glass, double-click to go back to 1×. Below 1× it pulls back off the set."
-      >
-        ⌕
-      </span>
-      <input
-        type="range"
-        className={styles.zoomRange}
-        min={0}
-        max={1}
-        step={0.002}
-        value={zoomTravel(lens.zoom)}
-        onChange={e => setZoom(zoomAtTravel(Number(e.target.value)))}
-      />
-      <button
-        className={styles.zoomReset}
-        title="back to the picture filling the frame"
-        onClick={() => setZoom(1)}
-      >
-        {zoomLabel(lens)}
-      </button>
-    </div>
-  )
-}
-
 export function Stage(props: {
   canvasRef: RefObject<HTMLCanvasElement | null>
   error: string
   frozen: FrozenKind | null
   rebuilding: 'lost' | 'hung' | null
-  fullscreen: boolean
-  poppedOut: boolean
-  recording: boolean
+  // What has been spent on GPU devices — `builds` by this page, `releases` by this
+  // tab — and whether that is worth telling the user about (gpuAtRisk in
+  // gpu/context.ts). Said on the stage while the stage is still being painted,
+  // because that is the only window in which saying it is any use — once the tab
+  // loses its rendering step, nothing the DOM says arrives.
+  budget: { builds: number; releases: number; atRisk: boolean }
   lens: Lens
   onLens: (lens: Lens) => void
   // Which tool a plain drag on the picture is: the crosshair that boxes a region
@@ -240,24 +53,24 @@ export function Stage(props: {
   // from the masthead rather than decided here, which is why it arrives as a
   // prop — see the switch in app.tsx for what it replaced.
   boxZoom: boolean
-  tap: number
-  onTap: (v: number) => void
-  onToggleRecord: () => void
-  onGrabStill: () => void
-  onToggleFullscreen: () => void
-  onPopout: () => void
-  showFps: boolean
-  onToggleFps: () => void
-  onShowHelp: () => void
-  onShowAdvanced: () => void
+  // The corner of chrome over the picture, or null for a picture with nothing on
+  // it. Handed in rather than built here: what goes in it is the app's own menu
+  // (AppMenu), which is normally in the masthead and only comes over the picture
+  // where the panel is off this window's screen. The stage owns where it sits,
+  // app.tsx owns whether there is anything to sit there.
+  chrome: ReactNode
 }) {
   // Pulled out rather than read as `props.canvasRef` at the <canvas>: a ref read
   // off the props object marks the whole object as ref-ish to the React Compiler,
   // which then refuses every other `props.x` read as a ref access during render
   // and drops this component's memoization entirely.
   const { canvasRef } = props
-  const [barHidden, setBarHidden] = usePersistedFlag(BAR_HIDDEN_STORE)
   const [drag, setDrag] = useState<Drag | null>(null)
+  // The build count the notice was dismissed at, not a boolean: building another
+  // device is new news about the same subject, so it comes back for that and stays
+  // gone otherwise. Not persisted — it is a property of this page's spending, and a
+  // reload has built nothing yet.
+  const [budgetSeen, setBudgetSeen] = useState(0)
   const zoomed = clampZoom(props.lens.zoom) > 1
   // The armed tool, and shift for the other one. Shift used to mean "box" flatly
   // — which said nothing when box was already what a plain drag did — so reading
@@ -379,8 +192,8 @@ export function Stage(props: {
               in recorded sessions and a reload is reasonable; a cold tab has
               never had one animation frame since it loaded, so the fault
               belongs to the tab and a reload lands in the same hole — measured,
-              not inferred, see TAB_GPU_CEILING. Offering "reload" there is
-              offering the one thing that cannot work. */}
+              not inferred (docs/adr/0002). Offering "reload" there is offering
+              the one thing that cannot work. */}
           <b>
             {props.frozen === 'cold'
               ? 'this tab will not paint — open a new one'
@@ -392,7 +205,19 @@ export function Stage(props: {
                 The app and the GPU are both still running, but this tab has
                 never been given a single animation frame since it loaded. That
                 belongs to the tab rather than the page, so reloading lands in
-                the same place — open this URL in a new tab.
+                the same place —{' '}
+                {/* The advice, as something that can be clicked. It used to
+                    name the action and leave the reader to perform it next to a
+                    reload button that cannot work. */}
+                <a
+                  className={ui.link}
+                  href={location.href}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  open this look in a new tab
+                </a>
+                .
               </>
             ) : (
               <>
@@ -408,35 +233,59 @@ export function Stage(props: {
           </button>
         </div>
       ) : null}
-      {barHidden ? (
-        <button
-          className={cx(styles.overlayBtn, styles.reopenBar)}
-          onClick={() => setBarHidden(false)}
-          title="show controls"
-        >
-          ⋯
-        </button>
-      ) : (
-        <div className={styles.overlayBar}>
-          <StageMenu
-            recording={props.recording}
-            fullscreen={props.fullscreen}
-            poppedOut={props.poppedOut}
-            lens={props.lens}
-            onLens={props.onLens}
-            tap={props.tap}
-            onTap={props.onTap}
-            onGrabStill={props.onGrabStill}
-            onToggleRecord={props.onToggleRecord}
-            onToggleFullscreen={props.onToggleFullscreen}
-            onPopout={props.onPopout}
-            showFps={props.showFps}
-            onToggleFps={props.onToggleFps}
-            onShowHelp={props.onShowHelp}
-            onShowAdvanced={props.onShowAdvanced}
-            onHideBar={() => setBarHidden(true)}
-          />
+      {/* Nothing has gone wrong yet, and that is the point of saying it now: the
+          picture is live, the DOM is being painted, and the way this fails is that
+          both stop for the life of the tab. Shown under the two notices above
+          because either of them is the more urgent news.
+
+          Two things can raise it, and they are not equally bad — a destroyed
+          device is the measured killer, a pile of created ones only means engines
+          keep being replaced — so the sentence says which happened rather than
+          rounding both up to "out of sessions".
+
+          `builds` counts devices this *page* made, which is what makes the
+          rebuilding sentence true when it appears. Against the tab's lifetime
+          total it also counted reloads, and a reload makes a fresh document that
+          leaves its device behind — so this used to open on the third refresh of a
+          perfectly healthy session and tell the reader their working tab was
+          rebuilding itself. */}
+      {props.budget.atRisk && budgetSeen !== props.budget.builds ? (
+        <div className={styles.budget}>
+          <span>
+            <b>
+              {props.budget.releases > 0
+                ? 'this tab has released a GPU device'
+                : 'this page keeps rebuilding its GPU engine'}
+            </b>{' '}
+            (
+            {props.budget.releases > 0
+              ? `${props.budget.releases} destroyed`
+              : `${props.budget.builds} devices built for this page`}
+            ).{' '}
+            {props.budget.releases > 0
+              ? 'A browser that has been handed back a presenting device may stop painting this tab, and a reload does not clear that —'
+              : 'Each rebuild is a chance to lose the tab’s rendering step, and a reload does not clear that —'}{' '}
+            <a
+              className={ui.link}
+              href={location.href}
+              target="_blank"
+              rel="noreferrer"
+            >
+              carry this look into a new tab
+            </a>{' '}
+            to start clean.
+          </span>
+          <button
+            className={styles.budgetDismiss}
+            title="hide until another device is spent"
+            onClick={() => setBudgetSeen(props.budget.builds)}
+          >
+            ✕
+          </button>
         </div>
+      ) : null}
+      {props.chrome === null ? null : (
+        <div className={styles.overlayBar}>{props.chrome}</div>
       )}
     </div>
   )

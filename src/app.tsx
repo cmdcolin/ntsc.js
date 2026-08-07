@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import styles from './app.module.css'
 import { DEFAULT_CONTROLS, atRest } from './controls'
 import { AdvancedDialog } from './ui/AdvancedDialog'
+import { AppMenu, ShowMenuButton } from './ui/AppMenu'
 import { AudioHint, AudioInput } from './ui/AudioInput'
 import { AudioSection } from './ui/AudioSection'
 import { CommandPalette } from './ui/CommandPalette'
@@ -37,7 +38,6 @@ import { ModSection } from './ui/ModSection'
 import { slotsToRoutings } from './ui/modSlots'
 import { ModSlotsContext } from './ui/ModSlotsContext'
 import { MotionStrip } from './ui/MotionStrip'
-import { PanelMenu } from './ui/PanelMenu'
 import { matchPreset } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
 import { ScenesSection } from './ui/ScenesSection'
@@ -73,7 +73,14 @@ import type { ControlKey, Controls } from './controls'
 import type { PaletteAction } from './ui/CommandPalette'
 import type { Group } from './ui/controls'
 import type { ControlsApi } from './ui/ControlsContext'
+import type { Lens } from './ui/lens'
 import type { PathBranch, PathNode } from './ui/SignalPath'
+
+// Whether the menu over the picture has been dismissed. Persisted across
+// reloads so a collapse sticks — it only ever applies where the masthead is off
+// screen (fullscreen, the popout), which is where somebody clearing the picture
+// off for a projector is likely to be.
+const BAR_HIDDEN_STORE = 'ntsc.js_overlay_bar_hidden'
 
 // useSyncExternalStore fallbacks for the window before the async engine exists.
 const subscribeNever = () => () => {}
@@ -90,7 +97,7 @@ const toggleFullscreen = () => {
 export function App() {
   // Off every session, and not persisted: a counter that moves every frame pulls
   // the eye, and you want it only while chasing a stall. Two switches reach it —
-  // the × on the readout and the stage menu — so it lives here rather than in
+  // the × on the readout and the app menu — so it lives here rather than in
   // either of them. Declared ahead of the engine because it is also what decides
   // whether the loop's frame stats are wired up at all: reported four times a
   // second, each one a fresh object, they re-render this component (and so the
@@ -156,6 +163,7 @@ export function App() {
   // it is what says the magnifier exists at all. Not persisted — a pointer tool
   // is a thing you pick up for a minute, not a setting.
   const [boxZoom, setBoxZoom] = useState(true)
+  const [barHidden, setBarHidden] = usePersistedFlag(BAR_HIDDEN_STORE)
   const [filter, setFilter] = useState('')
   // Whether the masthead is showing the filter box rather than the wordmark.
   // Held open by a live query as well as by the ⌕, so the box can't disappear
@@ -449,10 +457,53 @@ export function App() {
     audioGroups.length > 0 ||
     (bOn && abGroups.length > 0)
 
+  // The magnifier, as the stage's gestures and the menu's zoom row both see it.
+  // One write for all three, so a gesture notifies the engine once.
+  const lens: Lens = {
+    zoom: controls.crtZoom,
+    x: controls.crtZoomX,
+    y: controls.crtZoomY,
+  }
+  const setLens = (next: Lens) =>
+    writeControls({
+      ...controls,
+      crtZoom: next.zoom,
+      crtZoomX: next.x,
+      crtZoomY: next.y,
+    })
+
+  // Everything behind the ☰ — one menu, and the two places it can be shown are
+  // given the same rows from here. It normally lives at the far top right of the
+  // window, which is the masthead's end; fullscreen and the popout take the
+  // panel off this window's screen, and the stage's copy is what is left.
+  const menuProps = {
+    recording: capture.recording,
+    fullscreen,
+    poppedOut: popout !== null,
+    lens,
+    onLens: setLens,
+    tap: eng.tap,
+    onTap: eng.changeTap,
+    frameLock: controls.frameLock,
+    onFrameLock: (v: number) => writeControl('frameLock', v),
+    onGrabStill: capture.grabStill,
+    onToggleRecord: capture.toggleRecord,
+    onToggleFullscreen: toggleFullscreen,
+    bench: benchOn,
+    canBench: popout !== null || roomy,
+    onToggleBench: () => setBenchOn(!benchOn),
+    onPopout: () => openPopout(benchOn),
+    showFps,
+    onToggleFps: () => setShowFps(!showFps),
+    onShowPalette: () => setShowPalette(true),
+    onShowAdvanced: () => setShowAdvanced(true),
+    onShowHelp: () => setShowHelp(true),
+  }
+
   const panelBody = (
     <>
-      {/* The masthead carries the panel's chrome — the brand, the filter and
-          the ⋮ — and while a query is live it carries the filter alone: the
+      {/* The masthead carries the app's chrome — the brand, the filter and
+          the ☰ — and while a query is live it carries the filter alone: the
           wordmark is the one thing on screen nobody needs to read twice, so it
           is what gives up its width. */}
       <div className={styles.titleRow}>
@@ -540,15 +591,7 @@ export function App() {
               ⌕
             </button>
           )}
-          <PanelMenu
-            bench={benchOn}
-            canBench={popout !== null || roomy}
-            onToggleBench={() => setBenchOn(!benchOn)}
-            onPopout={() => openPopout(benchOn)}
-            onShowPalette={() => setShowPalette(true)}
-            onShowAdvanced={() => setShowAdvanced(true)}
-            onShowHelp={() => setShowHelp(true)}
-          />
+          <AppMenu variant="masthead" {...menuProps} />
         </div>
       </div>
 
@@ -653,9 +696,13 @@ export function App() {
       {/* The signal-path map is the panel's trunk, so it sits high — right under
           the source and preset front door — and the filter that acts on it heads
           it. Scenes/mod/audio/midi are occasional tools and drop below it. */}
-      {/* Above the filter box, not inside Modulation: while a filter is live
-          everything below the box is the result set, and the motion amount is
-          a live-set control that has to stay reachable from anywhere. */}
+      {/* Outside the filter gate, unlike the Modulation section it belongs to:
+          while a query is live everything below the box is the result set, and
+          this fader is a live-set control (it has a MIDI bind of its own) that
+          has to stay reachable from anywhere. It stays here for that reason and
+          not because it deserves the position — it is a trim on a feature most
+          sessions never open, so it now draws itself as a row rather than as
+          the green card that outranked the whole spine below it. */}
       <MotionStrip onReveal={() => setFilter(MOVING_QUERY)} />
       <SignalPath
         nodes={pathNodes}
@@ -768,34 +815,27 @@ export function App() {
         error={eng.error}
         frozen={eng.frozen}
         rebuilding={eng.rebuilding}
-        fullscreen={fullscreen}
-        poppedOut={popout !== null}
-        recording={capture.recording}
-        lens={{
-          zoom: controls.crtZoom,
-          x: controls.crtZoomX,
-          y: controls.crtZoomY,
-        }}
+        budget={eng.budget}
+        lens={lens}
+        onLens={setLens}
         boxZoom={boxZoom}
-        tap={eng.tap}
-        onTap={eng.changeTap}
-        // One write for all three, so a gesture notifies the engine once.
-        onLens={lens =>
-          writeControls({
-            ...controls,
-            crtZoom: lens.zoom,
-            crtZoomX: lens.x,
-            crtZoomY: lens.y,
-          })
+        // Nothing over the picture while the masthead is on screen beside it —
+        // one ☰ per window, and in the ordinary layout the panel's is already at
+        // the top right of it. Fullscreen and the popout are the two states that
+        // take the panel away, and there the picture keeps its own copy (which
+        // is the only one that can be dismissed, since it is the only one
+        // sitting on top of what you are watching).
+        chrome={
+          !fullscreen && popout === null ? null : barHidden ? (
+            <ShowMenuButton onClick={() => setBarHidden(false)} />
+          ) : (
+            <AppMenu
+              variant="stage"
+              {...menuProps}
+              onHideBar={() => setBarHidden(true)}
+            />
+          )
         }
-        onToggleRecord={capture.toggleRecord}
-        onGrabStill={capture.grabStill}
-        onToggleFullscreen={toggleFullscreen}
-        onPopout={() => openPopout(benchOn)}
-        showFps={showFps}
-        onToggleFps={() => setShowFps(!showFps)}
-        onShowHelp={() => setShowHelp(true)}
-        onShowAdvanced={() => setShowAdvanced(true)}
       />
       {fullscreen || popout !== null ? null : (
         <div className={cx(styles.panel, benchOn && styles.panelWide)}>
@@ -825,6 +865,8 @@ export function App() {
           res={eng.res}
           tap={eng.tap}
           onTapChange={eng.changeTap}
+          frameLock={controls.frameLock}
+          onFrameLockChange={v => writeControl('frameLock', v)}
           midiStatus={midiStatus}
           onEnableMidi={enableMidi}
           onClose={() => setShowAdvanced(false)}
@@ -890,12 +932,19 @@ export function App() {
 
 // The engine is a singleton owning a GPUDevice + rAF loop. Fast Refresh won't
 // reliably run the mount effect's cleanup on a hot swap (an empty-dep effect
-// isn't re-run), so old devices leak and stack up until Firefox Nightly's
-// WebGPU hangs the tab. Destroy the engine deterministically before Vite
-// replaces this module; the fresh module then builds a new one on remount.
+// isn't re-run), so old engines leak and stack up. Destroy the engine
+// deterministically before Vite replaces this module; the fresh module then
+// builds a new one on remount.
+//
+// `keepDevice`, because the device is the scarce half and a hot update is not its
+// fault. A tab is worth about two devices; without this, three edits to `src/gpu/`
+// spent the lot and left a tab the browser would never paint again — which is the
+// freeze this whole line of work started from, arriving during development rather
+// than in front of a user. The successor engine adopts the device (see the stash
+// in gpu/context.ts), so an editing session costs one session, not one per save.
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    window.vf?.destroy()
+    window.vf?.destroy({ keepDevice: true })
     window.vf = undefined
   })
 }
