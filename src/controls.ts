@@ -131,6 +131,14 @@ export const DEFAULT_CONTROLS = {
   crtBloom: 0,
   crtHalation: 0,
   crtGlow: 0,
+  crtHaloKey: 0, // halation radius keyed off beam current, 0 = the fixed radius
+  crtSvm: 0, // scan velocity modulation depth, signed (coil polarity)
+  crtSvmWidth: 1.2, // SVM differentiator aperture, active px
+  crtConverge: 0, // gun misconvergence at the picture edge, active px
+  crtPurity: 0, // magnetised mask patch depth
+  crtPurityX: 0.3, // blotch centre on the glass
+  crtPurityY: 0.35,
+  crtPuritySize: 0.3, // blotch radius, fraction of picture height
   // mixer loop (composite-level feedback)
   cfbMix: 0,
   cfbGain: 1,

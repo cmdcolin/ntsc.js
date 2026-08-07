@@ -200,6 +200,14 @@ export const PARAM_DEFS = [
   ['crtBloom', 'f32'], // highlight bloom spread from bright phosphor cores
   ['crtHalation', 'f32'], // wide warm glass-scatter halo around highlights
   ['crtGlow', 'f32'], // phosphor black-level glow / faceplate haze
+  ['crtHaloKey', 'f32'], // halation radius keyed off beam current: peak whites scatter wider
+  ['crtSvm', 'f32'], // scan velocity modulation: dwell-time redistribution across horizontal edges (signed = coil polarity)
+  ['crtSvmWidth', 'f32'], // SVM differentiator aperture, active pixels
+  ['crtConverge', 'f32'], // gun misconvergence, active px at the edge, growing with radius (signed = which gun lands outward)
+  ['crtPurity', 'f32'], // magnetised mask patch: landing error over a soft blotch, tinting by triad direction
+  ['crtPurityX', 'f32'], // blotch centre on the glass, 0..1
+  ['crtPurityY', 'f32'],
+  ['crtPuritySize', 'f32'], // blotch radius as a fraction of picture height
   // mixer loop: previous frame's composite fed back electrically
   ['cfbMix', 'f32'], // crossfader position toward the loop bus
   ['cfbGain', 'f32'], // loop proc-amp trim, negative inverts

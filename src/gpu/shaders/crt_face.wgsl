@@ -113,6 +113,39 @@ fn grain(p: vec2f) -> f32 {
   return 0.62 * valueNoise(p / GRAIN_PX) + 0.38 * valueNoise(p / (GRAIN_PX * 0.37) + vec2f(31.7, 11.3));
 }
 
+// One gun's direct emission: the beam-spot integral around a landing point.
+// Factored out of main because convergence re-runs it per channel — each gun
+// writes its own slightly displaced raster, and blurring a shared sample would
+// average the landing error away instead of leaving it as a fringe. The tap
+// count still scales with the spot: a sub-pixel gaussian reaching the glass
+// through the bilinear sampler is fully captured by a few taps.
+fn spotAt(uv: vec2f, dim: vec2f) -> vec3f {
+  var acc = beam(textureSampleLevel(srcTex, samp, uv, 0.0).rgb);
+  var w = 1.0;
+  if (P.crtSpot > 0.0) {
+    if (P.crtSpot <= 0.8) {
+      for (var i = 0u; i < 4u; i = i + 1u) {
+        let t = DISK4[i];
+        acc = acc + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
+        w = w + t.z;
+      }
+    } else if (P.crtSpot <= 2.0) {
+      for (var i = 0u; i < 8u; i = i + 1u) {
+        let t = DISK8[i];
+        acc = acc + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
+        w = w + t.z;
+      }
+    } else {
+      for (var i = 0u; i < 16u; i = i + 1u) {
+        let t = DISK16[i];
+        acc = acc + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
+        w = w + t.z;
+      }
+    }
+  }
+  return acc / w;
+}
+
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid: vec3u) {
   if (gid.x >= ACTIVE_W || gid.y >= ACTIVE_H) {
@@ -133,7 +166,12 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // Identity copy when the light behaviour is disabled: keeps a clean signal
   // clean and skips the tap work. (The beam transfer above still ran, but it is
   // identity unless a preset set cutoff/gamma/sat.)
-  if (P.crtSpot + P.crtGrain + P.crtBloom + P.crtHalation + P.crtGlow <= 0.0) {
+  // Every mechanism below has to appear in this sum, or turning one on alone
+  // would take the identity path and read as a dead control. The three faults
+  // take abs() because their controls are signed: crossed guns and a reversed
+  // SVM coil are as real as the nominal polarity.
+  if (P.crtSpot + P.crtGrain + P.crtBloom + P.crtHalation + P.crtGlow
+      + abs(P.crtConverge) + abs(P.crtPurity) + abs(P.crtSvm) <= 0.0) {
     textureStore(faceTex, vec2i(gid.xy), vec4f(col, 1.0));
     return;
   }
@@ -147,33 +185,69 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // lands partly on its neighbours' phosphor and every edge is a ramp. Unlike
   // bloom this is not thresholded — dim picture bleeds too, which is why a
   // real tube never resolves into a grid of hard pixels.
-  var spot = center;
-  var sw = 1.0;
-  if (P.crtSpot > 0.0) {
-    if (P.crtSpot <= 0.8) {
-      for (var i = 0u; i < 4u; i = i + 1u) {
-        let t = DISK4[i];
-        spot = spot + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
-        sw = sw + t.z;
-      }
-    } else if (P.crtSpot <= 2.0) {
-      for (var i = 0u; i < 8u; i = i + 1u) {
-        let t = DISK8[i];
-        spot = spot + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
-        sw = sw + t.z;
-      }
-    } else {
-      for (var i = 0u; i < 16u; i = i + 1u) {
-        let t = DISK16[i];
-        spot = spot + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
-        sw = sw + t.z;
-      }
-    }
+  let px = vec2f(gid.xy) + vec2f(0.5, 0.5);
+  var direct = spotAt(uv, dim);
+
+  // Convergence: three guns firing through one mask from three positions can
+  // only be registered over part of the screen. The error is nulled at the
+  // centre and grows toward the corners, so red lands outward and blue inward
+  // of green, and edges pick up colour fringes that get worse the further out
+  // they are. Only the direct emission is converged — the scatter below
+  // integrates over a patch of glass far wider than any landing error, so it
+  // comes back out registered no matter where the beams went in.
+  if (P.crtConverge != 0.0) {
+    let d = px - dim * 0.5;
+    let q = d / (dim * 0.5);
+    let rr = clamp(dot(q, q), 0.0, 2.0);
+    let dir = d / max(length(d), 1e-6);
+    let off = dir * (P.crtConverge * rr) / dim;
+    let cr = spotAt(uv + off, dim);
+    let cb = spotAt(uv - off, dim);
+    direct = vec3f(cr.r, direct.g, cb.b);
   }
+
+  // Scan velocity modulation: consumer sets patched differentiated luma into an
+  // auxiliary deflection coil, so the beam decelerates through a dark→bright
+  // transition and accelerates through a bright→dark one. Emission per unit
+  // length goes as dwell time, so the light is *redistributed* across the edge
+  // rather than added — a white overshoot on the rising side, a black notch on
+  // the falling one. That asymmetry is the mechanism, not a bug; it is what SVM
+  // was always criticised for. A negative amount is the coil wired backwards,
+  // which swaps which side of every edge glows.
+  if (P.crtSvm != 0.0) {
+    let ap = max(P.crtSvmWidth, 0.25) / dim.x;
+    let ll = luma(textureSampleLevel(srcTex, samp, uv - vec2f(ap, 0.0), 0.0).rgb);
+    let lr = luma(textureSampleLevel(srcTex, samp, uv + vec2f(ap, 0.0), 0.0).rgb);
+    direct = direct * max(1.0 + P.crtSvm * (lr - ll), 0.0);
+  }
+
+  // Purity: a magnetised patch of the shadow mask. The field bends all three
+  // beams the same way, but a triad is three phosphor dots 120° apart, so one
+  // displacement over-excites whichever dot it moves toward and starves the one
+  // opposite. What comes out is a soft stain whose hue turns through the patch
+  // rather than a flat tint — and it is fixed on the glass, so a rolling
+  // picture travels through it instead of carrying it along.
+  if (P.crtPurity != 0.0) {
+    let pr = max(P.crtPuritySize, 1e-3) * dim.y;
+    let dv = (px - vec2f(P.crtPurityX, P.crtPurityY) * dim) / pr;
+    let land = P.crtPurity * exp(-2.0 * dot(dv, dv)) * dv;
+    let g = vec3f(
+      dot(land, vec2f(1.0, 0.0)),
+      dot(land, vec2f(-0.5, 0.8660254)),
+      dot(land, vec2f(-0.5, -0.8660254)),
+    );
+    direct = direct * max(vec3f(1.0) + g, vec3f(0.0));
+  }
+
   var bloom = vec3f(0.0);
   var halo = vec3f(0.0);
   let rb = 3.5;
-  let rh = 15.0;
+  // Glass scatter grows with beam current: a peak white drives far more light
+  // into the faceplate than a mid grey does, and it spreads further before it
+  // finds its way back out. Keying the halo radius off the local drive is what
+  // stops halation reading as a fixed-width outline traced round anything
+  // bright, which is the one way the shipped fixed radius gives itself away.
+  let rh = 15.0 * (1.0 + P.crtHaloKey * luma(center));
   let scatters = P.crtBloom + P.crtHalation > 0.0;
   if (scatters) {
     for (var i = 0u; i < 16u; i = i + 1u) {
@@ -182,7 +256,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
       halo = halo + bright(textureSampleLevel(srcTex, samp, uv + d * rh / dim, 0.0).rgb, 0.35);
     }
   }
-  col = gamutFit(spot / sw);
+  col = gamutFit(direct);
 
   // Granular deposit: the coating is a layer of crystallites, not a uniform
   // film, so emission is mottled. The modulation peaks in the mids — black
