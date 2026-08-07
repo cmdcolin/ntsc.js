@@ -1161,6 +1161,12 @@ export class Engine implements EngineApi {
         termination: c[f.termination],
         noiseSigma: c[f.noise],
         polarityFlip: c[f.polarity],
+        // These two override a program-bus knob that feed.wgsl also reads, so
+        // leaving either out would put the bus's ground loop and the bus's bad
+        // plug onto both feeds as well as the output.
+        humAmp: c[f.hum],
+        connectorGlitch: c[f.connector],
+        connectorMode: c[f.connectorMode],
         dropoutRate: c[f.dropoutRate],
         dropoutLen: c[f.dropoutLen] * 1e-6 * SAMPLE_RATE,
         bPause: deck.pause,
@@ -1250,6 +1256,7 @@ export class Engine implements EngineApi {
       termination: c.termination,
       chromaPinOnly: c.chromaPinOnly,
       connectorGlitch: c.connectorGlitch,
+      connectorMode: c.connectorMode,
       scramble: c.scramble,
       scrambleMode: c.scrambleMode,
       mvAgcIre: 160 * c.macrovision,

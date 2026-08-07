@@ -405,7 +405,7 @@ fn main(
 
   // 60 Hz hum: one cycle per field, slowly rolling
   if (P.humAmp > 0.0 || P.humMod > 0.0) {
-    let ph = 2.0 * PI * (f32(row) / f32(NLINES) + f32(P.frame) * 0.0037);
+    let ph = humPhase(row, P.frame);
     out = out + P.humAmp * sin(ph);
     // Hum modulation: the same mains ripple, but inside the supply of an
     // amplifier in the signal path rather than on a ground loop, so it moves
@@ -604,17 +604,9 @@ fn main(
     }
   }
 
-  // Loose connector: intermittent contact breaks whole bands of the picture to
-  // snow and yanks the level down (taking sync with it), flickering frame to
-  // frame the way a wiggled RCA plug drops in and out.
-  if (P.connectorGlitch > 0.0) {
-    let band = row / 12u;
-    let r = rand01(pcg(P.frame * 2246822519u + band * 40503u + P.gen * 7u));
-    if (r < P.connectorGlitch * 0.5) {
-      let snow = 20.0 * gauss(n ^ pcg(P.frame * 131u + n));
-      out = mix(out, snow, 0.9) - 35.0 * P.connectorGlitch;
-    }
-  }
+  // Loose connector on the program bus (prelude `connectorAt`), shared with the
+  // per-source feeds, which wiggle one input's plug alone.
+  out = connectorAt(out, row, n, P.frame, P.gen, P.connectorGlitch, P.connectorMode);
 
   // Hard polarity flip: signal and ground fully swapped on the line. Unlike the
   // clean encoder invert (active video only), this negates the whole waveform —

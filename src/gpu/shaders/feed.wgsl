@@ -3,9 +3,15 @@
 // other input, the sync fight, the receiver — reacts to the difference. The
 // same pipeline runs this shader twice (feedA, feedB) against different
 // uniform buffers: pipeline.ts packs the per-source control values into the
-// standard Params fields (scramble, termination, noiseSigma, polarityFlip),
-// so the mechanisms stay written in exactly one place and `gen` decorrelates
-// this instance's noise from the program-bus channel's.
+// standard Params fields (scramble, termination, noiseSigma, polarityFlip,
+// humAmp, connectorGlitch), so the mechanisms stay written in exactly one place
+// and `gen` decorrelates this instance's noise from the program-bus channel's.
+//
+// The trap that arrangement sets: every other Params field arrives here still
+// holding the *program bus's* value, because packFeed spreads the bus pack and
+// overrides only what FEEDS names. A block added below that reads a field
+// packFeed does not override will silently apply a program-bus knob to one
+// source, and it will look like it works.
 //
 // Only per-sample damage and the paused deck's per-line resample live here.
 // Anything needing the FIR bank or the color-under path (luma bandwidth,
@@ -137,6 +143,31 @@ fn main(
     let cn = lid.x + 1u;
     out = out + P.noiseSigma * 0.4082 * (tileNs[cn - 1u] + 2.0 * tileNs[cn] + tileNs[cn + 1u]);
   }
+
+  // Ground loop on this input's cable alone. A loop needs two earthed boxes
+  // joined by a shield, so it is a property of one *run* — this deck's mains
+  // outlet against the mixer's — and a hum bar on the program bus cannot say
+  // which cable is carrying it. Injected in series along the run, so it lifts
+  // this source's sync tips with its picture: the receiver's AGC and hold chase
+  // A's level sixty times a second while B's sits still, and which of the two
+  // wins the sync fight alternates with the hum phase — the reason a ground
+  // loop in a two-deck rig rolls the picture rather than just barring it.
+  //
+  // Signed, because the two ends of a split-phase service are 180 degrees
+  // apart: same amplitude, opposite leg, and two feeds on opposite legs push
+  // their bars against each other instead of together.
+  //
+  // The bar rides this source's own raster, so under the dirty sum B's travels
+  // with B's picture through the slip and roll while A's stays put — which is
+  // what tells the two cables apart on screen.
+  if (P.humAmp != 0.0) {
+    out = out + P.humAmp * sin(humPhase(row, P.frame));
+  }
+
+  // The plug at the mixer's input jack going intermittent, on this input alone
+  // (prelude `connectorAt`). On the output raster, not the tape: the connector
+  // is at the far end of the cable, downstream of everything the deck did.
+  out = connectorAt(out, row, n, P.frame, P.gen, P.connectorGlitch, P.connectorMode);
 
   // Hard polarity flip on this feed's connector: whole waveform negated, sync
   // and burst included. Unlike a negative bus gain this holds regardless of

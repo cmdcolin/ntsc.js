@@ -71,7 +71,7 @@ const BOXES: Box[] = [
     group: FEED_A_GROUP,
     col: 1,
     row: 'a',
-    what: 'input A’s own deck, cable and head-end, ahead of the mixer — damage here lands on this signal alone',
+    what: 'input A’s own deck, cable and head-end, ahead of the mixer — damage here lands on this signal alone. Two groups: what the deck did to the tape, and what the wire out of it did after',
   },
   {
     label: 'Feed B',
@@ -79,7 +79,7 @@ const BOXES: Box[] = [
     group: FEED_B_GROUP,
     col: 1,
     row: 'b',
-    what: 'the same eight faults on input B’s own feed, so the two signals arrive at the mixer damaged differently',
+    what: 'the same deck and cable faults again on input B’s own feed, in the same order — so the two signals arrive at the mixer damaged differently and the difference is what the rig reacts to',
   },
   { label: 'Mix', stage: MIX_STAGE, col: 2, row: 'trunk', what: MIX_BLURB },
   {

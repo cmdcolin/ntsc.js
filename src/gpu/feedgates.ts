@@ -31,6 +31,9 @@ export const FEEDS = {
     termination: 'aTermination',
     noise: 'aNoiseIre',
     polarity: 'aPolarity',
+    hum: 'aHumIre',
+    connector: 'aConnector',
+    connectorMode: 'aConnectorMode',
     dropoutRate: 'aDropoutRate',
     dropoutLen: 'aDropoutLenUs',
     pause: 'aPause',
@@ -42,6 +45,9 @@ export const FEEDS = {
     termination: 'bTermination',
     noise: 'bNoiseIre',
     polarity: 'bPolarity',
+    hum: 'bHumIre',
+    connector: 'bConnector',
+    connectorMode: 'bConnectorMode',
     dropoutRate: 'bDropoutRate',
     dropoutLen: 'bDropoutLenUs',
     pause: 'bPause',
@@ -54,6 +60,9 @@ export const FEEDS = {
     | 'termination'
     | 'noise'
     | 'polarity'
+    | 'hum'
+    | 'connector'
+    | 'connectorMode'
     | 'dropoutRate'
     | 'dropoutLen'
     | 'pause',
@@ -61,10 +70,14 @@ export const FEEDS = {
   >
 >
 
-// Whether this source's feed carries any amplitude damage — the five faults
-// both feeds share. The paused deck is deliberately not in here: A's engages
-// its feed outright, B's only on the dirty path, and those two conditions are
-// the whole difference between the gates below.
+// Whether this source's feed carries any amplitude damage — the faults both
+// feeds share. The paused deck is deliberately not in here: A's engages its
+// feed outright, B's only on the dirty path, and those two conditions are the
+// whole difference between the gates below.
+//
+// The two signed entries have to test `!== 0`, not `> 0`: a daisy-chained
+// terminator is negative, and a ground loop on the opposite mains leg is a
+// hum bar 180 degrees round, which is a fault whichever way it points.
 export function feedFaults(c: Controls, src: FeedSource): boolean {
   const f = FEEDS[src]
   return (
@@ -72,6 +85,8 @@ export function feedFaults(c: Controls, src: FeedSource): boolean {
     c[f.termination] !== 0 ||
     c[f.noise] > 0 ||
     c[f.polarity] > 0 ||
+    c[f.hum] !== 0 ||
+    c[f.connector] > 0 ||
     c[f.dropoutRate] > 0
   )
 }

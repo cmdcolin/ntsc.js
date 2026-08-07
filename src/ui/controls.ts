@@ -74,8 +74,18 @@ export interface Group {
 // two uniform blocks) that the panel files in two places — A's on the Source
 // stage, B's on the branch — so the names have to be reachable from outside the
 // group list rather than retyped at the one place that addresses them.
-export const FEED_A_GROUP = 'Feed A (pre-mix)'
-export const FEED_B_GROUP = 'Feed B (pre-mix)'
+// Each feed is two physical things in series — the machine and the wire out of
+// it — and they are two different diagnoses: "this deck is broken" reaches for
+// pause, dropouts and the head-end, "this cable is broken" for the plug, the
+// ground and the terminator. Splitting them is what keeps either half scannable
+// now that the connector and the ground loop are per input, and it is why the
+// two inputs read as a pair: the same two groups, in the same order, per
+// channel. The A pair opens on the Source stage and the B pair on the branch,
+// for the reason the placements below give.
+export const FEED_A_GROUP = 'Feed A · deck'
+export const FEED_A_CABLE_GROUP = 'Feed A · cable'
+export const FEED_B_GROUP = 'Feed B · deck'
+export const FEED_B_CABLE_GROUP = 'Feed B · cable'
 
 export const GROUPS: Group[] = [
   {
@@ -149,7 +159,17 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.01,
         unit: '',
-        help: 'Intermittent contact in the plug. Contact drops out for random spans of the waveform and the input floats to snow, so bands of noise cut in and out — and take sync with them when they land on a sync tip.',
+        help: 'How loose the plug is: bands of lines lose contact, re-rolled every frame the way a plug hanging on its own cable weight makes and breaks. Which of the two contacts is failing is the row below, and they fail into completely different pictures.',
+      },
+      {
+        key: 'connectorMode',
+        label: 'bad contact',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['pin', 'shield', 'both'],
+        help: 'Which contact of the plug is intermittent. The centre pin breaks the signal path, so the jack sees an open through its own terminator and those bands collapse to the input stage’s noise floor — sync included, which is why they tear. The shell breaks the ground reference instead and leaves the signal alone: the return current goes looking for the mains earth through both boxes’ supplies, so a ground loop’s hum lands on the bad bands and the level walks and buzzes while the picture and its sync survive. Both is a genuinely wiggled plug, the two faults on independent bands so they interleave.',
       },
     ],
   },
@@ -218,51 +238,13 @@ export const GROUPS: Group[] = [
     place: 'Source',
     sliders: [
       {
-        key: 'aPolarity',
-        label: 'A polarity (flips sync)',
+        key: 'aPause',
+        label: 'A pause (deck held)',
         min: 0,
         max: 1,
         step: 0.01,
         unit: '',
-        help: "A signal/ground swap on A's own connector: A's waveform is negated, sync included, before it reaches the mixer. Unlike pulling A gain negative this holds even when the mixer path is idle, and unlike the program-bus hard polarity it leaves B's signal — and B's sync, which the receiver may latch onto instead — untouched.",
-      },
-      {
-        key: 'aTermination',
-        label: 'A termination (-1 daisy, +1 open)',
-        min: -1,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: "Termination fault on A's cable alone. Negative is double-terminated: A arrives dim and shallow, so it loses the sync fight against a healthy B. Positive is unterminated: A runs hot and rings with a short reflection echo while B stays clean.",
-      },
-      {
-        key: 'aNoiseIre',
-        label: 'A noise',
-        min: 0,
-        max: 150,
-        step: 0.1,
-        redline: [0, 40],
-        unit: 'IRE',
-        help: "Snow on A's feed only — a long antenna run or a bad patch cable ahead of the mixer. B sums in clean over the top, which is what tells a noisy input apart from a noisy program bus.",
-      },
-      {
-        key: 'aScramble',
-        label: 'A sync suppression',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: "Head-end scrambling on input A alone — a premium channel is scrambled per channel, not per set. A's sync tips are lifted toward blanking before the mix, so the receiver is left choosing between A's mutilated pulses and whatever B is offering — mixing in a little clean B is exactly the pirate trick of feeding a decoder substitute sync.",
-      },
-      {
-        key: 'aScrambleMode',
-        label: 'A system',
-        min: 0,
-        max: 2,
-        step: 1,
-        unit: '',
-        choices: ['gated', 'alternate', 'ssavi'],
-        help: "Which scrambling system A's channel uses. Gated suppresses every line, alternate every other line, and SSAVI also inverts the active video — so A leaks through as a negative while B stays a positive.",
+        help: "The pause button on the deck feeding input A, at how badly the deck copes with it. The frame holds — the drum keeps re-reading one track — but pause defeats the capstan servo, so every line of the program's own signal scatters sideways on its own around a slow wander, the raster hops when the servo hunts vertically, and a mistrack stripe of snow creeps through the picture. A is the house reference, so the receiver's PLL hunts on every line and hue wobbles with the displacement — and if B is up, B's clean sync starts winning fights it used to lose.",
       },
       {
         key: 'aDropoutRate',
@@ -285,13 +267,90 @@ export const GROUPS: Group[] = [
         help: "How long each of A's dropouts lasts, in microseconds of the 63.5 µs line.",
       },
       {
-        key: 'aPause',
-        label: 'A pause (deck held)',
+        key: 'aScramble',
+        label: 'A sync suppression',
         min: 0,
         max: 1,
         step: 0.01,
         unit: '',
-        help: "The pause button on the deck feeding input A, at how badly the deck copes with it. The frame holds — the drum keeps re-reading one track — but pause defeats the capstan servo, so every line of the program's own signal scatters sideways on its own around a slow wander, the raster hops when the servo hunts vertically, and a mistrack stripe of snow creeps through the picture. A is the house reference, so the receiver's PLL hunts on every line and hue wobbles with the displacement — and if B is up, B's clean sync starts winning fights it used to lose.",
+        help: "Head-end scrambling on input A alone — a premium channel is scrambled per channel, not per set. A's sync tips are lifted toward blanking before the mix, so the receiver is left choosing between A's mutilated pulses and whatever B is offering — mixing in a little clean B is exactly the pirate trick of feeding a decoder substitute sync.",
+      },
+      {
+        key: 'aScrambleMode',
+        label: 'A system',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['gated', 'alternate', 'ssavi'],
+        help: "Which scrambling system A's channel uses. Gated suppresses every line, alternate every other line, and SSAVI also inverts the active video — so A leaks through as a negative while B stays a positive.",
+      },
+    ],
+  },
+  // The wire out of A's deck and the jack at the far end of it. Everything here
+  // happens after the deck, on the output raster — which is what separates it
+  // from the group above, where the damage is on the tape and a held deck
+  // re-reads it in place.
+  {
+    name: FEED_A_CABLE_GROUP,
+    place: 'Source',
+    sliders: [
+      {
+        key: 'aConnector',
+        label: 'A loose connector',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "How loose the plug in input A's jack is: bands of lines lose contact, re-rolled every frame the way a plug hanging on its own cable weight makes and breaks. Which contact is failing is the row below, and on a per-input feed that choice matters more than it does on the program bus — a break that takes A's sync leaves the receiver B's pulses to lock to.",
+      },
+      {
+        key: 'aConnectorMode',
+        label: 'A bad contact',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['pin', 'shield', 'both'],
+        help: "Which of A's two contacts is intermittent. The centre pin breaks the signal path, so those bands collapse to the input's own noise and take A's sync tips with them — and with B patched in, the receiver locks to B's pulses for the length of the band and hands the line start back when contact returns, so the picture snaps between two geometries with nothing drawing the switch. The shell breaks the ground reference instead and leaves the signal alone: the return current goes hunting through the mains earth, so a ground loop's hum lands on the bad bands and A's level walks and buzzes while its picture and sync survive. Both is a genuinely wiggled plug, the two on independent bands.",
+      },
+      {
+        key: 'aHumIre',
+        label: 'A ground loop',
+        min: -40,
+        max: 40,
+        step: 0.5,
+        redline: [-20, 20],
+        unit: 'IRE',
+        help: "A ground loop on input A's cable alone. A loop needs two earthed boxes joined by a shield, so it belongs to one run — this deck's outlet against the mixer's — which is why a hum bar on the program bus cannot say which cable is carrying it and this can. It lifts A's sync tips along with A's picture, so the receiver's AGC and hold chase A sixty times a second while B sits still; which of the two wins the sync fight then alternates with the hum phase, and the picture rolls in sympathy with the bar instead of merely wearing it. Negative is the other leg of a split-phase service — the same bar 180° round — so two feeds on opposite legs push against each other rather than together.",
+      },
+      {
+        key: 'aNoiseIre',
+        label: 'A noise',
+        min: 0,
+        max: 150,
+        step: 0.1,
+        redline: [0, 40],
+        unit: 'IRE',
+        help: "Snow on A's feed only — a long antenna run or a bad patch cable ahead of the mixer. B sums in clean over the top, which is what tells a noisy input apart from a noisy program bus.",
+      },
+      {
+        key: 'aTermination',
+        label: 'A termination (-1 daisy, +1 open)',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "Termination fault on A's cable alone. Negative is double-terminated: A arrives dim and shallow, so it loses the sync fight against a healthy B. Positive is unterminated: A runs hot and rings with a short reflection echo while B stays clean.",
+      },
+      {
+        key: 'aPolarity',
+        label: 'A polarity (flips sync)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "A signal/ground swap on A's own connector: A's waveform is negated, sync included, before it reaches the mixer. Unlike pulling A gain negative this holds even when the mixer path is idle, and unlike the program-bus hard polarity it leaves B's signal — and B's sync, which the receiver may latch onto instead — untouched.",
       },
     ],
   },
@@ -900,60 +959,23 @@ export const GROUPS: Group[] = [
       },
     ],
   },
-  // B's own cable and head-end, ahead of the mix — the mirror of Feed A over in
-  // the Source stage, listing the same faults in the same order so the two
-  // decks read alike. Only this one is contextual: A's feed is A's cable
-  // whether or not anything is patched into B.
+  // B's own deck and cable, ahead of the mix — the mirror of the Feed A pair
+  // over in the Source stage, listing the same faults in the same order so the
+  // two channels read alike and a difference between them is visible as a
+  // difference. Only B's pair is contextual: A's feed is A's cable whether or
+  // not anything is patched into B.
   {
     name: FEED_B_GROUP,
     place: 'ab',
     sliders: [
       {
-        key: 'bPolarity',
-        label: 'B polarity (flips sync)',
+        key: 'bPause',
+        label: 'B pause (deck held)',
         min: 0,
         max: 1,
         step: 0.01,
         unit: '',
-        help: "A signal/ground swap on B's own connector: B's waveform is negated, sync included, before it reaches the summing bus. The same trick as pulling B gain negative, but as a fault in the cable rather than the fader — level and polarity stay independent knobs.",
-      },
-      {
-        key: 'bTermination',
-        label: 'B termination (-1 daisy, +1 open)',
-        min: -1,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: "Termination fault on B's cable alone. Negative halves B toward a dim ghost of a signal under A; positive runs B hot and ringing, so its sync and burst bully their way into the fight against a clean A.",
-      },
-      {
-        key: 'bNoiseIre',
-        label: 'B noise',
-        min: 0,
-        max: 150,
-        step: 0.1,
-        redline: [0, 40],
-        unit: 'IRE',
-        help: "Snow on B's feed only. It rides B's own raster through the slip and roll, so the noise tears and rolls with B's picture instead of sitting still on the screen the way program-bus noise does.",
-      },
-      {
-        key: 'bScramble',
-        label: 'B sync suppression',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: "Head-end scrambling on input B alone: B's sync tips are lifted toward blanking before it is summed in. B's contribution to the sync fight goes toothless — its picture still beats and rolls through the mix, but the receiver only ever hears A's pulses.",
-      },
-      {
-        key: 'bScrambleMode',
-        label: 'B system',
-        min: 0,
-        max: 2,
-        step: 1,
-        unit: '',
-        choices: ['gated', 'alternate', 'ssavi'],
-        help: "Which scrambling system B's channel uses. Gated suppresses every line, alternate every other line, and SSAVI also inverts B's active video — a negative picture drifting through a positive one.",
+        help: "The pause button on the B deck, at how badly the deck copes with it. The frame holds — the drum keeps re-reading one track — but pause defeats the capstan servo, so B's timebase wanders aperiodically and scatters line to line; the head sweeps off the parked track through a mistrack stripe of snow that creeps down the frame on its own; and the drum's two reads never had their colour-under phase interleaved, so B's hue flickers at frame rate. All of it lands on B's own raster and then rides the dirty sum, which is the classic rig: a paused VCR into a mixer, two fighting syncs, one of them broken. When the stripe drifts through B's vertical interval it takes B's field pulses with it and the fight turns into rolls nobody scheduled. Genlock implies a time-base corrector, so on the clean-dissolve path the button just freezes the frame.",
       },
       {
         key: 'bDropoutRate',
@@ -976,13 +998,86 @@ export const GROUPS: Group[] = [
         help: "How long each of B's dropouts lasts, in microseconds of the 63.5 µs line.",
       },
       {
-        key: 'bPause',
-        label: 'B pause (deck held)',
+        key: 'bScramble',
+        label: 'B sync suppression',
         min: 0,
         max: 1,
         step: 0.01,
         unit: '',
-        help: "The pause button on the B deck, at how badly the deck copes with it. The frame holds — the drum keeps re-reading one track — but pause defeats the capstan servo, so B's timebase wanders aperiodically and scatters line to line; the head sweeps off the parked track through a mistrack stripe of snow that creeps down the frame on its own; and the drum's two reads never had their colour-under phase interleaved, so B's hue flickers at frame rate. All of it lands on B's own raster and then rides the dirty sum, which is the classic rig: a paused VCR into a mixer, two fighting syncs, one of them broken. When the stripe drifts through B's vertical interval it takes B's field pulses with it and the fight turns into rolls nobody scheduled. Genlock implies a time-base corrector, so on the clean-dissolve path the button just freezes the frame.",
+        help: "Head-end scrambling on input B alone: B's sync tips are lifted toward blanking before it is summed in. B's contribution to the sync fight goes toothless — its picture still beats and rolls through the mix, but the receiver only ever hears A's pulses.",
+      },
+      {
+        key: 'bScrambleMode',
+        label: 'B system',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['gated', 'alternate', 'ssavi'],
+        help: "Which scrambling system B's channel uses. Gated suppresses every line, alternate every other line, and SSAVI also inverts B's active video — a negative picture drifting through a positive one.",
+      },
+    ],
+  },
+  {
+    name: FEED_B_CABLE_GROUP,
+    place: 'ab',
+    sliders: [
+      {
+        key: 'bConnector',
+        label: 'B loose connector',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "How loose the plug in input B's jack is: bands of lines lose contact, re-rolled every frame. Which contact is failing is the row below. B is the input the receiver is not locked to, so a break here decides whether B's bands merely stop contributing picture or stop contributing sync — which are two different fights.",
+      },
+      {
+        key: 'bConnectorMode',
+        label: 'B bad contact',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['pin', 'shield', 'both'],
+        help: "Which of B's two contacts is intermittent. The centre pin breaks the signal path, so those bands of B collapse to the input's own noise and B stops pushing sync at all there — the mix goes quiet and steady for a band, then B's pulses come back and the fight resumes. The shell breaks the ground instead and leaves B's signal alone: a ground loop's hum lands on the bad bands, so B arrives on a walking pedestal that rides B's own raster through the slip and roll. Both is a genuinely wiggled plug, the two on independent bands.",
+      },
+      {
+        key: 'bHumIre',
+        label: 'B ground loop',
+        min: -40,
+        max: 40,
+        step: 0.5,
+        redline: [-20, 20],
+        unit: 'IRE',
+        help: "A ground loop on input B's cable alone — B's deck and the mixer on different outlets, the loop current landing in series with B's video. The bar rides B's own raster, so unlike a program-bus hum it slips and rolls with B's picture instead of standing still on the glass. It lifts B's sync tips with it, so how hard B fights for the line start breathes at 60 Hz. Negative is the other leg of the mains: set against A's ground loop it pushes the opposite way, which is the difference between two hum bars that agree and two that beat.",
+      },
+      {
+        key: 'bNoiseIre',
+        label: 'B noise',
+        min: 0,
+        max: 150,
+        step: 0.1,
+        redline: [0, 40],
+        unit: 'IRE',
+        help: "Snow on B's feed only. It rides B's own raster through the slip and roll, so the noise tears and rolls with B's picture instead of sitting still on the screen the way program-bus noise does.",
+      },
+      {
+        key: 'bTermination',
+        label: 'B termination (-1 daisy, +1 open)',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "Termination fault on B's cable alone. Negative halves B toward a dim ghost of a signal under A; positive runs B hot and ringing, so its sync and burst bully their way into the fight against a clean A.",
+      },
+      {
+        key: 'bPolarity',
+        label: 'B polarity (flips sync)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "A signal/ground swap on B's own connector: B's waveform is negated, sync included, before it reaches the summing bus. The same trick as pulling B gain negative, but as a fault in the cable rather than the fader — level and polarity stay independent knobs.",
       },
     ],
   },

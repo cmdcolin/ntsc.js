@@ -5,6 +5,10 @@ import { aFeedOn, bFeedOn, bOn, bWaveOn, FEEDS, feedFaults } from './feedgates'
 
 import type { Controls } from '../controls'
 
+// The feed table's own field names — what a per-source fault is declared as,
+// independent of which input's control key it resolves to.
+type FeedFault = keyof (typeof FEEDS)['a']
+
 const at = (patch: Partial<Controls>): Controls => ({
   ...DEFAULT_CONTROLS,
   ...patch,
@@ -19,12 +23,18 @@ const KNOBS: Partial<Controls>[] = [
   { aTermination: 1 },
   { aNoiseIre: 5 },
   { aPolarity: 1 },
+  { aHumIre: 12 },
+  { aHumIre: -12 },
+  { aConnector: 0.5 },
   { aDropoutRate: 10 },
   { aPause: 0.8 },
   { bScramble: 1 },
   { bTermination: -1 },
   { bNoiseIre: 5 },
   { bPolarity: 1 },
+  { bHumIre: 12 },
+  { bHumIre: -12 },
+  { bConnector: 0.5 },
   { bDropoutRate: 10 },
   { bPause: 0.8 },
   { bGain: 0.5 },
@@ -104,5 +114,54 @@ describe('feed gates', () => {
   // by gen seed; two feeds sharing one would make A's snow and B's identical.
   it('gives each feed its own generation seed', () => {
     expect(FEEDS.a.gen).not.toBe(FEEDS.b.gen)
+  })
+
+  // The failure this exists for: a fault added to the FEEDS table and to
+  // feed.wgsl but not to feedFaults dispatches no pass, so its slider does
+  // nothing until some *other* fault on the same input happens to be up — which
+  // reads as an intermittent bug rather than a missing line. Every field in the
+  // table has to be classified here, so adding one forces the choice rather
+  // than defaulting to silence.
+  //
+  // OFF_GATE is everything that cannot open it on its own: `gen` is a seed,
+  // scrambleMode / connectorMode / dropoutLen shape a fault some other field
+  // turns on, and `pause` is deliberately outside feedFaults (see its comment).
+  const OFF_GATE = [
+    'gen',
+    'scrambleMode',
+    'connectorMode',
+    'dropoutLen',
+    'pause',
+  ]
+  // One value off default per trigger, in each direction the control travels:
+  // the two signed ones only open the gate on !== 0, so a > 0 test would let a
+  // daisy-chained terminator or the opposite mains leg through silently.
+  const OPENS: [Exclude<FeedFault, 'gen'>, number[]][] = [
+    ['scramble', [1]],
+    ['termination', [-1, 1]],
+    ['noise', [5]],
+    ['polarity', [1]],
+    ['hum', [12, -12]],
+    ['connector', [0.5]],
+    ['dropoutRate', [10]],
+  ]
+
+  it('classifies every field of the feed table', () => {
+    for (const src of ['a', 'b'] as const)
+      expect(Object.keys(FEEDS[src]).toSorted()).toEqual(
+        [...OFF_GATE, ...OPENS.map(([field]) => field)].toSorted(),
+      )
+  })
+
+  it('opens the gate for every fault the table names', () => {
+    for (const src of ['a', 'b'] as const)
+      for (const [field, values] of OPENS)
+        for (const v of values) {
+          const c: Controls = { ...DEFAULT_CONTROLS, [FEEDS[src][field]]: v }
+          expect(feedFaults(c, src), `${src}.${field} = ${v}`).toBe(true)
+          // and it is this input's fault alone — the other feed stays clean,
+          // which is the whole point of a per-source feed
+          expect(feedFaults(c, src === 'a' ? 'b' : 'a')).toBe(false)
+        }
   })
 })

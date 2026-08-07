@@ -164,6 +164,7 @@ export const PARAM_DEFS = [
   ['termination', 'f32'], // cable termination fault: <0 double-terminated (dim), >0 open (hot + ringing)
   ['chromaPinOnly', 'f32'], // only the chroma pin fed to composite: color, no luma, no sync
   ['connectorGlitch', 'f32'], // loose connector: intermittent contact drops bands to snow
+  ['connectorMode', 'f32'], // which contact: 0 centre pin (signal + sync go), 1 shell (ground lifts, hum injects), 2 both
   ['scramble', 'f32'], // head-end sync suppression depth: sync tip lifted toward blanking
   ['scrambleMode', 'f32'], // 0 gated, 1 line-alternate, 2 SSAVI (suppression + video inversion)
   // copy protection authored onto the source tape's vertical interval
@@ -464,6 +465,60 @@ fn scrambleAt(v: f32, row: u32, s: u32, depth: f32, mode: f32) -> f32 {
     && row >= ACTIVE_TOP && row < ACTIVE_TOP + ACTIVE_H;
   if (mode > 1.5 && picture) {
     out = mix(out, 2.0 * IRE_BLACK + VIDEO_RANGE - out, depth);
+  }
+  return out;
+}
+
+// Mains phase at this line. One cycle per field, creeping against field rate
+// because the mains and the field rate are not the same number — which is why a
+// hum bar rolls instead of standing still. One definition, because the program
+// bus's ground loop and a feed's have to roll together: they are the same
+// building's mains, and two bars drifting at different rates would say they were
+// not.
+fn humPhase(row: u32, frame: u32) -> f32 {
+  return 2.0 * PI * (f32(row) / f32(NLINES) + f32(frame) * 0.0037);
+}
+
+// A loose plug at the input jack. This takes a mode rather than a depth alone
+// because an RCA connector has two contacts and they fail into two different
+// pictures:
+//
+//  - the CENTRE PIN going intermittent breaks the signal path, so the jack sees
+//    an open through its own terminator and the input stage's noise floor comes
+//    up where the picture was. Sync goes with it, which is what makes this worth
+//    having per source: the receiver still has the *other* input's tips to lock
+//    to, so a band of bad contact hands the line start over and takes it back a
+//    band later, with nothing drawing the hand-off.
+//  - the SHELL going intermittent leaves the signal path intact and breaks the
+//    ground reference instead. The return current has to find the mains earth
+//    through both boxes' supplies, so a ground loop's IR drop lands in series
+//    with the video: the line rides a 60 Hz pedestal and the level walks, while
+//    the picture and its sync survive. This is the buzz you get by wiggling a
+//    plug that is still passing a picture — the fault that sounds broken and
+//    looks nearly fine.
+//
+// Contact is decided per band of lines and re-rolled every frame, the way a plug
+// hanging on its own cable weight makes and breaks. The two contacts carry
+// independent band maps, so mode 2 interleaves two faults rather than doubling
+// one, and the gen seed decorrelates one input's bad plug from the other's.
+fn connectorAt(v: f32, row: u32, n: u32, frame: u32, gen: u32, amt: f32, mode: f32) -> f32 {
+  if (amt <= 0.0) {
+    return v;
+  }
+  var out = v;
+  let band = row / 12u;
+  if (mode < 0.5 || mode > 1.5) {
+    let r = rand01(pcg(frame * 2246822519u + band * 40503u + gen * 7u));
+    if (r < amt * 0.5) {
+      let snow = 20.0 * gauss(n ^ pcg(frame * 131u + n));
+      out = mix(out, snow, 0.9) - 35.0 * amt;
+    }
+  }
+  if (mode > 0.5) {
+    let r = rand01(pcg(frame * 1103515245u + band * 26947u + gen * 13u));
+    if (r < amt * 0.5) {
+      out = out + 40.0 * amt * sin(humPhase(row, frame));
+    }
   }
   return out;
 }

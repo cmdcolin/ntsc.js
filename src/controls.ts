@@ -58,6 +58,7 @@ export const DEFAULT_CONTROLS = {
   termination: 0, // cable termination fault (<0 double-terminated, >0 unterminated)
   chromaPinOnly: 0, // only the chroma pin patched to composite (color, no luma/sync)
   connectorGlitch: 0, // loose/intermittent connector
+  connectorMode: 0, // which contact: 0 centre pin (signal + sync), 1 shell (ground lifts), 2 both
   // analog premium-channel scrambling, applied at the head-end
   scramble: 0, // sync-tip suppression depth (0 = in the clear)
   scrambleMode: 0, // 0 gated (every line), 1 line-alternate, 2 SSAVI (+ video inversion)
@@ -177,6 +178,9 @@ export const DEFAULT_CONTROLS = {
   aTermination: 0, // A's cable termination (<0 double-terminated, >0 open)
   aNoiseIre: 0, // snow on A's feed alone, IRE rms
   aPolarity: 0, // hard polarity flip on A's connector, sync included
+  aHumIre: 0, // ground loop on A's cable alone, IRE (sign = which mains leg)
+  aConnector: 0, // A's plug intermittent: bands of bad contact, re-rolled per frame
+  aConnectorMode: 0, // which of A's contacts: 0 centre pin, 1 shell, 2 both
   aPause: 0, // A deck's pause button: held frame, defeated servo, mistrack stripe
   aDropoutRate: 0, // dropout events per frame on A's own tape
   aDropoutLenUs: 5, // mean dropout length on A's feed
@@ -185,6 +189,9 @@ export const DEFAULT_CONTROLS = {
   bTermination: 0, // B's cable termination fault
   bNoiseIre: 0, // snow on B's feed alone, IRE rms
   bPolarity: 0, // hard polarity flip on B's connector, sync included
+  bHumIre: 0, // ground loop on B's cable alone, IRE (sign = which mains leg)
+  bConnector: 0, // B's plug intermittent: bands of bad contact, re-rolled per frame
+  bConnectorMode: 0, // which of B's contacts: 0 centre pin, 1 shell, 2 both
   bDropoutRate: 0, // dropout events per frame on B's own tape
   bDropoutLenUs: 5, // mean dropout length on B's feed
   // dirty mixer (source B, non-genlocked)
