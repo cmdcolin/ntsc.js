@@ -758,15 +758,59 @@ Two traps this walked into, both now in the list above:
   degrading — the same failure as a soak that measures a covered window and
   calls it a session.
 
+### The freeze itself, caught once and then not again
+
+Hunting the card turned up the freeze by accident, which is worth more than the
+card was. The 12-minute run took a hot update while its tab was in the
+background — an edit made to `src/` in the shared worktree while it was in
+flight, the trap listed above — and on being shown again it **never came back**:
+
+```
+48/48 samples hidden over 12 min, card2 active throughout
+on return: frame 2 -> 2, zero frames in 30 s
+live=true, stalled=false, no strike, no rebuild, no fatal
+```
+
+`live=true` with the frame counter flat and no GPU fault of any kind is the
+`STEP-DEAD` signature the 2026-08-06 postscript names, caught live for the first
+time rather than read off a trace afterwards. It is also what the two
+`coldStall` sessions in the real ring look like — and those two are, of five,
+**exactly the two that restarted the engine 15 and 16 times**, against
+`DEVELOPMENT.md`'s ceiling of "a dozen or so WebGPU sessions" and `app.tsx`'s
+own dispose hook, which exists because "old devices leak and stack up until
+Firefox Nightly's WebGPU hangs the tab". A hot update to a `GPUDevice`-owning
+singleton is a device recreation, and a dev session makes a lot of them.
+
+**Four deliberate attempts failed to reproduce it**, which is the honest state
+of this and rules out the obvious recipes:
+
+| attempt                                          | outcome                 |
+| ------------------------------------------------ | ----------------------- |
+| loaded hidden, shown after 60 s                  | recovered, +1246 frames |
+| loaded hidden, shown after 12 min, no hot update | recovered, +1214 frames |
+| visible, hidden, hot update while hidden, 3 min  | recovered, +1402 frames |
+| visible, hidden, hot update while hidden, 10 min | recovered, +1417 frames |
+
+So it is not hidden duration on its own, not loading in the background, and not
+a single hot update to a background tab — including with the long dwell the
+failing run had. What the failing run additionally had was the **main** worktree
+underneath it, where other agents edit too, so it may have taken several hot
+updates from several modules rather than one appended comment to `app.tsx`. That
+is the next thing to try: many hot updates, deep modules, one hidden tab.
+
+Status: **two occurrences, one fingerprint, still no recipe** — the same
+position as the wgpu crash above, but now with a live capture and three
+candidates eliminated instead of none.
+
 ### What changed
 
-The recovery below was built while the hypothesis still looked right. It is kept
-because it does not depend on it: what it does is stop a hang from ending the
-session outright, and that is the correct behaviour whatever the hang turns out
-to be. `HEAD` reached a fatal "close this browser tab" the first time submitted
-work stopped completing, on reasoning about a wedged GPU process that was never
-tested. Trying a fresh device first costs one rebuild when the guess is wrong
-and saves the session when it is right.
+The recovery below was built while the card hypothesis still looked right. It is
+kept because it does not depend on it: what it does is stop a hang from ending
+the session outright, and that is the correct behaviour whatever the hang turns
+out to be. `HEAD` reached a fatal "close this browser tab" the first time
+submitted work stopped completing, on reasoning about a wedged GPU process that
+was never tested. Trying a fresh device first costs one rebuild when the guess
+is wrong and saves the session when it is right.
 
 **A hang now escalates to a rebuild instead of to a fatal screen.** The old
 `onHang` reasoning — a wedged GPU process outlives the page, so a fresh device

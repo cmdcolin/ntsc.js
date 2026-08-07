@@ -159,10 +159,34 @@ const appWindow = () =>
         .at(-1) ?? '')
 
 await settle(5000)
+// `bringToFront` maps to BiDi's browsingContext.activate, which selects the tab
+// inside its window and cannot raise the window itself. On a box with anything
+// else open, puppeteer's window comes up *behind* — and a fully covered window
+// reports `visibilityState: 'hidden'` here, so the run would spend itself in the
+// state it was meant to be the baseline for. xdotool can actually raise it.
 let s = await probe()
+if (s.vis !== 'visible') {
+  const win = appWindow()
+  if (win) {
+    log(`  window came up covered; raising ${win} with xdotool`)
+    xdo(['windowactivate', '--sync', win])
+    await settle(1500)
+    s = await probe()
+  }
+}
 log(
   `booted: frame ${s.frame} live=${s.live} confirmed=${s.confirmed} vis=${s.vis}`,
 )
+// Both of these are "this run would measure nothing". A baseline taken on a tab
+// that was never visible is not a baseline, and neither is one that never drew.
+if (s.vis !== 'visible') {
+  log(
+    '!! could not get the app tab visible — aborting rather than baselining on a hidden tab',
+  )
+  clearInterval(poller)
+  await browser.close()
+  process.exit(1)
+}
 if (s.frame < 1) {
   log('!! never rendered a frame — aborting')
   clearInterval(poller)
