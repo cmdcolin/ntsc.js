@@ -247,6 +247,34 @@ export type ControlKey = keyof Controls
 // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see comment above
 export const CONTROL_KEYS = Object.keys(DEFAULT_CONTROLS) as ControlKey[]
 
+// What a bare load lands on, layered over the defaults: a whisper of source B
+// summed into the composite, so the mixer is visibly doing something on
+// arrival. Deliberately *not* folded into DEFAULT_CONTROLS — `clean` and
+// hold-to-compare both mean stock, and neither should carry it.
+//
+// It lives beside the schema rather than in urlParams (which is what applies
+// it) because the panel has to know it too: see atRest below.
+export const LANDING_LOOK: Partial<Controls> = { bGain: 0.16 }
+
+// Whether a control is sitting where nobody put it — on stock, or on the
+// landing look's value for it.
+//
+// Two resting values rather than one, because the app has two states it can
+// arrive in without anyone having touched anything, and the panel's "you have
+// changed something" signals are all derived by comparison: the "This look"
+// section, a stage's `• N` on the chain map, a group's amber dot. Against
+// DEFAULT_CONTROLS alone, every bare load opened with the mixer stage lit amber
+// and a one-row "This look" listing a B gain the visitor had never seen, under
+// a caption inviting them to pick a preset and start.
+//
+// The seam this leaves is deliberate: a *row's* ↺ still means "off stock" and
+// still puts the control back to DEFAULT_CONTROLS, because that is the question
+// a single row is answering — where is this knob against the clean signal. This
+// is the other question, the one the summaries ask: has anything been done
+// here. Only the summaries use it.
+export const atRest = (value: number, key: ControlKey) =>
+  value === DEFAULT_CONTROLS[key] || value === LANDING_LOOK[key]
+
 export interface FrameStats {
   fps: number
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS, atRest } from '../controls'
 import styles from './ControlGroup.module.css'
 import { NEEDS, sliderFor } from './controls'
 import { useControlsApi } from './ControlsContext'
@@ -13,7 +13,7 @@ import { useModSlotsApi } from './ModSlotsContext'
 import { mutateAmountFor } from './mutate'
 import { PipFrame } from './PipFrame'
 import { Section } from './Section'
-import { Slider } from './Slider'
+import { Rack, Slider } from './Slider'
 import { WipeFrame } from './WipeFrame'
 
 import type { ControlKey } from '../controls'
@@ -248,12 +248,8 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   // banner is a summary of the notes it replaces, so a trim folded behind the
   // fine tier must not be one of the three that raises it.
   const onScreen = showFine ? [...shown, ...fine] : shown
-  const touched = group.sliders.some(
-    s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
-  )
-  const fineTouched = fine.filter(
-    s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
-  ).length
+  const touched = group.sliders.some(s => !atRest(controls[s.key], s.key))
+  const fineTouched = fine.filter(s => !atRest(controls[s.key], s.key)).length
   // The touched count can't cover motion: a routing never moves the resting
   // value, so a folded trim being driven by an LFO looks untouched from here.
   const fineMod = fine.some(s => mod.modFor(s.key) !== null)
@@ -331,37 +327,44 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
           {n} controls here are inert — needs {need.hint} · click to set
         </button>
       ))}
-      {shown.map(s => (
-        <ControlSlider key={s.key} slider={s} muted={muted} />
-      ))}
-      {fine.length === 0 ? null : (
-        <>
-          <button
-            className={styles.sliderToggle}
-            onClick={() => setShowFine(!showFine)}
-            title="trims that shape an effect something else turns on"
-          >
-            {showFine ? (
-              '▾ fine tweaks'
-            ) : (
-              <>
-                {`▸ ${fine.length} fine tweaks`}
-                {fineTouched === 0 ? null : (
-                  <span className={styles.fineTouched}>
-                    {` · ${fineTouched} touched`}
-                  </span>
-                )}
-                {fineMod ? <span className={styles.fineMod}> · ∿</span> : null}
-              </>
-            )}
-          </button>
-          {showFine
-            ? fine.map(s => (
-                <ControlSlider key={s.key} slider={s} muted={muted} />
-              ))
-            : null}
-        </>
-      )}
+      {/* Sized off the whole group rather than off what is currently on screen,
+          so unfolding the fine tier doesn't re-align the rows above it — the
+          reserve is the same whichever rows are showing. */}
+      <Rack sliders={group.sliders}>
+        {shown.map(s => (
+          <ControlSlider key={s.key} slider={s} muted={muted} />
+        ))}
+        {fine.length === 0 ? null : (
+          <>
+            <button
+              className={styles.sliderToggle}
+              onClick={() => setShowFine(!showFine)}
+              title="trims that shape an effect something else turns on"
+            >
+              {showFine ? (
+                '▾ fine tweaks'
+              ) : (
+                <>
+                  {`▸ ${fine.length} fine tweaks`}
+                  {fineTouched === 0 ? null : (
+                    <span className={styles.fineTouched}>
+                      {` · ${fineTouched} touched`}
+                    </span>
+                  )}
+                  {fineMod ? (
+                    <span className={styles.fineMod}> · ∿</span>
+                  ) : null}
+                </>
+              )}
+            </button>
+            {showFine
+              ? fine.map(s => (
+                  <ControlSlider key={s.key} slider={s} muted={muted} />
+                ))
+              : null}
+          </>
+        )}
+      </Rack>
     </Section>
   )
 }

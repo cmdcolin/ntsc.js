@@ -33,6 +33,7 @@
    and it is the same amber the dot in the heading beside it already wears. */
 .revert {
   composes: bare from './ui.module.css';
+  position: relative;
   padding: 0 2px;
   font-size: var(--fs-sm);
   line-height: 1;
@@ -47,6 +48,7 @@
    would read as a column of decoration down the panel. */
 .dice {
   composes: bare from './ui.module.css';
+  position: relative;
   padding: 0 2px;
   font-size: var(--fs-sm);
   line-height: 1;
@@ -54,6 +56,19 @@
 }
 .dice:hover {
   color: var(--edit-hi);
+}
+
+/* Both header accessories come out around 13x12 — a glyph at --fs-sm with two
+   pixels of padding. Reached with a pseudo-element rather than real padding,
+   which would space the pair apart and push them off the heading's line. The
+   header has room above and below it that nothing else is claiming, so this can
+   be generous where the row's own ⋮ (Slider.module.css) has to stay inside a
+   row's pitch. */
+.revert::after,
+.dice::after {
+  content: '';
+  position: absolute;
+  inset: -7px -6px;
 }
 
 /* reveals the sliders a direct-manipulation miniature stands in for, and the

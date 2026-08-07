@@ -6,7 +6,7 @@
 // It is also what `scripts/shot.mjs` and every verification harness drive the
 // app with, so a silent change here breaks them with no test to say so.
 
-import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
+import { CONTROL_KEYS, DEFAULT_CONTROLS, LANDING_LOOK } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { TELETYPE_DEFAULT, clampCardText } from '../sources/teletype'
 import { N_SLOTS, RATE_MAX, RATE_MIN, modSource, modTarget } from './modSlots'
@@ -16,11 +16,6 @@ import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
 import type { ModRouting } from './modSlots'
-
-// What a bare load (no ?preset/?set) lands on: a whisper of source B summed
-// into the composite, so the mixer is visibly doing something on arrival. Kept
-// out of DEFAULT_CONTROLS so `clean` and hold-to-compare stay truly clean.
-export const LANDING_LOOK: Partial<Controls> = { bGain: 0.16 }
 
 // Vaporwave playback defaults, shared with VaporwaveSection so each slider's
 // reset point matches the initial state. VAPORWAVE_SPEED is the one-click look.

@@ -6,6 +6,7 @@ import { sliderMatches, useFilterQuery } from './filter'
 import styles from './LookSection.module.css'
 import { useModSlotsApi } from './ModSlotsContext'
 import { Section } from './Section'
+import { Rack } from './Slider'
 
 import type { ControlKey } from '../controls'
 import type { Group, SliderDef } from './controls'
@@ -83,21 +84,28 @@ export function LookSection(props: {
       openOnFilter
       summary={`${matched.length} off stock`}
     >
-      {shown.map((s, i) => {
-        const group = GROUP_OF.get(s.key)
-        // One caption per run of rows from the same group, not one per row:
-        // signal order keeps a group's controls together, so this comes out as
-        // a heading over each module the look reaches into.
-        const prev = i === 0 ? undefined : GROUP_OF.get(shown[i - 1].key)
-        return (
-          <div key={s.key}>
-            {group === prev ? null : (
-              <GroupCaption group={group} onOpen={props.onOpenGroup} />
-            )}
-            <ControlSlider slider={s} />
-          </div>
-        )
-      })}
+      {/* One rack over the whole list, not one per caption: these rows are
+          gathered out of five stages and the captions between them are
+          headings, not divisions — tracks that stepped left and right down the
+          list would read as the section being several lists. Sized off
+          `matched` so unfolding the tail doesn't shift the rows above it. */}
+      <Rack sliders={matched}>
+        {shown.map((s, i) => {
+          const group = GROUP_OF.get(s.key)
+          // One caption per run of rows from the same group, not one per row:
+          // signal order keeps a group's controls together, so this comes out
+          // as a heading over each module the look reaches into.
+          const prev = i === 0 ? undefined : GROUP_OF.get(shown[i - 1].key)
+          return (
+            <div key={s.key}>
+              {group === prev ? null : (
+                <GroupCaption group={group} onOpen={props.onOpenGroup} />
+              )}
+              <ControlSlider slider={s} />
+            </div>
+          )
+        })}
+      </Rack>
       {rest <= 0 ? null : (
         <button
           className={styles.more}

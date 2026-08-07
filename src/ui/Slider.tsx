@@ -1,8 +1,8 @@
-import { useId, useState } from 'react'
+import { createContext, use, useId, useState } from 'react'
 
 import { snapToStep } from './controls'
 import { cx } from './cx'
-import { formatValue } from './format'
+import { formatValue, readingChars } from './format'
 import { zoomAtTravel, zoomTravel } from './lens'
 import { MenuItem, Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
@@ -10,7 +10,51 @@ import styles from './Slider.module.css'
 import { SliderHelpDialog } from './SliderHelpDialog'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
 
+import type { SliderDef } from './controls'
 import type { CSSProperties, ReactNode } from 'react'
+
+// How wide the readout column is, in characters, for every row in one rack.
+//
+// A row sizes its own reading off `readingChars` — its widest *possible*
+// reading rather than its current one — so nothing about the row moves while
+// its value does. That is not a nicety: the readout is a grid column, its two
+// neighbours are fr-based, and the third column is `auto`. So a reading that
+// grew mid-drag (the ↺ appearing the moment the value left stock, then a digit
+// arriving) re-solved the row and slid the track out from under the pointer —
+// pressing at the middle of a 0–150 control and moving 4px right used to land
+// on 110, because the track had shifted 16px left while the pointer stood
+// still.
+//
+// This fixes the other half: every row in a rack reserves the same width, so a
+// group's tracks start and end at one x and a stack of faders can be read down
+// the column. Without it the widths are per-row (a "3.00IRE" against a "0.80")
+// and one open stage came out with its tracks at four different x.
+//
+// A context rather than a prop because the rows are not always the provider's
+// own children — LookSection wraps each in a <div> of its own — and threading a
+// number through every such wrapper is how the two halves drift apart. Zero
+// means "no rack": the row falls back to its own width, which is still stable.
+const RackContext = createContext(0)
+
+// One column of control rows that should line up with each other. Renders no
+// DOM of its own: what it establishes is a measurement, not a box.
+export function Rack(props: {
+  sliders: readonly SliderDef[]
+  children: ReactNode
+}) {
+  // Mode switches sit out: they render stacked, with the reading up on the
+  // label's line and no track beneath it to line up with. Letting one in would
+  // reserve the width of its longest option ("dropout compensator" has three)
+  // on every slider in the group.
+  const ch = props.sliders.reduce(
+    (n, s) =>
+      s.choices === undefined
+        ? Math.max(n, readingChars(s.min, s.max, s.step, s.unit))
+        : n,
+    0,
+  )
+  return <RackContext value={ch}>{props.children}</RackContext>
+}
 
 // The readout's little accessory buttons (help, and the ∿ on a routed row).
 function IconButton(props: {
@@ -286,6 +330,21 @@ export function Slider(props: {
     choices
       ? (choices[v] ?? String(v))
       : `${formatValue(v, props.step)}${props.unit}`
+  // How much room the number gets: the widest this rack's rows can need, with
+  // the row's own width as the floor so a stray row outside a Rack still holds
+  // its own shape. A mode switch opts out — it reads on the label's line, where
+  // reserving a column would only push the label around.
+  const rack = use(RackContext)
+  const readingStyle:
+    | (CSSProperties & Record<'--reading-ch', number>)
+    | undefined = choices
+    ? undefined
+    : {
+        '--reading-ch': Math.max(
+          rack,
+          readingChars(props.min, props.max, props.step, props.unit),
+        ),
+      }
   // What is wired to this row, marked beside the reading. Only ever what is
   // *set*: an unset affordance has nothing to say and its slot is the width the
   // label wanted. All of them are marks rather than buttons — the menu is the
@@ -362,14 +421,31 @@ export function Slider(props: {
   // already the part of the row that knows it has been moved. Off stock it
   // turns amber (the panel's one colour for that, the same one the section dot
   // and a stage's `• N` wear, so a row now reports its own state instead of
-  // being read against the track's tick) and takes the ↺ beside it. At stock it
-  // is a plain span again — there is nothing to put back, and 121 permanent ↺s
-  // are exactly the reserve the last pass took out of this column.
+  // being read against the track's tick) and takes the ↺ beside it.
+  //
+  // Both halves keep their box in both states, and that is the point: a reading
+  // in a `ch` box sized off the control's definition, and a ↺ slot that is
+  // reserved whether or not the glyph is in it. The number cannot move, so the
+  // two fr columns beside it cannot re-solve, so the track cannot slide while
+  // you are dragging it. The ↺'s width is the price — one glyph per row,
+  // permanently — and it buys a track that stays where you grabbed it. The ink
+  // is still conditional: at stock the slot is empty and the row is a plain
+  // span, with no button in the accessibility tree to announce.
   const atStock = props.value === props.defaultValue
+  const readingBox = (
+    <>
+      <span className={styles.reading} style={readingStyle}>
+        {reading(props.value)}
+      </span>
+      <span className={cx(styles.revertMark, atStock && styles.markIdle)}>
+        ↺
+      </span>
+    </>
+  )
   const readout = (
     <span className={styles.value}>
       {atStock ? (
-        reading(props.value)
+        <span className={styles.stock}>{readingBox}</span>
       ) : (
         <button
           type="button"
@@ -378,8 +454,7 @@ export function Slider(props: {
           aria-label={`reset ${props.label} to ${reading(props.defaultValue)}`}
           onClick={() => props.onChange(props.defaultValue)}
         >
-          {reading(props.value)}
-          <span className={styles.revertMark}>↺</span>
+          {readingBox}
         </button>
       )}
       {badges}

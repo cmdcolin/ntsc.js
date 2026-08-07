@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS, LANDING_LOOK } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { TELETYPE_DEFAULT, TELETYPE_MAX } from '../sources/teletype'
 import { ALL_SLIDERS } from './controls'
 import { mutate } from './mutate'
 import { PRESETS, presetControls } from './presets'
 import {
-  LANDING_LOOK,
   REVERB_DEFAULT,
   SPEED_DEFAULT,
   parseSessionParams,

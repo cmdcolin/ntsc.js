@@ -1,4 +1,4 @@
-import { DEFAULT_CONTROLS } from '../controls'
+import { atRest } from '../controls'
 import {
   AB_GROUPS,
   FEED_A_GROUP,
@@ -159,7 +159,7 @@ export function SignalPathDialog(props: {
     ).filter(g => box.group === undefined || g.name === box.group)
     return groups
       .flatMap(g => g.sliders)
-      .filter(s => controls[s.key] !== DEFAULT_CONTROLS[s.key]).length
+      .filter(s => !atRest(controls[s.key], s.key)).length
   }
   const open = (box: Box) => {
     onOpen(box.stage, box.group ?? stageGroups(box.stage)[0]?.name ?? '')

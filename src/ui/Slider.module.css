@@ -44,10 +44,19 @@
     minmax(3.6rem, auto);
   align-items: center;
   column-gap: 10px;
+  /* A row is one measure wide however wide its container is. The docked panel
+     is 332px so this never bites there, but the bench's full-width sections run
+     to 664 and the popout to 780 — and a slider stretched that far puts its
+     label at one end of the screen and its value at the other, with the thumb
+     travelling a distance no fingertip wants to cross. The popout already
+     capped itself for exactly this reason (app.module.css); the cap belongs on
+     the row, which is the thing that has a measure. */
+  max-width: 34rem;
 }
 /* A mode switch keeps the full width: its options are words, not a track. */
 .rowStack {
   display: block;
+  max-width: 34rem;
 }
 /* The label and its ?, the one part of the row allowed to wrap. Tighter leading
    than the panel's prose so a two-line label stays one object rather than
@@ -157,6 +166,31 @@
   pointer-events: none;
 }
 
+/* The number, in a box that does not depend on the number.
+
+   --reading-ch is the widest reading the *control* can produce (Slider.tsx's
+   Rack, via readingChars), so this width is a property of the definition rather
+   than of the value sitting in it. `ch` is exact here because .value sets
+   --mono: one ch is one digit.
+
+   Everything about the row's geometry hangs off this. The readout is the third
+   grid column and it is `auto`; the two beside it are fr. So before this box
+   existed, every digit that arrived re-solved all three — the track lost width
+   and slid left, mid-drag, under a pointer that had not moved. Right-aligned
+   because a column of readings is read down its last digit, and because that is
+   what keeps the ↺ slot beside it at a fixed x. */
+.reading {
+  display: inline-block;
+  min-width: calc(var(--reading-ch) * 1ch);
+  text-align: right;
+}
+/* At stock the reading is a plain span (nothing to put back) — but the same
+   plain span, so the two states are the same box. */
+.stock {
+  display: inline-flex;
+  align-items: baseline;
+}
+
 /* The reading, once the row is off stock: the number itself is the reset.
    Amber is the panel's one word for "off stock" (the section dot, a stage's
    `• N`, the fine-tweak count), so the row stops needing to be read against the
@@ -165,6 +199,8 @@
    glyph on the rows that have something to put back. */
 .revert {
   composes: bare from './ui.module.css';
+  display: inline-flex;
+  align-items: baseline;
   color: var(--edit);
 }
 .revert:hover {
@@ -183,6 +219,15 @@
 }
 .revert:hover .revertMark {
   opacity: 1;
+}
+/* The slot the ↺ will occupy, held open on a row that is at stock. `visibility`
+   rather than not rendering it: the box has to be identical in both states, or
+   moving a control off stock would resize its own readout and shift the track
+   under the pointer — which is the whole thing .reading above exists to stop.
+   Hidden takes it out of the accessibility tree too, so nothing announces a ↺
+   there is nothing to undo. */
+.markIdle {
+  visibility: hidden;
 }
 
 /* What is wired to a row, marked beside its reading — a routing, a MIDI
@@ -206,6 +251,7 @@ button.badge {
    reading's weight it would read as part of the number. */
 .rowMenu {
   composes: bare from './ui.module.css';
+  position: relative;
   padding: 0 0 0 5px;
   font-size: var(--fs-md);
   line-height: 1;
@@ -246,12 +292,24 @@ button.badge {
 /* the ? that opens this control's explainer */
 .what {
   composes: bare from './ui.module.css';
+  position: relative;
   padding: 0 0 0 4px;
   font-size: var(--fs-xs);
   color: var(--fg4);
 }
 .what:hover {
   color: var(--accent);
+}
+/* An 11px glyph is a target for a very steady hand. Grown with a pseudo-element
+   rather than padding, because padding here is inside a wrapping label and would
+   push the text it sits after — this adds hit area and no layout at all. The
+   vertical reach is one row's pitch and no more (rows sit ~24px apart), so no
+   two ?s ever overlap and the one you press is the one you were pointing at. */
+.what::after,
+.rowMenu::after {
+  content: '';
+  position: absolute;
+  inset: -5px -6px;
 }
 /* Touch: a 12px thumb in a 14px-tall control is a target for a cursor, not a
    fingertip. --thumb-size carries the change into both engines' rules and

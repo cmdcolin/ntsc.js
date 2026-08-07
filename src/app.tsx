@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
 import styles from './app.module.css'
-import { DEFAULT_CONTROLS } from './controls'
+import { DEFAULT_CONTROLS, atRest } from './controls'
 import { AdvancedDialog } from './ui/AdvancedDialog'
 import { AudioHint, AudioInput } from './ui/AudioInput'
 import { AudioSection } from './ui/AudioSection'
@@ -44,6 +44,7 @@ import { ScenesSection } from './ui/ScenesSection'
 import { Section } from './ui/Section'
 import { SignalPath } from './ui/SignalPath'
 import { SignalPathDialog } from './ui/SignalPathDialog'
+import { Rack } from './ui/Slider'
 import { Stage } from './ui/Stage'
 import { usePersistedFlag } from './ui/storage'
 import { TeletypeDialog } from './ui/TeletypeDialog'
@@ -387,9 +388,7 @@ export function App() {
   // rows rather than reduced to a count — see LookSection, which does its own
   // filtering because its membership has to be decided before a query narrows
   // it, not after.
-  const edited = ALL_SLIDERS.filter(
-    s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
-  )
+  const edited = ALL_SLIDERS.filter(s => !atRest(controls[s.key], s.key))
   // The contextual groups, dropped when the filter leaves them nothing: a
   // section header over an empty body is a dead end in a result list.
   const abGroups = AB_GROUPS.filter(g => groupMatches(g, query, isRouted))
@@ -404,9 +403,8 @@ export function App() {
     // What the stage can do to the picture, group by group — the counts the
     // map colours a stage by, and the jump target behind its count.
     const parts = groups.map(group => ({
-      touched: group.sliders.filter(
-        s => controls[s.key] !== DEFAULT_CONTROLS[s.key],
-      ).length,
+      touched: group.sliders.filter(s => !atRest(controls[s.key], s.key))
+        .length,
       onOpen: () => nav.openAt(name, group.name),
     }))
     return {
@@ -570,60 +568,73 @@ export function App() {
 
       {/* The front door goes first: a look is one click, and everything below
           is for adjusting the look you picked. Input is a set-once control and
-          reads fine in second place. */}
-      <PresetsSection
-        controls={controls}
-        lastPreset={mix.lastPreset}
-        weights={mix.weights}
-        onApplyPreset={mix.applyPreset}
-        onMixStart={mix.startMix}
-        onMix={mix.setPresetWeight}
-      />
+          reads fine in second place.
+
+          Both drop out under a live filter, for the same reason Scenes and
+          Modulation below already do: neither holds a control the query can
+          match, and the panel below the box is meant to be the result set. They
+          are the two largest things in it — the catalog alone is 180px of chips
+          and caption — and with them up the first row that actually matched
+          landed halfway down the panel. */}
+      {filtering ? null : (
+        <PresetsSection
+          controls={controls}
+          lastPreset={mix.lastPreset}
+          weights={mix.weights}
+          onApplyPreset={mix.applyPreset}
+          onMixStart={mix.startMix}
+          onMix={mix.setPresetWeight}
+        />
+      )}
 
       {/* Directly under the chips, because it is the answer to them: click a
           preset and the controls it moved are right there to drag, rather than
-          five folds down the chain map. */}
+          five folds down the chain map. Unlike them it stays under a filter:
+          its rows are real control rows, so the query narrows them like any
+          other result. */}
       {edited.length === 0 ? null : (
         <LookSection sliders={edited} onOpenGroup={nav.openAt} />
       )}
 
-      <InputSection
-        sourceMode={eng.sourceMode}
-        sourceName={eng.sourceName}
-        onSelectSource={eng.selectSource}
-        sourceBMode={eng.sourceBMode}
-        sourceBName={eng.sourceBName}
-        onSelectSourceB={eng.selectSourceB}
-        teletypeA={eng.teletypeA}
-        teletypeB={eng.teletypeB}
-        onTeletypeA={text => eng.retypeTeletype({ text })}
-        onTeletypeB={text => eng.retypeTeletypeB({ text })}
-        webcamDeviceId={eng.webcamDeviceId}
-        videoDevices={eng.videoDevices}
-        onStartWebcam={eng.startWebcam}
-        fileInputRef={eng.fileInputRef}
-        fileInputBRef={eng.fileInputBRef}
-        onFile={eng.onFile}
-        onFileB={eng.onFileB}
-        pendingFileA={eng.pendingFileA}
-        pendingFileB={eng.pendingFileB}
-        onReopenFileA={() => eng.reopenFileA()}
-        onReopenFileB={() => eng.reopenFileB()}
-        audioInput={
-          <AudioInput
-            mode={audio.mode}
-            name={audio.name}
-            audioState={audio.audioState}
-            time={audio.time}
-            duration={audio.duration}
-            fileInputRef={audio.fileInputRef}
-            onSelect={audio.select}
-            onFile={audio.onFile}
-            onSeek={audio.seek}
-          />
-        }
-        audioHint={<AudioHint mode={audio.mode} error={audio.error} />}
-      />
+      {filtering ? null : (
+        <InputSection
+          sourceMode={eng.sourceMode}
+          sourceName={eng.sourceName}
+          onSelectSource={eng.selectSource}
+          sourceBMode={eng.sourceBMode}
+          sourceBName={eng.sourceBName}
+          onSelectSourceB={eng.selectSourceB}
+          teletypeA={eng.teletypeA}
+          teletypeB={eng.teletypeB}
+          onTeletypeA={text => eng.retypeTeletype({ text })}
+          onTeletypeB={text => eng.retypeTeletypeB({ text })}
+          webcamDeviceId={eng.webcamDeviceId}
+          videoDevices={eng.videoDevices}
+          onStartWebcam={eng.startWebcam}
+          fileInputRef={eng.fileInputRef}
+          fileInputBRef={eng.fileInputBRef}
+          onFile={eng.onFile}
+          onFileB={eng.onFileB}
+          pendingFileA={eng.pendingFileA}
+          pendingFileB={eng.pendingFileB}
+          onReopenFileA={() => eng.reopenFileA()}
+          onReopenFileB={() => eng.reopenFileB()}
+          audioInput={
+            <AudioInput
+              mode={audio.mode}
+              name={audio.name}
+              audioState={audio.audioState}
+              time={audio.time}
+              duration={audio.duration}
+              fileInputRef={audio.fileInputRef}
+              onSelect={audio.select}
+              onFile={audio.onFile}
+              onSeek={audio.seek}
+            />
+          }
+          audioHint={<AudioHint mode={audio.mode} error={audio.error} />}
+        />
+      )}
 
       {/* Pinned controls, gathered from wherever they live in the chain into one
           spot near the front door. Shown only once something is starred, so it
@@ -631,9 +642,11 @@ export function App() {
           the set stays stable as pins come and go. */}
       {pinned.length === 0 ? null : (
         <Section title="Favorites" defaultOpen openOnFilter>
-          {pinned.map(s => (
-            <ControlSlider key={s.key} slider={s} />
-          ))}
+          <Rack sliders={pinned}>
+            {pinned.map(s => (
+              <ControlSlider key={s.key} slider={s} />
+            ))}
+          </Rack>
         </Section>
       )}
 
