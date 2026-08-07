@@ -1,49 +1,35 @@
-// The engine as the page sees it.
+// The engine as the page sees it: the narrow surface five hooks actually depend
+// on, rather than the 1400-line class behind it.
 //
-// There are two implementations and there is no third: `Engine` (pipeline.ts),
-// which owns a GPUDevice on whichever thread constructed it, and `WorkerEngine`
-// (workerclient.ts), which presents the same surface backed by messages to an
-// `Engine` living in a worker. This interface is what keeps them the same
-// surface. Without it the two drift silently — a method added to one compiles
-// perfectly well while the other quietly lacks it, and the worker's harness
-// only exercises the paths it was written for, so nothing catches it.
-//
-// It is also what lets the rest of the app stop naming an implementation. Five
-// hooks needed three or four methods each and were reaching for a 1400-line
-// class to describe that; the seam says what they actually depend on.
+// There is one implementation, `Engine` (pipeline.ts), and TypeScript enforces
+// the match through `implements`. There were briefly two — a worker-backed
+// `WorkerEngine` presenting the same surface over messages — and this interface
+// existed mostly to keep them from drifting. That work is deleted (see
+// docs/adr/0003), so what remains is the other half of its job, which stands on
+// its own: hooks that need three or four methods should say so, and should not
+// have to name a class to do it.
 //
 // **Everything here is synchronous, deliberately.** React is: a slider write has
 // to be readable in `getControls()` before the next render or the control snaps
 // back under the user's finger, and `useSyncExternalStore` wants a snapshot it
-// can read now rather than a promise. That constraint is the reason WorkerEngine
-// keeps its own authoritative copy of the controls instead of asking across the
-// wire — see workerproto.ts.
+// can read now rather than a promise. Anything added here has to honour that.
 //
 // What is deliberately *not* here:
 //
 //   - `step()`, `frameNo` bookkeeping beyond the read below, and direct access to
 //     the pass graph. Those belong to the verification harnesses, which reach
 //     through `window.vf` into the object graph itself (`vf.prePasses`,
-//     `vf.sources`, `vf.audioState`) in ways no message proxy can reproduce.
-//     `window.vf` therefore stays typed as the concrete main-thread `Engine`,
-//     and that is the honest statement of the constraint rather than a gap: the
-//     harnesses need the main-thread path to keep working.
-//   - `pushFrameA`/`pushFrameB`. Decoded frames reach a worker-owned engine over
-//     the wire and a main-thread one straight from its own VideoPump; either way
-//     it is internal to how an engine gets fed, not something the app does.
-//   - `Engine.create` / `WorkerEngine.create`. Construction is where the two
-//     genuinely differ, and it is the one place the app has to choose.
-//   - **Recovering from a lost device**, which is the trap. The two answer it in
-//     opposite directions and neither can adopt the other's answer. A main-thread
-//     `Engine` is *replaced*: `useEngine` stands a fresh one up on the same
-//     canvas and moves the refs across. A `WorkerEngine` cannot be, because
-//     `transferControlToOffscreen` works exactly once per canvas — so the only
-//     OffscreenCanvas there will ever be is the one its worker already holds, and
-//     recovery has to happen *inside* the worker (`rebuild` in workerproto.ts).
-//     Putting `rebuild()` on this interface would paper over that with a method
-//     the main-thread engine cannot honestly implement, so it stays off, and
-//     `useEngine`'s rebuild path stays main-thread-specific on purpose. Anyone
-//     wiring the worker has to write the other half rather than inherit it.
+//     `vf.sources`, `vf.audioState`). `window.vf` therefore stays typed as the
+//     concrete `Engine`, which is the honest statement of the constraint rather
+//     than a gap.
+//   - `pushFrameA`/`pushFrameB`. Internal to how an engine gets fed, not
+//     something the app does.
+//   - `Engine.create`. Construction is the one place the app has to name the
+//     implementation, and it does.
+//   - **Recovering from a lost device.** `useEngine` stands a fresh `Engine` up
+//     on the same canvas and moves the refs across; that is a property of how the
+//     page owns the engine, not something the engine offers, so it stays off this
+//     surface.
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { AudioState } from '../signal/audiostate'

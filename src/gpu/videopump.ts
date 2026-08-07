@@ -6,10 +6,11 @@
 // decoding and produces a bitmap, while Sources owns textures and knows nothing
 // about where a picture came from.
 //
-// The other is that a worker has no HTMLVideoElement at all. Splitting here
-// means the half that must stay on the main thread is exactly this file, and
-// what crosses to a worker-owned engine is an ImageBitmap — which is
-// transferable, so it crosses without a copy.
+// The split was made for a second reason that no longer applies — a worker has
+// no HTMLVideoElement, so this was the half that would have stayed on the main
+// thread. That engine is deleted (docs/adr/0003). The seam outlived it because
+// the first reason was the real one: it is what the staging fix in 990b3d5 was
+// built on, moving the decode and scale off-thread via `createImageBitmap`.
 
 import { ACTIVE_HEIGHT, ACTIVE_WIDTH } from '../signal/constants'
 // Long edge capped, aspect preserved — see MAX_SRC_EDGE in sources.ts.

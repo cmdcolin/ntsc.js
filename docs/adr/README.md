@@ -27,3 +27,4 @@ readable without it.
 | ------------------------------------------ | ------------------------------------------------------------ |
 | [0001](0001-hang-rebuilds-not-ends.md)     | A GPU hang rebuilds the device instead of ending the session |
 | [0002](0002-webgpu-sessions-are-scarce.md) | Treat per-tab WebGPU sessions as a scarce budget             |
+| [0003](0003-delete-the-worker-engine.md)   | Delete the worker-hosted engine                              |

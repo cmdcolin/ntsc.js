@@ -1,4 +1,4 @@
-# Freezes on Firefox/Linux, and a worker that is parked
+# Freezes on Firefox/Linux, and a worker that is parked (now deleted)
 
 **2026-08-05.** Starting question: the app freezes on Firefox and needs the tab
 closed — not just reloaded — to recover. Is that a Firefox bug or ours?
@@ -7,6 +7,14 @@ Answer: both, separably. Four app-side causes were found and fixed. A fifth line
 of work — moving the render loop into a worker — was built, tested, and then
 **not wired in**, because the fix that came before it removed most of its
 justification. That last part is the reason this document exists.
+
+> **Resolved 2026-08-07: the worker is deleted.** The freeze turned out to be a
+> per-tab WebGPU session ceiling in the browser — see the last postscript — and
+> a worker cannot change how many devices a tab has created. That removes the
+> last hypothetical benefit from work whose measured one had already gone. The
+> code is in history at `c67fc3e`, `a12c55e`, `2eef17e` and is a `git show` away
+> if the reasoning ever changes; `docs/adr/0003` records the call. The section
+> below is kept as written, because what it argued is why deleting was right.
 
 ## What was actually wrong
 
@@ -321,18 +329,15 @@ Several of these invalidated a result before being caught. Full versions live in
 
 ## Where things are
 
-| area                          | file                                         |
-| ----------------------------- | -------------------------------------------- |
-| adapter choice, `?gpu=`       | `src/gpu/context.ts`                         |
-| backpressure, hang honesty    | `src/gpu/renderloop.ts`                      |
-| worker/main environment split | `src/gpu/env.ts`                             |
-| video element → bitmap        | `src/gpu/videopump.ts`                       |
-| bitmap → texture              | `src/gpu/sources.ts`                         |
-| parked: worker engine         | `src/gpu/engine.worker.ts`, `workerproto.ts` |
-| parked: page-side proxy       | `src/gpu/workerclient.ts`                    |
-| parked: its harness           | `scripts/workercheck.mjs`                    |
-| hang → rebuild, fault kinds   | `src/ui/useEngine.ts`, `rebuildPolicy.ts`    |
-| GPU runtime-PM vs a live tab  | `scripts/gpusleep.mjs`                       |
+| area                          | file                                      |
+| ----------------------------- | ----------------------------------------- |
+| adapter choice, `?gpu=`       | `src/gpu/context.ts`                      |
+| backpressure, hang honesty    | `src/gpu/renderloop.ts`                   |
+| worker/main environment split | `src/gpu/env.ts`                          |
+| video element → bitmap        | `src/gpu/videopump.ts`                    |
+| bitmap → texture              | `src/gpu/sources.ts`                      |
+| hang → rebuild, fault kinds   | `src/ui/useEngine.ts`, `rebuildPolicy.ts` |
+| GPU runtime-PM vs a live tab  | `scripts/gpusleep.mjs`                    |
 
 ## Postscript: the backpressure gate was counting the wrong thing
 

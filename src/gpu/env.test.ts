@@ -9,18 +9,18 @@ import {
 } from './env'
 
 // These tests run under node, where none of the browser globals exist unless a
-// test stubs one in — which is exactly the shape of a worker, and the reason
-// this module exists.
+// test stubs one in. That is the point: every absence below is one this module
+// has to answer without pretending the page is merely hidden or unfocused.
 describe('env', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  describe('with no document (a worker)', () => {
+  describe('with no document', () => {
     it('reports a live context rather than a hidden one', () => {
-      // The render loop stands down when the page is hidden. A worker has no
-      // page, so answering "hidden" here would stop the loop dead in exactly
-      // the context that was supposed to keep it running.
+      // The render loop stands down when the page is hidden. Absent is not
+      // hidden: answering "hidden" would stop the loop dead in a context that
+      // has no visibility event to ever start it again.
       expect(isVisible()).toBe(true)
       expect(isFocused()).toBe(true)
     })
@@ -29,10 +29,10 @@ describe('env', () => {
       expect(isFullscreen()).toBe(false)
     })
 
-    it('reads no query string, even though a worker has a location', () => {
-      // A worker's `location` is its own script URL. Reading `.search` off it
-      // would silently answer with the bundle's query rather than the page's,
-      // so the session's params have to arrive by message instead.
+    it('reads no query string, even though there is a location', () => {
+      // Every JS context has a `location`; only a page's describes the session.
+      // Reading `.search` off some other one would silently answer with the
+      // wrong query rather than with nothing, which is the harder bug.
       vi.stubGlobal('location', { search: '?dbg=3&debug' })
       expect(pageSearch()).toBe('')
     })

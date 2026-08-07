@@ -194,37 +194,6 @@ A page that stops answering `evaluate` is itself a result: that is what "needs
 the tab closed" looks like from Node, and it is recorded as `died` rather than
 crashing the run.
 
-## The engine in a worker
-
-```
-npx vite --port 5361 --strictPort
-node scripts/workercheck.mjs [url]
-```
-
-`src/gpu/engine.worker.ts` runs the whole signal path in a worker, presenting to
-an `OffscreenCanvas` and driven by the worker's own `requestAnimationFrame`.
-That is worth having because the loop stops queueing behind React, video staging
-and layout: measured on Firefox Nightly under a main-thread load of 20 ms every
-50 ms, a worker-owned loop held 60 fps with no frame gap over 33 ms, against
-42.6 fps, a p99 gap of 90 ms and stalls past 100 ms for the same engine on the
-main thread.
-
-The page keeps what a worker cannot have — the `<video>` elements (`VideoPump`),
-the `AudioContext`, the DOM — and sends bitmaps and scalars over
-`workerproto.ts`. Anything carrying pixels is _transferred_, never cloned; the
-harness asserts that by checking the sent bitmaps are neutered afterwards.
-
-- **This one needs the dev server**, not a production build: it loads the worker
-  from source (`/src/gpu/engine.worker.ts`) so that testing it costs no second
-  html entry point. Serve from a `git worktree add --detach` copy if anything
-  else might be editing the tree.
-- **Reading a worker-owned canvas back from the page lags what the worker has
-  already presented.** The same frame read twice in a row gave `0,0,0` and then
-  the real pixel — stepping the engine is not enough, the compositor has to have
-  picked the frame up. The harness polls until the picture is what it should be
-  rather than sampling once, and hands back the last thing it saw on a timeout
-  so a real failure still fails.
-
 ## Screening candidate looks
 
 ```
