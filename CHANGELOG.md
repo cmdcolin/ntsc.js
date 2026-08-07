@@ -2,6 +2,31 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.21.0](https://github.com/cmdcolin/ntsc.js/compare/v0.20.0...v0.21.0) - 2026-08-07
+
+### Features
+- *(gpu)* [`5accf2d`](https://github.com/cmdcolin/ntsc.js/commit/5accf2dc4a5c280d0c61981e8a582b3c7f4692e9) count the tab's WebGPU sessions, and say which freeze this is
+- *(signal)* [`cb2196c`](https://github.com/cmdcolin/ntsc.js/commit/cb2196ce5f74e83f9bab599640c8dde9737130fb) a plug has two contacts, and a ground loop belongs to one cable
+- *(signal)* [`736ff22`](https://github.com/cmdcolin/ntsc.js/commit/736ff2246cced10ba1eb95c9a1b0dffc961d970c) the no-signal sources become statistics, and the floor gets a colour
+
+### Fixes
+- *(ui)* [`f0c28b5`](https://github.com/cmdcolin/ntsc.js/commit/f0c28b5697debcd6527eea55b5969a5e8ac9ac7c) hold the readout column still, and stop the panel claiming edits nobody made
+- *(gpu)* [`a744982`](https://github.com/cmdcolin/ntsc.js/commit/a744982fb166deb85fbd9c40cc34e1cb38020f44) the card sleeps when you tab away, so a hang rebuilds instead of ending
+- *(signal)* [`db26fec`](https://github.com/cmdcolin/ntsc.js/commit/db26fecf5e1b5db61dbd6d8eeed728a34e11b226) the noise lattice gets a phase, so the grain stops standing still
+
+### Refactor
+- *(gpu)* [`7ec64bb`](https://github.com/cmdcolin/ntsc.js/commit/7ec64bbc5b1462bc6d3fc98a5549d0f6d9583020) delete the worker-hosted engine
+
+### Documentation
+- *(gpu)* [`8f6c43b`](https://github.com/cmdcolin/ntsc.js/commit/8f6c43b2693453190b55a660fed3b76d3ee5e838) the card does not sleep under a live device — tested, not assumed
+- *(gpu)* [`6d21bb8`](https://github.com/cmdcolin/ntsc.js/commit/6d21bb8bb396d4cddfc8de4def98d39bd06c7482) the freeze caught live once, and three recipes ruled out
+- *(gpu)* [`ce7d233`](https://github.com/cmdcolin/ntsc.js/commit/ce7d233c5c72a0c2a8144cee70a87375dd3e7d25) the freeze has a recipe — the third WebGPU session in a tab
+- [`30e4ff3`](https://github.com/cmdcolin/ntsc.js/commit/30e4ff319db2294835555a5b00cc7f0f17566f0c) the per-input feeds get a section, and the A/B analysis lands in backlog
+- [`871ac09`](https://github.com/cmdcolin/ntsc.js/commit/871ac09c9e4856cc0904dffbdbb3c1d06f41373c) the noise mechanisms still unmodelled, and what the last pass taught
+
+### Other Changes
+- [`d078dda`](https://github.com/cmdcolin/ntsc.js/commit/d078dda4fb7f3df892d0017ad0f5afc468c418ec) Bump deps
+
 ## [0.20.0](https://github.com/cmdcolin/ntsc.js/compare/v0.19.0...v0.20.0) - 2026-08-07
 
 ### Features
