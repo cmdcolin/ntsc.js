@@ -79,6 +79,23 @@ export const HANG_LATE_FACTOR = 1.5
 // first.
 export const MAX_QUEUE_WAIT_MS = 500
 
+// Why the picture stopped, in the only terms that change what the user should
+// do about it.
+//
+// `stalled` — rAF was being delivered and stopped. The document is fine, the
+// browser has taken the rendering step away from it for now, and it has come
+// back on its own in recorded sessions. Wait, or reload.
+//
+// `cold` — this document has never been given a single animation frame since it
+// loaded. That fault belongs to the *tab*, not the document, so a reload lands
+// in the same hole; only a new tab clears it. This is the one that matters, and
+// it is now a known mechanism rather than a guess: a tab is worth about two
+// WebGPU sessions and every load and every rebuild spends one, after which
+// Firefox stops delivering animation frames to it entirely (TAB_GPU_CEILING in
+// context.ts). Telling someone to reload here is telling them to do the one
+// thing that cannot work.
+export type FrozenKind = 'stalled' | 'cold'
+
 export interface RenderLoopHost {
   // Narrowed to the completion probe the loop actually uses — a real GPUDevice
   // satisfies it, and the lifecycle tests don't have to fake the rest of one.
@@ -94,12 +111,12 @@ export interface RenderLoopHost {
   // callbacks after a hidden stretch and then stopping for good — so the owner
   // gets a chance to rebuild the presentation surface instead.
   recover: () => void
-  // The picture is now frozen (true) or live again (false). Latched when the
-  // fallback spends its budget, cleared when rAF comes back. Giving up used to
-  // be silent, which left a tab that the compositor had abandoned looking
-  // identical to a bug in the signal path — the app is fine, it just cannot
-  // reach the screen, and only the user can act on that.
-  onFrozen: (frozen: boolean) => void
+  // The picture is now frozen, and which kind — or live again, as `null`.
+  // Latched when the fallback spends its budget, cleared when rAF comes back.
+  // Giving up used to be silent, which left a tab that the compositor had
+  // abandoned looking identical to a bug in the signal path — the app is fine,
+  // it just cannot reach the screen, and only the user can act on that.
+  onFrozen: (frozen: FrozenKind | null) => void
   // Current frame number, for log breadcrumbs only.
   frameNo: () => number
 }
@@ -445,10 +462,16 @@ export class RenderLoop {
 
   // Sole writer of `gaveUp`, so the host hears every edge exactly once and can
   // hold it as plain state rather than polling for it.
+  //
+  // `everRaf` rides along because this is the only moment the distinction can be
+  // made and the only channel that carries it out. The loop has always known
+  // which of the two faults it is looking at; until now it reported a bare
+  // boolean, so the UI wrote the same words over a stall that clears itself and
+  // over a tab that will never paint again.
   private setGaveUp(v: boolean): void {
     if (this.gaveUp !== v) {
       this.gaveUp = v
-      this.host.onFrozen(v)
+      this.host.onFrozen(v ? (this.everRaf ? 'stalled' : 'cold') : null)
     }
   }
 

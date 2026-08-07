@@ -30,6 +30,7 @@ import { playStream, playUrl, stopSlot, stopTyping } from './videoSlot'
 
 import type { FrameStats } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
+import type { FrozenKind } from '../gpu/renderloop'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
 import type { Fatal } from './FatalScreen'
@@ -191,7 +192,7 @@ export function useEngine(wantStats = false) {
   const [fatal, setFatal] = useState<Fatal | null>(null)
   // The browser stopped painting the tab. Not fatal — it clears itself the
   // moment rAF is delivered again — so it rides over the stage as a banner.
-  const [frozen, setFrozen] = useState(false)
+  const [frozen, setFrozen] = useState<FrozenKind | null>(null)
   // A device is being replaced, and why. Also a banner rather than a screen: the
   // whole point of the rebuild is that the session survives it, and the picture
   // is back within a second — but the gap has to say what it is, or it reads as
@@ -204,9 +205,16 @@ export function useEngine(wantStats = false) {
   // version of this — a document the browser has stopped painting entirely,
   // where nothing the DOM says reaches the screen. The tab title is browser
   // chrome, drawn by the parent process, so it still gets through.
+  // And it is the only surface that can carry the *verdict*, which is why the
+  // two kinds get different words rather than one pause glyph. A stall clears
+  // itself; a cold tab never will, and the action it needs — a new tab — is the
+  // opposite of the reload anyone reaches for first. Kept short because a tab
+  // title is truncated to a few characters wide.
   useEffect(() => {
     const original = document.title
-    if (frozen) {
+    if (frozen === 'cold') {
+      document.title = `⛔ new tab needed — ${original}`
+    } else if (frozen === 'stalled') {
       document.title = `⏸ frozen — ${original}`
     }
     return () => {
@@ -992,7 +1000,7 @@ export function useEngine(wantStats = false) {
         // its way out, and a paint stall latched against its loop. The new loop
         // only reports edges, so a stale `frozen` would never clear itself.
         setError('')
-        setFrozen(false)
+        setFrozen(null)
       }
 
       // A lost device is not the end of the session. The page is intact — what

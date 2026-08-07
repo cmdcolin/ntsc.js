@@ -60,5 +60,16 @@ export const timelineNow = (): number | null => {
 
 // The black-box recorder's backing store. Absent in a worker, and absent in the
 // unit tests, which is why every call site already tolerates losing a write.
+//
+// Note the mismatch between the name and the API: this is `localStorage`, which
+// is per *origin* and outlives the tab. That is what the recorder wants — a
+// freeze is read back from a later session, often a later day.
 export const sessionStore = (): Storage | null =>
   typeof localStorage === 'undefined' ? null : localStorage
+
+// Per *tab*, and the distinction is the whole point of having both. This is
+// `sessionStorage`: it survives a reload of this tab, is not shared with any
+// other tab on the same origin, and dies when the tab does — which is precisely
+// the lifetime of the thing counted against it. See `gpuSessions` in context.ts.
+export const tabStore = (): Storage | null =>
+  typeof sessionStorage === 'undefined' ? null : sessionStorage

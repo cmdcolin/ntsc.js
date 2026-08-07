@@ -26,6 +26,7 @@ import { transferables } from './workerproto'
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { DestroyOptions, EngineApi } from './engineapi'
+import type { FrozenKind } from './renderloop'
 import type { PumpedFrame } from './videopump'
 import type { FromWorker, ToWorker } from './workerproto'
 
@@ -67,7 +68,7 @@ export class WorkerEngine implements EngineApi {
   onStats: (stats: FrameStats) => void = () => {}
   onDeviceLost: (message: string) => void = () => {}
   onHang: () => void = () => {}
-  onFrozen: (frozen: boolean) => void = () => {}
+  onFrozen: (frozen: FrozenKind | null) => void = () => {}
   onGpuError: (message: string) => void = () => {}
 
   private constructor(worker: Worker, audio: AudioState) {

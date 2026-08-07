@@ -47,6 +47,7 @@
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { AudioState } from '../signal/audiostate'
+import type { FrozenKind } from './renderloop'
 
 export interface DestroyOptions {
   // Leave the audio graph open, because a successor engine is taking it over.
@@ -67,7 +68,7 @@ export interface EngineApi {
   onStats: (stats: FrameStats) => void
   onDeviceLost: (message: string) => void
   onHang: () => void
-  onFrozen: (frozen: boolean) => void
+  onFrozen: (frozen: FrozenKind | null) => void
   onGpuError: (message: string) => void
 
   // --- controls ---

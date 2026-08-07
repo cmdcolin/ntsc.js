@@ -79,6 +79,7 @@ import type { Gpu, RenderTarget } from './context'
 import type { DestroyOptions, EngineApi } from './engineapi'
 import type { FeedSource } from './feedgates'
 import type { ParamName } from './prelude'
+import type { FrozenKind } from './renderloop'
 import type { PumpedFrame } from './videopump'
 
 const N = SAMPLES_PER_LINE * LINES
@@ -161,7 +162,7 @@ export class Engine implements EngineApi {
   // A third, milder failure: the app and the GPU are both fine, the browser has
   // simply stopped painting this tab, so rendered frames go nowhere. Recoverable
   // on its own — hence a banner rather than the fatal screen.
-  onFrozen: (frozen: boolean) => void = () => {}
+  onFrozen: (frozen: FrozenKind | null) => void = () => {}
   // Non-fatal GPU faults (uncaptured validation/oom, e.g. an over-large source
   // texture): surfaced to the panel banner instead of only the console, so a
   // wedged render loop shows a reason rather than looking frozen.

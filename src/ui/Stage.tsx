@@ -17,6 +17,7 @@ import styles from './Stage.module.css'
 import { usePersistedFlag } from './storage'
 import ui from './ui.module.css'
 
+import type { FrozenKind } from '../gpu/renderloop'
 import type { Lens } from './lens'
 import type { PointerEvent, RefObject } from 'react'
 
@@ -227,7 +228,7 @@ function ZoomRow(props: { lens: Lens; onChange: (lens: Lens) => void }) {
 export function Stage(props: {
   canvasRef: RefObject<HTMLCanvasElement | null>
   error: string
-  frozen: boolean
+  frozen: FrozenKind | null
   rebuilding: 'lost' | 'hung' | null
   fullscreen: boolean
   poppedOut: boolean
@@ -371,13 +372,36 @@ export function Stage(props: {
             store, the tape loop — starts over.
           </span>
         </div>
-      ) : props.frozen ? (
+      ) : props.frozen !== null ? (
         <div className={styles.frozen}>
-          <b>the browser stopped painting this tab</b>
+          {/* Both say the app is fine and the frames aren't arriving. They
+              differ on the only thing the reader can act on. A stall came back
+              in recorded sessions and a reload is reasonable; a cold tab has
+              never had one animation frame since it loaded, so the fault
+              belongs to the tab and a reload lands in the same hole — measured,
+              not inferred, see TAB_GPU_CEILING. Offering "reload" there is
+              offering the one thing that cannot work. */}
+          <b>
+            {props.frozen === 'cold'
+              ? 'this tab will not paint — open a new one'
+              : 'the browser stopped painting this tab'}
+          </b>
           <span>
-            The app and the GPU are both still running — rendered frames just
-            aren&apos;t reaching the screen. It clears itself if the browser
-            resumes; if it doesn&apos;t, close the tab and open it again.
+            {props.frozen === 'cold' ? (
+              <>
+                The app and the GPU are both still running, but this tab has
+                never been given a single animation frame since it loaded. That
+                belongs to the tab rather than the page, so reloading lands in
+                the same place — open this URL in a new tab.
+              </>
+            ) : (
+              <>
+                The app and the GPU are both still running — rendered frames
+                just aren&apos;t reaching the screen. It clears itself if the
+                browser resumes; if it doesn&apos;t, close the tab and open it
+                again.
+              </>
+            )}
           </span>
           <button className={ui.btn} onClick={() => location.reload()}>
             reload

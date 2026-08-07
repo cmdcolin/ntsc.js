@@ -16,6 +16,7 @@
 // touches the resting values the UI shows.
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
+import type { FrozenKind } from './renderloop'
 
 // Frame geometry as it was when the decode was requested — see PumpedFrame.
 // Sent alongside the bitmap because the worker cannot read it back off an
@@ -73,7 +74,7 @@ export type FromWorker =
   | { t: 'controls'; controls: Controls }
   | { t: 'deviceLost'; message: string }
   | { t: 'hang' }
-  | { t: 'frozen'; frozen: boolean }
+  | { t: 'frozen'; frozen: FrozenKind | null }
   | { t: 'gpuError'; message: string }
   // Acknowledgements, keyed to the request that asked for them.
   | { t: 'stepped'; id: number }

@@ -12,6 +12,8 @@ import {
 } from './renderloop'
 import { framelessStarts } from './trace'
 
+import type { FrozenKind } from './renderloop'
+
 // The loop only does interesting work when the browser misbehaves, so the
 // harness models the two misbehaviours directly: rAF callbacks are queued but
 // delivered only when a test says so, and queue completion resolves only when a
@@ -46,7 +48,7 @@ function harness({
   const workDone: (() => void)[] = []
   let hangs = 0
   let recoveries = 0
-  const frozenEdges: boolean[] = []
+  const frozenEdges: (FrozenKind | null)[] = []
 
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
     rafSeq += 1
@@ -498,18 +500,41 @@ describe('RenderLoop', () => {
       h.completeGpu()
       await vi.advanceTimersByTimeAsync(FALLBACK_MS)
     }
-    expect(h.frozenEdges()).toEqual([true])
+    // `cold` and not `stalled`: this harness never delivered an animation frame,
+    // so the loop has never had one since it started — which is the fault that
+    // belongs to the tab rather than the document.
+    expect(h.frozenEdges()).toEqual(['cold'])
 
     // The watchdog keeps re-arming rAF for the whole give-up, so it must not
     // re-announce a freeze the host is already showing.
     h.completeGpu()
     await vi.advanceTimersByTimeAsync(WATCHDOG_MS * 3)
-    expect(h.frozenEdges()).toEqual([true])
+    expect(h.frozenEdges()).toEqual(['cold'])
 
     // rAF coming back is the only thing that clears it, and it must clear on
     // the delivered callback rather than waiting for the next watchdog.
     h.deliverRaf(1000)
-    expect(h.frozenEdges()).toEqual([true, false])
+    expect(h.frozenEdges()).toEqual(['cold', null])
+  })
+
+  it('calls a freeze cold only when rAF never arrived', async () => {
+    const h = harness()
+    h.loop.start()
+    // One delivered callback is the whole difference. After it the document has
+    // demonstrably been given an animation frame, so a later freeze is a stall
+    // that may clear — and the UI must offer a reload rather than "new tab".
+    await vi.advanceTimersByTimeAsync(0)
+    h.deliverRaf(16)
+    // Two beats, not one: the first sees that single callback as progress and
+    // only refreshes its baseline, so the stall is declared on the second.
+    await vi.advanceTimersByTimeAsync(WATCHDOG_MS * 2)
+    expect(h.frozenEdges()).toEqual([])
+
+    for (let t = 0; t < FALLBACK_BUDGET_MS; t += FALLBACK_MS) {
+      h.completeGpu()
+      await vi.advanceTimersByTimeAsync(FALLBACK_MS)
+    }
+    expect(h.frozenEdges()).toEqual(['stalled'])
   })
 
   it('re-enters the fallback after a restart', async () => {
