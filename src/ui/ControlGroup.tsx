@@ -196,6 +196,16 @@ function ZoomControl() {
       onChange={point =>
         writeControls({ ...controls, crtZoomX: point.x, crtZoomY: point.y })
       }
+      // A box dragged on the miniature sets where and how far in together, so
+      // the magnification travels with the aim in the same single write.
+      onLens={lens =>
+        writeControls({
+          ...controls,
+          crtZoom: lens.zoom,
+          crtZoomX: lens.x,
+          crtZoomY: lens.y,
+        })
+      }
     />
   )
 }

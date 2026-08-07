@@ -224,6 +224,13 @@ Drag a box to zoom, drag to pan once you're in, double-click to reset. The
 magnifier is part of the display, so it magnifies the lit tube face — scan
 lines, mask and all.
 
+The **Display** miniature in the panel takes the same box: drag a rectangle on
+it and the lens goes there at whatever magnification the box asks for, so you
+never have to set the number before you can aim. Once you're in, the lens
+rectangle is a handle — drag it to push the view around, or drag outside it to
+box a new one. A click still aims at the current magnification, shift-drag walks
+the aim around, and alt drags off the snap guides.
+
 To watch the signal instead of the picture, use **signal tap** — a row in the ☰
 menu, which steps through the taps and leaves the menu up so the picture changes
 under it: the composite waveform, luma, chroma energy, then the decoder's burst

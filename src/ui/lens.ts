@@ -87,6 +87,23 @@ export const panLens = (lens: Lens, du: number, dv: number): Lens => {
       }
 }
 
+// A box dragged on the panel miniature, whose frame IS the whole glass however
+// far the lens is currently in. So the box states the view outright — how much
+// of the picture to keep, and which part — rather than compounding on what is
+// already magnified the way a box on the stage does. The longer edge decides
+// here too, so everything drawn inside the box stays visible.
+export const boxToLens = (
+  a: { u: number; v: number },
+  b: { u: number; v: number },
+): Lens => {
+  const covered = Math.max(Math.abs(b.u - a.u), Math.abs(b.v - a.v))
+  return {
+    zoom: clampZoom(1 / covered),
+    x: (a.u + b.u) / 2,
+    y: (a.v + b.v) / 2,
+  }
+}
+
 // A dragged box on the picture becomes the new view: magnify by however much of
 // the picture the box covers, and look at what was inside it. The longer edge
 // decides, so everything drawn stays visible.

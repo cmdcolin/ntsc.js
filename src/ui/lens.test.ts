@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ZOOM_MAX,
+  boxToLens,
   lensView,
   panLens,
   pictureUv,
@@ -67,6 +68,32 @@ describe('panLens', () => {
   })
   it('leaves the magnification alone', () => {
     expect(panLens({ zoom: 3, x: 0.5, y: 0.5 }, 0.2, 0.2).zoom).toBe(3)
+  })
+})
+
+describe('boxToLens', () => {
+  it('reads the box as the view outright: a quarter of the glass is 4x', () => {
+    const lens = boxToLens({ u: 0.25, v: 0.25 }, { u: 0.5, v: 0.5 })
+    expect(lens.zoom).toBeCloseTo(4)
+    expect(lens.x).toBeCloseTo(0.375)
+    expect(lens.y).toBeCloseTo(0.375)
+  })
+  it('takes the longer edge, so everything boxed stays in view', () => {
+    expect(boxToLens({ u: 0.5, v: 0 }, { u: 0.6, v: 1 }).zoom).toBeCloseTo(1)
+  })
+  it('does not compound — the same box means the same view every time', () => {
+    const a = { u: 0.5, v: 0.5 }
+    const b = { u: 0.75, v: 0.75 }
+    expect(boxToLens(a, b)).toEqual(boxToLens(a, b))
+    expect(boxToLens(a, b).zoom).toBeCloseTo(4)
+  })
+  it('stops at full magnification for a box smaller than the lens can hold', () => {
+    expect(boxToLens({ u: 0.5, v: 0.5 }, { u: 0.501, v: 0.501 }).zoom).toBe(
+      ZOOM_MAX,
+    )
+  })
+  it('never pulls back: any box is at least the whole picture', () => {
+    expect(boxToLens({ u: 0, v: 0 }, { u: 1, v: 1 }).zoom).toBeCloseTo(1)
   })
 })
 

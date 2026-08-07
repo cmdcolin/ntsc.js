@@ -61,6 +61,15 @@
   border-style: dashed;
   opacity: 0.6;
 }
+/* the box being dragged on the magnifier miniature: dashed, so it reads as the
+   view being asked for rather than the one the lens is already showing */
+.marquee {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  pointer-events: none;
+}
 .side {
   position: absolute;
   font-size: var(--fs-xs);
