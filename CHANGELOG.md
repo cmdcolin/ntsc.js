@@ -2,6 +2,20 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.22.0](https://github.com/cmdcolin/ntsc.js/compare/v0.21.0...v0.22.0) - 2026-08-07
+
+### Features
+- *(ui)* [`63d6191`](https://github.com/cmdcolin/ntsc.js/commit/63d6191628770da702372f6ffa43f6afbd4752e2) a frame-rate lock, because a steady 24 reads calmer than a wavering 40
+- *(gpu)* [`ecd819e`](https://github.com/cmdcolin/ntsc.js/commit/ecd819e33cd5f3bcf66fe7de96494ef9384e8945) sample the decoder's own frame where the device allows it
+- *(ui)* [`a63c769`](https://github.com/cmdcolin/ntsc.js/commit/a63c76974bbfd7e955a58245b7b765ee1a7a6033) an auto position on the frame lock
+- *(ui)* [`5a1b385`](https://github.com/cmdcolin/ntsc.js/commit/5a1b3850c8a0c03932510a2be1ac26528b7d5922) the fps readout reports what reaches the glass, and the lock's judge gets tests
+
+### Fixes
+- *(gpu)* [`4ca48d9`](https://github.com/cmdcolin/ntsc.js/commit/4ca48d9fd224a1926028c618dbb92696948e88c1) parenthesize the arithmetic-XOR mixes Tint refuses to parse
+
+### Documentation
+- [`ceaa9a5`](https://github.com/cmdcolin/ntsc.js/commit/ceaa9a54dcb6881c065e0c143ebe89d5385d22bb) the performance findings land where the next session can find them
+
 ## [0.21.0](https://github.com/cmdcolin/ntsc.js/compare/v0.20.0...v0.21.0) - 2026-08-07
 
 ### Features
