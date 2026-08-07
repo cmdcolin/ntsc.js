@@ -8,7 +8,6 @@
 @group(0) @binding(0) var<uniform> P: Params;
 @group(0) @binding(1) var screenTex: texture_2d<f32>;
 @group(0) @binding(2) var samp: sampler;
-@group(0) @binding(3) var<storage, read> scope: array<u32>;
 
 struct VOut {
   @builtin(position) pos: vec4f,
@@ -93,75 +92,6 @@ fn cabinet(s: vec2f, spill: vec3f, glassDist: f32) -> vec3f {
   return albedo * (0.4 + outline + 3.0 * lit + 2.2 * rim * lit + 1.2 * lip);
 }
 
-// Vectorscope overlay, drawn over whatever the set (or the dark around it) put
-// here. The display is the chroma plane itself: U to the right, V up, burst at
-// 180 degrees along -U, and the edge is where 100% bars land. Monochrome, like
-// the instrument — colouring the trace by the hue under it would be prettier
-// and would also mean the display was telling you what you already gave it.
-fn scopeOver(base: vec3f, px: vec2f, cs: vec2f) -> vec3f {
-  if (P.scope <= 0.0) {
-    return base;
-  }
-  let side = min(cs.x, cs.y) * 0.3;
-  let org = cs - vec2f(side) - vec2f(14.0);
-  let q = (px - org) / side;
-  if (q.x < 0.0 || q.x > 1.0 || q.y < 0.0 || q.y > 1.0) {
-    return base;
-  }
-  // Signal space: y is up here and down on the glass, so the row flips.
-  let uv = vec2f(q.x, 1.0 - q.y) * 2.0 - vec2f(1.0);
-  let r = length(uv);
-
-  var col = vec3f(0.02, 0.03, 0.02);
-  // Graticule: the unit circle is 100% bars, the crosshair is the U and V axes,
-  // and the stub at 180 is where burst sits — the phase everything else is
-  // measured against.
-  let ring = smoothstep(0.012, 0.0, abs(r - 1.0));
-  let cross = smoothstep(0.006, 0.0, min(abs(uv.x), abs(uv.y))) * step(r, 1.06);
-  let burst = smoothstep(0.02, 0.0, abs(uv.y)) * step(-1.0, uv.x) * step(uv.x, -0.82);
-  col = col + vec3f(0.16, 0.20, 0.16) * max(ring, cross * 0.55) + vec3f(0.35) * burst;
-  // The six bar targets. A box, not a dot: the point of a graticule is that you
-  // can see whether the trace is landing *inside* the tolerance.
-  for (var i = 0u; i < 6u; i = i + 1u) {
-    let d = abs(uv - BAR_UV[i] / SCOPE_FS) - vec2f(0.055, 0.055);
-    let box = max(d.x, d.y);
-    col = col + vec3f(0.22, 0.26, 0.22) * smoothstep(0.008, 0.0, abs(box));
-  }
-
-  // The trace, written by a beam with a finite spot — the same reason the
-  // picture has one. A flat field of colour is a single value, so it lands
-  // every one of its samples in one bin, and drawn as that bin it is a speck
-  // a pixel across rather than a dot you can see land in a box.
-  let b = vec2i(clamp(q * f32(SCOPE_N), vec2f(0.0), vec2f(f32(SCOPE_N) - 1.0)));
-  let by0 = i32(SCOPE_N - 1u) - b.y;
-  var acc = 0.0;
-  for (var dy = -1; dy <= 1; dy = dy + 1) {
-    for (var dx = -1; dx <= 1; dx = dx + 1) {
-      let bx = b.x + dx;
-      let by = by0 + dy;
-      if (bx >= 0 && bx < i32(SCOPE_N) && by >= 0 && by < i32(SCOPE_N)) {
-        acc = acc + f32(scope[u32(by) * SCOPE_N + u32(bx)]) / f32(1 + dx * dx + dy * dy);
-      }
-    }
-  }
-  // Log brightness, because a flat area of colour lands thousands of samples on
-  // one bin while the transition between two bars leaves single hits along the
-  // path between them — and the second is half of what a scope is for. The
-  // floor keeps a lone hit visible instead of fading it to nothing.
-  //
-  // Scaled for what the decay settles at, not for one frame: holding 3/4 each
-  // frame means a steady trace accumulates to about four times its per-frame
-  // count, so the range this has to span sits two octaves higher than the
-  // arithmetic would suggest.
-  if (acc > 0.0) {
-    let lit = max(0.14, clamp(log2(1.0 + acc) / 13.0, 0.0, 1.0));
-    col = col + vec3f(0.25, 1.0, 0.4) * lit;
-  }
-  // Fade the panel's own edge rather than butting it against the picture.
-  let edge = smoothstep(0.0, 0.02, min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y)));
-  return mix(base, col, P.scope * edge);
-}
-
 @fragment
 fn fs(in: VOut) -> @location(0) vec4f {
   if (P.dbgView == 1.0) {
@@ -210,11 +140,11 @@ fn fs(in: VOut) -> @location(0) vec4f {
   if (glassDist > 0.0) {
     // Nothing but black surround until the camera pulls back off the set.
     if (back <= 0.0) {
-      return vec4f(scopeOver(vec3f(0.0), px, cs), 1.0);
+      return vec4f(0.0, 0.0, 0.0, 1.0);
     }
     let phase = rand01(pcg(u32(in.pos.x) * 1973u + u32(in.pos.y) * 9277u)) * 6.2832;
     let shell = cabinet(sp, spillAt(tuv, glassDist, phase), glassDist) * back;
-    return vec4f(scopeOver(shell, px, cs), 1.0);
+    return vec4f(shell, 1.0);
   }
   var col = textureSampleLevel(screenTex, samp, tuv, 0.0).rgb;
   // Horizontal Catmull-Rom reconstruction: bilinear is -6 dB at the sample
@@ -267,5 +197,5 @@ fn fs(in: VOut) -> @location(0) vec4f {
   // the picture meets the letterbox edge-on, as it always has, and this would
   // otherwise soften the outer couple of pixels of every frame.
   let feather = select(1.0, smoothstep(0.0, -0.008, glassDist), back > 0.0);
-  return vec4f(scopeOver(col * feather, px, cs), 1.0);
+  return vec4f(col * feather, 1.0);
 }

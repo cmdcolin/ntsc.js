@@ -40,8 +40,6 @@ import {
   GEN_OFFSET,
   PARAM_BYTES,
   PRELUDE,
-  SCOPE_BYTES,
-  SCOPE_N,
   TILE_WG,
   packParams,
 } from './prelude'
@@ -63,7 +61,6 @@ import feedSrc from './shaders/feed.wgsl?raw'
 import lineAnalyzeSrc from './shaders/line_analyze.wgsl?raw'
 import mixBSrc from './shaders/mix_b.wgsl?raw'
 import presentSrc from './shaders/present.wgsl?raw'
-import scopeDecaySrc from './shaders/scope_decay.wgsl?raw'
 import storePrevSrc from './shaders/store_prev.wgsl?raw'
 import syncSrc from './shaders/sync.wgsl?raw'
 import syncMeasureSrc from './shaders/sync_measure.wgsl?raw'
@@ -286,7 +283,6 @@ export class Engine implements EngineApi {
   private timingBuf: GPUBuffer
   private syncMeasureBuf: GPUBuffer
   private audioBuf: GPUBuffer
-  private scopeBuf: GPUBuffer
   // Phosphor state, ping-ponged: decode reads the light the screen is holding
   // out of one and writes the new state into the other, so its lateral scatter
   // sees settled neighbours rather than a buffer mid-overwrite.
@@ -300,9 +296,6 @@ export class Engine implements EngineApi {
   private encodeCompositeBPass: Pass
   private encodeCompositeBBgs: [GPUBindGroup, GPUBindGroup]
   private decodePass: Pass
-  // Not in the three pass arrays: it belongs to the instrument, not the signal
-  // path, and putting it there would claim the picture goes through it.
-  private scopeDecayPass: Pass
   private decodeBgs: [GPUBindGroup, GPUBindGroup]
 
   // The two input slots: staging, capping, aspect and the noise generators all
@@ -437,13 +430,6 @@ export class Engine implements EngineApi {
     // one audio sample per line, uploaded each frame
     this.audioBuf = d.createBuffer({
       size: LINES * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-    // Vectorscope bins, filled by decode and read by present. Cleared rather
-    // than decayed each frame: a scope's persistence is in the phosphor of the
-    // instrument, and the picture already redraws at 60 Hz.
-    this.scopeBuf = d.createBuffer({
-      size: SCOPE_BYTES,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
     // phosphor persistence state: the light still on the glass, packed rgba8
@@ -829,7 +815,6 @@ export class Engine implements EngineApi {
       { buffer: read },
       { buffer: write },
       { buffer: this.audioBuf },
-      { buffer: this.scopeBuf },
     ]
     const [pA, pB] = this.persistBufs
     this.decodeBgs = [
@@ -842,14 +827,6 @@ export class Engine implements EngineApi {
       bg: this.decodeBgs[0],
       x: perPixelT[0],
       y: perPixelT[1],
-    }
-    const scopeDecayPl = compute(scopeDecaySrc)
-    this.scopeDecayPass = {
-      label: 'scopeDecay',
-      pl: scopeDecayPl,
-      bg: bindGroup(scopeDecayPl, [{ buffer: this.scopeBuf }]),
-      x: Math.ceil((SCOPE_N * SCOPE_N) / 64),
-      y: 1,
     }
     this.postPasses = [
       // The enhancer is an outboard box between the deck and the set, so it
@@ -945,7 +922,6 @@ export class Engine implements EngineApi {
         { binding: 0, resource: { buffer: this.paramsBuf } },
         { binding: 1, resource: this.faceTex.createView() },
         { binding: 2, resource: this.linearSamp },
-        { binding: 3, resource: { buffer: this.scopeBuf } },
       ],
     })
 
@@ -1491,7 +1467,6 @@ export class Engine implements EngineApi {
       crtZoom: c.crtZoom,
       crtZoomX: c.crtZoomX,
       crtZoomY: c.crtZoomY,
-      scope: c.scope,
       dbgView: this.dbgView,
     }
   }
@@ -1806,9 +1781,6 @@ export class Engine implements EngineApi {
         ACTIVE_WIDTH,
         ACTIVE_HEIGHT,
       )
-    // Ages the trace before decode writes this frame's hits into it; see
-    // scope_decay.wgsl for why it decays rather than clearing.
-    if (c.scope > 0) run(this.scopeDecayPass)
     // An engaged feed sits between its encoder and the buffer downstream
     // passes read, so the encoder detours through the compB scratch.
     this.encodeCompositePass.bg =

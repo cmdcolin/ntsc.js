@@ -40,8 +40,18 @@ export interface SliderDef {
 
 // The signal-path stages, in the order the panel's spine is browsed. A group
 // placed on one of these renders in that stage.
+//
+// The head of the chain is an input, not a process: A and B are the same kind
+// of thing — a source, its deck, its cable — and naming only one of them left
+// the panel filing A's feed pair on a trunk stage called 'Source' and B's on a
+// branch called 'Mix'. Two identical group pairs at two unrelated addresses,
+// and the one box named after an input was named after what happens to *both*.
+// So the trunk's head is 'Source A', its mirror hangs below it (SOURCE_B_STAGE,
+// which is not a Phase — B joins the trunk rather than dividing it), and 'Mix'
+// is the stage where the two meet and nothing else.
 export const PHASE_ORDER = [
-  'Source',
+  'Source A',
+  'Mix',
   'Feedback',
   'Tape',
   'Receiver',
@@ -52,16 +62,19 @@ export type Phase = (typeof PHASE_ORDER)[number]
 // Where a group lives in the panel — its single source of placement truth, so
 // nothing can silently fail to render:
 //   a Phase — in that stage of the browsable signal-path spine;
-//   'ab'    — on the map's B branch (the Mix stage), openable only when source
-//             B is on;
+//   'b'     — on the map's B branch (the Source B stage), openable only when
+//             source B is on;
 //   'audio' — inside the Audio section, next to its enable button.
 //
-// 'ab' is the one placement that can take a control off screen entirely, so it
+// 'b' is the one placement that can take a control off screen entirely, so it
 // is only for controls that genuinely have nothing to do without a second
 // source. A control that still bites with B switched off — anything on input
 // A's own feed, say — belongs on the spine, or a preset or a randomize can set
-// it with no row anywhere to put it back.
-export type Placement = Phase | 'ab' | 'audio'
+// it with no row anywhere to put it back. The Mix stage answers to the same
+// rule from the other side: it is a Phase, so it is always drawn, but with
+// nothing patched into B every control in it is inert and it opens onto
+// nothing — see PathNode.off.
+export type Placement = Phase | 'b' | 'audio'
 
 export interface Group {
   name: string
@@ -80,8 +93,8 @@ export interface Group {
 // ground and the terminator. Splitting them is what keeps either half scannable
 // now that the connector and the ground loop are per input, and it is why the
 // two inputs read as a pair: the same two groups, in the same order, per
-// channel. The A pair opens on the Source stage and the B pair on the branch,
-// for the reason the placements below give.
+// channel — A's on the Source A stage and B's on the Source B branch, which is
+// the same pair of stages drawn one above the other on the map.
 export const FEED_A_GROUP = 'Feed A · deck'
 export const FEED_A_CABLE_GROUP = 'Feed A · cable'
 export const FEED_B_GROUP = 'Feed B · deck'
@@ -90,7 +103,7 @@ export const FEED_B_CABLE_GROUP = 'Feed B · cable'
 export const GROUPS: Group[] = [
   {
     name: 'Signal (source A)',
-    place: 'Source',
+    place: 'Source A',
     sliders: [
       {
         key: 'invert',
@@ -129,7 +142,7 @@ export const GROUPS: Group[] = [
   // static, the same way deinterlace only bites on an interlaced source.
   {
     name: 'Noise source (static)',
-    place: 'Source',
+    place: 'Source A',
     sliders: [
       {
         key: 'srcNoiseBwMHz',
@@ -169,107 +182,6 @@ export const GROUPS: Group[] = [
       },
     ],
   },
-  {
-    name: 'Cable / Wiring',
-    place: 'Source',
-    sliders: [
-      {
-        key: 'polarityFlip',
-        label: 'hard polarity (flips sync)',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: 'A signal/ground swap at the connector: the whole composite waveform is negated, sync pulses included. Unlike the picture-only invert above, the receiver now has to find sync in what used to be peak white, so the picture tears and rolls while it hunts.',
-      },
-      {
-        key: 'termination',
-        label: 'termination (-1 daisy, +1 open)',
-        min: -1,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: 'Composite video expects a single 75 Ω load. Negative is double-terminated — a monitor daisy-chained with its loop-through still on — halving the signal, so the picture goes dim and the colour killer starts to bite. Positive is unterminated, so the line reflects: signal runs hot and rings, with overshoot on every edge.',
-      },
-      {
-        key: 'chromaPinOnly',
-        label: 'chroma-pin only',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: 'S-video miswired into a composite input: only the chroma pin arrives. There is no luma and no sync, so the receiver free-runs on a bare subcarrier — floating colour over a black raster that has nothing to lock to.',
-      },
-      {
-        key: 'connectorGlitch',
-        label: 'loose connector',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: 'How loose the plug is: bands of lines lose contact, re-rolled every frame the way a plug hanging on its own cable weight makes and breaks. Which of the two contacts is failing is the row below, and they fail into completely different pictures.',
-      },
-      {
-        key: 'connectorMode',
-        label: 'bad contact',
-        min: 0,
-        max: 2,
-        step: 1,
-        unit: '',
-        choices: ['pin', 'shield', 'both'],
-        help: 'Which contact of the plug is intermittent. The centre pin breaks the signal path, so the jack sees an open through its own terminator and those bands collapse to the input stage’s noise floor — sync included, which is why they tear. The shell breaks the ground reference instead and leaves the signal alone: the return current goes looking for the mains earth through both boxes’ supplies, so a ground loop’s hum lands on the bad bands and the level walks and buzzes while the picture and its sync survive. Both is a genuinely wiggled plug, the two faults on independent bands so they interleave.',
-      },
-    ],
-  },
-  {
-    name: 'Cable Scrambling',
-    place: 'Source',
-    sliders: [
-      {
-        key: 'scramble',
-        label: 'sync suppression',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: 'How hard the head-end suppresses sync on a premium channel. The scrambler lifts the carrier during each sync pulse, so a set without a decoder box has a shallow tip — or none at all — to find the start of a line in. Under about half depth the tip still clears the slicer and the set merely mismeasures it, so the AGC over-compensates and the picture washes out bright. Past that the tip is gone and the line oscillator is left free-running, so what the picture does next is whatever the h-osc detune below says its own rate is — a set sitting exactly on 15.734 kHz coasts through the gap almost cleanly. Vertical stays roughly framed either way: the broad vertical pulses are wider than the line-rate gate, so the frame shears instead of tumbling.',
-      },
-      {
-        key: 'scrambleMode',
-        label: 'system',
-        min: 0,
-        max: 2,
-        step: 1,
-        unit: '',
-        choices: ['gated', 'alternate', 'ssavi'],
-        help: "Which scrambling system. Gated suppresses every line, so the oscillator free-runs the whole way down and the raster shears continuously. Alternate suppresses every other line, so the flywheel is hauled back half the time and the drift between corrections comes out as a ragged line-pair zigzag on every vertical edge — it tolerates far more h-osc detune before it stops being a picture. SSAVI is Zenith's: suppression plus inversion of the active video, so what does leak through is a negative. Burst sits in the back porch and is untouched, so hue survives the inversion.",
-      },
-    ],
-  },
-  {
-    name: 'Copy Protection',
-    place: 'Source',
-    sliders: [
-      {
-        key: 'macrovision',
-        label: 'agc pulses (macrovision)',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: "Macrovision's AGC poisoning, stamped on vertical-interval lines 12-19 of the source — exactly the window this receiver averages its sync depth over. A pulse parked on the back porch makes the measured sync depth balloon, so with the agc control up the set answers by crushing gain on a signal that was never hot; the pulse level walks a slow staircase, so the picture breathes instead of settling. The pulse trains themselves sit in the blanking interval — invisible until the picture rolls, when the classic flashing bar rides the vertical interval into view.",
-      },
-      {
-        key: 'mvStripeDeg',
-        label: 'colorstripe',
-        min: 0,
-        max: 180,
-        step: 1,
-        unit: 'deg',
-        help: "The later half of the process: colourbursts on walking bands of picture lines are rotated off the house phase by this much. The decoder corrects each line's hue by the burst it just gated, so the poisoned bands come out rotated the other way — hue banding crawling down the frame. A set that trusts its burst less (burst lock) or averages bursts over lines (chroma AGC lag) shrugs it off, which is exactly the difference between the TV this was invisible on and the VCR it was aimed at.",
-      },
-    ],
-  },
   // Input A's own deck, cable and head-end, ahead of the mixer. The same faults
   // as the program-bus Cable/Wiring and Scrambling groups further down the
   // chain, but on this one signal — so when B is patched in, the other input,
@@ -283,7 +195,7 @@ export const GROUPS: Group[] = [
   // house deck on pause with no row anywhere to put it back.
   {
     name: FEED_A_GROUP,
-    place: 'Source',
+    place: 'Source A',
     sliders: [
       {
         key: 'aPause',
@@ -341,7 +253,7 @@ export const GROUPS: Group[] = [
   // re-reads it in place.
   {
     name: FEED_A_CABLE_GROUP,
-    place: 'Source',
+    place: 'Source A',
     sliders: [
       {
         key: 'aConnector',
@@ -901,8 +813,8 @@ export const GROUPS: Group[] = [
     ],
   },
   {
-    name: 'A/B Mixer (source B)',
-    place: 'ab',
+    name: 'A/B Mixer',
+    place: 'Mix',
     sliders: [
       {
         key: 'bGenlock',
@@ -922,7 +834,8 @@ export const GROUPS: Group[] = [
         step: 0.01,
         redline: [-1.2, 1.2],
         unit: 'x',
-        fine: true,
+        // Not a trim: it is one of the two faders this stage exists to be, and
+        // the disclosure it was folded into is gone with B's proc-amp trio.
         help: "A's own level on the summing bus (dirty path only). 1 is full program; pull it down to fade A out under B for a manual crossfade, or take it negative to invert A into a difference key that cancels against B. Does nothing on the genlocked clean-dissolve path, where A is implied by (1 − B gain).",
       },
       {
@@ -974,6 +887,22 @@ export const GROUPS: Group[] = [
         unit: 'l/f',
         help: "B's vertical drift in lines per frame, from its field rate not matching A's. B creeps up or down through the frame independently of the picture A is painting.",
       },
+    ],
+  },
+  // What B *is*, as against what the mixer does with it — the mirror of Signal
+  // (source A) at the head of the trunk, and the reason the two inputs finally
+  // read as one kind of thing. These three rode in the mixer group because the
+  // mixer group was the only place B had, which left the panel saying that A's
+  // polarity is a property of the signal and B's is a property of the mix. They
+  // are the same proc-amp on the same bench.
+  //
+  // None of them are `fine` any more either: they were folded away to keep a
+  // ten-row mixer scannable, and a three-row group has nothing to hide behind a
+  // disclosure.
+  {
+    name: 'Signal (source B)',
+    place: 'b',
+    sliders: [
       {
         key: 'bHueDeg',
         label: 'B hue',
@@ -981,7 +910,6 @@ export const GROUPS: Group[] = [
         max: 180,
         step: 1,
         unit: 'deg',
-        fine: true,
         help: "Proc-amp hue trim on B before it is mixed — a static phase offset on its subcarrier. Unlike sc detune this does not drift; it just parks B's colours somewhere else.",
       },
       {
@@ -992,7 +920,6 @@ export const GROUPS: Group[] = [
         step: 0.01,
         redline: [0, 2],
         unit: 'x',
-        fine: true,
         help: 'Proc-amp video gain on B: contrast of the B picture before mixing, without changing how much of B is patched in.',
       },
       {
@@ -1002,19 +929,18 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.01,
         unit: '',
-        fine: true,
         help: "Inverts B's picture. Mixed against A this reads as a difference key — where the two agree they cancel toward flat grey, where they differ the mix lights up.",
       },
     ],
   },
   // B's own deck and cable, ahead of the mix — the mirror of the Feed A pair
-  // over in the Source stage, listing the same faults in the same order so the
-  // two channels read alike and a difference between them is visible as a
+  // over on the Source A stage, listing the same faults in the same order so
+  // the two channels read alike and a difference between them is visible as a
   // difference. Only B's pair is contextual: A's feed is A's cable whether or
   // not anything is patched into B.
   {
     name: FEED_B_GROUP,
-    place: 'ab',
+    place: 'b',
     sliders: [
       {
         key: 'bPause',
@@ -1068,7 +994,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: FEED_B_CABLE_GROUP,
-    place: 'ab',
+    place: 'b',
     sliders: [
       {
         key: 'bConnector',
@@ -1131,7 +1057,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'Wipe (A/B)',
-    place: 'ab',
+    place: 'Mix',
     sliders: [
       {
         key: 'wipeMode',
@@ -1174,7 +1100,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: 'PiP inset (source B)',
-    place: 'ab',
+    place: 'Mix',
     sliders: [
       {
         key: 'pipMix',
@@ -1538,6 +1464,114 @@ export const GROUPS: Group[] = [
         step: 0.01,
         unit: '',
         help: 'A two-way radio getting into the cable through a cracked shield or corroded fitting. The carrier owes nothing to any NTSC frequency, so its beat draws a herringbone at no fixed angle, wandering as the transmitter drifts — and it arrives in transmissions: the operator keys the mic for stretches with real silence between. The program audio stands in for the speech, AM and FM at once, so the weave swells and sways when someone talks and drops back to a bare idling carrier between words.',
+      },
+    ],
+  },
+  // The program bus: the wire the mixed signal travels down, and what the
+  // head-end and the copy-protection stamper did to it on the way. Filed with
+  // the tape and the tuner because that is literally where they run — cable,
+  // scrambling and macrovision are all the `channel` pass, downstream of mixB,
+  // so drawn at the head of the chain they claimed to damage input A alone when
+  // they damage the mix. The per-input versions of the same faults are the two
+  // Feed groups, which really are ahead of the mixer.
+  {
+    name: 'Cable / Wiring',
+    place: 'Tape',
+    sliders: [
+      {
+        key: 'polarityFlip',
+        label: 'hard polarity (flips sync)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: 'A signal/ground swap at the connector: the whole composite waveform is negated, sync pulses included. Unlike the picture-only invert above, the receiver now has to find sync in what used to be peak white, so the picture tears and rolls while it hunts.',
+      },
+      {
+        key: 'termination',
+        label: 'termination (-1 daisy, +1 open)',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: 'Composite video expects a single 75 Ω load. Negative is double-terminated — a monitor daisy-chained with its loop-through still on — halving the signal, so the picture goes dim and the colour killer starts to bite. Positive is unterminated, so the line reflects: signal runs hot and rings, with overshoot on every edge.',
+      },
+      {
+        key: 'chromaPinOnly',
+        label: 'chroma-pin only',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: 'S-video miswired into a composite input: only the chroma pin arrives. There is no luma and no sync, so the receiver free-runs on a bare subcarrier — floating colour over a black raster that has nothing to lock to.',
+      },
+      {
+        key: 'connectorGlitch',
+        label: 'loose connector',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: 'How loose the plug is: bands of lines lose contact, re-rolled every frame the way a plug hanging on its own cable weight makes and breaks. Which of the two contacts is failing is the row below, and they fail into completely different pictures.',
+      },
+      {
+        key: 'connectorMode',
+        label: 'bad contact',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['pin', 'shield', 'both'],
+        help: 'Which contact of the plug is intermittent. The centre pin breaks the signal path, so the jack sees an open through its own terminator and those bands collapse to the input stage’s noise floor — sync included, which is why they tear. The shell breaks the ground reference instead and leaves the signal alone: the return current goes looking for the mains earth through both boxes’ supplies, so a ground loop’s hum lands on the bad bands and the level walks and buzzes while the picture and its sync survive. Both is a genuinely wiggled plug, the two faults on independent bands so they interleave.',
+      },
+    ],
+  },
+  {
+    name: 'Cable Scrambling',
+    place: 'Tape',
+    sliders: [
+      {
+        key: 'scramble',
+        label: 'sync suppression',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: 'How hard the head-end suppresses sync on a premium channel. The scrambler lifts the carrier during each sync pulse, so a set without a decoder box has a shallow tip — or none at all — to find the start of a line in. Under about half depth the tip still clears the slicer and the set merely mismeasures it, so the AGC over-compensates and the picture washes out bright. Past that the tip is gone and the line oscillator is left free-running, so what the picture does next is whatever the h-osc detune below says its own rate is — a set sitting exactly on 15.734 kHz coasts through the gap almost cleanly. Vertical stays roughly framed either way: the broad vertical pulses are wider than the line-rate gate, so the frame shears instead of tumbling.',
+      },
+      {
+        key: 'scrambleMode',
+        label: 'system',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['gated', 'alternate', 'ssavi'],
+        help: "Which scrambling system. Gated suppresses every line, so the oscillator free-runs the whole way down and the raster shears continuously. Alternate suppresses every other line, so the flywheel is hauled back half the time and the drift between corrections comes out as a ragged line-pair zigzag on every vertical edge — it tolerates far more h-osc detune before it stops being a picture. SSAVI is Zenith's: suppression plus inversion of the active video, so what does leak through is a negative. Burst sits in the back porch and is untouched, so hue survives the inversion.",
+      },
+    ],
+  },
+  {
+    name: 'Copy Protection',
+    place: 'Tape',
+    sliders: [
+      {
+        key: 'macrovision',
+        label: 'agc pulses (macrovision)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "Macrovision's AGC poisoning, stamped on vertical-interval lines 12-19 of the source — exactly the window this receiver averages its sync depth over. A pulse parked on the back porch makes the measured sync depth balloon, so with the agc control up the set answers by crushing gain on a signal that was never hot; the pulse level walks a slow staircase, so the picture breathes instead of settling. The pulse trains themselves sit in the blanking interval — invisible until the picture rolls, when the classic flashing bar rides the vertical interval into view.",
+      },
+      {
+        key: 'mvStripeDeg',
+        label: 'colorstripe',
+        min: 0,
+        max: 180,
+        step: 1,
+        unit: 'deg',
+        help: "The later half of the process: colourbursts on walking bands of picture lines are rotated off the house phase by this much. The decoder corrects each line's hue by the burst it just gated, so the poisoned bands come out rotated the other way — hue banding crawling down the frame. A set that trusts its burst less (burst lock) or averages bursts over lines (chroma AGC lag) shrugs it off, which is exactly the difference between the TV this was invisible on and the VCR it was aimed at.",
       },
     ],
   },
@@ -2357,15 +2391,6 @@ export const GROUPS: Group[] = [
         help: 'Which part of the glass is under the magnifier, down.',
       },
       {
-        key: 'scope',
-        label: 'vectorscope',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        help: "A vectorscope in the corner: the chroma plane itself, with the demodulated colour plotted as U across and V up. The circle is where 100% bars reach, the six boxes are the 75% bar targets, and the stub at the left is burst — the phase every hue is measured against. It is probing the set's own demodulator outputs rather than the signal going in, so the tint knob turns the whole constellation, the demod axis shears it, and chroma gain scales it — which is the difference between those three said in one picture.",
-      },
-      {
         key: 'timeScale',
         label: 'slow motion (1 = realtime)',
         min: 0,
@@ -2609,11 +2634,12 @@ export const NEEDS: Partial<Record<ControlKey, SliderNeed>> = {
 // One line per stage for the spine's hover text — the role of the stage in the
 // signal path, so the map explains itself without opening anything.
 const PHASE_BLURBS: Record<Phase, string> = {
-  Source:
-    'the picture becomes a composite waveform — encoder faults and bad cables live here',
+  'Source A':
+    'input A becoming a composite waveform — the encoder, the static generator, and the deck and cable this one signal arrives on',
+  Mix: 'where the two signals meet — the mixer that beats them together, the wipe and the PiP inset. Needs a source B to do anything',
   Feedback:
     'two loops around the chain — one optical (a camera on the tube), one electrical (the mixer bus patched into itself)',
-  Tape: 'damage to the recorded waveform — VHS color-under, dropouts, timebase wander',
+  Tape: 'the recording and the wire it came down — VHS color-under, dropouts, timebase wander, the tuner and the program cable',
   Receiver:
     'a TV hunting for sync and decoding color from whatever arrives — hold, deflection, the decoder',
   Screen: 'the tube itself — beam profile, phosphor persistence, shadow mask',
@@ -2622,32 +2648,37 @@ const PHASE_BLURBS: Record<Phase, string> = {
 // The signal-path phases, in order — the spine the panel is browsed along.
 // The browsable spine, derived straight from each group's `place` so a group's
 // stage lives in one spot (the group) and can't drift from a parallel list.
-// Audio groups carry no phase and surface contextually instead; the ab groups
-// are the B branch below.
+// Audio groups carry no phase and surface contextually instead; the 'b' groups
+// are the Source B branch below.
 export const PHASES = PHASE_ORDER.map(name => ({
   name,
   blurb: PHASE_BLURBS[name],
   groups: GROUPS.filter(g => g.place === name),
 }))
 
-// Input B's branch, which is a stage of the panel without being a Phase: the
-// second signal joins the trunk rather than dividing it, so it hangs off the
-// map's own row and is opened by the same click. Named separately because
-// PHASE_ORDER is the trunk, and a sixth entry there would have drawn B as
-// something the picture passes *through* on its way from A.
-//
-// Where it sits is not a choice: feedA / feedB → mixB → fbComposite, so the
-// branch joins the run between Source and Feedback.
+// The mixer's own stage, on the trunk: everything downstream of it carries both
+// signals, so it is something the picture passes through rather than a fork off
+// it. Named here as well as in PHASE_ORDER because two other things ask about
+// it by identity — the map, which draws it inert while there is no B to mix,
+// and the diagram, which opens the panel at it.
 export const MIX_STAGE = 'Mix'
-export const MIX_BLURB =
-  'the second signal joining the first — B’s own feed, the mixer that beats them together, the wipe and the PiP inset'
+
+// Input B, which is a stage of the panel without being a Phase: the second
+// signal joins the trunk rather than dividing it, so it hangs *below* the trunk
+// on its own row and is opened by the same click. A sixth entry in PHASE_ORDER
+// would have drawn B as something the picture passes through on its way from A.
+//
+// Where it joins is not a choice: feedA / feedB → mixB, so B arrives at Mix.
+export const SOURCE_B_STAGE = 'Source B'
+export const SOURCE_B_BLURB =
+  'input B, the same rig again — what B is on its own, and the deck and cable it arrives on, before either reaches the mixer'
 
 // The groups behind an openable stage name, trunk or branch. One lookup rather
 // than two, so anything that opens a stage (the map, the palette, the panel's
 // own nav) reaches the branch without knowing it is not a Phase.
 export function stageGroups(name: string): Group[] {
-  return name === MIX_STAGE
-    ? AB_GROUPS
+  return name === SOURCE_B_STAGE
+    ? B_GROUPS
     : (PHASES.find(p => p.name === name)?.groups ?? [])
 }
 
@@ -2698,26 +2729,27 @@ export const VIEW_KEYS = new Set<ControlKey>([
   'crtZoom',
   'crtZoomX',
   'crtZoomY',
-  'scope',
   'frameLock',
 ])
 
 // The groups that surface contextually rather than on the signal-path spine.
-export const AB_GROUPS = GROUPS.filter(g => g.place === 'ab')
+// The mixer is no longer among them: it is the Mix stage, always drawn, so only
+// input B's own groups come and go with what is patched in.
+export const B_GROUPS = GROUPS.filter(g => g.place === 'b')
 export const AUDIO_GROUPS = GROUPS.filter(g => g.place === 'audio')
 
 const automapSliders = [
-  ...GROUPS.filter(g => g.place !== 'ab' && g.place !== 'audio'),
-  ...AB_GROUPS,
+  ...GROUPS.filter(g => g.place !== 'b' && g.place !== 'audio'),
+  ...B_GROUPS,
   ...AUDIO_GROUPS,
 ].flatMap(g => g.sliders)
 
 // Controls in auto-map priority order. A controller has far fewer knobs than
 // there are controls, so the ranking decides what a 64-knob device actually
 // reaches: every look-maker first, then the fine trims, then the view. Within
-// each band the signal-path spine leads and the contextual A/B and audio groups
-// follow, so the low banks land on what is always on screen. Bindings are stored
-// by key, so re-ranking only changes what a fresh sweep assigns.
+// each band the signal-path spine leads and the contextual source-B and audio
+// groups follow, so the low banks land on what is always on screen. Bindings are
+// stored by key, so re-ranking only changes what a fresh sweep assigns.
 export const AUTOMAP_KEYS: ControlKey[] = [
   ...automapSliders.filter(s => s.fine !== true && !VIEW_KEYS.has(s.key)),
   ...automapSliders.filter(s => s.fine === true && !VIEW_KEYS.has(s.key)),

@@ -25,7 +25,6 @@ import feed from './shaders/feed.wgsl?raw'
 import lineAnalyze from './shaders/line_analyze.wgsl?raw'
 import mixB from './shaders/mix_b.wgsl?raw'
 import present from './shaders/present.wgsl?raw'
-import scope_decay from './shaders/scope_decay.wgsl?raw'
 import storePrev from './shaders/store_prev.wgsl?raw'
 import sync from './shaders/sync.wgsl?raw'
 import syncMeasure from './shaders/sync_measure.wgsl?raw'
@@ -57,7 +56,6 @@ const SHADERS: Record<string, string> = {
   line_analyze: lineAnalyze,
   mix_b: mixB,
   present,
-  scope_decay,
   store_prev: storePrev,
   sync,
   sync_measure: syncMeasure,
@@ -103,8 +101,7 @@ describe('WGSL shaders pass naga validation', () => {
   // from *statically used* resources only, so the unread binding is dropped and
   // a bind group supplying it fails validation against the layout its own
   // pipeline produced. That surfaces at runtime as "BindGroup with '' label is
-  // invalid" on set_bind_group, nowhere near the shader that caused it — which
-  // is exactly how scope_decay shipped a dead Params binding.
+  // invalid" on set_bind_group, nowhere near the shader that caused it.
   it('declares no binding it does not read', () => {
     // Comments would otherwise count as uses and mask the very thing this
     // looks for — the dead binding's own explanatory comment names it.

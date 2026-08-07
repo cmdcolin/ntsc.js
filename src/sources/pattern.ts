@@ -45,13 +45,10 @@ export function sweep(): OffscreenCanvas {
 }
 
 // The top band's seven bars, as 0..1 triples, and the single source the drawn
-// pattern is built from. Exported because the vectorscope's graticule is a 75%
-// bar graticule and `bars.spec.ts` checks that what this actually draws still
-// lands in those boxes — otherwise the two would drift in different files and
-// the instrument would quietly start lying. 0xC0 rather than exactly 0.75 is
-// the conventional 8-bit value for 75% bars, and is what this has always drawn.
+// pattern is built from. 0xC0 rather than exactly 0.75 is the conventional
+// 8-bit value for 75% bars, and is what this has always drawn.
 const B = 0xc0 / 0xff
-export const SMPTE_BAR_RGB: readonly (readonly [number, number, number])[] = [
+const SMPTE_BAR_RGB: readonly (readonly [number, number, number])[] = [
   [B, B, B],
   [B, B, 0],
   [0, B, B],

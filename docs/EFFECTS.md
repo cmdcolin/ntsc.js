@@ -588,15 +588,6 @@ and what you see looking at one.
   at the top right of the panel says which of the two a drag on the picture is —
   boxing a region to close in, or moving around the glass — with shift-drag
   always the other one; double-click for 1×.
-- **Vectorscope** — the instrument, in the corner: the chroma plane itself, with
-  the demodulated colour plotted as U across and V up. The circle is where 100%
-  bars reach, the six boxes are the 75% bar targets — at their real radii, which
-  differ, because yellow and blue carry far less chroma than red and cyan — and
-  the stub at the left is burst, the phase every hue is measured against. It
-  probes the set's _own_ demodulator outputs rather than the signal going in, so
-  the receiver's colour faults are on it: tint turns the whole constellation,
-  the demod axis shears it, chroma gain scales it, and burst error spins it.
-  Which is the difference between four controls said in one picture.
 - **Slow motion** — the whole rig stepped at a fraction of display rate: noise,
   rolls, sweeps, feedback and phosphor all crawl together; 0 freezes the frame.
   Pairs with the vaporwave source-speed control to slow the footage to match.

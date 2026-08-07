@@ -316,13 +316,12 @@ tunes that control's look.
 
 ## Instruments and pixel checks
 
-- **A waveform monitor** is the obvious companion to the shipped vectorscope —
-  line-rate luma against IRE graticule, where sync depth, setup and the AGC's
-  pumping would be readable instead of inferred. `?dbg=2` already paints the
-  composite; this is that with a scale on it. Build it the way the scope was
-  built: not a pass (`decode` scatters, `present` draws), and with a finite spot
-  on the way out, or a flat field lands every sample in one bin and draws as a
-  speck.
+- **A waveform monitor** — line-rate luma against an IRE graticule, where sync
+  depth, setup and the AGC's pumping would be readable instead of inferred.
+  `?dbg=2` already paints the composite; this is that with a scale on it. Not a
+  pass: `decode` would scatter into a bins buffer and `present` draw it, with a
+  finite spot on the way out, or a flat field lands every sample in one bin and
+  draws as a speck.
 - **Extend pixelcheck.** `scripts/pixelcheck.mjs` pins the six SMPTE hues and
   the fine-tuning cliff; any deterministic `?set=` look plus a probe is one more
   pinned fact. Candidates: burst-lock hue rotation, the killer threshold,

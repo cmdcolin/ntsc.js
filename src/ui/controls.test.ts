@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { CONTROL_KEYS } from '../controls'
 import {
-  AB_GROUPS,
   ALL_SLIDERS,
   AUTOMAP_KEYS,
+  B_GROUPS,
+  FEED_A_CABLE_GROUP,
   FEED_A_GROUP,
+  FEED_B_CABLE_GROUP,
   FEED_B_GROUP,
   GROUPS,
   MIX_STAGE,
@@ -13,6 +15,7 @@ import {
   PHASE_ORDER,
   SLIDER_BY_KEY,
   sliderFor,
+  SOURCE_B_STAGE,
   stageGroups,
   VIEW_KEYS,
 } from './controls'
@@ -45,7 +48,7 @@ describe('control tables', () => {
   // into a stage — so the two have to agree over the whole table.
   it('puts every group behind a stage the map opens', () => {
     const reachable = new Set(
-      [...PHASE_ORDER, MIX_STAGE].flatMap(name =>
+      [...PHASE_ORDER, SOURCE_B_STAGE].flatMap(name =>
         stageGroups(name).map(g => g.name),
       ),
     )
@@ -56,10 +59,43 @@ describe('control tables', () => {
   // The branch is not a Phase, and the lookup that opens a stage has to know
   // it anyway — a miss returns [], which is a stage that opens onto nothing.
   it('finds the B branch’s groups by name', () => {
-    expect(stageGroups(MIX_STAGE)).toBe(AB_GROUPS)
-    expect(AB_GROUPS.length).toBeGreaterThan(0)
+    expect(stageGroups(SOURCE_B_STAGE)).toBe(B_GROUPS)
+    expect(B_GROUPS.length).toBeGreaterThan(0)
     expect(stageGroups('Screen').length).toBeGreaterThan(0)
     expect(stageGroups('nonesuch')).toEqual([])
+  })
+
+  // The two inputs are the same rig twice, and the panel says so by giving each
+  // the same three groups in the same order: what the signal is, what the deck
+  // did to it, what the wire did after. A control that drifts from one side to
+  // the other (B's polarity invert sat in the mixer group for a year) breaks
+  // the pairing quietly — nothing renders wrong, the two stages just stop
+  // mirroring each other.
+  it('gives A and B the same three groups', () => {
+    const shape = (name: string) =>
+      stageGroups(name)
+        .map(g => g.name)
+        .filter(n => !n.startsWith('Noise source'))
+    expect(stageGroups('Source A').length).toBeGreaterThan(0)
+    expect(shape('Source A')).toEqual([
+      'Signal (source A)',
+      FEED_A_GROUP,
+      FEED_A_CABLE_GROUP,
+    ])
+    expect(shape(SOURCE_B_STAGE)).toEqual([
+      'Signal (source B)',
+      FEED_B_GROUP,
+      FEED_B_CABLE_GROUP,
+    ])
+  })
+
+  // The mixer stage is what the two inputs meet at, so nothing that belongs to
+  // one signal alone may sit in it — that is the mistake the split undid.
+  it('leaves nothing one-sided in the Mix stage', () => {
+    const keys = stageGroups(MIX_STAGE).flatMap(g => g.sliders.map(s => s.key))
+    expect(keys).toContain('bGain')
+    expect(keys).not.toContain('bInv')
+    expect(keys).not.toContain('bHueDeg')
   })
 
   // The two feeds are one shader bound twice, and the diagram draws a box per
@@ -124,11 +160,10 @@ describe('fine tier', () => {
       VIEW_KEYS.has(key) ? 2 : sliderFor(key).fine === true ? 1 : 0
     const ranks = AUTOMAP_KEYS.map(rank)
     expect([...ranks].sort((a, b) => a - b)).toEqual(ranks)
-    expect(AUTOMAP_KEYS.slice(-5)).toEqual([
+    expect(AUTOMAP_KEYS.slice(-4)).toEqual([
       'crtZoom',
       'crtZoomX',
       'crtZoomY',
-      'scope',
       'frameLock',
     ])
   })

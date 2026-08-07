@@ -61,9 +61,8 @@ feature costs nothing. `loopPasses` runs once per tape-dub generation, with
 per-generation params copied over the live buffers in between so each pass gets
 its own noise and time-base walk.
 
-Two dispatches sit deliberately outside those arrays, because they are not the
-signal path: `scopeDecay` (the vectorscope's phosphor, see the buffer notes
-below) and the direct video blit (`blit_ext.wgsl`), which is input staging —
+One dispatch sits deliberately outside those arrays, because it is not the
+signal path: the direct video blit (`blit_ext.wgsl`), which is input staging —
 where the device has `importExternalTexture` (Chrome, feature-detected), a
 slot's fresh video frame is sampled straight off the browser's decoder into the
 slot texture at the top of the frame, replacing the bitmap path's per-frame CPU
@@ -146,26 +145,6 @@ fault through `timing[]` will spin hue that should have stayed put.
 - **`syncMeasureBuf`** — one `vec4f` per line from `sync_measure`:
   `(sync edge or −1000, sync depth, mean beam load, broad-pulse flag)`.
 - **`audioBuf`** — one float per line, the audio waveform at line rate.
-- **`scopeBuf`** — the vectorscope's bins, `SCOPE_N`² `atomic<u32>`. The only
-  buffer written by one shader stage and read by another _kind_: `decode`
-  scatters into it and `present` reads it in a fragment shader. It decays rather
-  than clearing (`scopeDecayPass`, run before the pre-passes when the scope is
-  on), because a scope's trace is integrated by the instrument's own phosphor —
-  clearing each frame would make it a one-frame sample that strobes on moving
-  content. That pass is deliberately outside the three arrays above: it belongs
-  to the instrument, not the signal path, and listing it there would claim the
-  picture goes through it.
-
-  Two traps here, both already paid for. `decode` views the buffer as
-  `array<atomic<u32>>` and the decay pass as plain `array<u32>`, which is fine —
-  but **a binding a shader never statically reads is dropped from the
-  auto-derived layout**, so a dead uniform in the decay pass made its own bind
-  group invalid and surfaced far away as `BindGroup with '' label is invalid`.
-  `shaders.test.ts` now fails on an unread binding, which naga cannot see. And
-  the decay changes what `present` is scaling: a steady trace settles at about
-  four times its per-frame count, so the log mapping is calibrated for the
-  accumulation rather than for one frame's hits.
-
 - **`tapeBuf`** — the loop bin, `TAPE_FRAMES` (120) composite frames as f16
   pairs packed into `u32`, two seconds at 60 fps for 109 MiB. It is a _medium_,
   not a frame store: `tapeRec` writes the slot `frame % TAPE_FRAMES` and

@@ -7,8 +7,6 @@ import {
   ACTIVE_START,
   ACTIVE_TOP,
   ACTIVE_WIDTH,
-  BAR_FULL_SCALE,
-  BAR_TARGETS,
   BURST_AMP_IRE,
   BURST_LEN,
   BURST_START,
@@ -272,20 +270,12 @@ export const PARAM_DEFS = [
   ['crtZoom', 'f32'], // magnification of the glass (1 = whole screen)
   ['crtZoomX', 'f32'], // point on the glass held under the magnifier, 0..1
   ['crtZoomY', 'f32'],
-  ['scope', 'f32'], // vectorscope overlay opacity, 0 = the pass does no work
   ['dbgView', 'f32'], // 0 normal, 1 gradient (present test), 2 raw composite (encode test)
 ] as const
 
 // Workgroup width of the tiled-FIR passes; pipeline.ts sizes their dispatches
 // from the same number so the WGSL and the dispatch cannot drift apart.
 export const TILE_WG = 64
-
-// Vectorscope grid. `decode` bins its own demodulator output into this and
-// `present` draws it, so the two have to agree on the resolution and on what
-// the edge of the display means — which is why it lives in the prelude both
-// of them already share.
-export const SCOPE_N = 128
-export const SCOPE_BYTES = SCOPE_N * SCOPE_N * 4
 
 export const PARAM_BYTES = Math.ceil((PARAM_DEFS.length * 4) / 16) * 16
 export const GEN_OFFSET = PARAM_DEFS.findIndex(([n]) => n === 'gen') * 4
@@ -363,21 +353,6 @@ const PI = 3.14159265359;
 const TILE_WG = ${TILE_WG}u;
 const TILE = ${TILE_WG + 64}u;
 const HALO = 32u;
-
-// Vectorscope, shared by the pass that fills it and the one that draws it.
-// Full scale is where an undamaged 100% bar lands, so the outer circle means
-// "out of range" rather than being a decorative edge. The lattice step is why
-// a flat area of colour does not serialize a hundred thousand atomic adds onto
-// one bin — a trace only needs enough hits to read.
-const SCOPE_N = ${SCOPE_N}u;
-const SCOPE_STEP = 2u;
-const SCOPE_FS = ${BAR_FULL_SCALE};
-
-// Graticule targets, generated from BAR_TARGETS in signal/constants.ts so the
-// boxes cannot drift from the matrix they describe. See the derivation there.
-const BAR_UV = array<vec2f, 6>(
-${BAR_TARGETS.map(([u, v]) => `  vec2f(${u}, ${v}),`).join('\n')}
-);
 
 ${paramStruct}
 
