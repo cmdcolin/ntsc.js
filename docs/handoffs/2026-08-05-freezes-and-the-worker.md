@@ -798,9 +798,79 @@ underneath it, where other agents edit too, so it may have taken several hot
 updates from several modules rather than one appended comment to `app.tsx`. That
 is the next thing to try: many hot updates, deep modules, one hidden tab.
 
-Status: **two occurrences, one fingerprint, still no recipe** — the same
-position as the wgpu crash above, but now with a live capture and three
-candidates eliminated instead of none.
+Status at that point: two occurrences, one fingerprint, no recipe. The next
+section closes that.
+
+### The recipe: the third WebGPU session in a tab kills its animation frames
+
+**A tab gets two WebGPU sessions. The third loads fine, gets a working
+`GPUDevice`, and is never given another animation frame.** Sometimes it is the
+second. It does not recover, it survives further reloads, and
+`document.visibilityState` reads `visible` throughout. That is the freeze, and
+it is `scripts/rafceiling.mjs` in about thirty seconds:
+
+```
+app     session  1:  72 rAF/1.5s  vis=visible
+app     session  2:   0 rAF/1.5s  vis=visible   *** rAF STOPPED ***
+app     session  3:   0 rAF/1.5s  vis=visible   *** rAF STOPPED ***
+```
+
+The control is what makes it a finding rather than a shrug. A static page whose
+entire content is a `requestAnimationFrame` counter, reloaded in the same tab of
+the same browser at the same cadence:
+
+```
+control session  1:  91 rAF/1.5s  vis=visible
+control session  7:  91 rAF/1.5s  vis=visible     (21 in an earlier run, all 91)
+```
+
+Never drops one. So this is not "reloading quickly breaks rAF", not the harness
+losing its window, and not throttling. Only the tab that has held a `GPUDevice`
+a few times dies.
+
+Three things follow, and the third is the one that changes plans:
+
+- **It is a count, not a rate.** Spacing the reloads 30 s apart instead of 7 s
+  fails at exactly the same session. Waiting does not buy anything back.
+- **The route does not matter.** 28 vite hot updates in one page and 28 full
+  reloads of one page both do it, at the same place. **So disabling HMR does not
+  help** — the tempting fix (make engine edits do a full refresh instead of a
+  hot swap) was measured and is worthless, because a refresh is another session
+  too. HMR is not the cause; it is just the fastest way a dev reaches three.
+- **It explains the recordings exactly.** Of the five real sessions in the ring,
+  the two that ended in `coldStall` are the two that restarted the engine 15 and
+  16 times, and the three that did not are the three that started it once. The
+  `frame 0` / `STEP-DEAD` / `clock +0ms` beats, the "never been given an
+  animation frame since it loaded", the fact that a reload lands in the same
+  hole and only a new tab clears it — all of it is this, seen from inside the
+  page.
+
+**This is a browser bug.** A page cannot legally stop its own tab's rendering
+step, and the control proves the tab is otherwise healthy. It is worth reporting
+upstream, and `rafceiling.mjs` is written to be handed over as-is: it serves its
+own control page, so the only thing it needs from this repo is a dev server to
+point the app arm at.
+
+Two corrections it forces on notes elsewhere:
+
+- `DEVELOPMENT.md`'s **"one Firefox does not survive a long WebGPU batch — after
+  a dozen or so sessions"** is a different axis and far too generous for this
+  one. That one counts sessions across a whole browser and ends in a detached
+  frame; this counts sessions **in one tab** and ends in dead animation frames
+  with the browser still perfectly responsive. Two or three, not a dozen.
+- **The rebuild path added in `a744982` spends this budget.** `RebuildPolicy`
+  allows three replacement devices, which on this browser is past the ceiling —
+  so a session that rebuilds its way through a real fault can arrive at a tab
+  whose rAF is dead. It degrades rather than dying, because the fallback pump
+  keeps the picture moving and the loop reports the stall honestly, but the
+  interaction is real and was not known when the limit was chosen. Worth
+  revisiting the number now that there is a measured ceiling to size it against.
+
+What the app already does about it turns out to be the right thing, and is now
+better motivated than when it was written: the fallback pump bridges the dead
+step so the picture keeps moving instead of going black, and `coldStall` says
+"the fault has outlived a document, so reloading cannot clear it — open this URL
+in a new tab", which is now known to be exactly true rather than inferred.
 
 ### What changed
 

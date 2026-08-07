@@ -49,6 +49,16 @@ find:
   spent. Note the axis: that is a count of _sessions_, not elapsed time. It was
   once restated as a twelve-minute limit and stood in the handoff as a browser
   property until two runs held a session past twenty minutes.
+- **One _tab_ survives far fewer — two or three.** Different failure, much
+  tighter bound, and the one that bites in ordinary use. The third WebGPU
+  session created in a single tab loads fine, gets a working `GPUDevice`, and is
+  never given another animation frame; the tab still reports `visible`, the
+  browser stays responsive, and reloading lands in the same hole.
+  `scripts/rafceiling.mjs` shows it in thirty seconds against a control page
+  that takes 21 reloads without dropping a frame. Spacing the reloads out does
+  not help — it is a count, not a rate — and neither does avoiding HMR, since a
+  full reload is another session too. This is the freeze the 2026-08-05 handoff
+  was written about; see its last postscript.
 - **"Target closed" is three different failures wearing one error.** The frame
   detached, the browser crashed, or something outside killed the browser — and
   from Node they are indistinguishable, so ask rather than guess. A crash leaves
