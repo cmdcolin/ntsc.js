@@ -4,6 +4,11 @@
   gap: 2px;
   margin: 3px 0;
 }
+/* In a control row's track column: the row centres it already, and the margin
+   would only make a one-line mode switch taller than the sliders above it. */
+.dense {
+  margin: 0;
+}
 .button {
   flex: 1;
   padding: 4px 5px;

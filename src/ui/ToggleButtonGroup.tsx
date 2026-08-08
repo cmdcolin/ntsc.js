@@ -8,10 +8,18 @@ export function ToggleButtonGroup(props: {
   options: string[]
   value: number
   disabled?: boolean
+  // Sitting in a control row's track column rather than on a line of its own,
+  // where the group's own vertical margin would make the row taller than the
+  // sliders it lines up with.
+  dense?: boolean
   onChange: (v: number) => void
 }) {
   return (
-    <div className={styles.group} role="radiogroup" aria-label={props.label}>
+    <div
+      className={cx(styles.group, props.dense === true && styles.dense)}
+      role="radiogroup"
+      aria-label={props.label}
+    >
       {props.options.map((opt, i) => (
         <button
           key={opt}

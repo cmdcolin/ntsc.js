@@ -2,7 +2,7 @@ import { createContext, use, useId, useState } from 'react'
 
 import { snapToStep } from './controls'
 import { cx } from './cx'
-import { formatValue, readingChars } from './format'
+import { choicesFitTrack, formatValue, readingChars } from './format'
 import { zoomAtTravel, zoomTravel } from './lens'
 import { MenuItem, Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
@@ -42,17 +42,19 @@ export function Rack(props: {
   sliders: readonly SliderDef[]
   children: ReactNode
 }) {
-  // Mode switches sit out: they render stacked, with the reading up on the
-  // label's line and no track beneath it to line up with. Letting one in would
-  // reserve the width of its longest option ("dropout compensator" has three)
-  // on every slider in the group.
-  const ch = props.sliders.reduce(
-    (n, s) =>
-      s.choices === undefined
-        ? Math.max(n, readingChars(s.min, s.max, s.step, s.unit))
-        : n,
-    0,
-  )
+  // A *stacked* mode switch sits out: it reads up on the label's line with no
+  // track beneath it to line up with, and letting one in would reserve the width
+  // of its longest option ("dropout compensator" has three) on every slider in
+  // the group. One short enough to render inline is an ordinary three-column
+  // row, so it joins the column like anything else — and has to, or its readout
+  // sizes itself and its track starts at an x of its own.
+  const ch = props.sliders.reduce((n, s) => {
+    if (s.choices === undefined)
+      return Math.max(n, readingChars(s.min, s.max, s.step, s.unit))
+    return choicesFitTrack(s.choices)
+      ? Math.max(n, ...s.choices.map(c => c.length))
+      : n
+  }, 0)
   return <RackContext value={ch}>{props.children}</RackContext>
 }
 
@@ -273,6 +275,10 @@ export function Slider(props: {
   // fine end of the scale gets the room. The value it reads and writes is
   // unchanged, still landing on the control's own step grid.
   const curved = props.curve === 'magnifier'
+  // A mode switch whose options fit the track column keeps the ordinary
+  // one-line row — name, switch, reading — instead of stacking. See
+  // choicesFitTrack for what "fit" means and why it is not measured live.
+  const inline = choices !== undefined && choicesFitTrack(choices)
   const fromTravel = (t: number) => snapToStep(props, zoomAtTravel(t))
   // Track fill anchors at the default, not the left edge: bipolar controls
   // read like a pan pot from center, and distance-from-stock shows at a glance.
@@ -332,19 +338,24 @@ export function Slider(props: {
       : `${formatValue(v, props.step)}${props.unit}`
   // How much room the number gets: the widest this rack's rows can need, with
   // the row's own width as the floor so a stray row outside a Rack still holds
-  // its own shape. A mode switch opts out — it reads on the label's line, where
-  // reserving a column would only push the label around.
+  // its own shape. A *stacked* mode switch opts out — it reads on the label's
+  // line, where reserving a column would only push the label around. An inline
+  // one is in the column with everything else, and reserves its longest option
+  // so that switching from "on" to "off" cannot re-solve its own row.
   const rack = use(RackContext)
   const readingStyle:
     | (CSSProperties & Record<'--reading-ch', number>)
-    | undefined = choices
-    ? undefined
-    : {
-        '--reading-ch': Math.max(
-          rack,
-          readingChars(props.min, props.max, props.step, props.unit),
-        ),
-      }
+    | undefined =
+    choices === undefined
+      ? {
+          '--reading-ch': Math.max(
+            rack,
+            readingChars(props.min, props.max, props.step, props.unit),
+          ),
+        }
+      : inline
+        ? { '--reading-ch': Math.max(rack, ...choices.map(c => c.length)) }
+        : undefined
   // What is wired to this row, marked beside the reading. Only ever what is
   // *set*: an unset affordance has nothing to say and its slot is the width the
   // label wanted. All of them are marks rather than buttons — the menu is the
@@ -473,6 +484,7 @@ export function Slider(props: {
       options={choices}
       value={props.value}
       disabled={locked}
+      dense={inline}
       onChange={props.onChange}
     />
   ) : (
@@ -531,8 +543,11 @@ export function Slider(props: {
   return (
     <div className={styles.slider}>
       {/* One line for a plain slider — name, track, readout — and two for a
-          mode switch, whose options are words ("alternate", "ssavi") and cannot
-          be squeezed into a third of a sidebar.
+          mode switch whose options are words ("alternate", "ssavi") and cannot
+          be squeezed into a third of a sidebar. A switch that *does* fit there
+          takes the one-line form, sitting in the track column where a fader
+          would: `off|on` costs 59px against the column's 88px floor, and a row
+          that can be one line has no business being two.
 
           The readout gets a column of its own rather than riding the label's
           line, which is what a first attempt did: at a third of the panel each
@@ -540,7 +555,7 @@ export function Slider(props: {
           parenthetical, and a fifth of the controls carry one — the label broke
           mid-phrase and the ? and ↺ scattered onto a line of their own. Split
           out, only the label wraps, and it wraps where a label should. */}
-      {choices ? (
+      {choices && !inline ? (
         <div className={styles.rowStack}>
           <span className={styles.sliderTop}>
             {naming}

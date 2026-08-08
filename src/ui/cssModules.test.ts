@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { TRACK_FIT } from './format'
+
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 
@@ -173,6 +175,51 @@ describe('css modules', () => {
       [...readers.matchAll(/var\(\s*(--[\w-]+)/g)].map(m => m[1]),
     )
     expect(declared.filter(t => !uses.has(t))).toEqual([])
+  })
+
+  // The third thing a stylesheet can drift from: a number some TypeScript is
+  // doing arithmetic over. choicesFitTrack decides whether a mode switch renders
+  // on its control's own line or stacked under it, and it decides that by adding
+  // up four values declared in CSS — a track column's floor, and a toggle
+  // button's padding, border and gap. Nothing fails when one of them changes in
+  // the sheet: the predicate keeps using the old figure, and it fails *open*,
+  // admitting a switch that then overflows the column it was measured against.
+  // So read each one back out of the sheet it was copied from.
+  it('keeps the mode-switch fit test in step with the CSS it measures', () => {
+    // A declaration from a rule addressed by its bare class — `.button {`, never
+    // `.button:hover {`, so a state variant cannot answer for the base.
+    const decl = (css: string, sel: string, prop: string) => {
+      const rule = new RegExp(String.raw`\.${sel}\s*\{([^}]*)\}`).exec(css)
+      const found =
+        rule === null
+          ? null
+          : new RegExp(String.raw`\b${prop}:\s*([^;]+);`).exec(rule[1])
+      return found === null ? null : found[1].replaceAll(/\s+/g, ' ').trim()
+    }
+    const px = (value: string | null) => {
+      const m = value === null ? null : /(-?[\d.]+)px/.exec(value)
+      return m === null ? null : Number(m[1])
+    }
+    const toggle = readFileSync(
+      join(SRC, 'ui/ToggleButtonGroup.module.css'),
+      'utf8',
+    )
+    const slider = readFileSync(join(SRC, 'ui/Slider.module.css'), 'utf8')
+
+    // padding: 4px 5px — the horizontal half is what a group spends per option
+    const padding = decl(toggle, 'button', 'padding')
+    expect(padding).not.toBeNull()
+    expect(px((padding ?? '').split(' ')[1] ?? null)).toBe(TRACK_FIT.buttonPadX)
+    expect(px(decl(toggle, 'button', 'border'))).toBe(TRACK_FIT.buttonBorder)
+    expect(px(decl(toggle, 'group', 'gap'))).toBe(TRACK_FIT.gap)
+
+    // .row's second column: minmax(0, 1.2fr) minmax(5.5rem, 0.85fr) minmax(…)
+    const columns = decl(slider, 'row', 'grid-template-columns')
+    const floors = [...(columns ?? '').matchAll(/minmax\(\s*([^,]+),/g)].map(
+      m => m[1],
+    )
+    expect(floors).toHaveLength(3)
+    expect(floors[1]).toBe(`${TRACK_FIT.floorRem}rem`)
   })
 })
 

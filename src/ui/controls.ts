@@ -740,7 +740,12 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 1,
         unit: '',
-        choices: ['hold', 'record'],
+        // `rec` rather than `record`, which is three characters and 4px too wide
+        // to sit beside the label: the two words together come to 92px against
+        // the track column's 88px floor, and the row would stack for the sake of
+        // them (choicesFitTrack in format.ts). It is the word the transport's own
+        // button already uses, so the panel is not learning a second one for it.
+        choices: ['hold', 'rec'],
         help: 'Lift the record head and the tape keeps circulating with whatever is already on it — the loop repeats indefinitely and stops taking in the live picture. Playing over a held loop is what makes this a looper rather than an echo. It does not fade: playback loss is what the head does on the way past, not damage to the oxide, so a held loop comes back identical every lap, down to the same grain in the same places. Drop the head again and it starts recording over what it has.',
       },
       {
