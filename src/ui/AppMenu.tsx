@@ -118,7 +118,7 @@ export function AppMenu(props: {
               row gone this is what says the palette exists at all. First,
               because it is the only row here that reaches the controls. */}
           <MenuItem
-            icon="⌕"
+            icon=">"
             label="jump to anything"
             hint="⌘K"
             closes={id}
@@ -198,17 +198,6 @@ export function AppMenu(props: {
             closes={id}
             onClick={() => props.onShowHelp()}
           />
-          <a
-            className={styles.menuLink}
-            href="https://github.com/cmdcolin/ntsc.js"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <span className={popoverStyles.menuLabel}>
-              <span className={popoverStyles.menuIcon}>↗</span>
-              source on GitHub
-            </span>
-          </a>
           {onHideBar === undefined ? null : (
             <>
               <div className={popoverStyles.menuSep} />

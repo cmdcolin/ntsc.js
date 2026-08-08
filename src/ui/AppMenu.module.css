@@ -124,14 +124,3 @@ button.recording {
   min-width: 0;
   margin: -3px 0;
 }
-
-/* The one row of the menu that is a link rather than a button.
-   An <a> can't be a MenuItem — that renders a <button>, and a link has to stay
-   a link to get the middle-click, the context menu and the visited state. So it
-   wears the menu row's own box, which is the only way it stays lined up with
-   the rows above it through any change to either. All this adds is the one
-   thing a link needs and a button does not. */
-.menuLink {
-  composes: menuItem from './Popover.module.css';
-  text-decoration: none;
-}
