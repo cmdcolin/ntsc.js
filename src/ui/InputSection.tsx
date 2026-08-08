@@ -8,8 +8,10 @@ import { FileName, ReopenFile } from './FileName'
 import { Scrub } from './Scrub'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
+import { Slider } from './Slider'
 import { TeletypeRow } from './TeletypeRow'
 import ui from './ui.module.css'
+import { SPEED_DEFAULT } from './urlParams'
 
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
@@ -75,6 +77,14 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
   time: number
   duration: number
   onSeek: (time: number) => void
+  // Playback rate, and the pitch that falls with it — a property of this deck
+  // and nothing else, which is why it sits under this slot's own transport
+  // rather than in a "Vaporwave" section that named the sound it makes instead
+  // of the thing it belongs to. Gated on the same duration the seek bar is: an
+  // element backed by a MediaStream ignores playbackRate, so a rate slider over
+  // a webcam or a share is a lie the moment it moves.
+  speed: number
+  onSpeed: (v: number) => void
   // The capture-device picker, which only A can have — a trailing row rather than
   // a prop this component understands, so the slot stays the same shape for both.
   children?: ReactNode
@@ -106,11 +116,23 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
         onReopen={() => props.onReopenFile()}
       />
       {props.duration === 0 ? null : (
-        <Scrub
-          time={props.time}
-          duration={props.duration}
-          onSeek={props.onSeek}
-        />
+        <>
+          <Scrub
+            time={props.time}
+            duration={props.duration}
+            onSeek={props.onSeek}
+          />
+          <Slider
+            label="speed"
+            unit="×"
+            min={0.25}
+            max={1.5}
+            step={0.01}
+            value={props.speed}
+            defaultValue={SPEED_DEFAULT}
+            onChange={props.onSpeed}
+          />
+        </>
       )}
       {props.children}
     </>
@@ -152,9 +174,14 @@ export function InputSection(props: {
   durationB: number
   onSeekA: (time: number) => void
   onSeekB: (time: number) => void
-  // Audio in is a source too, so its picker sits with A and B rather than in
-  // the Audio section, which keeps only the knobs it drives. Its helper line
-  // comes in separately: all three pickers stack first, then the hints.
+  // Playback rate per slot, under that slot's own transport.
+  speedA: number
+  speedB: number
+  onSpeedA: (v: number) => void
+  onSpeedB: (v: number) => void
+  // Audio in is a source too, so its picker sits with A and B; the Sound branch
+  // on the chain map keeps only the knobs it drives. Its helper line comes in
+  // separately: all three pickers stack first, then the hints.
   audioInput: ReactNode
   audioHint: ReactNode
 }) {
@@ -185,6 +212,8 @@ export function InputSection(props: {
           time={props.timeA}
           duration={props.durationA}
           onSeek={props.onSeekA}
+          speed={props.speedA}
+          onSpeed={props.onSpeedA}
         >
           {props.sourceMode === 'webcam' && props.videoDevices.length > 1 ? (
             <SelectRow
@@ -213,6 +242,8 @@ export function InputSection(props: {
           time={props.timeB}
           duration={props.durationB}
           onSeek={props.onSeekB}
+          speed={props.speedB}
+          onSpeed={props.onSpeedB}
         />
         {props.audioInput}
         {/* Only while B is off, where it is onboarding for a feature nothing on

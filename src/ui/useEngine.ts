@@ -298,13 +298,16 @@ export function useEngine(wantStats = false) {
   const [cardA, setCardA] = useState(TELETYPE_DEFAULT)
   const [cardB, setCardB] = useState(TELETYPE_DEFAULT)
   const cardRef = useRef({ a: TELETYPE_DEFAULT, b: TELETYPE_DEFAULT })
-  // Vaporwave playback: per-slot rate (pitch drops with it), whether the video
-  // audio is routed to the speakers + reactive path, and the reverb wet mix.
-  // videoA/videoB track what kind of <video> each slot currently holds — only
-  // a clip has a rate to change (see SlotKind).
+  // Vaporwave playback: per-slot rate (pitch drops with it) and the reverb wet
+  // mix on the tail the clips are heard through. videoA/videoB track what kind
+  // of <video> each slot currently holds — only a clip has a rate to change
+  // (see SlotKind).
   const [speedA, setSpeedA] = useState(SPEED_DEFAULT)
   const [speedB, setSpeedB] = useState(SPEED_DEFAULT)
-  const [playAudio, setPlayAudio] = useState(false)
+  // Whether the clips are routed is not state here: the audio picker holds that
+  // answer now, and nothing this hook renders asks. The mirror below is what the
+  // re-routing on a source change reads, and it is a ref for the same reason the
+  // rest of the vapor config is.
   const [reverb, setReverb] = useState(REVERB_DEFAULT)
   const [videoA, setVideoA] = useState<SlotKind>('none')
   const [videoB, setVideoB] = useState<SlotKind>('none')
@@ -416,25 +419,32 @@ export function useEngine(wantStats = false) {
       v.playbackRate = rate
     }
   }
-  const toggleAudio = () => {
-    const on = !playAudio
+  // Whether the clips' own sound tracks are the audio input: heard out loud and
+  // analysed, both out of routeAudio above. Driven by the audio picker in Input,
+  // which is the one place that decides where sound comes from. It used to be a
+  // button of its own inside Vaporwave — two switches onto one wire, which the
+  // panel could not then answer "is sound driving this" from, because either one
+  // could be the reason and neither knew about the other.
+  // Through the mirror rather than the `reverb` state, because the preset dials
+  // in a mix and then asks the picker to switch this on within the same click:
+  // the state read here would still be the pre-preset value, and routeMedia
+  // writes the wet gain, so it would undo the mix changeReverb just set.
+  const setVideoAudio = (on: boolean) => {
     vaporRef.current.playAudio = on
-    setPlayAudio(on)
-    routeAudio(on, reverb)
+    routeAudio(on, vaporRef.current.reverb)
   }
   const changeReverb = (mix: number) => {
     vaporRef.current.reverb = mix
     setReverb(mix)
     engineRef.current?.audioState.setReverbMix(mix)
   }
-  // The vaporwave preset: slow both slots, dial in reverb, force audio on.
+  // The vaporwave preset: slow both slots and dial in reverb. Switching the
+  // clip's audio on is the caller's job — that is the audio picker's state now,
+  // and this hook has no way to move it.
   const applyVaporwave = () => {
     changeSpeedA(VAPORWAVE_SPEED)
     changeSpeedB(VAPORWAVE_SPEED)
     changeReverb(REVERB_DEFAULT)
-    vaporRef.current.playAudio = true
-    setPlayAudio(true)
-    routeAudio(true, REVERB_DEFAULT)
   }
 
   // Follow both playheads while either slot holds a clip. 10 Hz, like the audio
@@ -1437,13 +1447,12 @@ export function useEngine(wantStats = false) {
     seekB,
     speedA,
     speedB,
-    playAudio,
     reverb,
     ytUrlA,
     ytUrlB,
     changeSpeedA,
     changeSpeedB,
-    toggleAudio,
+    setVideoAudio,
     changeReverb,
     applyVaporwave,
   }

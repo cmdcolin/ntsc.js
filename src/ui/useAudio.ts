@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 
 import type { EngineApi } from '../gpu/engineapi'
 
-export const AUDIO_MODES = ['off', 'mic', 'file'] as const
+export const AUDIO_MODES = ['off', 'mic', 'file', 'video'] as const
 export type AudioMode = (typeof AUDIO_MODES)[number]
 
 export const AUDIO_DESC: Record<AudioMode, string> = {
   off: 'Off — no audio in',
   mic: 'Microphone — live room sound',
   file: 'File… — play a music or video file',
+  video: 'Video — the clip on screen, its own sound',
 }
 
 // Audio input state for the UI. The per-line waveform goes straight to the GPU
@@ -16,7 +17,16 @@ export const AUDIO_DESC: Record<AudioMode, string> = {
 // engine.audioState itself every animation frame. Only the transport readout
 // comes back through state, polled at 10 Hz — a clock ticking in tenths does not
 // need a re-render per frame, an onset envelope does.
-export function useAudio(engine: EngineApi | null) {
+//
+// One source at a time, which is what makes this a picker rather than a set of
+// switches: the clip's own sound track is a mode here (routeVideo, into the same
+// analyser) rather than a button in Vaporwave, so picking a mic mutes the clip
+// instead of leaving both on the wire. That exclusion is also the safe answer —
+// a mic listening to a room with the clip playing out loud is a howl.
+export function useAudio(
+  engine: EngineApi | null,
+  routeVideo: (on: boolean) => void,
+) {
   const [mode, setMode] = useState<AudioMode>('off')
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +59,10 @@ export function useAudio(engine: EngineApi | null) {
       URL.revokeObjectURL(el.src)
       elRef.current = null
     }
+    // Mutes and unroutes the clips too: they are one of the four things this
+    // picker picks between, so leaving them on the analyser while something
+    // else is selected would put two sources on one wire.
+    routeVideo(false)
     engine?.audioState.disconnect()
     setMode('off')
     setName('')
@@ -109,6 +123,13 @@ export function useAudio(engine: EngineApi | null) {
         stop()
       } else if (next === 'mic') {
         enableMic()
+      } else if (next === 'video') {
+        // Nothing to adopt here: the clips are already elements the engine
+        // owns, and it routes whichever slots are live — including ones picked
+        // after this, since it re-applies the routing as sources change.
+        stop()
+        routeVideo(true)
+        setMode('video')
       } else {
         fileInputRef.current?.click()
       }
