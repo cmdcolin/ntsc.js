@@ -149,10 +149,27 @@ stepped session costs **+3.6 ms**, and one idle app tab left presenting costs
 `best` alone (`[5.10, 7.38, 8.64, 8.66]` against a solo 5.02), which is exactly
 why the median lies and why `perf.mjs` prints every batch. Before trusting any
 number, read the per-batch list and check nothing else holds a WebGPU tab open;
-this box runs several agents and several dev servers. **An `--ablate` delta
-taken in the slow mode against one taken clean is how `crt_face`'s scatter
-gather came to be recorded as 0.9 ms — 8× its real cost** — and two spellings of
-the same shader will "differ" by 0.8 ms all day if you let them.
+this box runs several agents and several dev servers. Two spellings of the same
+shader will "differ" by 0.8 ms all day if you let them.
+
+**`--ablate` ranks passes. It does not size them, and its deltas read like the
+most precise number on screen.** `crt_face`'s scatter gather was recorded from
+one at 0.9 ms and is 0.30; the same pass has come back anywhere from 0.16 to
+1.01 ms across identical runs on a quiet box. Contention is only half of why.
+The other half is that a delta is a subtraction against a baseline that drifts
+within the session, so `min(full) - min(ablated)` loaded all of the baseline's
+noise into every row — across three identical runs the _ablated_ numbers held to
+~0.03 ms while the deltas swung 0.16–0.42 for one pass, because only `fullBest`
+was moving. It now subtracts per round and takes the median, which fixes the
+drift term and not the rest: `channel` went from 1.52/1.78/1.74 to 1.77/1.76 run
+over run, while small passes still range and get marked SHAKY. A pass cheaper
+than the noise can come out negative, which is the honest answer rather than a
+bug.
+
+**To size a change, A/B two builds** — one dev server per arm off its own
+worktree, whole frames, best-of, interleaved. That held to 0.001 ms over three
+rounds on a change (`crt_face`'s bloom tiering, 0.083 ms) that the ablate delta
+could not resolve at all.
 
 **Batch throughput is not live frame rate.** The batch number is the GPU
 saturated; what a user sees is the rAF loop, which is paced by the display and
