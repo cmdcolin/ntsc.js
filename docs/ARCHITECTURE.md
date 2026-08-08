@@ -360,7 +360,7 @@ consequences worth knowing before touching it:
   authored preset, which is why `presets.test.ts` forbids it there.
 
 **Morphing is the opposite of modulating**, and the two share the frame.
-`signal/glide.ts` walks the *resting* values from where they were to a
+`signal/glide.ts` walks the _resting_ values from where they were to a
 destination over a span of seconds — a preset, a roll or a scene arriving slowly
 instead of cutting — so unlike `applyMod` it does not restore afterwards: a
 morph lands, stays landed, and comes back out of `getControls` because the board
@@ -406,7 +406,7 @@ grep -n "import_compiler_runtime.c)(" dist/assets/*.js   # one per compiled fn
 - The app exposes the engine as `window.vf`, and `?iurl=`, `?iurlb=`, `?preset=`
   and `?set=` configure a session entirely from the URL — so a harness never has
   to click the UI. `?dbg=` selects debug views (2 waveform, 3 luma, 4 chroma, 5
-  burst state) which are the fastest way to isolate a stage.
+  burst state, 6 scope) which are the fastest way to isolate a stage.
 - Occluded windows throttle `rAF`; call `window.vf.step()` to advance frames
   deterministically. Note that stepping in a tight loop makes the on-screen fps
   readout meaningless — measure perf with `rAF` running normally.

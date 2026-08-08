@@ -62,19 +62,19 @@ which is where the accidents come from — hold `shift` for a wilder roll, `alt`
 for a gentle one.
 
 **morph** says how long a new look takes to arrive. At `cut` a preset, a roll or
-a saved look lands in one frame, the way it always did; at 4s or 30s the whole board
-*travels* there instead, every control at once. Two things fall out of that. The
-looks between two presets are ones no chip holds, and a slow morph is the only
-way to see them — it walks straight through the exact vertical hold where the
-picture gives up rolling and the point where the AGC starts pumping, so it
-doubles as the way to find where this model's thresholds are. And rolls chain: a
-morph started while one is running sets off from wherever the board has got to,
-so hitting **surprise** every few seconds at 8s wanders continuously through
-preset space rather than snapping between stops. Grabbing any slider ends a morph
-where it stands — the half-way look is a look, and it is yours to keep from
-there. Modes (the toggle rows) cut at the half-way point rather than travelling,
-because there is no tube half way between two phosphors, and the magnifier never
-morphs at all.
+a saved look lands in one frame, the way it always did; at 4s or 30s the whole
+board _travels_ there instead, every control at once. Two things fall out of
+that. The looks between two presets are ones no chip holds, and a slow morph is
+the only way to see them — it walks straight through the exact vertical hold
+where the picture gives up rolling and the point where the AGC starts pumping,
+so it doubles as the way to find where this model's thresholds are. And rolls
+chain: a morph started while one is running sets off from wherever the board has
+got to, so hitting **surprise** every few seconds at 8s wanders continuously
+through preset space rather than snapping between stops. Grabbing any slider
+ends a morph where it stands — the half-way look is a look, and it is yours to
+keep from there. Modes (the toggle rows) cut at the half-way point rather than
+travelling, because there is no tube half way between two phosphors, and the
+magnifier never morphs at all.
 
 Finding a look is a walk, so the walk is retraceable: **undo** (`ctrl+z`) steps
 back through everything you have been through, and `ctrl+shift+z` steps forward
@@ -122,13 +122,14 @@ exactly what dot crawl and chroma bleed feed on. Tick **crawl** and it rolls up
 the frame instead of holding still, and **boil** hands it to an unsteady hand:
 the card is redrawn eight times a second with every cell's dots landing up to a
 dot off, so the strokes crawl and the letters shiver. It is worth ticking for a
-reason beyond the wobble — a still card gives still artifacts, the ringing parked
-on the same stems, and a boiling one makes the chain decide all of it again every
-frame, so the dot crawl actually crawls. The words never change, and a link
-carries the same card either way. **B** is a second source, deliberately not
-genlocked, so mixing it in beats and tears against A; its controls are the
-**Mix** box on the map below. **♪** is audio in, which does nothing until you
-turn up a knob in **Sound into the picture**.
+reason beyond the wobble — a still card gives still artifacts, the ringing
+parked on the same stems, and a boiling one makes the chain decide all of it
+again every frame, so the dot crawl actually crawls. The words never change, and
+a link carries the same card either way. **B** is a second source, deliberately
+not genlocked, so mixing it in beats and tears against A; its controls are the
+**Mix** box on the map below. **♪** is audio in — a mic, a track, or the clip
+already on screen playing its own sound — which does nothing until you turn up a
+knob in the **Sound** box on the map below.
 
 Running locally adds a **YouTube…** source (`yt-dlp` on the dev server); the
 hosted build has no server to do that with.
@@ -141,13 +142,21 @@ Controls live where they sit in the signal path, not in one long list. The map
 at the head of the sidebar is the whole path, and every box on it is a button.
 **Source A** and **Source B** are your two inputs — the same rig twice, each
 with its own signal, deck and cable — and they meet at **Mix**, after which one
-chain runs to the glass while the two loops feed the picture back into it. Amber
-is a stage you've moved something in, and a dashed **Source B** and **Mix** mean
+chain runs to the glass while the loops feed the picture back into it. Amber is
+a stage you've moved something in, and a dashed **Source B** and **Mix** mean
 nothing is patched into B yet. Click one to open its controls below:
 
+The three wires arcing over the trunk are the feedback loops, each named on its
+own run and each a button: **camera** is optical and drawn dashed, **mixer** is
+the composite bus patched back into itself, and **tape** is the short one
+straddling **Feedback** — a loop bin across the bus rather than a run around the
+chain. A run lights up while its loop is actually running, and clicking one
+opens that loop's controls rather than the whole **Feedback** stage.
+
 **diagram ⤢**, beside the map's heading, draws the same path with room for the
-parts the miniature has to leave out — each source's own feed, and which loop is
-the camera and which the mixer. Every box there opens its controls too.
+parts the miniature has to leave out — each source's own feed, and a sentence on
+what each stage and each loop actually does. Every box and every loop there
+opens its controls too.
 
 ![The app window with the Tape stage opened at VHS Tracking, the stage list boxed in red](img/signal-path.jpg)
 
@@ -227,11 +236,13 @@ tempo over whenever something is sending it — see [MIDI.md](MIDI.md).
 
 ![The app window, the Modulation section with two of its eight slots routed, boxed in red](img/modulation.jpg)
 
-**Sound into the picture** — audio into the hold and deflection circuits: bass
-lurches the frame, level tears line hold, the waveform draws itself on the
-screen.
+**Sound** — the branch under **Receiver** on the map, because that is where the
+sound is patched in: bass lurches the frame, level tears line hold, the waveform
+draws itself on the screen. Pick something under **♪** in Input first — a mic, a
+track, or the clip on screen playing its own sound — or the box stays dark and
+opens onto nothing, the same answer **Source B** gives with nothing patched in.
 
-![The app window, the Sound into the picture section boxed in red](img/audio.jpg)
+![The app window, the Audio routings group under the Sound stage boxed in red](img/audio.jpg)
 
 **MIDI** — the real answer if you want to play this. Automap or learn one knob
 at a time, no jumps when a knob is out of position, rates locked to clock. See
@@ -261,6 +272,13 @@ Drag a box to zoom, drag to pan once you're in, double-click to reset. The
 magnifier is part of the display, so it magnifies the lit tube face — scan
 lines, mask and all.
 
+As sliders it is the **View** box on the map, hanging off **Screen** with its
+arrow pointing the other way from the two under the trunk: everything else down
+there is patched into the chain, and this is the one thing the chain is
+delivered to. It holds the slow-motion and frame-rate controls for the same
+reason — how fast the rig is stepped is a viewing condition, not a fault — and
+nothing in it changes the signal, so a mutate is forbidden to touch any of it.
+
 The **Display** miniature in the panel takes the same box: drag a rectangle on
 it and the lens goes there at whatever magnification the box asks for, so you
 never have to set the number before you can aim. Once you're in, the lens
@@ -268,12 +286,24 @@ rectangle is a handle — drag it to push the view around, or drag outside it to
 box a new one. A click still aims at the current magnification, shift-drag walks
 the aim around, and alt drags off the snap guides.
 
-To watch the signal instead of the picture, use **signal tap** — a row in the ☰
-menu, which steps through the taps and leaves the menu up so the picture changes
-under it: the composite waveform, luma, chroma energy, then the decoder's burst
-state, then back to the picture. Whichever tap is live is named on the menu
-button, so a screen full of waveform never looks like a fault. The same taps are
-in **advanced settings**, named at length.
+To watch the signal instead of the picture, use **signal tap** — a row in the
+panel's **View** group, which steps through the taps so the picture changes
+under your hand: the composite waveform, luma, chroma energy, the decoder's
+burst state, the scope, then back to the picture. The same taps are in
+**advanced settings**, named at length, which is where fullscreen and the
+popped-out panel reach them. Whichever tap is live is named on the ☰ button, so
+a screen full of waveform never looks like a fault.
+
+**scope** is the one to reach for first. It draws a single line the way the
+app's own icon does and the way a waveform monitor does: the whole line laid out
+left to right, sync tip and colour burst included, against an IRE graticule,
+with the picture still running dimmed above it and a dashed cursor marking the
+line being traced. Each column is filled between the lowest and highest sample
+it covers, so flat luma draws as a thin line and anything carrying subcarrier
+draws as a block as tall as its swing, tinted the colour it is carrying, with
+the luma it rides on as a bright line through the middle. Sync depth, setup, the
+AGC pumping and a burst that has stopped being 40 IRE are all readable there
+rather than inferred.
 
 ![The app window with the advanced settings dialog open, boxed in red](img/advanced.jpg)
 
@@ -301,7 +331,7 @@ resolution.
 | `c` (hold)              | preview the clean signal                            |
 | `r` / `s`               | record a clip / save a still                        |
 | `f`                     | fullscreen                                          |
-| `1`–`9` / `shift+1`–`9` | recall / overwrite one of your first nine saves      |
+| `1`–`9` / `shift+1`–`9` | recall / overwrite one of your first nine saves     |
 | `ctrl/⌘+z`              | step back a look · `+shift` steps forward again     |
 | `esc`                   | close a dialog, cancel a MIDI arm, clear the filter |
 

@@ -83,8 +83,9 @@ Two things follow from what a preset weight _is_:
 - Weights layer, so several knobs on several presets is a small mixing desk of
   looks. Sweeping one back to zero returns to what was underneath it.
 - A weight only describes the look while nothing else has moved it. Touch a
-  slider, mutate, recall a saved look, and the fills reset — the next turn of the
-  knob starts a fresh mix from whatever is on screen rather than reverting it.
+  slider, mutate, recall a saved look, and the fills reset — the next turn of
+  the knob starts a fresh mix from whatever is on screen rather than reverting
+  it.
 
 **Neither does soft takeover** (below): both take over on the first message
 instead of waiting to be swept through the current value. Soft takeover only
@@ -145,8 +146,8 @@ waiting. Sweep the thumb past that mark — or the mark past the thumb — and t
 mark disappears, meaning the knob has it.
 
 Knobs also let go and need re-catching whenever a value is set from somewhere
-else: loading a preset, recalling a saved look, undoing, randomizing. After a preset
-load expect a row of amber marks, one per knob you'd touched.
+else: loading a preset, recalling a saved look, undoing, randomizing. After a
+preset load expect a row of amber marks, one per knob you'd touched.
 
 All of this is for sliders only. A knob on the motion amount or on a preset
 weight takes over the moment you touch it — see above for why.
@@ -193,8 +194,8 @@ look, not your knob layout.
 A modulation slot's lock is the exception, and deliberately: it rides along on
 the link with the rest of the routing, because "this wobbles on eighth notes" is
 a statement about the patch, and it should land against the tempo of whoever
-opens it. There's no way to export a
-mapping to a file, so a different browser or machine means mapping again.
+opens it. There's no way to export a mapping to a file, so a different browser
+or machine means mapping again.
 
 A preset weight is bound by preset name, so if a preset is ever renamed or
 dropped from the table, that one binding is discarded on the next load and its
