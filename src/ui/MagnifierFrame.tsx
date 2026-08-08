@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { boxToLens, lensView } from './lens'
-import { clamp01, snapOffset, uvIn } from './miniFrame'
+import { clamp01, snapOffset, uvInRect } from './miniFrame'
 import styles from './MiniFrame.module.css'
 
 import type { Lens } from './lens'
@@ -28,8 +28,14 @@ interface Pt {
 // 0..1 (`a` the press, `b` the pointer now); moving the lens rectangle works in
 // client pixels against the frame it was measured in, so the grabbed point stays
 // under the pointer however the panel is sized.
+//
+// Both carry the frame's box as it was at the press, and for the same reason the
+// 'move' variant has always carried fw/fh: aiming writes crtZoomX/Y off stock,
+// which grows "This look" at the top of the panel and pushes this frame down the
+// page mid-gesture. Measured live, the rest of the drag is measured against a
+// frame that has moved out from under the pointer. See uvInRect.
 type Drag =
-  | { kind: 'box' | 'aim'; a: Pt; b: Pt }
+  | { kind: 'box' | 'aim'; a: Pt; b: Pt; box: DOMRect }
   | {
       kind: 'move'
       px: number
@@ -147,13 +153,14 @@ export function MagnifierFrame(props: {
         title="drag a box to magnify into it · click or shift-drag to aim · arrows nudge · alt drags off the guides"
         onPointerDown={e => {
           e.currentTarget.setPointerCapture(e.pointerId)
-          const p = uvIn(e.currentTarget, e.clientX, e.clientY)
-          setDrag({ kind: e.shiftKey ? 'aim' : 'box', a: p, b: p })
+          const box = e.currentTarget.getBoundingClientRect()
+          const p = uvInRect(box, e.clientX, e.clientY)
+          setDrag({ kind: e.shiftKey ? 'aim' : 'box', a: p, b: p, box })
           if (e.shiftKey) aim(p, !e.altKey)
         }}
         onPointerMove={e => {
           if (drag !== null && drag.kind !== 'move') {
-            const p = uvIn(e.currentTarget, e.clientX, e.clientY)
+            const p = uvInRect(drag.box, e.clientX, e.clientY)
             setDrag({ ...drag, b: p })
             if (drag.kind === 'aim') aim(p, !e.altKey)
           }
@@ -161,7 +168,7 @@ export function MagnifierFrame(props: {
         onPointerUp={e => {
           e.currentTarget.releasePointerCapture(e.pointerId)
           if (drag !== null && drag.kind !== 'move') {
-            const p = uvIn(e.currentTarget, e.clientX, e.clientY)
+            const p = uvInRect(drag.box, e.clientX, e.clientY)
             const d = { ...drag, b: p }
             // A drag too short to be a box is a click, and a click still aims
             // where it landed — as does the whole of a shift-drag.

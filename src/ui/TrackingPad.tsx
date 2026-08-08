@@ -3,10 +3,20 @@ import { useState } from 'react'
 import { useControls, useControlsApi } from './ControlsContext'
 import { cx } from './cx'
 import styles from './Deck.module.css'
-import { uvInRect } from './miniFrame'
+import { clamp01, uvInRect } from './miniFrame'
 import mini from './MiniFrame.module.css'
 
-import type { PointerEvent } from 'react'
+import type { KeyboardEvent, PointerEvent } from 'react'
+
+// Arrows walk the band, alt+arrows push the head off track — the same split
+// PipFrame and PurityFrame use, so a pad in this family is always reachable
+// without a pointer.
+const NUDGE = new Map([
+  ['ArrowLeft', { du: -1, dv: 0 }],
+  ['ArrowRight', { du: 1, dv: 0 }],
+  ['ArrowUp', { du: 0, dv: -1 }],
+  ['ArrowDown', { du: 0, dv: 1 }],
+])
 
 // The tracking control, as the two-axis gesture it always was.
 //
@@ -43,6 +53,19 @@ export function TrackingPad() {
     })
   }
 
+  const key = (e: KeyboardEvent<HTMLDivElement>) => {
+    const step = NUDGE.get(e.key)
+    if (step !== undefined) {
+      e.preventDefault()
+      const d = e.shiftKey ? 0.05 : 0.005
+      writeControls(
+        e.altKey
+          ? { ...controls, trackAmt: clamp01(amt + step.du * d * 2) }
+          : { ...controls, trackPos: clamp01(pos + step.dv * d) },
+      )
+    }
+  }
+
   // The band grows and softens as the head goes further off-track, which is
   // what the shader does with it: a wider stretch of the sweep reads off two
   // tracks at once, and the tear through it deepens.
@@ -57,7 +80,8 @@ export function TrackingPad() {
       <div
         className={cx(mini.frame, amt === 0 && mini.inert)}
         style={{ cursor: 'crosshair' }}
-        title="drag down to the band, right to push the head off track"
+        tabIndex={0}
+        title="drag down to the band, right to push the head off track · arrows move the band · alt+arrows push it off track"
         onPointerDown={e => {
           const box = e.currentTarget.getBoundingClientRect()
           e.currentTarget.setPointerCapture(e.pointerId)
@@ -72,6 +96,7 @@ export function TrackingPad() {
           setGrab(null)
         }}
         onPointerCancel={() => setGrab(null)}
+        onKeyDown={e => key(e)}
       >
         <div className={styles.band} style={band} />
       </div>

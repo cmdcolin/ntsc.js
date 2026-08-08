@@ -14,6 +14,7 @@ import { TrackingPad } from './TrackingPad'
 import { LoopTransport, TapeTransport } from './Transport'
 
 import type { ControlKey } from '../controls'
+import type { SliderDef } from './controls'
 import type { ReactNode } from 'react'
 
 // The deck: a second organization of controls the panel already has, by gesture
@@ -99,12 +100,19 @@ function Block(props: { label: string; hint: string; children: ReactNode }) {
 // lozenge that read as neither. The arrows survive any face, and which side
 // fills is the one thing the wipe miniature in the Mix stage already shows.
 const PATTERNS = ['mix', '↔', '↕', '□', '◇']
-const PATTERN_TRIMS: ControlKey[] = ['wipeSoft', 'wipeRate']
+
+// Built once, at module scope, and that is the contract rather than a
+// micro-optimisation: ControlRows is a memo boundary keyed on the identity of
+// its `sliders` prop, which is why the stages pass theirs through sameList. A
+// fresh `.map()` per render hands it a new array every time and rebuilds every
+// row behind it. These keys never change, so the array never needs to.
+const PATTERN_TRIMS: readonly SliderDef[] = (
+  ['wipeSoft', 'wipeRate'] satisfies ControlKey[]
+).map(k => sliderFor(k))
 
 function Transition() {
   const wipeMode = useControlValue('wipeMode')
   const { writeControl } = useControlsApi()
-  const trims = PATTERN_TRIMS.map(k => sliderFor(k))
   return (
     <div className={styles.block}>
       <div
@@ -123,8 +131,8 @@ function Transition() {
       {/* Real rows, not deck-local copies: softness and sweep rate are settings
           you leave somewhere, so they keep their help, their MIDI bind and — for
           the sweep — the ♩ that locks it to clock. */}
-      <Rack sliders={trims}>
-        <ControlRows sliders={trims} />
+      <Rack sliders={PATTERN_TRIMS}>
+        <ControlRows sliders={PATTERN_TRIMS} />
       </Rack>
     </div>
   )
@@ -142,7 +150,9 @@ function Transition() {
 // so letting go picks the drift back up mid-stride. One button owning two
 // freezes with two restore values in two components is how the two of them
 // start disagreeing about what is held.
-const TIME_ROW: ControlKey[] = ['timeScale']
+const TIME_ROW: readonly SliderDef[] = (
+  ['timeScale'] satisfies ControlKey[]
+).map(k => sliderFor(k))
 
 function Hold() {
   const timeScale = useControlValue('timeScale')
@@ -152,7 +162,6 @@ function Hold() {
   // reloading into a stopped clock with no memory of why would read as a hang.
   const [held, setHeld] = useState(1)
   const frozen = timeScale === 0
-  const rows = TIME_ROW.map(k => sliderFor(k))
   return (
     <div className={styles.block}>
       <div className={styles.holdRow}>
@@ -181,8 +190,8 @@ function Hold() {
           {frozen ? '▶ run' : '❚❚ hold'}
         </button>
       </div>
-      <Rack sliders={rows}>
-        <ControlRows sliders={rows} />
+      <Rack sliders={TIME_ROW}>
+        <ControlRows sliders={TIME_ROW} />
       </Rack>
     </div>
   )

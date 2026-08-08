@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { cx } from './cx'
-import { clamp01, snapOffset, uvIn } from './miniFrame'
+import { clamp01, snapOffset, uvInRect } from './miniFrame'
 import styles from './MiniFrame.module.css'
 
 import type { KeyboardEvent, PointerEvent } from 'react'
@@ -53,10 +53,21 @@ export function PurityFrame(props: {
   // Which gesture is in flight. Placing works in the frame's own 0..1; sizing
   // needs no start state, since the radius is just how far the pointer is from
   // the centre.
-  const [drag, setDrag] = useState<'place' | 'size' | null>(null)
+  // The gesture, and the frame's box as it was when it began. Frozen because
+  // placing the patch writes crtPurityX/Y off stock, which grows "This look" at
+  // the top of the panel and shoves this frame down the page mid-drag — see
+  // uvInRect.
+  const [drag, setDrag] = useState<{
+    kind: 'place' | 'size'
+    box: DOMRect
+  } | null>(null)
   const { x, y, size } = props.patch
-  const place = (e: PointerEvent<HTMLDivElement>, snap: boolean) => {
-    const p = uvIn(e.currentTarget, e.clientX, e.clientY)
+  const place = (
+    e: PointerEvent<HTMLDivElement>,
+    box: DOMRect,
+    snap: boolean,
+  ) => {
+    const p = uvInRect(box, e.clientX, e.clientY)
     props.onChange({
       x: clamp01(p.u + snapOffset([p.u], snap)),
       y: clamp01(p.v + snapOffset([p.v], snap)),
@@ -65,12 +76,9 @@ export function PurityFrame(props: {
   }
   // Sizing measures against the frame, not the grip: the grip travels out from
   // under the pointer as the patch grows.
-  const resize = (e: PointerEvent<HTMLDivElement>) => {
-    const frame = e.currentTarget.parentElement
-    if (frame !== null) {
-      const p = uvIn(frame, e.clientX, e.clientY)
-      props.onChange({ x, y, size: clampSize(Math.abs(p.u - x) / ASPECT) })
-    }
+  const resize = (e: PointerEvent<HTMLDivElement>, box: DOMRect) => {
+    const p = uvInRect(box, e.clientX, e.clientY)
+    props.onChange({ x, y, size: clampSize(Math.abs(p.u - x) / ASPECT) })
   }
   const key = (e: KeyboardEvent<HTMLDivElement>) => {
     const step = NUDGE.get(e.key)
@@ -99,12 +107,13 @@ export function PurityFrame(props: {
         tabIndex={0}
         title="click or drag to put the magnetised patch there · the grip sizes it · arrows nudge · alt+arrows resize · alt drags off the guides"
         onPointerDown={e => {
+          const box = e.currentTarget.getBoundingClientRect()
           e.currentTarget.setPointerCapture(e.pointerId)
-          setDrag('place')
-          place(e, !e.altKey)
+          setDrag({ kind: 'place', box })
+          place(e, box, !e.altKey)
         }}
         onPointerMove={e => {
-          if (drag === 'place') place(e, !e.altKey)
+          if (drag?.kind === 'place') place(e, drag.box, !e.altKey)
         }}
         onPointerUp={e => end(e)}
         onPointerCancel={e => end(e)}
@@ -131,12 +140,18 @@ export function PurityFrame(props: {
           title="drag to set the patch radius"
           onPointerDown={e => {
             e.stopPropagation()
-            e.currentTarget.setPointerCapture(e.pointerId)
-            setDrag('size')
+            // The grip's parent is the frame the radius is measured against —
+            // the grip itself travels out from under the pointer as the patch
+            // grows, so it can never be the reference.
+            const frame = e.currentTarget.parentElement
+            if (frame !== null) {
+              e.currentTarget.setPointerCapture(e.pointerId)
+              setDrag({ kind: 'size', box: frame.getBoundingClientRect() })
+            }
           }}
           onPointerMove={e => {
             e.stopPropagation()
-            if (drag === 'size') resize(e)
+            if (drag?.kind === 'size') resize(e, drag.box)
           }}
           onPointerUp={e => {
             e.stopPropagation()

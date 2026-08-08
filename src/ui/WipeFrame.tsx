@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { cx } from './cx'
-import { WIPE_SHAPES, cqw, snapOffset, uvIn } from './miniFrame'
+import { WIPE_SHAPES, cqw, snapOffset, uvInRect } from './miniFrame'
 import styles from './MiniFrame.module.css'
 
 import type { PointerEvent } from 'react'
@@ -20,13 +20,19 @@ export function WipeFrame(props: {
   onFix: () => void
   onChange: (pos: number) => void
 }) {
-  const [dragging, setDragging] = useState(false)
+  // The frame's box as it was when the drag began, not as it is each move.
+  // Dragging the boundary takes wipePos off stock, which grows "This look" at
+  // the top of the panel and pushes this frame down the page — so re-measuring
+  // per pointermove measures it after it has moved out from under the pointer,
+  // and every pattern that reads `v` (vertical, box, diamond) skews as you
+  // drag. See uvInRect.
+  const [grab, setGrab] = useState<DOMRect | null>(null)
   const shape = WIPE_SHAPES.get(Math.round(props.mode))
   // The pointer sits on the wipe edge itself: whatever distance the pattern
   // reports under the cursor is the lever position that puts the boundary there.
-  const set = (e: PointerEvent<HTMLDivElement>) => {
+  const set = (e: PointerEvent<HTMLDivElement>, box: DOMRect) => {
     if (shape !== undefined) {
-      const { u, v } = uvIn(e.currentTarget, e.clientX, e.clientY)
+      const { u, v } = uvInRect(box, e.clientX, e.clientY)
       const p = shape.pos(u, v)
       props.onChange(Math.min(1, Math.max(0, p + snapOffset([p], !e.altKey))))
     }
@@ -42,18 +48,19 @@ export function WipeFrame(props: {
         }
         style={{ cursor: shape === undefined ? 'default' : 'crosshair' }}
         onPointerDown={e => {
+          const box = e.currentTarget.getBoundingClientRect()
           e.currentTarget.setPointerCapture(e.pointerId)
-          setDragging(true)
-          set(e)
+          setGrab(box)
+          set(e, box)
         }}
         onPointerMove={e => {
-          if (dragging) set(e)
+          if (grab !== null) set(e, grab)
         }}
         onPointerUp={e => {
           e.currentTarget.releasePointerCapture(e.pointerId)
-          setDragging(false)
+          setGrab(null)
         }}
-        onPointerCancel={() => setDragging(false)}
+        onPointerCancel={() => setGrab(null)}
       >
         {shape === undefined ? null : (
           <div
