@@ -1074,7 +1074,7 @@ export function useEngine() {
     )
     trace.flush(true)
     console.error(
-      `Declining to create WebGPU device ${gpuBuilds() + 1} in this page: it has built ${gpuBuilds()} and this tab has destroyed ${gpuReleases()}, and a tab that has destroyed a presenting device stops being given animation frames — a reload does not clear that. Open this URL in a new tab (?gpubudget=ignore disables this gate).`,
+      `Declining to create WebGPU device ${gpuBuilds() + 1} in this page: this tab has destroyed ${gpuReleases()} device${gpuReleases() === 1 ? '' : 's'} that had been presenting, and a tab that has done that stops being given animation frames — a reload does not clear it. Open this URL in a new tab (?gpubudget=ignore disables this gate).`,
     )
     setFatal({
       title: 'This tab cannot safely open another GPU device',
@@ -1254,14 +1254,19 @@ export function useEngine() {
         dead.destroy({ keepAudio: true })
         // The device that just failed is gone for good — a lost one already was,
         // and a hung one must not be handed to the replacement — so this rebuild
-        // has to buy a new one. That is the spend the tab may not be able to
-        // afford, and this is the last moment where declining it still leaves a
-        // page that can say why. `busy` stays set, so nothing tries again behind
-        // the screen.
+        // has to buy a new one. Cheap in itself (0004), so the only thing that
+        // stops it here is a tab already living on borrowed frames, and this is
+        // the last moment where declining still leaves a page that can say why.
+        // `busy` stays set, so nothing tries again behind the screen.
+        //
+        // How many devices this page has already built is deliberately not part of
+        // the question. A card that suspends under a hidden tab produces exactly
+        // this path once per alt-tab, every one of them a rebuild that worked, and
+        // counting them ended long sessions that were fine.
         if (outOfGpuBudget()) {
           setRebuilding(null)
           declineDevice(
-            `${fault === 'hung' ? 'The GPU stopped completing work' : 'The GPU device was lost'}, and replacing it needs another WebGPU device — but this page has already built ${gpuBuilds()} and this tab has destroyed ${gpuReleases()}, which is past what one was measured to survive. Rather than spend a device on a tab the browser may already have stopped painting, this session stops here. Open this URL in a new tab instead: it starts clean, on the look you have now.`,
+            `${fault === 'hung' ? 'The GPU stopped completing work' : 'The GPU device was lost'}, and replacing it needs another WebGPU device — but this tab has already destroyed ${gpuReleases()} that had been presenting, which is what stops a browser painting a tab at all. Rather than spend a device on a tab the browser may already have given up on, this session stops here. Open this URL in a new tab instead: it starts clean, on the look you have now.`,
             () => replace(dead, fault, CREATE_TRIES),
           )
           return
@@ -1372,12 +1377,12 @@ export function useEngine() {
       // leaves a page that can still be read.
       //
       // What can actually be true at this point is worth being precise about, since
-      // this used to fire on an ordinary refresh. A fresh document has built
-      // nothing, so the creation half cannot reach it on a load; the only way past
-      // the gate here is `gpuReleases()`, which is tab-scoped exactly because that
-      // damage is what survives a reload. In other words: reloading is free, and
-      // having destroyed a device once is not, which is the whole of 0004 expressed
-      // as a boot condition.
+      // this used to fire on an ordinary refresh. The only way past the gate is
+      // `gpuReleases()`, tab-scoped exactly because that damage is what survives a
+      // reload — and reachable only under `?gpudestroy=1`. So on a normal load this
+      // cannot fire at all, and the reader it is left here for is whoever re-ran
+      // the destructive A/B and then reloaded into the hole it makes. Reloading is
+      // free, having destroyed a device once is not: 0004 as a boot condition.
       if (outOfGpuBudget()) {
         declineDevice(
           `This tab has destroyed ${gpuReleases()} WebGPU device${gpuReleases() === 1 ? '' : 's'} that had been presenting. That stops the browser giving this tab animation frames — nothing drawn reaches the screen, and reloading lands in the same place. Open this URL in a new tab: it starts clean and on the same look.`,

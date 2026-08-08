@@ -239,9 +239,11 @@ export function Stage(props: {
           because either of them is the more urgent news.
 
           Two things can raise it, and they are not equally bad — a destroyed
-          device is the measured killer, a pile of created ones only means engines
-          keep being replaced — so the sentence says which happened rather than
-          rounding both up to "out of sessions".
+          device is the measured killer, a pile of created ones only means the
+          device keeps going away — so they get different sentences, and only the
+          first one offers a new tab. Telling someone whose card suspends on every
+          alt-tab to move tabs would send them somewhere the same thing happens,
+          having implied their working session was doomed.
 
           `builds` counts devices this *page* made, which is what makes the
           rebuilding sentence true when it appears. Against the tab's lifetime
@@ -251,30 +253,32 @@ export function Stage(props: {
           rebuilding itself. */}
       {props.budget.atRisk && budgetSeen !== props.budget.builds ? (
         <div className={styles.budget}>
-          <span>
-            <b>
-              {props.budget.releases > 0
-                ? 'this tab has released a GPU device'
-                : 'this page keeps rebuilding its GPU engine'}
-            </b>{' '}
-            (
-            {props.budget.releases > 0
-              ? `${props.budget.releases} destroyed`
-              : `${props.budget.builds} devices built for this page`}
-            ).{' '}
-            {props.budget.releases > 0
-              ? 'A browser that has been handed back a presenting device may stop painting this tab, and a reload does not clear that —'
-              : 'Each rebuild is a chance to lose the tab’s rendering step, and a reload does not clear that —'}{' '}
-            <a
-              className={ui.link}
-              href={location.href}
-              target="_blank"
-              rel="noreferrer"
-            >
-              carry this look into a new tab
-            </a>{' '}
-            to start clean.
-          </span>
+          {props.budget.releases > 0 ? (
+            <span>
+              <b>this tab has released a GPU device</b> ({props.budget.releases}{' '}
+              destroyed). A browser that has been handed back a presenting
+              device may stop painting this tab, and a reload does not clear
+              that —{' '}
+              <a
+                className={ui.link}
+                href={location.href}
+                target="_blank"
+                rel="noreferrer"
+              >
+                carry this look into a new tab
+              </a>{' '}
+              to start clean.
+            </span>
+          ) : (
+            <span>
+              <b>this page keeps rebuilding its GPU engine</b> (
+              {props.budget.builds} devices built for this page). The device has
+              gone away and been replaced that many times, and each replacement
+              starts the phosphor, the frame store and the tape loop empty. The
+              session carries on; if it keeps happening the fault is below the
+              app — a driver, or a card suspending — rather than in the look.
+            </span>
+          )}
           <button
             className={styles.budgetDismiss}
             title="hide until another device is spent"

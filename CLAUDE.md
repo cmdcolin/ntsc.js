@@ -61,9 +61,11 @@ What follows for anyone working here:
   module. Disabling HMR is the wrong instinct.
 - **`?gpudestroy=1` puts the destroy back**, for re-measuring the fault against
   a new browser build. It will kill the tab. `?gpubudget=ignore` switches off
-  the gate that declines devices in a tab that has already spent past what one
-  survives; the harnesses that walk into it on purpose (`rafceiling.mjs`,
-  `deviceloss.mjs`) pass it.
+  the gate that declines a device to a tab that has already destroyed one — the
+  only thing left that can refuse a session, and reachable only after
+  `?gpudestroy=1`. Creating devices is not counted against anything; the
+  harnesses that spend them on purpose (`rafceiling.mjs`, `deviceloss.mjs`) pass
+  the flag anyway, so what they measure is the browser and never app policy.
 - **Do not add `<StrictMode>`.** It doubles device creation per mount and wraps
   a WebGPU canvas in a mount/unmount/mount cycle. `src/main.tsx` carries the
   reason.

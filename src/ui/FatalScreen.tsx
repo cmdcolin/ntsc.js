@@ -12,10 +12,12 @@ export interface Fatal {
   // reload button.
   //
   // 'budget' is neither: nothing has failed yet. The app needs a WebGPU device in
-  // a tab that has already spent past what one was measured to survive, and it is
-  // saying so while there is still a painting page to say it on. The only action
-  // that works is a new tab, so that is the only button that is offered — a reload
-  // lands right back here, in a tab that is no better off.
+  // a tab that has already destroyed one that was presenting, and it is saying so
+  // while there is still a painting page to say it on. The only action that works
+  // is a new tab, so that is the only button that is offered — a reload lands right
+  // back here, in a tab that is no better off. Under 0004 that state is reachable
+  // only through `?gpudestroy=1`, so in practice this screen belongs to whoever is
+  // re-measuring the browser bug.
   kind: 'unavailable' | 'lost' | 'hung' | 'budget'
   // 'budget' only: spend the session anyway. The ceiling is measured from one
   // browser on one OS, so the gate has to be arguable with — see declineDevice.
@@ -83,7 +85,7 @@ export function FatalScreen({ fatal }: { fatal: Fatal }) {
               that has been presenting stops the browser giving that tab
               animation frames, and the next document in the tab inherits it —
               reloading included. <code>scripts/devicetear.mjs</code> reproduces
-              it in about a minute, and <code>docs/adr/0002</code> has the
+              it in about a minute, and <code>docs/adr/0004</code> has the
               numbers.
             </p>
             {fatal.onOverride === undefined ? null : (

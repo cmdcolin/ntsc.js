@@ -125,7 +125,7 @@ page, so it can go upstream as-is.
   when builds reach `DOC_GPU_BUILD_LIMIT` (8 — a runaway backstop against an
   engine rebuilding in a loop, because creating devices is cheap).
   `gpuSessions()`, the tab's lifetime creation total, is kept for the trace and
-  gates nothing.
+  gates nothing. (The build ceiling is gone — see the amendment below.)
 
   Per document is the correction, and it is this ADR applied to its own
   bookkeeping. The counts were written under
@@ -184,6 +184,40 @@ page, so it can go upstream as-is.
   fixes it, everything here stays correct and merely stops mattering; the honest
   test of that is `scripts/devicetear.mjs`, whose `destroy` arm should start
   surviving.
+
+## Amendment, 2026-08-08 — the build ceiling is gone
+
+`DOC_GPU_BUILD_LIMIT` is removed. `outOfGpuBudget()` now asks one question:
+has this tab destroyed a presenting device. Nothing else refuses a session.
+
+The ceiling was the last thing in here still shaped by
+[0002](0002-webgpu-sessions-are-scarce.md) — a count of creations, kept as a
+runaway backstop after the model that motivated it had been disproved. Two
+things were wrong with it.
+
+**A fast rebuild loop was already bounded, and not by this.** `RebuildPolicy`
+gives up after three faults inside a minute, per fault kind, on a screen that
+explains itself. Anything that reached eight builds had to get there slowly.
+
+**And what reaches it slowly is the case the policy deliberately forgives.**
+`RebuildPolicy` resets when a replacement held — a laptop whose discrete card
+suspends under a hidden tab produces one loss per alt-tab, each rebuilt
+successfully, and the policy is written not to punish that. Every one of those
+still spent a build. So the ceiling ended a long healthy session on the ninth
+alt-tab, with a screen arguing it was "past what one was measured to survive" —
+against the measurement at the top of this file, where four devices created and
+held, all presenting, cost a tab nothing.
+
+What repeated creation does still cost is the leak, and that is bounded by the
+document and was accepted here deliberately. It keeps the stage notice
+(`gpuAtRisk()`, unchanged at more than two builds), whose wording now says what
+is true of that case — the device keeps going away, each replacement empties
+VRAM, the session carries on — and offers the new-tab link only on the arm that
+has measured cause to.
+
+Consequence: with the app never destroying devices, the surviving gate cannot
+fire in an ordinary session. It exists for the tab that ran `?gpudestroy=1` and
+then reloaded, which is exactly the hole this ADR documents.
 
 ## Reproducing it
 

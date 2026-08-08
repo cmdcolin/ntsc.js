@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  DOC_GPU_BUILD_LIMIT,
   gpuAtRisk,
   gpuBudgetEnforced,
   gpuDestroyAllowed,
@@ -81,29 +80,32 @@ describe('outOfGpuBudget', () => {
     vi.unstubAllGlobals()
   })
 
-  it('lets a session create the devices it actually needs', () => {
+  it('never refuses a device for the number this page has created', () => {
     // Creating devices was measured to be cheap — four created, and four held
-    // open presenting, cost a tab nothing — so a boot plus a few rebuilds must
-    // not be refused. This is the regression that matters most here: the gate
-    // exists to prevent a dead tab, and a gate that blocks recovery on a healthy
-    // browser is doing the damage it was written to avoid.
+    // open presenting, cost a tab nothing — so no count of them ends a session.
+    // This is the regression that matters most here: the gate exists to prevent a
+    // dead tab, and a gate that blocks recovery on a healthy browser is doing the
+    // damage it was written to avoid. There used to be a ceiling of eight, and the
+    // sessions that reached it were the long ones whose card suspends on every
+    // alt-tab — each of those rebuilds worked.
     pageHavingBuilt(0)
     expect(outOfGpuBudget('')).toBe(false)
     pageHavingBuilt(3)
     expect(outOfGpuBudget('')).toBe(false)
-    pageHavingBuilt(DOC_GPU_BUILD_LIMIT - 1)
+    pageHavingBuilt(8)
+    expect(outOfGpuBudget('')).toBe(false)
+    pageHavingBuilt(40)
     expect(outOfGpuBudget('')).toBe(false)
   })
 
   it('never refuses a device because the tab has been refreshed', () => {
-    // The bug this scoping fixes, and the reason the limit is per document. Every
-    // one of these loads is a fresh document holding one device, with the tab's
-    // running total behind it; 0004 reloads the real app eight times in one tab at
-    // 69-81 rAF/1.5s, so a refuse here would be the app breaking a session that
-    // measurement says is healthy.
-    tabRefreshed(DOC_GPU_BUILD_LIMIT)
+    // Every one of these loads is a fresh document holding one device, with the
+    // tab's running total behind it; 0004 reloads the real app eight times in one
+    // tab at 69-81 rAF/1.5s, so a refuse here would be the app breaking a session
+    // that measurement says is healthy.
+    tabRefreshed(8)
     expect(outOfGpuBudget('')).toBe(false)
-    tabRefreshed(DOC_GPU_BUILD_LIMIT * 3)
+    tabRefreshed(24)
     expect(outOfGpuBudget('')).toBe(false)
   })
 
@@ -118,24 +120,12 @@ describe('outOfGpuBudget', () => {
     expect(outOfGpuBudget('')).toBe(true)
   })
 
-  it('backstops a page that keeps creating devices', () => {
-    // Not the measured mechanism; a runaway guard against an engine rebuilding
-    // itself in a loop, in case some browser does count creations the way this one
-    // was once thought to. The tab's own total is untouched — a rebuild loop is a
-    // property of the live document.
-    tabHavingSpent(1)
-    pageHavingBuilt(DOC_GPU_BUILD_LIMIT)
-    expect(outOfGpuBudget('')).toBe(true)
-    pageHavingBuilt(DOC_GPU_BUILD_LIMIT + 4)
-    expect(outOfGpuBudget('')).toBe(true)
-  })
-
   it('counts without enforcing under ?gpubudget=ignore', () => {
     // Two callers need the escape hatch: a browser with no such fault should not
     // be told it is out of something it has plenty of, and the repro harnesses
-    // exist to drive a tab past these limits on purpose.
-    tabHavingSpent(DOC_GPU_BUILD_LIMIT + 5, 3)
-    pageHavingBuilt(DOC_GPU_BUILD_LIMIT + 5)
+    // exist to drive a tab past this on purpose.
+    tabHavingSpent(13, 3)
+    pageHavingBuilt(13)
     expect(outOfGpuBudget('?gpubudget=ignore')).toBe(false)
     expect(gpuBudgetEnforced('?gpubudget=ignore')).toBe(false)
     expect(gpuBudgetEnforced('?set=fbMix:0.3')).toBe(true)

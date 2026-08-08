@@ -77,17 +77,6 @@ export function gpuDestroyAllowed(search: string = pageSearch()): boolean {
   return new URLSearchParams(search).get('gpudestroy') === '1'
 }
 
-// Devices *one document* may create before the app stops trusting it. Generous,
-// because creating them was measured to be cheap: this is a runaway backstop for
-// an engine rebuilding itself in a loop, not the mechanism above.
-//
-// Per document and not per tab, which is the correction. A reload is a new
-// document that has to make its own device, so a tab-scoped ceiling counted
-// ordinary refreshes towards a limit — and 0004's own app run reloads one tab
-// eight times at 69-81 rAF/1.5s with nothing wrong. A tab-scoped 8 would have
-// refused the ninth of those healthy loads outright.
-export const DOC_GPU_BUILD_LIMIT = 8
-
 // Devices a tab may destroy: none. One destroy of a presenting device was enough
 // to end the tab's rendering step, and the next document inherits the damage — so
 // having done it once, the honest thing the app can say is "open a new tab".
@@ -110,18 +99,25 @@ export function gpuBudgetEnforced(search: string): boolean {
 // because that is the difference between advice and an autopsy: a compromised tab
 // often still paints, so it can still show a screen with a working link on it.
 //
-// Two ways to get here, on two different clocks, and the first is the one that
-// means something. A tab that has destroyed a presenting device is living on
-// borrowed frames whatever it does next, and that damage crosses a reload, so it
-// is counted per *tab*. A document that has built a lot of engines is only
-// suspicious, and it is counted per *document*, because a reload leaves its
-// devices behind with the document that made them.
+// One condition, and it is the measured one: this tab has destroyed a device that
+// had been presenting. That is what stops a tab being given animation frames, and
+// it crosses a reload, so it is counted per *tab* — and under 0004 it is reachable
+// only through `?gpudestroy=1`, which makes this the guardrail on the A/B rather
+// than something an ordinary session can trip.
+//
+// Creating devices used to gate here too, at eight per document, kept as a runaway
+// backstop. It is gone, because nothing it caught was both reachable and worth
+// refusing. A fast rebuild loop is already bounded by `RebuildPolicy` — three
+// faults inside a minute, per fault kind, and the session gives up with a screen
+// that says why. What got past that was the case the policy deliberately forgives:
+// one-off losses spread across a long session, the shape a laptop makes when its
+// discrete card suspends under a hidden tab. Those are rebuilds that worked, and
+// ending the ninth of them argued the opposite of what 0004 measured — four
+// devices created and held, presenting, cost a tab nothing. What repeated creation
+// does still cost is a leak bounded by the document, which is the trade 0004
+// already took deliberately. That earns a notice (`gpuAtRisk`), not a stop.
 export function outOfGpuBudget(search: string = pageSearch()): boolean {
-  return (
-    gpuBudgetEnforced(search) &&
-    (gpuReleases() > TAB_GPU_RELEASE_LIMIT ||
-      gpuBuilds() >= DOC_GPU_BUILD_LIMIT)
-  )
+  return gpuBudgetEnforced(search) && gpuReleases() > TAB_GPU_RELEASE_LIMIT
 }
 
 // Is this tab worth warning the user about while it still paints? A softer
@@ -129,9 +125,10 @@ export function outOfGpuBudget(search: string = pageSearch()): boolean {
 //
 // Two ways to qualify. Having destroyed a presenting device is the one that is
 // nearly certain — measured, and it outlives a reload. Having built more engines
-// *in this document* than a session needs is the weaker signal that was worth
-// keeping: two is a boot plus one rebuild, and past that something is replacing
-// engines repeatedly, which is the shape that spends tabs.
+// *in this document* than a session needs is the weaker signal, and since the gate
+// above stopped acting on creations this is the only thing that does: two is a boot
+// plus one rebuild, and past that the device keeps going away, which is worth
+// saying even though no measurement says the tab is in danger for it.
 //
 // It reads `gpuBuilds()` and not `gpuSessions()`, and that is the whole fix for a
 // notice that used to fire on the third *refresh*. Refreshing is not rebuilding:

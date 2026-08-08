@@ -74,11 +74,13 @@ const fatalUp = () =>
   )
 
 // `gpubudget=ignore`, because this harness spends devices on purpose. The app
-// declines to create one in a tab that has spent past what a tab was measured to
-// survive, and offers a new tab instead — right for a user, and the end of every
-// scenario here, since a rebuild that is never attempted cannot be checked. The
-// gate has its own unit tests (context.test.ts); what this file is for is the
-// rebuild behind it.
+// declines to create one in a tab that has destroyed a presenting device, and
+// offers a new tab instead — right for a user, and the end of every scenario here,
+// since a rebuild that is never attempted cannot be checked. Since the gate stopped
+// counting creations this is unlikely to bite a run that destroys nothing, but the
+// flag keeps the harness measuring the rebuild rather than the policy. The gate has
+// its own unit tests (context.test.ts); what this file is for is the rebuild behind
+// it.
 const load = async query => {
   await page.goto(`${base}/?gpubudget=ignore&${query}`, {
     waitUntil: 'networkidle0',
