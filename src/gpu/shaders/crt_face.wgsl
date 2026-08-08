@@ -179,7 +179,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // Disk taps at three radii: the beam spot itself, a tight cluster for bloom,
   // a wide one for halation. The feedback loop compounds the spread over
   // frames, so a modest single-pass kernel is enough. Each tap set is gated on
-  // its own params — the branches are uniform across the dispatch, so an
+  // its own control — the branches are uniform across the dispatch, so an
   // unused radius costs nothing.
   // Beam spot: the gun writes a gaussian of finite width, so a sample's light
   // lands partly on its neighbours' phosphor and every edge is a ramp. Unlike
@@ -239,21 +239,66 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     direct = direct * max(vec3f(1.0) + g, vec3f(0.0));
   }
 
+  // A loop each, gated on its own control. These used to share one gate and one
+  // loop body, so either control being up ran both radii — a look with bloom up
+  // and halation down paid a sixteen-tap gather across a 15-pixel disk for a
+  // result that was then multiplied by zero, and a halo with no bloom under it
+  // paid the same way round. Worth 0.12 ms of a 4.87 ms frame with bloom zeroed
+  // (4.87 -> 4.75, three interleaved rounds, reproducible to the third digit).
+  //
+  // What this whole gather costs, measured by deleting both loops outright: 0.30
+  // ms of a 4.90 ms frame, 6%. Cost is LINEAR in tap count at ~0.0094 ms/tap and
+  // does not care about radius — dropping eight taps saves 0.08 ms whether they
+  // sit on the 3.5-pixel bloom disk or the 15-pixel halo one, which were measured
+  // separately and came out indistinguishable. So there is no locality win hiding
+  // here and no superlinearity to exploit: the only lever on this gather is how
+  // many taps run, and tiering (below) is the whole of it.
+  //
+  // Note when re-measuring: cost here reads as bimodal, ~0.8 ms apart, in whole
+  // batches. That is not this pass and not the GPU's clocks — the discrete card
+  // pins at its top DPM level and holds it, and 20 batches in one session vary by
+  // 0.10 ms. It is another GPU client on the box. A second stepped session costs
+  // 3.6 ms; one idle app tab left presenting costs 0.17 ms. Best-of survives it
+  // and the median does not, so read `perf.mjs`'s per-batch list, compare best-of,
+  // and check nothing else is holding a WebGPU tab open — an ablate delta taken
+  // in the slow mode against one taken clean is how the numbers this comment used
+  // to carry came out 8x too large.
   var bloom = vec3f(0.0);
-  var halo = vec3f(0.0);
   let rb = 3.5;
+  if (P.crtBloom > 0.0) {
+    // Tap count tiered on strength, the way spotAt tiers it on radius. The disk
+    // is a fixed 3.5 px, so what decides whether sixteen taps are visible is not
+    // how far they reach but how hard the result gets multiplied in. Against a
+    // pinned frame (bars, feedback off, field parity cancelled), 8 taps differ
+    // from 16 by at most 3/255 at the default 0.2 and 8/255 at 0.6, with under
+    // 0.03% of pixels off by more than 4 — and by 18/255 at 1.0 and 65/255 at
+    // 3.0, where it does show. 78 of the 80 presets sit at 0.6 or below and take
+    // the cheap path; the two that lean on bloom keep the full disk. Worth 0.08
+    // ms of a 4.90 ms frame (4.90 -> 4.82, three interleaved rounds).
+    //
+    // The threshold is a hard step, so sweeping the control through 0.6 pops the
+    // bloom by that 8/255. Same bargain spotAt already makes at 0.8 and 2.0.
+    if (P.crtBloom <= 0.6) {
+      for (var i = 0u; i < 8u; i = i + 1u) {
+        bloom = bloom + bright(textureSampleLevel(srcTex, samp, uv + DISK8[i].xy * rb / dim, 0.0).rgb, 0.55) * 2.0;
+      }
+    } else {
+      for (var i = 0u; i < 16u; i = i + 1u) {
+        bloom = bloom + bright(textureSampleLevel(srcTex, samp, uv + DISK16[i].xy * rb / dim, 0.0).rgb, 0.55);
+      }
+    }
+  }
+
   // Glass scatter grows with beam current: a peak white drives far more light
   // into the faceplate than a mid grey does, and it spreads further before it
   // finds its way back out. Keying the halo radius off the local drive is what
   // stops halation reading as a fixed-width outline traced round anything
   // bright, which is the one way the shipped fixed radius gives itself away.
-  let rh = 15.0 * (1.0 + P.crtHaloKey * luma(center));
-  let scatters = P.crtBloom + P.crtHalation > 0.0;
-  if (scatters) {
+  var halo = vec3f(0.0);
+  if (P.crtHalation > 0.0) {
+    let rh = 15.0 * (1.0 + P.crtHaloKey * luma(center));
     for (var i = 0u; i < 16u; i = i + 1u) {
-      let d = DISK16[i].xy;
-      bloom = bloom + bright(textureSampleLevel(srcTex, samp, uv + d * rb / dim, 0.0).rgb, 0.55);
-      halo = halo + bright(textureSampleLevel(srcTex, samp, uv + d * rh / dim, 0.0).rgb, 0.35);
+      halo = halo + bright(textureSampleLevel(srcTex, samp, uv + DISK16[i].xy * rh / dim, 0.0).rgb, 0.35);
     }
   }
   col = gamutFit(direct);
