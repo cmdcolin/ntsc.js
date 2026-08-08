@@ -14,14 +14,21 @@ import type { CloudUser } from './cloud'
 import type { SavedProfile } from './savedProfiles'
 import type { CloudStatus, ProfileFlash } from './useSavedProfiles'
 
-// The profile library, as one button in the look bar: name what is on screen and
-// get it back later. A synth's save/recall, in the row with the other verbs that
-// act on the whole board.
+// The profile library, and the account it lives on: one button in the
+// masthead's top-right corner, beside the ⌕ and the ⋮. A synth's save/recall,
+// plus who it belongs to.
 //
-// Signing in lives *here* rather than in the ⋮ menu or a settings page, because
-// this is the only thing in the app an account is for. A row in a menu somewhere
-// else would be an account prompt with no visible purpose; in this popover it is
-// the answer to the question the popover just raised — where would a save go?
+// It moved here from a slot in the LookBar row, among compare/mutate/undo,
+// because those are verbs that act on the look that's on screen right now and
+// this isn't one — it's a fact about the session, the same kind of fact the ⋮
+// answers for the app as a whole. Buried a verb-width away from "mutate" it
+// also read as one more thing to press to change the picture, when its whole
+// job signed-out is the opposite: say there is an account to sign into at all.
+//
+// Signing in lives *here* rather than folded into the ⋮ menu's list, because
+// this is the only thing in the app an account is for. A row in that menu would
+// be an account prompt with no visible purpose; in this popover it is the
+// answer to the question the popover just raised — where would a save go?
 //
 // The button says `saved` rather than naming the noun. "Looks" was the first
 // label and it read as a verb ("looks 3" — looks three what?); `saved` is what
@@ -30,10 +37,9 @@ import type { CloudStatus, ProfileFlash } from './useSavedProfiles'
 //
 // It is a popover rather than a section of the panel because saving is a thing
 // you do for two seconds and recall is a list you open — neither wants a fold of
-// permanent panel height, and the row it hangs off is already where "do
-// something to the whole look" lives. Presets sit right below as chips because
-// they are the app's own catalog, browsed by eye; this list is yours and starts
-// empty, so a section for it would open onto nothing on every first session.
+// permanent panel height. Presets sit further down as chips because they are the
+// app's own catalog, browsed by eye; this list is yours and starts empty, so a
+// section for it would open onto nothing on every first session.
 export function SavedProfiles(props: {
   profiles: readonly SavedProfile[]
   // What the name box offers when you type nothing: the name of the profile this
@@ -113,22 +119,26 @@ export function SavedProfiles(props: {
               : 'sign in to save looks under a name — everything else in the app works signed out'
           }
         >
-          {/* A glyph and a colour, never the name: the row this button sits in is
-              332px with no slack (see LookBar.module.css), and a label that grew
-              to `saved “worn tape”` or `save failed` for two seconds would reflow
-              the buttons after it — twice, once each way. `sign in` is the one
-              exception, and it fits because it replaces the count rather than
-              adding to it. The count moves on a new save anyway; the ✓ is what an
-              overwrite has to say, and the ✕ is what a rejected write has to. */}
-          {props.flash?.kind === 'needs-auth' ? (
-            'sign in'
-          ) : (
+          {/* A glyph and a colour, never the name: this button sits beside the
+              fixed-width ⌕ and ⋮ squares, and a label that grew to
+              `saved “worn tape”` or `save failed` for two seconds would shove
+              them sideways — twice, once each way. The count moves on a new
+              save anyway; the ✓ is what an overwrite has to say, and the ✕ is
+              what a rejected write has to.
+
+              `sign in` is what this button says whenever there is no account
+              behind it — loading, signed-out, or error — so the button itself
+              is the answer to "am I signed in", rather than something you find
+              out by opening the popover. */}
+          {signedIn ? (
             <>
               saved
               {props.profiles.length === 0 ? '' : ` ${props.profiles.length}`}
               {props.flash?.kind === 'saved' ? ' ✓' : ''}
               {props.flash?.kind === 'failed' ? ' ✕' : ''}
             </>
+          ) : (
+            'sign in'
           )}
         </button>
       )}
@@ -230,19 +240,33 @@ export function SavedProfiles(props: {
                   is patched in alone — pulling the webcam out from under someone
                   mid-set to put a still back is never the intent. */}
                   <div className={ui.hint}>
-                    the first nine are on the number keys — 1–9 recall, shift+1–9
-                    keeps the board over one. A recall brings back the controls
-                    and the motion; the input stays whatever is patched in. ⧉
-                    copies a link that carries both.
+                    the first nine are on the number keys — 1–9 recall,
+                    shift+1–9 keeps the board over one. A recall brings back the
+                    controls and the motion; the input stays whatever is patched
+                    in. ⧉ copies a link that carries both.
                   </div>
                 </>
               )}
               {/* Who the library belongs to, at the foot of it — the account is
                   the least interesting thing in this menu once you are in, so it
-                  goes last and small, and it is the only place sign-out lives. */}
+                  goes last and small, and it is the only place sign-out lives.
+                  The avatar is there so "who am I signed in as" reads at a
+                  glance, from the same photo every other Google surface shows —
+                  not the initial-in-a-circle every account already has one. */}
               <div className={styles.acct}>
-                <span className={ui.dim}>
-                  {props.user?.name ?? props.user?.uid.slice(0, 6) ?? ''}
+                <span className={styles.acctUser}>
+                  {props.user?.photo === undefined ||
+                  props.user.photo === null ? null : (
+                    <img
+                      className={styles.avatar}
+                      src={props.user.photo}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                  <span className={ui.dim}>
+                    {props.user?.name ?? props.user?.uid.slice(0, 6) ?? ''}
+                  </span>
                 </span>
                 <button
                   className={styles.acctBtn}

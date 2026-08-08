@@ -14,14 +14,9 @@
    to seat `redo`, so the row wrapped anyway and the only thing the smaller type
    changed was that these five read smaller than everything around them. With
    "copy link" gone (see LookBar.tsx) five labels need 247px of 332, and six
-   with redo up need 297, so there is nothing left to buy.
-
-   `saved` (the profile library) is the sixth, which puts the row at ~297
-   without redo and over 332 with it — so a session that has undone something
-   wraps to a second line. That is the trade taken knowingly: the alternative was
-   a glyph, and every other member of this row is a word, so the odd one out
-   would be the one nobody could name. Wrapping costs a line only while redo is
-   up, which is the state you are already looking at the row in. */
+   with redo up need 297, so there is nothing left to buy. Wrapping costs a
+   line only while redo is up, which is the state you are already looking at
+   the row in. */
 .btn {
   padding: 2px 7px;
   border: 1px solid var(--border-quiet);
@@ -45,6 +40,24 @@
   color: #55555f;
   border-color: var(--border-faint);
   cursor: default;
+}
+/* Firefox's menulist widget chrome ignores .btn's padding and pads out to its
+   own native minimum — appearance: none drops that chrome so the box hugs
+   the selected option's text the way every other member of this row hugs
+   its label. The dropped chrome takes the browser's own arrow glyph with it,
+   so a small drawn one stands in for it: two 1px lines forming a chevron,
+   sized to add back less than the native arrow's own reserved width. */
+.morphSelect {
+  appearance: none;
+  padding-right: 16px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 9px) 55%,
+    calc(100% - 5px) 55%;
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
 }
 
 /* Touch: fingertip height, like the shared .btn — but narrower than its 11px

@@ -1,9 +1,28 @@
-/* The library's button and its popover. The trigger is a member of the look bar
-   above all else, so it wears that row's button rather than a copy of it —
-   composes, not a duplicated rule, because the two sitting side by side is
-   exactly the pair that must not drift. */
+/* The library's button and its popover. The trigger wears the masthead
+   chrome's border/background/colour — the same quiet family as the ⌕ and the
+   ⋮ beside it — but not `ui.chromeBtn` itself: that class fixes a 22px square
+   sized for a glyph, and a `width: auto` layered on top of it via `composes`
+   is not reliably the one that wins the cascade (two separate CSS modules,
+   ordered however the bundler happens to graph them — the fixed square won
+   here in practice, wrapping `sign in` onto two lines). Written out instead,
+   the same way LookBar.module.css's own `.btn` is its own rule rather than a
+   composed one, for the same reason: same family, different shape. */
 .trigger {
-  composes: btn from './LookBar.module.css';
+  flex-shrink: 0;
+  width: auto;
+  padding: 1px 7px;
+  border: 1px solid var(--border-quiet);
+  border-radius: 4px;
+  background: var(--panel-bg);
+  color: var(--fg3);
+  font-size: var(--fs-md);
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.trigger:hover {
+  border-color: var(--fg4);
+  color: var(--fg);
 }
 /* Lit for a second and a half after a save. Same accent the held `compare`
    button wears, because it is saying the same kind of thing — this button just
@@ -168,6 +187,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.acctUser {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+}
+/* Google's own photo, at icon size — round because that's the crop every other
+   Google surface already gives it, so it reads as the same avatar rather than
+   a new one. */
+.avatar {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
 }
 .acctBtn {
   composes: bare from './ui.module.css';

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { ControlSlider } from './ControlGroup'
-import { GROUPS, SOURCE_B_STAGE } from './controls'
+import { GROUPS, SOUND_STAGE, SOURCE_B_STAGE, VIEW_STAGE } from './controls'
 import { sliderMatches, useFilterQuery } from './filter'
 import styles from './LookSection.module.css'
 import { useModSlotsApi } from './ModSlotsContext'
@@ -23,6 +23,16 @@ const CAP = 6
 // panel's own headers are built from.
 const GROUP_OF = new Map<ControlKey, Group>()
 for (const g of GROUPS) for (const s of g.sliders) GROUP_OF.set(s.key, g)
+
+// The placements that are not a stage name. Every other `place` is a Phase and
+// is already the name of the stage that opens it, so this is the whole
+// translation — a table rather than a chain of ternaries, because there are
+// three of them now and a fourth would have kept extending the chain.
+const OFF_SPINE_STAGE: Partial<Record<Group['place'], string>> = {
+  b: SOURCE_B_STAGE,
+  audio: SOUND_STAGE,
+  view: VIEW_STAGE,
+}
 
 // What the look on screen is actually made of: every control sitting off stock,
 // in signal-path order, as live rows under the group each came from.
@@ -123,11 +133,11 @@ export function LookSection(props: {
 }
 
 // Which module the rows under it came from, and the way back to it on the map.
-// Only a button for a group in a stage that will actually open: the audio
-// groups surface in a section of their own, which the map has no fold for, and
-// the mixer and input B open onto nothing while there is no B patched in — a
-// look can still carry a wipe from a preset with B switched off since, so this
-// is a live question rather than a property of the table.
+// Only a button for a group in a stage that will actually open: a branch — the
+// sound, input B — and, for B, the mixer it arrives at open onto nothing while
+// that branch has no input. A look can still carry a wipe from a preset applied
+// with B switched off since, so this is a live question rather than a property
+// of the table.
 function GroupCaption(props: {
   group: Group | undefined
   openStages: ReadonlySet<string>
@@ -135,9 +145,10 @@ function GroupCaption(props: {
 }) {
   const group = props.group
   if (group === undefined) return null
-  // 'b' is a placement; Source B is the stage it opens. Every other placement
-  // is already the stage's own name.
-  const stage = group.place === 'b' ? SOURCE_B_STAGE : group.place
+  // The off-spine placements are named for what they hold; the stage each opens
+  // is named for what it is. Every other placement is already the stage's own
+  // name.
+  const stage = OFF_SPINE_STAGE[group.place] ?? group.place
   return props.openStages.has(stage) ? (
     <button
       className={styles.from}

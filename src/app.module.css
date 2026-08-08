@@ -135,8 +135,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The masthead's right end: the ⌕ and the ⋮, held together against the edge
-   whether or not the fps readout is up between them and the wordmark. */
+/* The masthead's right end: the pointer tool, the ⌕, the account and the ⋮,
+   held together against the edge whether or not the fps readout is up between
+   them and the wordmark. */
 .chrome {
   flex-shrink: 0;
   display: flex;

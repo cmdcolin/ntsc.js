@@ -29,16 +29,13 @@ export const MORPH_LABELS: Record<MorphSeconds, string> = {
   30: '30s',
 }
 
-// The next duration round the ring, for a button that cycles rather than a
-// select: this is one of five values in a row that has one line to fit in.
-export const nextMorph = (seconds: MorphSeconds): MorphSeconds =>
-  MORPH_SECONDS[(MORPH_SECONDS.indexOf(seconds) + 1) % MORPH_SECONDS.length]
-
-// A stored duration back onto the ring. Anything unrecognised reads as a cut
-// rather than as an unlabelled button: the list is allowed to be retuned, and a
-// localStorage entry written by an older build outlives it.
+// A stored duration back onto the ring. Anything unrecognised — including a
+// first run, which has never stored anything — lands on 1s rather than a cut:
+// the list is allowed to be retuned, and a localStorage entry written by an
+// older build outlives it, but an explicit cut is a choice someone made, not
+// the value nobody has picked yet.
 export const parseMorph = (raw: string | null): MorphSeconds =>
-  MORPH_SECONDS.find(s => String(s) === raw) ?? 0
+  MORPH_SECONDS.find(s => String(s) === raw) ?? 1
 
 // A destination plus the two rules that need the slider schema: modes cut at the
 // midpoint because there is no half-phosphor, and the view never moves because

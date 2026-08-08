@@ -1,6 +1,6 @@
 import { cx } from './cx'
 import styles from './LookBar.module.css'
-import { MORPH_LABELS } from './morph'
+import { MORPH_LABELS, MORPH_SECONDS } from './morph'
 import { mutateAmountFor } from './mutate'
 
 import type { MorphSeconds } from './morph'
@@ -39,17 +39,12 @@ export function LookBar(props: {
   // function of what you are doing right now: a cut while dialing a look in, a
   // long morph while performing one.
   morphSeconds: MorphSeconds
-  onCycleMorph: () => void
-  // The saved-profile library, passed in rather than built here: it owns a
-  // popover and a name box, and the row's job is to seat it among the other
-  // whole-board verbs. It goes after the two that produce a look worth keeping —
-  // roll something up with surprise or mutate, then name it — and before the pair
-  // that walk the history, which stay the row's tail.
-  saved: ReactNode
-  // The tags menu, passed in for the same reason `saved` is: it owns a popover,
-  // and this row's job is to seat it among the other whole-board verbs. It goes
-  // next to saving because the two are the same moment from two angles — one keeps
-  // a look for you, the other describes it for the model.
+  onSetMorph: (seconds: MorphSeconds) => void
+  // The tags menu, passed in rather than built here: it owns a popover, and this
+  // row's job is to seat it among the other whole-board verbs. It goes after the
+  // two that produce a look worth describing — roll something up with surprise
+  // or mutate, then tag it — and before the pair that walk the history, which
+  // stay the row's tail.
   tags: ReactNode
   canUndo: boolean
   onUndo: () => void
@@ -77,19 +72,27 @@ export function LookBar(props: {
       >
         surprise
       </button>
-      {/* Cycles rather than opening a select: it is five values in a row with
-          one line to fit in, and the label is the readout. */}
-      <button
-        className={cx(styles.btn, props.morphSeconds > 0 && styles.btnOn)}
-        onClick={props.onCycleMorph}
+      <select
+        className={cx(
+          styles.btn,
+          styles.morphSelect,
+          props.morphSeconds > 0 && styles.btnOn,
+        )}
+        value={props.morphSeconds}
+        onChange={e => {
+          const picked = MORPH_SECONDS.find(s => String(s) === e.target.value)
+          if (picked !== undefined) props.onSetMorph(picked)
+        }}
         title={
           props.morphSeconds > 0
-            ? `preset, surprise and mutate travel to the new look over ${props.morphSeconds}s instead of cutting to it — click to change. Grabbing a slider ends a morph, and hitting surprise mid-morph carries on from wherever the board has got to`
-            : 'presets and rolls land in one frame — click to make them travel there instead, which is where the looks between two presets live'
+            ? `preset, surprise and mutate travel to the new look over ${props.morphSeconds}s instead of cutting to it — change it here. Grabbing a slider ends a morph, and hitting surprise mid-morph carries on from wherever the board has got to`
+            : 'presets and rolls land in one frame — pick a duration to make them travel there instead, which is where the looks between two presets live'
         }
       >
-        {`morph: ${MORPH_LABELS[props.morphSeconds]}`}
-      </button>
+        {MORPH_SECONDS.map(s => (
+          <option key={s} value={s}>{`morph: ${MORPH_LABELS[s]}`}</option>
+        ))}
+      </select>
       <button
         className={styles.btn}
         onClick={e => props.onMutate(mutateAmountFor(e))}
@@ -97,7 +100,6 @@ export function LookBar(props: {
       >
         mutate
       </button>
-      {props.saved}
       {props.tags}
       <button
         className={cx(styles.btn, !props.canUndo && styles.btnOff)}

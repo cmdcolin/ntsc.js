@@ -19,6 +19,7 @@ import {
   ALL_SLIDERS,
   AUDIO_GROUPS,
   B_GROUPS,
+  FEEDBACK_STAGE,
   MIX_STAGE,
   PHASES,
   SOUND_BLURB,
@@ -26,6 +27,9 @@ import {
   SOUND_STAGE,
   SOURCE_B_BLURB,
   SOURCE_B_STAGE,
+  VIEW_BLURB,
+  VIEW_GROUPS,
+  VIEW_STAGE,
 } from './ui/controls'
 import {
   ControlsContext,
@@ -52,7 +56,7 @@ import { MidiSection } from './ui/MidiSection'
 import { ModSection } from './ui/ModSection'
 import { slotsToRoutings } from './ui/modSlots'
 import { ModSlotsContext } from './ui/ModSlotsContext'
-import { nextMorph, parseMorph } from './ui/morph'
+import { parseMorph } from './ui/morph'
 import { MotionStrip } from './ui/MotionStrip'
 import { matchPreset, presetControls } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
@@ -124,6 +128,8 @@ const stageSet = (b: boolean, sound: boolean): ReadonlySet<string> =>
     ...TRUNK_STAGES.filter(name => b || name !== MIX_STAGE),
     ...(b ? [SOURCE_B_STAGE] : []),
     ...(sound ? [SOUND_STAGE] : []),
+    // Always: there is no input to patch into the view, so it never goes inert.
+    VIEW_STAGE,
   ])
 const OPEN_STAGES = [
   [stageSet(false, false), stageSet(false, true)],
@@ -309,13 +315,13 @@ export function App() {
   })
 
   // The saved-profile library, which is the query string above kept under a name.
-  // Recall is the same move a scene recall makes — snapshot for undo, write the
-  // controls, re-cable the bay — and stops there: the query carries the source
-  // urls so a copied *link* opens on the right clip, but yanking the live input
-  // out from under a running session to put a still back is not what "bring that
-  // look back" means. A look whose stored mod is missing (hand-edited storage; no
-  // saved look this app wrote lacks one) leaves the bay alone rather than
-  // silencing it, the same rule a link without ?mod= follows.
+  // Recall snapshots for undo, lands the controls, re-cables the bay — and stops
+  // there: the query carries the source urls so a copied *link* opens on the
+  // right clip, but yanking the live input out from under a running session to
+  // put a still back is not what "bring that look back" means. A look whose
+  // stored mod is missing (hand-edited storage; no saved look this app wrote
+  // lacks one) leaves the bay alone rather than silencing it, the same rule a
+  // link without ?mod= follows.
   const profiles = useSavedProfiles()
 
   // Labelling the live look — the tags menu in the look bar. Nothing leaves the
@@ -604,6 +610,7 @@ export function App() {
   // section header over an empty body is a dead end in a result list.
   const bGroups = B_GROUPS.filter(g => groupMatches(g, query, isRouted))
   const audioGroups = AUDIO_GROUPS.filter(g => groupMatches(g, query, isRouted))
+  const viewGroups = VIEW_GROUPS.filter(g => groupMatches(g, query, isRouted))
 
   // Roll the per-group touched state up to the stage, so the chain reads as a
   // status map — you see which stages you're in without opening any. The count
@@ -655,6 +662,17 @@ export function App() {
   // of its own, a clip could be driving the receiver with the picker on 'off',
   // and this branch would have called itself dead while it was working.
   const soundOn = audio.active
+  // Which of the three returns is actually carrying signal. Read off each
+  // loop's own mix rather than the whole group: a loop with its mix at zero is
+  // patched but silent, and both drawings are answering "is it running". The
+  // same three predicates gate the passes that close them (compose, fbComposite
+  // and tapePlay in gpu/pipeline.ts), so a lit run and a dispatched pass mean
+  // the same thing.
+  const loopsLive = {
+    camera: controls.fbMix > 0,
+    mixer: controls.cfbMix > 0,
+    tape: controls.tapeMix > 0,
+  }
   const SOUND_OFF_HINT =
     'no sound reaching it — pick a mic, a track, or the clip’s own audio under Input, and it drives the receiver'
   const unheard = (node: PathNode): PathNode =>
@@ -682,6 +700,20 @@ export function App() {
             under: 'join' as const,
           },
         ]),
+    // The view, which is the one box on the map that is not the rig. It hangs
+    // off Screen rather than joining it — the arrow points out of the chain
+    // into it, because the picture is what feeds it. Never `off`: unlike the
+    // two inputs there is nothing to patch in, you are always watching.
+    ...(viewGroups.length === 0
+      ? []
+      : [
+          {
+            ...pathNode(VIEW_STAGE, VIEW_BLURB, viewGroups),
+            join: 'Screen',
+            under: 'join' as const,
+            dir: 'out' as const,
+          },
+        ]),
   ]
   // Which stages something outside the map can jump to. Not read off pathNodes:
   // a live filter drops stages from the map, and a caption in "This look" is
@@ -698,7 +730,10 @@ export function App() {
     pinned.length > 0 ||
     edited.some(s => sliderMatches(s, query, isRouted(s.key))) ||
     (soundOn && audioGroups.length > 0) ||
-    (bOn && bGroups.length > 0)
+    (bOn && bGroups.length > 0) ||
+    // No gate on this one: the view has no input to be missing, so a query that
+    // reaches "magnifier" always has a live box to land on.
+    viewGroups.length > 0
 
   // The magnifier, as the stage's gestures and the menu's zoom row both see it.
   // One write for all three, so a gesture notifies the engine once.
@@ -833,21 +868,10 @@ export function App() {
               ⌕
             </button>
           )}
-          <AppMenu variant="masthead" {...menuProps} />
-        </div>
-      </div>
-
-      {/* Acts on the whole board, so it sits above the sections rather than
-          inside any one of them — and stays reachable with Presets folded. */}
-      <LookBar
-        comparing={comparing}
-        onStartCompare={startCompare}
-        onEndCompare={endCompare}
-        onSurprise={mix.surprise}
-        onMutate={mix.mutateLook}
-        morphSeconds={morphSeconds}
-        onCycleMorph={() => setMorphStored(String(nextMorph(morphSeconds)))}
-        saved={
+          {/* The account, at the true corner — beside the ⋮ rather than a verb
+              among compare/mutate/undo below. Those act on the look that is on
+              screen; this says whose looks they are, which is a fact about the
+              session, not a move it makes. */}
           <SavedProfiles
             profiles={profiles.profiles}
             suggestedName={suggestedProfileName}
@@ -862,7 +886,20 @@ export function App() {
             onDelete={profiles.deleteProfile}
             onCopyLink={profile => copyQuery(profile.query)}
           />
-        }
+          <AppMenu variant="masthead" {...menuProps} />
+        </div>
+      </div>
+
+      {/* Acts on the whole board, so it sits above the sections rather than
+          inside any one of them — and stays reachable with Presets folded. */}
+      <LookBar
+        comparing={comparing}
+        onStartCompare={startCompare}
+        onEndCompare={endCompare}
+        onSurprise={mix.surprise}
+        onMutate={mix.mutateLook}
+        morphSeconds={morphSeconds}
+        onSetMorph={s => setMorphStored(String(s))}
         tags={
           <TagsPopover
             tags={labels.tags}
@@ -1022,13 +1059,11 @@ export function App() {
         expandAll={filtering}
         bench={bench}
         onShowDiagram={() => setShowDiagram(true)}
-        // Which of the two returns is actually carrying signal. Read off the
-        // two loop mixes rather than the whole group: a loop with its mix at
-        // zero is patched but silent, and the map is answering "is it running".
-        live={{ camera: controls.fbMix > 0, mixer: controls.cfbMix > 0 }}
+        live={loopsLive}
         // On the bench nothing is folded, so the map marks a stage and scrolls
         // to it rather than unfolding one and closing another.
         onOpen={bench ? nav.jumpPhase : nav.togglePhase}
+        onOpenLoop={group => nav.openAt(FEEDBACK_STAGE, group)}
         openGroup={nav.openGroup}
         onOpenGroup={nav.toggleGroup}
       />
@@ -1190,7 +1225,7 @@ export function App() {
       {showDiagram ? (
         <SignalPathDialog
           controls={controls}
-          live={{ camera: controls.fbMix > 0, mixer: controls.cfbMix > 0 }}
+          live={loopsLive}
           bOn={eng.sourceBMode !== 'none'}
           soundOn={soundOn}
           onOpen={nav.openAt}
