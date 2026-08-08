@@ -262,7 +262,6 @@ export const PARAM_DEFS = [
   ['phosphor', 'f32'], // P22 persistence: green-channel frame-to-frame retention (R/B decay faster)
   ['phosphorMode', 'f32'], // tube colour identity: 0 sRGB, 1 P22/SMPTE-C, 2 NTSC-1953, 3 long-persistence green
   ['phosphorSkew', 'f32'], // R/B persistence decay exponent skew relative to G (trails die toward green)
-  ['phosphorDecayMix', 'f32'], // persistence combine: 0 peak-hold (strobe) .. 1 additive light
   ['phosphorBleed', 'f32'], // fraction of held light that scatters to the four neighbours per frame
   ['crtSharp', 'f32'], // horizontal Catmull-Rom reconstruction blend (0 bilinear)
   ['maskAmt', 'f32'], // aperture grille strength

@@ -141,7 +141,7 @@ export const PRESETS: PresetDef[] = [
     patch: {
       shuttleX: 0,
       timeScale: 0.35,
-      phosphor: 0.6,
+      phosphor: 0.9,
       lumaMHz: 2.6,
       lumaPeak: 1,
       noiseIre: 4,
@@ -279,8 +279,7 @@ export const PRESETS: PresetDef[] = [
       hvSagUs: 8,
       hvRing: 0.8,
       crtCutoff: 0.1,
-      phosphor: 0.8,
-      phosphorDecayMix: 0.15,
+      phosphor: 0.88,
     },
   },
   {
@@ -316,7 +315,7 @@ export const PRESETS: PresetDef[] = [
       humMod: 0.35,
       agc: 0.45,
       noiseIre: 3,
-      phosphor: 0.5,
+      phosphor: 0.8,
     },
   },
   {
@@ -424,7 +423,7 @@ export const PRESETS: PresetDef[] = [
       bRollLps: 0.2,
       cfbMix: 0.45,
       cfbLines: 3,
-      phosphor: 0.6,
+      phosphor: 0.85,
       noiseIre: 3,
     },
   },
@@ -444,7 +443,7 @@ export const PRESETS: PresetDef[] = [
       hvRing: 0.8,
       vHold: 0.45,
       hHold: 0.3,
-      phosphor: 0.5,
+      phosphor: 0.8,
       noiseIre: 2,
     },
   },
@@ -473,7 +472,7 @@ export const PRESETS: PresetDef[] = [
       tapeWear: 0.015,
       tapeWowPct: 0.25,
       colorUnderMix: 0.5,
-      phosphor: 0.35,
+      phosphor: 0.75,
     },
     // The loop length is the delay, so walking it walks the echo spacing — and
     // because nothing time-base corrects the return, each new length hands back
@@ -886,7 +885,7 @@ export const PRESETS: PresetDef[] = [
       crtGlow: 0.15,
       scanBeam: 0.45,
       scanBloom: 0.7,
-      phosphor: 0.4,
+      phosphor: 0.7,
       phosphorBleed: 0.2,
     },
   },
@@ -898,7 +897,6 @@ export const PRESETS: PresetDef[] = [
     patch: {
       phosphorMode: 3,
       phosphor: 0.99,
-      phosphorDecayMix: 0.35,
       phosphorBleed: 0.35,
       crtCutoff: 0.08,
       crtGamma: 2.2,
@@ -923,7 +921,7 @@ export const PRESETS: PresetDef[] = [
       crtGlow: 0.2,
       crtSpot: 1,
       crtGrain: 0.14,
-      phosphor: 0.3,
+      phosphor: 0.65,
       phosphorBleed: 0.2,
     },
   },
@@ -1073,7 +1071,7 @@ export const PRESETS: PresetDef[] = [
       encChromaMHz: 1.7,
       demodMHz: 1.1,
       noiseIre: 8,
-      phosphor: 0.35,
+      phosphor: 0.75,
       crtBloom: 0.4,
       crtGamma: 1.4,
     },
@@ -1096,7 +1094,7 @@ export const PRESETS: PresetDef[] = [
       crtCutoff: 0.06,
       crtGamma: 1.5,
       crtSat: 1.3,
-      phosphor: 0.6,
+      phosphor: 0.9,
       noiseIre: 2,
     },
     // A loop sitting a hair over unity is a knife edge, and a tube warming up
@@ -1143,7 +1141,7 @@ export const PRESETS: PresetDef[] = [
       cfbLines: 3,
       cfbKey: 0.7,
       cfbKeySoft: 10,
-      phosphor: 0.45,
+      phosphor: 0.9,
     },
   },
   // Past the redline: every patch below sets at least one control beyond the
@@ -1171,7 +1169,7 @@ export const PRESETS: PresetDef[] = [
       hvRing: 0.9,
       abl: 0.5,
       hDetuneHz: 900,
-      phosphor: 0.6,
+      phosphor: 0.85,
       noiseIre: 3,
     },
   },
@@ -1192,7 +1190,7 @@ export const PRESETS: PresetDef[] = [
       noiseIre: 32,
       tbStickNs: 8000,
       tbJitterNs: 2200,
-      phosphor: 0.45,
+      phosphor: 0.88,
     },
   },
   {
@@ -1215,7 +1213,7 @@ export const PRESETS: PresetDef[] = [
       tapeSplice: 0.8,
       tapeHfLoss: 0.5,
       colorUnderMix: 0.6,
-      phosphor: 0.4,
+      phosphor: 0.78,
     },
   },
   {
@@ -1249,7 +1247,6 @@ export const PRESETS: PresetDef[] = [
       phosphor: 0.999,
       phosphorBleed: 0.9,
       phosphorSkew: 5,
-      phosphorDecayMix: 0.6,
       // Gamma this far under 1 lifts the floor as hard as it lifts the mids,
       // and a tube whose black is white has nothing for the glow to sit on. The
       // cutoff puts the floor back: the gun stays off below the knee, so the

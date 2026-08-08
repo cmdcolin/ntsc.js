@@ -2441,7 +2441,17 @@ export const GROUPS: Group[] = [
         step: 0.0005,
         redline: [0, 0.995],
         unit: '',
-        help: 'How long the phosphor keeps glowing after the beam has passed. This is afterglow in the glass, not electronic feedback — motion leaves comet trails that decay on their own, and at high values the screen never fully clears.',
+        help: `How long the layer keeps glowing after the beam has passed. This
+          is afterglow in the glass, not electronic feedback — the decay is
+          second-order, so the bright core of a trail dumps almost all of itself
+          at once and only the dim remainder hangs on.
+
+          A real picture-tube phosphor is gone well inside one field, so
+          anything you can actually *see* as a trail is already past P22 and
+          into scope-tube territory. The top of the dial is where that lives;
+          the middle is a hold of a field or two, which is enough to catch an
+          arc strike or a sync tear that would otherwise be gone before you
+          registered it.`,
       },
       {
         key: 'phosphorSkew',
@@ -2451,18 +2461,7 @@ export const GROUPS: Group[] = [
         step: 0.05,
         redline: [0, 2],
         unit: '',
-        fine: true,
         help: 'The three phosphors do not decay at the same rate — red and blue die faster than green. Raise this and trails tint green as they fade, which is the giveaway that you are looking at real persistence rather than a blend of frames.',
-      },
-      {
-        key: 'phosphorDecayMix',
-        label: 'trail sum (peak-hold→additive)',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        unit: '',
-        fine: true,
-        help: 'How old and new light combine. At 0 the brighter of the two wins (peak-hold), giving hard strobing trails; at 1 they add like real light, so overlapping trails accumulate and burn toward white.',
       },
       {
         key: 'phosphorBleed',

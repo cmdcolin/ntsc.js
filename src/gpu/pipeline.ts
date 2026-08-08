@@ -449,10 +449,13 @@ export class Engine implements EngineApi {
       size: LINES * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
-    // phosphor persistence state: the light still on the glass, packed rgba8
+    // Phosphor persistence state: the light still on the glass, as linear-light
+    // half floats — two u32 per pixel, RG then B. Not the rgba8 this used to be;
+    // see the store's note in decode.wgsl for why an 8-bit encoded tail freezes
+    // partway down instead of fading out.
     const persistBuf = (): GPUBuffer =>
       d.createBuffer({
-        size: ACTIVE_WIDTH * ACTIVE_HEIGHT * 4,
+        size: ACTIVE_WIDTH * ACTIVE_HEIGHT * 8,
         usage: GPUBufferUsage.STORAGE,
       })
     this.persistBufs = [persistBuf(), persistBuf()]
@@ -1560,7 +1563,6 @@ export class Engine implements EngineApi {
       phosphor: c.phosphor,
       phosphorMode: c.phosphorMode,
       phosphorSkew: c.phosphorSkew,
-      phosphorDecayMix: c.phosphorDecayMix,
       phosphorBleed: c.phosphorBleed,
       crtSharp: c.crtSharp,
       maskAmt: c.maskAmt,

@@ -14,6 +14,16 @@
 // one buffer and the new state written to the other, so the lateral scatter
 // below reads settled neighbours instead of a buffer this dispatch is part way
 // through overwriting.
+//
+// The state is *linear light*, two f16 per pixel pair, not the gamma-encoded
+// byte the picture is displayed as. Both halves of that matter. Encoded, a
+// decaying tail spends most of its life in the top of the code range and falls
+// off a cliff at the end — the opposite of how light leaves a phosphor. And at
+// 8 bits a long tail quantizes to a fixed point the moment the decay rounds a
+// value back to itself, so ghosts freeze on the glass instead of fading; the
+// old store needed a half-LSB dither to keep trails moving at all. Half floats
+// carry the same relative precision at every magnitude, so the tail thins
+// smoothly for as long as the arithmetic runs and the dither is gone with it.
 @group(0) @binding(6) var<storage, read> held: array<u32>;
 @group(0) @binding(7) var<storage, read_write> heldNext: array<u32>;
 @group(0) @binding(8) var<storage, read> audio: array<f32>;
@@ -21,7 +31,45 @@
 fn heldLight(x: i32, y: i32) -> vec3f {
   let xc = u32(clamp(x, 0, i32(ACTIVE_W) - 1));
   let yc = u32(clamp(y, 0, i32(ACTIVE_H) - 1));
-  return unpack4x8unorm(held[yc * ACTIVE_W + xc]).rgb;
+  let i = (yc * ACTIVE_W + xc) * 2u;
+  let rg = unpack2x16float(held[i]);
+  return vec3f(rg.x, rg.y, unpack2x16float(held[i + 1u]).x);
+}
+
+fn storeLight(pi: u32, e: vec3f) {
+  heldNext[pi * 2u] = pack2x16float(vec2f(e.r, e.g));
+  heldNext[pi * 2u + 1u] = pack2x16float(vec2f(e.b, 0.0));
+}
+
+// Gun drive is gamma-encoded; the phosphor layer works in light. Same 2.2 the
+// tube identity matrix above uses, for the same reason.
+fn toLight(c: vec3f) -> vec3f {
+  return pow(max(c, vec3f(0.0)), vec3f(2.2));
+}
+
+fn toDrive(c: vec3f) -> vec3f {
+  return pow(max(c, vec3f(0.0)), vec3f(1.0 / 2.2));
+}
+
+// Second-order (bimolecular) decay, integrated over one field.
+//
+// An exponential is what you get when each excited centre relaxes on its own
+// clock, independent of its neighbours. ZnS phosphors — P22, P1, P7, all of
+// them — do not work that way: the beam frees carriers into the lattice and
+// light comes out when two of them find each other again, so the rate goes as
+// the square of what is left rather than linearly. Integrating dE/dt = -kE^2
+// over a field gives a hyperbola, and the hyperbola is the entire difference
+// between a phosphor and a frame echo.
+//
+// Exponential decay scales every level by the same factor, so a moving object
+// leaves a row of evenly-weighted copies of itself — which is exactly what
+// `mix(prev, cur, k)` does in every cheap motion blur, and exactly why the old
+// version read as digital no matter how it was tuned. Under a hyperbola the
+// bright core dumps nearly all of itself in the first field or two while the
+// dim remainder hangs on for hundreds, so what a moving edge leaves behind is
+// a hard bright front and a faint cloud, not a stack of stencils.
+fn phosphorDecay(e: vec3f, k: vec3f) -> vec3f {
+  return e / (1.0 + k * e);
 }
 
 // chroma-path source per Y/C separation mode
@@ -329,20 +377,29 @@ fn main(
     // phosphor below still owes whatever it was holding there
     outc = vec3f(0.0);
   }
-  // Phosphor persistence: the screen still holds last frame's decaying light.
-  // Skewed exponents make blue die first and green linger, so trails cool
-  // toward green as they fade. Peak-hold keeps a hard-edged trail (the strobe
-  // presets); additive is how phosphor light actually sums — softer and more
-  // photographic. Lives on outTex (not in present) so the camera-feedback loop
-  // films a persisting screen, as a real camera-at-monitor rig would.
+  // Phosphor persistence: the screen still holds last field's decaying light.
+  // Skewed rates make blue die first and green linger, so trails cool toward
+  // green as they fade. Lives on outTex (not in present) so the camera-feedback
+  // loop films a persisting screen, as a real camera-at-monitor rig would.
+  //
+  // One dispatch is one field of simulated time, which is why the decay is per
+  // step and not per wall-clock millisecond: under timeScale the whole rig
+  // slows together, and a phosphor that kept decaying in real time while the
+  // sweep crawled would be the one part of the picture not slowing with it.
   let pi = gid.y * ACTIVE_W + gid.x;
+  var emitted = toLight(outc);
   if (P.phosphor > 0.0) {
-    // Held just off 1.0: at 1 the layer never gives the light back and the
-    // screen keeps every frame it was ever shown, with nothing in the pass that
-    // could clear it. 0.9995 is a tail of thousands of frames — a smear that
-    // outlasts the gesture that made it, but still one that ends.
+    // Held just off 1.0: at 1 the rate is zero, the layer never gives the light
+    // back, and the screen keeps every field it was ever shown with nothing in
+    // the pass that could clear it.
     let p = min(P.phosphor, 0.9995);
-    let decay = vec3f(pow(p, 1.0 + P.phosphorSkew), p, pow(p, 1.0 + 2.0 * P.phosphorSkew));
+    // Rate per field. The reciprocal is what makes the control usable across
+    // its range: k falls away as p approaches 1, so the top of the dial is
+    // where the scope tubes live (seconds) while the middle is a hold of a
+    // field or two — a real TV phosphor is gone well inside one field, so
+    // anything visible as a trail on a picture tube is already past P22.
+    let k = 8.0 * (1.0 - p) / p;
+    let krgb = k * vec3f(1.0 + P.phosphorSkew, 1.0, 1.0 + 2.0 * P.phosphorSkew);
     var glowing = heldLight(i32(gid.x), i32(gid.y));
     // Lateral scatter in the layer: light does not leave through the grain that
     // emitted it, it bounces sideways through the deposit and the glass, and
@@ -359,21 +416,26 @@ fn main(
         + heldLight(i32(gid.x), i32(gid.y) + 1);
       glowing = glowing + P.phosphorBleed * (side * 0.25 - glowing);
     }
-    let tail = glowing * decay;
-    // Additive afterglow is only the light the phosphor still owes beyond what
-    // the current drive sustains (a steadily driven pixel owes nothing) — the
+    // A hyperbola approaches zero but never reaches it, so the faint end of a
+    // long tail would otherwise sit on the glass forever. A slow first-order
+    // leak underneath guarantees it lands.
+    let tail = phosphorDecay(glowing, krgb) * 0.9995;
+    // The afterglow is only the light the layer still owes beyond what the
+    // current drive sustains (a steadily driven pixel owes nothing) — the
     // subtraction keeps a static picture at unity instead of ratcheting the
     // whole screen to white, while a departed object still leaves its full
-    // tail, summing over whatever dim content it crosses.
-    let glow = gamutFit(outc + max(tail - outc * decay, vec3f(0.0)));
-    outc = mix(max(outc, tail), glow, P.phosphorDecayMix);
+    // tail, summing over whatever dim content it crosses. Summing in light,
+    // which is the only place light sums; the old peak-hold branch took a
+    // max() of two gamma-encoded values, an operator no part of a tube
+    // performs, and it was the source of the hard-edged stacked stencils.
+    let drive = emitted;
+    emitted = drive + max(tail - phosphorDecay(drive, krgb) * 0.9995, vec3f(0.0));
+    outc = gamutFit(toDrive(emitted));
   }
-  // The store is 8-bit, so a long exponential tail quantizes to a fixed point
-  // once p*v rounds back to v (everything below ~25/255 at p = 0.98) and
-  // ghosts freeze on screen instead of fading. Half-LSB dither makes the
-  // rounding unbiased, so trails decay all the way to black.
-  let dith = (rand01(pcg(pi ^ (P.frame * 668265263u))) - 0.5) / 255.0;
-  heldNext[pi] = pack4x8unorm(vec4f(outc + vec3f(dith), 1.0));
+  // Always stored, even with persistence off: the buffer is what the layer is
+  // holding, and if it went stale while the control sat at 0 then turning the
+  // control up would light the glass with whatever field it was parked on.
+  storeLight(pi, emitted);
 
   // Debug views substitute what is displayed, not what is decoded: the
   // persistence state above is still carried, so switching a view on and off

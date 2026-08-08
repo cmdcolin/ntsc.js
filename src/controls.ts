@@ -136,9 +136,13 @@ export const DEFAULT_CONTROLS = {
   crtSat: 1, // saturation around luma, 1 = unchanged
   crtSpot: 0.6, // beam-spot radius on the glass, active px (0 = point-sampled pixels)
   crtGrain: 0.07, // granular phosphor deposit mottling emitted light
-  crtBloom: 0,
-  crtHalation: 0,
-  crtGlow: 0,
+  // A tube always scatters some of its own light — these are a floor, not an
+  // effect. At zero the baseline is not a clean set, it is a framebuffer with
+  // no glass in front of it, and every preset that did not name these inherited
+  // that. Thresholded well above mid grey, so what they touch is highlights.
+  crtBloom: 0.2, // beam core spilling into the coating around it
+  crtHalation: 0.15, // light into the faceplate, bounced off the back, back out
+  crtGlow: 0.08, // faint warm haze; the glass is never truly black
   crtHaloKey: 0, // halation radius keyed off beam current, 0 = the fixed radius
   crtSvm: 0, // scan velocity modulation depth, signed (coil polarity)
   crtSvmWidth: 1.2, // SVM differentiator aperture, active px
@@ -238,7 +242,6 @@ export const DEFAULT_CONTROLS = {
   phosphor: 0, // persistence: green retention per frame; red/blue decay faster
   phosphorMode: 0, // 0 sRGB, 1 P22/SMPTE-C, 2 NTSC-1953, 3 long-persistence green
   phosphorSkew: 0.7, // R/B decay exponent skew vs green (0.7 = 1.7/1.0/2.4)
-  phosphorDecayMix: 0, // 0 peak-hold trails (strobe), 1 additive light
   phosphorBleed: 0.15, // light scattering sideways in the layer: trails soften as they age
   crtSharp: 0,
   maskAmt: 0,

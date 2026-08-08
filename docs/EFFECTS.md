@@ -563,9 +563,18 @@ and what you see looking at one.
   mottled; fixed on the glass and strongest in the mid tones.
 - **Phosphor primaries** — sRGB, P22/SMPTE-C, the wide 1953 NTSC set, or
   long-persistence monochrome green.
-- **Phosphor persistence / trail tint / trail sum** — afterglow in the glass;
-  red and blue die faster than green, and trails either peak-hold (strobe) or
-  add toward white.
+- **Phosphor persistence / trail tint** — afterglow in the glass. The decay is
+  second-order, not exponential: the carriers the beam frees have to find each
+  other again to emit, so the rate goes as the square of what is left and a
+  trail is a hard bright front over a long faint tail rather than a row of
+  evenly-dimmed copies. Red and blue die faster than green, so what hangs
+  longest is green. Held as linear light, and summed as light.
+
+  A real picture-tube phosphor is gone well inside one field — anything visible
+  as a trail is already past P22 and into scope-tube territory. The useful short
+  settings hold a sub-frame event (an arc strike, a sync tear) just long enough
+  to register.
+
 - **Trail scatter** — held light bounces sideways through the layer into
   phosphor that is still glowing, so the spread compounds along a trail: the
   fresh edge stays sharp while old light goes wide and cloudy.
