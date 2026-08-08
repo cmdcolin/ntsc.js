@@ -1,6 +1,7 @@
 import {
   BOX_H,
   BRANCH_Y,
+  branchArrow,
   branchPath,
   chainLayout,
   H,
@@ -12,13 +13,22 @@ import {
 import styles from './ChainMap.module.css'
 import { cx } from './cx'
 
+import type { BranchSpec } from './chainLayout'
+import type { LoopsLive } from './controls'
+
 // The chain in miniature at the head of the sidebar: a box per stage, wired
-// left to right in the order the picture travels, with the two feedback returns
-// looping back over the top and input B joining from below. Clicking a box
-// opens that stage's controls, so this is the sidebar's navigation rather than
-// an illustration of it — and it has to look like navigation, which is why a
-// box is a filled chip on the wire rather than another hairline rectangle in
+// left to right in the order the picture travels, with the three feedback
+// returns looping back over the top and the two branches — input B and the
+// sound — joining from below, each at the stage it actually feeds. Clicking a
+// box opens that stage's controls, so this is the sidebar's navigation rather
+// than an illustration of it — and it has to look like navigation, which is why
+// a box is a filled chip on the wire rather than another hairline rectangle in
 // the same colour as the wire (see ChainMap.module.css).
+//
+// A return is navigation too, and its own kind of it: the box under the three
+// of them opens the Feedback stage at whichever group comes first, so pressing
+// the loop you can see running was never how you reached it. Each run carries
+// its name and opens its own group.
 //
 // State reads as colour on one element: idle until you point at it, amber for a
 // stage carrying an edit, accent for the stage that is open.
@@ -26,26 +36,33 @@ import { cx } from './cx'
 // Every coordinate comes from chainLayout.ts — the sizes and the arithmetic are
 // there, and this file is the drawing.
 export interface ChainStage {
-  // A Phase for a trunk stage, and 'Source B' for the branch. Not typed as
-  // Phase: the branch is a second signal joining the trunk rather than a
-  // seventh division of it, and the map addresses both the same way.
+  // A Phase for a trunk stage, and the branch's own name ('Source B', 'Sound')
+  // for a branch. Not typed as Phase: a branch is something joining the trunk
+  // rather than a further division of it, and the map addresses both the same
+  // way.
   name: string
   blurb: string
   touched: number
-  // Nothing patched into source B, which leaves this stage with nothing to act
-  // on: drawn dashed and inert, and it opens nothing. True of the branch itself
-  // and of Mix, whose every control needs a second signal to have an effect.
+  // Nothing patched into this branch, which leaves the stage with nothing to
+  // act on: drawn dashed and inert, and it opens nothing. True of a branch with
+  // no input picked, and of Mix, whose every control needs a second signal to
+  // have an effect.
   off?: boolean
   // What to say instead of the blurb while it is off.
   offHint?: string
 }
 
+// A stage that hangs under the trunk, plus where its wire goes — the two fields
+// the layout needs and a trunk stage has no use for.
+export interface ChainBranchStage extends ChainStage, BranchSpec {}
+
 export function ChainMap(props: {
   stages: ChainStage[]
-  // Input B, drawn under the head of the trunk. Drawn whether or not B is
-  // patched in — with `off` set it is the one thing on screen saying a second
-  // input exists at all. null when a live filter has left it nothing to show.
-  branch: ChainStage | null
+  // The branches, drawn under the trunk. Drawn whether or not anything is
+  // patched into each — with `off` set a branch is the one thing on screen
+  // saying that input exists at all. A live filter can leave one with nothing
+  // to show, and it drops out.
+  branches: ChainBranchStage[]
   open: string | null
   // Whether clicking the box that is already open folds its stage away. True on
   // the spine, where the map is the fold; false on the bench, where every stage
@@ -55,13 +72,18 @@ export function ChainMap(props: {
   // on the open stage's heading only answers that question once you are in.
   folds: boolean
   // Which returns are carrying signal, so the map can show a running loop
-  // rather than only the two that exist in principle.
-  live: { camera: boolean; mixer: boolean }
+  // rather than only the two that exist in principle. Typed as all three even
+  // though the miniature draws two: the shape is shared with the full diagram,
+  // which has the room for the loop bin as well.
+  live: LoopsLive
   onOpen: (name: string) => void
+  // A run, as against the box under it: opens the Feedback stage at the one
+  // group that loop's controls live in.
+  onOpenLoop: (group: string) => void
 }) {
-  const { boxes, wires, returns, branch } = chainLayout(
+  const { boxes, wires, returns, branches } = chainLayout(
     props.stages.map(s => s.name),
-    props.branch?.name ?? null,
+    props.branches,
   )
   const top = MID_Y - BOX_H / 2
 
@@ -82,54 +104,89 @@ export function ChainMap(props: {
           y2={MID_Y}
         />
       ))}
-      {returns.map(r => (
+      {returns.map(r => {
+        const d = returnPath(r.from, r.to, top, r.y, r.turn)
+        return (
+          /* A run is a button of its own: the two loops are the one thing on
+             this map that is visibly two things and used to open as one. The
+             box below them still opens the stage; the run opens the loop. */
+          <g
+            key={r.loop}
+            className={cx(
+              styles.mapReturn,
+              styles.mapLoopBtn,
+              r.optical && styles.mapReturnOptical,
+              props.live[r.loop] && styles.mapReturnLive,
+            )}
+            role="button"
+            tabIndex={0}
+            aria-label={`${r.label} — open its controls`}
+            onClick={() => props.onOpenLoop(r.group)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                props.onOpenLoop(r.group)
+              }
+            }}
+          >
+            <title>
+              {`${props.live[r.loop] ? `${r.label} — running` : r.label} — click for its controls`}
+            </title>
+            {/* The run is a 1px hairline and the target. 8 units of transparent
+                stroke is what makes it pressable without moving it, and it
+                stays inside the 10 between one run and the next. */}
+            <path className={styles.mapLoopHit} d={d} />
+            <path className={styles.mapWire} d={d} />
+            <path
+              className={styles.mapArrow}
+              d={`M${r.to - HEAD} ${top - HEAD * 1.5}L${r.to} ${top}L${r.to + HEAD} ${top - HEAD * 1.5}Z`}
+            />
+            {/* The run's own name, riding the wire rather than sitting above
+                it — there is no above at this size. It is painted after the
+                wire and carries a stroke of the panel behind it, so the run
+                breaks around the word instead of running through it. */}
+            <text
+              className={styles.mapLoopLabel}
+              x={r.nameAt.x}
+              y={r.y}
+              textAnchor={r.nameAt.anchor}
+              dominantBaseline="central"
+            >
+              {r.name}
+            </text>
+          </g>
+        )
+      })}
+      {branches.map((branch, i) => (
+        /* Each branch arrives on a lead of its own, then runs up to the stage it
+           is wired to. The wire takes the node's colour, so a patched-in branch
+           lights its whole run rather than just the box on it. The arrowhead is
+           the only thing that differs between an input and the view, and it is
+           the whole statement: one is fed into the chain, the other out of it. */
         <g
-          key={r.loop}
-          className={cx(
-            styles.mapReturn,
-            r.optical && styles.mapReturnOptical,
-            props.live[r.loop] && styles.mapReturnLive,
-          )}
+          key={branch.name}
+          className={cx(props.branches[i].off === true && styles.mapBranchOff)}
         >
-          <title>{props.live[r.loop] ? `${r.label} — running` : r.label}</title>
-          <path
-            className={styles.mapWire}
-            d={returnPath(r.from, r.to, top, r.y, r.turn)}
-          />
-          <path
-            className={styles.mapArrow}
-            d={`M${r.to - HEAD} ${top - HEAD * 1.5}L${r.to} ${top}L${r.to + HEAD} ${top - HEAD * 1.5}Z`}
-          />
-        </g>
-      ))}
-      {props.branch === null || branch === null ? null : (
-        <g className={cx(props.branch.off === true && styles.mapBranchOff)}>
-          {/* B arrives on a stub of its own, then runs up into the mixer. The
-              wire takes the node's colour, so a patched-in B lights its whole
-              run rather than just the box on it. */}
           <line
             className={styles.mapWire}
-            x1={0}
+            x1={branch.stub}
             y1={BRANCH_Y}
             x2={branch.x - branch.w / 2}
             y2={BRANCH_Y}
           />
           <path className={styles.mapWire} d={branchPath(branch)} />
-          <path
-            className={styles.mapArrow}
-            d={`M${branch.join - HEAD} ${MID_Y + BOX_H / 2 + HEAD * 1.5}L${branch.join} ${MID_Y + BOX_H / 2}L${branch.join + HEAD} ${MID_Y + BOX_H / 2 + HEAD * 1.5}Z`}
-          />
+          <Arrow at={branchArrow(branch)} />
           <Node
-            stage={props.branch}
+            stage={props.branches[i]}
             x={branch.x}
             y={BRANCH_Y}
             boxW={branch.w}
-            open={props.open === props.branch.name}
+            open={props.open === branch.name}
             folds={props.folds}
             onOpen={props.onOpen}
           />
         </g>
-      )}
+      ))}
       {props.stages.map((stage, i) => (
         <Node
           key={stage.name}
@@ -143,6 +200,26 @@ export function ChainMap(props: {
         />
       ))}
     </svg>
+  )
+}
+
+// A branch's arrowhead, from the anchor and unit direction the layout worked
+// out. Built off the direction rather than written out per case, so a wire that
+// arrives sideways gets a head that points sideways without a fourth copy of
+// this triangle.
+function Arrow(props: {
+  at: { x: number; y: number; dx: number; dy: number }
+}) {
+  const { x, y, dx, dy } = props.at
+  // The two base corners sit HEAD*1.5 back along the wire and HEAD to either
+  // side of it — the perpendicular being (-dy, dx).
+  const bx = x - dx * HEAD * 1.5
+  const by = y - dy * HEAD * 1.5
+  return (
+    <path
+      className={styles.mapArrow}
+      d={`M${bx - dy * HEAD} ${by + dx * HEAD}L${x} ${y}L${bx + dy * HEAD} ${by - dx * HEAD}Z`}
+    />
   )
 }
 

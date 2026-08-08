@@ -1,5 +1,5 @@
 /* The chain in miniature at the head of the signal path: one labeled box per
-   stage, wired left to right, with the two feedback returns looping back over
+   stage, wired left to right, with the three feedback returns looping back over
    the top and input B joining from below. Box and label take currentColor, so
    one rule per state (idle / touched / open / off) colors a whole stage — and,
    on the branch, its wires with it. */
@@ -55,6 +55,59 @@
 /* the loop is actually running — its mix is off zero */
 .mapReturnLive {
   color: var(--accent);
+}
+/* Each run is its own button, opening the Feedback stage at that loop's group.
+   A hairline has no fill to light, so colour is the whole hover state — and the
+   run already carries it, arrowhead included. */
+.mapLoopBtn {
+  cursor: pointer;
+}
+.mapLoopBtn:hover,
+.mapLoopBtn:focus-visible {
+  color: var(--fg);
+}
+.mapLoopBtn:focus-visible {
+  outline: none;
+}
+.mapLoopBtn:focus-visible .mapWire {
+  stroke-width: 2;
+}
+/* What makes a 1px wire pressable. Transparent rather than absent so it takes
+   pointer events, and 8 units wide so it cannot reach the next run 10 away. */
+.mapLoopHit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 8;
+}
+/* A run's own name, on the run. Lowercase at 7.5px against the boxes' uppercase
+   8px, because a wire and a stage are not the same kind of thing and the map
+   has no room to say so twice. The knockout is what makes riding the wire work
+   at all: paint the surface colour as a stroke first, and the run breaks
+   cleanly around the letters instead of striking through them.
+
+   It does *not* take the run's colour, which is the one thing here that is not
+   currentColor. An idle run is --border, and theme.css draws the line at --fg4:
+   anything dimmer is decoration. A name is not decoration — it is the whole
+   reason the band grew — so it sits at --fg3, one step under the stage names so
+   a wire still reads as subordinate to a box. The two states that mean
+   something do follow the run, and they are spelled out below because the fill
+   above stops them arriving on their own. */
+.mapLoopLabel {
+  fill: var(--fg3);
+  font-size: 7.5px;
+  letter-spacing: 0.02em;
+  user-select: none;
+  paint-order: stroke;
+  stroke: var(--panel-bg);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.mapReturnLive .mapLoopLabel {
+  fill: var(--accent);
+}
+.mapLoopBtn:hover .mapLoopLabel,
+.mapLoopBtn:focus-visible .mapLoopLabel {
+  fill: var(--fg);
 }
 .mapNode {
   color: var(--fg2);
