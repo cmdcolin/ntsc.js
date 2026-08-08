@@ -155,6 +155,69 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'tracking band',
+    group: 'Tape wear',
+    blurb:
+      'The head riding half off its track: a band of hash where the signal is weakest, the picture bending through it, and colour dropping out across it because the 629 kHz carrier starves before the luma does. The thing the tracking knob on the front of the deck was for.',
+    patch: {
+      trackAmt: 0.55,
+      trackPos: 0.62,
+      headClog: 0.2,
+      colorUnderMix: 1,
+      chromaNoiseIre: 18,
+      lumaMHz: 2.8,
+      noiseIre: 3,
+      tbJitterNs: 250,
+      hHold: 0.25,
+    },
+    // A real deck's band never sits still — the tape stretches, the servo
+    // hunts, and the band walks slowly up and down the frame. Slow enough to
+    // read as drift rather than as something flapping.
+    mod: [{ target: 'trackPos', source: 'smooth', rateHz: 0.08, depth: 0.25 }],
+  },
+  {
+    name: 'fm fold',
+    group: 'Tape wear',
+    blurb:
+      'The white clip set too hot: every hard dark-to-bright edge overshoots past the FM response cliff and the discriminator folds back, trailing a black comet that boils frame to frame. Colour is recorded separately, so it rides straight through the fold — saturated hue smeared over black.',
+    patch: {
+      fmOverdev: 0.72,
+      fmStreakUs: 0.45,
+      lumaPeak: 2.4,
+      lumaMHz: 3.2,
+      colorUnderMix: 1,
+      chromaGain: 1.3,
+      noiseIre: 2.5,
+    },
+  },
+  {
+    name: 'colour late',
+    group: 'Tape wear',
+    blurb:
+      'Chroma group delay mistrimmed against luma: every coloured area sits bodily sideways off the edge it belongs to, bleeding out of one side of things and falling short of the other. The burst travels the same wrong path, so hue stays correct — displaced colour, not rotated, which is what tells it from a timebase fault.',
+    patch: {
+      ycDelayNs: 1120,
+      colorUnderMix: 1,
+      chromaGain: 1.4,
+      lumaMHz: 3,
+      noiseIre: 2,
+    },
+  },
+  {
+    name: 'tired amplifier',
+    group: 'Tape wear',
+    blurb:
+      'Both of the video amp’s brightness-dependent errors at once: saturation drains out of the highlights while the shadows keep theirs, and hue swings with the luma underneath it — so a face turns one way in the light and the other in the shadow. Measured on every VTR spec sheet ever printed as DG% and DP°.',
+    patch: {
+      diffGain: 0.8,
+      diffPhaseDeg: 34,
+      lumaPeak: 1.6,
+      chromaGain: 1.2,
+      agc: 0.3,
+      noiseIre: 2,
+    },
+  },
+  {
     name: 'broadcast',
     group: 'RF / Broadcast',
     blurb:
@@ -238,6 +301,41 @@ export const PRESETS: PresetDef[] = [
       ghostGain: 0.3,
       humAmp: 8,
     },
+  },
+  {
+    name: 'dimmer hash',
+    group: 'RF / Broadcast',
+    blurb:
+      'A triac dimmer on the same mains, firing twice a cycle at its set angle: the interference stops falling anywhere and bunches into two bands of hash that roll up the picture locked to the hum bar — same mains, so they travel together. Quieter than an arc storm and far more unsettling, because it is periodic.',
+    patch: {
+      impulseRate: 9,
+      impulseHz: 420,
+      impulseMains: 0.85,
+      impulseIre: 90,
+      humAmp: 14,
+      humMod: 0.35,
+      agc: 0.45,
+      noiseIre: 3,
+      phosphor: 0.5,
+    },
+  },
+  {
+    name: 'cb breakthrough',
+    group: 'RF / Broadcast',
+    blurb:
+      'An illegal linear two streets over pushing into the front end: a slow herringbone crawling over a weak picture, with the sound carrier leaking past its trap on top. The 1970s in one look.',
+    patch: {
+      ingress: 0.6,
+      soundIre: 7,
+      rfSnow: 0.3,
+      rfAdjacent: 0.25,
+      noiseIre: 6,
+      agc: 0.5,
+      lumaMHz: 3.4,
+    },
+    // A neighbour keying a microphone is not a steady tone — it comes and goes
+    // in bursts, which is what makes it read as somebody talking.
+    mod: [{ target: 'ingress', source: 'hold', rateHz: 0.6, depth: 0.4 }],
   },
   {
     name: 'scrambled channel',
@@ -912,6 +1010,43 @@ export const PRESETS: PresetDef[] = [
     blurb:
       'Just the beam transfer — cutoff and gun gamma with no bloom. Lifts the decoded pedestal off the floor for a clean tube with a genuinely black background.',
     patch: {
+      crtCutoff: 0.08,
+      crtGamma: 2.2,
+    },
+  },
+  {
+    name: 'magnetised',
+    group: 'Phosphor / CRT',
+    blurb:
+      'A speaker left against the cabinet, or a set moved without degaussing: a patch of mask stays magnetised and bends all three beams together. A triad is three dots 120° apart, so the same nudge over-excites the one it moves toward and starves the one opposite — the stain turns hue across itself instead of tinting flat, and it is fixed on the glass, so a rolling picture travels through it.',
+    patch: {
+      crtPurity: 1.1,
+      crtPurityX: 0.31,
+      crtPurityY: 0.63,
+      crtPuritySize: 0.34,
+      maskAmt: 0.45,
+      maskPitch: 3,
+      crtCutoff: 0.08,
+      crtGamma: 2.2,
+      crtSpot: 1.1,
+      scanBeam: 0.4,
+      scanBloom: 0.5,
+    },
+  },
+  {
+    name: 'misconverged',
+    group: 'Phosphor / CRT',
+    blurb:
+      'Three guns firing through one mask from three positions, registered only in the middle: sharp at the centre and fringing red and blue harder toward every corner. With the scan-velocity trick wired in on top, edges also get the asymmetric relief consumer sets used to fake sharpness — a white overshoot one side, a black notch the other.',
+    patch: {
+      crtConverge: 2.6,
+      crtSvm: 1.2,
+      crtSvmWidth: 3,
+      maskAmt: 0.5,
+      maskPitch: 3.5,
+      crtSpot: 1.4,
+      scanBeam: 0.45,
+      scanBloom: 0.55,
       crtCutoff: 0.08,
       crtGamma: 2.2,
     },
