@@ -150,6 +150,23 @@ on the dev box's WX 3200, against a 3.3 ms always-on floor):
   (`encodeYuvB → encodeChromaB → encodeCompositeB → mixB`) totals ~0.9 ms
   engaged and dispatches nothing idle.
 
+The keyer, the synth and the strobe (e273959) were measured after the fact, at
+920x800 on the same box, best-of interleaved runs. All three are behind uniform
+branches, and the branches hold:
+
+- **Idle cost is nil.** The whole feature set against its own parent revision
+  (9e0da4c, two dev servers off two worktrees, alternated) lands 4.52 ms both
+  sides at stock — no separable difference.
+- **The chroma keyer** costs ~0.07 ms engaged (`greenScreen` 4.53 against 4.47
+  with `bKey:0`), the `atan2` + `length` per active sample and the extra
+  `mix_b` binding together. `keyIntoTheLoop` is the dearest of the six at
+  4.78 ms, and that is its mixer loop, not the key.
+- **`synthOver`** costs ~0.01 ms — a full `videoSynth` per pixel, and it does
+  not register. **The strobe is free**: a uniform multiply in `decode`, ON and
+  OFF both 4.55 ms.
+- The six presets that shipped with them run 2.82–4.78 ms (`contourLines` and
+  `punchIn` at the bottom are source-A-only, so they never pay for the B chain).
+
 Two ALU micro-optimizations were implemented, measured dead flat, and reverted —
 the FIR passes are not ALU-bound on this hardware, so arithmetic saved there
 rides idle slots: the filter bank as a uniform buffer (vec4-packed for the
@@ -286,8 +303,25 @@ round of twenty guesses costs one command instead of twenty.
 Results accumulate in `results.json`, so `--only=spiral core` re-renders one
 retuned candidate and the sheet keeps everyone else. The candidates module
 default-exports
-`{ src, srcb, frames, settle, late, items: [{ name, blurb, set }] }`; anything
-at the top level is a default each item may override.
+`{ src, srcb, frames, settle, late, items: [{ name, blurb, set, mod }] }`;
+anything at the top level is a default each item may override. `mod` takes the
+same `target:source:rateHz:depth` string the app's `?mod=` reads — a shipped
+preset may name routings as well as controls, and screening it without them
+judges a different look than the one the chip loads.
+
+**It cannot screen an effect that runs on the wall clock.** The harness steps
+frames, and `signal/strobe.ts` and `signal/stab.ts` deliberately read
+`performance.now()` instead of a frame count, so which point of the cycle a grab
+lands on is down to how long the stepping took. `strobedTube` grabbed black on
+both checkpoints — a gate open for 30 ms of a 3.5 Hz cycle is dark ~90% of the
+time — and read `flat, dark` while working perfectly. The tell that it IS
+working is `motion`, which was 58 against a typical 0.4. To actually judge one,
+let the rAF loop run and sample the canvas over a few seconds of real time
+instead: that recovers the flash rate and the lit fraction, and shows the peak
+reaches the same luma as the unstrobed picture. Take the screenshot in the same
+rAF callback that detects the lit frame — a `screenshot()` issued after the
+check resolves lands tens of milliseconds later, which is well into the decay,
+and hands back a dark frame that looks like a finding.
 
 Budget real time: a candidate is a thousand stepped frames of a patch built to
 be expensive, so even on an idle machine it runs to minutes, and a full round is

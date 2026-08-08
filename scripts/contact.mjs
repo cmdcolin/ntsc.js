@@ -54,11 +54,16 @@ const SH = 96
 
 const slug = name => name.replaceAll(/[^a-z0-9]+/gi, '-').toLowerCase()
 
+// `mod` is optional and carries the same `target:source:rateHz:depth` string
+// the app's own `?mod=` reads. A shipped preset may name modulation routings as
+// well as controls, and screening one without them judges a different look than
+// the one the chip loads — a routing is often the whole point of the patch.
 const patchUrl = item => {
   const q = new URLSearchParams()
   q.set('src', item.src)
   if (item.srcb !== 'none') q.set('srcb', item.srcb)
   q.set('set', item.set)
+  if (item.mod) q.set('mod', item.mod)
   return `${base}?${q.toString()}`
 }
 
