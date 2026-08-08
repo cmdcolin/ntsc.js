@@ -1,0 +1,326 @@
+/* The deck: the panel's controls arranged by gesture rather than by mechanism.
+
+   Two rules, and between them they are why this is not a chrome texture.
+
+   It borrows the panel's own tokens and its own control face, and spends its
+   whole visual budget on *shape*: a continuous throw with keys beside it, a
+   transport as a row of glyphs, a pad you drag a picture on. That is what makes
+   a control findable by hand, and it survives a 332px sidebar in a way brushed
+   metal and a bevel do not.
+
+   And it is compact to the point of meanness, because the sidebar is a column
+   and every row the deck spends is a row the stages below it lose. Nothing here
+   gets a line of its own that could share one, no caption says what a lit
+   button already says, and the two picture pads are capped well under the width
+   they are given. */
+
+.deck {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 2px 0 6px;
+}
+
+/* One division of the deck. A rule above the label rather than a box around
+   the block: the deck is already inside a fold, and five nested surfaces is how
+   a performance panel turns into a filing cabinet. */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-faint);
+}
+.block:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.blockLabel {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg4);
+}
+
+/* ── the lever ───────────────────────────────────────────────────────
+   The throw, its two ends, its reading and its keys, on one row. A real T-bar
+   is vertical; this one is not, and the note in TBar.tsx has the reason —
+   140px of column to say what 18px says, in a panel where height is the scarce
+   thing. What had to survive the rotation is that you can stop it anywhere. */
+.tbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.tbarEnd {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--fg4);
+  line-height: 1;
+}
+.track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: var(--ctl-radius);
+  background: var(--ctl-face);
+  cursor: ew-resize;
+  touch-action: none;
+  overflow: hidden;
+}
+/* the lever moves but nothing composites: B's fader is shut under an armed
+   wipe. Same bargain the miniatures' `inert` strikes, and the one line below
+   the row carries the fix. */
+.trackInert {
+  opacity: 0.45;
+}
+/* Fills from A's end, so the painted part is how much of the picture is B —
+   the bar reads as a level rather than as a scrollbar. */
+.trackFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.handle {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 7px;
+  margin-left: -4px;
+  box-sizing: border-box;
+  border: 1px solid #0c0c10;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.nums {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--accent);
+  white-space: nowrap;
+}
+/* the offer to open the gate a gesture is stuck behind — the deck's one spot
+   for the prose a slider row puts under its track, and it appears only when
+   there is something to say */
+.fix {
+  composes: bare from './ui.module.css';
+  font-size: var(--fs-sm);
+  text-align: left;
+  color: var(--gate);
+}
+.fix:hover {
+  text-decoration: underline;
+}
+
+/* ── keys ──────────────────────────────────────────────────────────────────
+   Every button on the deck: the transport glyphs, cut and take. One face, so a
+   row of them reads as a keyboard rather than as three kinds of button. */
+.deckBtn {
+  padding: 3px 6px;
+  min-width: 24px;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  line-height: 1.2;
+  color: var(--fg2);
+  background: var(--ctl-face);
+  border: 1px solid var(--border);
+  border-radius: var(--ctl-radius);
+  cursor: pointer;
+}
+.deckBtn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--border-hover);
+}
+.deckBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.deckBtnOn {
+  color: var(--ctl-on-fg);
+  background: var(--ctl-on-bg);
+  border-color: var(--ctl-on-bg);
+}
+.deckBtnOn:hover:not(:disabled) {
+  color: var(--ctl-on-fg);
+}
+/* The record head down is the one state on the deck that is destructive — it is
+   writing over the loop — so it is the one key that lights in the edit colour
+   rather than the on colour. */
+.deckBtnRec,
+.deckBtnRec:hover:not(:disabled) {
+  color: #101014;
+  background: var(--edit-hi);
+  border-color: var(--edit-hi);
+}
+/* the take's duration: a value you cycle, so it reads as a reading rather than
+   as another key */
+.rate {
+  composes: bare from './ui.module.css';
+  margin-left: auto;
+  padding: 4px 2px;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--fg4);
+}
+.rate:hover {
+  color: var(--accent);
+}
+
+/* ── transports ────────────────────────────────────────────────────────────
+   Two of them, one per machine, each named — the loop bin and the deck playing
+   the incoming tape are not the same transport, and one set of buttons over
+   both would be the tidier panel and the wrong signal path. */
+.deckRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.deckLabel {
+  font-size: var(--fs-sm);
+  color: var(--fg3);
+}
+/* buttons, ring and reading on one row: the label above already names the
+   machine, so the shuttle has no reason to take a line of its own */
+.stops {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* The shuttle ring, flattened. Geometric in speed, so the fill grows out of the
+   pause detent in whichever direction the tape is running — which is the one
+   thing a strip can say that a number cannot. */
+.shuttle {
+  position: relative;
+  flex: 1;
+  min-width: 44px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--ctl-radius);
+  background: var(--ctl-face);
+  cursor: ew-resize;
+  touch-action: none;
+  overflow: hidden;
+}
+.shuttleOff {
+  opacity: 0.4;
+  cursor: default;
+}
+.shuttleFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.shuttleThumb {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 3px;
+  margin-left: -1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+/* play, and (on a bipolar ring) pause: the two speeds worth being able to hit
+   exactly, marked so they can be aimed for rather than hunted */
+.detent {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--border-hover);
+  pointer-events: none;
+}
+
+/* ── the miniatures ────────────────────────────────────────────────────────
+   Both pads are 4:3 against the panel's full width, which is 250px of picture
+   each — between them, the whole transport below the fold. Capped, because on
+   the deck they are something to drag on rather than something to watch: the
+   picture itself is on the other side of the window, at the size it deserves.
+   They keep their full width in the stages that own them. */
+/* The cap lands on the frame alone, not on the miniature as a whole: the
+   readout under it is prose and a reading, and squeezing those to the picture's
+   width is what turned "inset key is at 0 — click to put it on air" into three
+   lines under a 190px box. The frame is the part that has to shrink; the line
+   below it can have the panel. */
+.pad > div > :first-child {
+  max-width: 190px;
+}
+
+/* ── tracking ──────────────────────────────────────────────────────────────
+   The mistracked band, drawn where it will land on the picture. Not a clean
+   rectangle: what the head recovers off-track is noise, so the stripe is
+   scanline hash, masked off at both ends because the edges of a mistracked band
+   are where the head is half on the track — there is no line at which it
+   starts. It thickens as the error grows. */
+.band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(230, 230, 238, 0.8) 0 1px,
+    rgba(18, 18, 24, 0.8) 1px 2px
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 35%,
+    #000 65%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* ── hold ──────────────────────────────────────────────────────────────────
+   The button is the gesture; the row beside it is where the rate lives when it
+   is not zero. */
+/* The hold sits up on the block's own label line rather than beside the rate
+   slider. Beside it, the row it left was 230px wide and "slow motion (1 =
+   realtime)" wrapped to three lines for a control that is one number. */
+.holdRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.holdBtn {
+  padding: 3px 8px;
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+  background: var(--ctl-face);
+  border: 1px solid var(--border);
+  border-radius: var(--ctl-radius);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.holdBtn:hover {
+  color: var(--accent);
+  border-color: var(--border-hover);
+}
+/* A stopped clock is the reason nothing on screen is moving, which is worth
+   shouting about — the same call the motion strip's freeze makes, in the same
+   colour, so the two read as one kind of state. */
+.holdOn,
+.holdOn:hover {
+  color: #101014;
+  background: var(--edit-hi);
+  border-color: var(--edit-hi);
+}
+/* touch: the deck is the surface you perform from, so its keys follow the same
+   rule the slider rows do */
+@media (pointer: coarse) {
+  .deckBtn {
+    padding: 8px 10px;
+  }
+  .shuttle {
+    height: 22px;
+  }
+  .track {
+    height: 26px;
+  }
+}

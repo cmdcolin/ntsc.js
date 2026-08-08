@@ -40,13 +40,23 @@ export const resizeAxis = (
   return { center: clamp01(pinned + (s * next) / 2), size: next }
 }
 
-export const uvIn = (el: Element, clientX: number, clientY: number) => {
-  const r = el.getBoundingClientRect()
-  return {
-    u: clamp01((clientX - r.left) / r.width),
-    v: clamp01((clientY - r.top) / r.height),
-  }
-}
+// Where a pointer is inside a box, in the 0..1 UV the shaders read.
+//
+// Takes the box rather than the element, so a caller can freeze it at
+// pointerdown — and a drag on a miniature has to. Writing a control off its
+// default adds a row to "This look" at the top of the panel, which pushes
+// everything below it down; re-measuring the frame each pointermove therefore
+// re-measures it *after* it has moved out from under the pointer, and the drag
+// lands somewhere nobody aimed. Sixty-eight pixels, mid-gesture, the first time
+// a pad is touched. PipFrame never had this because it works in deltas from the
+// press; this is the same immunity for the pads that work in absolutes.
+export const uvInRect = (r: DOMRect, clientX: number, clientY: number) => ({
+  u: clamp01((clientX - r.left) / r.width),
+  v: clamp01((clientY - r.top) / r.height),
+})
+
+export const uvIn = (el: Element, clientX: number, clientY: number) =>
+  uvInRect(el.getBoundingClientRect(), clientX, clientY)
 
 export interface WipeShape {
   // Distance function from mix_b.wgsl: B wins where wipePos exceeds it, so the
