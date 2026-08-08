@@ -1,7 +1,7 @@
 // Circuit-bender's modulation sources: low-frequency oscillators and random
 // walks standing in for the hands, LFOs, and photocells benders patch into
 // pots. Pure per-frame state advanced at the frame rate; the engine maps the
-// returned values onto controls at the uniform boundary, so presets, scenes,
+// returned values onto controls at the uniform boundary, so presets, saved looks,
 // and the UI keep the resting value.
 
 import { Lorenz, valueNoise } from './noise'

@@ -14,7 +14,6 @@ const sections = open =>
   JSON.stringify({
     Presets: true,
     Input: true,
-    Scenes: false,
     Modulation: false,
     'Sound into the picture': false,
     ...open,
@@ -271,20 +270,6 @@ export const SPECS = [
       { target: { selector: 'div[class*="editor_"]' }, box: true },
     ],
   },
-  boxed(
-    { section: 'Scenes' },
-    {
-      name: 'scenes',
-      seed: {
-        video_feedback_sections: sections({ Scenes: true }),
-        video_feedback_scenes: JSON.stringify({
-          1: { hHold: 0.4, noiseIre: 3 },
-          2: { chromaGain: 2.2, svideoBleed: 0.8 },
-          4: { fbMix: 0.6 },
-        }),
-      },
-    },
-  ),
   boxed(
     { section: 'Sound into the picture' },
     {

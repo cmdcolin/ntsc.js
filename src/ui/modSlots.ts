@@ -235,7 +235,7 @@ export function routingsToSlots(mod: readonly ModRouting[]): UiSlot[] {
   return normalizeSlots(mod.slice(0, N_SLOTS))
 }
 
-// What the look is made of, for a link or a scene. A *parked* routing is still
+// What the look is made of, for a link or a saved look. A *parked* routing is still
 // a routing and goes in: the patch is the look, the switch is a gesture on top
 // of it (the same division the motion amount is on the wrong side of the URL
 // for), so a link carries the routing and the browser that threw the switch is

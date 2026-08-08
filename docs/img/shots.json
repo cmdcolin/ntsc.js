@@ -66,12 +66,6 @@
     "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod=hHold%3Asine%3A0.35%3A0.4%2CchromaGain%3Alorenz%3A0.12%3A0.25"
   },
   {
-    "name": "scenes",
-    "file": "scenes.jpg",
-    "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
-  },
-  {
     "name": "audio",
     "file": "audio.jpg",
     "mp4": null,

@@ -83,6 +83,24 @@
 .recall:hover {
   background: rgba(60, 60, 70, 0.6);
 }
+/* The number key that reaches this row, on the first nine. Dim and fixed-width
+   so the names still start on one line down the left edge: it is a label for a
+   key that already works, not a control, and a column of bright digits would
+   read as the slots being the thing and the names an annotation. Rows past the
+   ninth get the same indent from `.slotNone`, so losing a digit does not shift
+   every name below it. */
+.slot {
+  flex-shrink: 0;
+  width: 11px;
+  color: var(--fg4);
+  font-size: var(--fs-sm);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.slotNone {
+  composes: slot;
+}
+
 /* The two per-row verbs. Quiet until the pointer is on them: they sit beside
    every name in the list, and a column of live-looking glyphs would read as the
    list being made of buttons rather than of looks. */

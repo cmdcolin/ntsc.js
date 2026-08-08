@@ -86,8 +86,8 @@ function PresetsHelpDialog(props: { onClose: () => void }) {
       </p>
       <div className={ui.muted}>
         A mix lasts only until something else moves the look — a slider, mutate,
-        a scene — and then the fills reset, since a blended look can’t be traced
-        back to exact amounts.
+        a saved look — and then the fills reset, since a blended look can’t be
+        traced back to exact amounts.
       </div>
     </Dialog>
   )

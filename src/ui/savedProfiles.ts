@@ -14,19 +14,22 @@
 //   - It makes a profile shareable for free: prefix the origin and it is a link,
 //     so "send someone this look" needs no second format.
 //
-// The alternative — storing resolved controls like Scenes does — would need its
+// The alternative — storing resolved controls, the way Scenes did — would need its
 // own migration story for every field that is not a control (motion, the vapor
 // speeds, which source), and would still have to grow a serializer the day
 // somebody wanted to send one to a friend.
 //
-// Scenes stay what they were: nine numbered slots on the 1–9 keys, for a live
-// set where recall has to be one keystroke and naming things is a distraction.
-// They live in this browser's localStorage, as they always have. Profiles are the
-// library — unbounded, named, shareable, and **kept in the signed-in user's
-// Firestore document, not on this device**: a saved profile is meant to be there
-// on the next machine, which a localStorage copy could never promise. Everything
-// in this file is the storage-agnostic half — the list algebra and the name
-// rules; cloud.ts is what reads and writes it.
+// This used to be half a story: nine numbered localStorage slots called Scenes
+// held the same thing under a number, for a live set where recall has to be one
+// keystroke. They held strictly less than a profile does — controls and motion,
+// where the query below carries the source addresses too — so the only thing
+// they really owned was the gesture. The 1–9 keys now recall the first nine
+// profiles instead (see `profileAtSlot`) and Scenes are gone: one library,
+// named, unbounded, shareable, and **kept in the signed-in user's Firestore
+// document, not on this device** — a saved profile is meant to be there on the
+// next machine, which a localStorage copy could never promise. Everything in
+// this file is the storage-agnostic half — the list algebra and the name rules;
+// cloud.ts is what reads and writes it.
 export interface SavedProfile {
   name: string
   query: string
@@ -76,6 +79,23 @@ export function upsertProfile(
   if (at === -1) return [...profiles, entry]
   return profiles.map((p, i) => (i === at ? entry : p))
 }
+
+// How many profiles the number keys reach. The digits are the whole reason for
+// the bound: there is no key for a tenth.
+export const PROFILE_SLOTS = 9
+
+// The profile on key `n` (1-based), or undefined when the library is shorter.
+// Position in the list *is* the binding — there is no stored slot number — so a
+// delete shifts everything below it up a key. That is accepted rather than
+// designed around: `upsertProfile` keeps insertion order and re-saves in place,
+// so the only thing that ever moves a binding is a delete, which is not a
+// mid-set gesture. The alternative was a per-row "assign to key" control, which
+// is more surface than the keys save.
+export const profileAtSlot = (
+  profiles: readonly SavedProfile[],
+  n: number,
+): SavedProfile | undefined =>
+  n >= 1 && n <= PROFILE_SLOTS ? profiles[n - 1] : undefined
 
 export const removeProfile = (
   profiles: readonly SavedProfile[],

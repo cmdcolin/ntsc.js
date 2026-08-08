@@ -62,7 +62,7 @@ which is where the accidents come from — hold `shift` for a wilder roll, `alt`
 for a gentle one.
 
 **morph** says how long a new look takes to arrive. At `cut` a preset, a roll or
-a scene lands in one frame, the way it always did; at 4s or 30s the whole board
+a saved look lands in one frame, the way it always did; at 4s or 30s the whole board
 *travels* there instead, every control at once. Two things fall out of that. The
 looks between two presets are ones no chip holds, and a slow morph is the only
 way to see them — it walks straight through the exact vertical hold where the
@@ -239,11 +239,19 @@ at a time, no jumps when a knob is out of position, rates locked to clock. See
 
 ## Keeping what you find
 
-![The app window, the Scenes section boxed in red](img/scenes.jpg)
+**saved** in the look bar is the library: name the board and get it back later,
+on this machine or the next one. It is kept on your account, so it needs a
+sign-in. `ctrl/⌘+S` saves under the offered name without opening the menu.
 
-Nine scene slots for the whole board: `shift+1–9` saves, `1–9` recalls. **copy
-link** puts the entire look in a URL — a link is a patch. `s` saves a still, `r`
-records a clip.
+The first nine are on the number keys — `1–9` recalls one, `shift+1–9` keeps the
+board over it. That is the whole live-set gesture: no naming, no menu. Position
+in the list is the binding, so deleting the third saved look shifts the ones
+below it up a key.
+
+A recall brings back the controls and the motion and leaves your input alone —
+it will not pull the webcam out mid-set to put a still back. **⧉** copies a link
+that carries both, source clip included: a link is a patch. `s` saves a still,
+`r` records a clip.
 
 ## Looking closer
 
@@ -293,7 +301,7 @@ resolution.
 | `c` (hold)              | preview the clean signal                            |
 | `r` / `s`               | record a clip / save a still                        |
 | `f`                     | fullscreen                                          |
-| `1`–`9` / `shift+1`–`9` | recall / save a scene                               |
+| `1`–`9` / `shift+1`–`9` | recall / overwrite one of your first nine saves      |
 | `ctrl/⌘+z`              | step back a look · `+shift` steps forward again     |
 | `esc`                   | close a dialog, cancel a MIDI arm, clear the filter |
 

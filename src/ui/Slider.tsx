@@ -243,7 +243,7 @@ export function Slider(props: {
   // Whether something is driving this control, whether it is currently running,
   // and the two ways in. The lever is marked, never the value: the readout keeps
   // showing where the slider rests, because that is what presets, links and
-  // scenes store, and because a number that moves every frame is unreadable.
+  // saved looks store, and because a number that moves every frame is unreadable.
   mod?: {
     routed: boolean
     on: boolean

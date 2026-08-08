@@ -23,8 +23,8 @@ interface Handlers {
   onEndCompare: () => void
   onToggleRecord: () => void
   onGrabStill: () => void
-  onSaveScene: (n: number) => void
-  onRecallScene: (n: number) => void
+  onSaveSlot: (n: number) => void
+  onRecallSlot: (n: number) => void
   onSaveProfile: () => void
 }
 
@@ -92,10 +92,12 @@ export function useShortcuts(popout: Window | null, handlers: Handlers) {
       } else if (!typing && key === 's' && !e.repeat) {
         h.onGrabStill()
       } else if (!typing) {
+        // The saved library's first nine, by position in the list. Read from
+        // `e.code` rather than `e.key` so shift+1 is still slot 1 and not `!`.
         const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code)
         if (m !== null && !e.repeat) {
-          if (e.shiftKey) h.onSaveScene(Number(m[1]))
-          else h.onRecallScene(Number(m[1]))
+          if (e.shiftKey) h.onSaveSlot(Number(m[1]))
+          else h.onRecallSlot(Number(m[1]))
         }
       }
     }

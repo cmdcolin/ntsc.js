@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   PROFILE_NAME_MAX,
+  PROFILE_SLOTS,
   cleanProfileName,
+  profileAtSlot,
   readProfiles,
   removeProfile,
   suggestProfileName,
@@ -81,5 +83,38 @@ describe('name suggestions', () => {
   it('falls back to a plain word for a board with no name', () => {
     expect(suggestProfileName([], '')).toBe('my look')
     expect(suggestProfileName([p('my look')], '')).toBe('my look 2')
+  })
+})
+
+describe('number-key slots', () => {
+  const many = Array.from({ length: 12 }, (_, i) => p(`look ${i + 1}`))
+
+  it('reads the slot off the position in the list, 1-based', () => {
+    expect(profileAtSlot(many, 1)).toEqual(p('look 1'))
+    expect(profileAtSlot(many, 9)).toEqual(p('look 9'))
+  })
+
+  it('stops at the ninth, because there is no tenth digit', () => {
+    expect(profileAtSlot(many, PROFILE_SLOTS + 1)).toBeUndefined()
+  })
+
+  it('has nothing on a slot the library has not reached', () => {
+    expect(profileAtSlot([p('a')], 2)).toBeUndefined()
+    expect(profileAtSlot([], 1)).toBeUndefined()
+  })
+
+  it('refuses a slot below the first, so key 0 finds nothing', () => {
+    expect(profileAtSlot(many, 0)).toBeUndefined()
+  })
+
+  // The drift the guide promises: position is the binding, so a delete moves
+  // every profile under it up one key. A re-save must not, which is what
+  // upsertProfile's in-place overwrite is for.
+  it('shifts bindings up on a delete and holds them across a re-save', () => {
+    const three = [p('a'), p('b'), p('c')]
+    expect(profileAtSlot(removeProfile(three, 'b'), 2)).toEqual(p('c'))
+    const resaved = upsertProfile(three, 'a', 'set=hHold%3A0.4')
+    expect(profileAtSlot(resaved, 1)?.query).toBe('set=hHold%3A0.4')
+    expect(profileAtSlot(resaved, 2)).toEqual(p('b'))
   })
 })

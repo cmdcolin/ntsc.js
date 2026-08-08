@@ -83,7 +83,7 @@ Two things follow from what a preset weight _is_:
 - Weights layer, so several knobs on several presets is a small mixing desk of
   looks. Sweeping one back to zero returns to what was underneath it.
 - A weight only describes the look while nothing else has moved it. Touch a
-  slider, mutate, recall a scene, and the fills reset — the next turn of the
+  slider, mutate, recall a saved look, and the fills reset — the next turn of the
   knob starts a fresh mix from whatever is on screen rather than reverting it.
 
 **Neither does soft takeover** (below): both take over on the first message
@@ -145,7 +145,7 @@ waiting. Sweep the thumb past that mark — or the mark past the thumb — and t
 mark disappears, meaning the knob has it.
 
 Knobs also let go and need re-catching whenever a value is set from somewhere
-else: loading a preset, recalling a scene, undoing, randomizing. After a preset
+else: loading a preset, recalling a saved look, undoing, randomizing. After a preset
 load expect a row of amber marks, one per knob you'd touched.
 
 All of this is for sliders only. A knob on the motion amount or on a preset
@@ -187,7 +187,7 @@ The app only listens for clock ticks and stop. It never sends clock.
 
 Bindings, the hand-set tempo, and the clock locks on **sweep** and **line
 offset** are saved in this browser and survive reloads. They are **not** part of
-presets, scenes, or the shareable URL — a link you send someone carries the
+presets, saved looks, or the shareable URL — a link you send someone carries the
 look, not your knob layout.
 
 A modulation slot's lock is the exception, and deliberately: it rides along on

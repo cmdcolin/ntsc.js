@@ -75,7 +75,9 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
           <b>+shift</b> forward again
         </li>
         <li>
-          <b>1–9</b> recall a scene · <b>shift+1–9</b> save the current look
+          <b>1–9</b> recall one of your first nine saved looks ·{' '}
+          <b>shift+1–9</b> keep the board over it · <b>ctrl/⌘+S</b> save under a
+          new name
         </li>
       </ul>
       <div className={dlg.helpHead}>more</div>

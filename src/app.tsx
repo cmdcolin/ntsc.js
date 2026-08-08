@@ -58,8 +58,7 @@ import { matchPreset, presetControls } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
 import { sameList } from './ui/sameList'
 import { SavedProfiles } from './ui/SavedProfiles'
-import { suggestProfileName } from './ui/savedProfiles'
-import { ScenesSection } from './ui/ScenesSection'
+import { profileAtSlot, suggestProfileName } from './ui/savedProfiles'
 import { Section } from './ui/Section'
 import { SignalPath } from './ui/SignalPath'
 import { SignalPathDialog } from './ui/SignalPathDialog'
@@ -85,7 +84,6 @@ import { usePageLifecycle } from './ui/usePageLifecycle'
 import { usePanelNav } from './ui/usePanelNav'
 import { usePopout } from './ui/usePopout'
 import { useSavedProfiles } from './ui/useSavedProfiles'
-import { useScenes } from './ui/useScenes'
 import { useScrollAnchor } from './ui/useScrollAnchor'
 import { useShortcuts } from './ui/useShortcuts'
 import { useTempo } from './ui/useTempo'
@@ -273,13 +271,6 @@ export function App() {
     })
   })
 
-  const { scenes, saveScene, recallScene, clearScene } = useScenes(
-    engineRef,
-    mix.landLook,
-    mix.snapshotForUndo,
-    modApi,
-  )
-
   // Hold-to-compare: preview the clean defaults on the render path without
   // touching the store (sliders stay put), then restore from it on release.
   const startCompare = () => {
@@ -354,20 +345,44 @@ export function App() {
           : 'hand',
     source: eng.sourceMode,
   })
+  // `landLook` rather than a plain write: a recall is the same gesture as a
+  // preset click — a whole board at once — so it arrives however the look bar
+  // says looks arrive, cut or morph. It used to cut unconditionally while the
+  // numbered scene slots this replaced morphed — an accident of the two having
+  // been written apart, not anything either meant.
   const recallProfile = (profile: SavedProfile) => {
     const session = parseSessionParams(`?${profile.query}`)
     mix.snapshotForUndo()
-    writeControls(presetControls(session.controls))
+    mix.landLook(presetControls(session.controls))
     if (session.mod !== null) modApi.setRoutings(session.mod)
     profiles.markRecalled(profile.name)
   }
-  // The name to save under, offered by all three ways in. The profile you are
+
+  // The 1–9 keys, over the library rather than a separate bank of nine. Recall
+  // on a slot the library has not reached yet does nothing, deliberately: an
+  // empty slot has no look to offer, and a keystroke that invented one would be
+  // worse than a keystroke that misses.
+  const recallSlot = (n: number) => {
+    const profile = profileAtSlot(profiles.profiles, n)
+    if (profile !== undefined) recallProfile(profile)
+  }
+
+  // The name to save under, offered by all four ways in. The profile you are
   // working in wins over the preset the controls still match: one knob past a
   // recall they match nothing, and "my look" is a worse offer than "my rig 2".
   const suggestedProfileName = suggestProfileName(
     profiles.profiles,
     profiles.lastName ?? lookName ?? '',
   )
+
+  // shift+N keeps the board over that slot's profile, under its name. Past the
+  // end of the library it is an ordinary save under the offered name, which
+  // appends — so it lands on the next free slot rather than the one pressed.
+  // Naming nothing is the point of the gesture, so it does not ask.
+  const saveSlot = (n: number) => {
+    const profile = profileAtSlot(profiles.profiles, n)
+    profiles.saveProfile(profile?.name ?? suggestedProfileName, profileQuery())
+  }
 
   useShortcuts(popout, {
     // Dialogs close themselves (each Dialog binds Escape to its own document);
@@ -397,8 +412,8 @@ export function App() {
     onEndCompare: endCompare,
     onToggleRecord: capture.toggleRecord,
     onGrabStill: capture.grabStill,
-    onSaveScene: saveScene,
-    onRecallScene: recallScene,
+    onSaveSlot: saveSlot,
+    onRecallSlot: recallSlot,
     // ctrl+S keeps the board under the name the menu would have offered. The
     // library sits above this call for that reason: a handler here is read
     // through a ref every render, but the object it lives in is built now.
@@ -873,8 +888,8 @@ export function App() {
           is for adjusting the look you picked. Input is a set-once control and
           reads fine in second place.
 
-          Both drop out under a live filter, for the same reason Scenes and
-          Modulation below already do: neither holds a control the query can
+          Both drop out under a live filter, for the same reason Modulation
+          below already does: neither holds a control the query can
           match, and the panel below the box is meant to be the result set. They
           are the two largest things in it — the catalog alone is 180px of chips
           and caption — and with them up the first row that actually matched
@@ -981,14 +996,14 @@ export function App() {
           pair, and it is folded by default because most sessions are one person
           dialling a look in rather than performing one.
 
-          Out under a filter, like Scenes and Modulation: it holds three real
+          Out under a filter, like Modulation: it holds three real
           control rows, but it is a fixed surface rather than a result set, and
           the rows it borrows are reachable in their own stages. */}
       {filtering ? null : <DeckSection />}
 
       {/* The signal-path map is the panel's trunk, so it sits high — right under
           the source and preset front door — and the filter that acts on it heads
-          it. Scenes/mod/midi are occasional tools and drop below it. The audio
+          it. Mod and midi are occasional tools and drop below it. The audio
           routings used to be down there with them, in a section of their own,
           because the map had no vocabulary for a second thing joining the trunk
           — they are the Sound branch now, under the receiver they feed. */}
@@ -1025,21 +1040,9 @@ export function App() {
         </div>
       )}
 
-      {/* Occasional tools, none of them holding a filterable control — while a
-          filter is live the panel below the box is the result set. */}
-      {filtering ? null : (
-        <>
-          <ScenesSection
-            controls={controls}
-            scenes={scenes}
-            onSave={saveScene}
-            onRecall={recallScene}
-            onClear={clearScene}
-          />
-
-          <ModSection tempo={tempo} />
-        </>
-      )}
+      {/* An occasional tool holding no filterable control — while a filter is
+          live the panel below the box is the result set. */}
+      {filtering ? null : <ModSection tempo={tempo} />}
 
       {/* MIDI only appears once enabled (from Advanced) — 99% of users never
           wire up a controller, so it stays out of the default panel. */}

@@ -60,7 +60,7 @@ export function LookSection(props: {
   // below would jump up under the pointer.
   //
   // So the list only re-syncs when something writes the board wholesale — a
-  // preset, a mutate, a scene, a link — which shows up here as a key arriving
+  // preset, a mutate, a saved look, a link — which shows up here as a key arriving
   // that the list didn't have. Putting rows back never grows the set, so a row
   // you reset stays where it is, at stock and quiet, still in reach if you want
   // it again. "clean" empties the set outright, and that does prune.

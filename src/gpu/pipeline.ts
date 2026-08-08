@@ -1079,7 +1079,7 @@ export class Engine implements EngineApi {
     const step = this.glide.apply(this.controls, performance.now())
     if (step.coarseMoved) this.filtersDirty = true
     // React hears about the landing frame no matter what — the destination is a
-    // real look that scenes, links and the recipe chips all have to agree on —
+    // real look that saved looks, links and the recipe chips all have to agree on —
     // and about the flight only every GLIDE_NOTIFY frames.
     this.glideNotify++
     if (step.done || this.glideNotify >= GLIDE_NOTIFY) {
@@ -1610,7 +1610,7 @@ export class Engine implements EngineApi {
   // around their slider settings, the way bent hardware has oscillators and
   // hands patched into pots. Applied by mutating `controls` for the duration
   // of one frame and restoring after, so uniforms, filter design, and pass
-  // gating all see the modulated value while React, presets, and scenes keep
+  // gating all see the modulated value while React, presets, and saved looks keep
   // the resting one (the same takeover semantics as MIDI).
   setModSlots(slots: ModSlot[]): void {
     this.modSlots = slots

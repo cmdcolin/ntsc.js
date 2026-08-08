@@ -109,7 +109,7 @@ export function ModSection(props: { tempo: Tempo }) {
                 step={0.01}
                 value={s.depth}
                 defaultValue={EMPTY_SLOT.depth}
-                help="How far the modulation swings the target, as a fraction of that control's own slider range. The resting slider position stays the centre, so presets and scenes still hold the look."
+                help="How far the modulation swings the target, as a fraction of that control's own slider range. The resting slider position stays the centre, so presets and saved looks still hold the look."
                 onChange={v => setSlot(i, { depth: v })}
               />
               {/* Per slot, because the master amount above is all of them at

@@ -49,7 +49,7 @@ const MUTATE_SLIDERS = ALL_SLIDERS.filter(s => !VIEW_KEYS.has(s.key))
 // the one on screen. The engine owns the controls — this owns the recipe that
 // produced them, kept only so a weight can be dragged back.
 //
-// Deliberately not persisted to scenes or the URL: those store resolved
+// Deliberately not persisted to a saved look or the URL: those store resolved
 // controls, which are version-stable, whereas a recipe binds to preset names and
 // patches that drift as presets are retuned. A recalled look can still be
 // re-mixed — startMix rebaselines from whatever is live.
@@ -80,7 +80,7 @@ export function useMix(args: {
   )
 
   // The weights only describe the look while nothing else has moved it. Once a
-  // randomize, slider, MIDI or scene recall changes the controls, "how much of
+  // randomize, slider, MIDI or saved-look recall changes the controls, "how much of
   // preset X is in this" is unrecoverable — blendPresets sums each preset's
   // departures, so many recipes land on the same look. So the fills are shown
   // only while the live controls still equal what the mix produced; the instant
@@ -145,9 +145,9 @@ export function useMix(args: {
   return {
     weights,
     lastPreset,
-    // Handed out so scene recall arrives the same way a preset does — it is the
-    // same gesture (a whole board, at once) and the row of numbered slots is
-    // where a live set actually does it from. It records nothing: a recall
+    // Handed out so a saved-look recall arrives the same way a preset does — it
+    // is the same gesture (a whole board, at once), and the number keys over the
+    // library are where a live set actually does it from. It records nothing: a recall
     // already banks its own step through `snapshotForUndo`.
     landLook: land,
     canUndo: history.past.length > 0,
@@ -185,7 +185,7 @@ export function useMix(args: {
       }
       setLastPreset(name)
     },
-    // Anything outside the mix — a slider, MIDI, a scene recall — can have
+    // Anything outside the mix — a slider, MIDI, a saved-look recall — can have
     // moved the controls since the last weight change. Whatever is live becomes
     // the new baseline, so the next drag layers onto it instead of silently
     // reverting it.

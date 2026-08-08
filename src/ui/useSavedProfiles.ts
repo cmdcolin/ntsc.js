@@ -22,7 +22,7 @@ import type { SavedProfile } from './savedProfiles'
 //
 // What that buys: a profile named on the laptop is on the phone, and clearing
 // site data no longer loses the library. What it costs: no saving offline, and
-// none at all without an account. Recall, presets, scenes and the URL are all
+// none at all without an account. Recall, presets and the URL are all
 // untouched by it — a session that never signs in is the app exactly as it was.
 //
 // Nothing is fetched until it is needed. `wasSignedIn()` is a localStorage hint,

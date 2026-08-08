@@ -1,7 +1,7 @@
 // A bounded undo/redo walk over whole look snapshots.
 //
 // One step back was enough while every destructive action was deliberate — a
-// preset, a scene recall. It stopped being enough once finding a look became a
+// preset, a saved-look recall. It stopped being enough once finding a look became a
 // search: mutate, mutate, surprise, mutate, and the frame worth keeping is
 // three steps behind the one on screen with no way back to it. So the walk is
 // retraceable in both directions, which also makes a wild jitter safe to try —

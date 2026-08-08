@@ -1,5 +1,5 @@
 // Morphing the whole board: where every control was, where it is going, and how
-// far along. Picking a preset, recalling a scene or rolling a surprise normally
+// far along. Picking a preset, recalling a saved look or rolling a surprise normally
 // lands in one frame; this is the same move taken slowly, so the picture travels
 // there instead of cutting.
 //

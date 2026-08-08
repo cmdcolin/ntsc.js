@@ -2,7 +2,11 @@ import { useRef, useState } from 'react'
 
 import { cx } from './cx'
 import { Popover } from './Popover'
-import { PROFILE_NAME_MAX, cleanProfileName } from './savedProfiles'
+import {
+  PROFILE_NAME_MAX,
+  PROFILE_SLOTS,
+  cleanProfileName,
+} from './savedProfiles'
 import styles from './SavedProfiles.module.css'
 import ui from './ui.module.css'
 
@@ -177,11 +181,23 @@ export function SavedProfiles(props: {
               ) : (
                 <>
                   <div className={styles.list}>
-                    {props.profiles.map(profile => (
+                    {props.profiles.map((profile, i) => (
                       <div className={styles.row} key={profile.name}>
+                        <span
+                          className={
+                            i < PROFILE_SLOTS ? styles.slot : styles.slotNone
+                          }
+                          aria-hidden
+                        >
+                          {i < PROFILE_SLOTS ? i + 1 : ''}
+                        </span>
                         <button
                           className={styles.recall}
-                          title={`recall “${profile.name}” — shift+click to overwrite it with the look on screen`}
+                          title={
+                            i < PROFILE_SLOTS
+                              ? `recall “${profile.name}” — or press ${i + 1}. Shift+click (or shift+${i + 1}) overwrites it with the look on screen`
+                              : `recall “${profile.name}” — shift+click to overwrite it with the look on screen`
+                          }
                           onClick={e => {
                             if (e.shiftKey) save(profile.name)
                             else props.onRecall(profile)
@@ -214,9 +230,10 @@ export function SavedProfiles(props: {
                   is patched in alone — pulling the webcam out from under someone
                   mid-set to put a still back is never the intent. */}
                   <div className={ui.hint}>
-                    a recall brings back the controls and the motion; the input
-                    stays whatever is patched in. ⧉ copies a link that carries
-                    both.
+                    the first nine are on the number keys — 1–9 recall, shift+1–9
+                    keeps the board over one. A recall brings back the controls
+                    and the motion; the input stays whatever is patched in. ⧉
+                    copies a link that carries both.
                   </div>
                 </>
               )}
