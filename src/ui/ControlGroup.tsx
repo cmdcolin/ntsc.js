@@ -12,6 +12,7 @@ import { EMPTY_SLOT } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
 import { mutateAmountFor } from './mutate'
 import { PipFrame } from './PipFrame'
+import { PurityFrame } from './PurityFrame'
 import { Section } from './Section'
 import { Rack, Slider } from './Slider'
 import { WipeFrame } from './WipeFrame'
@@ -186,6 +187,32 @@ function PipControl() {
   )
 }
 
+function PurityControl() {
+  const { controls, writeControl, writeControls } = useControlsApi()
+  return (
+    <PurityFrame
+      inert={controls.crtPurity === 0}
+      // Enough to see the stain without swamping the picture — the same job the
+      // `fix` value on a NEEDS gate does for a slider row.
+      onFix={() => writeControl('crtPurity', 0.6)}
+      patch={{
+        x: controls.crtPurityX,
+        y: controls.crtPurityY,
+        size: controls.crtPuritySize,
+      }}
+      // One write for all three, so placing the patch notifies once.
+      onChange={patch =>
+        writeControls({
+          ...controls,
+          crtPurityX: patch.x,
+          crtPurityY: patch.y,
+          crtPuritySize: patch.size,
+        })
+      }
+    />
+  )
+}
+
 function ZoomControl() {
   const { controls, writeControls } = useControlsApi()
   return (
@@ -224,6 +251,11 @@ const FRAMES: {
     group: 'PiP inset (source B)',
     keys: new Set<ControlKey>(['pipX', 'pipY', 'pipW', 'pipH']),
     Frame: PipControl,
+  },
+  {
+    group: 'Mask & convergence',
+    keys: new Set<ControlKey>(['crtPurityX', 'crtPurityY', 'crtPuritySize']),
+    Frame: PurityControl,
   },
   {
     group: 'View',

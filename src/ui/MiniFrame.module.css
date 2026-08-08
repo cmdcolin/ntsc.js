@@ -84,6 +84,22 @@
   left: 3px;
   top: 2px;
 }
+/* the magnetised purity patch: a soft round stain rather than a rectangle,
+   because the shader's falloff is a gaussian and the edge of it is nowhere in
+   particular. Centred on its own coordinates, so the caller positions it by the
+   patch centre the way crt_face.wgsl reads it. */
+.blob {
+  position: absolute;
+  translate: -50% -50%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 55%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 20%, transparent) 45%,
+    transparent 75%
+  );
+}
 .readout {
   display: flex;
   justify-content: space-between;
@@ -91,6 +107,20 @@
   margin-top: 4px;
   font-size: var(--fs-sm);
   color: var(--fg3);
+}
+/* the readout's left half when the miniature's own gate is shut — same offer the
+   `needs` note on a slider row makes, in the one spot this frame has for prose */
+.fix {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--gate);
+  text-align: left;
+  cursor: pointer;
+}
+.fix:hover {
+  text-decoration: underline;
 }
 .nums {
   color: var(--accent);
