@@ -1741,9 +1741,9 @@ export class Engine implements EngineApi {
   // is why it is a method rather than another field on ModSlot: a fired flag
   // living in the slot list would have to be cleared by whoever set it, and the
   // list is rewritten by presets, links and undo.
-  fireMod(id?: number): void {
-    if (id === undefined) this.modState.fireAll(this.modSlots)
-    else this.modState.fire(id)
+  fireMod(id?: number, level = 1): void {
+    if (id === undefined) this.modState.fireAll(this.modSlots, level)
+    else this.modState.fire(id, level)
   }
 
   setModSlots(slots: ModSlot[]): void {

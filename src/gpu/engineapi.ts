@@ -146,7 +146,7 @@ export interface EngineApi {
   // through setModSlots — a press between two frames has to survive until the
   // next one runs, and a flag on a slot list that presets and undo rewrite
   // wholesale could not.
-  fireMod: (id?: number) => void
+  fireMod: (id?: number, level?: number) => void
   // The stab gate: how often the whole look is poked into an otherwise clean
   // picture, and for how long (signal/stab.ts). Same contract as the bay above —
   // written to, never read from, applied and undone inside one frame — so a rate

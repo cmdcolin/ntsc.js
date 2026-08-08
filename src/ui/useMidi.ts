@@ -23,9 +23,17 @@ import type { RefObject } from 'react'
 export interface MidiSinks {
   setMotion: (v: number) => void
   setPresetWeight: (name: string, w: number) => void
+  // A note struck: fire the bay's one-shot envelopes, at that note's velocity.
+  // A sink rather than a control write because it is an event with no resting
+  // value — see the note on MidiCallbacks.onFire.
+  fire: (velocity: number) => void
 }
 
-const NO_SINKS: MidiSinks = { setMotion: () => {}, setPresetWeight: () => {} }
+const NO_SINKS: MidiSinks = {
+  setMotion: () => {},
+  setPresetWeight: () => {},
+  fire: () => {},
+}
 
 // Owns the MIDI manager (an imperative Web MIDI subsystem living outside React)
 // and the single control-write path. Every store-origin change must reach two
@@ -54,6 +62,9 @@ export function useMidi(engineRef: RefObject<EngineApi | null>) {
         const preset = presetOf(target)
         if (preset === null) sinksRef.current.setMotion(v)
         else sinksRef.current.setPresetWeight(preset, v)
+      },
+      onFire: v => {
+        sinksRef.current.fire(v)
       },
       onStatus: setStatus,
       onBindings: setBindings,

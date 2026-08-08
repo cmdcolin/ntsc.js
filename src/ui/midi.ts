@@ -256,6 +256,13 @@ export interface MidiCallbacks {
   // units. Soft takeover makes those knobs inert, and without this the panel
   // gives no sign of it — the control just looks broken.
   onPickup: (pickups: PickupMap) => void
+  // A note struck, with its velocity as 0..1. Deliberately not a BindTarget:
+  // every other thing MIDI drives here is a value you set, and this is the one
+  // that is an event you cause — there is nothing for soft takeover to catch
+  // and nothing to hold between messages. Any note fires the whole bay, which
+  // is the gesture the ⚡ button is; per-slot notes want a binding family of
+  // their own and are noted in IDEAS.
+  onFire: (velocity: number) => void
   // Progress of a learn-in-order sweep, or null when none is running.
   onLearn: (state: LearnState | null) => void
   // Detected clock tempo, or null when no clock is running.
@@ -418,6 +425,14 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
     if (data?.length === 1) {
       if (data[0] === 0xf8) onPulse()
       else if (data[0] === 0xfc) stopClock()
+    }
+    // Note On is status 0x90..0x9F; three bytes: status, note, velocity. Note
+    // Off (0x80) and the running-status zero-velocity Note On that stands in
+    // for it are both ignored on purpose: a one-shot is struck and then decays
+    // on its own clock, so a key lift has nothing to say to it. That is also
+    // why nothing here tracks which notes are held.
+    if (data?.length === 3 && (data[0] & 0xf0) === 0x90 && data[2] > 0) {
+      cb.onFire(data[2] / 127)
     }
     // Control Change is status 0xB0..0xBF; three bytes: status, controller, value.
     if (data?.length === 3 && (data[0] & 0xf0) === 0xb0) {

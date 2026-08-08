@@ -285,14 +285,19 @@ export function App() {
     mod: modApi,
   })
 
-  // The two bindable things the engine doesn't own. Registered from an effect
-  // rather than passed into useMidi, which is built before either of them
-  // exists — useMix needs the write path that hook owns. No dep array: both
+  // The three bindable things the engine doesn't own. Registered from an effect
+  // rather than passed into useMidi, which is built before any of them
+  // exists — useMix needs the write path that hook owns. No dep array: all
   // close over this render's state, and re-registering is one assignment.
   useEffect(() => {
     setSinks({
       setMotion: modApi.setMaster,
       setPresetWeight: mix.midiPresetWeight,
+      // Any note fires the bay's one-shots, at the velocity it was struck with.
+      // The bay is React's, so this is the only route a note has to it.
+      fire: v => {
+        modApi.fire(undefined, v)
+      },
     })
   })
 

@@ -70,7 +70,7 @@ export interface ModSlotsApi {
   // setting — everything else on this API describes what the bay *is*, and this
   // one says what just happened, so it goes straight to the engine instead of
   // through the slot list React owns.
-  fire: (i?: number) => void
+  fire: (i?: number, level?: number) => void
   // Park or restart the routing driving `key`, keeping what it is patched with.
   // The one-click "off" a set needs: `setSlotForKey(key, null)` is the other
   // kind of off — it hands the slot back and the patch with it. A no-op when

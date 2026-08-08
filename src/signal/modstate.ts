@@ -60,23 +60,29 @@ export class ModState {
   // switching it back on resumes rather than restarting.
   private waveState = new Map<number, WaveState>()
 
-  // Routings whose envelope has been fired and not yet picked up by a frame.
-  // A trigger is an edge, and edges do not survive being sampled at 60 Hz: a
-  // press between two frames has to still be there when the next one runs, or
-  // firing from a button feels like it misses every few presses.
-  private fired = new Set<number>()
+  // Routings whose envelope has been fired and not yet picked up by a frame,
+  // against how hard each was struck. A trigger is an edge, and edges do not
+  // survive being sampled at 60 Hz: a press between two frames has to still be
+  // there when the next one runs, or firing from a button — or worse, from a
+  // drummer — feels like it misses every few hits.
+  private fired = new Map<number, number>()
 
-  // Fire one routing's one-shot. `id` is ModWave.id — the slot's identity, not
-  // its position — so a bay reordered between the press and the frame still
-  // fires the envelope the finger was aimed at.
-  fire(id: number): void {
-    this.fired.add(id)
+  // Fire one routing's one-shot at `level`. `id` is ModWave.id — the slot's
+  // identity, not its position — so a bay reordered between the press and the
+  // frame still fires the envelope the finger was aimed at.
+  //
+  // The level is how hard it was struck, which is what makes a pad worth more
+  // than a button: a note's velocity arrives here, so the same patch played
+  // softly is a nudge and played hard is the whole excursion. The panel's own
+  // buttons pass 1, since a click has no weight to report.
+  fire(id: number, level = 1): void {
+    this.fired.set(id, Math.min(1, Math.max(0, level)))
   }
 
   // Fire every routing that has an envelope on it. The performance gesture: one
   // key, and everything patched to a trigger hits together.
-  fireAll(waves: readonly ModWave[]): void {
-    for (const w of waves) if (w.source === 'trig') this.fired.add(w.id)
+  fireAll(waves: readonly ModWave[], level = 1): void {
+    for (const w of waves) if (w.source === 'trig') this.fire(w.id, level)
   }
 
   // One value per wave: LFOs are bipolar [-1, 1] (a hand wiggling around the
@@ -143,9 +149,13 @@ export class ModState {
         // hit and not a swell — and exponential rather than linear because the
         // tail is what makes several of them at different rates sound like one
         // gesture instead of a set of ramps ending at different times.
-        if (this.fired.has(w.id)) {
+        const struck = this.fired.get(w.id)
+        if (struck !== undefined) {
           this.fired.delete(w.id)
-          s.env = 1
+          // Struck *to* the level, not summed onto what is left: a re-hit while
+          // the tail is still ringing is a fresh hit at that strength, which is
+          // how a drum answers and how the previous envelope stops mattering.
+          s.env = struck
         }
         // rateHz is the decay rate: 1 Hz falls to 1/e in a second, so the
         // existing rate slider (and its clock lock) reads as speed here the
