@@ -23,9 +23,10 @@ export function AdvancedDialog(props: {
   renderScale: number
   onScaleChange: (v: number) => void
   res: string
-  // The tap on the glass. Owned above rather than here: the app menu switches
-  // it too, and the menu trigger badges it, so this dialog is one writer of a
-  // shared value rather than the place it lives.
+  // The tap on the glass. Owned above rather than here: the panel's View group
+  // switches it too, and the menu trigger badges it, so this dialog is one
+  // writer of a shared value rather than the place it lives — and the one
+  // fullscreen/pop-out fall back to, since the panel isn't there to show it.
   tap: number
   onTapChange: (v: number) => void
   // Same arrangement as the tap: the control lives in the panel and in the app
@@ -84,7 +85,8 @@ export function AdvancedDialog(props: {
       <div className={ui.dim} style={{ margin: '2px 0 12px' }}>
         see what the TV sees: the raw waveform, or luma / chroma / burst
         mid-decode — the fastest way to understand what a control is doing. Also
-        in the ☰ menu, which badges whichever tap is live.
+        in the panel's View group; the ☰ menu trigger badges whichever tap is
+        live.
       </div>
       <div className={dlg.subhead}>MIDI control</div>
       {props.midiStatus === 'idle' ? (

@@ -197,7 +197,7 @@ export class Engine implements EngineApi {
     if (e instanceof GPUUncapturedErrorEvent) this.onGpuError(e.error.message)
   }
 
-  // Initialized from ?dbg=; also switchable live via setDbgView (Advanced).
+  // Initialized from ?dbg=; also switchable live via setDbgView (panel, Advanced).
   private dbgView = Number(new URLSearchParams(pageSearch()).get('dbg') ?? 0)
   // ?debug: dev-only per-frame logging and the first-frame readback.
   private readonly debug = pageSearch().includes('debug')

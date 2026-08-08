@@ -9,7 +9,7 @@ import { CameraIcon, GearIcon, GraphIcon, MenuIcon } from './icons'
 import { clampZoom, zoomAtTravel, zoomTravel } from './lens'
 import { MenuItem, Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
-import { nextTap, tapFor } from './signalTap'
+import { tapFor } from './signalTap'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
 import ui from './ui.module.css'
 
@@ -51,7 +51,6 @@ export function AppMenu(props: {
   lens: Lens
   onLens: (lens: Lens) => void
   tap: number
-  onTap: (v: number) => void
   frameLock: number
   onFrameLock: (v: number) => void
   onGrabStill: () => void
@@ -128,23 +127,6 @@ export function AppMenu(props: {
           <div className={popoverStyles.menuSep} />
           <ZoomRow lens={props.lens} onChange={props.onLens} />
           <LockRow value={props.frameLock} onChange={props.onFrameLock} />
-          <div className={popoverStyles.menuSep} />
-          {/* Sits with the zoom rather than under Advanced only, for the same
-              reason the zoom row does: the gesture-less way in is what says the
-              thing exists at all, and this one is the app's whole premise made
-              visible. A row that steps, not a picker — five taps is a short
-              enough ring that stepping beats a dropdown inside a popover, and
-              it means one place both enters and leaves the mode. */}
-          <MenuItem
-            icon="◫"
-            label={
-              props.tap === 0
-                ? 'signal tap — see inside the decode'
-                : `signal tap: ${tapFor(props.tap).short}`
-            }
-            hint={props.tap === 0 ? '' : 'on'}
-            onClick={() => props.onTap(nextTap(props.tap))}
-          />
           <div className={popoverStyles.menuSep} />
           <MenuItem
             icon={<CameraIcon />}

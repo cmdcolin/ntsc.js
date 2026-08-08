@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { DEFAULT_CONTROLS, atRest } from '../controls'
 import styles from './ControlGroup.module.css'
-import { NEEDS, sliderFor } from './controls'
+import { GROUPS, NEEDS, sliderFor } from './controls'
 import { useControlsApi } from './ControlsContext'
 import { matchedSliders, useFilterQuery } from './filter'
 import { MagnifierFrame } from './MagnifierFrame'
@@ -14,6 +14,8 @@ import { mutateAmountFor } from './mutate'
 import { PipFrame } from './PipFrame'
 import { PurityFrame } from './PurityFrame'
 import { Section } from './Section'
+import { SIGNAL_TAPS, tapFor } from './signalTap'
+import { useSignalTapApi } from './SignalTapContext'
 import { Rack, Slider } from './Slider'
 import { WipeFrame } from './WipeFrame'
 
@@ -237,6 +239,37 @@ function ZoomControl() {
   )
 }
 
+// Wherever frameLock's own group ends up living, rather than a hardcoded group
+// name: both are non-signal "how the picture is watched" controls, so they
+// belong beside each other, and pinning to frameLock's key survives the group
+// being renamed or reshuffled in a way a literal string wouldn't.
+const TAP_HOST_GROUP = GROUPS.find(g =>
+  g.sliders.some(s => s.key === 'frameLock'),
+)?.name
+
+// Not a ControlKey — dbgView lives on the engine, outside Controls, so this
+// reads its own context instead of useControlsApi(). Laid out like frameLock
+// rather than stepped: it decides what the picture on screen even is, which
+// is worth reaching directly rather than cycling through.
+function SignalTapControl() {
+  const { tap, onTap } = useSignalTapApi()
+  const index = SIGNAL_TAPS.findIndex(t => t.value === tapFor(tap).value)
+  return (
+    <Slider
+      label="signal tap"
+      unit=""
+      min={0}
+      max={SIGNAL_TAPS.length - 1}
+      step={1}
+      value={index}
+      defaultValue={0}
+      choices={SIGNAL_TAPS.map(t => t.short)}
+      help="View a point inside the decode instead of the finished picture: the composite waveform, the luma channel, chroma (U/V) energy, or the burst/decoder state. Also badged on the ☰ menu trigger whenever it's live."
+      onChange={i => onTap(SIGNAL_TAPS[i].value)}
+    />
+  )
+}
+
 const FRAMES: {
   group: string
   keys: ReadonlySet<ControlKey>
@@ -376,6 +409,7 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
         {shown.map(s => (
           <ControlSlider key={s.key} slider={s} muted={muted} />
         ))}
+        {group.name === TAP_HOST_GROUP ? <SignalTapControl /> : null}
         {fine.length === 0 ? null : (
           <>
             <button

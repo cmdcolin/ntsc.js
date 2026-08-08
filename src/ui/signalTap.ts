@@ -3,9 +3,10 @@
 // uniform's, read by decode.wgsl — 1 is present.wgsl's own gradient test and is
 // deliberately not offered, since it says nothing about the signal.
 //
-// Two surfaces show this list — the Advanced dialog, which explains it, and the
-// app menu, which is where you reach for it while looking at the picture — so
-// it lives here rather than inside either of them.
+// Two surfaces show this list — the panel's own View group, which is where you
+// reach for it while looking at the picture, and the Advanced dialog, which
+// explains it and is what fullscreen/pop-out fall back to since the panel isn't
+// there to show it — so it lives here rather than inside either of them.
 
 export interface SignalTap {
   value: number
@@ -28,12 +29,3 @@ export const SIGNAL_TAPS: SignalTap[] = [
 // that reports what it found rather than an assertion that it found something.
 export const tapFor = (value: number): SignalTap =>
   SIGNAL_TAPS.find(t => t.value === value) ?? SIGNAL_TAPS[0]
-
-// The next tap along, wrapping — what one menu row steps through, so cycling
-// the taps needs no picker of its own. A value no tap uses steps to the first,
-// which is the decoded picture: whatever `?dbg=` was set to, one press comes
-// back to something recognisable.
-export const nextTap = (value: number): number => {
-  const at = SIGNAL_TAPS.findIndex(t => t.value === value)
-  return SIGNAL_TAPS[at === -1 ? 0 : (at + 1) % SIGNAL_TAPS.length].value
-}

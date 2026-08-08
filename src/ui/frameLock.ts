@@ -9,19 +9,17 @@
 //
 // So it now also appears where performance is actually looked at — the stage
 // menu, on the row under the magnifier, and the Advanced dialog, beside render
-// scale, which is the other knob that trades picture for frames. That is the
-// same treatment the signal tap gets, and for the same reason: a setting nobody
-// can find is a setting that does not exist. It belongs in that family rather
-// than with the signal controls anyway — VIEW_KEYS already files it with the
-// magnifier, as something that shapes how the picture is watched rather than
-// what the signal does.
+// scale, which is the other knob that trades picture for frames: a setting
+// nobody can find is a setting that does not exist. It belongs in that family
+// rather than with the signal controls anyway — VIEW_KEYS already files it
+// with the magnifier, as something that shapes how the picture is watched
+// rather than what the signal does.
 //
-// The menu lays its settings out rather than stepping through them, which is
-// where it parts company with the tap. Stepping suits the tap: five views of
-// the same signal, cycled while watching what each one shows. It does not suit
-// this — you reach for the lock *because* the picture is stuttering, with a
-// rate in mind, and pressing a row three times to reach quarter rate is three
-// chances to overshoot the one you wanted.
+// The menu lays its settings out rather than stepping through them, the same
+// way the panel's own signal-tap row does now: you reach for the lock
+// *because* the picture is stuttering, with a rate in mind, and pressing a row
+// three times to reach quarter rate is three chances to overshoot the one you
+// wanted.
 
 import { sliderFor } from './controls'
 
