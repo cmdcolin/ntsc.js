@@ -1,5 +1,5 @@
 /* The path drawn large (see SignalPathDialog.tsx). Same vocabulary as the
-   sidebar's miniature — boxes on a wire, the two loops routed over the top,
+   sidebar's miniature — boxes on a wire, the loops routed over the top,
    colour carried on one element per node — at a size that can hold the two
    feeds and the loops' names as well. */
 .diagram {
@@ -30,15 +30,74 @@
 .optical .wire {
   stroke-dasharray: 3 3;
 }
+/* Same lift as the miniature's names, for the same reason: --fg4 is the floor
+   theme.css allows text at, and these are the only labels on the drawing. */
+.loopLabel {
+  fill: var(--fg3);
+  font-size: 10.5px;
+  /* the run and its name are one button, and dragging across it should press
+     the loop rather than select the sentence */
+  user-select: none;
+  /* Each name reaches across the runs below it, and the two returns drop their
+     verticals at the far end of the row — so a wire lands in the gaps between
+     glyphs and the sentence comes apart, worse the more loops there are. The
+     label carries a stroke of the surface behind it, painted first, which
+     knocks the wire out around the letters instead of over them. Cheaper than
+     shortening three sentences to fit between two verticals. */
+  paint-order: stroke;
+  stroke: var(--panel-bg);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+/* Each loop is its own button — the three of them were one box before, and a
+   run is what already told them apart. Colour is the whole hover state, the
+   way it is on a node: there is nothing to fill.
+
+   The three states below are one class each, so specificity cannot separate
+   them and source order is the whole precedence — which is why they are
+   together and in this order rather than filed next to what they resemble:
+   edited, then running, then pointed at. Running beats edited because a run
+   that is carrying signal is the thing the lighting exists to say, and a
+   running loop with an edit in it is the normal case, not the exception — the
+   count in the label says "edited" anyway. Written the other way round (which
+   is how it shipped) every running loop drew amber the moment anyone touched a
+   knob in it, and the accent that means "this one is on" never appeared. */
+.loopTouched {
+  color: var(--edit);
+}
+.loopTouched .loopLabel {
+  fill: var(--edit);
+}
 .live {
   color: var(--accent);
 }
-.loopLabel {
-  fill: var(--fg4);
-  font-size: 9.5px;
-}
 .live .loopLabel {
   fill: var(--accent);
+}
+.loopBtn {
+  cursor: pointer;
+}
+.loopBtn:hover,
+.loopBtn:focus-visible {
+  color: var(--fg);
+}
+.loopBtn:hover .loopLabel,
+.loopBtn:focus-visible .loopLabel {
+  fill: var(--fg);
+}
+.loopBtn:focus-visible {
+  outline: none;
+}
+.loopBtn:focus-visible .wire {
+  stroke-width: 2.5;
+}
+/* The grab band on a 1.25-unit wire. Transparent rather than absent so it takes
+   pointer events; 14 units wide keeps it inside the 22 between neighbouring
+   runs, so a click can only ever land on the loop it looks like. */
+.loopHit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
 }
 /* B's run with nothing patched into it */
 .dim .wire {

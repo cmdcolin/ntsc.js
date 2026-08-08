@@ -2,24 +2,28 @@ import { Fragment, useRef } from 'react'
 
 import { ChainMap } from './ChainMap'
 import { ControlGroup } from './ControlGroup'
+import { FEEDBACK_STAGE } from './controls'
 import { Accordion, NestedSections } from './Section'
 import styles from './SignalPath.module.css'
 
-import type { ChainStage } from './ChainMap'
-import type { Group } from './controls'
+import type { ChainBranchStage, ChainStage } from './ChainMap'
+import type { Group, LoopsLive } from './controls'
 
 // A stage as the panel needs it: what the map draws, plus its groups as data.
 // Only the open stage builds sections — building all six to throw five away
 // cost every control write a rebuild of all 121 rows.
 //
-// `off` (from ChainStage) is the one that opens nothing: input B with nothing
-// patched into it, and the Mix stage beside it, whose groups would be a wall of
-// controls that cannot move the picture.
+// `off` (from ChainStage) is the one that opens nothing: a branch with nothing
+// patched into it, and the Mix stage beside input B, whose groups would be a
+// wall of controls that cannot move the picture.
 export interface PathNode extends ChainStage {
   // Opens the stage at its first touched group.
   onJumpTouched: () => void
   groups: Group[]
 }
+
+// The same, for a stage that hangs under the trunk rather than on it.
+export interface BranchNode extends PathNode, ChainBranchStage {}
 
 // A stage's name, its off-stock count and its blurb. The two layouts below
 // render exactly this and differ only in what the two buttons *do*: on the
@@ -95,8 +99,12 @@ function StageHead(props: {
 // no row of its own and it is still there on the visit where you have forgotten.
 //
 // It is also where the full diagram is offered from. The miniature has room for
-// the six trunk stages and B's branch and no more; the names on the two feeds,
-// on the two loops, and on what each stage does need a card, so they get one.
+// the six trunk stages and the three boxes under them and no more — a seventh
+// trunk box drops the fit to 0.81 and leaves a label about a unit of padding
+// inside its box; the names on the two feeds and the sentence on each loop and
+// each stage need a card, so they get one. The miniature now draws all three
+// loops and names them — what it still cannot carry is what any of them *do*,
+// which is a sentence per run and three sentences the band has no room for.
 function PathHead(props: { onShowDiagram: () => void }) {
   return (
     <div className={styles.pathHead}>
@@ -104,7 +112,7 @@ function PathHead(props: { onShowDiagram: () => void }) {
       <span className={styles.pathHint}>click a stage</span>
       <button
         className={styles.pathDiagram}
-        title="the whole path drawn large — both inputs, their feeds, the mixer and the two loops, each one a way into its controls"
+        title="the whole path drawn large — both inputs, their feeds, the mixer, all three loops and where the sound joins, each one a way into its controls"
         onClick={props.onShowDiagram}
       >
         diagram ⤢
@@ -119,9 +127,11 @@ function PathHead(props: { onShowDiagram: () => void }) {
 // there is width for two columns, the same map heads every stage at once.
 export function SignalPath(props: {
   nodes: PathNode[]
-  // Input B, drawn under the head of the trunk. null when a live filter has
-  // left it nothing to show.
-  branch: PathNode | null
+  // The stages that hang under the trunk — input B at its head, the sound under
+  // the receiver, the view under the screen. Two are patched in and one is fed
+  // out; the map's arrowheads are what say which. One drops out when a live
+  // filter has left it nothing to show.
+  branches: BranchNode[]
   // null = no stage picked, which is where exploration starts. Ignored while a
   // filter is live: then every stage with a match shows at once.
   open: string | null
@@ -129,8 +139,12 @@ export function SignalPath(props: {
   // Two columns of module cards, every stage mounted (see Bench).
   bench: boolean
   // Which feedback returns are carrying signal, for the map to mark.
-  live: { camera: boolean; mixer: boolean }
+  live: LoopsLive
   onOpen: (name: string) => void
+  // Opens the Feedback stage at one loop's own group — what a return wire on
+  // the map does, as against the box under it, which opens the stage at
+  // whichever of its groups comes first.
+  onOpenLoop: (group: string) => void
   // Which group inside the open stage is unfolded — one at a time.
   openGroup: string | null
   onOpenGroup: (name: string) => void
@@ -145,22 +159,23 @@ export function SignalPath(props: {
   if (props.nodes.length === 0) {
     return null
   }
-  // Every stage that opens onto something. The branch is a stage like any other
-  // once B is patched in; without B it and the Mix stage are drawn on the map
-  // and open nothing, so neither can be the thing the panel is showing.
-  const openable = [
-    ...props.nodes,
-    ...(props.branch === null ? [] : [props.branch]),
-  ].filter(n => n.off !== true)
+  // Every stage that opens onto something. A branch is a stage like any other
+  // once something is patched into it; without an input it — and, for B, the
+  // Mix stage beside it — is drawn on the map and opens nothing, so neither can
+  // be the thing the panel is showing.
+  const openable = [...props.nodes, ...props.branches].filter(
+    n => n.off !== true,
+  )
   if (props.bench) {
     return (
       <Bench
         nodes={props.nodes}
         openable={openable}
-        branch={props.branch}
+        branches={props.branches}
         open={props.open}
         live={props.live}
         onOpen={props.onOpen}
+        onOpenLoop={props.onOpenLoop}
         onShowDiagram={props.onShowDiagram}
       />
     )
@@ -171,7 +186,7 @@ export function SignalPath(props: {
       <PathHead onShowDiagram={props.onShowDiagram} />
       <ChainMap
         stages={props.nodes}
-        branch={props.branch}
+        branches={props.branches}
         open={props.open}
         // The map is the fold here — except under a live filter, where a stage
         // is on screen because it matched and clicking its box cannot take it
@@ -179,6 +194,7 @@ export function SignalPath(props: {
         folds={!props.expandAll}
         live={props.live}
         onOpen={name => props.onOpen(name)}
+        onOpenLoop={props.onOpenLoop}
       />
       {/* No empty state under the map. It used to carry a count of everything
           behind the boxes and a line about the order the picture travels in,
@@ -230,36 +246,47 @@ export function SignalPath(props: {
 function Bench(props: {
   // The trunk, which is what the map draws.
   nodes: PathNode[]
-  // The trunk plus the branch when B is patched in — every stage the bench
+  // The trunk plus whichever branches have an input — every stage the bench
   // mounts a heading and a set of cards for.
   openable: PathNode[]
-  branch: PathNode | null
+  branches: BranchNode[]
   open: string | null
-  live: { camera: boolean; mixer: boolean }
+  live: LoopsLive
   onOpen: (name: string) => void
+  onOpenLoop: (group: string) => void
   onShowDiagram: () => void
 }) {
   // The stage headings, by name, as scroll targets. Element-relative
   // scrollIntoView only: the panel also renders inside the popout's document,
   // where this window's scrolling APIs address the wrong realm.
   const heads = useRef(new Map<string, HTMLDivElement>())
-  const jump = (name: string) => {
-    props.onOpen(name)
+  const scrollTo = (name: string) =>
     heads.current
       .get(name)
       ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  const jump = (name: string) => {
+    props.onOpen(name)
+    scrollTo(name)
+  }
+  // A loop opens its group and scrolls to the stage holding it, which is the
+  // bench's answer to every other click on the map: nothing folds, so reaching
+  // something means bringing it up rather than unfolding it.
+  const jumpLoop = (group: string) => {
+    props.onOpenLoop(group)
+    scrollTo(FEEDBACK_STAGE)
   }
   return (
     <>
       <PathHead onShowDiagram={props.onShowDiagram} />
       <ChainMap
         stages={props.nodes}
-        branch={props.branch}
+        branches={props.branches}
         open={props.open}
         // Nothing folds on the bench: a click marks the stage and scrolls to it.
         folds={false}
         live={props.live}
         onOpen={jump}
+        onOpenLoop={jumpLoop}
       />
       <div className={styles.bench}>
         {props.openable.map(node => (
