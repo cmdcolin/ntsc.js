@@ -45,12 +45,17 @@
 
 /* Per-stage jitter, in the header's accessory slot. Dim by default and lit on
    hover: it sits on every group heading, so at full contrast thirty of them
-   would read as a column of decoration down the panel. */
+   would read as a column of decoration down the panel.
+
+   A drawn die (icons.tsx) rather than the ⚄ glyph it used to carry: at the
+   heading's --fs-sm a die face is five specks a pixel across, which read as
+   dirt rather than as a die. */
 .dice {
   composes: bare from './ui.module.css';
   position: relative;
+  display: inline-flex;
+  align-items: center;
   padding: 0 2px;
-  font-size: var(--fs-sm);
   line-height: 1;
   color: var(--fg4);
 }
@@ -58,17 +63,23 @@
   color: var(--edit-hi);
 }
 
-/* Both header accessories come out around 13x12 — a glyph at --fs-sm with two
-   pixels of padding. Reached with a pseudo-element rather than real padding,
-   which would space the pair apart and push them off the heading's line. The
-   header has room above and below it that nothing else is claiming, so this can
-   be generous where the row's own ⋮ (Slider.module.css) has to stay inside a
-   row's pitch. */
-.revert::after,
-.dice::after {
+/* The ↺ comes out around 13x12 — a glyph at --fs-sm with two pixels of padding.
+   Reached with a pseudo-element rather than real padding, which would space the
+   pair apart and push them off the heading's line. The header has room above and
+   below it that nothing else is claiming, so this can be generous where the
+   row's own ⋮ (Slider.module.css) has to stay inside a row's pitch. */
+.revert::after {
   content: '';
   position: absolute;
   inset: -7px -6px;
+}
+/* The die is already 20x16, so it needs less help sideways — and taking less
+   keeps its box from eating into the ↺'s, which reaches 6px this way across a
+   6px gap. */
+.dice::after {
+  content: '';
+  position: absolute;
+  inset: -6px -3px;
 }
 
 /* reveals the sliders a direct-manipulation miniature stands in for, and the

@@ -79,7 +79,7 @@ morphs at all.
 Finding a look is a walk, so the walk is retraceable: **undo** (`ctrl+z`) steps
 back through everything you have been through, and `ctrl+shift+z` steps forward
 again. A wild roll costs one keystroke to take back, which is the point of
-rolling wildly. Every stage heading also carries a **⚄** that shakes only that
+rolling wildly. Every stage heading also carries a **die** that shakes only that
 stage — keep the look, shake one circuit.
 
 Six mechanisms, each starting from the preset that names it and pushed past

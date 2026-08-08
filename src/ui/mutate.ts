@@ -23,7 +23,7 @@ export const MUTATE_AMOUNTS = {
 export type MutateAmount = keyof typeof MUTATE_AMOUNTS
 
 // Which roll a click is asking for. Shared by the panel's two mutate buttons —
-// the bar's and each stage's ⚄ — so the modifiers cannot drift apart between
+// the bar's and each stage's die — so the modifiers cannot drift apart between
 // them. Meta as well as ctrl because ctrl-click is the context menu on macOS
 // and never reaches an onClick there.
 export function mutateAmountFor(e: {

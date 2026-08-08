@@ -73,6 +73,35 @@ export function CrosshairIcon() {
   )
 }
 
+// A die, for the per-group jitter in a section heading, in place of the ⚄ glyph
+// that heading used to carry. Two things had to give before it read as a die at
+// all, and both were checked at true 1x rather than on a zoomed render:
+//
+//   - Solid with the pips knocked out, not an outline with dots drawn in. A
+//     border thin enough to be in proportion lands under a device pixel here.
+//   - Two pips, big and far apart. Five, or even three on the diagonal, are
+//     ~1px specks a pixel apart at this size, and antialiasing merges them into
+//     one diagonal smear — which is exactly what the glyph was doing.
+//
+// Face two rather than a fuller face for the same reason, and because the
+// diagonal keeps it from reading as the four-dot grid every "apps" menu uses.
+// A shade larger than the 13px icons in the masthead: it is the one accessory
+// here that isn't a character the reader already knows.
+export function DiceIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      fillRule="evenodd"
+      aria-hidden
+    >
+      <path d="M5 2h14a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V5a3 3 0 0 1 3-3zM7.8 4.6a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 1 0 0-6.4zm8.4 8.4a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 1 0 0-6.4z" />
+    </svg>
+  )
+}
+
 export function GearIcon() {
   return (
     <svg

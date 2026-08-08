@@ -10,13 +10,14 @@ import {
   useControlValue,
 } from './ControlsContext'
 import { matchedSliders, useFilterQuery } from './filter'
+import { DiceIcon } from './icons'
 import { MagnifierFrame } from './MagnifierFrame'
 import { SYNCABLE_KEYS } from './midi'
 import { ModRowEditor } from './ModRowEditor'
 import { EMPTY_SLOT } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
 import { mutateAmountFor } from './mutate'
-import { PipFrame } from './PipFrame'
+import { PipControl } from './PipControl'
 import { PurityFrame } from './PurityFrame'
 import { sameKeySet, sameList } from './sameList'
 import { Section } from './Section'
@@ -170,36 +171,6 @@ function WipeControl() {
       inert={controls.wipeMode < 1}
       onFix={() => writeControl('wipeMode', 1)}
       onChange={pos => writeControl('wipePos', pos)}
-    />
-  )
-}
-
-function PipControl() {
-  const controls = useControls()
-  const { writeControl, writeControls } = useControlsApi()
-  return (
-    <PipFrame
-      inert={controls.pipMix === 0}
-      onFix={() => writeControl('pipMix', 0.7)}
-      border={controls.pipBorder}
-      soft={controls.pipSoft}
-      box={{
-        x: controls.pipX,
-        y: controls.pipY,
-        w: controls.pipW,
-        h: controls.pipH,
-      }}
-      // One write, not four: a drag moves all four at once, so the engine
-      // notifies (and React renders) once per pointer move.
-      onChange={box =>
-        writeControls({
-          ...controls,
-          pipX: box.x,
-          pipY: box.y,
-          pipW: box.w,
-          pipH: box.h,
-        })
-      }
     />
   )
 }
@@ -459,7 +430,7 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
             aria-label={`jitter ${group.name}`}
             onClick={e => mutateGroup(group.sliders, mutateAmountFor(e))}
           >
-            ⚄
+            <DiceIcon />
           </button>
         </>
       }
