@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
 import styles from './app.module.css'
@@ -68,6 +68,7 @@ import { usePanelNav } from './ui/usePanelNav'
 import { usePopout } from './ui/usePopout'
 import { useSavedProfiles } from './ui/useSavedProfiles'
 import { useScenes } from './ui/useScenes'
+import { useScrollAnchor } from './ui/useScrollAnchor'
 import { useShortcuts } from './ui/useShortcuts'
 import { useTempo } from './ui/useTempo'
 import { useUrlState } from './ui/useUrlState'
@@ -457,6 +458,14 @@ export function App() {
   // filtering because its membership has to be decided before a query narrows
   // it, not after.
   const edited = ALL_SLIDERS.filter(s => !atRest(controls[s.key], s.key))
+  // "This look" grows as you work, and it sits above everything you work *on*:
+  // move a control eight stages down and a row for it appears up here, pushing
+  // the row still under your pointer 44px down the screen for no reason you can
+  // see. The wrapper it hangs off is always in the tree — the section itself
+  // comes and goes with the first edit, and an element that mounts at its full
+  // height has no growth to observe.
+  const lookRef = useRef<HTMLDivElement>(null)
+  useScrollAnchor(lookRef)
   // The contextual groups, dropped when the filter leaves them nothing: a
   // section header over an empty body is a dead end in a result list.
   const bGroups = B_GROUPS.filter(g => groupMatches(g, query, isRouted))
@@ -722,13 +731,15 @@ export function App() {
           five folds down the chain map. Unlike them it stays under a filter:
           its rows are real control rows, so the query narrows them like any
           other result. */}
-      {edited.length === 0 ? null : (
-        <LookSection
-          sliders={edited}
-          openStages={openStages}
-          onOpenGroup={nav.openAt}
-        />
-      )}
+      <div ref={lookRef}>
+        {edited.length === 0 ? null : (
+          <LookSection
+            sliders={edited}
+            openStages={openStages}
+            onOpenGroup={nav.openAt}
+          />
+        )}
+      </div>
 
       {filtering ? null : (
         <InputSection
