@@ -42,7 +42,13 @@ find:
 
 - **Never `page.setViewport` after load under Firefox BiDi.** It swaps the
   realm, and every later `evaluate` sees `window.vf` as undefined — which reads
-  exactly like the app failing to boot. Set the viewport before `goto`.
+  exactly like the app failing to boot. Set the viewport before `goto`, and know
+  that even that is not guaranteed: `scripts/pixdiff.mjs` lost `vf` to a
+  _pre-`goto`_ `setViewport`, and puppeteer's `defaultViewport` is the same call
+  under another name. Worse, **`waitForFunction` does not protect you** — it
+  polls in its own realm, so it sees `vf`, passes, and hands you a page whose
+  `evaluate` still cannot. A harness that does not need a specific size should
+  ask for no size at all and report the canvas it actually got.
 - **One Firefox does not survive a long WebGPU batch.** After a dozen or so
   sessions it detaches the frame and every later page dies with "Target closed",
   so a batch recycles browsers and treats any failure as the browser being
@@ -131,6 +137,23 @@ pass ran first. Interleave base and patched runs in one sitting and compare the
 best, not the median: contention and thermals only ever add time, so the noise
 is one-sided.
 
+**The ~0.8 ms bimodality is another GPU client, and best-of is what survives
+it.** Cost here reads as two stable modes that land on whole batches, which
+looks like something in the app and is not. It was chased through the clocks and
+the adapter first, and both are innocent: sampling `pp_dpm_sclk`/`pp_dpm_mclk`
+per batch, the WX 3200 pins at its top DPM level (1295 MHz, 27 W) from the first
+batch and holds it — 20 batches in one session spread 0.10 ms, six separate
+sessions spread 0.08 ms. What reproduces the modes is a **neighbour**: a second
+stepped session costs **+3.6 ms**, and one idle app tab left presenting costs
+**+0.17 ms**. Note the shape — contention flips whole batches while leaving
+`best` alone (`[5.10, 7.38, 8.64, 8.66]` against a solo 5.02), which is exactly
+why the median lies and why `perf.mjs` prints every batch. Before trusting any
+number, read the per-batch list and check nothing else holds a WebGPU tab open;
+this box runs several agents and several dev servers. **An `--ablate` delta
+taken in the slow mode against one taken clean is how `crt_face`'s scatter
+gather came to be recorded as 0.9 ms — 8× its real cost** — and two spellings of
+the same shader will "differ" by 0.8 ms all day if you let them.
+
 **Batch throughput is not live frame rate.** The batch number is the GPU
 saturated; what a user sees is the rAF loop, which is paced by the display and
 carries costs the batch never meets — video decode and upload land there, and on
@@ -151,6 +174,14 @@ on the dev box's WX 3200, against a 3.3 ms always-on floor):
 - **The CRT beam spot's** wide tiers (~1.8 ms) on the presets that push
   `crtSpot` past a pixel; at the 0.6 px default the tap table is small and the
   pass costs ~0.2 ms.
+- **`crt_face`'s bloom + halation gather** is ~0.30 ms of a 4.90 ms frame (6%),
+  measured by deleting both loops outright. Its cost is **linear in tap count at
+  ~0.0094 ms/tap and does not care about radius** — dropping eight taps saves
+  0.083 ms whether they sit on the 3.5 px bloom disk or the 15 px halo one,
+  measured as separate arms and indistinguishable. So there is no locality win
+  hiding in this gather and no superlinearity to exploit: tap count is the only
+  lever, which is why both spreads now tier it (bloom on strength, the spot on
+  radius) rather than restructuring the sampling.
 - **`tapePlay` with many heads** (~2 ms on eight-head lap).
 - **Per-source feed snow** ~0.9 ms per engaged feed.
 - The true-waveform B chain
@@ -165,14 +196,42 @@ branches, and the branches hold:
   (9e0da4c, two dev servers off two worktrees, alternated) lands 4.52 ms both
   sides at stock — no separable difference.
 - **The chroma keyer** costs ~0.07 ms engaged (`greenScreen` 4.53 against 4.47
-  with `bKey:0`), the `atan2` + `length` per active sample and the extra
-  `mix_b` binding together. `keyIntoTheLoop` is the dearest of the six at
-  4.78 ms, and that is its mixer loop, not the key.
+  with `bKey:0`), the `atan2` + `length` per active sample and the extra `mix_b`
+  binding together. `keyIntoTheLoop` is the dearest of the six at 4.78 ms, and
+  that is its mixer loop, not the key.
 - **`synthOver`** costs ~0.01 ms — a full `videoSynth` per pixel, and it does
   not register. **The strobe is free**: a uniform multiply in `decode`, ON and
   OFF both 4.55 ms.
 - The six presets that shipped with them run 2.82–4.78 ms (`contourLines` and
   `punchIn` at the bottom are source-A-only, so they never pay for the B chain).
+
+### Proving an approximation is free
+
+```
+node scripts/pixdiff.mjs <urlA> <urlB> [frames]
+```
+
+Any change that approximates something — fewer taps, a cheaper kernel, a lower
+precision path — needs a number for what it costs the picture, not an opinion.
+`pixdiff.mjs` runs two dev servers off two worktrees and reports mean and max
+channel error plus the tail of the distribution; the tail is the point, because
+a thinned kernel fails as banding, which is a few units of error over a wide
+area and a peak-error number alone waves it through.
+
+**Establish the floor first** — point both URLs at the same server and confirm
+`max 0`. It does reach exactly 0, so a nonzero floor means the protocol drifted
+and any A/B beside it is worthless. Two things drift it, and both produce a
+stable, convincing, wrong number:
+
+- **Feedback state.** With the loop live each session accumulates a different
+  frame count before `loop.stop()`, and a look with memory never forgets the
+  difference. On `lightThatStays` (`phosphor: 0.999`) the floor is mean 0.7/255
+  with peaks of 212. Add `?set=phosphor:0,phosphorBleed:0` to isolate the pass.
+- **Field parity.** The engine is bistable on it, decided by that same coin-flip
+  frame count. The tell is a floor that is either exactly 0 or exactly mean
+  ~0.6/255 with `max 108` at one fixed pixel, never anything between. The script
+  cancels it by grabbing two consecutive frames per arm and taking the better
+  alignment.
 
 Two ALU micro-optimizations were implemented, measured dead flat, and reverted —
 the FIR passes are not ALU-bound on this hardware, so arithmetic saved there
