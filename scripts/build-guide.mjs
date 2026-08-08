@@ -32,6 +32,10 @@ const PAGES = [
   },
   { file: 'docs/EFFECTS.md', out: 'effects.html', nav: 'Effects' },
   { file: 'docs/MIDI.md', out: 'midi.html', nav: 'MIDI' },
+  // Where this sits among the other analog-video tools, including the cases
+  // where one of them is the better answer. Reader-facing: it is the page
+  // someone arriving from a search wants before any of the others.
+  { file: 'docs/COMPARISON.md', out: 'comparison.html', nav: 'Comparison' },
   // Contributor-facing, but it holds the diagrams for the three domains and for
   // adding a control, which are the two things hardest to pick up from the code.
   {
@@ -49,6 +53,7 @@ const LINKS = new Map([
   ['HOW-IT-WORKS.md', 'how-it-works.html'],
   ['EFFECTS.md', 'effects.html'],
   ['MIDI.md', 'midi.html'],
+  ['COMPARISON.md', 'comparison.html'],
   ['ARCHITECTURE.md', 'architecture.html'],
 ])
 

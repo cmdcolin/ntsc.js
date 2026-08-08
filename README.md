@@ -86,6 +86,8 @@ The same pages as markdown in this repo:
 - [**docs/HOW-IT-WORKS.md**](docs/HOW-IT-WORKS.md) — the signal path, pass by
   pass, with diagrams
 - [**docs/MIDI.md**](docs/MIDI.md) — setting up a controller, start to finish
+- [**docs/COMPARISON.md**](docs/COMPARISON.md) — the other analog-video tools,
+  and which one to use for what
 
 Contributor notes, repo only:
 
@@ -97,18 +99,33 @@ Contributor notes, repo only:
 
 There are a few other analog-video emulators worth a look:
 
-- **[ntsc-rs](https://github.com/valadaptive/ntsc-rs)** and **ntscQT** —
-  NTSC/VHS emulation for video files and OBS.
+- **[ntsc-rs](https://github.com/ntsc-rs/ntsc-rs)** — the closest relative, and
+  the one to reach for if you want this look _in an edit_. It shares the premise
+  — simulate the signal, don't draw the look — and it is free, open source, and
+  packaged as a standalone app and as plugins for After Effects, Premiere and
+  OpenFX, so it drops straight into DaVinci Resolve. It runs on the CPU,
+  multithreaded and SIMD-accelerated.
+- **ntscQT** — the Python-based ancestor of that line.
 - **[composite-video-simulator](https://github.com/joncampbell123/composite-video-simulator)**
   — the C reference NTSC codec much of this lineage traces back to.
 - **Blargg's NTSC filters** (`nes_ntsc` / `snes_ntsc`) and **RetroArch CRT
   shaders** (`crt-royale`, `crt-guest-advanced`) — the emulator/shader side of
   the same idea.
 
-The difference here is that ntsc.js models the whole signal path end to end in
-real time (encode → tape/RF damage → imperfect decode → CRT), so the artifacts
-interact the way they do on real hardware rather than stacking up as independent
-filters.
+Where ntsc.js differs is the use case, and it falls out of the architecture. The
+whole path (encode → tape/RF damage → imperfect decode → CRT) runs as WebGPU
+compute shaders, so moving a control is a uniform write against passes that are
+already resident rather than a re-render. That is what makes the other half of
+the app possible: two feedback loops, a mixer you can patch back into itself,
+modulation on any slider, MIDI clock lock, audio driven into the deflection
+coils. It is built to be _played_, live, at 60fps.
+
+So if you have a clip and you want it to look dubbed, use ntsc-rs — that is its
+job and it does it in the place where the rest of your edit already lives. This
+is the one to open if you want to sit and drive the thing.
+
+[**docs/COMPARISON.md**](docs/COMPARISON.md) lays the landscape out properly,
+including what this project deliberately doesn't do.
 
 ---
 
