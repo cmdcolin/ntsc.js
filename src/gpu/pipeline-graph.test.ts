@@ -117,9 +117,17 @@ const drawnNodes = [
   dashed: m[2].includes('dashed'),
 }))
 
+// Sorted by name, said explicitly. toSorted()'s default compares stringified
+// elements, which happens to be right for a list of pass names and stops being
+// right the moment one of these lists holds anything else.
+const byName = (a: string, b: string): number => a.localeCompare(b)
+
 test('the diagram draws exactly the passes the engine builds', () => {
-  expect(drawnNodes.flatMap(n => n.passes).sort()).toEqual(
-    [...engineNames].sort(),
+  // Comparator spelled out: these are name arrays, and toSorted()'s default
+  // is a lexicographic sort of stringified elements, which is only accidentally
+  // right for strings.
+  expect(drawnNodes.flatMap(n => n.passes).toSorted(byName)).toEqual(
+    [...engineNames].toSorted(byName),
   )
 })
 
@@ -133,7 +141,9 @@ test('a dashed node is a gated pass, and every gated pass is dashed', () => {
       .filter(n => n.passes.some(p => gatedInEngine.has(p)))
       .flatMap(n => n.passes),
   )
-  expect([...dashedInDiagram].sort()).toEqual([...expected].sort())
+  expect([...dashedInDiagram].toSorted(byName)).toEqual(
+    [...expected].toSorted(byName),
+  )
   expect([...gatedInEngine].every(p => dashedInDiagram.has(p))).toBe(true)
 })
 
@@ -176,8 +186,8 @@ test('ARCHITECTURE.md brackets exactly the gated passes', () => {
     documentedOrder()
       .filter(p => p.gated)
       .map(p => p.name)
-      .sort(),
-  ).toEqual([...gatedInEngine].sort())
+      .toSorted(byName),
+  ).toEqual([...gatedInEngine].toSorted(byName))
 })
 
 test('the extraction is non-trivial, so a broken parse fails loudly', () => {

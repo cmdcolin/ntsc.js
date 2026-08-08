@@ -36,7 +36,9 @@ describe('source pickers', () => {
     'keeps every %s mode exactly once, relabelled by nobody',
     (_slot, modes) => {
       const options = sourceOptions(modes)
-      expect(options.map(o => o.value).sort()).toEqual([...modes].sort())
+      expect(options.map(o => o.value).toSorted()).toEqual(
+        [...modes].toSorted(),
+      )
       for (const o of options) expect(o.label).toBe(SOURCE_DESC[o.value])
     },
   )
@@ -56,9 +58,12 @@ describe('source pickers', () => {
   // The production build drops YouTube, and B has no webcam. Neither may leave a
   // heading standing over nothing — an empty <optgroup> is a dead row in the list.
   it('drops a band the caller has nothing left in', () => {
-    const noLive = SOURCE_MODES.filter(
-      m => SOURCE_KIND[m] !== 'live',
-    ) as typeof SOURCE_MODES
+    // No cast: `sourceOptions` is generic over `readonly T[]`, so the filtered
+    // array satisfies it as it stands. The cast that used to be here asserted a
+    // 14-element tuple from a filter that returns fewer by construction, which
+    // is what the test is about — TypeScript called it "may be a mistake" and
+    // nothing was listening, because test files were excluded from the build.
+    const noLive = SOURCE_MODES.filter(m => SOURCE_KIND[m] !== 'live')
     const groups = sourceOptions(noLive).map(o => o.group)
     expect(groups).not.toContain(SOURCE_KIND_LABEL.live)
     // ...and the bands that survive are unaffected.

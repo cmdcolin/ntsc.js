@@ -254,7 +254,13 @@ export class RenderLoop {
     this.startRender()
     this.startProbe()
     this.startDrainProbe()
-    this.watchdogId = setInterval(this.watchdog, WATCHDOG_MS)
+    // `window.` qualified, and the fallback timer below likewise: bare
+    // setInterval resolves to node's overload in any project that has node's
+    // types loaded (the test project does, for the tests that shell out), and
+    // node returns a Timeout object where this field holds a number and uses 0
+    // as its "no timer" sentinel. The loop is browser-only, so saying so fixes
+    // it in the honest direction.
+    this.watchdogId = window.setInterval(this.watchdog, WATCHDOG_MS)
   }
 
   // Both rAF chains run on this, and it is where the loop's central invariant
@@ -540,7 +546,7 @@ export class RenderLoop {
 
   private schedulePump(): void {
     if (this.live && this.stalled && !this.gaveUp) {
-      this.fallbackId = setTimeout(this.pump, FALLBACK_MS)
+      this.fallbackId = window.setTimeout(this.pump, FALLBACK_MS)
     } else {
       this.pumping = false
     }

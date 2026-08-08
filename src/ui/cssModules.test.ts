@@ -120,7 +120,7 @@ describe('css modules', () => {
     }
     // Second sweep, once every sheet is known: a sheet can compose from one no
     // component imports directly.
-    for (const path of [...sheets]) {
+    for (const path of sheets) {
       for (const key of composedClasses(readFileSync(path, 'utf8'), path)) {
         referenced.add(key)
         sheets.add(key.slice(0, key.lastIndexOf(':')))
@@ -230,6 +230,11 @@ function sheetPaths(): Set<string> {
     const raw = readFileSync(file, 'utf8')
     for (const { path } of moduleImports(raw, file)) out.add(path)
   }
+  // The spread is load-bearing and the rule is wrong about it: the loop adds to
+  // `out` as it goes, so iterating the set directly would feed the entries it
+  // just appended — class-name prefixes, not paths — straight back into
+  // readFileSync. A copy is the point.
+  // oxlint-disable-next-line unicorn/no-useless-spread
   for (const path of [...out]) {
     for (const key of composedClasses(readFileSync(path, 'utf8'), path)) {
       out.add(key.slice(0, key.lastIndexOf(':')))

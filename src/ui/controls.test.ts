@@ -239,7 +239,7 @@ describe('fine tier', () => {
     const rank = (key: ControlKey) =>
       VIEW_KEYS.has(key) ? 2 : sliderFor(key).fine === true ? 1 : 0
     const ranks = AUTOMAP_KEYS.map(rank)
-    expect([...ranks].sort((a, b) => a - b)).toEqual(ranks)
+    expect([...ranks].toSorted((a, b) => a - b)).toEqual(ranks)
     // The View group, in its own order, and nothing else after it. Spelled out
     // rather than compared against VIEW_KEYS so that adding a key to that set
     // has to be a deliberate edit here too — this is the tail of the ranking a

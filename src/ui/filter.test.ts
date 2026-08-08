@@ -13,7 +13,7 @@ import type { ControlKey } from '../controls'
 import type { Group } from './controls'
 
 const groupFor = (key: ControlKey): Group => {
-  const g = GROUPS.find(g => g.sliders.some(s => s.key === key))
+  const g = GROUPS.find(group => group.sliders.some(s => s.key === key))
   if (g === undefined) throw new Error(`${key} is in no group`)
   return g
 }

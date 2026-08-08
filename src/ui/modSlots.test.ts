@@ -19,6 +19,7 @@ import {
   withNextSync,
 } from './modSlots'
 
+import type { Stab } from './modSlots'
 import type { ModRouting, UiSlot } from './modSlots'
 
 const slot = (patch: Partial<UiSlot> = {}): UiSlot => ({
@@ -288,7 +289,10 @@ describe('the stab gate', () => {
   })
 
   it('walks the divisions and back to free-running, keeping the dialed rate', () => {
-    let stab = { hz: 2.5, ms: 60 }
+    // Annotated rather than inferred: the literal alone widens to `{hz, ms}`,
+    // and every `stab.syncDiv` below is then a property access on a type that
+    // has never heard of it.
+    let stab: Stab = { hz: 2.5, ms: 60 }
     for (let i = 0; i < SYNC_DIVISIONS.length; i++) {
       stab = withNextStabSync(stab)
       expect(stab.syncDiv).toBe(i)

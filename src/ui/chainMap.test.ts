@@ -11,6 +11,7 @@ import {
 } from './controls'
 
 import type { BranchSpec } from './chainLayout'
+import type { Phase } from './controls'
 
 // The map lays out however many stages a live filter has left standing, so its
 // geometry is a function of a subset — and every bug it has shipped has been in
@@ -43,7 +44,7 @@ const ALL = [B, SOUND, VIEW]
 // the set of shapes `groupMatches` can hand the map.
 const subsets = (names: string[]): string[][] =>
   Array.from({ length: 1 << names.length }, (_, mask) =>
-    names.filter((_, i) => (mask & (1 << i)) !== 0),
+    names.filter((__, i) => (mask & (1 << i)) !== 0),
   ).filter(s => s.length > 0)
 
 const numbers = (v: unknown): number[] =>
@@ -73,7 +74,7 @@ describe('chain map geometry', () => {
   // does not take the same share of a 304-unit row as FEEDBACK.
   it('sizes each box to its label', () => {
     const l = chainLayout(FULL)
-    const w = (name: string) => l.boxes[FULL.indexOf(name)].w
+    const w = (name: Phase) => l.boxes[FULL.indexOf(name)].w
     expect(w('Mix')).toBeLessThan(w('Feedback'))
     expect(w('Tape')).toBeLessThan(w('Receiver'))
     expect(w('Source A')).toBeCloseTo(w('Feedback'), 5)

@@ -19,7 +19,7 @@ describe('mutate', () => {
 
   it('snaps step-1 controls to whole values so no shader hits a fractional mode', () => {
     const out = mutate(DEFAULT_CONTROLS, SLIDERS, 0.3, () => 0.8)
-    for (const s of SLIDERS.filter(s => s.step === 1)) {
+    for (const s of SLIDERS.filter(def => def.step === 1)) {
       expect(Number.isInteger(out[s.key]), s.key).toBe(true)
     }
   })

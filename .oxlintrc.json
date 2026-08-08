@@ -11,7 +11,7 @@
   "env": {
     "browser": true
   },
-  "ignorePatterns": ["dist", "scripts", "**/*.mjs", "**/*.test.ts"],
+  "ignorePatterns": ["dist", "scripts", "**/*.mjs"],
   "rules": {
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "warn",
@@ -37,6 +37,28 @@
         // __APP_VERSION__/__GIT_SHA__ are Vite `define` globals (vite.config.ts) — the
         // dangling underscores are the convention, not a naming choice to fix.
         "no-underscore-dangle": "off"
+      }
+    },
+    {
+      // Tests are linted like everything else — they were ignored outright until
+      // the ignore pattern came off, which is how thirty-four of them went
+      // unchecked while twelve `*.spec.ts` files did not. Two rules are switched
+      // back off here because they are about production code and say the wrong
+      // thing about a test.
+      "files": ["src/**/*.test.ts", "src/**/*.spec.ts"],
+      "rules": {
+        // A helper defined inside the `it` that uses it is the point: a test
+        // reads top to bottom, and hoisting `const pos = ...` to module scope
+        // moves it away from the assertion it exists to explain. The rule's
+        // rationale — avoiding a re-created closure per call — is a
+        // micro-optimization no test needs.
+        "unicorn/consistent-function-scoping": "off",
+        // Building a mock means asserting that a hand-made object is the DOM
+        // type under test — a fake HTMLVideoElement, a stub ImageBitmap. The
+        // assertion is the mock. Honouring the rule would mean either shipping
+        // the real type's full surface or routing through `unknown`, and both
+        // are less honest than the cast.
+        "typescript/no-unsafe-type-assertion": "off"
       }
     },
     {

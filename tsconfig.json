@@ -12,9 +12,20 @@
     "noFallthroughCasesInSwitch": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    // Free: every import in the tree already says `import type` where it means
+    // one, so this costs nothing today and stops the convention drifting. It
+    // also removes the guesswork isolatedModules otherwise leaves a bundler —
+    // an elided import is elided because the source said so, not because a
+    // transpiler inferred it.
+    "verbatimModuleSyntax": true
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts"],
+  // Tests are checked by tsconfig.test.json, which adds node's globals for the
+  // third of them that shell out. They are excluded here rather than unchecked:
+  // `pnpm typecheck` runs both projects. Excluding only `*.test.ts` — while the
+  // twelve `*.spec.ts` files stayed in — is what let a filename decide whether a
+  // test was typechecked at all.
+  "exclude": ["src/**/*.test.ts", "src/**/*.spec.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

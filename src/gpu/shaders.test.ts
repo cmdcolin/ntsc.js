@@ -93,7 +93,7 @@ describe('WGSL shaders pass naga validation', () => {
     const onDisk = readdirSync(shaderDir)
       .filter(f => f.endsWith('.wgsl'))
       .map(f => f.replace(/\.wgsl$/, ''))
-    expect(Object.keys(SHADERS).sort()).toEqual(onDisk.sort())
+    expect(Object.keys(SHADERS).toSorted()).toEqual(onDisk.toSorted())
   })
 
   // Naga cannot catch this one: a shader that declares a binding and never
@@ -138,7 +138,7 @@ describe('WGSL shaders pass naga validation', () => {
       } catch (e) {
         const err = e as { stderr?: Buffer; stdout?: Buffer }
         expect.fail(
-          `${name}.wgsl failed naga validation:\n${err.stderr ?? ''}${err.stdout ?? ''}`,
+          `${name}.wgsl failed naga validation:\n${String(err.stderr ?? '')}${String(err.stdout ?? '')}`,
         )
       }
     })

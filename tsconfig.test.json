@@ -1,0 +1,23 @@
+{
+  // Test files, checked with the same strictness as the code they test.
+  //
+  // They used to be checked *inconsistently*: tsconfig.json excluded
+  // `src/**/*.test.ts` and oxlint ignored the same pattern, while the twelve
+  // `*.spec.ts` files were checked and linted like ordinary source. Nothing
+  // distinguished the two suffixes except which one somebody happened to type,
+  // so whether a test was typechecked at all came down to its filename — and
+  // thirty-four files sat in the unchecked half.
+  //
+  // The reason for the original exclusion is real and is handled here rather
+  // than by giving up: a third of the tests are node-side (they shell out to
+  // naga, read CSS modules off disk, drive the firestore emulator), so they need
+  // node's globals, which app code must not see. Hence a separate project that
+  // adds `node` to the app config's types instead of one config trying to be
+  // both.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["@webgpu/types", "vite/client", "node"]
+  },
+  "include": ["src/**/*.test.ts", "src/**/*.spec.ts"],
+  "exclude": []
+}
