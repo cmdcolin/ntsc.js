@@ -4,14 +4,15 @@ import { snapToStep } from './controls'
 import { cx } from './cx'
 import { choicesFitTrack, formatValue, readingChars } from './format'
 import { HelpProse } from './HelpProse'
-import { zoomAtTravel, zoomTravel } from './lens'
 import { MenuItem, Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
 import styles from './Slider.module.css'
 import { SliderHelpDialog } from './SliderHelpDialog'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
+import { fromTravel, toTravel } from './travel'
 
 import type { SliderDef } from './controls'
+import type { CurveName } from './travel'
 import type { CSSProperties, ReactNode } from 'react'
 
 // How wide the readout column is, in characters, for every row in one rack.
@@ -221,7 +222,7 @@ export function Slider(props: {
   // A discrete control: one label per integer value. Renders a toggle-button
   // group in place of the range input, still reading/writing the same number.
   choices?: string[]
-  curve?: 'magnifier'
+  curve?: CurveName
   // The tuned range, when the travel now runs past it: a notch on the track at
   // each end that was widened, so extended territory is visible on the way in
   // rather than a surprise at the stop.
@@ -275,23 +276,16 @@ export function Slider(props: {
   // A curved control puts the range input on a 0..1 travel and converts, so the
   // fine end of the scale gets the room. The value it reads and writes is
   // unchanged, still landing on the control's own step grid.
-  const curved = props.curve === 'magnifier'
+  const curved = props.curve !== undefined
   // A mode switch whose options fit the track column keeps the ordinary
   // one-line row — name, switch, reading — instead of stacking. See
   // choicesFitTrack for what "fit" means and why it is not measured live.
   const inline = choices !== undefined && choicesFitTrack(choices)
-  const fromTravel = (t: number) => snapToStep(props, zoomAtTravel(t))
+  const atTravel = (t: number) => snapToStep(props, fromTravel(props, t))
   // Track fill anchors at the default, not the left edge: bipolar controls
   // read like a pan pot from center, and distance-from-stock shows at a glance.
   const pct = (v: number) =>
-    Math.max(
-      0,
-      Math.min(
-        100,
-        (curved ? zoomTravel(v) : (v - props.min) / (props.max - props.min)) *
-          100,
-      ),
-    )
+    Math.max(0, Math.min(100, toTravel(props, v) * 100))
   const valuePct = pct(props.value)
   const defPct = pct(props.defaultValue)
   const fill: CSSProperties & Record<'--lo' | '--hi' | '--def', string> = {
@@ -498,7 +492,7 @@ export function Slider(props: {
         min={curved ? 0 : props.min}
         max={curved ? 1 : props.max}
         step={curved ? 0.002 : props.step}
-        value={curved ? zoomTravel(props.value) : props.value}
+        value={curved ? toTravel(props, props.value) : props.value}
         disabled={locked}
         // The plugin idiom, for free: the track is the biggest target on the
         // row and a double-click on it means "put this back" everywhere else a
@@ -508,9 +502,7 @@ export function Slider(props: {
         onDoubleClick={() => props.onChange(props.defaultValue)}
         onChange={e =>
           props.onChange(
-            curved
-              ? fromTravel(Number(e.target.value))
-              : Number(e.target.value),
+            curved ? atTravel(Number(e.target.value)) : Number(e.target.value),
           )
         }
       />

@@ -143,7 +143,15 @@ export const DEFAULT_CONTROLS = {
   crtBloom: 0.2, // beam core spilling into the coating around it
   crtHalation: 0.15, // light into the faceplate, bounced off the back, back out
   crtGlow: 0.08, // faint warm haze; the glass is never truly black
-  crtHaloKey: 0, // halation radius keyed off beam current, 0 = the fixed radius
+  // Halation radius keyed off beam current. At 0 the halo is one fixed width
+  // traced round anything bright, which crt_face calls out as the one way the
+  // scatter gives itself away — harmless while halation was off by default,
+  // and shipped library-wide the moment it wasn't.
+  //
+  // Not free, though the arithmetic is: rh is a multiply-add computed per pixel
+  // whatever this holds, but widening the halo spreads that ring of 16 samples
+  // further apart and the texture cache notices. Measured at 2.7% of a step.
+  crtHaloKey: 0.8,
   crtSvm: 0, // scan velocity modulation depth, signed (coil polarity)
   crtSvmWidth: 1.2, // SVM differentiator aperture, active px
   crtConverge: 0, // gun misconvergence at the picture edge, active px

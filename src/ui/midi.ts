@@ -1,8 +1,8 @@
 import { CONTROL_KEYS } from '../controls'
 import { AUTOMAP_KEYS, SLIDER_BY_KEY, sliderFor, snapToStep } from './controls'
-import { zoomAtTravel } from './lens'
 import { PRESETS } from './presets'
 import { readRecord } from './storage'
+import { fromTravel } from './travel'
 
 import type { ControlKey } from '../controls'
 import type { SliderDef } from './controls'
@@ -171,11 +171,7 @@ export function omit<K extends string, V>(
 // maps through its own travel, so a knob feels like its on-screen slider rather
 // than racing through the useful end of the scale.
 function ccToValue(span: BindSpan, cc: number): number {
-  const raw =
-    span.curve === 'magnifier'
-      ? zoomAtTravel(cc / 127)
-      : span.min + (cc / 127) * (span.max - span.min)
-  return snapToStep(span, raw)
+  return snapToStep(span, fromTravel(span, cc / 127))
 }
 
 // Half a control's full span per MIDI step — the pickup tolerance for the very

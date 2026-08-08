@@ -1,4 +1,5 @@
 import type { ControlKey } from '../controls'
+import type { CurveName } from './travel'
 
 export interface SliderDef {
   key: ControlKey
@@ -16,10 +17,13 @@ export interface SliderDef {
   // the single source of truth for which controls blend by mode (ENUM_KEYS in
   // presets), so min/max/step still bound the same integer for MIDI and mod.
   choices?: string[]
-  // How the travel maps onto the value. Omitted is linear; 'magnifier' is the
-  // two-sided view-fraction scale in lens.ts, which puts the fine control where
-  // the useful magnifications are and keeps a detent at 1x.
-  curve?: 'magnifier'
+  // How the travel maps onto the value; omitted is linear. The curves live in
+  // travel.ts. 'magnifier' is the view-fraction scale in lens.ts, which puts
+  // the fine control where the useful magnifications are and keeps a detent at
+  // 1x; 'persistence' is logarithmic in what the phosphor keeps back, because
+  // trail length is geometric in it and a linear track spends its whole lower
+  // half on holds too short to see.
+  curve?: CurveName
   // Present on a control whose travel now runs past the range it was tuned to:
   // the old [min, max], drawn as a notch on the track at whichever end grew.
   //
@@ -2438,7 +2442,11 @@ export const GROUPS: Group[] = [
         label: 'phosphor persistence',
         min: 0,
         max: 0.9995,
-        step: 0.0005,
+        // Finer than the eye needs across most of the track, but the last
+        // decade of trail length lives inside the last thousandth of the
+        // value: 0.999 is a tail of seconds and 0.9995 twice that.
+        step: 0.0001,
+        curve: 'persistence',
         redline: [0, 0.995],
         unit: '',
         help: `How long the layer keeps glowing after the beam has passed. This
