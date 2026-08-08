@@ -183,6 +183,14 @@ export class Engine implements EngineApi {
   // from `controls` on every write so the UI and the render loop never drift.
   private snapshot: Controls = { ...DEFAULT_CONTROLS }
   private controlListeners = new Set<() => void>()
+  // Kept apart from the above — see subscribeGlide for why the two cadences
+  // cannot share a notify.
+  private glideListeners = new Set<() => void>()
+  private statsListeners = new Set<() => void>()
+  // The last window the loop reported. Held as one object that is replaced
+  // rather than mutated, because it is a useSyncExternalStore snapshot: React
+  // compares by identity, so a mutated object would look like no change.
+  private statsSnapshot: FrameStats = { fps: 0, lock: 1 }
   // The pending trailing notify (a rAF handle; 0 is none), and whether anything
   // was written after this frame's leading one. See emitControls.
   private notifyFrame = 0
@@ -962,7 +970,11 @@ export class Engine implements EngineApi {
     this.loop = new RenderLoop({
       device: this.gpu.device,
       render: () => this.render(),
-      onStats: s => this.onStats(s),
+      onStats: s => {
+        this.statsSnapshot = s
+        for (const fn of this.statsListeners) fn()
+        this.onStats(s)
+      },
       lockDiv: () => this.lockDivLive,
       onHang: () => this.onHang(),
       recover: () => this.recoverSurface(),
@@ -1073,6 +1085,11 @@ export class Engine implements EngineApi {
   startGlide(plan: GlidePlan): void {
     this.glide.start(this.controls, plan, performance.now())
     this.glideNotify = 0
+    // On this call rather than on the first frame, so the readout is up before
+    // the picture has moved. The gap is one frame and it is the wrong frame to
+    // be missing: it is the one where somebody is asking whether the button
+    // they just pressed did anything.
+    this.notifyGlide()
   }
 
   // Leave the board wherever the morph had got to. The half-way look is a look;
@@ -1080,11 +1097,60 @@ export class Engine implements EngineApi {
   stopGlide(): void {
     this.glide.stop()
     this.emitControls()
+    this.notifyGlide()
   }
 
-  // How far along a morph is, 0..1, or null if none is running.
-  glideProgress(): number | null {
-    return this.glide.running ? this.glide.progress : null
+  // The morph's own useSyncExternalStore pair, deliberately separate from the
+  // controls one above rather than folded into it. They differ in who listens:
+  // every control write is heard by App, which builds the whole panel, so
+  // `emitControls` is throttled to one notify per GLIDE_NOTIFY frames while a
+  // morph runs. Nothing that moves at the frame rate can be published through
+  // it. This one is heard only by the readout in the look bar — one button — so
+  // it fires every frame and stays honest.
+  readonly subscribeGlide = (fn: () => void): (() => void) => {
+    this.glideListeners.add(fn)
+    return () => {
+      this.glideListeners.delete(fn)
+    }
+  }
+
+  // How far along a morph is, 0..1, or null if none is running. A primitive on
+  // purpose: useSyncExternalStore compares snapshots by identity, and two equal
+  // numbers are `===`, so the frames where nothing moved cost no render.
+  readonly getGlide = (): number | null =>
+    this.glide.running ? this.glide.progress : null
+
+  private notifyGlide(): void {
+    for (const fn of this.glideListeners) fn()
+  }
+
+  // The frame rate as a store, for the same reason the morph is one: the loop
+  // reports a window four times a second, and the readout that draws it is one
+  // element in the masthead. Held in App's state instead — which it was — every
+  // report reconciles the whole panel, so the monitor perturbs the very thing it
+  // exists to measure. Subscribed by nobody when it is closed, and then the
+  // notify below is a walk over an empty set.
+  //
+  // `onStats` survives alongside this and is not superseded by it: the vote page
+  // drives two engines from its own handler, and panelcheck.mjs reads the field
+  // off `window.vf`. A store answers "what is the rate now", a callback answers
+  // "tell me when" — the two pages want different ones.
+  readonly subscribeStats = (fn: () => void): (() => void) => {
+    this.statsListeners.add(fn)
+    return () => {
+      this.statsListeners.delete(fn)
+    }
+  }
+
+  readonly getStats = (): FrameStats => this.statsSnapshot
+
+  // The look a running morph is travelling to, or null. Asked of the engine
+  // rather than remembered by the caller because the engine is the only one
+  // that knows a morph has been cancelled — a slider, a MIDI message or an
+  // outright applyControls all stop one, and a remembered destination would
+  // outlive that and hand back a look the board never reached.
+  glideTarget(): Controls | null {
+    return this.glide.target
   }
 
   // One frame of a morph, if one is running. Ahead of applyMod, so modulation
@@ -1095,6 +1161,10 @@ export class Engine implements EngineApi {
     if (!this.glide.running) return
     const step = this.glide.apply(this.controls, performance.now())
     if (step.coarseMoved) this.filtersDirty = true
+    // Every frame, unthrottled — one button re-renders. The landing frame is
+    // the one that matters most: `apply` has already stopped the glide by now,
+    // so this is what takes the readout down.
+    this.notifyGlide()
     // React hears about the landing frame no matter what — the destination is a
     // real look that saved looks, links and the recipe chips all have to agree on —
     // and about the flight only every GLIDE_NOTIFY frames.

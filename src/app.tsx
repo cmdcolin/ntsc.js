@@ -115,6 +115,7 @@ const BAR_HIDDEN_STORE = 'ntsc.js_overlay_bar_hidden'
 // useSyncExternalStore fallbacks for the window before the async engine exists.
 const subscribeNever = () => () => {}
 const getDefaultControls = (): Controls => DEFAULT_CONTROLS
+const getNoMorph = (): number | null => null
 
 // Which stages are open to a jump, in the only four arrangements there are: a
 // second source patched in or not, an audio input picked or not. Built once
@@ -148,12 +149,12 @@ export function App() {
   // Off every session, and not persisted: a counter that moves every frame pulls
   // the eye, and you want it only while chasing a stall. Two switches reach it —
   // the × on the readout and the app menu — so it lives here rather than in
-  // either of them. Declared ahead of the engine because it is also what decides
-  // whether the loop's frame stats are wired up at all: reported four times a
-  // second, each one a fresh object, they re-render this component (and so the
-  // whole panel) at that rate for a readout almost no session ever opens.
+  // either of them. It used to be handed to `useEngine` as well, to gate whether
+  // the frame rate was wired to React at all; the readout subscribes to the
+  // engine's own store now, which costs nothing while it is closed, so this says
+  // only whether the thing is on screen.
   const [showFps, setShowFps] = useState(false)
-  const eng = useEngine(showFps)
+  const eng = useEngine()
   // Both pulled off in one destructure, and `engine` is read through the local
   // rather than as `eng.engine` for the rest of the render. Reading a ref out of
   // an object marks the whole object as ref-ish to the React Compiler, so a
@@ -254,6 +255,23 @@ export function App() {
     },
     [engineRef],
   )
+  // Where a morph in flight is heading, for the undo walk — the engine is asked
+  // because it is the only one that knows a morph was cancelled.
+  const getGlideTarget = () => engineRef.current?.glideTarget() ?? null
+  // Whether a morph is running, and how far along, is deliberately *not* state
+  // here. It changes every frame, and this component builds the entire panel —
+  // holding it would reconcile ~200 control rows sixty times a second for a
+  // readout the width of one button. Instead the engine publishes it as its own
+  // store and the button subscribes, the same shape `useControlValue` uses to
+  // put one slider on one key. App never re-renders for a morph at all.
+  const morphStore = {
+    subscribe: engine === null ? subscribeNever : engine.subscribeGlide,
+    get: engine === null ? getNoMorph : engine.getGlide,
+  }
+  // Stop where it stands: the half-way look is a look. Nothing to reset here —
+  // the store is the engine's, so the readout goes down when the engine says a
+  // morph is over, however it ended.
+  const stopMorph = () => engineRef.current?.stopGlide()
   const [morphStored, setMorphStored] = usePersistedString('ntsc.js_morph')
   const morphSeconds = parseMorph(morphStored)
   const mix = useMix({
@@ -261,6 +279,7 @@ export function App() {
     getControls: controlStore.get,
     writeControls,
     startGlide,
+    getGlideTarget,
     morphSeconds,
     sourceBOn: eng.sourceBMode !== 'none',
     mod: modApi,
@@ -462,25 +481,40 @@ export function App() {
   // Everything the palette can run that isn't a preset or a control. Hold-to-
   // compare is deliberately absent: it's a gesture, not a command.
   const paletteActions: PaletteAction[] = [
+    // Named as the bar names them, with the words they used to carry kept in
+    // the blurbs: the palette matches on both, so anyone who learnt "surprise"
+    // or "mutate" still types it and still lands on the right row.
     {
-      name: 'surprise me',
-      blurb: 'stack a few random presets',
+      name: 'random look',
+      blurb: 'a surprise — stack a few random presets',
       run: mix.surprise,
     },
     {
-      name: 'mutate',
-      blurb: 'jitter every control around the current look',
+      name: 'random nudge',
+      blurb: 'mutate: jitter every control around the current look',
       run: () => mix.mutateLook('normal'),
     },
     {
-      name: 'mutate gently',
-      blurb: 'a small jitter, for creeping around a look that is nearly right',
+      name: 'random nudge, gentle',
+      blurb:
+        'a small mutation, for creeping around a look that is nearly right',
       run: () => mix.mutateLook('gentle'),
     },
     {
-      name: 'mutate hard',
-      blurb: 'a wild jitter, for getting out of a corner',
+      name: 'random nudge, wild',
+      blurb: 'a big mutation, for getting out of a corner',
       run: () => mix.mutateLook('wild'),
+    },
+    // The heavy one. It has always been on the button under ctrl (or cmd), and
+    // nothing said so anywhere you could read without hovering — a wreck you
+    // can only reach by holding a key you were never told about may as well not
+    // ship. Named for what it does rather than for its amount: nobody searches
+    // the palette for "turbo".
+    {
+      name: 'randomize everything, hard',
+      blurb:
+        'turbo: throw most controls past anything a real set would do — the wreck, not a variation',
+      run: () => mix.mutateLook('turbo'),
     },
     {
       // The last of the Vaporwave section: three settings applied at once, which
@@ -804,7 +838,7 @@ export function App() {
             picture, which is the one surface meant to stay clear. */}
         {showFps ? (
           <FpsMonitor
-            stats={eng.stats}
+            store={eng.statsStore}
             res={eng.res}
             onHide={() => setShowFps(false)}
           />
@@ -900,6 +934,8 @@ export function App() {
         onMutate={mix.mutateLook}
         morphSeconds={morphSeconds}
         onSetMorph={s => setMorphStored(String(s))}
+        morphStore={morphStore}
+        onStopMorph={stopMorph}
         tags={
           <TagsPopover
             tags={labels.tags}

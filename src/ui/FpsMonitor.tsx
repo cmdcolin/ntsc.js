@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 
 import styles from './FpsMonitor.module.css'
 
-import type { FrameStats } from '../controls'
+import type { StatsStore } from './useEngine'
 
 // Rolling histogram of recent per-window fps, sat in the sidebar masthead. It
 // used to float over the bottom-left of the picture, which is the one place in
@@ -60,12 +60,20 @@ function draw(canvas: HTMLCanvasElement, history: [number, number][]) {
   }
 }
 
+// Subscribed to rather than handed a value: the loop reports a window four times
+// a second, and this is the only thing on the page that wants to hear it. As a
+// prop it would have to come down through App, which rebuilds the whole panel to
+// carry it — so the readout cost more than the frames it was reporting on, and
+// the number moved because you were looking at it.
 export function FpsMonitor(props: {
-  stats: FrameStats
+  store: StatsStore
   res: string
   onHide: () => void
 }) {
-  const { fps, lock } = props.stats
+  const { fps, lock } = useSyncExternalStore(
+    props.store.subscribe,
+    props.store.get,
+  )
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const historyRef = useRef<[number, number][]>([])
 

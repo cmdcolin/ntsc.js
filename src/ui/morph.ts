@@ -18,6 +18,16 @@ import type { GlidePlan } from '../signal/glide'
 // you can watch, 8s is long enough to hit surprise again in the middle of, and
 // 30s is a slow sweep to leave running — the one where the point is not arriving
 // at the destination at all but seeing what the path goes through on the way.
+// A morph in flight, as useSyncExternalStore's pair: how far along, 0..1, or
+// null when none is running. The same shape as `ControlStore` and for the same
+// reason — the value moves at the frame rate, so it is subscribed to by the one
+// widget that draws it rather than passed down from a component that would have
+// to re-render to carry it.
+export interface MorphStore {
+  subscribe: (fn: () => void) => () => void
+  get: () => number | null
+}
+
 export const MORPH_SECONDS = [0, 1, 4, 8, 30] as const
 export type MorphSeconds = (typeof MORPH_SECONDS)[number]
 

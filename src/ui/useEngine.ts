@@ -15,6 +15,7 @@ import { smpteBars, sweep } from '../sources/pattern'
 import { TELETYPE_DEFAULT } from '../sources/teletype'
 import { ytId } from '../sources/youtube'
 import { backingStoreSize } from './canvasSize'
+import { VIEW_KEYS } from './controls'
 import {
   canPickHandle,
   clearStash,
@@ -193,17 +194,26 @@ const printOn = (
   printCard(slot, slot.card(), !live)
 }
 
-const ignoreStats = () => {}
+// The frame rate as useSyncExternalStore's pair, so the readout subscribes to it
+// alone. Declared here because this is what builds it; the same shape as
+// `ControlStore` and `MorphStore`, and for the same reason — a value that moves
+// on its own clock belongs to whichever component draws it, not to the app.
+export interface StatsStore {
+  subscribe: (fn: () => void) => () => void
+  get: () => FrameStats
+}
+
+// useSyncExternalStore's pair for the window before an engine exists. The empty
+// reading is a module constant because a snapshot getter must return the same
+// reference every call — build the object inside the getter and React sees a new
+// value on every read and re-renders forever.
+const NO_STATS: FrameStats = { fps: 0, lock: 1 }
+const subscribeNever = () => () => {}
+const getNoStats = (): FrameStats => NO_STATS
 
 // Owns the singleton Engine (a GPUDevice + rAF loop), its lifecycle, and every
 // video/image source path (patterns, files, webcam/USB capture, source B).
-//
-// `wantStats` is whether anything is reading the frame rate. The loop reports it
-// every fifteen frames — four times a second — and each report is a fresh object,
-// so leaving it wired re-renders the whole app at that rate for a readout that is
-// off by default and not persisted, which is to say: for almost every session,
-// forever, for nothing. See the effect below.
-export function useEngine(wantStats = false) {
+export function useEngine() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<EngineApi | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -262,20 +272,17 @@ export function useEngine(wantStats = false) {
       document.title = original
     }
   }, [frozen])
-  const [stats, setStats] = useState<FrameStats>({ fps: 0, lock: 1 })
   const [engine, setEngine] = useState<EngineApi | null>(null)
-  // The frame rate is reported whether or not anyone asked, so this is where the
-  // asking happens. `engine` is the trigger rather than the target: it is what
-  // changes when a device-loss rebuild swaps the engine out, while the write goes
-  // through the ref, because the compiler will not let a value taken from state
-  // be mutated. Between a fresh engine and this effect the engine's own field is
-  // already a no-op, which costs a few frames of history and nothing else.
-  useEffect(() => {
-    const live = engineRef.current
-    if (live !== null) {
-      live.onStats = wantStats ? setStats : ignoreStats
-    }
-  }, [engine, wantStats])
+  // The frame rate, as the engine's own store rather than state here. It used to
+  // be `useState` fed from `onStats`, which meant the whole panel reconciled four
+  // times a second — so it was wired only while the readout was open, and the
+  // readout then perturbed the frame rate it was there to report. A store costs
+  // nothing while nothing is subscribed, so there is no longer anything to gate
+  // and no `wantStats` to pass in.
+  const statsStore: StatsStore = {
+    subscribe: engine === null ? subscribeNever : engine.subscribeStats,
+    get: engine === null ? getNoStats : engine.getStats,
+  }
   const [sourceMode, setSourceMode] = useState<SourceMode>('bars')
   // Picked/loaded filename, shown while the source is 'file'; '' otherwise.
   const [sourceName, setSourceName] = useState('')
@@ -958,8 +965,26 @@ export function useEngine(wantStats = false) {
     // link's own controls go on top, so `?surprise&set=noiseIre:9` is a roll
     // with that one knob pinned. Source B is not up yet at this point, so the
     // roll stays out of the A/B group either way.
+    //
+    // The view controls come back out of the roll, the same rule `useMix.
+    // surprise` follows and for the same reason: two of the Phosphor / CRT
+    // presets are *view* presets — 'across the room' winds the magnifier down
+    // to 0.42 and 'nose against the glass' up to 5 — so a roll that drew either
+    // one opened the app on a picture the size of a stamp in a dark room, or on
+    // a wall of phosphor grain. Clicking those chips yourself is a deliberate
+    // move and stays untouched; landing on one because a link said `?surprise`
+    // reads as the app having failed to load. Measured before the fix: two of
+    // six boot rolls came up as the little dark set.
+    //
+    // The button path pinned these to wherever the magnifier already was and
+    // this one pinned nothing, which is one verb with two rules. Here there is
+    // no "already" to keep — nobody has framed anything on a fresh boot — so
+    // stock is what it pins to. `?surprise&set=crtZoom:0.42` still works: the
+    // link's own controls land after this and outrank it.
     if (params.surprise) {
-      eng.applyControls(blendPresets(DEFAULT_CONTROLS, randomPresetMix(false)))
+      const rolled = blendPresets(DEFAULT_CONTROLS, randomPresetMix(false))
+      for (const key of VIEW_KEYS) rolled[key] = DEFAULT_CONTROLS[key]
+      eng.applyControls(rolled)
     }
     eng.applyControls(params.controls)
     // Before either source is shown: the teletype card is typed out of the
@@ -1398,7 +1423,7 @@ export function useEngine(wantStats = false) {
     // devices" is a reason to move tabs, "at risk" is a mood.
     budget,
     error,
-    stats,
+    statsStore,
     res,
     renderScale,
     setScale,

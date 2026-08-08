@@ -166,4 +166,22 @@ describe('Glide', () => {
     g.apply(live, 1000)
     expect(g.running).toBe(false)
   })
+
+  // What the undo walk banks mid-morph, so a step back is retraceable rather
+  // than pointing at a tween. It has to go quiet the moment the morph is over
+  // however it ended — landed, or cut short by a hand on a slider.
+  it('offers its destination while it runs and nothing when it does not', () => {
+    const g = new Glide(COARSE)
+    const live = { ...DEFAULT_CONTROLS }
+    expect(g.target).toBeNull()
+    const p = plan(set({ noiseIre: 4 }))
+    g.start(live, p, 0)
+    g.apply(live, 500)
+    expect(g.target).toBe(p.to)
+    g.stop()
+    expect(g.target).toBeNull()
+    g.start(live, p, 0)
+    g.apply(live, 1000)
+    expect(g.target).toBeNull()
+  })
 })

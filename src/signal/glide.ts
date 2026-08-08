@@ -91,6 +91,13 @@ export class Glide {
     return this.t
   }
 
+  // Where a running morph is heading, or null if none is. Anything that banks a
+  // look while one is in flight wants this rather than the live controls: a
+  // tween is a frame, not a look, and the undo walk is a walk over looks.
+  get target(): Controls | null {
+    return this.plan?.to ?? null
+  }
+
   // `from` is the engine's *live* controls, mid-morph values included, which is
   // what makes rolls chain: hitting surprise again halfway through a morph sets
   // off from where the picture actually is, so a session can wander through look

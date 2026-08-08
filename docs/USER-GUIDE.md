@@ -22,7 +22,7 @@ free.
   src="https://cmdcolinphotos.s3.amazonaws.com/phosphene/clip-hero.mp4"></video>
 
 <sub>[Open this patch ↗](https://cmdcolin.github.io/ntsc.js/?src=cat&srcb=cat&set=chromaGain%3A2.4%2CsvideoBleed%3A0.8%2CchromaTail%3A0.4%2CencChromaMHz%3A1.85%2CdemodMHz%3A1.23%2ChHold%3A0.35%2CvHold%3A0.4%2CvFreqHz%3A59.6%2CsyncBendUs%3A6%2CbendUs%3A22%2CbendShape%3A2%2ChvSagUs%3A12%2ChvRing%3A0.8%2ChDetuneHz%3A24%2Cscramble%3A0.4%2Cagc%3A0.5%2CnoiseIre%3A7%2CenhPeakMHz%3A0.35%2CenhPeakQ%3A0.7%2CenhPeakBoost%3A0.06%2CfbMix%3A0.5%2CfbZoom%3A1.03%2CfbRotateDeg%3A2%2CfbGain%3A0.96%2CfbFocus%3A1.1%2CfbVign%3A0.4%2CfbBlack%3A0.02%2CfbKnee%3A0.6%2CcfbMix%3A0.35%2CcfbGain%3A0.8%2CcfbDelayUs%3A0.25%2CcfbLines%3A3%2CcfbKey%3A0.7%2CcfbKeyLevel%3A45%2CcfbKeySoft%3A10%2CbGain%3A0.35%2CbLineHz%3A0.71%2CbDetuneHz%3A107%2CbRollLps%3A0.17%2Cphosphor%3A0.45),
-then hit **mutate** a few times.</sub>
+then hit **random nudge** a few times.</sub>
 
 The rest of this page is how you get there one stage at a time.
 
@@ -57,30 +57,38 @@ chain map, and press a reading's **↺** to put that one piece back without losi
 the rest.
 
 `clean` resets. **hold to compare** (or hold `c`) previews the clean signal.
-**surprise me** stacks random presets; **mutate** jitters everything a little,
-which is where the accidents come from — hold `shift` for a wilder roll, `alt`
-for a gentle one.
+**random look** and **random nudge** are joined into one control because they
+are two ways to do the same job: **random look** stacks a few random presets
+into a look you have not seen, and **random nudge** keeps the look you have and
+jogs every control a little, which is where the accidents come from — hold
+`shift` for a wilder roll, `alt` for a gentler one. The die on any stage heading
+is the same nudge aimed at that stage alone.
 
-**morph** says how long a new look takes to arrive. At `cut` a preset, a roll or
-a saved look lands in one frame, the way it always did; at 4s or 30s the whole
-board _travels_ there instead, every control at once. Two things fall out of
-that. The looks between two presets are ones no chip holds, and a slow morph is
-the only way to see them — it walks straight through the exact vertical hold
-where the picture gives up rolling and the point where the AGC starts pumping,
-so it doubles as the way to find where this model's thresholds are. And rolls
-chain: a morph started while one is running sets off from wherever the board has
-got to, so hitting **surprise** every few seconds at 8s wanders continuously
-through preset space rather than snapping between stops. Grabbing any slider
-ends a morph where it stands — the half-way look is a look, and it is yours to
-keep from there. Modes (the toggle rows) cut at the half-way point rather than
-travelling, because there is no tube half way between two phosphors, and the
-magnifier never morphs at all.
+**morph** says how long a new look takes to arrive. At `cut` a preset, a roll, a
+saved look or a step back lands in one frame, the way it always did; at 4s or
+30s the whole board _travels_ there instead, every control at once. Two things
+fall out of that. The looks between two presets are ones no chip holds, and a
+slow morph is the only way to see them — it walks straight through the exact
+vertical hold where the picture gives up rolling and the point where the AGC
+starts pumping, so it doubles as the way to find where this model's thresholds
+are. And rolls chain: a morph started while one is running sets off from
+wherever the board has got to, so hitting **random look** every few seconds at
+8s wanders continuously through preset space rather than snapping between stops.
+While one travels, the morph button becomes a bar filling towards the new look
+and reads **stop here**: press it and the morph ends where it stands, because
+the half-way look is a look and it is yours to keep from there. Grabbing any
+slider does the same thing. Modes (the toggle rows) cut at the half-way point
+rather than travelling, because there is no tube half way between two phosphors,
+and the magnifier never morphs at all.
 
 Finding a look is a walk, so the walk is retraceable: **undo** (`ctrl+z`) steps
 back through everything you have been through, and `ctrl+shift+z` steps forward
 again. A wild roll costs one keystroke to take back, which is the point of
-rolling wildly. Every stage heading also carries a **die** that shakes only that
-stage — keep the look, shake one circuit.
+rolling wildly. A step takes as long to arrive as **morph** says, so at 8s the
+way back is a transition you can watch too — stepping back and forth over one
+change is the cheapest way to see exactly where it starts to bite. Every stage
+heading also carries a **die** that nudges only that stage — keep the look,
+nudge one circuit.
 
 Six mechanisms, each starting from the preset that names it and pushed past
 where the preset stops — every one a link you can open and keep pushing:
@@ -277,7 +285,7 @@ arrow pointing the other way from the two under the trunk: everything else down
 there is patched into the chain, and this is the one thing the chain is
 delivered to. It holds the slow-motion and frame-rate controls for the same
 reason — how fast the rig is stepped is a viewing condition, not a fault — and
-nothing in it changes the signal, so a mutate is forbidden to touch any of it.
+nothing in it changes the signal, so a nudge is forbidden to touch any of it.
 
 The **Display** miniature in the panel takes the same box: drag a rectangle on
 it and the lens goes there at whatever magnification the box asks for, so you

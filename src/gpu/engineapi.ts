@@ -82,7 +82,19 @@ export interface EngineApi {
   // MIDI message or outright `applyControls` cancels one.
   startGlide: (plan: GlidePlan) => void
   stopGlide: () => void
-  glideProgress: () => number | null
+  // The look a running morph is heading for, or null if none is. What the undo
+  // walk banks while a morph is in flight — see useMix.
+  glideTarget: () => Controls | null
+  // A morph's progress as its own store, so the one widget that draws it can
+  // subscribe without putting a frame-rate value anywhere App can see it. Same
+  // stability rule as the controls pair below: both are fields.
+  readonly subscribeGlide: (fn: () => void) => () => void
+  readonly getGlide: () => number | null
+  // The frame rate as a store, so the readout that draws it subscribes on its
+  // own rather than the app holding a value that moves four times a second.
+  // Complements `onStats` above rather than replacing it — see pipeline.ts.
+  readonly subscribeStats: (fn: () => void) => () => void
+  readonly getStats: () => FrameStats
   // useSyncExternalStore's pair. Both are fields rather than methods so they are
   // referentially stable across renders — React resubscribes if `subscribe`
   // changes identity, and a method would be a fresh binding every time.

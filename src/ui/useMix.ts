@@ -66,6 +66,9 @@ export function useMix(args: {
   // Hand a look to the engine to travel to over a span of seconds rather than
   // writing it. See signal/glide.ts and ui/morph.ts.
   startGlide: (plan: GlidePlan) => void
+  // Where a morph already in flight is going, or null if none is. Only the walk
+  // asks — see `banked`.
+  getGlideTarget: () => Controls | null
   // How long the verbs below take to arrive. 0 is a cut, which is what every one
   // of them used to be.
   morphSeconds: number
@@ -91,7 +94,22 @@ export function useMix(args: {
   const mixed = blendPresets(mix.base, mix.weights)
   const weights = controlsEqual(controls, mixed) ? mix.weights : NO_WEIGHTS
 
-  const live = (): Look => ({ controls: getControls(), slots: mod.slots })
+  // The look to bank: where the board has settled, or where a morph in flight is
+  // taking it. The two differ only mid-morph, and there the destination is the
+  // honest answer for everything the walk does — a tween is a frame, not a look.
+  // Bank the frame and the look you were stepping out of is unreachable: redo
+  // would land on an arbitrary point along the path to it, which is the one
+  // thing a retraceable walk may not do. Same reason a mutate fired mid-morph
+  // banks the preset that was still arriving rather than the frame it had got
+  // to — undo then takes back the whole journey, which is what it always meant.
+  //
+  // Not the same as where a gesture *sets off from*: surprise and the mutates
+  // read `getControls()` for that, deliberately, because chaining off the tween
+  // is the point of a long morph.
+  const banked = (): Look => ({
+    controls: args.getGlideTarget() ?? getControls(),
+    slots: mod.slots,
+  })
 
   // Where a look arrives. At `cut` this is the write it always was; at any other
   // duration the destination goes to the engine and the board travels there over
@@ -108,10 +126,8 @@ export function useMix(args: {
   }
 
   // Every destructive path goes through here, so the walk covers all of them.
-  // The step banked is where the board was when the gesture started, morph or
-  // not: undo takes back the whole journey, not the frame it had reached.
   const apply = (next: Controls) => {
-    setHistory(h => record(h, live(), sameLook))
+    setHistory(h => record(h, banked(), sameLook))
     land(next)
   }
 
@@ -131,13 +147,23 @@ export function useMix(args: {
   }
 
   // Both directions are the same move: take the step the walk offers, if any.
-  // Controls are written synchronously and the bay lands on the next effect
-  // flush — a bounded one-frame skew that modulation (additive and clamped)
-  // absorbs, so this deliberately does not try to sequence the two.
+  //
+  // Through `land`, so a step back arrives however the look bar says looks
+  // arrive. Undo is the verb this is least obviously right for — a take-back
+  // wants to be instant — but the walk is a walk *through look space*, and at a
+  // long morph the way back is as much worth watching as the way out was;
+  // stepping back and forth over one boundary is the cheapest way to find where
+  // it actually sits. At `cut` it is the write it always was.
+  //
+  // The bay still cuts, on the next effect flush: it led the controls by a frame
+  // before and by the morph's length now, which is the same skew a preset click
+  // has always had (applyPreset re-cables at once too). Modulation is additive
+  // around whatever the controls are doing, so the new motion rides the morph
+  // rather than fighting it.
   const goto = (out: { history: History<Look>; value: Look } | null) => {
     if (out !== null) {
       setHistory(out.history)
-      writeControls(out.value.controls)
+      land(out.value.controls)
       mod.setSlots(out.value.slots)
     }
   }
@@ -152,17 +178,17 @@ export function useMix(args: {
     landLook: land,
     canUndo: history.past.length > 0,
     canRedo: history.future.length > 0,
-    // Capture the live look before overwriting it, so undo can restore it.
-    snapshotForUndo: () => setHistory(h => record(h, live(), sameLook)),
-    undo: () => goto(stepBack(history, live())),
-    redo: () => goto(stepForward(history, live())),
+    // Bank the look on the board before overwriting it, so undo can restore it.
+    snapshotForUndo: () => setHistory(h => record(h, banked(), sameLook)),
+    undo: () => goto(stepBack(history, banked())),
+    redo: () => goto(stepForward(history, banked())),
     applyPreset: (name: string, patch: Partial<Controls>) => {
       // Recorded here rather than relying on the pointer-down that usually
       // precedes it: a chip activated from the keyboard fires a bare click, so
       // startMix never runs and the step went unrecorded — the one way to apply
       // a preset that could not be undone. Deduped against startMix's snapshot,
       // so the ordinary mouse path still banks exactly one step.
-      setHistory(h => record(h, live(), sameLook))
+      setHistory(h => record(h, banked(), sameLook))
       if (Object.keys(patch).length === 0) {
         // "clean" (the only empty patch) is the reset: wipe the mix to defaults
         // — and stillness is part of that, so this is the one place a preset
@@ -193,7 +219,7 @@ export function useMix(args: {
       if (!controlsEqual(controls, mixed)) {
         setMix({ base: controls, weights: new Map() })
       }
-      setHistory(h => record(h, live(), sameLook))
+      setHistory(h => record(h, banked(), sameLook))
     },
     setPresetWeight: (name: string, w: number) =>
       writeWeight(name, w, mix.base, mix.weights),
@@ -204,7 +230,7 @@ export function useMix(args: {
     // than one per MIDI message.
     midiPresetWeight: (name: string, w: number) => {
       const drifted = !controlsEqual(controls, mixed)
-      if (drifted) setHistory(h => record(h, live(), sameLook))
+      if (drifted) setHistory(h => record(h, banked(), sameLook))
       writeWeight(
         name,
         w,
