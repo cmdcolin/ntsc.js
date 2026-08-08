@@ -83,6 +83,16 @@
   border-color: var(--ctl-on-bg);
 }
 
+.signIn {
+  height: var(--ctl-h);
+  background: var(--ctl-on-bg);
+  color: var(--ctl-on-fg);
+  border: 1px solid var(--ctl-on-bg);
+  border-radius: var(--ctl-radius);
+  font: inherit;
+  cursor: pointer;
+}
+
 .note {
   margin: 0;
   color: var(--fg4);

@@ -42,6 +42,7 @@ export function TagsPopover(props: {
   saved: number
   pending: number
   signedIn: boolean
+  onSignIn: () => void
 }) {
   return (
     <Popover
@@ -80,26 +81,37 @@ export function TagsPopover(props: {
               )
             })}
           </div>
-          <div className={styles.rateRow}>
-            {COOL_KEYS.map(({ cool, label }) => (
-              <button
-                key={cool}
-                className={styles.rate}
-                popoverTarget={id}
-                popoverTargetAction="hide"
-                title={`rate ${cool} of 5 and file it`}
-                onClick={() => {
-                  props.onRate(cool, props.readLook())
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {props.signedIn ? (
+            <div className={styles.rateRow}>
+              {COOL_KEYS.map(({ cool, label }) => (
+                <button
+                  key={cool}
+                  className={styles.rate}
+                  popoverTarget={id}
+                  popoverTargetAction="hide"
+                  title={`rate ${cool} of 5 and file it`}
+                  onClick={() => {
+                    props.onRate(cool, props.readLook())
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            // Asked here rather than up front, because pressing a rating button is
+            // where somebody has shown they want to contribute. Rating without an
+            // account used to be allowed and the rows waited in this browser for a
+            // sign-in that mostly never came — work that looked collected and was
+            // not.
+            <button className={styles.signIn} onClick={props.onSignIn}>
+              sign in to rate
+            </button>
+          )}
           <p className={styles.note}>
             {props.signedIn
-              ? 'Filed to your account.'
-              : `Kept in this browser${props.pending === 0 ? '' : ` (${props.pending} waiting)`} — nothing is uploaded unless you sign in.`}
+              ? `Filed to your account.${props.pending === 0 ? '' : ` ${props.pending} still to send.`}`
+              : 'Tags are yours to pick either way — an account is what gives the rating somewhere to go.'}
           </p>
         </div>
       )}

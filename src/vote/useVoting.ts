@@ -47,9 +47,17 @@ export function useVoting(args: {
   // step sideways under it.
   const shownAt = useRef(0)
 
+  // This author's unsent rows. Scoped to the uid for the same reason the flush is:
+  // a browser two people have both signed into holds both their outboxes.
+  const countPending = (who: string | null) =>
+    setPending(
+      who === null ? 0 : readPendingVotes().filter(v => v.by === who).length,
+    )
+
   useEffect(() => {
-    setPending(readPendingVotes().length)
-  }, [])
+    countPending(uid)
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid])
 
   // Flush, then show, then arm. Timers rather than frame counts: two engines on
   // one device run at roughly half the rate one does, and a fixed frame count
@@ -76,15 +84,17 @@ export function useVoting(args: {
   }, [engines, source, round])
 
   // Anything queued that has not reached Firestore, sent one at a time so a bad
-  // row cannot take a whole session with it. Runs when somebody signs in, which is
-  // what makes voting before signing in safe.
+  // row cannot take a whole session with it — a write that failed on a flaky
+  // connection, or a tab closed between filing and sending.
   const flush = async (who: string | null) => {
     if (who === null) return
-    const queued = readPendingVotes()
+    // This author's rows only — a browser two people have signed into holds two
+    // outboxes, and one sign-in must not carry the other's votes.
+    const queued = readPendingVotes().filter(v => v.by === who)
     if (queued.length === 0) return
     const sent = await putVotes(who, queued)
     clearQueued(sent)
-    setPending(readPendingVotes().length)
+    countPending(who)
   }
 
   useEffect(() => {
@@ -98,6 +108,10 @@ export function useVoting(args: {
     // Held until the pair has had its develop window: an answer at frame three is
     // an answer about two looks that had not arrived yet.
     if (pair === null || phase !== 'ready') return
+    // Nothing to file without an author. A vote nobody can be identified for would
+    // either rot in this browser unsent or be filed under whoever signed in next;
+    // the page asks for an account instead.
+    if (uid === null) return
     const record = voteRecord({
       a: pair.left,
       b: pair.right,
@@ -106,21 +120,21 @@ export function useVoting(args: {
       seed: pair.seed,
       source: pair.source,
       now: Date.now(),
+      by: uid,
     })
     // Queued locally first, always. The network is the unreliable part and the
     // label is the valuable part, so it is written down before anything is
     // attempted with it.
-    setPending(queueVote(record).length)
+    queueVote(record)
+    countPending(uid)
     setCast(n => n + 1)
     setRound(n => n + 1)
-    if (uid !== null) {
-      // Both convenience rows for the export; the vote already carries the pair
-      // seed that regenerates either side, which is why neither is awaited and
-      // neither failing costs the label.
-      void putCandidate(uid, candidateRecord(pair.left))
-      void putCandidate(uid, candidateRecord(pair.right))
-      void flush(uid)
-    }
+    // Both convenience rows for the export; the vote already carries the pair seed
+    // that regenerates either side, which is why neither is awaited and neither
+    // failing costs the label.
+    void putCandidate(uid, candidateRecord(pair.left))
+    void putCandidate(uid, candidateRecord(pair.right))
+    void flush(uid)
   }
 
   // Roll a different pair without recording an opinion. Distinct from a 'skip'

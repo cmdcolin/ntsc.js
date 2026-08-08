@@ -108,6 +108,12 @@ export interface VoteRecord {
   // survives the pending queue below, where a vote can be cast offline and land
   // hours later, and the two together are what expose that gap.
   at: number
+  // Who cast it, stamped when it is queued rather than when it is sent — so the
+  // queue is a per-author outbox. It used to hold votes cast while signed out and
+  // file them under whichever account signed in next, which misattributes labels
+  // on a shared browser; voting now requires an account, and `by` is what keeps
+  // two outboxes on one machine from bleeding into each other.
+  by: string
 }
 
 // A candidate as the page will store it. `writeSessionParams` is the app's own
@@ -146,6 +152,7 @@ export function voteRecord(args: {
   seed: number
   source: SourceMode
   now: number
+  by: string
 }): VoteRecord {
   return {
     v: RECORD_VERSION,
@@ -159,6 +166,7 @@ export function voteRecord(args: {
     seed: args.seed,
     source: args.source,
     at: args.now,
+    by: args.by,
   }
 }
 
@@ -191,12 +199,14 @@ export function readVote(raw: unknown): VoteRecord | undefined {
   const source = 'source' in raw ? str(raw.source) : undefined
   const at = 'at' in raw ? num(raw.at) : undefined
   const v = 'v' in raw ? num(raw.v) : undefined
+  const by = 'by' in raw ? str(raw.by) : undefined
   if (a === undefined || b === undefined || source === undefined)
     return undefined
+  if (by === undefined) return undefined
   if (ms === undefined || seed === undefined || at === undefined)
     return undefined
   if (!isChoice(choice)) return undefined
-  return { v: v ?? 0, a, b, choice, ms, seed, source, at }
+  return { v: v ?? 0, a, b, choice, ms, seed, source, at, by }
 }
 
 // Votes cast but not yet in Firestore — because nobody was signed in yet, or

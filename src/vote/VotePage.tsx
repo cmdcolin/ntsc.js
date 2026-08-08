@@ -106,7 +106,10 @@ export function VotePage() {
     source,
     uid: auth.user?.uid ?? null,
   })
-  const armed = phase === 'ready' && pair !== null
+  // Signed in as well as developed: a vote nobody can be attributed to is one
+  // that would rot unsent, so the page asks for an account at the point somebody
+  // has shown they want to contribute rather than in front of the first pair.
+  const armed = phase === 'ready' && pair !== null && auth.user !== null
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -269,6 +272,11 @@ export function VotePage() {
               both bad
             </button>
           </>
+        ) : auth.user === null && phase === 'ready' ? (
+          <span className={styles.notice}>
+            Watch as long as you like — an account is what gives a vote
+            somewhere to go, so sign in above when you want them counted.
+          </span>
         ) : (
           <span className={styles.notice}>
             {phase === 'flushing'

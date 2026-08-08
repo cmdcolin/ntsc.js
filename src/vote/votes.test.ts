@@ -41,6 +41,7 @@ const aVote = (over: Partial<ReturnType<typeof voteRecord>> = {}) => ({
     seed: 5,
     source: 'bars',
     now: 1_700_000_000_000,
+    by: 'owner-uid',
   }),
   ...over,
 })
@@ -105,6 +106,7 @@ describe('voteRecord', () => {
       seed: 1,
       source: 'bars',
       now: 0,
+      by: 'owner-uid',
     })
     expect(long.ms).toBe(600_000)
   })
@@ -135,6 +137,11 @@ describe('readVote', () => {
       { ...aVote(), seed: null },
       { ...aVote(), source: 7 },
       { ...aVote(), at: undefined },
+      // An unattributed row. The queue is a per-author outbox now, so a vote with
+      // nobody's name on it is one that could be filed under whoever signs in
+      // next — which is exactly the misattribution the field exists to stop.
+      { ...aVote(), by: undefined },
+      { ...aVote(), by: '' },
     ]
     for (const raw of bad) {
       expect(readVote(raw), JSON.stringify(raw.choice)).toBeUndefined()
@@ -173,6 +180,15 @@ describe('the pending queue', () => {
       JSON.stringify([{ old: 'shape' }, good, 42]),
     )
     expect(readPendingVotes()).toEqual([good])
+  })
+
+  it("keeps each author's votes separable in a shared browser", () => {
+    const mine = aVote({ at: 1, by: 'me' })
+    const theirs = aVote({ at: 2, by: 'them' })
+    queueVote(mine)
+    queueVote(theirs)
+    expect(readPendingVotes().filter(v => v.by === 'me')).toEqual([mine])
+    expect(readPendingVotes().filter(v => v.by === 'them')).toEqual([theirs])
   })
 
   // A flush can partly fail, and a vote cast while one is in flight must not be

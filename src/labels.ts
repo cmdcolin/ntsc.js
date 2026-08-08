@@ -136,6 +136,15 @@ export interface RatingRecord {
   ms: number
   source: string
   at: number
+  // Who made this rating, stamped when it is queued rather than when it is sent.
+  //
+  // The local queue used to hold rows made while signed out, and flush them under
+  // whichever account signed in next — so two people sharing a browser, or one
+  // person switching accounts, silently filed each other's labels. `by` is what
+  // makes the queue a per-author outbox instead: a row is only ever sent by the
+  // author it names, and rating now requires being signed in at all, so there is
+  // no such thing as an unattributed row waiting for an owner.
+  by: string
 }
 
 const num = (v: unknown): number | undefined =>
@@ -157,9 +166,12 @@ export function readRating(raw: unknown): RatingRecord | undefined {
   const at = 'at' in raw ? num(raw.at) : undefined
   const rawTags = 'tags' in raw ? raw.tags : undefined
   const provenance = 'provenance' in raw ? raw.provenance : undefined
+  const by = 'by' in raw ? str(raw.by) : undefined
   const rawWeights = 'weights' in raw ? raw.weights : undefined
   const preset = 'preset' in raw ? raw.preset : undefined
-  if (look === undefined || source === undefined) return undefined
+  if (look === undefined || source === undefined || by === undefined) {
+    return undefined
+  }
   if (ms === undefined || at === undefined) return undefined
   if (typeof query !== 'string') return undefined
   if (!isCool(cool) || typeof cool !== 'number') return undefined
@@ -190,6 +202,7 @@ export function readRating(raw: unknown): RatingRecord | undefined {
     ms,
     source,
     at,
+    by,
   }
 }
 

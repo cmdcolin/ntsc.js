@@ -13,15 +13,17 @@ import { DEFAULT_CONTROLS, atRest } from './controls'
 import { AdvancedDialog } from './ui/AdvancedDialog'
 import { AppMenu, ShowMenuButton } from './ui/AppMenu'
 import { AudioHint, AudioInput } from './ui/AudioInput'
-import { AudioSection } from './ui/AudioSection'
 import { CommandPalette } from './ui/CommandPalette'
-import { ControlGroup, ControlRows } from './ui/ControlGroup'
+import { ControlRows } from './ui/ControlGroup'
 import {
   ALL_SLIDERS,
   AUDIO_GROUPS,
   B_GROUPS,
   MIX_STAGE,
   PHASES,
+  SOUND_BLURB,
+  SOUND_JOIN,
+  SOUND_STAGE,
   SOURCE_B_BLURB,
   SOURCE_B_STAGE,
 } from './ui/controls'
@@ -31,6 +33,7 @@ import {
   NO_CONTROL_STORE,
 } from './ui/ControlsContext'
 import { cx } from './ui/cx'
+import { DeckSection } from './ui/DeckSection'
 import { FatalScreen } from './ui/FatalScreen'
 import {
   FilterContext,
@@ -87,7 +90,6 @@ import { useScrollAnchor } from './ui/useScrollAnchor'
 import { useShortcuts } from './ui/useShortcuts'
 import { useTempo } from './ui/useTempo'
 import { useUrlState } from './ui/useUrlState'
-import { VaporwaveSection } from './ui/VaporwaveSection'
 import { WebcamDialog } from './ui/WebcamDialog'
 import { YouTubeDialog } from './ui/YouTubeDialog'
 import { gitSha, versionLabel } from './version'
@@ -99,7 +101,7 @@ import type { Group } from './ui/controls'
 import type { ControlsApi, ControlStore } from './ui/ControlsContext'
 import type { Lens } from './ui/lens'
 import type { SavedProfile } from './ui/savedProfiles'
-import type { PathNode } from './ui/SignalPath'
+import type { BranchNode, PathNode } from './ui/SignalPath'
 import type { LookContext } from './ui/useLookLabels'
 
 // Whether the menu over the picture has been dismissed. Persisted across
@@ -112,18 +114,23 @@ const BAR_HIDDEN_STORE = 'ntsc.js_overlay_bar_hidden'
 const subscribeNever = () => () => {}
 const getDefaultControls = (): Controls => DEFAULT_CONTROLS
 
-// Which stages are open to a jump, in the only two arrangements there are: with
-// a second source patched in, and without. Built once rather than per render
-// because it is a prop on "This look" — a fresh Set each render rebuilds every
-// row in that section, and the answer only ever changes when source B does.
+// Which stages are open to a jump, in the only four arrangements there are: a
+// second source patched in or not, an audio input picked or not. Built once
+// rather than per render because it is a prop on "This look" — a fresh Set each
+// render rebuilds every row in that section, and the answer only ever changes
+// when one of those two inputs does.
 const TRUNK_STAGES = PHASES.map(p => p.name)
-const OPEN_STAGES_B: ReadonlySet<string> = new Set([
-  ...TRUNK_STAGES,
-  SOURCE_B_STAGE,
-])
-const OPEN_STAGES_NO_B: ReadonlySet<string> = new Set(
-  TRUNK_STAGES.filter(name => name !== MIX_STAGE),
-)
+const stageSet = (b: boolean, sound: boolean): ReadonlySet<string> =>
+  new Set([
+    // Mix needs a second signal for any of its controls to reach the picture.
+    ...TRUNK_STAGES.filter(name => b || name !== MIX_STAGE),
+    ...(b ? [SOURCE_B_STAGE] : []),
+    ...(sound ? [SOUND_STAGE] : []),
+  ])
+const OPEN_STAGES = [
+  [stageSet(false, false), stageSet(false, true)],
+  [stageSet(true, false), stageSet(true, true)],
+]
 
 const toggleFullscreen = () => {
   if (document.fullscreenElement) {
@@ -418,7 +425,9 @@ export function App() {
     resetGroup: mix.resetGroup,
   }
 
-  const audio = useAudio(engine)
+  // The picker owns where sound comes from, including the clips' own tracks —
+  // which the engine is the one that can route, so it hands the switch over.
+  const audio = useAudio(engine, eng.setVideoAudio)
 
   // Everything the palette can run that isn't a preset or a control. Hold-to-
   // compare is deliberately absent: it's a gesture, not a command.
@@ -442,6 +451,20 @@ export function App() {
       name: 'mutate hard',
       blurb: 'a wild jitter, for getting out of a corner',
       run: () => mix.mutateLook('wild'),
+    },
+    {
+      // The last of the Vaporwave section: three settings applied at once, which
+      // is a command and not a surface. Its parts each went to the thing they
+      // belong to — the rate to each deck's own transport, the tail to the audio
+      // picker — and a button that only sets all three at their preset values is
+      // exactly what the palette is for. It reaches across two hooks, which is
+      // why it is assembled here: the engine cannot move the picker's state.
+      name: 'vaporwave',
+      blurb: 'slow both clips, dial in the tail, and let their sound drive it',
+      run: () => {
+        eng.applyVaporwave()
+        audio.select('video')
+      },
     },
     {
       name: 'undo',
@@ -598,17 +621,48 @@ export function App() {
       ? []
       : [phase.name === MIX_STAGE ? unpatched(node) : node]
   })
-  // Input B, drawn under the head of the trunk. Unlike a trunk stage it
-  // survives having nothing patched into it, so it is dropped only when a live
+  // The sound answers the same question B does, one stage further down: with
+  // nothing coming down the wire, every routing in the group is patched to
+  // silence. Same treatment, so the map has one answer for "this branch has no
+  // input" rather than two.
+  //
+  // One switch decides this, which is the point of the ♪ picker owning the
+  // clips' sound tracks too: while Vaporwave had a "play audio out loud" button
+  // of its own, a clip could be driving the receiver with the picker on 'off',
+  // and this branch would have called itself dead while it was working.
+  const soundOn = audio.active
+  const SOUND_OFF_HINT =
+    'no sound reaching it — pick a mic, a track, or the clip’s own audio under Input, and it drives the receiver'
+  const unheard = (node: PathNode): PathNode =>
+    soundOn ? node : { ...node, touched: 0, off: true, offHint: SOUND_OFF_HINT }
+  // The two branches, drawn under the trunk. Unlike a trunk stage each survives
+  // having nothing patched into it — a drawn, inert box is the one thing on
+  // screen saying that input exists at all — so one is dropped only when a live
   // filter has left it nothing.
-  const branch: PathNode | null =
-    filtering && bGroups.length === 0
-      ? null
-      : unpatched(pathNode(SOURCE_B_STAGE, SOURCE_B_BLURB, bGroups))
+  const branches: BranchNode[] = [
+    ...(filtering && bGroups.length === 0
+      ? []
+      : [
+          {
+            ...unpatched(pathNode(SOURCE_B_STAGE, SOURCE_B_BLURB, bGroups)),
+            join: MIX_STAGE,
+            under: 'head' as const,
+          },
+        ]),
+    ...(filtering && audioGroups.length === 0
+      ? []
+      : [
+          {
+            ...unheard(pathNode(SOUND_STAGE, SOUND_BLURB, audioGroups)),
+            join: SOUND_JOIN,
+            under: 'join' as const,
+          },
+        ]),
+  ]
   // Which stages something outside the map can jump to. Not read off pathNodes:
   // a live filter drops stages from the map, and a caption in "This look" is
   // still a way back to the module it came from.
-  const openStages = bOn ? OPEN_STAGES_B : OPEN_STAGES_NO_B
+  const openStages = OPEN_STAGES[bOn ? 1 : 0][soundOn ? 1 : 0]
 
   // Whether the query reached anything at all, across every place a result can
   // land — not the trunk alone. A routed mixer control lives on B's branch and a
@@ -619,7 +673,7 @@ export function App() {
     pathNodes.length > 0 ||
     pinned.length > 0 ||
     edited.some(s => sliderMatches(s, query, isRouted(s.key))) ||
-    audioGroups.length > 0 ||
+    (soundOn && audioGroups.length > 0) ||
     (bOn && bGroups.length > 0)
 
   // The magnifier, as the stage's gestures and the menu's zoom row both see it.
@@ -796,6 +850,7 @@ export function App() {
             saved={labels.saved}
             pending={labels.pending}
             signedIn={profiles.user !== null}
+            onSignIn={profiles.signIn}
           />
         }
         canUndo={mix.canUndo}
@@ -869,6 +924,10 @@ export function App() {
           durationB={eng.durationB}
           onSeekA={eng.seekA}
           onSeekB={eng.seekB}
+          speedA={eng.speedA}
+          speedB={eng.speedB}
+          onSpeedA={eng.changeSpeedA}
+          onSpeedB={eng.changeSpeedB}
           audioInput={
             <AudioInput
               mode={audio.mode}
@@ -876,13 +935,21 @@ export function App() {
               audioState={audio.audioState}
               time={audio.time}
               duration={audio.duration}
+              reverb={eng.reverb}
+              onReverb={eng.changeReverb}
               fileInputRef={audio.fileInputRef}
               onSelect={audio.select}
               onFile={audio.onFile}
               onSeek={audio.seek}
             />
           }
-          audioHint={<AudioHint mode={audio.mode} error={audio.error} />}
+          audioHint={
+            <AudioHint
+              mode={audio.mode}
+              hasClip={eng.videoA === 'clip' || eng.videoB === 'clip'}
+              error={audio.error}
+            />
+          }
         />
       )}
 
@@ -898,9 +965,23 @@ export function App() {
         </Section>
       )}
 
+      {/* The other index into the same controls: the map below files them by
+          where a fault happens in the signal path, the deck by the gesture that
+          moves them. It sits immediately above the map because the two are a
+          pair, and it is folded by default because most sessions are one person
+          dialling a look in rather than performing one.
+
+          Out under a filter, like Scenes and Modulation: it holds three real
+          control rows, but it is a fixed surface rather than a result set, and
+          the rows it borrows are reachable in their own stages. */}
+      {filtering ? null : <DeckSection />}
+
       {/* The signal-path map is the panel's trunk, so it sits high — right under
           the source and preset front door — and the filter that acts on it heads
-          it. Scenes/mod/audio/midi are occasional tools and drop below it. */}
+          it. Scenes/mod/midi are occasional tools and drop below it. The audio
+          routings used to be down there with them, in a section of their own,
+          because the map had no vocabulary for a second thing joining the trunk
+          — they are the Sound branch now, under the receiver they feed. */}
       {/* Outside the filter gate, unlike the Modulation section it belongs to:
           while a query is live everything below the box is the result set, and
           this fader is a live-set control (it has a MIDI bind of its own) that
@@ -911,7 +992,7 @@ export function App() {
       <MotionStrip onReveal={() => setFilter(MOVING_QUERY)} />
       <SignalPath
         nodes={pathNodes}
-        branch={branch}
+        branches={branches}
         open={nav.openPhase}
         expandAll={filtering}
         bench={bench}
@@ -947,37 +1028,7 @@ export function App() {
           />
 
           <ModSection tempo={tempo} />
-
-          {/* Only for a clip, not for any live <video>: everything this
-              section offers — the rate, the pitch that falls with it, the audio
-              it routes out — belongs to a source with a timeline and a sound
-              track. A webcam or a screen share has neither, so the whole
-              section was a set of controls that could not move. */}
-          {eng.videoA === 'clip' || eng.videoB === 'clip' ? (
-            <VaporwaveSection
-              videoA={eng.videoA}
-              videoB={eng.videoB}
-              speedA={eng.speedA}
-              speedB={eng.speedB}
-              reverb={eng.reverb}
-              playAudio={eng.playAudio}
-              audioState={engine === null ? null : engine.audioState}
-              onSpeedA={eng.changeSpeedA}
-              onSpeedB={eng.changeSpeedB}
-              onReverb={eng.changeReverb}
-              onTogglePlayAudio={eng.toggleAudio}
-              onApplyPreset={eng.applyVaporwave}
-            />
-          ) : null}
         </>
-      )}
-
-      {audioGroups.length === 0 ? null : (
-        <AudioSection active={audio.active}>
-          {audioGroups.map(group => (
-            <ControlGroup key={group.name} group={group} defaultOpen />
-          ))}
-        </AudioSection>
       )}
 
       {/* MIDI only appears once enabled (from Advanced) — 99% of users never
@@ -1128,6 +1179,7 @@ export function App() {
           controls={controls}
           live={{ camera: controls.fbMix > 0, mixer: controls.cfbMix > 0 }}
           bOn={eng.sourceBMode !== 'none'}
+          soundOn={soundOn}
           onOpen={nav.openAt}
           onClose={() => setShowDiagram(false)}
         />
