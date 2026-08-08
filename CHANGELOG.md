@@ -2,6 +2,22 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.22.2](https://github.com/cmdcolin/ntsc.js/compare/v0.22.1...v0.22.2) - 2026-08-08
+
+### Features
+- *(ui)* [`47d83c3`](https://github.com/cmdcolin/ntsc.js/commit/47d83c3dbd3171986ae15d9b01020f915e281346) the board can be kept under a name
+- *(ui)* [`232e0f3`](https://github.com/cmdcolin/ntsc.js/commit/232e0f3799260ae1ad4845a9d7a09d1848867a2c) saved profiles move to Firestore behind a Google sign-in
+- *(ui)* [`ae03515`](https://github.com/cmdcolin/ntsc.js/commit/ae0351558b1990a70651a5c8b45474567579cd81) a seek bar under each video source
+
+### Fixes
+- *(ui)* [`ed0bf0f`](https://github.com/cmdcolin/ntsc.js/commit/ed0bf0fc655efc0221037f9e6ada15e523b82be8) a refused save says so, and the rules are tested for real
+
+### Refactor
+- *(ui)* [`288188b`](https://github.com/cmdcolin/ntsc.js/commit/288188b4190a00f317e0222ab1611af65087c454) saved looks become saved profiles, and ctrl+S saves one
+
+### Other Changes
+- [`3c7a1f1`](https://github.com/cmdcolin/ntsc.js/commit/3c7a1f16c283d1694702d27f95b1edd32c11476e) ADR
+
 ## [0.22.1](https://github.com/cmdcolin/ntsc.js/compare/v0.22.0...v0.22.1) - 2026-08-07
 
 ### Features
