@@ -27,7 +27,7 @@ footage.</sub>
 
 ## Features
 
-- 130+ settings across wiring, camera feedback, the mixer loop, tape and RF, the
+- 230+ settings across wiring, camera feedback, the mixer loop, tape and RF, the
   receiver and the screen itself, [docs/EFFECTS.md](docs/EFFECTS.md).
 - Can provide a variety of input from user provided image, video, or NTSC color
   bars, and you can mix multiple video sources including 'dirty' video mixing

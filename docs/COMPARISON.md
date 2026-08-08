@@ -81,7 +81,7 @@ find sync in whatever it is handed. Because those passes stay resident on the
 GPU, changing a control is a uniform-buffer write rather than a re-render. That
 budget is what the rest of the app is built on:
 
-- **130+ controls** across wiring, tape, RF, the receiver and the screen
+- **230+ controls** across wiring, tape, RF, the receiver and the screen
 - **Two feedback loops** — a camera aimed at its own monitor, and a mixer
   patched back into itself at the signal level
 - **Modulation on any slider** — LFO, random walk, sample-and-hold, Lorenz

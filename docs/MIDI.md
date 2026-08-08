@@ -1,6 +1,6 @@
 # Using a MIDI controller
 
-There are about 130 sliders in this thing, and dragging them one at a time with
+There are about 234 sliders in this thing, and dragging them one at a time with
 a mouse is the slowest possible way to play it. A cheap box of knobs fixes that:
 you get both hands, you can move three things at once, and you stop looking at
 the panel.

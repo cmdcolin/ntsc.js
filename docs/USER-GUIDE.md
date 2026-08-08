@@ -32,7 +32,7 @@ The rest of this page is how you get there one stage at a time.
 
 **1** the picture — drag a box on it to magnify, double-click to pull back ·
 **2** the ☰ menu — stills, recording, fullscreen, settings · **3** presets ·
-**4** input, A and B · **5** the way into all ~130 controls.
+**4** input, A and B · **5** the way into all ~234 controls.
 
 What a drag on the picture does is set by the crosshair button at the top right
 of the panel: lit, a drag boxes a region to zoom into; dark, it moves the
