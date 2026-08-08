@@ -160,6 +160,42 @@ fn demodAt(ti: i32, n0: i32) -> vec2f {
   return vec2f(dot(q, mu), dot(q, mv));
 }
 
+// Which raster line a screen row is scanning, before the roll offset is
+// applied. Vertical size is the deflection amplitude, so it is glass geometry:
+// shrinking the scan squeezes all 525 raster lines onto less screen, and what
+// comes into view past the picture is the raster itself — equalizing pulses,
+// the vertical interval and whatever is parked in it, the head switch — with
+// beam-off black beyond the retrace, never wrapped picture. The roll offset
+// still selects the *content* within the raster, so a rolling picture slides
+// through an underscanned frame the same way it slides through a full-size
+// one. A function of y alone, so it stays row-uniform, which is what decode's
+// tiling requires of any offset.
+fn rasterRowF(y: f32) -> f32 {
+  return f32(ACTIVE_TOP) + 240.0 + (y - 240.0) / clamp(P.vSize, 0.2, 4.0);
+}
+
+// The scope tap (dbgView 6) draws one line of `comp` as a trace, the way a
+// waveform monitor does and the way the app's own icon does: the whole 910
+// samples, sync tip and burst included, against an IRE graticule. It is the
+// same data the waveform tap paints as brightness — a scale on it is the
+// difference between seeing that a level moved and reading how far.
+//
+// One line rather than all 480 overlaid: an overlay wants every sample
+// scattered into a bins buffer and a finite spot drawn on the way out, which is
+// a pass and a buffer, where a single line is a handful of loads inside the
+// branch that was already there.
+const SCOPE_H = ACTIVE_H / 3u; // the band it occupies, along the bottom
+const SCOPE_Y = ACTIVE_H / 2u; // the screen row it is a trace of
+const SCOPE_TOP_IRE = 120.0;
+const SCOPE_BOT_IRE = -55.0;
+
+// IRE at a screen row inside the band. Top of the band is the top of the scale,
+// so the trace reads the way a level does: up is brighter.
+fn scopeIre(y: f32) -> f32 {
+  let t = (y - f32(ACTIVE_H - SCOPE_H)) / f32(SCOPE_H);
+  return mix(SCOPE_TOP_IRE, SCOPE_BOT_IRE, t);
+}
+
 @compute @workgroup_size(TILE_WG, 1, 1)
 fn main(
   @builtin(global_invocation_id) gid: vec3u,
@@ -169,17 +205,7 @@ fn main(
   // roll wraps over the whole 525-line frame, so the VBI decodes as the
   // classic rolling black bar instead of the picture wrapping seamlessly
   let vroll = timing[525u];
-  // Vertical size is the deflection amplitude, so it is glass geometry:
-  // shrinking the scan squeezes all 525 raster lines onto less screen, and
-  // what comes into view past the picture is the raster itself — equalizing
-  // pulses, the vertical interval and whatever is parked in it, the head
-  // switch — with beam-off black beyond the retrace, never wrapped picture.
-  // The roll offset still selects the *content* within the raster, so a
-  // rolling picture slides through an underscanned frame the same way it
-  // slides through a full-size one. A function of gid.y alone, so it stays
-  // row-uniform, which is what decode's tiling requires of any offset.
-  let rrF = f32(ACTIVE_TOP) + 240.0
-    + (f32(gid.y) - 240.0) / clamp(P.vSize, 0.2, 4.0);
+  let rrF = rasterRowF(f32(gid.y));
   let offRaster = rrF < 0.0 || rrF > f32(NLINES) - 1.0;
   let rr = u32(clamp(rrF, 0.0, f32(NLINES) - 1.0));
   let row = wrapRow(i32(rr) + i32(floor(vroll)));
@@ -362,6 +388,120 @@ fn main(
     shown = vec3f(abs(us) / 40.0, abs(vs) / 40.0, 0.0);
   } else if (P.dbgView == 5.0) {
     shown = vec3f(li.z / 40.0, abs(e) / PI, g / 2.0);
+  } else if (P.dbgView == 6.0) {
+    if (gid.y < ACTIVE_H - SCOPE_H) {
+      // The picture stays, dimmed, above the band: a scope is for watching a
+      // control move the signal, and the point of it is seeing both at once.
+      // The dashes mark the line being traced.
+      shown = outc * 0.4;
+      if (gid.y == SCOPE_Y && (gid.x / 14u) % 2u == 0u) {
+        shown = mix(shown, vec3f(0.8, 1.0, 0.5), 0.55);
+      }
+    } else {
+      // The line under the cursor, found the way the picture finds its row, so
+      // vertical size and roll carry the trace along with the content it is of.
+      let srow = wrapRow(
+        i32(u32(clamp(rasterRowF(f32(SCOPE_Y)), 0.0, f32(NLINES) - 1.0)))
+          + i32(floor(vroll)),
+      );
+      // Triggered on sync the way a monitor's timebase is, off the same offset
+      // the decoder locked to — and off that alone. Bend, supply sag and audio
+      // at the yoke are deflection faults: they move where the raster puts a
+      // sample, not where the sample is in the line, so a scope that let them
+      // shift the trace would be reporting a fault the signal does not have.
+      let sBase = i32(srow * SPL) + i32(round(timing[srow]));
+      // The samples this column spans, plus the next column's first — sharing
+      // an endpoint is what makes a steep edge draw as a connected riser
+      // instead of two dots with a gap. Filling min..max is also what gives a
+      // modulated column its envelope: flat luma draws as a line, and anything
+      // carrying subcarrier draws as a block as tall as its swing.
+      //
+      // At least a whole subcarrier cycle, though. 910 samples across 754
+      // columns means a column spans one sample or two, and two adjacent
+      // samples on the 4x lattice are 90 degrees apart — their spread is a
+      // chord, not the swing, and which chord depends on where the column
+      // happened to land. Sampling a quarter of a cycle drew the envelope as a
+      // picket fence.
+      let c0 = i32(f32(gid.x) * f32(SPL) / f32(ACTIVE_W));
+      let c1 = max(c0 + 3, i32(f32(gid.x + 1u) * f32(SPL) / f32(ACTIVE_W)));
+      var lo = 1e30;
+      var hi = -1e30;
+      for (var i = c0; i <= c1; i = i + 1) {
+        let v = comp[clampIdx(sBase + i)];
+        lo = min(lo, v);
+        hi = max(hi, v);
+      }
+      // One subcarrier cycle averaged: on the 4x lattice the chroma sums to
+      // zero over four samples, so this is the luma the envelope is riding.
+      let mean = 0.25 * (comp[clampIdx(sBase + c0)]
+        + comp[clampIdx(sBase + c0 + 1)]
+        + comp[clampIdx(sBase + c0 + 2)]
+        + comp[clampIdx(sBase + c0 + 3)]);
+      // …and the same four samples demodulated is the colour that column is
+      // carrying, which is what the icon paints its bars with. Referenced to
+      // the burst the receiver locked to on this line, plus the tint control,
+      // so the block under a bar is the hue the set is about to draw — a
+      // spun burst spins the trace with it. The demod axis is not in it: a
+      // sheared demodulator is a receiver fault, and this is the signal.
+      var cu = 0.0;
+      var cv = 0.0;
+      for (var k = 0; k < 4; k = k + 1) {
+        let idx = clampIdx(sBase + c0 + k);
+        let d = comp[idx] - mean;
+        let sc = carrier(idx, P.frame);
+        cu = cu + 0.5 * d * sc.x;
+        cv = cv + 0.5 * d * sc.y;
+      }
+      let sli = lineInfo[srow];
+      let sth = select(0.0, atan2(-sli.y, -sli.x), sli.w > P.killThresh)
+        * P.burstLock + P.tint;
+      let sce = cos(sth);
+      let sse = sin(sth);
+      let camp = length(vec2f(cu, cv));
+      // Unit chroma: the block says *which* hue, and its height already says
+      // how much, so a 10-IRE burst and a full-amplitude bar come out the same
+      // colour at different sizes rather than one of them washed out.
+      let cn = vec2f(cu * sce + cv * sse, cv * sce - cu * sse) / max(camp, 0.001);
+      // Normalised on the widest channel rather than driven at a fixed
+      // amplitude: the same matrix at a fixed drive clips blue long before
+      // yellow, and a clipped channel is a rotated hue — which on the one
+      // instrument that exists to be read is the wrong thing to be wrong.
+      let drive = vec3f(
+        1.140 * cn.y,
+        -0.395 * cn.x - 0.581 * cn.y,
+        2.032 * cn.x,
+      );
+      let hue = vec3f(0.5)
+        + 0.5 * drive / max(max(abs(drive.x), abs(drive.y)), abs(drive.z));
+      let ire = scopeIre(f32(gid.y));
+      let perPx = (SCOPE_TOP_IRE - SCOPE_BOT_IRE) / f32(SCOPE_H);
+      var v = vec3f(0.02, 0.025, 0.035);
+      // Graticule at the levels worth reading against: sync tip, blanking,
+      // setup, peak white. Sync depth and setup are then measurements rather
+      // than impressions.
+      let grat = min(
+        min(abs(ire - IRE_SYNC), abs(ire - IRE_BLANK)),
+        min(abs(ire - IRE_BLACK), abs(ire - (IRE_BLACK + VIDEO_RANGE))),
+      );
+      if (grat < perPx * 0.5) {
+        v = vec3f(0.10, 0.13, 0.16);
+      }
+      if (ire >= lo - perPx * 0.5 && ire <= hi + perPx * 0.5) {
+        // Monochrome content gets the instrument's own green rather than the
+        // grey a zero-length chroma vector would give it, and the crossfade is
+        // the chroma amplitude, so the trace says at a glance which parts of
+        // the line are carrying colour at all.
+        v = mix(
+          vec3f(0.16, 0.85, 0.38),
+          hue,
+          clamp(camp / 6.0, 0.0, 1.0),
+        );
+      }
+      if (abs(ire - mean) < perPx * 0.7) {
+        v = vec3f(0.88, 1.0, 0.92);
+      }
+      shown = v;
+    }
   }
   textureStore(outTex, vec2i(gid.xy), vec4f(shown, 1.0));
 }

@@ -316,12 +316,19 @@ tunes that control's look.
 
 ## Instruments and pixel checks
 
-- **A waveform monitor** — line-rate luma against an IRE graticule, where sync
-  depth, setup and the AGC's pumping would be readable instead of inferred.
-  `?dbg=2` already paints the composite; this is that with a scale on it. Not a
-  pass: `decode` would scatter into a bins buffer and `present` draw it, with a
-  finite spot on the way out, or a flat field lands every sample in one bin and
-  draws as a speck.
+- **A waveform monitor, overlaid.** One line of it landed as the scope tap
+  (`?dbg=6`): a single line traced against an IRE graticule inside `decode`,
+  columns filled min..max so an edge connects and a modulated sample draws its
+  envelope. What is still open is the real instrument, every line of the field
+  overlaid at once, where the density of the trace is how many lines agree — a
+  chroma error on eight lines out of 480 is invisible on one line and obvious on
+  all of them. That one is a pass: `decode` would scatter into a bins buffer and
+  `present` draw it, with a finite spot on the way out, or a flat field lands
+  every sample in one bin and draws as a speck.
+- **A line selector for the scope.** It traces the middle line because that is
+  the line the cursor is parked on; the interesting lines are the ones you
+  choose — the head-switch line, a line inside the VBI, the line a dropout is
+  on. Wants a control and a draggable cursor, not just a constant.
 - **Extend pixelcheck.** `scripts/pixelcheck.mjs` pins the six SMPTE hues and
   the fine-tuning cliff; any deterministic `?set=` look plus a probe is one more
   pinned fact. Candidates: burst-lock hue rotation, the killer threshold,

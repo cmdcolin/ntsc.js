@@ -386,7 +386,7 @@ A link specifies a look — **copy link** in the app writes one.
 | `?iurl=` / `?iurlb=` | image source A / B                                    |
 | `?vurl=`             | video source                                          |
 | `?src=` / `?srcb=`   | source kind for A / B                                 |
-| `?dbg=1..5`          | scope views (composite, luma, chroma, burst)          |
+| `?dbg=1..6`          | signal taps (composite, luma, chroma, burst, scope)   |
 | `?surprise`          | roll a random preset stack on load                    |
 | `?gpu=low-power`     | run on the integrated GPU instead of the discrete one |
 | `?vidbitmap`         | force the bitmap video path where zero-copy exists    |

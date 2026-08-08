@@ -23,6 +23,7 @@ export const SIGNAL_TAPS: SignalTap[] = [
   { value: 3, label: 'luma channel', short: 'luma' },
   { value: 4, label: 'chroma (U/V energy)', short: 'chroma' },
   { value: 5, label: 'burst / decoder state', short: 'burst' },
+  { value: 6, label: 'scope — one line, traced against IRE', short: 'scope' },
 ]
 
 // `?dbg=` can name any number, including one no tap uses, so this is a lookup
