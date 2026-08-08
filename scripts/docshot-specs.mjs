@@ -15,7 +15,6 @@ const sections = open =>
     Presets: true,
     Input: true,
     Modulation: false,
-    'Sound into the picture': false,
     ...open,
   })
 
@@ -270,14 +269,25 @@ export const SPECS = [
       { target: { selector: 'div[class*="editor_"]' }, box: true },
     ],
   },
+  // The audio routings are a branch on the chain map now, not a section at the
+  // foot of the panel, so this opens the Sound stage and boxes the one group
+  // behind it — the same shape as the Tape and Receiver shots above.
+  //
+  // The mic has to be picked first: with no audio input the branch is inert and
+  // opens onto nothing, which is the honest answer on screen and would be an
+  // empty shot here. Firefox is launched with fake streams and permissions off
+  // (see the prefs below), so this is a synthetic tone, not the room.
   boxed(
-    { section: 'Sound into the picture' },
+    { section: 'Audio routings' },
     {
       name: 'audio',
       height: 1150,
       seed: {
-        video_feedback_sections: sections({ 'Sound into the picture': true }),
+        video_feedback_sections: sections({ Presets: false, Input: false }),
+        video_feedback_open_phase: 'Sound',
+        video_feedback_open_group: 'Audio routings',
       },
+      actions: [{ set: { title: 'audio in, driving sync' }, value: 'mic' }],
     },
   ),
   boxed('menu', {
