@@ -64,7 +64,10 @@ export type Phase = (typeof PHASE_ORDER)[number]
 //   a Phase — in that stage of the browsable signal-path spine;
 //   'b'     — on the map's B branch (the Source B stage), openable only when
 //             source B is on;
-//   'audio' — inside the Audio section, next to its enable button.
+//   'audio' — on the map's Sound branch (SOUND_STAGE), openable only when an
+//             audio input is picked;
+//   'view'  — on the map's View box (VIEW_STAGE), which is not in the signal
+//             path at all: it is where the picture is watched from.
 //
 // 'b' is the one placement that can take a control off screen entirely, so it
 // is only for controls that genuinely have nothing to do without a second
@@ -74,7 +77,7 @@ export type Phase = (typeof PHASE_ORDER)[number]
 // rule from the other side: it is a Phase, so it is always drawn, but with
 // nothing patched into B every control in it is inert and it opens onto
 // nothing — see PathNode.off.
-export type Placement = Phase | 'b' | 'audio'
+export type Placement = Phase | 'b' | 'audio' | 'view'
 
 export interface Group {
   name: string
@@ -99,6 +102,33 @@ export const FEED_A_GROUP = 'Feed A · deck'
 export const FEED_A_CABLE_GROUP = 'Feed A · cable'
 export const FEED_B_GROUP = 'Feed B · deck'
 export const FEED_B_CABLE_GROUP = 'Feed B · cable'
+
+// The three loops, named here for the same reason the feeds are: the map and
+// the diagram address each one by identity, because each of them is a return
+// wire you can click rather than a stage you can open. They are three because
+// three passes close three different paths (see gpu/pipeline.ts) — the camera
+// re-enters at `compose`, ahead of the encoder; the mixer at `fbComposite`,
+// straight after the A/B sum; and the loop bin at `tapePlay`/`tapeRec`, which
+// leaves and returns at that same point rather than going round the chain at
+// all. Nothing but the Feedback stage held them before, which is why the loop
+// bin was the one loop the diagram never drew.
+export const CAMERA_LOOP_GROUP = 'Camera loop (optical)'
+export const MIXER_LOOP_GROUP = 'Mixer loop (electrical)'
+export const TAPE_LOOP_GROUP = 'Tape loop (loop bin)'
+
+// The stage all three return into, named because the map and the diagram open
+// it without walking PHASES to find it.
+export const FEEDBACK_STAGE = 'Feedback'
+
+// Which of the three are actually carrying signal, so a drawing can show a
+// running loop rather than only the three that exist in principle. One shape
+// for both drawings — the miniature has room for two of them and the diagram
+// for all three, and this is what stops the two disagreeing about the names.
+export interface LoopsLive {
+  camera: boolean
+  mixer: boolean
+  tape: boolean
+}
 
 export const GROUPS: Group[] = [
   {
@@ -132,7 +162,19 @@ export const GROUPS: Group[] = [
         step: 1,
         unit: '',
         choices: ['off', 'on'],
-        help: 'The furniture broadcasters parked in the vertical blanking interval: VITS multiburst and a modulated staircase on lines 17-18 (the transmission-test signals engineers measured the plant with), a VIR reference on 19, and line-21 caption data — a clock run-in and dashes that change every frame, because captions are live. Invisible in normal framing; roll the picture or shrink v size and the black bar turns out to have all of this in it. On by default because a broadcast signal genuinely carried it; switch it off for a bare studio feed.',
+        help: `The furniture broadcasters parked in the vertical blanking
+          interval:
+
+          - **lines 17-18** — VITS multiburst and a modulated staircase, the
+            transmission-test signals engineers measured the plant with.
+          - **line 19** — a VIR reference.
+          - **line 21** — caption data: a clock run-in and dashes that change
+            every frame, because captions are live.
+
+          Invisible in normal framing; roll the picture or shrink v size and the
+          black bar turns out to have all of this in it. On by default because a
+          broadcast signal genuinely carried it — switch it off for a bare
+          studio feed.`,
       },
     ],
   },
@@ -316,14 +358,16 @@ export const GROUPS: Group[] = [
       },
     ],
   },
-  // The two loops are named for the physics that closes them, because that is
-  // the only thing that tells them apart once both are running: light around
-  // the outside of the set, or the composite bus patched back into itself. The
-  // optical one carries a picture that has already been decoded and lit, so it
-  // can only do what a lens can; the electrical one carries the subcarrier
-  // round with it, so it does things optics cannot.
+  // The loops are named for the physics that closes them, because that is the
+  // only thing that tells them apart once more than one is running: light
+  // around the outside of the set, the composite bus patched back into itself,
+  // or a second deck threaded with a loop of tape. The optical one carries a
+  // picture that has already been decoded and lit, so it can only do what a
+  // lens can; the electrical one carries the subcarrier round with it, so it
+  // does things optics cannot; and the mechanical one re-records what it
+  // returns, so what circulates ages a generation a lap.
   {
-    name: 'Camera loop (optical)',
+    name: CAMERA_LOOP_GROUP,
     place: 'Feedback',
     sliders: [
       {
@@ -524,7 +568,7 @@ export const GROUPS: Group[] = [
     ],
   },
   {
-    name: 'Mixer loop (electrical)',
+    name: MIXER_LOOP_GROUP,
     place: 'Feedback',
     sliders: [
       {
@@ -669,7 +713,7 @@ export const GROUPS: Group[] = [
     ],
   },
   {
-    name: 'Tape loop (loop bin)',
+    name: TAPE_LOOP_GROUP,
     place: 'Feedback',
     sliders: [
       {
@@ -746,7 +790,17 @@ export const GROUPS: Group[] = [
         // them (choicesFitTrack in format.ts). It is the word the transport's own
         // button already uses, so the panel is not learning a second one for it.
         choices: ['hold', 'rec'],
-        help: 'Lift the record head and the tape keeps circulating with whatever is already on it — the loop repeats indefinitely and stops taking in the live picture. Playing over a held loop is what makes this a looper rather than an echo. It does not fade: playback loss is what the head does on the way past, not damage to the oxide, so a held loop comes back identical every lap, down to the same grain in the same places. Drop the head again and it starts recording over what it has.',
+        help: `Whether the record head is down on the loop.
+
+          - **hold** — the head lifts and the tape keeps circulating with
+            whatever is already on it: the loop repeats indefinitely and stops
+            taking in the live picture. Playing over a held loop is what makes
+            this a looper rather than an echo.
+          - **rec** — the head drops again and records over what it has.
+
+          A held loop does not fade. Playback loss is what the head does on the
+          way past, not damage to the oxide, so it comes back identical every
+          lap, down to the same grain in the same places.`,
       },
       {
         key: 'tapeTransport',
@@ -756,7 +810,21 @@ export const GROUPS: Group[] = [
         step: 1,
         unit: '',
         choices: ['reverse', 'stopped', 'forward', 'scrub'],
-        help: 'Which way a held loop runs past the heads, and whether the drum is still turning. Reverse plays the frames back in the order they were laid down, each one whole — the scanner still sweeps the same way, so motion runs backwards while the picture stays a picture. Stopped parks the tape while the drum re-reads one sweep: a still frame you can play live over. Scrub stalls the drum and keeps pulling backwards, so the head recovers the tape in the order it drags past rather than in sweep order — the waveform itself comes back reversed, and the set gets sync tips at the wrong end of every line, a burst that reads phase-flipped, and a raster arriving end-first. Nothing about that is drawn; it is what a receiver does with a signal running the wrong way. Only means anything with the record head up.',
+        help: `Which way a held loop runs past the heads, and whether the drum
+          is still turning. Only means anything with the record head up.
+
+          - **reverse** — plays the frames back in the order they were laid
+            down, each one whole. The scanner still sweeps the same way, so
+            motion runs backwards while the picture stays a picture.
+          - **stopped** — parks the tape while the drum re-reads one sweep: a
+            still frame you can play live over.
+          - **forward** — the loop as it was recorded.
+          - **scrub** — stalls the drum and keeps pulling backwards, so the head
+            recovers the tape in the order it drags past rather than in sweep
+            order. The waveform itself comes back reversed: sync tips at the
+            wrong end of every line, a burst that reads phase-flipped, a raster
+            arriving end-first. None of that is drawn — it is what a receiver
+            does with a signal running the wrong way.`,
       },
       {
         key: 'tapeShuttle',
@@ -815,7 +883,14 @@ export const GROUPS: Group[] = [
         step: 1,
         unit: '',
         choices: ['hue spins', 'framed'],
-        help: 'The subcarrier rides the same tape, so a delay is also a hue rotation — 90° per sample, and a frame of delay lands on 180°. Framed rounds the delay onto a whole subcarrier cycle, costing 140 ns of picture shift, which is exactly what an edit controller insisting on colour framing is doing. Off, every change of delay repaints the repeats a different colour.',
+        help: `The subcarrier rides the same tape, so a delay is also a hue
+          rotation — 90° per sample, and a frame of delay lands on 180°.
+
+          - **hue spins** — every change of delay repaints the repeats a
+            different colour.
+          - **framed** — rounds the delay onto a whole subcarrier cycle, costing
+            140 ns of picture shift. Exactly what an edit controller insisting
+            on colour framing is doing.`,
       },
       {
         key: 'tapeWear',
@@ -1587,7 +1662,18 @@ export const GROUPS: Group[] = [
         step: 1,
         unit: '',
         choices: ['pin', 'shield', 'both'],
-        help: 'Which contact of the plug is intermittent. The centre pin breaks the signal path, so the jack sees an open through its own terminator and those bands collapse to the input stage’s noise floor — sync included, which is why they tear. The shell breaks the ground reference instead and leaves the signal alone: the return current goes looking for the mains earth through both boxes’ supplies, so a ground loop’s hum lands on the bad bands and the level walks and buzzes while the picture and its sync survive. Both is a genuinely wiggled plug, the two faults on independent bands so they interleave.',
+        help: `Which contact of the plug is intermittent.
+
+          - **pin** — the centre breaks the signal path, so the jack sees an
+            open through its own terminator and those bands collapse to the
+            input stage’s noise floor. Sync included, which is why they tear.
+          - **shield** — the shell breaks the ground reference instead and
+            leaves the signal alone: the return current goes looking for the
+            mains earth through both boxes’ supplies, so a ground loop’s hum
+            lands on the bad bands and the level walks and buzzes while the
+            picture and its sync survive.
+          - **both** — a genuinely wiggled plug, the two faults on independent
+            bands so they interleave.`,
       },
       // Scrambling and macrovision were two more groups of two, sitting directly
       // below this one and running on the same pass over the same wire. Three
@@ -1915,7 +2001,10 @@ export const GROUPS: Group[] = [
     ],
   },
   {
-    name: 'Audio',
+    // Not 'Audio': the stage this hangs off is the sound arriving, and a group
+    // of the same name inside it stacked two headers saying one word. These are
+    // the routings — where that sound is patched into the receiver.
+    name: 'Audio routings',
     place: 'audio',
     sliders: [
       {
@@ -2088,7 +2177,15 @@ export const GROUPS: Group[] = [
         step: 1,
         unit: '',
         choices: ['trap', '2-line', '3-line'],
-        help: 'How the TV separates brightness from colour, which share one wire. 0 is a notch trap — cheap, and it mistakes fine detail for colour (rainbow fringing on stripes) and colour for detail (dot crawl on edges). 1 and 2 are 2- and 3-line combs, which use the line-to-line subcarrier alternation to separate them properly and largely kill both artifacts.',
+        help: `How the TV separates brightness from colour, which share one
+          wire.
+
+          - **trap** — a notch filter. Cheap, and it mistakes fine detail for
+            colour (rainbow fringing on stripes) and colour for detail (dot
+            crawl on edges).
+          - **2-line** and **3-line** — combs, which use the line-to-line
+            subcarrier alternation to separate the two properly and largely kill
+            both artifacts.`,
       },
       {
         key: 'svideoBleed',
@@ -2328,7 +2425,13 @@ export const GROUPS: Group[] = [
         step: 1,
         unit: '',
         choices: ['sRGB', 'P22', '1953', 'green'],
-        help: 'Which phosphors the tube is coated with, i.e. what its primaries actually are: 0 sRGB (no conversion), 1 P22/SMPTE-C (a normal colour TV), 2 the wide 1953 NTSC primaries nobody ever built, 3 a long-persistence monochrome green monitor.',
+        help: `Which phosphors the tube is coated with — what its primaries
+          actually are.
+
+          - **sRGB** — no conversion.
+          - **P22** — SMPTE-C, a normal colour TV.
+          - **1953** — the wide NTSC primaries nobody ever built.
+          - **green** — a long-persistence monochrome monitor.`,
       },
       {
         key: 'phosphor',
@@ -2456,11 +2559,15 @@ export const GROUPS: Group[] = [
   },
   {
     // Not the tube: where your eye is and how fast the clock runs. These are the
-    // VIEW_KEYS, the controls a mutate is forbidden to touch, and they were
-    // filed among the phosphors — so the one group in the panel that does not
-    // change the signal sat inside the group that models the glass.
+    // VIEW_KEYS, the controls a mutate is forbidden to touch. Splitting them out
+    // of the phosphor group was half the fix — they were still placed on Screen,
+    // which is a stage of the signal path, so the panel went on counting them as
+    // signal: magnify the picture and the Screen box lit amber with `• 1` and
+    // "This look" grew a row, for a change the tube never saw. `atRest` has no
+    // idea a control is a view control (src/controls.ts), and it should not have
+    // to — the placement is where that belongs.
     name: 'View',
-    place: 'Screen',
+    place: 'view',
     sliders: [
       {
         key: 'crtZoom',
@@ -2499,7 +2606,7 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.01,
         unit: 'x',
-        help: 'Steps the whole simulation at a fraction of display rate, like slowed footage of the rig: noise, rolls, sweeps, feedback loops and phosphor all crawl together, and 0 freezes the frame. Modulation stays live, so an LFO or audio envelope here warps time itself. Pair with the speed control in the vaporwave section to slow the source footage to match.',
+        help: 'Steps the whole simulation at a fraction of display rate, like slowed footage of the rig: noise, rolls, sweeps, feedback loops and phosphor all crawl together, and 0 freezes the frame. Modulation stays live, so an LFO or audio envelope here warps time itself. Pair with a source’s own speed control, under its transport in Input, to slow the footage to match.',
       },
       {
         key: 'frameLock',
@@ -2509,7 +2616,22 @@ export const GROUPS: Group[] = [
         step: 1,
         unit: '',
         choices: ['off', '1/2 rate', '1/3 rate', '1/4 rate', 'auto'],
-        help: 'Renders every second, third or fourth display refresh instead of chasing every one. A signal path that costs slightly more than a refresh interval otherwise wavers between full rate and half rate, and the wavering reads as stutter where a steady lower cadence reads as intentional. The skipped refreshes do no work at all, so the lock never slows the rig further — but like slow motion, the simulation (modulation included) steps once per rendered frame, so rolls and noise crawl proportionally slower under it. Auto watches the loop itself: sustained missed refreshes engage the half-rate lock, and it quietly retries full rate with a lengthening pause between attempts.',
+        help: `Renders every second, third or fourth display refresh instead of
+          chasing every one. A signal path that costs slightly more than a
+          refresh interval otherwise wavers between full rate and half rate, and
+          the wavering reads as stutter where a steady lower cadence reads as
+          intentional.
+
+          - **off** — chase every refresh, which is what a rig with headroom
+            should do.
+          - **1/2 rate**, **1/3 rate**, **1/4 rate** — a fixed cadence. The
+            skipped refreshes do no work at all, so the lock never slows the rig
+            further; but like slow motion, the simulation (modulation included)
+            steps once per rendered frame, so rolls and noise crawl
+            proportionally slower under one.
+          - **auto** — watches the loop itself: sustained missed refreshes
+            engage the half-rate lock, and it quietly retries full rate with a
+            lengthening pause between attempts.`,
       },
     ],
   },
@@ -2763,7 +2885,7 @@ const PHASE_BLURBS: Record<Phase, string> = {
     'input A becoming a composite waveform — the encoder, the static generator, and the deck and cable this one signal arrives on',
   Mix: 'where the two signals meet — the mixer that beats them together, the wipe and the PiP inset. Needs a source B to do anything',
   Feedback:
-    'two loops around the chain — one optical (a camera on the tube), one electrical (the mixer bus patched into itself)',
+    'three loops — one optical (a camera on the tube), one electrical (the mixer bus patched into itself), one mechanical (a second deck threaded with a loop of tape)',
   Tape: 'the recording and the wire it came down — VHS color-under, dropouts, timebase wander, the tuner and the program cable',
   Receiver:
     'a TV hunting for sync and decoding color from whatever arrives — hold, deflection, the decoder',
@@ -2773,8 +2895,8 @@ const PHASE_BLURBS: Record<Phase, string> = {
 // The signal-path phases, in order — the spine the panel is browsed along.
 // The browsable spine, derived straight from each group's `place` so a group's
 // stage lives in one spot (the group) and can't drift from a parallel list.
-// Audio groups carry no phase and surface contextually instead; the 'b' groups
-// are the Source B branch below.
+// The 'b' and 'audio' groups carry no phase: both are branches that join the
+// trunk from below rather than divisions of it, and they are named below.
 export const PHASES = PHASE_ORDER.map(name => ({
   name,
   blurb: PHASE_BLURBS[name],
@@ -2798,13 +2920,41 @@ export const SOURCE_B_STAGE = 'Source B'
 export const SOURCE_B_BLURB =
   'input B, the same rig again — what B is on its own, and the deck and cable it arrives on, before either reaches the mixer'
 
+// Sound, which is a second branch off the trunk for the same reason B is one:
+// it is something patched *in*, not something the picture passes through. Where
+// it joins is not a choice either — every routing in the group lands inside the
+// receiver (the two hold oscillators, the HV supply, the deflection yoke, the
+// colour reference, the video input), so it climbs into the Receiver box rather
+// than arriving at the head of the chain like a signal would.
+//
+// It used to be a section of its own at the foot of the sidebar, which is what a
+// control group gets when the map has nowhere to put it: an entry you find by
+// scrolling rather than by following the signal. Nothing about the mechanism
+// asked for that — the map just had no vocabulary for a second thing joining.
+export const SOUND_STAGE = 'Sound'
+export const SOUND_JOIN: Phase = 'Receiver'
+export const SOUND_BLURB =
+  'the sound — a mic, a track, or a clip’s own audio — patched into the receiver: it detunes both hold oscillators, loads the HV supply, drives the deflection and turns the colour reference, so the picture moves because the set is being disturbed rather than because anything is animated'
+
+// Where the picture is watched from, which is the one box on the map that is not
+// a piece of the rig. It sits at the end because that is where it is: the signal
+// leaves the glass and reaches an eye, and the magnifier is the lens in between.
+// The clock controls ride with it because "how fast the rig is stepped" is the
+// same kind of answer as "how close you are standing" — a viewing condition, not
+// a fault. Nothing here is in the path, and that is the whole point of drawing
+// it apart from the path.
+export const VIEW_STAGE = 'View'
+export const VIEW_BLURB =
+  'not the rig — where the picture is watched from: the magnifier and where it is pointed, how fast the whole simulation is stepped, and the frame-rate lock. Nothing in here changes the signal, and a mutate is forbidden to touch any of it'
+
 // The groups behind an openable stage name, trunk or branch. One lookup rather
 // than two, so anything that opens a stage (the map, the palette, the panel's
-// own nav) reaches the branch without knowing it is not a Phase.
+// own nav) reaches a branch without knowing it is not a Phase.
 export function stageGroups(name: string): Group[] {
-  return name === SOURCE_B_STAGE
-    ? B_GROUPS
-    : (PHASES.find(p => p.name === name)?.groups ?? [])
+  if (name === SOURCE_B_STAGE) return B_GROUPS
+  if (name === SOUND_STAGE) return AUDIO_GROUPS
+  if (name === VIEW_STAGE) return VIEW_GROUPS
+  return PHASES.find(p => p.name === name)?.groups ?? []
 }
 
 // Every control, in signal-path order. The one flattening of GROUPS.
@@ -2850,23 +3000,36 @@ export function snapToStep(
 // spent on the picture. The frame lock belongs here for the same reason the
 // magnifier does: it shapes how the picture is watched, and a mutate that
 // randomly halved the frame rate would be yanking the viewer, not the signal.
+//
+// Every key in the View group, and it has to stay that way — the group said "these
+// are the VIEW_KEYS" for a year while `timeScale` was not one of them, so the one
+// control that stops the rig was the one thing in the group a mutate could reach.
+// At `wild` that is 0.3 of its whole span per hit and the range bottoms out at a
+// frozen frame, which presents exactly like the lost rendering step in ADR 0004:
+// a still picture in a healthy tab, sending you after the GPU instead of a knob.
+// The invariant is asserted in controls.test.ts rather than left to this comment.
 export const VIEW_KEYS = new Set<ControlKey>([
   'crtZoom',
   'crtZoomX',
   'crtZoomY',
+  'timeScale',
   'frameLock',
 ])
 
-// The groups that surface contextually rather than on the signal-path spine.
-// The mixer is no longer among them: it is the Mix stage, always drawn, so only
-// input B's own groups come and go with what is patched in.
+// The two branches' groups — off the spine, but on the map: each hangs under
+// the trunk and joins the stage it actually feeds. The mixer is no longer among
+// them: it is the Mix stage, always drawn, so only what is patched into each
+// branch decides whether the branch opens.
 export const B_GROUPS = GROUPS.filter(g => g.place === 'b')
 export const AUDIO_GROUPS = GROUPS.filter(g => g.place === 'audio')
+export const VIEW_GROUPS = GROUPS.filter(g => g.place === 'view')
 
+const OFF_SPINE = new Set<Placement>(['b', 'audio', 'view'])
 const automapSliders = [
-  ...GROUPS.filter(g => g.place !== 'b' && g.place !== 'audio'),
+  ...GROUPS.filter(g => !OFF_SPINE.has(g.place)),
   ...B_GROUPS,
   ...AUDIO_GROUPS,
+  ...VIEW_GROUPS,
 ].flatMap(g => g.sliders)
 
 // Controls in auto-map priority order. A controller has far fewer knobs than
