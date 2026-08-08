@@ -55,6 +55,31 @@ export const PARAM_DEFS = [
   ['srcFrame', 'u32'],
   ['invert', 'f32'], // source A polarity flip: negate composite (0.5 = solarized)
   ['deint', 'f32'], // bob-deinterlace source A: rebuild from one field, killing capture combing
+  // Video synth: a bench oscillator patched into a slot instead of a picture
+  // (mode 3 of the same srcNoise selector). Each oscillator's phase is carried
+  // as cycles at frame start plus its walk per line and per sample, rather than
+  // as one frequency, for two reasons. Precision: phase at the far corner of a
+  // frame is 477750 samples of accumulation, and an f32 stops resolving a
+  // subcarrier-rate phase long before it gets there. And honesty: the per-line
+  // walk IS the lean of the pattern — an oscillator sitting an exact multiple of
+  // line rate walks zero per line and draws standing bars, and everything
+  // diagonal on screen is that number being something else.
+  ['synthPhaseA', 'f32'], // osc A phase at frame start, cycles (accumulated)
+  ['synthPerLineA', 'f32'], // osc A phase walk per line, cycles
+  ['synthPerSampleA', 'f32'], // osc A phase walk per sample, cycles
+  ['synthPhaseB', 'f32'],
+  ['synthPerLineB', 'f32'],
+  ['synthPerSampleB', 'f32'],
+  ['synthShape', 'f32'], // waveform selector: 0 ramp, 1 triangle, 2 sine, 3 pulse
+  ['synthMix', 'f32'], // combiner: 0 osc A alone, 1 sum, 2 ring mod, 3 comparator
+  ['synthLevel', 'f32'], // output contrast about mid-video
+  ['synthColor', 'f32'], // colorizer depth: 0 monochrome .. 1 full three-phase
+  ['synthHue', 'f32'], // colorizer rotation, radians
+  // The synth as a module over a picture rather than instead of one. Slot A
+  // only: compose has the slot's picture in hand, and compose_b writes its
+  // texture rather than reading it, so B keeps the source mode alone.
+  ['synthOver', 'f32'], // synth crossfaded over the slot's picture
+  ['synthFm', 'f32'], // that picture's luma into osc A's frequency, cycles/sample
   // dirty mixer: source B is a second, non-genlocked composite signal
   ['srcNoiseB', 'f32'], // GPU-generated source B: 0 texture, 1 TV static, 2 VHS blank-tape static
   ['aGain', 'f32'], // A level on the summing bus, signed (negative inverts A)
@@ -86,6 +111,24 @@ export const PARAM_DEFS = [
   ['pipKey', 'f32'], // inset luma key amount, negative inverts polarity
   ['pipKeyLevel', 'f32'], // inset luma key slice, 0..1
   ['pipKeySoft', 'f32'], // inset luma key edge softness, luma units
+  // Chroma keyer across the mixer: B's backing colour cut away so A shows
+  // through it. Slices B's *encoded* chroma, not the RGB behind it — see
+  // mix_b.wgsl for what that costs the edge, which is the whole look.
+  ['bKey', 'f32'], // key amount, negative inverts which side is cut
+  ['bKeyHue', 'f32'], // backing colour's chroma phase, radians (atan2(V, U))
+  ['bKeyAccept', 'f32'], // acceptance half-angle about that phase, radians
+  ['bKeyClip', 'f32'], // saturation floor the keyer will act on, chroma units
+  ['bKeySoft', 'f32'], // comparator swing: edge softness in both angle and saturation
+  ['bKeySpill', 'f32'], // chroma canceller: backing subcarrier reinjected antiphase
+  ['bKeyDelay', 'f32'], // key-vs-fill horizontal registration, samples
+  // The keyer's fill input — what shows through the hole. Genlocked path only,
+  // because only a crossfade has a "behind" for a fill to be: the dirty sum has
+  // no layers, so there the key gates B's contribution and A is simply always
+  // present. 0 program A, 1 matte generator, 2 the mixer loop bus.
+  ['bKeyFill', 'f32'],
+  ['bKeyMatteY', 'f32'], // matte luma, 0..1
+  ['bKeyMatteHue', 'f32'], // matte chroma phase, radians
+  ['bKeyMatteSat', 'f32'], // matte chroma amplitude, chroma units
   // VHS tracking error: a mistracked head produces a noise band that tears and
   // bends the picture at an adjustable height (the "tracking" knob).
   ['trackAmt', 'f32'], // severity, 0 locked
@@ -257,6 +300,11 @@ export const PARAM_DEFS = [
   ['tapeDelayFrames', 'u32'], // the far head trails the record head by this many whole frames...
   ['tapeDelaySamples', 'f32'], // ...plus this remainder (the total overruns f32's integers)
   // display
+  // Beam blanking, held on: the guns cut for most of a cycle and let through in
+  // flashes. Applied in decode, upstream of the persistence layer, which is the
+  // whole point — the light already on the glass keeps decaying through the dark
+  // instead of the picture cutting to black.
+  ['beamBlank', 'f32'], // 1 = guns cut this frame, 0 = beam scanning normally
   ['scanBeam', 'f32'], // finite beam-spot strength between scanlines
   ['scanBloom', 'f32'], // beam-spot growth with beam current: bright lines fatten, gaps close in whites
   ['phosphor', 'f32'], // P22 persistence: green-channel frame-to-frame retention (R/B decay faster)
@@ -667,5 +715,130 @@ fn snowSource(mode: f32, xy: vec2u, frame: u32, grain: f32, lineShare: f32, leve
   let ln = gauss((xy.y * 2654435761u) ^ sd ^ 0x5bf03635u);
   v = v * max(1.0 + lineShare * 0.7 * ln, 0.0);
   return vec3f(clamp(v, 0.0, 1.0));
+}
+
+// The synth's patch, gathered so the generator can live here beside snowSource
+// instead of in one of its two callers. Params travel as arguments for the same
+// reason snowSource's statistics do: the prelude is prepended to every shader,
+// including the ones that bind no uniform block at all, so nothing in it may
+// name P.
+struct SynthPatch {
+  phaseA: f32,
+  perLineA: f32,
+  perSampleA: f32,
+  phaseB: f32,
+  perLineB: f32,
+  perSampleB: f32,
+  shape: f32,
+  combine: f32,
+  level: f32,
+  color: f32,
+  hue: f32,
+  // Picture luma into oscillator A's frequency input, cycles per sample per
+  // unit luma. The classic video-synth patch, and the one thing in here that
+  // needs a picture to exist: with the oscillator's frequency a function of
+  // brightness, equal-brightness regions run at equal frequency and the wave
+  // arrives at each of them in a different place, so the image draws itself as
+  // contour lines nobody traced.
+  fm: f32,
+}
+
+// Gathering the patch off the uniform block, once. The prelude may not name a
+// binding, but it declares Params itself, so taking one by value is legal here
+// and keeps the field list in a single place — a second copy in each of the two
+// callers is exactly how a generator ends up doing different things in the two
+// slots it is supposed to be identical in.
+fn synthPatch(p: Params) -> SynthPatch {
+  return SynthPatch(
+    p.synthPhaseA, p.synthPerLineA, p.synthPerSampleA,
+    p.synthPhaseB, p.synthPerLineB, p.synthPerSampleB,
+    p.synthShape, p.synthMix, p.synthLevel, p.synthColor, p.synthHue,
+    p.synthFm,
+  );
+}
+
+// One oscillator through the waveform selector, at phase cyc in cycles. All
+// four shapes come back 0..1 so the combiner and the colorizer below never
+// have to know which one is patched.
+fn synthWave(cyc: f32, shape: f32) -> f32 {
+  let p = fract(cyc);
+  if (shape < 0.5) {
+    return p;
+  }
+  if (shape < 1.5) {
+    return 1.0 - abs(2.0 * p - 1.0);
+  }
+  if (shape < 2.5) {
+    return 0.5 + 0.5 * sin(2.0 * PI * p);
+  }
+  return select(0.0, 1.0, p < 0.5);
+}
+
+// A video synthesizer patched into a slot: two oscillators, a combiner and a
+// colorizer, generating a picture instead of photographing one. Shared by A
+// (compose) and B (compose_b) the same way snowSource is, so the two slots
+// cannot drift apart.
+//
+// The whole instrument is one idea: an oscillator running free against a fixed
+// raster. Nothing here draws a bar, a gradient or a diagonal — it sets a
+// frequency, and what a frequency error against 15.734 kHz looks like is the
+// picture. Sit an oscillator on line rate and its phase walk per line is zero,
+// so it paints one standing vertical edge; a few hertz off and every line
+// starts a little later than the last, which leans the bars and creeps them
+// frame to frame. Wind it down to field rate and the same ramp becomes a
+// vertical gradient — a ramp generator IS an oscillator locked to drive, which
+// is why one knob covers both. Wind it up to 3.579545 MHz and it lands on the
+// subcarrier, so the encoder downstream reads the whole screen as chroma and
+// hands back flat colour; detune it from there and the hue turns across the
+// picture on its own.
+//
+// Phase is counted from the sample index including blanking, because a bench
+// oscillator does not stop for the retrace — the picture is a window onto a
+// wave that was already running, and that offset is part of where the pattern
+// lands.
+fn videoSynth(xy: vec2u, sp: SynthPatch, pic: f32) -> vec3f {
+  let row = f32(ACTIVE_TOP + xy.y);
+  let s = f32(ACTIVE_START + xy.x);
+  // The FM term multiplies the sample index, not the phase, because pulling an
+  // oscillator's frequency is not the same as offsetting its phase: phase
+  // modulation would slide the pattern about, where this makes the wave
+  // genuinely run faster through bright picture and slower through dark, so the
+  // spacing of the bars is the brightness. It reads the picture at this pixel
+  // alone — a control line has no memory of where it has been — which is why
+  // the contours land on the picture rather than trailing it.
+  let a = synthWave(sp.phaseA + sp.perLineA * row + (sp.perSampleA + sp.fm * pic) * s, sp.shape);
+  let b = synthWave(sp.phaseB + sp.perLineB * row + sp.perSampleB * s, sp.shape);
+  var g = a;
+  if (sp.combine > 0.5 && sp.combine < 1.5) {
+    // A summing amplifier, referenced to mid-video: two signals added run into
+    // the rails rather than wrapping, which is what makes a sum read as two
+    // patterns lying over each other instead of a third pattern.
+    g = clamp(a + b - 0.5, 0.0, 1.0);
+  } else if (sp.combine > 1.5 && sp.combine < 2.5) {
+    // Doubly-balanced multiply, both inputs referenced to mid so both carriers
+    // are suppressed and only the sum and difference survive (the same bridge
+    // the mixer loop's ring mod uses). Two free-running oscillators beating
+    // against each other draw a moire whose own beat rate is the difference of
+    // two frequency errors, so it breathes at a rate neither knob names.
+    g = clamp(0.5 + 2.0 * (a - 0.5) * (b - 0.5), 0.0, 1.0);
+  } else if (sp.combine > 2.5) {
+    // A comparator with the second oscillator on its reference input: hard
+    // two-level output, and the threshold is itself a moving waveform, so the
+    // duty cycle is modulated everywhere the two patterns cross.
+    g = select(0.0, 1.0, a > b);
+  }
+  let lvl = clamp(0.5 + sp.level * (g - 0.5), 0.0, 1.0);
+  // The colorizer: one signal into three guns through three phase shifts 120
+  // degrees apart, which is all a colorizer ever was. At depth 0 the three
+  // agree and the signal comes out as the grey it is; opened up, level becomes
+  // hue and a ramp turns through the wheel.
+  //
+  // Half a turn across the level range, not a whole one. A full turn brings the
+  // top of the range back to the colour the bottom started on, which is fine on
+  // a ramp and useless on anything two-level: a pulse would put both its states
+  // on the same hue and come out a flat field. Half a turn keeps black and
+  // white opposite, which is what a level-to-hue converter is for.
+  let tint = 0.5 + 0.5 * cos(PI * lvl + sp.hue + vec3f(0.0, -2.0943951, 2.0943951));
+  return clamp(mix(vec3f(lvl), tint, sp.color), vec3f(0.0), vec3f(1.0));
 }
 `

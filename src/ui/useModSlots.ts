@@ -159,6 +159,10 @@ export function useModSlots(
       const at = indexFor(key)
       if (at !== -1) cycleAt(at)
     },
+    // Straight through to the engine, with no React state in the way: a trigger
+    // is an edge, and routing it through `commit` would put a storage write and
+    // a re-render between the press and the hit.
+    fire: i => engine?.fireMod(i),
     setSlots: next => commit(normalizeSlots(next)),
     setRoutings: mod => commit(routingsToSlots(mod)),
     modFor: key => slots.find(s => s.target === key) ?? null,

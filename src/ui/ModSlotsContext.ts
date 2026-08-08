@@ -65,6 +65,12 @@ export interface ModSlotsApi {
     key: ControlKey,
     routing: Omit<ModRouting, 'target'> | null,
   ) => void
+  // Strike a one-shot envelope: slot `i`, or every routing patched to a trigger
+  // when called with nothing. The only verb here that is an event rather than a
+  // setting — everything else on this API describes what the bay *is*, and this
+  // one says what just happened, so it goes straight to the engine instead of
+  // through the slot list React owns.
+  fire: (i?: number) => void
   // Park or restart the routing driving `key`, keeping what it is patched with.
   // The one-click "off" a set needs: `setSlotForKey(key, null)` is the other
   // kind of off — it hands the slot back and the patch with it. A no-op when

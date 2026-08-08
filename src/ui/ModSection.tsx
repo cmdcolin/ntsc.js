@@ -90,7 +90,10 @@ function StabRows() {
 // claim a slot from its own ∿. What is left here is the view that shows all
 // eight at once, which is still the only place to see the bay as a bay.
 export function ModSection(props: { tempo: Tempo }) {
-  const { slots, bpm, setSlot, cycleSlotSync, stab } = useModSlotsApi()
+  const { slots, bpm, setSlot, cycleSlotSync, stab, fire } = useModSlotsApi()
+  // Whether anything in the bay is playable, which is what decides if the
+  // fire-everything button is worth a row.
+  const anyTrig = slots.some(s => s.target !== '' && s.source === 'trig')
   // Read off the bay itself, not off `active`: that list is scaled by the motion
   // amount, so freezing (amount 0) emptied it and the dot went out on a section
   // still holding eight routings. The dot says what is patched — the strip's own
@@ -114,6 +117,18 @@ export function ModSection(props: { tempo: Tempo }) {
           tapped in yourself is exactly what a session with no MIDI at all
           needs. */}
       <TempoRow tempo={props.tempo} />
+      {/* One key for the whole bay, above the slots rather than inside any of
+          them: several envelopes at different decay rates fired together is one
+          gesture, and hitting them one row at a time is not that gesture. */}
+      {anyTrig ? (
+        <button
+          className={ui.btn}
+          title="strike every one-shot envelope in the bay at once"
+          onClick={() => fire()}
+        >
+          ⚡ fire all
+        </button>
+      ) : null}
       <StabRows />
       {slots.map((s, i) => (
         // Slots are positional identities (slot 1..8), so the index IS the key.
@@ -164,6 +179,19 @@ export function ModSection(props: { tempo: Tempo }) {
                   onChange={v => setSlot(i, { rateHz: v })}
                 />
               )}
+              {/* The only control in the bay you play rather than set. It has
+                  to be next to the rate, because the rate is this envelope's
+                  decay and the two are read together — press, watch it fall,
+                  adjust, press again. */}
+              {s.source === 'trig' ? (
+                <button
+                  className={ui.btn}
+                  title={`strike slot ${i + 1}'s envelope`}
+                  onClick={() => fire(i)}
+                >
+                  ⚡ fire
+                </button>
+              ) : null}
               <Slider
                 label="depth (of slider range)"
                 unit=""

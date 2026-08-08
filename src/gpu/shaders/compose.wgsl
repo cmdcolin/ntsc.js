@@ -53,7 +53,14 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let b = textureSampleLevel(srcTex, samp, vec2f(suv.x, (e + 2.5) / sh), 0.0).rgb;
     src = mix(a, b, f);
   }
-  if (P.srcNoise > 0.5) {
+  if (P.srcNoise > 2.5) {
+    // A signal generator on the bench, not a deck: it free-runs whether or not
+    // the transport in front of it is held, which is why this one reads no
+    // srcFrame. Its phase comes in already advanced for this frame. Patched
+    // instead of a picture there is nothing to FM it with, so the modulation
+    // input is grounded.
+    src = videoSynth(gid.xy, synthPatch(P), 0.0);
+  } else if (P.srcNoise > 0.5) {
     // srcFrame rather than frame: a paused A deck holds its picture, and the
     // crawl was on the tape — composeB freezes the same way by skipping, but
     // this pass must keep running for the feedback camera below.
@@ -65,6 +72,13 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
       P.srcNoiseLine,
       P.srcNoiseLevel,
     );
+  }
+  // The synth patched *over* the picture rather than instead of it, which is
+  // the arrangement the frequency-modulation input needs: something has to be
+  // on the slot for its luma to drive anything. Slot A only — compose_b writes
+  // its texture rather than reading one, so B has no picture in hand here.
+  if (P.srcNoise < 2.5 && P.synthOver > 0.0) {
+    src = mix(src, videoSynth(gid.xy, synthPatch(P), luma(src)), P.synthOver);
   }
 
   // transform in 4:3 aspect space so rotation doesn't shear

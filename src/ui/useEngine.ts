@@ -573,6 +573,7 @@ export function useEngine() {
     else if (mode === 'sweep') slot.setImage(sweep())
     else if (mode === 'tv static') slot.setNoise(1)
     else if (mode === 'vhs static') slot.setNoise(2)
+    else if (mode === 'synth') slot.setNoise(3)
     else if (mode === 'teletype') printCard(slot, slot.card())
     else if (mode === 'cat')
       loadImage(CAT_URL).then(

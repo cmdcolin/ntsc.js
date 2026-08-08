@@ -119,6 +119,85 @@ describe('ModState', () => {
     )
   })
 
+  describe('one-shot envelope', () => {
+    const TRIG = [{ id: 0, source: 'trig', rateHz: 1 } as const]
+
+    it('rests at zero until it is fired', () => {
+      const m = new ModState()
+      expect(step(m, TRIG, 120)[0]).toBe(0)
+    })
+
+    // The reason `fired` is a set rather than a flag read in the same call: a
+    // press lands between two frames, and the next frame has to still see it.
+    it('strikes to full on the first frame after a press', () => {
+      const m = new ModState()
+      m.fire(0)
+      // one frame of decay has already run by the time the value comes back
+      expect(step(m, TRIG, 1)[0]).toBeCloseTo(Math.exp(-1 / 60), 6)
+    })
+
+    it('decays to 1/e in a second at 1 Hz', () => {
+      const m = new ModState()
+      m.fire(0)
+      expect(step(m, TRIG, 60)[0]).toBeCloseTo(Math.exp(-1), 4)
+    })
+
+    it('is unipolar and never overshoots', () => {
+      const m = new ModState()
+      m.fire(0)
+      for (let f = 0; f < 90; f++) {
+        const v = step(m, TRIG, 1)[0]
+        expect(v).toBeGreaterThanOrEqual(0)
+        expect(v).toBeLessThanOrEqual(1)
+      }
+    })
+
+    it('settles exactly on rest rather than approaching it forever', () => {
+      const m = new ModState()
+      m.fire(0)
+      expect(step(m, TRIG, 900)[0]).toBe(0)
+    })
+
+    it('re-strikes from full rather than adding to what is left', () => {
+      const m = new ModState()
+      m.fire(0)
+      const half = step(m, TRIG, 30)[0]
+      expect(half).toBeLessThan(1)
+      m.fire(0)
+      expect(step(m, TRIG, 1)[0]).toBeCloseTo(Math.exp(-1 / 60), 6)
+    })
+
+    it('fires every trigger in the bay at once and leaves the LFOs alone', () => {
+      const m = new ModState()
+      const waves = [
+        { id: 0, source: 'trig', rateHz: 1 },
+        { id: 1, source: 'sine', rateHz: 1 },
+        { id: 2, source: 'trig', rateHz: 4 },
+      ] as const
+      m.fireAll(waves)
+      const out = step(m, waves, 1)
+      expect(out[0]).toBeGreaterThan(0.9)
+      expect(out[2]).toBeGreaterThan(0.9)
+      // the faster decay is already further down, which is what makes two
+      // rates fired together read as one gesture with a tail
+      expect(out[2]).toBeLessThan(out[0])
+    })
+
+    // Slot position is identity everywhere else in this file, and a trigger is
+    // no exception: firing slot 0 must not strike slot 1's envelope.
+    it('fires only the slot it was aimed at', () => {
+      const m = new ModState()
+      const waves = [
+        { id: 0, source: 'trig', rateHz: 1 },
+        { id: 1, source: 'trig', rateHz: 1 },
+      ] as const
+      m.fire(1)
+      const out = step(m, waves, 1)
+      expect(out[0]).toBe(0)
+      expect(out[1]).toBeGreaterThan(0.9)
+    })
+  })
+
   it('tracks independent phase per slot', () => {
     const m = new ModState()
     const waves = [

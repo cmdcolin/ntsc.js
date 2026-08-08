@@ -15,6 +15,19 @@ export const DEFAULT_CONTROLS = {
   srcNoiseLine: 0.15, // per-sweep gain error (tuner AGC, head contact), 0..1
   srcNoiseLevel: 1, // noise power reaching the detector
   srcNoiseHz: 60, // the source's own refresh rate; below 60 each field is held
+  // the video synth: two free-running oscillators, a combiner and a colorizer,
+  // patched into whichever slot is showing it. Defaults sit oscillator A one
+  // line-rate multiple off exact, so it arrives leaning slightly rather than as
+  // a still frame that reads like a texture.
+  synthAHz: 15834, // ~100 Hz above line rate: bars that lean and creep
+  synthBHz: 60, // one cycle down the frame: a vertical ramp under them
+  synthShape: 2, // 0 ramp, 1 triangle, 2 sine, 3 pulse
+  synthMix: 0, // 0 osc A alone, 1 sum, 2 ring mod, 3 comparator
+  synthLevel: 1,
+  synthColor: 0,
+  synthHueDeg: 0,
+  synthOver: 0, // synth over slot A's picture rather than instead of it
+  synthFm: 0, // that picture's luma into osc A's frequency, Hz per unit luma
   // encoder
   encChromaMHz: 1.3,
   invert: 0, // polarity flip on the composite line (alligator-pin swap)
@@ -240,11 +253,34 @@ export const DEFAULT_CONTROLS = {
   pipKey: 0,
   pipKeyLevel: 0.2,
   pipKeySoft: 0.08,
+  // chroma keyer across the mixer: B's backing colour cut away so A shows
+  // through it. The default hue is pure green's chroma phase — atan2(V, U) of
+  // RGB (0,1,0) through the encoder's matrix, which is where a green backing
+  // actually lands, not a colour picked to look like one.
+  bKey: 0,
+  // 240.7 is where pure green actually lands; the row steps in whole degrees
+  // and the acceptance wedge is forty of them wide, so the third of a degree
+  // this rounds away is far below anything the keyer can resolve.
+  bKeyHueDeg: 241,
+  bKeyAcceptDeg: 40,
+  bKeyClip: 0.06, // saturation floor, chroma units (a saturated primary is ~0.6)
+  bKeySoft: 0.05, // comparator swing, in the same units and as a fraction of PI
+  bKeySpill: 0,
+  bKeyDelayUs: 0, // key-vs-fill registration; one sample is 70 ns
+  bKeyFill: 0, // 0 program A, 1 matte, 2 the mixer loop bus (genlocked path only)
+  bKeyMatteY: 0.5,
+  bKeyMatteHueDeg: 0,
+  bKeyMatteSat: 0,
   // VHS tracking error
   trackAmt: 0,
   trackPos: 0.85,
   shuttleX: 1, // transport speed as multiple of play: 0 pause, <0 review, 1 clean
   // display
+  // beam blanking held on: flashes of scanning beam separated by dark the
+  // phosphor decays through. Rate in Hz, flash length in ms — an absolute
+  // length, so doubling the rate does not halve the hit (see signal/stab.ts).
+  strobeHz: 0,
+  strobeMs: 40,
   scanBeam: 0.3,
   scanBloom: 0, // beam-spot growth with beam current: bright lines fatten
   phosphor: 0, // persistence: green retention per field; red/blue decay faster

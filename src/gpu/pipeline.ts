@@ -33,6 +33,8 @@ import { ModState } from '../signal/modstate'
 import { valueNoise } from '../signal/noise'
 import { RfState } from '../signal/rfstate'
 import { StabGate } from '../signal/stab'
+import { StrobeGate } from '../signal/strobe'
+import { SynthState } from '../signal/synthstate'
 import { TapeState, tapeRecording } from '../signal/tapeloop'
 import { gpuPowerFromSearch, initGpu, releaseGpu } from './context'
 import { pageSearch } from './env'
@@ -241,6 +243,12 @@ export class Engine implements EngineApi {
   private glideNotify = 0
   private tapeState = new TapeState()
   private rfState = new RfState()
+  private synthState = new SynthState()
+  // The blanking gate. Unlike the stab gate beside it this is a plain control
+  // pair rather than part of the modulation bay, because it damages the picture
+  // — a cut gun is a thing the set does — so it takes a row on the Beam stage
+  // and travels in presets and links like every other fault.
+  private strobeGate = new StrobeGate()
   private modSlots: ModSlot[] = []
   // The stab gate: the whole look poked into a clean picture for a few tens of
   // milliseconds at a time. Off until something sets a rate, so a session that
@@ -725,6 +733,9 @@ export class Engine implements EngineApi {
           { buffer: this.uvfBBuf },
           { buffer: this.compA },
           { buffer: this.bCompBuf },
+          // the mixer loop's bus, for the keyer's fill input — the same buffer
+          // fbComposite crossfades from a few passes later
+          { buffer: this.compPrev },
         ],
         perLine,
         bChainOn,
@@ -1468,6 +1479,22 @@ export class Engine implements EngineApi {
       srcFrame: this.tapeFrame.a,
       invert: c.invert,
       deint: c.deint,
+      synthShape: c.synthShape,
+      synthMix: c.synthMix,
+      synthLevel: c.synthLevel,
+      synthColor: c.synthColor,
+      synthHue: (c.synthHueDeg * Math.PI) / 180,
+      synthOver: c.synthOver,
+      // Authored in Hz per unit luma, converted to the same cycles-per-sample
+      // the oscillator's own walk is in — the FM input adds to that walk, so the
+      // two have to arrive in the same units.
+      synthFm: c.synthFm / SAMPLE_RATE,
+      // Wall clock, not the frame counter: a strobe you count along with has to
+      // be that rate under a frame lock and on a 144 Hz panel (signal/strobe.ts).
+      beamBlank: this.strobeGate.step(
+        { hz: c.strobeHz, ms: c.strobeMs },
+        performance.now(),
+      ),
       chromaGain: c.chromaGain,
       burstLock: c.burstLock,
       tint: (c.tintDeg * Math.PI) / 180,
@@ -1604,6 +1631,17 @@ export class Engine implements EngineApi {
       pipKey: c.pipKey,
       pipKeyLevel: c.pipKeyLevel,
       pipKeySoft: c.pipKeySoft,
+      bKey: c.bKey,
+      bKeyHue: (c.bKeyHueDeg * Math.PI) / 180,
+      bKeyAccept: (c.bKeyAcceptDeg * Math.PI) / 180,
+      bKeyClip: c.bKeyClip,
+      bKeySoft: c.bKeySoft,
+      bKeySpill: c.bKeySpill,
+      bKeyDelay: c.bKeyDelayUs * 1e-6 * SAMPLE_RATE,
+      bKeyFill: c.bKeyFill,
+      bKeyMatteY: c.bKeyMatteY,
+      bKeyMatteHue: (c.bKeyMatteHueDeg * Math.PI) / 180,
+      bKeyMatteSat: c.bKeyMatteSat,
       trackAmt: c.trackAmt,
       trackPos: c.trackPos,
       shuttleBars: c.shuttleX - 1,
@@ -1698,6 +1736,16 @@ export class Engine implements EngineApi {
   // of one frame and restoring after, so uniforms, filter design, and pass
   // gating all see the modulated value while React, presets, and saved looks keep
   // the resting one (the same takeover semantics as MIDI).
+  // Strike one routing's one-shot envelope, or every one in the bay. Unlike
+  // every other way the bay is driven this is an *event*, not a setting, which
+  // is why it is a method rather than another field on ModSlot: a fired flag
+  // living in the slot list would have to be cleared by whoever set it, and the
+  // list is rewritten by presets, links and undo.
+  fireMod(id?: number): void {
+    if (id === undefined) this.modState.fireAll(this.modSlots)
+    else this.modState.fire(id)
+  }
+
   setModSlots(slots: ModSlot[]): void {
     this.modSlots = slots
   }
@@ -1947,6 +1995,14 @@ export class Engine implements EngineApi {
       ...tapeU,
       // the adjacent channel's raster slip and beat phases, walked per frame
       ...this.rfState.update(this.frame),
+      // the video synth's two oscillators, advanced a frame's worth of samples
+      // whether or not a slot is showing them — a bench generator left switched
+      // on does not wait to be patched in, so cutting to it lands wherever it
+      // has got to rather than restarting the pattern under the cut
+      ...this.synthState.update({
+        synthAHz: c.synthAHz,
+        synthBHz: c.synthBHz,
+      }),
     }
     packParams(vals, this.paramScratch)
     d.queue.writeBuffer(this.paramsBuf, 0, this.paramScratch)

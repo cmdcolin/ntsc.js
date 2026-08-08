@@ -209,7 +209,12 @@ export const SYNC_DIVISIONS: { label: string; beats: number }[] = [
   { label: '1/16', beats: 0.25 },
 ]
 
-export const SYNCABLE_KEYS: ControlKey[] = ['wipeRate', 'bLineHz']
+// `strobeHz` belongs here rather than being a rate you dial by eye: the whole
+// reason its gate reads the wall clock instead of a frame count (signal/
+// strobe.ts) is so that a rate asked for in Hz — or in beats — is that rate
+// under a frame lock and on a 144 Hz panel. A strobe is the one fault in here
+// you count along with.
+export const SYNCABLE_KEYS: ControlKey[] = ['wipeRate', 'bLineHz', 'strobeHz']
 
 // Tempo-locked value for a rate control, clamped to its slider range.
 export function syncedValue(

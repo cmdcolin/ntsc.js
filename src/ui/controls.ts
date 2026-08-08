@@ -116,6 +116,12 @@ export const FEED_B_CABLE_GROUP = 'Feed B · cable'
 // leaves and returns at that same point rather than going round the chain at
 // all. Nothing but the Feedback stage held them before, which is why the loop
 // bin was the one loop the diagram never drew.
+// The video synth's group, named for the same reason the feeds are: it is one
+// of the two generator groups that describe whichever slot is showing them
+// rather than belonging to input A, so the test that holds A and B to the same
+// three groups has to be able to say so by name instead of guessing at a prefix.
+export const SYNTH_GROUP = 'Video synth (source)'
+
 export const CAMERA_LOOP_GROUP = 'Camera loop (optical)'
 export const MIXER_LOOP_GROUP = 'Mixer loop (electrical)'
 export const TAPE_LOOP_GROUP = 'Tape loop (loop bin)'
@@ -227,6 +233,105 @@ export const GROUPS: Group[] = [
         step: 0.5,
         unit: 'Hz',
         help: 'How often the noise field re-rolls. At 60 it boils at display rate, which is what a live signal does; below it the source is handing over fields more slowly than the set is drawing them, so each one is held for several frames and the boil goes chunky. Non-integer ratios hold fields unevenly — the same cadence 3:2 pulldown has, out of the same arithmetic. A held field is not frozen noise so much as noise you can see the frame rate of, and everything downstream then carries it: the mixer loop breeds structure out of a field that stays still long enough to feed back.',
+      },
+    ],
+  },
+  // The other generated source, and the only one in the app that makes a
+  // picture rather than a failure to have one. Like the noise group it bites
+  // only while a slot is showing it, and it describes whichever slot is —
+  // the generator is one bench oscillator pair, patched wherever it is patched.
+  {
+    name: SYNTH_GROUP,
+    place: 'Source A',
+    sliders: [
+      {
+        key: 'synthAHz',
+        label: 'osc A',
+        min: 0,
+        max: 8000000,
+        step: 1,
+        curve: 'synth',
+        unit: 'Hz',
+        help: "The first oscillator's frequency, and the whole instrument in one knob — because what it draws is where it sits against the raster, not a shape anyone chose. At 60 Hz it fits one cycle down the frame and reads as a vertical gradient. At 15734 Hz — line rate — it fits one cycle across a line and the gradient stands up sideways. On an exact multiple it paints that many standing bars; a few hertz off and every line starts the wave a little later than the last, so the bars lean and creep, and how fast is the error. At 3579545 Hz it lands on the colour subcarrier, so the encoder downstream reads the whole screen as chroma and hands back flat colour — detune from there and hue turns across the picture.",
+      },
+      {
+        key: 'synthBHz',
+        label: 'osc B',
+        min: 0,
+        max: 8000000,
+        step: 1,
+        curve: 'synth',
+        unit: 'Hz',
+        help: 'The second oscillator, on the same scale. It does nothing until the combiner is off "osc A alone", and what it does then is beat against the first: two free-running oscillators put their difference frequency on screen, so a pair a few hertz apart draws a moire whose own drift rate is neither knob but the gap between them.',
+      },
+      {
+        key: 'synthShape',
+        label: 'waveform',
+        min: 0,
+        max: 3,
+        step: 1,
+        unit: '',
+        choices: ['ramp', 'triangle', 'sine', 'pulse'],
+        help: 'The waveform selector, on both oscillators at once. Ramp is the one to reach for first: a sawtooth is what a ramp generator makes, so at low frequencies it is a clean gradient and at high ones a stack of hard edges. Triangle folds it symmetric, sine rounds it into something the encoder passes without ringing, and pulse is a comparator output — two levels, hard edges, and the most bandwidth for the rest of the chain to mangle.',
+      },
+      {
+        key: 'synthMix',
+        label: 'combiner',
+        min: 0,
+        max: 3,
+        step: 1,
+        unit: '',
+        choices: ['osc A', 'sum', 'ring mod', 'comparator'],
+        help: 'How the two oscillators are patched together. Sum is a mixing amplifier into its rails, so the two patterns lie over each other and clip where they agree. Ring mod is a balanced multiply — both carriers suppressed, only their sum and difference left — which is where plaid and moire come from. Comparator puts oscillator B on the reference input of a slicer, so A comes out two-level with its duty cycle modulated everywhere the two cross.',
+      },
+      {
+        key: 'synthLevel',
+        label: 'level',
+        min: 0,
+        max: 4,
+        step: 0.01,
+        redline: [0, 2],
+        unit: 'x',
+        fine: true,
+        help: 'Output contrast about mid-video, before the colorizer. Past 1 the waveform runs into its rails and the shape squares off — a sine becomes a pulse with soft corners — so this doubles as a coarse waveshaper.',
+      },
+      {
+        key: 'synthColor',
+        label: 'colorizer',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: 'One signal into three guns through three phase shifts 120 degrees apart, which is all a colorizer ever was. At 0 the three agree and the pattern comes out the grey it is; opened up, signal level becomes hue, so a ramp turns through the whole wheel and a pulse lands on two opposite colours.',
+      },
+      {
+        key: 'synthHueDeg',
+        label: 'colorizer phase',
+        min: 0,
+        max: 360,
+        step: 1,
+        unit: 'deg',
+        fine: true,
+        help: 'Rotates all three phase shifts together, which slides the whole palette round the wheel without changing how the pattern is coloured. Modulate it and the picture cycles colour while the geometry holds still.',
+      },
+      {
+        key: 'synthOver',
+        label: 'over picture (A)',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "Patches the synth over slot A's picture instead of instead of it, so it becomes a module in the chain rather than a source. Source A only — slot B's pass writes its texture rather than reading one, so there is no picture on that side to lay anything over. Does nothing while A is already showing the synth, since then the synth is what the picture is.",
+      },
+      {
+        key: 'synthFm',
+        label: 'luma → osc A',
+        min: 0,
+        max: 200000,
+        step: 10,
+        redline: [0, 60000],
+        unit: 'Hz',
+        help: "The picture's own brightness into oscillator A's frequency input — the patch every video synth was bought for. It pulls the frequency rather than offsetting the phase, so the wave genuinely runs faster through bright picture and slower through dark: the spacing of the bars becomes the brightness, and equal-brightness regions fall into step, so the image draws itself as contour lines nobody traced. Needs something over the picture to read, so it does nothing until the control above is up.",
       },
     ],
   },
@@ -1295,6 +1400,122 @@ export const GROUPS: Group[] = [
       },
     ],
   },
+  // The keyer is a box across the mixer, so it goes on the Mix stage beside the
+  // wipe and the fader rather than on B's branch: it is a thing the mixer does
+  // with two signals, not a property of one of them. It also composes with both
+  // — a wipe shapes where the key is allowed to act, and the fader still sets
+  // how much of what survives the key reaches the bus.
+  {
+    name: 'Chroma key (A through B)',
+    place: 'Mix',
+    sliders: [
+      {
+        key: 'bKey',
+        label: 'key (- inverts)',
+        min: -1,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "Cuts B's backing colour away so A shows through it — a chroma keyer across the mixer, with B as the foreground. Negative inverts which side survives: the subject is cut out and the backing kept. Because the keyer is on the bus it slices the chroma the *encoder* made, not the colour the camera saw, so the matte it cuts is soft across and sharp down — the lopsided edge every composite key had. Narrowing the encoder's chroma bandwidth widens that edge, since it is the same filter.",
+      },
+      {
+        key: 'bKeyHueDeg',
+        label: 'backing hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        unit: 'deg',
+        help: 'Which chroma phase the keyer treats as the backing. 241 is where a pure green screen lands, 347 a blue one — these are angles on the colour wheel the subcarrier actually carries, not names, which is why anything sharing a hue with the backing disappears too. Sweeping it live keys through the whole picture in turn.',
+      },
+      {
+        key: 'bKeyAcceptDeg',
+        label: 'acceptance',
+        min: 0,
+        max: 180,
+        step: 1,
+        unit: 'deg',
+        help: 'How wide a wedge of hue either side of the backing counts as backing. Narrow only takes the backing itself and leaves every shadow and fold on it opaque; wide starts eating anything that leans that way, which on a warm-lit subject is the skin. Past about 90 it is keying half the colour wheel.',
+      },
+      {
+        key: 'bKeyClip',
+        label: 'clip',
+        min: 0,
+        max: 0.3,
+        step: 0.005,
+        unit: '',
+        fine: true,
+        help: 'The saturation a sample must reach before the keyer will act on its hue at all. A demodulator handed an unsaturated sample reports an essentially arbitrary phase, so without this the greys and blacks key out at random. It is also why a keyer cannot hold a dark subject against a dark backing: below the clip the two are the same signal.',
+      },
+      {
+        key: 'bKeySoft',
+        label: 'gain (edge)',
+        min: 0,
+        max: 0.4,
+        step: 0.005,
+        unit: '',
+        help: 'How fast the keyer swings between keep and cut, in both hue and saturation at once — the "gain" knob on the front of the box. At 0 the comparator snaps and the matte is a hard stencil with the composite edge showing as steps; open it up and the subject feathers into A, taking the backing colour with it unless spill is up.',
+      },
+      {
+        key: 'bKeySpill',
+        label: 'spill kill',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "Cancels the backing colour still bouncing off the subject. You cannot lift green off a composite sample — luma and chroma are the same wire — so the box does what the hardware did and reinjects the backing's own subcarrier in antiphase to null the component lying along it. It nulls flat on the genlocked path, where B's carrier phase is known exactly; on the dirty path B's carrier is running away, so the cancellation is always a little late and leaves a residue that breathes with the slip.",
+      },
+      {
+        key: 'bKeyDelayUs',
+        label: 'key delay',
+        min: -1.5,
+        max: 1.5,
+        step: 0.01,
+        unit: 'us',
+        fine: true,
+        help: 'Where the keyer looks, against where the picture it is gating came from — the registration trim, because the key path and the video path are different lengths of circuit. Off zero the matte lies beside the subject instead of over it: one edge keeps a rim of backing colour, the other eats a rim of subject.',
+      },
+      {
+        key: 'bKeyFill',
+        label: 'fill',
+        min: 0,
+        max: 2,
+        step: 1,
+        unit: '',
+        choices: ['program A', 'matte', 'loop bus'],
+        help: "What shows through the hole the key cut — the connector on the back of a real keyer. Program A is the other input. Matte is the box's own generator, a flat colour encoded on the house carrier, so it dot-crawls and demodulates like any other colour rather than being an RGB value pasted on the output. Loop bus patches the mixer's own last frame into the fill, so the feedback only regenerates inside the keyed shape and grows in the silhouette of whatever was the backing colour. Genlocked path only: a fill is what sits behind the foreground, and only a crossfade has a behind — on the dirty sum both signals are on the wire at once, so there the key just gates B and A is always there.",
+      },
+      {
+        key: 'bKeyMatteY',
+        label: 'matte level',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        fine: true,
+        help: 'How bright the matte generator sits, black to peak white. This is the luma of a real encoded line, so pushing it to the top with saturation up puts the sum past 100 IRE and whatever is downstream — the AGC, the tape, the beam limiter — reacts to an over-level signal.',
+      },
+      {
+        key: 'bKeyMatteHueDeg',
+        label: 'matte hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        unit: 'deg',
+        fine: true,
+        help: 'The matte colour, as a phase on the subcarrier — the same wheel the backing hue above is read off. Setting it near the backing hue is the self-defeating case worth knowing about: the fill lands inside the acceptance wedge, so anything that keys the matte away keys it again next generation through a loop.',
+      },
+      {
+        key: 'bKeyMatteSat',
+        label: 'matte saturation',
+        min: 0,
+        max: 0.6,
+        step: 0.01,
+        unit: '',
+        fine: true,
+        help: 'How much chroma the matte generator puts on the carrier. At 0 it is a flat grey field with no subcarrier at all, which is the honest way to get a black or white fill; opened up it approaches the amplitude of a fully saturated primary.',
+      },
+    ],
+  },
   {
     // The Tape stage used to be one 22-control group called 'Tape / Channel'
     // plus a spray of two- and four-row ones, which is the worst of both: the
@@ -2344,6 +2565,24 @@ export const GROUPS: Group[] = [
     place: 'Screen',
     sliders: [
       {
+        key: 'strobeHz',
+        label: 'blanking strobe',
+        min: 0,
+        max: 20,
+        step: 0.1,
+        unit: 'Hz',
+        help: 'Holds the beam-blanking gate on, so the guns are cut for most of each cycle and let through in flashes. It is not a strobe drawn over the picture: the gate sits one line above the phosphor, so the light already on the glass keeps decaying through the dark — set persistence long and the picture fades between flashes instead of cutting to black, cooling toward green as it goes. Everything downstream with memory sees the dark frames too, so the beam limiter opens up and surges on the first field back, and a feedback loop pumps at the strobe rate. Lock it to the beat with ♩.',
+      },
+      {
+        key: 'strobeMs',
+        label: 'flash length',
+        min: 1,
+        max: 200,
+        step: 1,
+        unit: 'ms',
+        help: 'How long the beam is let through each cycle. An absolute length rather than a share of the cycle, so speeding the strobe up does not shorten the flash with it — how hard the hit reads stays where you put it. Under one frame it is one frame, since a flash the display never samples is a picture that simply went dark.',
+      },
+      {
         key: 'scanBeam',
         label: 'beam profile',
         min: 0,
@@ -2715,6 +2954,28 @@ const pipKeyed: SliderNeed = {
   fix: 0.6,
   hint: 'luma key nonzero',
 }
+const keyed: SliderNeed = {
+  key: 'bKey',
+  ok: nonzero,
+  fix: 1,
+  hint: 'the chroma key nonzero',
+}
+// The matte generator's three trims only address anything while the fill
+// selector is actually pointed at it.
+const matteFill: SliderNeed = {
+  key: 'bKeyFill',
+  ok: (v: number) => v > 0.5 && v < 1.5,
+  fix: 1,
+  hint: 'the fill set to "matte"',
+}
+// The combiner has to be off "osc A alone" before the second oscillator is in
+// circuit at all — patched to nothing, its frequency is a knob wired nowhere.
+const combined: SliderNeed = {
+  key: 'synthMix',
+  ok: above0,
+  fix: 2,
+  hint: 'a combiner other than "osc A"',
+}
 // present.wgsl discards the lens centre outright below 1× (`select(vec2f(0.5),
 // …, zoom > 1.0)`) — pulled back the whole picture is in view, so there is
 // nothing to aim. Enough magnification to see the structure, not so much that
@@ -2810,6 +3071,42 @@ export const NEEDS: Partial<Record<ControlKey, SliderNeed>> = {
   pipKey: pip,
   pipKeyLevel: pipKeyed,
   pipKeySoft: pipKeyed,
+  bKeyHueDeg: keyed,
+  bKeyAcceptDeg: keyed,
+  bKeyClip: keyed,
+  bKeySoft: keyed,
+  bKeySpill: keyed,
+  bKeyDelayUs: keyed,
+  // Genlocked as well as keyed: on the dirty sum there is no layer behind the
+  // foreground for a fill to be, so the selector addresses nothing there.
+  bKeyFill: {
+    key: 'bGenlock',
+    ok: above0,
+    fix: 1,
+    hint: 'genlock on "clean dissolve"',
+  },
+  bKeyMatteY: matteFill,
+  bKeyMatteHueDeg: matteFill,
+  bKeyMatteSat: matteFill,
+  synthFm: {
+    key: 'synthOver',
+    ok: above0,
+    fix: 1,
+    hint: 'the synth over the picture',
+  },
+  strobeMs: {
+    key: 'strobeHz',
+    ok: above0,
+    fix: 4,
+    hint: 'a strobe rate above 0',
+  },
+  synthBHz: combined,
+  synthHueDeg: {
+    key: 'synthColor',
+    ok: above0,
+    fix: 1,
+    hint: 'the colorizer above 0',
+  },
   dropoutLenUs: {
     key: 'dropoutRate',
     ok: above0,

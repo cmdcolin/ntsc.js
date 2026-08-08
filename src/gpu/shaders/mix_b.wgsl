@@ -20,6 +20,12 @@
 @group(0) @binding(2) var<storage, read> uvfB: array<vec2f>;
 @group(0) @binding(3) var<storage, read_write> comp: array<f32>;
 @group(0) @binding(4) var<storage, read> bComp: array<f32>;
+// Last frame's finished composite — the mixer loop's bus, the same buffer
+// fbComposite crossfades from further down the chain. Bound here so the keyer
+// can take its fill off it: patching the mixer's own output back into a keyer's
+// fill input is a wire someone would run, and what it buys is a loop that only
+// regenerates inside the keyed shape.
+@group(0) @binding(5) var<storage, read> loopBus: array<f32>;
 
 // B re-encoded on the house carrier: chroma from yuvB[bIdx] modulated onto the
 // A-locked subcarrier at output sample houseN (B's proc-amp hue trim only). This
@@ -31,6 +37,97 @@
 fn encodeBHouse(houseN: u32, bIdx: u32) -> f32 {
   let uv = uvfB[bIdx];
   return activeComposite(yuvB[bIdx].x, uv.x, uv.y, carrierRot(houseN, P.frame, P.bHue), P.bVidGain, P.bInv);
+}
+
+// A chroma keyer across the mixer: B's backing colour cut away so A shows
+// through it. What decides the look is where the keyer is standing. A real one
+// is a box on the bus, so it never sees the RGB the camera had — it slices the
+// chroma the encoder made, which is `uvfB`: B's U and V after the encoder's
+// bandlimit (encChromaMHz, 1.3 MHz by default). That filter has no vertical
+// term, so the key it cuts is soft over about four samples across and razor
+// sharp down — the lopsided, faintly stepped edge that every composite key has
+// and no RGB keyer can produce. Nothing draws it, and narrowing the encoder's
+// chroma widens it, because it is the same filter doing both jobs.
+//
+// It follows that the keyer is only as steady as B's colour is. On the dirty
+// path B's subcarrier is detuned, so its chroma phase walks per line and per
+// frame: the backing drifts out of the acceptance wedge and back, and the key
+// breathes and tears line-wise instead of holding. That is what a keyer fed a
+// non-genlocked source did, and it is why they were genlocked.
+struct KeySlice {
+  // 1 where B is kept, 0 where the backing has been cut away.
+  gate: f32,
+  // How much of this sample's chroma points at the backing colour, for the
+  // suppressor below — the spill the keyer decided was not enough to cut.
+  along: f32,
+}
+
+fn chromaKey(idx: u32) -> KeySlice {
+  let uv = uvfB[idx];
+  let kdir = vec2f(cos(P.bKeyHue), sin(P.bKeyHue));
+  let soft = max(P.bKeySoft, 1e-4);
+  // Below the clip there is no hue to slice: a demodulator handed an
+  // unsaturated sample reports an essentially arbitrary phase, so greys, blacks
+  // and the backing's own shadows stay opaque however close their angle lands
+  // to the key. This is the "clip" knob, and it is why a keyer cannot hold a
+  // dark subject against a dark backing.
+  let satg = smoothstep(P.bKeyClip, P.bKeyClip + soft, length(uv));
+  // angle to the backing, wrapped into (-PI, PI]
+  var w = atan2(uv.y, uv.x) - P.bKeyHue;
+  w = w - 2.0 * PI * round(w / (2.0 * PI));
+  let ang = 1.0 - smoothstep(P.bKeyAccept - soft * PI, P.bKeyAccept + soft * PI, abs(w));
+  var g = 1.0 - ang * satg;
+  if (P.bKey < 0.0) {
+    // The invert button: keep the backing and cut the subject out of it.
+    g = 1.0 - g;
+  }
+  return KeySlice(mix(1.0, g, min(abs(P.bKey), 1.0)), max(dot(uv, kdir), 0.0) * satg);
+}
+
+// Where the keyer looks, against where the fill it is gating comes from. A real
+// keyer trims this because the key path and the video path are different
+// lengths of circuit, and a mis-set one lays the key beside the subject instead
+// of over it: one edge keeps a rim of backing colour and the other eats a rim
+// of subject.
+fn keyIdx(i: i32) -> u32 {
+  return clampIdx(i + i32(round(P.bKeyDelay)));
+}
+
+// Spill suppression, as the hardware did it: a chroma canceller. You cannot
+// lift the green off a composite sample — luma and chroma are the same wire —
+// so the box reinjects the backing's own subcarrier in antiphase and nulls the
+// component lying along the phase the keyer already found. Everything it has
+// guessed wrong about that phase survives, which is why a source whose carrier
+// is slipping keeps a residue that breathes with the slip rather than
+// cancelling flat.
+fn suppress(along: f32, n: u32, delta: f32) -> f32 {
+  let kdir = vec2f(cos(P.bKeyHue), sin(P.bKeyHue));
+  return VIDEO_RANGE * P.bKeySpill * along * dot(kdir, carrierRot(n, P.frame, delta)) * P.bVidGain;
+}
+
+// The keyer's fill input: what shows through the hole the key cut. A real keyer
+// has this as a connector on the back, and only two of the three things worth
+// patching into it are other pictures — the third is the box's own matte
+// generator, a flat field on the house carrier.
+//
+// Genlocked path only, and that is mechanical rather than a shortcut: a fill is
+// what sits *behind* the foreground, which needs a crossfade to have a behind.
+// The dirty sum has no layers — both signals are on the wire at once — so there
+// the key gates B's contribution and the program is simply always present.
+fn keyFill(program: f32, n: u32) -> f32 {
+  if (P.bKeyFill > 1.5) {
+    return loopBus[n];
+  }
+  if (P.bKeyFill > 0.5) {
+    // Matte generator: flat luma plus quadrature chroma on the house carrier, so
+    // the matte is a real encoded colour that dot-crawls and gets demodulated
+    // like any other — not an RGB value pasted onto the output.
+    let sc = carrier(n, P.frame);
+    let u = P.bKeyMatteSat * cos(P.bKeyMatteHue);
+    let v = P.bKeyMatteSat * sin(P.bKeyMatteHue);
+    return IRE_BLACK + VIDEO_RANGE * (P.bKeyMatteY + u * sc.x + v * sc.y);
+  }
+  return program;
 }
 
 @compute @workgroup_size(64, 1, 1)
@@ -80,7 +177,20 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     // faults are up), so a scrambled or ringing B survives the clean dissolve
     // — the TBC implied by genlock strips timing damage, not amplitude damage.
     if (inActive) {
-      comp[n] = mix(a, bComp[n], clamp(gate * P.bGain, 0.0, 1.0));
+      var g = gate;
+      var fill = bComp[n];
+      if (P.bKey != 0.0) {
+        // Genlocked, B sits on the house raster, so the keyer reads its chroma
+        // at the output sample and B's carrier carries only the proc-amp hue
+        // trim — the one path where the suppressor knows the backing's phase
+        // exactly and can null it flat.
+        let k = chromaKey(keyIdx(i32(n)));
+        g = g * k.gate;
+        if (P.bKeySpill > 0.0) {
+          fill = fill - suppress(k.along, n, P.bHue);
+        }
+      }
+      comp[n] = mix(keyFill(a, n), fill, clamp(g * P.bGain, 0.0, 1.0));
     }
   } else {
     // Dirty sum: B free-runs. Its raster position for this output sample is the
@@ -103,9 +213,28 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     // amplitude flat where linear interpolation would pump it (see prelude).
     let b = catmull(bComp[clampIdx(np - 1)], bComp[clampIdx(np)], bComp[clampIdx(np + 1)], bComp[clampIdx(np + 2)], frac);
 
+    var g = gate;
+    var fill = b;
+    if (P.bKey != 0.0) {
+      // The keyer slices B's chroma at B's OWN raster position, not at the
+      // output sample — the same index the fill was resampled from. That is
+      // what makes the key travel with B's picture through the slip and the
+      // roll, instead of the subject rolling out from under a hole parked on
+      // the output. (The three domains, in one line: this displacement is in
+      // the signal, so the key moves with it.)
+      let k = chromaKey(keyIdx(np));
+      g = g * k.gate;
+      if (P.bKeySpill > 0.0) {
+        // B's carrier here is the one encode_composite_b baked in — its detune
+        // walked per line. The fractional slip rotates it further between
+        // samples, which the suppressor has no way to follow, so the null is
+        // imperfect by exactly the amount B is running away.
+        fill = fill - suppress(k.along, clampIdx(np), P.bHue + P.bPhase0 + P.bPhaseLine * f32(srow));
+      }
+    }
     // sum at the composite level; A rides its own bus fader (signed, so a
     // negative aGain inverts A into a difference key), ring mod multiplies
-    comp[n] = P.aGain * a + gate * (P.bGain * b + P.bRing * a * b * 0.01);
+    comp[n] = P.aGain * a + g * (P.bGain * fill + P.bRing * a * fill * 0.01);
   }
 
   // Picture-in-picture: source B squeezed into a positionable window and keyed

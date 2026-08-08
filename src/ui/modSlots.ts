@@ -81,6 +81,10 @@ export const MOD_SOURCES: { value: ModSource; label: string }[] = [
   { value: 'lorenz', label: 'lorenz chaos' },
   { value: 'level', label: 'audio level' },
   { value: 'hit', label: 'audio hit' },
+  // The one you play. Everything above answers "what is this knob doing"
+  // continuously; this answers "what did you just do", which is why it is last —
+  // it is a different kind of thing from the seven drifts above it.
+  { value: 'trig', label: 'one-shot (fire)' },
 ]
 
 export const RATE_MIN = 0.02

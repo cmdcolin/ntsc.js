@@ -6,10 +6,15 @@
 // directly — which meant a second curve would have been a third copy of the
 // same branch. One table instead, so adding a curve is adding a row.
 
-import { persistToTravel, persistToValue } from './curve'
+import {
+  persistToTravel,
+  persistToValue,
+  synthToTravel,
+  synthToValue,
+} from './curve'
 import { zoomAtTravel, zoomTravel } from './lens'
 
-export type CurveName = 'magnifier' | 'persistence'
+export type CurveName = 'magnifier' | 'persistence' | 'synth'
 
 // The span a curved control is read through. Structural rather than SliderDef
 // itself: MIDI binds against a subset, and this module sits below the schema.
@@ -25,6 +30,7 @@ const CURVES: Record<
 > = {
   magnifier: { toValue: zoomAtTravel, toTravel: zoomTravel },
   persistence: { toValue: persistToValue, toTravel: persistToTravel },
+  synth: { toValue: synthToValue, toTravel: synthToTravel },
 }
 
 // Value → 0..1 track position. Uncurved controls are their own position.

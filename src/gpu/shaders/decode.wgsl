@@ -377,6 +377,15 @@ fn main(
     // phosphor below still owes whatever it was holding there
     outc = vec3f(0.0);
   }
+  // The blanking gate held on (signal/strobe.ts). Same statement as the retrace
+  // above and for the same reason — a cut gun emits nothing — but held over
+  // whole frames rather than a few lines. It sits here, one line above the
+  // persistence layer, on purpose: the phosphor below is handed a black frame
+  // and goes on giving back the light it already holds, so the picture fades
+  // through the dark at whatever rate the tube is set to instead of cutting to
+  // black. Everything downstream with memory — the three loops, the loop bin,
+  // the beam limiter's servo — sees the dark frames too and reacts to them.
+  outc = outc * (1.0 - P.beamBlank);
   // Phosphor persistence: the screen still holds last field's decaying light.
   // Skewed rates make blue die first and green linger, so trails cool toward
   // green as they fade. Lives on outTex (not in present) so the camera-feedback

@@ -23,6 +23,7 @@ import {
   SOUND_STAGE,
   SOURCE_B_STAGE,
   stageGroups,
+  SYNTH_GROUP,
   TAPE_LOOP_GROUP,
   VIEW_GROUPS,
   VIEW_KEYS,
@@ -125,10 +126,14 @@ describe('control tables', () => {
   // the pairing quietly — nothing renders wrong, the two stages just stop
   // mirroring each other.
   it('gives A and B the same three groups', () => {
+    // The two generator groups are the exception, and they are an exception in
+    // the same way: neither belongs to input A, they describe whichever slot is
+    // showing a generated source. Named rather than pattern-matched so a third
+    // generator has to be admitted here deliberately.
     const shape = (name: string) =>
       stageGroups(name)
         .map(g => g.name)
-        .filter(n => !n.startsWith('Noise source'))
+        .filter(n => !n.startsWith('Noise source') && n !== SYNTH_GROUP)
     expect(stageGroups('Source A').length).toBeGreaterThan(0)
     expect(shape('Source A')).toEqual([
       'Signal (source A)',

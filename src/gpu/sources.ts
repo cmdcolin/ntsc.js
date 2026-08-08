@@ -75,7 +75,8 @@ export class Sources {
   // Oversized *images* stage through this to get capped. Sized to the capped
   // source, not the raster, so A keeps its own aspect. Video never touches it.
   private stageA: OffscreenCanvas | null = null
-  // 0 = use the texture; 1 = TV static; 2 = VHS static. Generated in compose.
+  // 0 = use the texture; 1 = TV static; 2 = VHS static; 3 = video synth.
+  // Generated in compose, which is why none of them needs a texture at all.
   private noiseA = 0
 
   // Slot B: always raster-sized, so its texture and bind groups are fixed.
@@ -221,8 +222,9 @@ export class Sources {
     }
   }
 
-  // Switch slot A to a GPU-generated noise field (1 TV static, 2 VHS static);
-  // 0 restores the texture path. Any real image/video source clears this.
+  // Switch slot A to a GPU-generated source (1 TV static, 2 VHS static, 3 the
+  // video synth); 0 restores the texture path. Any real image/video source
+  // clears this.
   setNoiseSource(kind: number): void {
     this.noiseA = kind
   }

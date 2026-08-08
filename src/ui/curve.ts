@@ -38,3 +38,23 @@ export const persistToTravel = (v: number) =>
   v <= 0
     ? 0
     : Math.log(1 - Math.min(v, 1 - PERSIST_FLOOR)) / Math.log(PERSIST_FLOOR)
+
+// The video synth's oscillators are the third shape, and the most extreme: the
+// useful range runs from field rate to past the subcarrier, five and a half
+// decades, and every decade of it is a different instrument. A linear track
+// would put the entire span from a vertical gradient to standing bars — 60 Hz
+// to 15.7 kHz, which is most of what anyone patches — inside the first two
+// thousandths of the travel. Geometric spacing gives each decade the same reach,
+// so hunting the beat either side of line rate is a normal-sized gesture.
+const SYNTH_FLOOR = 10 // Hz; below this one cycle does not fit in a frame
+const SYNTH_TOP = 8e6
+
+// t = 0 is the oscillator switched off, not merely very slow — a stopped
+// oscillator is a flat field, which is a thing you want to be able to select.
+export const synthToValue = (t: number) =>
+  t <= 0 ? 0 : SYNTH_FLOOR * (SYNTH_TOP / SYNTH_FLOOR) ** t
+
+export const synthToTravel = (v: number) =>
+  v <= SYNTH_FLOOR
+    ? 0
+    : Math.log(v / SYNTH_FLOOR) / Math.log(SYNTH_TOP / SYNTH_FLOOR)
