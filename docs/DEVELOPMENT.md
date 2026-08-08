@@ -89,7 +89,14 @@ find:
 - **Serve from a `git worktree add --detach` copy** (or a production build) when
   anything else might be editing the tree. An HMR reload mid-run resets the
   engine under the frame counter, and a shot then captures someone else's
-  half-finished change.
+  half-finished change. Getting one serving takes two workarounds: symlink
+  `node_modules` in and run `node_modules/.bin/vite` directly, because
+  `pnpm dev` sees the symlink as a modules dir to purge and aborts with
+  `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`; and point `cacheDir` somewhere
+  of its own from a small wrapper config, or the worktree and the main checkout
+  share one `node_modules/.vite` through that symlink and re-optimize each
+  other's deps out from under a running server. Set the port there too — the
+  default 5199 is usually already someone's.
 - **A `file://` image taints the canvas it is drawn on**, so frames are passed
   into the page as `data:` URIs.
 - **Puppeteer writes its throwaway Firefox profile into `$TMPDIR`**, ~85 MB a
