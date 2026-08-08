@@ -247,9 +247,9 @@ export const DEFAULT_CONTROLS = {
   // display
   scanBeam: 0.3,
   scanBloom: 0, // beam-spot growth with beam current: bright lines fatten
-  phosphor: 0, // persistence: green retention per frame; red/blue decay faster
+  phosphor: 0, // persistence: green retention per field; red/blue decay faster
   phosphorMode: 0, // 0 sRGB, 1 P22/SMPTE-C, 2 NTSC-1953, 3 long-persistence green
-  phosphorSkew: 0.7, // R/B decay exponent skew vs green (0.7 = 1.7/1.0/2.4)
+  phosphorSkew: 0.7, // R/B decay *rate* skew vs green (0.7 = 1.7/1.0/2.4x)
   phosphorBleed: 0.15, // light scattering sideways in the layer: trails soften as they age
   crtSharp: 0,
   maskAmt: 0,
