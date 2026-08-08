@@ -15,13 +15,8 @@ import { smpteBars, sweep } from '../sources/pattern'
 import { TELETYPE_DEFAULT } from '../sources/teletype'
 import { ytId } from '../sources/youtube'
 import { backingStoreSize } from './canvasSize'
-import {
-  canPickHandle,
-  clearStash,
-  pickHandle,
-  readStash,
-  stashFile,
-} from './fileStash'
+import { clearStash, readStash, stashClip, stashFile } from './fileStash'
+import { canPickHandle, pickHandle } from './fsAccess'
 import { randomPresetMix, rollControls } from './presets'
 import { RebuildPolicy } from './rebuildPolicy'
 import { printCard } from './teletypeSlot'
@@ -40,7 +35,8 @@ import type { FrozenKind } from '../gpu/renderloop'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
 import type { Fatal } from './FatalScreen'
-import type { PickedFileHandle, StashSlot, Stashed } from './fileStash'
+import type { StashSlot, Stashed } from './fileStash'
+import type { PickedFileHandle } from './fsAccess'
 import type { SessionParams } from './urlParams'
 import type { SlotKind, VideoSlot } from './videoSlot'
 import type { RefObject } from 'react'
@@ -86,6 +82,13 @@ const fetchYouTube = (url: string): Promise<Blob> =>
 
 const reason = (e: unknown): string =>
   e instanceof Error ? e.message : String(e)
+
+// Which picker entry a restored stash lands on — the file dialog for a one-off
+// pick, the shelf for a clip that came off it. The distinction is not cosmetic:
+// the caption under the picker reopens whatever the mode names, so a shelf clip
+// restored as `file` would offer the OS dialog where the shelf belongs.
+const stashMode = (stashed: Stashed): 'file' | 'library' =>
+  stashed.kind === 'clip' ? 'library' : 'file'
 
 // Backing out of a browser permission surface — the screen picker's Cancel, a
 // dismissed camera prompt. The user made a choice and it was "no", so there is
@@ -301,6 +304,10 @@ export function useEngine() {
   // say what the card reads, and the card survives a shared link. The ref is
   // the copy the async paths read, exactly like vaporRef below.
   const [askTeletype, setAskTeletype] = useState<'a' | 'b' | null>(null)
+  // Which slot the clip shelf was opened for, or null when it is closed. Same
+  // deferral as the three above: picking `library` opens the dialog and touches
+  // nothing else, so backing out of it leaves the current source playing.
+  const [askLibrary, setAskLibrary] = useState<StashSlot | null>(null)
   const [cardA, setCardA] = useState(TELETYPE_DEFAULT)
   const [cardB, setCardB] = useState(TELETYPE_DEFAULT)
   const cardRef = useRef({ a: TELETYPE_DEFAULT, b: TELETYPE_DEFAULT })
@@ -600,19 +607,49 @@ export function useEngine() {
   }
 
   // A file becomes the slot's source: the same steps whether it was just
-  // picked, reopened from last session, or re-granted by a click.
-  const adoptFileA = (file: File) => {
-    stopVideo()
-    setSourceMode('file')
-    setSourceName(file.name)
-    showFile(slotA, file)
+  // picked, reopened from last session, taken off the shelf, or re-granted by a
+  // click. `mode` is which picker entry the slot lands on, and a clip off the
+  // library has to land on the library — the caption under the picker reopens
+  // whatever the mode names, and a shelf clip that read as `file` would offer
+  // the OS dialog where the shelf belongs.
+  const adoptInto = (key: StashSlot, file: File, mode: 'file' | 'library') => {
+    // Whatever last session parked for this slot has been answered, whether by
+    // the click it was waiting for or by the user going somewhere else
+    // entirely. Left set, its "↺ reopen last session's file" caption sits under
+    // a slot that is already playing something, offering to replace it.
+    if (key === 'a') setPendingA(null)
+    else setPendingB(null)
+    if (key === 'a') {
+      stopVideo()
+      setSourceMode(mode)
+      setSourceName(file.name)
+      showFile(slotA, file)
+    } else {
+      stopVideoB()
+      setSourceBMode(mode)
+      setSourceBName(file.name)
+      engineRef.current?.setSourceBEnabled(true)
+      showFile(slotB, file)
+    }
   }
-  const adoptFileB = (file: File) => {
-    stopVideoB()
-    setSourceBMode('file')
-    setSourceBName(file.name)
-    engineRef.current?.setSourceBEnabled(true)
-    showFile(slotB, file)
+  const adoptFileA = (file: File) => adoptInto('a', file, 'file')
+  const adoptFileB = (file: File) => adoptInto('b', file, 'file')
+
+  // A clip off the shelf, into whichever deck the dialog was opened for. The
+  // stash line is the only thing kept beyond the session — the library already
+  // owns the handle and the grant, so remembering the *entry* is what lets the
+  // slot come back on this clip without a second copy of it anywhere.
+  const loadClip = (
+    key: StashSlot,
+    file: File,
+    clip: { id: string; name: string },
+  ) => {
+    setError('')
+    adoptInto(key, file, 'library')
+    stashClip(key, clip).catch((e: unknown) =>
+      console.log('DEBUG stash failed', reason(e)),
+    )
+    setAskLibrary(null)
   }
 
   // Keep / drop what lets a slot reopen its file after a reload (fileStash.ts).
@@ -641,20 +678,19 @@ export function useEngine() {
   // What the slot held last session, put back. A copied stash opens straight
   // away; a disk handle whose read permission died with the page needs a click,
   // so it is parked in `pending` for the caption to offer instead.
-  const reopenStashed = (
-    key: StashSlot,
-    park: (stashed: Stashed) => void,
-    onFile: (file: File) => void,
-  ) => {
+  const reopenStashed = (key: StashSlot, park: (stashed: Stashed) => void) => {
     readStash(key).then(
       stashed => {
         if (stashed !== null) {
           if (stashed.needsGesture) park(stashed)
           else
-            stashed.open().then(onFile, (e: unknown) => {
-              console.log('DEBUG stash reopen failed', reason(e))
-              dropFile(key)
-            })
+            stashed.open().then(
+              file => adoptInto(key, file, stashMode(stashed)),
+              (e: unknown) => {
+                console.log('DEBUG stash reopen failed', reason(e))
+                dropFile(key)
+              },
+            )
         }
       },
       (e: unknown) => console.log('DEBUG stash read failed', reason(e)),
@@ -664,18 +700,12 @@ export function useEngine() {
   // The click the parked handle was waiting for. requestPermission runs on the
   // gesture's transient activation, which is why `open` is called with nothing
   // awaited in front of it.
-  const reopenPending = (
-    key: StashSlot,
-    pending: Stashed | null,
-    onFile: (file: File) => void,
-  ) => {
+  const reopenPending = (key: StashSlot, pending: Stashed | null) => {
     if (pending !== null)
       pending.open().then(
-        file => {
-          if (key === 'a') setPendingA(null)
-          else setPendingB(null)
-          onFile(file)
-        },
+        // `adoptInto` is what clears the park, since every way out of it ends
+        // there — the grant landing, or another source arriving first.
+        file => adoptInto(key, file, stashMode(pending)),
         (e: unknown) => setError(`reopen ${pending.name}: ${reason(e)}`),
       )
   }
@@ -774,6 +804,10 @@ export function useEngine() {
       // cancelling the OS dialog then leaves the current source untouched.
       if (mode === 'file') {
         pickFile('a', fileInputRef, adoptFileA)
+      } else if (mode === 'library') {
+        // Same deferral as the dialogs below: the shelf is a list until one of
+        // its rows is clicked, and closing it unpicked leaves A as it was.
+        setAskLibrary('a')
       } else if (mode === 'webcam') {
         // Defer stopVideo/setSourceMode until the user confirms in the dialog:
         // cancelling then leaves the current source (and its permission) alone.
@@ -901,8 +935,8 @@ export function useEngine() {
     }
   }
 
-  const reopenFileA = () => reopenPending('a', pendingA, adoptFileA)
-  const reopenFileB = () => reopenPending('b', pendingB, adoptFileB)
+  const reopenFileA = () => reopenPending('a', pendingA)
+  const reopenFileB = () => reopenPending('b', pendingB)
 
   // Both slots feed the clip through the same blob-backed <video> path as a
   // picked file; only the mode bookkeeping differs, and B's enable flag.
@@ -939,6 +973,8 @@ export function useEngine() {
       setError('') // entry for every B change (incl. file dialog); clear once
       if (mode === 'file') {
         pickFile('b', fileInputBRef, adoptFileB)
+      } else if (mode === 'library') {
+        setAskLibrary('b')
       } else if (mode === 'youtube') {
         setAskYouTube('b')
       } else if (mode === 'teletype') {
@@ -1050,9 +1086,9 @@ export function useEngine() {
     const linkNamesB =
       params.srcb !== null || params.iurlb !== null || params.ytb !== null
     if (linkNamesA) dropFile('a')
-    else reopenStashed('a', setPendingA, adoptFileA)
+    else reopenStashed('a', setPendingA)
     if (linkNamesB) dropFile('b')
-    else reopenStashed('b', setPendingB, adoptFileB)
+    else reopenStashed('b', setPendingB)
     if (params.debug) console.log('DEBUG engine ready')
   }
 
@@ -1462,6 +1498,13 @@ export function useEngine() {
     retypeTeletypeB,
     askTeletype,
     setAskTeletype,
+    // The clip shelf: which slot it was opened for, and the one way in and out
+    // of it. `loadClip` is what the dialog's rows call — everything else about
+    // the library lives in useClipLibrary, which the engine has no business
+    // knowing about (the File that comes back is the whole of the crossing).
+    askLibrary,
+    setAskLibrary,
+    loadClip,
     teletypeA: cardA,
     teletypeB: cardB,
     videoA,

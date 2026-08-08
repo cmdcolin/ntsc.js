@@ -42,9 +42,20 @@ export const VAPORWAVE_SPEED = 0.66
 // a gesture the loader does not have, and which window was shared is the
 // browser's business, not the app's. Webcam still round-trips — ?src=webcam
 // names a device class, and its dialog supplies the gesture on the far end.
+//
+// `library` is out on the same grounds as `file`, one step further along: the
+// shelf is this browser's, so an id from it would name nothing in the reader's
+// — and a link that opened someone else's app on *their* clip 14 would be worse
+// than one that opened on bars. What the slot was on is remembered locally
+// instead (fileStash's `lib` kind), which is where that fact belongs.
 const LINKABLE = <T extends string>(modes: readonly T[]) =>
   modes.filter(
-    m => m !== 'bars' && m !== 'file' && m !== 'youtube' && m !== 'screen',
+    m =>
+      m !== 'bars' &&
+      m !== 'file' &&
+      m !== 'library' &&
+      m !== 'youtube' &&
+      m !== 'screen',
   )
 const SRC_MODES = LINKABLE(SOURCE_MODES)
 const SRCB_MODES = LINKABLE(SOURCE_B_MODES)

@@ -13,6 +13,8 @@ import { DEFAULT_CONTROLS, atRest } from './controls'
 import { AdvancedDialog } from './ui/AdvancedDialog'
 import { AppMenu, ShowMenuButton } from './ui/AppMenu'
 import { AudioHint, AudioInput } from './ui/AudioInput'
+import { ClipLibraryDialog } from './ui/ClipLibraryDialog'
+import { ClipPicker } from './ui/ClipPicker'
 import { CommandPalette } from './ui/CommandPalette'
 import { ControlRows } from './ui/ControlGroup'
 import {
@@ -76,6 +78,7 @@ import ui from './ui/ui.module.css'
 import { parseSessionParams } from './ui/urlParams'
 import { useAudio } from './ui/useAudio'
 import { useCapture } from './ui/useCapture'
+import { useClipLibrary } from './ui/useClipLibrary'
 import { useClockSync } from './ui/useClockSync'
 import { useEngine } from './ui/useEngine'
 import { useFavorites } from './ui/useFavorites'
@@ -320,6 +323,23 @@ export function App() {
   const activePreset = matchPreset(controls)
   const lookName = activePreset ? activePreset.name : mix.lastPreset
   const capture = useCapture(eng.canvasRef, lookName ?? 'edit')
+
+  // The clip shelf. It hangs off the app rather than off useEngine because the
+  // engine's only stake in it is the File a clicked row hands back — everything
+  // else is a list, a picker and a permission, and none of that is the signal
+  // path's business.
+  //
+  // The gate is "is the shelf reachable from the panel", not "is the dialog
+  // open": a slot sitting on `library` carries the caption menu, and that menu
+  // needs to know what can be opened before it is clicked, since resolving a
+  // grant is an await and the click's transient activation does not survive
+  // one. Nothing here prompts — `hasRead` only asks what the answer already is.
+  const clips = useClipLibrary(
+    eng.askLibrary !== null ||
+      eng.sourceMode === 'library' ||
+      eng.sourceBMode === 'library',
+    eng.loadClip,
+  )
 
   // `copied` (the flash on the old copy-link button) went with that button; the
   // ⌘K entry below is the only caller left, and a palette row closes on run.
@@ -1021,6 +1041,28 @@ export function App() {
           pendingFileB={eng.pendingFileB}
           onReopenFileA={() => eng.reopenFileA()}
           onReopenFileB={() => eng.reopenFileB()}
+          clipPickerA={
+            <ClipPicker
+              slot="a"
+              name={eng.sourceName}
+              lib={clips.lib}
+              access={clips.access}
+              note={clips.note}
+              onPlay={clips.play}
+              onOpenShelf={() => eng.setAskLibrary('a')}
+            />
+          }
+          clipPickerB={
+            <ClipPicker
+              slot="b"
+              name={eng.sourceBName}
+              lib={clips.lib}
+              access={clips.access}
+              note={clips.note}
+              onPlay={clips.play}
+              onOpenShelf={() => eng.setAskLibrary('b')}
+            />
+          }
           timeA={eng.timeA}
           durationA={eng.durationA}
           timeB={eng.timeB}
@@ -1245,6 +1287,25 @@ export function App() {
             eng.setAskYouTube(null)
           }}
           onClose={() => eng.setAskYouTube(null)}
+        />
+      ) : null}
+      {eng.askLibrary !== null ? (
+        <ClipLibraryDialog
+          slot={eng.askLibrary}
+          lib={clips.lib}
+          access={clips.access}
+          note={clips.note}
+          canRemember={clips.canRemember}
+          filesRef={clips.filesRef}
+          folderRef={clips.folderRef}
+          onAddFiles={clips.addFiles}
+          onAddFolder={clips.addFolder}
+          onAdopt={clips.adopt}
+          onRescan={clips.rescan}
+          onPlay={clips.play}
+          onForgetClip={clips.forgetClip}
+          onForgetFolder={clips.forgetFolder}
+          onClose={() => eng.setAskLibrary(null)}
         />
       ) : null}
       {eng.askTeletype !== null ? (

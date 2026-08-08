@@ -87,7 +87,17 @@ await Promise.all(
         // Parsed rather than preset-stripped: @babel/preset-typescript is not a
         // dependency, and the compiler only needs to see the AST — nothing here
         // uses the emitted code.
-        parserOpts: { plugins: ['typescript', 'jsx'], sourceType: 'module' },
+        // JSX only for .tsx. Turning it on for a .ts file is not merely
+        // pointless — it changes how `<T>` parses, so a plain generic arrow
+        // (`const pick = <T>(xs: T[]) => …`, legal in a .ts and used in
+        // clipLibrary.ts) comes back as an unclosed tag and the whole file is
+        // reported as a bailout it never had.
+        parserOpts: {
+          plugins: file.endsWith('.tsx')
+            ? ['typescript', 'jsx']
+            : ['typescript'],
+          sourceType: 'module',
+        },
         plugins: [
           [compiler, { logger: { logEvent: (_f, e) => events.push(e) } }],
         ],

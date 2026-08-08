@@ -34,8 +34,10 @@ const B_OPTIONS = sourceOptions(B_MODES)
 // browser's picker, which is the only way back to a different window. Teletype
 // carries something the picker can't say too, but its words are editable, so
 // it gets a row of its own rather than a caption.
+// The clip shelf is the same shape: the option names the shelf, the caption
+// names what came off it, and clicking it reopens the shelf.
 const namedMode = (m: SourceMode | SourceBMode): boolean =>
-  m === 'file' || m === 'youtube' || m === 'screen'
+  m === 'file' || m === 'library' || m === 'youtube' || m === 'screen'
 
 // The header's reading of what is patched in, so the section can start folded.
 // Input is set once a session and then costs 141px of the sidebar's most
@@ -74,6 +76,9 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
   onTeletype: (text: string) => void
   pendingFile: string
   onReopenFile: () => void
+  // This slot's clip menu, built by the app because the shelf's state is the
+  // app's — the same arrangement `audioInput` below is passed in under.
+  clipPicker: ReactNode
   time: number
   duration: number
   onSeek: (time: number) => void
@@ -105,7 +110,13 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
           onOpenDialog={() => props.onSelect(props.mode)}
         />
       ) : null}
-      {namedMode(props.mode) ? (
+      {/* The shelf gets a caption that is also a menu, so changing clip does not
+          go through the dialog (ClipPicker.tsx). Everything else re-fires the
+          source handler, which is the only way back to a picker the <select>
+          cannot re-emit for. */}
+      {props.mode === 'library' ? (
+        props.clipPicker
+      ) : namedMode(props.mode) ? (
         <FileName
           name={props.name}
           onReopen={() => props.onSelect(props.mode)}
@@ -165,6 +176,10 @@ export function InputSection(props: {
   pendingFileB: string
   onReopenFileA: () => void
   onReopenFileB: () => void
+  // The clip menu per slot, shown in place of the caption while that slot is on
+  // the shelf.
+  clipPickerA: ReactNode
+  clipPickerB: ReactNode
   // Playhead per slot, for the seek bar under each picker. A duration of 0 is
   // "this source has no timeline" — a pattern, a still, a webcam — and the bar
   // stays off, the same gate the audio file's transport uses.
@@ -209,6 +224,7 @@ export function InputSection(props: {
           onTeletype={props.onTeletypeA}
           pendingFile={props.pendingFileA}
           onReopenFile={props.onReopenFileA}
+          clipPicker={props.clipPickerA}
           time={props.timeA}
           duration={props.durationA}
           onSeek={props.onSeekA}
@@ -239,6 +255,7 @@ export function InputSection(props: {
           onTeletype={props.onTeletypeB}
           pendingFile={props.pendingFileB}
           onReopenFile={props.onReopenFileB}
+          clipPicker={props.clipPickerB}
           time={props.timeB}
           duration={props.durationB}
           onSeek={props.onSeekB}

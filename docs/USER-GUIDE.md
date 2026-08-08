@@ -110,7 +110,18 @@ can still hold a colour.
 
 **A** is the main source: bars, sweep, snow, the bundled photo, a file of your
 own, or a webcam — which is also how an RCA capture dongle gets real gear in
-here. **Video synth** is the one generated source that makes a picture instead
+here. **Clips…** is a shelf of your own footage: files you have opened before,
+kept as a list you click through mid-set instead of going back out to the OS
+dialog every time. Add a whole folder and everything directly inside it lands on
+the shelf at once, and every row plays into either deck, so a two-source set
+never has to reopen it. Once a clip is loaded the caption under the picker is
+the shelf in miniature — click it for the rest of the list, with a filter once
+there are enough names to need one. What a reload costs depends on the browser:
+Chrome and Edge can hold a folder open, so one permission covers the lot and the
+whole shelf comes back after a single prompt; Firefox and Safari cannot hold a
+file open past a reload at all, so the list survives and the footage does not —
+re-pick the same folder once and every row reconnects by name, nothing added
+twice. **Video synth** is the one generated source that makes a picture instead
 of a failure to have one: two oscillators, a combiner and a colorizer, with no
 input at all. Its one real knob is frequency, because what a video synth draws
 is where it sits against the raster — put an oscillator on an exact multiple of

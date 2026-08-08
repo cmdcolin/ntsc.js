@@ -1,0 +1,216 @@
+/* The clip shelf's dialog. It borrows the saved-look popover's row shape on
+   purpose — a name that fills the row, small quiet verbs after it — because it
+   is the same gesture twice: read a list down its left edge, click the one you
+   want. What differs is that this list is nested (a folder, then what is under
+   it) and that a row can be *unopenable*, which is a state the look library has
+   no equivalent of. */
+
+/* The two ways in, then the count. Above the list rather than under it: on a
+   first visit the shelf is empty and these buttons are the whole dialog. */
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* What the last pick did. A line rather than a flash, since the counts it
+   carries ("12 added, 3 reconnected") are the only confirmation a re-link gets
+   — the list itself looks the same before and after one. */
+.note {
+  color: var(--fg2);
+}
+
+/* Scrolls rather than growing: a shelf is allowed 500 clips and the card is
+   already as tall as the viewport lets it be. */
+.list {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: min(46vh, 420px);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 4px 0;
+  margin-bottom: 8px;
+}
+
+/* A folder's name, with its two verbs. Sticky so the heading stays readable
+   while scrolling through a folder deep enough to fill the box — which clip
+   belongs to which folder is the one thing this list groups by, and it would
+   otherwise be the first thing lost. */
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 2px 2px;
+  background: var(--panel-bg);
+}
+.headName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg3);
+  font-size: var(--fs-sm);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* One character in a fixed column, so the names below it still start on one
+   line down the left edge whether or not anything is marked. */
+.mark {
+  flex-shrink: 0;
+  width: 12px;
+  color: var(--fg4);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+.markLost {
+  color: var(--edit);
+}
+
+/* The clip itself takes the whole row's width: this list is read down the left
+   edge, and a target that stopped at the end of a short name would make the
+   short ones the hard ones to hit. */
+.name {
+  composes: bare from './ui.module.css';
+  flex: 1;
+  min-width: 0;
+  border-radius: 3px;
+  padding: 5px 7px;
+  color: var(--fg);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.name:hover {
+  background: var(--ctl-bg-hover);
+}
+/* A clip the shelf remembers but this session cannot open. Still a button — the
+   click is what tells you why, and a disabled row would be a name you can read
+   and not ask about. */
+.nameLost {
+  color: var(--fg3);
+}
+
+/* Send-to-the-other-deck and forget. Quiet until the pointer is on them, for
+   the reason the look library's are: a column of live-looking glyphs beside
+   every name reads as a list made of buttons rather than of clips. */
+.rowBtn {
+  composes: bare from './ui.module.css';
+  flex-shrink: 0;
+  min-width: 20px;
+  border-radius: 3px;
+  padding: 4px 3px;
+  color: var(--fg4);
+  font-size: var(--fs-sm);
+  line-height: 1;
+}
+.rowBtn:hover {
+  color: var(--fg);
+  background: var(--ctl-bg-hover);
+}
+
+/* The filter, in the dialog. Its own row above the list rather than a fourth
+   thing in .tools: those two buttons open OS dialogs and this one narrows what
+   is already there, and a field between them reads as a third way in. */
+.find {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  background: var(--panel-bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+}
+
+/* ── the mini picker (ClipPicker.tsx) ─────────────────────────────────────────
+   The caption under the source row, opened as a menu. It wears the caption's
+   own class so nothing about the slot moves when a clip is on it — what changes
+   is that clicking it drops a list rather than a dialog over the picture. */
+.trigger {
+  composes: fileName from './SelectRow.module.css';
+}
+
+.filter {
+  composes: find;
+  margin-bottom: 4px;
+}
+
+/* Scrolls at about eight rows. Longer than that and the menu is a dialog with
+   no title, which is the thing this exists instead of. */
+.pickList {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: min(40vh, 260px);
+}
+
+.pickRow {
+  composes: name;
+  width: 100%;
+  padding: 4px 6px;
+  font-size: var(--fs-sm);
+}
+
+.pickHead {
+  padding: 4px 6px 1px;
+  color: var(--fg4);
+  font-size: var(--fs-sm);
+}
+
+.pickEmpty {
+  padding: 6px;
+  color: var(--fg3);
+  font-size: var(--fs-sm);
+}
+
+.pickNote {
+  padding: 4px 6px;
+  color: var(--fg2);
+  font-size: var(--fs-sm);
+}
+
+/* The way through to the full shelf, ruled off from the names above it: it is
+   the one row here that does not play something. */
+.pickFoot {
+  composes: bare from './ui.module.css';
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 3px 3px;
+  padding: 5px 6px;
+  color: var(--fg3);
+  text-align: left;
+  font-size: var(--fs-sm);
+}
+.pickFoot:hover {
+  color: var(--fg);
+  background: var(--ctl-bg-hover);
+}
+
+/* Touch: the same fingertip height the panel's own rows take. */
+@media (pointer: coarse) {
+  .name {
+    padding: 9px 7px;
+  }
+  .rowBtn {
+    min-width: 30px;
+    padding: 9px 3px;
+  }
+  .pickRow,
+  .pickFoot {
+    padding: 9px 6px;
+  }
+}

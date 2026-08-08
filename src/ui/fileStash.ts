@@ -1,6 +1,7 @@
 // Reopening the file a slot held last session. A picked File is only a handle on
-// the user's disk while the page lives, so something has to be kept behind. Two
-// ways, and which one the browser offers decides which a pick uses:
+// the user's disk while the page lives, so something has to be kept behind.
+// Three ways, and which one a pick uses is decided by where it came from and by
+// what the browser offers:
 //
 //   handle — Chromium's showOpenFilePicker hands back a FileSystemFileHandle,
 //     which is structured-cloneable, so IndexedDB remembers the file *by
@@ -13,37 +14,31 @@
 //     reopens with no gesture and no prompt, but it duplicates the file, so an
 //     oversized pick is skipped rather than charged against the origin's quota.
 //
+//   lib — the source came off the clip library, which already remembers how to
+//     reopen it and by which grant. Nothing is stored here but the entry's id:
+//     a second copy of a clip the shelf is holding would be the one duplication
+//     the library exists to avoid.
+//
 // Which one a slot used is recorded alongside the name and mime type in
-// localStorage, since neither backend remembers those on its own.
+// localStorage, since none of the three backends remembers those on its own.
 
+import { openClipById } from './clipLibrary'
+import { grantRead, isPickedFile } from './fsAccess'
+import { idbDelete, idbGet, idbPut } from './idb'
 import { readRecord, writeJSON } from './storage'
 
-// The disk-picker half of the File System Access API is Chromium-only and absent
-// from lib.dom, and its permission methods hang off the handles it returns —
-// which is exactly why they are typed here rather than onto FileSystemHandle
-// globally: an OPFS handle in Firefox is the same interface without them.
-interface ReadPermission {
-  mode: 'read'
-}
-export interface PickedFileHandle extends FileSystemFileHandle {
-  queryPermission(descriptor: ReadPermission): Promise<PermissionState>
-  requestPermission(descriptor: ReadPermission): Promise<PermissionState>
-}
-declare global {
-  interface Window {
-    showOpenFilePicker?: (options?: {
-      multiple?: boolean
-      types?: { description?: string; accept: Record<string, string[]> }[]
-    }) => Promise<PickedFileHandle[]>
-  }
-}
+import type { PickedFileHandle } from './fsAccess'
 
 export type StashSlot = 'a' | 'b'
 
-// What a slot can reopen. `open` does the re-grant when there is one to do, so a
-// caller only has to know whether a click has to come first.
+// What the slot can reopen. `open` does the re-grant when there is one to do, so
+// a caller only has to know whether a click has to come first, and `kind` is
+// which source mode the restored file lands on — a clip off the shelf goes back
+// as a clip, not as a one-off pick, or the caption would offer the file dialog
+// where the shelf belongs.
 export interface Stashed {
   name: string
+  kind: 'file' | 'clip'
   needsGesture: boolean
   open: () => Promise<File>
 }
@@ -51,92 +46,17 @@ export interface Stashed {
 interface Meta {
   name: string
   type: string
-  kind: 'handle' | 'copy'
+  kind: 'handle' | 'copy' | 'lib'
+  // The library entry, for kind 'lib' and empty otherwise.
+  id: string
 }
 
-const NONE: Meta = { name: '', type: '', kind: 'copy' }
+const NONE: Meta = { name: '', type: '', kind: 'copy', id: '' }
 
 const metaKey = (slot: StashSlot) => `ntsc.js.stash.${slot}`
 const copyName = (slot: StashSlot) => `source-${slot}`
 
 const opfsRoot = () => navigator.storage.getDirectory()
-
-const idbError = (e: DOMException | null): Error =>
-  e === null
-    ? new Error('indexeddb failed')
-    : new Error(`indexeddb: ${e.message}`)
-
-const HANDLE_STORE = 'handles'
-
-const openDb = (): Promise<IDBDatabase> =>
-  new Promise((resolve, reject) => {
-    const req = indexedDB.open('ntsc.js', 1)
-    req.onupgradeneeded = () => req.result.createObjectStore(HANDLE_STORE)
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(idbError(req.error))
-  })
-
-// One store operation, resolved on transaction *commit* — a put that is merely
-// queued is not a put that survives the reload.
-async function withStore<T>(
-  mode: IDBTransactionMode,
-  run: (store: IDBObjectStore) => IDBRequest<T>,
-): Promise<T> {
-  const db = await openDb()
-  try {
-    return await new Promise<T>((resolve, reject) => {
-      const tx = db.transaction(HANDLE_STORE, mode)
-      const req = run(tx.objectStore(HANDLE_STORE))
-      tx.oncomplete = () => resolve(req.result)
-      tx.onerror = () => reject(idbError(tx.error))
-      tx.onabort = () => reject(idbError(tx.error))
-    })
-  } finally {
-    db.close()
-  }
-}
-
-// A stored handle is whatever the last session put there, so check rather than
-// trust: a schema change or another origin's leftovers must read as "no stash".
-const isPickedHandle = (v: unknown): v is PickedFileHandle =>
-  v instanceof FileSystemFileHandle && 'queryPermission' in v
-
-export const canPickHandle = (): boolean =>
-  window.showOpenFilePicker !== undefined
-
-// Open the Chromium picker, resolving null when the user cancels it — the same
-// nothing-happened the hidden <input> reports by never firing change.
-export async function pickHandle(): Promise<{
-  file: File
-  handle: PickedFileHandle
-} | null> {
-  const picker = window.showOpenFilePicker
-  let picked: { file: File; handle: PickedFileHandle } | null = null
-  if (picker !== undefined) {
-    const handles = await picker({
-      multiple: false,
-      types: [
-        {
-          description: 'Image or video',
-          accept: {
-            'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif'],
-            'video/*': ['.mp4', '.webm', '.mov', '.mkv', '.avi'],
-          },
-        },
-      ],
-    }).catch((e: unknown) => {
-      // Cancelling the OS dialog rejects with AbortError, which is not a
-      // failure. Anything else is, and belongs to the caller.
-      if (e instanceof DOMException && e.name === 'AbortError') return []
-      throw e
-    })
-    if (handles.length > 0) {
-      const handle = handles[0]
-      picked = { file: await handle.getFile(), handle }
-    }
-  }
-  return picked
-}
 
 // A convenience copy has no business eating the origin's storage budget: the
 // bytes are duplicated (a 4 GB clip costs 4 GB here, on top of the user's own
@@ -175,10 +95,27 @@ export async function stashFile(
       await out.close()
     }
   } else {
-    await withStore('readwrite', store => store.put(handle, slot))
+    await idbPut(slot, handle)
   }
-  if (kept) writeJSON(metaKey(slot), { name: file.name, type: file.type, kind })
+  if (kept)
+    writeJSON(metaKey(slot), { name: file.name, type: file.type, kind, id: '' })
   return kept
+}
+
+// The slot is on a clip off the shelf. One line of localStorage and no bytes
+// anywhere: the library owns the handle, the grant and the folder it came from,
+// and this only has to say which entry to ask it for.
+export async function stashClip(
+  slot: StashSlot,
+  clip: { id: string; name: string },
+): Promise<void> {
+  await clearStash(slot)
+  writeJSON(metaKey(slot), {
+    name: clip.name,
+    type: '',
+    kind: 'lib',
+    id: clip.id,
+  })
 }
 
 // The slot no longer holds a picked file. Dropping the meta key alone would
@@ -191,7 +128,7 @@ export async function clearStash(slot: StashSlot): Promise<void> {
     await root.removeEntry(copyName(slot))
   }
   if (meta.kind === 'handle') {
-    await withStore('readwrite', store => store.delete(slot))
+    await idbDelete([slot])
   }
 }
 
@@ -212,10 +149,8 @@ async function openHandle(
   handle: PickedFileHandle,
   granted: boolean,
 ): Promise<File> {
-  const state = granted
-    ? 'granted'
-    : await handle.requestPermission({ mode: 'read' })
-  if (state !== 'granted') throw new Error(`read permission ${state}`)
+  if (!granted && !(await grantRead(handle)))
+    throw new Error('read permission denied')
   return handle.getFile()
 }
 
@@ -224,17 +159,20 @@ export async function readStash(slot: StashSlot): Promise<Stashed | null> {
   const meta = readRecord<Meta>(metaKey(slot), NONE)
   let stashed: Stashed | null = null
   if (typeof meta.name === 'string' && meta.name !== '') {
-    if (meta.kind === 'handle') {
-      const stored = await withStore<unknown>('readonly', store =>
-        store.get(slot),
-      )
-      if (isPickedHandle(stored)) {
+    if (meta.kind === 'lib') {
+      const clip =
+        typeof meta.id === 'string' ? await openClipById(meta.id) : null
+      if (clip !== null) stashed = { ...clip, kind: 'clip' }
+    } else if (meta.kind === 'handle') {
+      const stored = await idbGet(slot)
+      if (isPickedFile(stored)) {
         // Chromium can carry a grant across loads (an installed app, or "allow
         // on every visit"), and then the reopen needs no click at all.
         const granted =
           (await stored.queryPermission({ mode: 'read' })) === 'granted'
         stashed = {
           name: meta.name,
+          kind: 'file',
           needsGesture: !granted,
           open: () => openHandle(stored, granted),
         }
@@ -242,6 +180,7 @@ export async function readStash(slot: StashSlot): Promise<Stashed | null> {
     } else {
       stashed = {
         name: meta.name,
+        kind: 'file',
         needsGesture: false,
         open: () => openCopy(slot, meta),
       }
