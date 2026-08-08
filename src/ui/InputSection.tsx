@@ -1,5 +1,6 @@
 import { SOURCE_B_MODES, SOURCE_DESC, SOURCE_MODES } from '../sources/modes'
 import { FileName, ReopenFile } from './FileName'
+import { Scrub } from './Scrub'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 import { TeletypeRow } from './TeletypeRow'
@@ -71,6 +72,15 @@ export function InputSection(props: {
   pendingFileB: string
   onReopenFileA: () => void
   onReopenFileB: () => void
+  // Playhead per slot, for the seek bar under each picker. A duration of 0 is
+  // "this source has no timeline" — a pattern, a still, a webcam — and the bar
+  // stays off, the same gate the audio file's transport uses.
+  timeA: number
+  durationA: number
+  timeB: number
+  durationB: number
+  onSeekA: (time: number) => void
+  onSeekB: (time: number) => void
   // Audio in is a source too, so its picker sits with A and B rather than in
   // the Audio section, which keeps only the knobs it drives. Its helper line
   // comes in separately: all three pickers stack first, then the hints.
@@ -114,6 +124,13 @@ export function InputSection(props: {
           name={props.pendingFileA}
           onReopen={() => props.onReopenFileA()}
         />
+        {props.durationA === 0 ? null : (
+          <Scrub
+            time={props.timeA}
+            duration={props.durationA}
+            onSeek={props.onSeekA}
+          />
+        )}
         {props.sourceMode === 'webcam' && props.videoDevices.length > 1 ? (
           <SelectRow
             tag="◉"
@@ -150,6 +167,13 @@ export function InputSection(props: {
           name={props.pendingFileB}
           onReopen={() => props.onReopenFileB()}
         />
+        {props.durationB === 0 ? null : (
+          <Scrub
+            time={props.timeB}
+            duration={props.durationB}
+            onSeek={props.onSeekB}
+          />
+        )}
         {props.audioInput}
         {/* Only while B is off, where it is onboarding for a feature nothing on
             screen is showing. With B running it used to read "mix controls are

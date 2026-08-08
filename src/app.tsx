@@ -747,6 +747,12 @@ export function App() {
           pendingFileB={eng.pendingFileB}
           onReopenFileA={() => eng.reopenFileA()}
           onReopenFileB={() => eng.reopenFileB()}
+          timeA={eng.timeA}
+          durationA={eng.durationA}
+          timeB={eng.timeB}
+          durationB={eng.durationB}
+          onSeekA={eng.seekA}
+          onSeekB={eng.seekB}
           audioInput={
             <AudioInput
               mode={audio.mode}

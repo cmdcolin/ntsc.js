@@ -1,5 +1,6 @@
-/* transport for a loaded audio file — same indent as .fileName, and the track
-   fills in accent like the meter so it reads as playback, not as a knob */
+/* transport for a source with a timeline — the audio file, and a video slot
+   holding a clip. Same indent as .fileName, and the track fills in accent like
+   the meter so it reads as playback, not as a knob */
 .scrubRow {
   display: flex;
   align-items: center;

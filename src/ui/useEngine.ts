@@ -114,6 +114,25 @@ type SlotSource =
   | { kind: 'still'; source: OffscreenCanvas | ImageBitmap; aspect?: number }
   | { kind: 'noise'; noise: number }
 
+// Where a slot's playhead is, for its seek bar. A zero duration is the "no
+// timeline here" reading, and every slot that isn't a loaded clip gives it: an
+// empty slot, a still, a noise field, and a live stream — whose element reports
+// a duration of Infinity or NaN and cannot be seeked at all. The bar renders on
+// a non-zero duration alone, so that one number is the whole gate.
+interface Playhead {
+  time: number
+  duration: number
+}
+const NO_CLIP: Playhead = { time: 0, duration: 0 }
+
+const readPlayhead = (el: HTMLVideoElement | null): Playhead =>
+  el === null || !Number.isFinite(el.duration) || el.duration === 0
+    ? NO_CLIP
+    : { time: el.currentTime, duration: el.duration }
+
+const samePlayhead = (a: Playhead, b: Playhead): boolean =>
+  a.time === b.time && a.duration === b.duration
+
 // Tries per rebuild, and the wait between them. requestAdapter can fail outright
 // in the moments after a driver reset — the GPU stack is still coming back — so
 // a failed create is worth re-asking before calling the session over.
@@ -293,6 +312,13 @@ export function useEngine(wantStats = false) {
   // query string (a refresh or shared link restores the clip).
   const [ytUrlA, setYtUrlA] = useState('')
   const [ytUrlB, setYtUrlB] = useState('')
+  // Where each slot's playhead is, for the seek bars. Polled rather than driven
+  // off `timeupdate` for the same reason the audio file's is: the readout ticks
+  // in tenths, and a slot slowed to 0.25× fires timeupdate on its own schedule
+  // while a paused one fires nothing at all. duration stays 0 until metadata
+  // lands and for anything without a finite timeline, which is what keeps the
+  // bar off a webcam or a screen share.
+  const [transport, setTransport] = useState({ a: NO_CLIP, b: NO_CLIP })
   // Each new element is stamped with the current playback config, but that
   // happens inside async fetch callbacks and the mount-time restore, where the
   // state it would close over is stale; this mirror always holds the latest.
@@ -409,6 +435,48 @@ export function useEngine(wantStats = false) {
     vaporRef.current.playAudio = true
     setPlayAudio(true)
     routeAudio(true, REVERB_DEFAULT)
+  }
+
+  // Follow both playheads while either slot holds a clip. 10 Hz, like the audio
+  // file's transport and for the same reason: a clock reading in tenths does
+  // not need a re-render per frame. The tick writes state only when a number
+  // actually moved, so a slot paused on the deck costs nothing.
+  const clipA = videoA === 'clip'
+  const clipB = videoB === 'clip'
+  useEffect(() => {
+    // A fresh gate is a fresh source: clear the old reading rather than let the
+    // previous clip's bar sit there for the first tenth of a second.
+    setTransport({ a: NO_CLIP, b: NO_CLIP })
+    let id = 0
+    if (clipA || clipB) {
+      id = window.setInterval(() => {
+        const a = readPlayhead(clipA ? videoRef.current : null)
+        const b = readPlayhead(clipB ? videoBRef.current : null)
+        setTransport(prev =>
+          samePlayhead(prev.a, a) && samePlayhead(prev.b, b) ? prev : { a, b },
+        )
+      }, 100)
+    }
+    return () => clearInterval(id)
+  }, [clipA, clipB])
+
+  // Seeking moves the readout at once, so the thumb doesn't snap back and wait
+  // out the poll interval. Held on the deck (`aPause`/`bPause`) the picture
+  // won't follow until the deck rolls again — the pump is frozen — which is what
+  // holding a deck means.
+  const seekA = (time: number) => {
+    const v = videoRef.current
+    if (v !== null) {
+      v.currentTime = time
+      setTransport(p => ({ ...p, a: { ...p.a, time } }))
+    }
+  }
+  const seekB = (time: number) => {
+    const v = videoBRef.current
+    if (v !== null) {
+      v.currentTime = time
+      setTransport(p => ({ ...p, b: { ...p.b, time } }))
+    }
   }
 
   // The two slots, as data. Everything below that touches a <video> goes
@@ -1360,6 +1428,13 @@ export function useEngine(wantStats = false) {
     teletypeB: cardB,
     videoA,
     videoB,
+    // Transport per slot: 0 duration means there is nothing to seek.
+    timeA: transport.a.time,
+    durationA: transport.a.duration,
+    timeB: transport.b.time,
+    durationB: transport.b.duration,
+    seekA,
+    seekB,
     speedA,
     speedB,
     playAudio,

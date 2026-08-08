@@ -1,49 +1,15 @@
-import styles from './AudioInput.module.css'
 import { FileName } from './FileName'
 import { Meter } from './Meter'
+import { Scrub } from './Scrub'
 import { SelectRow } from './SelectRow'
 import ui from './ui.module.css'
 import { AUDIO_DESC, AUDIO_MODES } from './useAudio'
 
 import type { AudioState } from '../signal/audiostate'
 import type { AudioMode } from './useAudio'
-import type { CSSProperties, ReactNode, RefObject } from 'react'
+import type { RefObject } from 'react'
 
 const OPTIONS = AUDIO_MODES.map(m => ({ value: m, label: AUDIO_DESC[m] }))
-
-const clock = (s: number) =>
-  `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
-
-// Transport for a loaded file: drag to seek. The position polls at 10 Hz with
-// the meter, so the thumb follows playback without a re-render per frame.
-function Scrub(props: {
-  time: number
-  duration: number
-  meter: ReactNode
-  onSeek: (time: number) => void
-}) {
-  const fill: CSSProperties & Record<'--p', string> = {
-    '--p': `${((props.time / props.duration) * 100).toFixed(1)}%`,
-  }
-  return (
-    <div className={styles.scrubRow}>
-      <input
-        type="range"
-        className={styles.scrub}
-        style={fill}
-        min={0}
-        max={props.duration}
-        step={0.01}
-        value={Math.min(props.time, props.duration)}
-        onChange={e => props.onSeek(Number(e.target.value))}
-      />
-      {props.meter}
-      <span className={styles.scrubTime}>
-        {clock(props.time)} / {clock(props.duration)}
-      </span>
-    </div>
-  )
-}
 
 // Audio in, as a third source alongside A and B: it feeds no picture, it drives
 // the oscillators. Its knobs live in the Audio section further down, and its
