@@ -67,6 +67,20 @@ account buys the library and nothing else, and no feature was moved behind it.
   the Identity Toolkit admin API (`localhost`, both firebase domains, and
   `cmdcolin.github.io` for Pages). Anyone adding a deploy target has to add its
   host there too, and the CLI will not do it for them.
+- **The rules are tested, and the tests are mutation-checked.**
+  `src/ui/firestoreRules.test.ts` runs `firestore.rules` against the real rules
+  engine in the Firestore emulator (`pnpm test:rules`, and a CI arm); a bare
+  `pnpm test` skips it, so the suite still runs on a machine with no Java. It
+  covers owner read/write, a second signed-in uid, an unauthenticated client,
+  the 200-entry cap on create **and** update, `hasOnly`, non-list `profiles`,
+  other collections, and enumeration of `/users`. Each guard was then removed
+  one at a time to confirm a test goes red — which is how one test was caught
+  being useless: an _unconstrained_ collection query is refused whatever the
+  rules say, because `request.auth.uid == uid` cannot hold across every document
+  it matches, so it passed identically against `allow read`. Pinning the
+  get/list split needs a query whose wildcard is bound
+  (`where(documentId(), '==', uid)`). Anyone adding a rule here should mutate it
+  and watch a test fail before believing the green.
 - **The rules cannot validate the list's contents.** `profiles` is a list, and
   rules cannot iterate one, so they check the document's shape and cap its size
   (200 entries) while the client sanitizes each entry on read. One document
@@ -76,6 +90,16 @@ account buys the library and nothing else, and no feature was moved behind it.
 - **A popup, not a redirect.** A redirect would take the tab away and return to
   a cold page, which in this app means tearing down a `GPUDevice` and building
   another one to sign in — see
-  [0004](0004-never-destroy-a-presenting-device.md).
+  [0004](0004-never-destroy-a-presenting-device.md). Audited against the
+  `firebase-security-rules-auditor` checklist, this is the one finding: no
+  per-entry type or length check, so a signed-in user can bloat their **own**
+  document up to Firestore's 1MiB ceiling. Self-data only, no path to anyone
+  else's — a "minor" on that scale, and the price of keeping insertion order.
+- **Deploying the rules is a manual step.** `pnpm firebase-deploy` sends them,
+  and nothing in CI does. So an edit to `firestore.rules` can be committed, pass
+  its tests, and never reach the project — the tests prove the file is right,
+  not that it is live. Deploy after changing it. (Wiring it into CI needs a
+  service-account secret in the repo, which is a bigger decision than this
+  record.)
 - **Firestore is a dependency of one feature, not of the app.** If the project
   goes away, saving stops and everything else keeps working.

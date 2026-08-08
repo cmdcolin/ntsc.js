@@ -40,6 +40,7 @@
     "docshots": "node scripts/docshots.mjs",
     "guide": "node scripts/build-guide.mjs",
     "firebase-deploy": "firebase deploy --only firestore:rules",
+    "test:rules": "firebase emulators:exec --only firestore --project ntscjs-rules-test \"vitest run firestoreRules\"",
     "docs": "node scripts/diagrams.mjs",
     "docs:check": "node scripts/diagrams.mjs --check",
     "prepare": "husky"
@@ -57,6 +58,7 @@
   },
   "devDependencies": {
     "@babel/core": "^8.0.1",
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@types/babel__core": "^7.20.5",
     "@types/node": "^26.1.2",
@@ -65,6 +67,7 @@
     "@vitejs/plugin-react": "^6.0.5",
     "@webgpu/types": "^0.1.71",
     "babel-plugin-react-compiler": "^1.0.0",
+    "firebase-tools": "^15.26.0",
     "git-cliff": "^2.13.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",

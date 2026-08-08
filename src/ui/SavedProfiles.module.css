@@ -162,3 +162,11 @@
 .acctBtn:hover {
   color: var(--fg);
 }
+
+/* A write that was refused — offline, or rejected by the rules. The failure
+   colour the panel already uses for a danger action, because this is the one
+   flash that reports something the user cannot fix by pressing again. */
+.failed {
+  border-color: #a05050;
+  color: #d08a8a;
+}

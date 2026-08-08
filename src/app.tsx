@@ -672,8 +672,7 @@ export function App() {
           <SavedProfiles
             profiles={profiles.profiles}
             suggestedName={suggestedProfileName}
-            saved={profiles.saved}
-            needsAuth={profiles.needsAuth}
+            flash={profiles.flash}
             status={profiles.status}
             user={profiles.user}
             error={profiles.error}

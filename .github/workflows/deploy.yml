@@ -43,6 +43,26 @@ jobs:
         if: steps.cache-naga.outputs.cache-hit != 'true'
         run: cargo install naga-cli --version 30.0.0 --locked
       - run: pnpm test
+      # firestore.rules is the only thing standing between a stranger and a
+      # user's saved profiles — the web config is public by design
+      # (docs/adr/0005) — and the signed-in path cannot be exercised in a
+      # headless run, so the rules are checked against the real rules engine in
+      # the Firestore emulator instead. `pnpm test` above skips these when no
+      # emulator is present; this is the arm that actually runs them.
+      #
+      # The emulator is a jar the CLI downloads on first use, cached here for the
+      # same reason naga is. Java comes with the runner image.
+      #
+      # Keyed on the lockfile rather than on the jar's own version: which emulator
+      # build gets fetched is decided by the pinned firebase-tools, and a CLI bump
+      # deletes the old jar and downloads another. A key naming the jar version
+      # would then hold a file nothing uses, and quietly stop caching anything.
+      - name: Cache Firestore emulator
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm test:rules
 
   build:
     needs: check

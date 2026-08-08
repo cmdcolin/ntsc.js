@@ -8,7 +8,7 @@ import ui from './ui.module.css'
 
 import type { CloudUser } from './cloud'
 import type { SavedProfile } from './savedProfiles'
-import type { CloudStatus } from './useSavedProfiles'
+import type { CloudStatus, ProfileFlash } from './useSavedProfiles'
 
 // The profile library, as one button in the look bar: name what is on screen and
 // get it back later. A synth's save/recall, in the row with the other verbs that
@@ -42,12 +42,10 @@ export function SavedProfiles(props: {
   onRecall: (profile: SavedProfile) => void
   onDelete: (name: string) => void
   onCopyLink: (profile: SavedProfile) => void
-  // The name a save just landed under, or null. Shown on the button, because two
-  // of the three ways to save leave this menu shut.
-  saved: string | null
-  // A save was attempted with nobody signed in. Says so on the button, since the
-  // keystroke that did it had no menu open to answer in.
-  needsAuth: boolean
+  // What just happened to a save, for a beat. Shown on the button, because two of
+  // the three ways to save leave this menu shut — so this is the only surface
+  // that can answer them.
+  flash: ProfileFlash | null
   // Who the library belongs to, and whether it can be written to at all. Saving
   // is a signed-in act — Firestore is the only store — so `status` decides
   // whether this menu shows a name box or a sign-in button.
@@ -99,8 +97,9 @@ export function SavedProfiles(props: {
         <button
           className={cx(
             styles.trigger,
-            props.saved !== null && styles.justSaved,
-            props.needsAuth && styles.needsAuth,
+            props.flash?.kind === 'saved' && styles.justSaved,
+            props.flash?.kind === 'needs-auth' && styles.needsAuth,
+            props.flash?.kind === 'failed' && styles.failed,
           )}
           popoverTarget={attrs.popoverTarget}
           style={attrs.style}
@@ -110,16 +109,23 @@ export function SavedProfiles(props: {
               : 'sign in to save looks under a name — everything else in the app works signed out'
           }
         >
-          {/* A ✓ and the accent, not the name: the row this button sits in is
+          {/* A glyph and a colour, never the name: the row this button sits in is
               332px with no slack (see LookBar.module.css), and a label that grew
-              to `saved “worn tape”` for a second and a half would reflow the two
-              buttons after it — twice, once each way. The count beside it moves
-              on a new save anyway; the tick is what an overwrite has to say. */}
-          {props.needsAuth ? 'sign in' : 'saved'}
-          {props.needsAuth || props.profiles.length === 0
-            ? ''
-            : ` ${props.profiles.length}`}
-          {props.saved === null ? '' : ' ✓'}
+              to `saved “worn tape”` or `save failed` for two seconds would reflow
+              the buttons after it — twice, once each way. `sign in` is the one
+              exception, and it fits because it replaces the count rather than
+              adding to it. The count moves on a new save anyway; the ✓ is what an
+              overwrite has to say, and the ✕ is what a rejected write has to. */}
+          {props.flash?.kind === 'needs-auth' ? (
+            'sign in'
+          ) : (
+            <>
+              saved
+              {props.profiles.length === 0 ? '' : ` ${props.profiles.length}`}
+              {props.flash?.kind === 'saved' ? ' ✓' : ''}
+              {props.flash?.kind === 'failed' ? ' ✕' : ''}
+            </>
+          )}
         </button>
       )}
     >

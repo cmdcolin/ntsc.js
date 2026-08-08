@@ -40,6 +40,21 @@ export type CloudStatus =
   // menu can say what happened instead of silently offering the button again.
   | 'error'
 
+// What the button in the look bar says for a moment after a save was attempted.
+// One value rather than three flags, because the three states are exclusive and
+// as separate booleans they could contradict each other on screen — a ✓ next to
+// an amber `sign in` is a button claiming a save both did and did not happen.
+//
+// All three exist for the same reason: two of the three ways to save (ctrl+S and
+// the ⌘K row) happen with the menu shut, so the button is the only surface that
+// can answer. `failed` is the one that was missing, and it was the likeliest of
+// the three — a rejected write, or no network — reported only inside a popover
+// nobody had open.
+export type ProfileFlash =
+  | { kind: 'saved'; name: string }
+  | { kind: 'needs-auth' }
+  | { kind: 'failed' }
+
 export function useSavedProfiles() {
   const [profiles, setProfiles] = useState<SavedProfile[]>([])
   const [user, setUser] = useState<CloudUser | null>(null)
@@ -48,15 +63,20 @@ export function useSavedProfiles() {
   )
   const [error, setError] = useState<string | null>(null)
   const [lastName, setLastName] = useState<string | null>(null)
-  // The name a save just landed under, for a second. Two of the three ways to
-  // save (ctrl+S, the ⌘K row) happen with the menu shut, where the row appearing
-  // in the list is feedback nobody is looking at — so the button says it instead.
-  const [saved, setSaved] = useState<string | null>(null)
-  // A save was asked for with nowhere to put it — ctrl+S or the ⌘K row while
-  // signed out. Silently doing nothing is the worst answer available: the
-  // keystroke is indistinguishable from a broken one. The button in the look bar
-  // wears this for two seconds and says `sign in`.
-  const [needsAuth, setNeedsAuth] = useState(false)
+  const [flash, setFlash] = useState<ProfileFlash | null>(null)
+
+  // Show one for a beat, then take it down — but only if it is still the one this
+  // call put up, compared by identity so a second save during the first flash
+  // does not have its own answer cut short by the first timer. A failure holds
+  // longer than a success: a ✓ confirms something you just asked for, while a ✕
+  // has to survive being glanced at late.
+  const showFlash = (next: ProfileFlash) => {
+    setFlash(next)
+    setTimeout(
+      () => setFlash(cur => (cur === next ? null : cur)),
+      next.kind === 'saved' ? 1600 : 2600,
+    )
+  }
   // Whether this session wants an auth subscription at all. It starts as "has
   // this browser signed in before", which is what keeps the SDK off an ordinary
   // visit — and a press on sign-in flips it, because the *first* sign-in of a
@@ -135,13 +155,17 @@ export function useSavedProfiles() {
         setError(null)
         if (landed !== undefined) {
           setLastName(landed)
-          setSaved(landed)
-          setTimeout(() => setSaved(cur => (cur === landed ? null : cur)), 1600)
+          showFlash({ kind: 'saved', name: landed })
         }
       })
       .catch((e: unknown) => {
         console.error('saving profiles failed', e)
         setError('could not save — check your connection')
+        // The half that was missing: the message above lands inside the popover,
+        // and a ctrl+S is made with the popover shut. Without this the write went
+        // to the network, failed, and the app looked exactly as it does after a
+        // save that worked.
+        showFlash({ kind: 'failed' })
       })
   }
 
@@ -151,15 +175,13 @@ export function useSavedProfiles() {
     status,
     error,
     lastName,
-    saved,
+    flash,
     // Signed out this is not merely inert but unreachable: the menu offers the
     // sign-in button in place of the name box, and ctrl+S says so on the button.
     canSave: status === 'ready',
-    needsAuth,
     saveProfile: (name: string, query: string) => {
       if (status !== 'ready') {
-        setNeedsAuth(true)
-        setTimeout(() => setNeedsAuth(false), 2000)
+        showFlash({ kind: 'needs-auth' })
         return
       }
       write(upsertProfile(profiles, name, query), name)
