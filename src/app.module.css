@@ -189,10 +189,14 @@
   composes: bare from './ui/ui.module.css';
   flex-shrink: 0;
   padding: 0 4px;
+  border: 1px solid var(--border-quiet);
+  border-radius: 4px;
+  background: var(--panel-bg);
   color: var(--fg3);
   font-size: var(--fs-md);
-  line-height: 1;
+  line-height: 1.2;
 }
 .filterClear:hover {
+  border-color: var(--fg4);
   color: var(--fg);
 }
