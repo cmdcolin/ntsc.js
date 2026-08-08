@@ -116,33 +116,35 @@ page, so it can go upstream as-is.
   a hung one must not be handed to its replacement. Neither is destroyed, so the
   rebuild costs a device and never the tab.
 - **The counts are kept, what they gate changed, and so did what they are
-  counted over.** `gpuReleases()` is devices destroyed — the number that predicts
-  a tab with no rendering step left — and it is per **tab**, in `sessionStorage`,
-  because that damage crosses a reload. `gpuBuilds()` is devices created by this
-  **document**, held on `globalThis` beside the stash so a hot update does not
-  reset it and a real load does. `outOfGpuBudget()` refuses a new device when
-  `gpuReleases() > 0` (measured, one is enough) or when builds reach
-  `DOC_GPU_BUILD_LIMIT` (8 — a runaway backstop against an engine rebuilding in a
-  loop, because creating devices is cheap). `gpuSessions()`, the tab's lifetime
-  creation total, is kept for the trace and gates nothing.
+  counted over.** `gpuReleases()` is devices destroyed — the number that
+  predicts a tab with no rendering step left — and it is per **tab**, in
+  `sessionStorage`, because that damage crosses a reload. `gpuBuilds()` is
+  devices created by this **document**, held on `globalThis` beside the stash so
+  a hot update does not reset it and a real load does. `outOfGpuBudget()`
+  refuses a new device when `gpuReleases() > 0` (measured, one is enough) or
+  when builds reach `DOC_GPU_BUILD_LIMIT` (8 — a runaway backstop against an
+  engine rebuilding in a loop, because creating devices is cheap).
+  `gpuSessions()`, the tab's lifetime creation total, is kept for the trace and
+  gates nothing.
 
   Per document is the correction, and it is this ADR applied to its own
-  bookkeeping. The counts were written under [0002](0002-webgpu-sessions-are-scarce.md),
-  where the scarce thing was the tab, so both were tab-scoped and a reload spent
-  from the same pot. Under the mechanism actually measured, a device dies with the
-  document that made it: an abandoned one is reclaimed when the realm goes, which
-  is what a refresh is. So counting creations per tab counted **refreshes** — the
-  `--page=app` run above, eight healthy loads, would have read as eight devices
-  spent, tripped the stage notice at load three, and been refused outright at
-  load nine. The one arm of this ADR that proves reloading is safe is the arm the
-  old scoping punished.
+  bookkeeping. The counts were written under
+  [0002](0002-webgpu-sessions-are-scarce.md), where the scarce thing was the
+  tab, so both were tab-scoped and a reload spent from the same pot. Under the
+  mechanism actually measured, a device dies with the document that made it: an
+  abandoned one is reclaimed when the realm goes, which is what a refresh is. So
+  counting creations per tab counted **refreshes** — the `--page=app` run above,
+  eight healthy loads, would have read as eight devices spent, tripped the stage
+  notice at load three, and been refused outright at load nine. The one arm of
+  this ADR that proves reloading is safe is the arm the old scoping punished.
+
 - **Two surfaces still say it out loud**, because a console warning arrives
   where nobody is looking. A dismissable stage notice while the tab still paints
   (`gpuAtRisk()`: any destroyed device, or more than two built by this page — a
-  refresh builds one, so refreshing never raises it), and the
-  decline screen, whose only action is an anchor to `location.href` in a new tab
-  — the address bar carries the live look, so nothing is lost by moving. The
-  screen also carries an override, because the ceiling is one browser on one OS.
+  refresh builds one, so refreshing never raises it), and the decline screen,
+  whose only action is an anchor to `location.href` in a new tab — the address
+  bar carries the live look, so nothing is lost by moving. The screen also
+  carries an override, because the ceiling is one browser on one OS.
 - **A frozen tab no longer buys devices.** `RenderLoop` records but does not
   score hang strikes while the fallback has given up: nothing is being
   submitted, no frame is reaching the screen, and the rebuild a hang triggers
@@ -162,6 +164,7 @@ page, so it can go upstream as-is.
   alive, not six. What accumulates across a tab's reloads is nothing but the
   `sessionStorage` tally — and the destroyed-device damage, which is not a
   resource at all.
+
 - **Do not "clean up" a device on unload.** That is this ADR in one sentence,
   and it is the change most likely to be re-introduced by someone tidying up,
   because releasing a resource on `pagehide` is normally correct. The comment in
