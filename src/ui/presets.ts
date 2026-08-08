@@ -1279,9 +1279,25 @@ export function controlsEqual(a: Controls, b: Controls): boolean {
   return CONTROL_KEYS.every(k => a[k] === b[k])
 }
 
+// Each authored patch resolved against the defaults, once, at module load. The
+// patches are static, so the resolution is too — and everything that compares
+// against a preset (`matchPreset` on every panel render, the blender on every
+// pointer step of a weight drag) was rebuilding all 66 full 213-key objects to
+// do it. That was half a millisecond per write, spent re-deriving a constant.
+const PRESET_FULL: ReadonlyMap<PresetDef, Controls> = new Map(
+  PRESETS.map(p => [p, presetControls(p.patch)]),
+)
+
+// A preset's full control-set. Falls back to resolving on the spot for a def
+// that isn't one of PRESETS' own — nothing hands one in today, and the map
+// lookup should not be the reason that stops working.
+export function fullControls(p: PresetDef): Controls {
+  return PRESET_FULL.get(p) ?? presetControls(p.patch)
+}
+
 // The preset whose full control-set exactly matches `values`, if any.
 export function matchPreset(values: Controls): PresetDef | undefined {
-  return PRESETS.find(p => controlsEqual(presetControls(p.patch), values))
+  return PRESETS.find(p => controlsEqual(fullControls(p), values))
 }
 
 // How much of each preset is dialed in, by preset name. Absent or 0 is off.
@@ -1312,7 +1328,10 @@ export function randomPresetMix(sourceBOn: boolean): PresetWeights {
 // preset that moves one of these off its default picks the mode outright.
 // Derived from which controls declare `choices`, so the blender and the panel's
 // toggle groups can't drift from one hand-kept list.
-const ENUM_KEYS = new Set<ControlKey>(
+// Exported for the morph, which needs the same list for the same reason and
+// must not keep a second one: a mode cannot be halfway between two values
+// whether you get there by mixing or by travelling.
+export const ENUM_KEYS: ReadonlySet<ControlKey> = new Set<ControlKey>(
   [...SLIDER_BY_KEY.values()].filter(s => s.choices).map(s => s.key),
 )
 
@@ -1362,7 +1381,7 @@ export function blendPresets(
     .toSorted(([, a], [, b]) => b - a)
     .flatMap(([name, w]) => {
       const def = PRESETS.find(p => p.name === name)
-      return def === undefined ? [] : [{ w, full: presetControls(def.patch) }]
+      return def === undefined ? [] : [{ w, full: fullControls(def) }]
     })
   const out = { ...baseline }
   for (const k of CONTROL_KEYS) {

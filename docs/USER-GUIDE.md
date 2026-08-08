@@ -61,6 +61,21 @@ the rest.
 which is where the accidents come from — hold `shift` for a wilder roll, `alt`
 for a gentle one.
 
+**morph** says how long a new look takes to arrive. At `cut` a preset, a roll or
+a scene lands in one frame, the way it always did; at 4s or 30s the whole board
+*travels* there instead, every control at once. Two things fall out of that. The
+looks between two presets are ones no chip holds, and a slow morph is the only
+way to see them — it walks straight through the exact vertical hold where the
+picture gives up rolling and the point where the AGC starts pumping, so it
+doubles as the way to find where this model's thresholds are. And rolls chain: a
+morph started while one is running sets off from wherever the board has got to,
+so hitting **surprise** every few seconds at 8s wanders continuously through
+preset space rather than snapping between stops. Grabbing any slider ends a morph
+where it stands — the half-way look is a look, and it is yours to keep from
+there. Modes (the toggle rows) cut at the half-way point rather than travelling,
+because there is no tube half way between two phosphors, and the magnifier never
+morphs at all.
+
 Finding a look is a walk, so the walk is retraceable: **undo** (`ctrl+z`) steps
 back through everything you have been through, and `ctrl+shift+z` steps forward
 again. A wild roll costs one keystroke to take back, which is the point of
@@ -104,7 +119,13 @@ the card's text as the mosaic character that carries it, so a drawing shares
 through a link like the words do. The shades are worth a try on their own: a
 dither is a half-rate checker by the time it reaches the decoder, which is
 exactly what dot crawl and chroma bleed feed on. Tick **crawl** and it rolls up
-the frame instead of holding still. **B** is a second source, deliberately not
+the frame instead of holding still, and **boil** hands it to an unsteady hand:
+the card is redrawn eight times a second with every cell's dots landing up to a
+dot off, so the strokes crawl and the letters shiver. It is worth ticking for a
+reason beyond the wobble — a still card gives still artifacts, the ringing parked
+on the same stems, and a boiling one makes the chain decide all of it again every
+frame, so the dot crawl actually crawls. The words never change, and a link
+carries the same card either way. **B** is a second source, deliberately not
 genlocked, so mixing it in beats and tears against A; its controls are the
 **Mix** box on the map below. **♪** is audio in, which does nothing until you
 turn up a knob in **Sound into the picture**.

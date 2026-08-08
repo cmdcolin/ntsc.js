@@ -47,9 +47,14 @@ function loadScenes(): SceneMap {
   )
 }
 
+// `land` rather than a plain write: a recall is the same gesture as a preset
+// click — a whole board at once — so it arrives however the look bar says looks
+// arrive, cut or morph. A scene *saved* mid-morph is deliberately the tween and
+// not the destination: what the picture is doing when you press the key is the
+// thing worth keeping, and half way between two scenes is a look no slot held.
 export function useScenes(
   engineRef: RefObject<EngineApi | null>,
-  writeControls: (controls: Controls) => void,
+  land: (controls: Controls) => void,
   beforeRecall: () => void,
   mod: Pick<ModSlotsApi, 'slots' | 'setRoutings'>,
 ) {
@@ -71,7 +76,7 @@ export function useScenes(
     const scene = loadScenes()[n]
     if (scene !== undefined) {
       beforeRecall()
-      writeControls(presetControls(scene.controls))
+      land(presetControls(scene.controls))
       mod.setRoutings(scene.mod)
     }
   }

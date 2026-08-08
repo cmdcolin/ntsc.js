@@ -33,6 +33,7 @@
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { AudioState } from '../signal/audiostate'
+import type { GlidePlan } from '../signal/glide'
 import type { FrozenKind } from './renderloop'
 
 export interface DestroyOptions {
@@ -74,6 +75,13 @@ export interface EngineApi {
   // snapshot React renders from, so the sliders stay where they are. `null`
   // restores from the snapshot.
   preview: (next: Controls | null) => void
+  // Morph the board towards a look over a span of seconds instead of landing on
+  // it — see signal/glide.ts. The origin is the engine's live controls, so a
+  // morph started over a morph carries on from where the picture is; a slider,
+  // MIDI message or outright `applyControls` cancels one.
+  startGlide: (plan: GlidePlan) => void
+  stopGlide: () => void
+  glideProgress: () => number | null
   // useSyncExternalStore's pair. Both are fields rather than methods so they are
   // referentially stable across renders — React resubscribes if `subscribe`
   // changes identity, and a method would be a fresh binding every time.

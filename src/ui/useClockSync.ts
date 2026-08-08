@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { SYNCABLE_KEYS, SYNC_DIVISIONS, omit, syncedValue } from './midi'
 import { readRecord, writeJSON } from './storage'
 
-import type { ControlKey, Controls } from '../controls'
+import type { ControlKey } from '../controls'
 
 // Which rate controls are clock-locked, and to which SYNC_DIVISIONS index.
 type SyncMap = Partial<Record<ControlKey, number>>
@@ -25,7 +25,6 @@ const loadSync = (): SyncMap => {
 // division, so it's derived during render rather than stored. This owns the map
 // of locks and pushes each locked value out to the engine when it changes.
 export function useClockSync(args: {
-  controls: Controls
   bpm: number | null
   // Called when a lock is switched on, to make sure there is a tempo for it to
   // read: see Tempo.ensure. Without it the ♩ was a control that did nothing at
@@ -33,7 +32,7 @@ export function useClockSync(args: {
   ensureTempo: () => void
   writeControl: (key: ControlKey, value: number) => void
 }) {
-  const { controls, bpm, ensureTempo, writeControl } = args
+  const { bpm, ensureTempo, writeControl } = args
   const [syncMap, setSyncMap] = useState<SyncMap>(loadSync)
 
   const syncLabel = (key: ControlKey): string | null => {
@@ -41,11 +40,15 @@ export function useClockSync(args: {
     return div === undefined ? null : SYNC_DIVISIONS[div].label
   }
 
-  const displayValue = (key: ControlKey): number => {
+  // What tempo says this control is — and nothing about what it is otherwise.
+  // An unlocked control's value is its own, and a row reads that from the store
+  // one key at a time; folding the two together here is what tied every row's
+  // value to a function that changed identity on every write to any control.
+  const lockedValue = (key: ControlKey): number | null => {
     const div = syncMap[key]
     return div !== undefined && bpm !== null
       ? syncedValue(key, bpm, SYNC_DIVISIONS[div].beats)
-      : controls[key]
+      : null
   }
 
   // The one genuine synchronization: push each locked value to the external GPU
@@ -53,16 +56,22 @@ export function useClockSync(args: {
   // off SYNCABLE_KEYS rather than one effect per key, so adding a key there
   // can't leave a control that shows the ♩ lock but never reaches the engine.
   //
-  // Only the locked ones: an unlocked key's displayValue IS the live control, so
+  // Only the locked ones: an unlocked key's value IS the live control, so
   // writing it back is a no-op that still drops its MIDI soft-takeover — a knob
-  // on wipeRate losing its catch every time the *other* syncable key moved.
-  const locked = SYNCABLE_KEYS.filter(k => syncMap[k] !== undefined)
-  const lockedValues = locked.map(k => displayValue(k))
+  // on wipeRate losing its catch every time the *other* syncable key moved. With
+  // no tempo to lock to there is likewise nothing to push, and pushing the live
+  // value back would cost the same catch for the same nothing.
+  const locked = SYNCABLE_KEYS.flatMap(
+    (key): { key: ControlKey; v: number }[] => {
+      const v = lockedValue(key)
+      return v === null ? [] : [{ key, v }]
+    },
+  )
   // The joined values are the dep, not the array: a fresh array identity every
   // render would re-fire this and reset MIDI soft-takeover constantly.
-  const lockedDep = `${locked.join(',')}=${lockedValues.join(',')}`
+  const lockedDep = locked.map(l => `${l.key}=${l.v}`).join(',')
   useEffect(() => {
-    locked.forEach((key, i) => writeControl(key, lockedValues[i]))
+    for (const l of locked) writeControl(l.key, l.v)
     // oxlint-disable-next-line react/exhaustive-deps
   }, [writeControl, lockedDep])
 
@@ -85,5 +94,5 @@ export function useClockSync(args: {
     })
   }
 
-  return { cycleSync, syncLabel, displayValue }
+  return { cycleSync, syncLabel, lockedValue }
 }

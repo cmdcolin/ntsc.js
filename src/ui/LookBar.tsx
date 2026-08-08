@@ -1,7 +1,9 @@
 import { cx } from './cx'
 import styles from './LookBar.module.css'
+import { MORPH_LABELS } from './morph'
 import { mutateAmountFor } from './mutate'
 
+import type { MorphSeconds } from './morph'
 import type { MutateAmount } from './mutate'
 import type { ReactNode } from 'react'
 
@@ -31,6 +33,13 @@ export function LookBar(props: {
   onEndCompare: () => void
   onSurprise: () => void
   onMutate: (amount: MutateAmount) => void
+  // How long the verbs in this row take to arrive, and the button that cycles
+  // it. It belongs here rather than in a settings dialog because it changes what
+  // every other button in the row *does*, and because the duration you want is a
+  // function of what you are doing right now: a cut while dialing a look in, a
+  // long morph while performing one.
+  morphSeconds: MorphSeconds
+  onCycleMorph: () => void
   // The saved-profile library, passed in rather than built here: it owns a
   // popover and a name box, and the row's job is to seat it among the other
   // whole-board verbs. It goes after the two that produce a look worth keeping —
@@ -62,6 +71,19 @@ export function LookBar(props: {
         title="stack a few random presets from different groups — a fresh look each roll, with the recipe shown in the preset chips"
       >
         surprise
+      </button>
+      {/* Cycles rather than opening a select: it is five values in a row with
+          one line to fit in, and the label is the readout. */}
+      <button
+        className={cx(styles.btn, props.morphSeconds > 0 && styles.btnOn)}
+        onClick={props.onCycleMorph}
+        title={
+          props.morphSeconds > 0
+            ? `preset, surprise and mutate travel to the new look over ${props.morphSeconds}s instead of cutting to it — click to change. Grabbing a slider ends a morph, and hitting surprise mid-morph carries on from wherever the board has got to`
+            : 'presets and rolls land in one frame — click to make them travel there instead, which is where the looks between two presets live'
+        }
+      >
+        {`morph: ${MORPH_LABELS[props.morphSeconds]}`}
       </button>
       <button
         className={styles.btn}

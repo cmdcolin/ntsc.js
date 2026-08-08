@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { DEFAULT_CONTROLS } from '../controls'
 import { ALL_SLIDERS, VIEW_KEYS } from './controls'
 import { EMPTY_HISTORY, record, stepBack, stepForward } from './history'
+import { morphTo } from './morph'
 import { MUTATE_AMOUNTS, mutate } from './mutate'
 import {
   blendMod,
@@ -13,6 +14,7 @@ import {
 } from './presets'
 
 import type { Controls } from '../controls'
+import type { GlidePlan } from '../signal/glide'
 import type { SliderDef } from './controls'
 import type { History } from './history'
 import type { UiSlot } from './modSlots'
@@ -53,11 +55,24 @@ const MUTATE_SLIDERS = ALL_SLIDERS.filter(s => !VIEW_KEYS.has(s.key))
 // re-mixed — startMix rebaselines from whatever is live.
 export function useMix(args: {
   controls: Controls
+  // The same controls, read at the moment a verb runs rather than closed over
+  // from the render that built it. Two of the verbs below (`mutateGroup`,
+  // `resetGroup`) are handed to every control row through ControlsApi, and a
+  // verb that captures `controls` changes identity on every write — which puts
+  // all 202 rows back on the write path. The render-time `controls` above is
+  // still what the mix compares against, because that is a render-time question.
+  getControls: () => Controls
   writeControls: (controls: Controls) => void
+  // Hand a look to the engine to travel to over a span of seconds rather than
+  // writing it. See signal/glide.ts and ui/morph.ts.
+  startGlide: (plan: GlidePlan) => void
+  // How long the verbs below take to arrive. 0 is a cut, which is what every one
+  // of them used to be.
+  morphSeconds: number
   sourceBOn: boolean
   mod: Pick<ModSlotsApi, 'slots' | 'setSlots' | 'setRoutings'>
 }) {
-  const { controls, writeControls, mod } = args
+  const { controls, getControls, writeControls, morphSeconds, mod } = args
   const [lastPreset, setLastPreset] = useState<string | null>(null)
   const [history, setHistory] = useState<History<Look>>(EMPTY_HISTORY)
   const [mix, setMix] = useState<{ base: Controls; weights: PresetWeights }>(
@@ -76,12 +91,28 @@ export function useMix(args: {
   const mixed = blendPresets(mix.base, mix.weights)
   const weights = controlsEqual(controls, mixed) ? mix.weights : NO_WEIGHTS
 
-  const live = (): Look => ({ controls, slots: mod.slots })
+  const live = (): Look => ({ controls: getControls(), slots: mod.slots })
+
+  // Where a look arrives. At `cut` this is the write it always was; at any other
+  // duration the destination goes to the engine and the board travels there over
+  // that many seconds (signal/glide.ts).
+  //
+  // The recipe is set by the caller either way and at once, not when the morph
+  // lands — the fills already read empty whenever the live controls disagree
+  // with the recipe, which mid-flight they do, so a morph shows no recipe while
+  // it travels and fills it in on arrival. That is the honest reading: halfway to
+  // a stack of three presets is not 100% of any of them.
+  const land = (next: Controls) => {
+    if (morphSeconds <= 0) writeControls(next)
+    else args.startGlide(morphTo(next, morphSeconds))
+  }
 
   // Every destructive path goes through here, so the walk covers all of them.
+  // The step banked is where the board was when the gesture started, morph or
+  // not: undo takes back the whole journey, not the frame it had reached.
   const apply = (next: Controls) => {
     setHistory(h => record(h, live(), sameLook))
-    writeControls(next)
+    land(next)
   }
 
   // One preset's weight written onto a baseline. `base`/`from` are passed in
@@ -114,6 +145,11 @@ export function useMix(args: {
   return {
     weights,
     lastPreset,
+    // Handed out so scene recall arrives the same way a preset does — it is the
+    // same gesture (a whole board, at once) and the row of numbered slots is
+    // where a live set actually does it from. It records nothing: a recall
+    // already banks its own step through `snapshotForUndo`.
+    landLook: land,
     canUndo: history.past.length > 0,
     canRedo: history.future.length > 0,
     // Capture the live look before overwriting it, so undo can restore it.
@@ -131,14 +167,14 @@ export function useMix(args: {
         // "clean" (the only empty patch) is the reset: wipe the mix to defaults
         // — and stillness is part of that, so this is the one place a preset
         // asserts an empty bay rather than staying silent about motion.
-        writeControls(presetControls(patch))
+        land(presetControls(patch))
         setMix({ base: DEFAULT_CONTROLS, weights: new Map() })
         mod.setRoutings([])
       } else {
         // Clicking tops the preset up to full without clearing partials already
         // dialed in — the same as dragging its slider to 100%.
         const next = new Map(mix.weights).set(name, 1)
-        writeControls(blendPresets(mix.base, next))
+        land(blendPresets(mix.base, next))
         setMix({ base: mix.base, weights: next })
         // Motion changes on a whole-preset apply only — this, surprise, and a
         // link. Dragging a chip is a partial statement about the controls, and
@@ -179,6 +215,13 @@ export function useMix(args: {
     // A fresh look from the authored presets: one full preset plus one or two
     // partial ones from other groups, over clean defaults. Built through the mix
     // machinery so the chips show the recipe — each roll teaches what made it.
+    //
+    // The verb a morph does the most for, because it is the one that gets hit
+    // repeatedly: rolls chain. The engine takes its origin from wherever the
+    // board actually is (startGlide), so hitting this again mid-flight sets off
+    // from the tween rather than snapping back and starting over — hold the
+    // button down at 8s and the look wanders continuously through the space
+    // between the authored presets, which is where the ones worth keeping are.
     surprise: () => {
       const next = randomPresetMix(args.sourceBOn)
       // Where you are looking is yours, not part of the roll — same rule
@@ -186,7 +229,8 @@ export function useMix(args: {
       // the picture back into a little set in a dark room, which reads as the
       // app having done something wrong rather than as a new look.
       const blended = blendPresets(DEFAULT_CONTROLS, next)
-      for (const key of VIEW_KEYS) blended[key] = controls[key]
+      const now = getControls()
+      for (const key of VIEW_KEYS) blended[key] = now[key]
       apply(blended)
       setMix({ base: DEFAULT_CONTROLS, weights: next })
       // A roll is a whole look, motion included — and a roll that lands on a
@@ -197,7 +241,7 @@ export function useMix(args: {
       setLastPreset(null)
     },
     mutateLook: (amount: MutateAmount = 'normal') => {
-      apply(mutate(controls, MUTATE_SLIDERS, MUTATE_AMOUNTS[amount]))
+      apply(mutate(getControls(), MUTATE_SLIDERS, MUTATE_AMOUNTS[amount]))
       setLastPreset(null)
     },
     // One circuit back to stock, from its header. The row-level ↺ is the fine
@@ -206,7 +250,7 @@ export function useMix(args: {
     // rest of the look. Through `apply`, so it is one step on the walk: a
     // gesture that can wipe twenty controls has to be one ctrl+z to take back.
     resetGroup: (sliders: readonly SliderDef[]) => {
-      const next = { ...controls }
+      const next = { ...getControls() }
       for (const s of sliders) next[s.key] = DEFAULT_CONTROLS[s.key]
       apply(next)
     },
@@ -217,7 +261,7 @@ export function useMix(args: {
       sliders: readonly SliderDef[],
       amount: MutateAmount = 'normal',
     ) => {
-      apply(mutate(controls, sliders, MUTATE_AMOUNTS[amount]))
+      apply(mutate(getControls(), sliders, MUTATE_AMOUNTS[amount]))
       setLastPreset(null)
     },
   }

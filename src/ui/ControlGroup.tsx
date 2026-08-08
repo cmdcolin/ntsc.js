@@ -3,7 +3,12 @@ import { useState } from 'react'
 import { DEFAULT_CONTROLS, atRest } from '../controls'
 import styles from './ControlGroup.module.css'
 import { GROUPS, NEEDS, sliderFor } from './controls'
-import { useControlsApi } from './ControlsContext'
+import {
+  useControlReading,
+  useControls,
+  useControlsApi,
+  useControlValue,
+} from './ControlsContext'
 import { matchedSliders, useFilterQuery } from './filter'
 import { MagnifierFrame } from './MagnifierFrame'
 import { SYNCABLE_KEYS } from './midi'
@@ -13,6 +18,7 @@ import { useModSlotsApi } from './ModSlotsContext'
 import { mutateAmountFor } from './mutate'
 import { PipFrame } from './PipFrame'
 import { PurityFrame } from './PurityFrame'
+import { sameKeySet, sameList } from './sameList'
 import { Section } from './Section'
 import { SIGNAL_TAPS, tapFor } from './signalTap'
 import { useSignalTapApi } from './SignalTapContext'
@@ -40,10 +46,15 @@ export function ControlSlider(props: {
   const [modOpen, setModOpen] = useState(false)
   const s = props.slider
   const need = NEEDS[s.key]
+  // Two subscriptions, and the row re-renders when either number moves and at
+  // no other time. The gate falls back to this row's own key so the hook count
+  // doesn't depend on whether the control has a gate at all.
+  const value = useControlValue(s.key)
+  const gate = useControlValue(need === undefined ? s.key : need.key)
   // Whether the gate is closed at all, as opposed to whether this row is the
   // one that says so: a banner-muted row is still inert, and offering to
   // modulate a control whose path is shut would start an LFO nothing can show.
-  const inert = need !== undefined && !need.ok(api.controls[need.key])
+  const inert = need !== undefined && !need.ok(gate)
   const unmet = inert && props.muted?.has(need.key) !== true
   const slot = mod.modFor(s.key)
   const routed = slot !== null
@@ -54,7 +65,7 @@ export function ControlSlider(props: {
       min={s.min}
       max={s.max}
       step={s.step}
-      value={api.displayValue(s.key)}
+      value={api.lockedValue(s.key) ?? value}
       defaultValue={DEFAULT_CONTROLS[s.key]}
       onChange={v => api.writeControl(s.key, v)}
       choices={s.choices}
@@ -148,7 +159,8 @@ function needsNote(need: SliderNeed, api: ControlsApi) {
 // read off sliders; the sliders stay behind the reveal, where MIDI and clock
 // sync live.
 function WipeControl() {
-  const { controls, writeControl } = useControlsApi()
+  const controls = useControls()
+  const { writeControl } = useControlsApi()
   return (
     <WipeFrame
       mode={controls.wipeMode}
@@ -163,7 +175,8 @@ function WipeControl() {
 }
 
 function PipControl() {
-  const { controls, writeControl, writeControls } = useControlsApi()
+  const controls = useControls()
+  const { writeControl, writeControls } = useControlsApi()
   return (
     <PipFrame
       inert={controls.pipMix === 0}
@@ -192,7 +205,8 @@ function PipControl() {
 }
 
 function PurityControl() {
-  const { controls, writeControl, writeControls } = useControlsApi()
+  const controls = useControls()
+  const { writeControl, writeControls } = useControlsApi()
   return (
     <PurityFrame
       inert={controls.crtPurity === 0}
@@ -218,7 +232,8 @@ function PurityControl() {
 }
 
 function ZoomControl() {
-  const { controls, writeControls } = useControlsApi()
+  const controls = useControls()
+  const { writeControls } = useControlsApi()
   return (
     <MagnifierFrame
       zoom={controls.crtZoom}
@@ -299,9 +314,50 @@ const FRAMES: {
   },
 ]
 
+// A list of rows, and the component boundary is the point of it.
+//
+// The group header around it reads the controls — it has counts to show and
+// gates to check — so its own JSX is rebuilt on every write, and rows built
+// inline there would be rebuilt with it. Behind this boundary the compiler
+// memoizes on two props that a write does not touch, so React skips the lot.
+// Both props therefore have to keep their identity across a write: `sliders`
+// comes through sameList, `muted` through sameKeySet.
+export function ControlRows(props: {
+  sliders: readonly SliderDef[]
+  muted?: ReadonlySet<ControlKey>
+}) {
+  // Wrapped rather than returning the array bare: the compiler only treats a
+  // function as a component worth memoizing if it returns JSX, and this one
+  // exists solely to be memoized.
+  return (
+    <>
+      {props.sliders.map(s => (
+        <ControlSlider key={s.key} slider={s} muted={props.muted} />
+      ))}
+    </>
+  )
+}
+
+// Every gate the rows on screen sit behind, and how many of them sit behind
+// each — which is a fact about the rows, not about where the controls are.
+function gatesBehind(
+  onScreen: readonly SliderDef[],
+): { need: SliderNeed; n: number }[] {
+  const gates = new Map<ControlKey, { need: SliderNeed; n: number }>()
+  for (const s of onScreen) {
+    const need = NEEDS[s.key]
+    if (need !== undefined) {
+      const seen = gates.get(need.key)
+      if (seen === undefined) gates.set(need.key, { need, n: 1 })
+      else seen.n += 1
+    }
+  }
+  return [...gates.values()]
+}
+
 export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   const { group } = props
-  const { controls, writeControl, mutateGroup, resetGroup } = useControlsApi()
+  const { writeControl, mutateGroup, resetGroup } = useControlsApi()
   const mod = useModSlotsApi()
   const query = useFilterQuery()
   // A live filter drops the miniature, so a search can reach the sliders it
@@ -319,14 +375,33 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   // The trims a group hides so its look-makers stay in reach. A filter reaches
   // them for free: with a query up the tier collapses, so a search or a palette
   // jump lands on the row itself rather than on a toggle that hides it.
-  const fine = query === '' ? unframed.filter(s => s.fine === true) : []
-  const shown = query === '' ? unframed.filter(s => s.fine !== true) : unframed
+  // Both through sameList, because both are what ControlRows is memoized on:
+  // the members change when the query or the fold does, and a fresh array in
+  // between is the difference between React skipping every row in the group and
+  // rebuilding it.
+  const fine = sameList(
+    query === '' ? unframed.filter(s => s.fine === true) : [],
+  )
+  const shown = sameList(
+    query === '' ? unframed.filter(s => s.fine !== true) : unframed,
+  )
   // Every row actually on screen, which is what the gate scan below counts: a
   // banner is a summary of the notes it replaces, so a trim folded behind the
   // fine tier must not be one of the three that raises it.
   const onScreen = showFine ? [...shown, ...fine] : shown
-  const touched = group.sliders.some(s => !atRest(controls[s.key], s.key))
-  const fineTouched = fine.filter(s => !atRest(controls[s.key], s.key)).length
+  // Three readings, not a copy of the controls. This component builds every row
+  // in the group, so what it reads decides what re-renders: reading the object
+  // hands the compiler a dependency that changes on every write, and the rows go
+  // with it. Reading three primitives means a write to some other control
+  // returns the same three answers, the memo block holds, and React skips the
+  // rows entirely — which is the difference between 19ms a write and a frame
+  // that never notices.
+  const touched = useControlReading(c =>
+    group.sliders.some(s => !atRest(c[s.key], s.key)),
+  )
+  const fineTouched = useControlReading(
+    c => fine.filter(s => !atRest(c[s.key], s.key)).length,
+  )
   // The touched count can't cover motion: a routing never moves the resting
   // value, so a folded trim being driven by an LFO looks untouched from here.
   const fineMod = fine.some(s => mod.modFor(s.key) !== null)
@@ -334,17 +409,23 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   // When most of a group is dead behind the same gate (e.g. all of the mixer loop
   // behind loop mix), one banner beats a stack of identical per-row notes; the
   // notes stay only for the odd ones out.
-  const unmet = new Map<ControlKey, { need: SliderNeed; n: number }>()
-  for (const s of onScreen) {
-    const need = NEEDS[s.key]
-    if (need !== undefined && !need.ok(controls[need.key])) {
-      const seen = unmet.get(need.key)
-      if (seen === undefined) unmet.set(need.key, { need, n: 1 })
-      else seen.n += 1
-    }
-  }
-  const banners = [...unmet.values()].filter(e => e.n >= 3)
-  const muted: ReadonlySet<ControlKey> = new Set(banners.map(e => e.need.key))
+  //
+  // How many rows sit behind each gate is a property of which rows are showing,
+  // so it is counted here, off the controls entirely; where the controls come in
+  // is only *which* of those gates are shut, and that is the reading below.
+  const behind = gatesBehind(onScreen)
+  const shut = useControlReading(c =>
+    behind
+      .filter(g => !g.need.ok(c[g.need.key]))
+      .map(g => g.need.key)
+      .join(' '),
+  )
+  const shutKeys = new Set(shut === '' ? [] : shut.split(' '))
+  const banners = behind.filter(g => g.n >= 3 && shutKeys.has(g.need.key))
+  // Through sameKeySet, not `new Set(...)`: this is a prop on every row in the
+  // group, and a fresh Set on each write would be enough on its own to re-render
+  // all of them.
+  const muted = sameKeySet(banners.map(e => e.need.key))
 
   // A group the query left with nothing — no rows, no folded trims to offer,
   // and no miniature — is a header over an empty body, so it drops out entirely.
@@ -408,9 +489,7 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
           so unfolding the fine tier doesn't re-align the rows above it — the
           reserve is the same whichever rows are showing. */}
       <Rack sliders={group.sliders}>
-        {shown.map(s => (
-          <ControlSlider key={s.key} slider={s} muted={muted} />
-        ))}
+        <ControlRows sliders={shown} muted={muted} />
         {group.name === TAP_HOST_GROUP ? <SignalTapControl /> : null}
         {fine.length === 0 ? null : (
           <>
@@ -435,11 +514,7 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
                 </>
               )}
             </button>
-            {showFine
-              ? fine.map(s => (
-                  <ControlSlider key={s.key} slider={s} muted={muted} />
-                ))
-              : null}
+            {showFine ? <ControlRows sliders={fine} muted={muted} /> : null}
           </>
         )}
       </Rack>

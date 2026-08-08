@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { createPortal } from 'react-dom'
 
 import styles from './app.module.css'
@@ -8,7 +15,7 @@ import { AppMenu, ShowMenuButton } from './ui/AppMenu'
 import { AudioHint, AudioInput } from './ui/AudioInput'
 import { AudioSection } from './ui/AudioSection'
 import { CommandPalette } from './ui/CommandPalette'
-import { ControlGroup, ControlSlider } from './ui/ControlGroup'
+import { ControlGroup, ControlRows } from './ui/ControlGroup'
 import {
   ALL_SLIDERS,
   AUDIO_GROUPS,
@@ -18,7 +25,11 @@ import {
   SOURCE_B_BLURB,
   SOURCE_B_STAGE,
 } from './ui/controls'
-import { ControlsContext } from './ui/ControlsContext'
+import {
+  ControlsContext,
+  ControlStoreContext,
+  NO_CONTROL_STORE,
+} from './ui/ControlsContext'
 import { cx } from './ui/cx'
 import { FatalScreen } from './ui/FatalScreen'
 import {
@@ -38,9 +49,11 @@ import { MidiSection } from './ui/MidiSection'
 import { ModSection } from './ui/ModSection'
 import { slotsToRoutings } from './ui/modSlots'
 import { ModSlotsContext } from './ui/ModSlotsContext'
+import { nextMorph, parseMorph } from './ui/morph'
 import { MotionStrip } from './ui/MotionStrip'
 import { matchPreset, presetControls } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
+import { sameList } from './ui/sameList'
 import { SavedProfiles } from './ui/SavedProfiles'
 import { suggestProfileName } from './ui/savedProfiles'
 import { ScenesSection } from './ui/ScenesSection'
@@ -50,7 +63,7 @@ import { SignalPathDialog } from './ui/SignalPathDialog'
 import { SignalTapContext } from './ui/SignalTapContext'
 import { Rack } from './ui/Slider'
 import { Stage } from './ui/Stage'
-import { usePersistedFlag } from './ui/storage'
+import { usePersistedFlag, usePersistedString } from './ui/storage'
 import { TeletypeDialog } from './ui/TeletypeDialog'
 import ui from './ui/ui.module.css'
 import { parseSessionParams } from './ui/urlParams'
@@ -78,9 +91,10 @@ import { YouTubeDialog } from './ui/YouTubeDialog'
 import { gitSha, versionLabel } from './version'
 
 import type { ControlKey, Controls } from './controls'
+import type { GlidePlan } from './signal/glide'
 import type { PaletteAction } from './ui/CommandPalette'
 import type { Group } from './ui/controls'
-import type { ControlsApi } from './ui/ControlsContext'
+import type { ControlsApi, ControlStore } from './ui/ControlsContext'
 import type { Lens } from './ui/lens'
 import type { SavedProfile } from './ui/savedProfiles'
 import type { PathNode } from './ui/SignalPath'
@@ -94,6 +108,19 @@ const BAR_HIDDEN_STORE = 'ntsc.js_overlay_bar_hidden'
 // useSyncExternalStore fallbacks for the window before the async engine exists.
 const subscribeNever = () => () => {}
 const getDefaultControls = (): Controls => DEFAULT_CONTROLS
+
+// Which stages are open to a jump, in the only two arrangements there are: with
+// a second source patched in, and without. Built once rather than per render
+// because it is a prop on "This look" — a fresh Set each render rebuilds every
+// row in that section, and the answer only ever changes when source B does.
+const TRUNK_STAGES = PHASES.map(p => p.name)
+const OPEN_STAGES_B: ReadonlySet<string> = new Set([
+  ...TRUNK_STAGES,
+  SOURCE_B_STAGE,
+])
+const OPEN_STAGES_NO_B: ReadonlySet<string> = new Set(
+  TRUNK_STAGES.filter(name => name !== MIX_STAGE),
+)
 
 const toggleFullscreen = () => {
   if (document.fullscreenElement) {
@@ -145,12 +172,25 @@ export function App() {
     engine === null ? subscribeNever : engine.subscribeControls,
     engine === null ? getDefaultControls : engine.getControls,
   )
+  // The same store, handed to the rows so each can subscribe to its own key
+  // instead of taking the whole object off this render. Hand-memoized, and this
+  // is the one case where that is correctness rather than tuning: the object
+  // goes into a context, so a fresh identity per render re-renders every row
+  // that reads it, which is precisely what this exists to stop. The React
+  // Compiler would very likely get it right, and "very likely" is not the bar
+  // for the thing the panel's whole render budget rests on.
+  const controlStore = useMemo<ControlStore>(
+    () =>
+      engine === null
+        ? NO_CONTROL_STORE
+        : { subscribe: engine.subscribeControls, get: engine.getControls },
+    [engine],
+  )
   // MIDI clock when there is one, the hand-set tempo under it when there isn't.
   // Every ♩ in the panel — the rate control rows, and a modulation slot's rate —
   // reads this one number.
   const tempo = useTempo(bpm)
-  const { cycleSync, syncLabel, displayValue } = useClockSync({
-    controls,
+  const { cycleSync, syncLabel, lockedValue } = useClockSync({
     bpm: tempo.bpm,
     ensureTempo: tempo.ensure,
     writeControl,
@@ -190,9 +230,24 @@ export function App() {
   // one copy. The engine is written to and never read from — it applies the
   // routings inside its own frame and restores, so React has to be the store.
   const modApi = useModSlots(engine, tempo)
+  // How long a new look takes to arrive. Through the ref rather than `engine` so
+  // the identity is stable: it ends up inside the verbs useMix hands to every
+  // control row, and a fresh one per render would put all 202 rows back on the
+  // write path.
+  const startGlide = useCallback(
+    (plan: GlidePlan) => {
+      engineRef.current?.startGlide(plan)
+    },
+    [engineRef],
+  )
+  const [morphStored, setMorphStored] = usePersistedString('ntsc.js_morph')
+  const morphSeconds = parseMorph(morphStored)
   const mix = useMix({
     controls,
+    getControls: controlStore.get,
     writeControls,
+    startGlide,
+    morphSeconds,
     sourceBOn: eng.sourceBMode !== 'none',
     mod: modApi,
   })
@@ -210,7 +265,7 @@ export function App() {
 
   const { scenes, saveScene, recallScene, clearScene } = useScenes(
     engineRef,
-    writeControls,
+    mix.landLook,
     mix.snapshotForUndo,
     modApi,
   )
@@ -312,8 +367,7 @@ export function App() {
   // Everything a control row needs, in one place, read from context by the rows
   // themselves rather than threaded down through each group.
   const controlsApi: ControlsApi = {
-    controls,
-    displayValue,
+    lockedValue,
     writeControl,
     writeControls,
     favorites,
@@ -447,10 +501,12 @@ export function App() {
   // asks exactly this and nothing else, so the whole panel — pinned rows,
   // contextual sections, the spine — has to be able to answer it.
   const isRouted = (key: ControlKey) => modApi.modFor(key) !== null
-  const pinned = ALL_SLIDERS.filter(
-    s =>
-      favorites.has(s.key) &&
-      (!filtering || sliderMatches(s, query, isRouted(s.key))),
+  const pinned = sameList(
+    ALL_SLIDERS.filter(
+      s =>
+        favorites.has(s.key) &&
+        (!filtering || sliderMatches(s, query, isRouted(s.key))),
+    ),
   )
   // Everything the current look actually moves, gathered out of the six stages
   // it is scattered across. The same walk the chain map's `• N` does, kept as
@@ -521,10 +577,7 @@ export function App() {
   // Which stages something outside the map can jump to. Not read off pathNodes:
   // a live filter drops stages from the map, and a caption in "This look" is
   // still a way back to the module it came from.
-  const openStages = new Set<string>([
-    ...PHASES.map(p => p.name).filter(name => bOn || name !== MIX_STAGE),
-    ...(bOn ? [SOURCE_B_STAGE] : []),
-  ])
+  const openStages = bOn ? OPEN_STAGES_B : OPEN_STAGES_NO_B
 
   // Whether the query reached anything at all, across every place a result can
   // land — not the trunk alone. A routed mixer control lives on B's branch and a
@@ -683,6 +736,8 @@ export function App() {
         onEndCompare={endCompare}
         onSurprise={mix.surprise}
         onMutate={mix.mutateLook}
+        morphSeconds={morphSeconds}
+        onCycleMorph={() => setMorphStored(String(nextMorph(morphSeconds)))}
         saved={
           <SavedProfiles
             profiles={profiles.profiles}
@@ -794,9 +849,7 @@ export function App() {
       {pinned.length === 0 ? null : (
         <Section title="Favorites" defaultOpen openOnFilter>
           <Rack sliders={pinned}>
-            {pinned.map(s => (
-              <ControlSlider key={s.key} slider={s} />
-            ))}
+            <ControlRows sliders={pinned} />
           </Rack>
         </Section>
       )}
@@ -905,19 +958,25 @@ export function App() {
   // renders the same whether the panel is docked or in the popout window.
   const panel = (
     <FilterContext value={query}>
-      <ControlsContext value={controlsApi}>
-        {/* Its own context beside the controls one: a slider drag rewrites
-            controls every pointer move, and rebuilding the bay's consumers on
-            each of those frames would cost more than the bay ever does. */}
-        <ModSlotsContext value={modApi}>
-          {/* And a third beside those two: dbgView lives on the engine, not in
-              Controls, so the View group's tap row needs its own way down to
-              eng.tap/eng.changeTap. */}
-          <SignalTapContext value={{ tap: eng.tap, onTap: eng.changeTap }}>
-            {panelBody}
-          </SignalTapContext>
-        </ModSlotsContext>
-      </ControlsContext>
+      {/* The store the rows read their own value out of, one key each. Separate
+          from the verbs below because the two change on opposite schedules: the
+          store's identity never changes while an engine lives, and that is what
+          lets a write re-render the row it moved and no other. */}
+      <ControlStoreContext value={controlStore}>
+        <ControlsContext value={controlsApi}>
+          {/* Its own context beside the controls one: a slider drag rewrites
+              controls every pointer move, and rebuilding the bay's consumers on
+              each of those frames would cost more than the bay ever does. */}
+          <ModSlotsContext value={modApi}>
+            {/* And a third beside those two: dbgView lives on the engine, not in
+                Controls, so the View group's tap row needs its own way down to
+                eng.tap/eng.changeTap. */}
+            <SignalTapContext value={{ tap: eng.tap, onTap: eng.changeTap }}>
+              {panelBody}
+            </SignalTapContext>
+          </ModSlotsContext>
+        </ControlsContext>
+      </ControlStoreContext>
     </FilterContext>
   )
 

@@ -1,6 +1,6 @@
 import { PASS_THROUGH } from '../signal/modstate'
 import { sliderFor } from './controls'
-import { useControlsApi } from './ControlsContext'
+import { useControlValue } from './ControlsContext'
 import { cx } from './cx'
 import { SYNC_DIVISIONS } from './midi'
 import styles from './ModRowEditor.module.css'
@@ -31,7 +31,9 @@ export function ModRowEditor(props: {
 }) {
   const { slots, bpm, modFor, setSlotForKey, setSlotOn, cycleSyncForKey } =
     useModSlotsApi()
-  const { controls } = useControlsApi()
+  // Above the early returns below, because it is a hook. The one control this
+  // editor is about, so it subscribes to that key rather than to the whole set.
+  const rest = useControlValue(props.controlKey)
   const key = props.controlKey
   const slot = modFor(key)
   const def = sliderFor(key)
@@ -67,7 +69,6 @@ export function ModRowEditor(props: {
   // unless something says otherwise; the fix is to move the slider, so the note
   // says which way. The audio followers are exempt — they only ever push one
   // way, which is what they are for.
-  const rest = controls[key]
   const swing = slot.depth * (def.max - def.min)
   const clipped =
     PASS_THROUGH.has(slot.source) || swing === 0
