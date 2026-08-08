@@ -2,6 +2,58 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.23.0](https://github.com/cmdcolin/ntsc.js/compare/v0.22.2...v0.23.0) - 2026-08-08
+
+### Features
+- *(ui)* [`579205d`](https://github.com/cmdcolin/ntsc.js/commit/579205d86748ca2180fc402aa68b4a7827e981e8) a wobble's rate can lock to the beat, and the beat can be tapped in
+- *(ui)* [`8440498`](https://github.com/cmdcolin/ntsc.js/commit/8440498de3fa3aeca8f92d33d1746fdd0a75236d) give the purity patch a drag-to-place widget
+- *(ui)* [`33169b0`](https://github.com/cmdcolin/ntsc.js/commit/33169b055941b05a0d6da9ebf745705b03360e40) move the signal tap into the panel's View group
+- *(ui)* [`89624cb`](https://github.com/cmdcolin/ntsc.js/commit/89624cbc1448967a759968db0284fb7b4845c15b) band the source picker options by kind
+- *(ui)* [`2ed9ae1`](https://github.com/cmdcolin/ntsc.js/commit/2ed9ae128a576e30cd5c79d3b8c394827e2d999e) keep the scroll position steady when "This look" grows
+- *(ui)* [`b18f203`](https://github.com/cmdcolin/ntsc.js/commit/b18f203dd697db52a6907233bb81c10317d8c384) add tape-wear, broadcast, and CRT preset chips
+- *(ui)* [`74e3df9`](https://github.com/cmdcolin/ntsc.js/commit/74e3df978acef38a2be0bc795312c2feada2fd5c) tell the inert miniatures why they do nothing
+- *(ui)* [`79ca197`](https://github.com/cmdcolin/ntsc.js/commit/79ca1972a5bff694d0a95f50977da68a2f1f6f6c) a teletype card can be redrawn by an unsteady hand
+- *(ui)* [`b352593`](https://github.com/cmdcolin/ntsc.js/commit/b352593f3a683f6d0d33e7df5e8877d412441839) rate and tag looks, to learn which settings are good
+- [`7b30597`](https://github.com/cmdcolin/ntsc.js/commit/7b30597baee82029c43489b283a7cfc37412d631) export the label dataset, and fit the affinity it is for
+- *(ui)* [`e8450e3`](https://github.com/cmdcolin/ntsc.js/commit/e8450e37e92ea63239514c9a5da18d9482d8759c) the same controls again, filed by the gesture that moves them
+- *(ui)* [`438557c`](https://github.com/cmdcolin/ntsc.js/commit/438557c6771bf83a6bddf5dbc0152ebfb18cdb0e) a mode switch that fits its row takes one line
+- *(ui)* [`3a5508f`](https://github.com/cmdcolin/ntsc.js/commit/3a5508f24052580cd8c04e4aceab48307cc9ce12) the open stage says how to close it, and Escape agrees
+- *(gpu)* [`42862b3`](https://github.com/cmdcolin/ntsc.js/commit/42862b3ba1145b961c2713c3bff63f38076a6c6c) a tap that draws the line instead of painting it
+- *(ui)* [`0785da8`](https://github.com/cmdcolin/ntsc.js/commit/0785da83e9e2b3174f152746cd0d9841cb6fec17) help copy that can be a list when it is one
+- *(ui)* [`8e6fc9d`](https://github.com/cmdcolin/ntsc.js/commit/8e6fc9de62300f05fd83a40f2e672533f73f7cbe) add Sound and View control stages, keep view controls off signal path
+- *(ui)* [`f8661a4`](https://github.com/cmdcolin/ntsc.js/commit/f8661a40ba4328af260c56bfe6bb496009533ccb) support multiple visual branches and pressable loop returns on chain map
+- *(ui)* [`8b86efc`](https://github.com/cmdcolin/ntsc.js/commit/8b86efc25a224633eddc793fed48b42eced9f923) update signal path overlay dialog and loops configuration view
+- *(audio)* [`4d03c04`](https://github.com/cmdcolin/ntsc.js/commit/4d03c04444faf02a1bd36264a4e3d152746935da) add video audio input mode and reverb slider to drive simulation
+
+### Fixes
+- *(ui)* [`6ffd3ce`](https://github.com/cmdcolin/ntsc.js/commit/6ffd3ce4dc213783cf5e3b5090d6f289ce5cd2fd) default frame rate lock to auto
+- *(ui)* [`34ee900`](https://github.com/cmdcolin/ntsc.js/commit/34ee9006044e6022703caafe75914385a94ce7ed) unfolding the preset catalog opens the section holding it
+- *(ui)* [`0d530e6`](https://github.com/cmdcolin/ntsc.js/commit/0d530e6bf1046b7778736f37b2ecd0aa2b8d52a1) a rating needs an author, so ask for one instead of queueing
+- *(ui)* [`c34f38d`](https://github.com/cmdcolin/ntsc.js/commit/c34f38d88679211c0125bcc27189fab02f6e7807) the per-stage shake button was a speck; draw the die
+- *(ui)* [`f2571f0`](https://github.com/cmdcolin/ntsc.js/commit/f2571f036ed155ac9fda2de5eb5aebccbba5f92a) the tags menu asks for an account the way the saved menu does
+- *(ui)* [`8d663ba`](https://github.com/cmdcolin/ntsc.js/commit/8d663ba21f3d4f76d2580476b62a17f38495d049) border the search box's clear button like its neighbors
+- *(ui)* [`da817ab`](https://github.com/cmdcolin/ntsc.js/commit/da817ab228b4070a983c31105615c0485395b5df) a miniature is measured where you grabbed it, not where it drifted to
+
+### Performance
+- *(ui)* [`f083394`](https://github.com/cmdcolin/ntsc.js/commit/f08339454b8f38d02a9e3becbb1147db43de6fae) subscribe each control row to its own key
+
+### Refactor
+- *(ui)* [`8e90b37`](https://github.com/cmdcolin/ntsc.js/commit/8e90b370dc1b005167e2aa6892f90974a584364a) split oversized control groups by mechanism
+- *(ui)* [`1c2acc6`](https://github.com/cmdcolin/ntsc.js/commit/1c2acc68248f156cf7091e2a6df408f7779320ba) trim the app menu's search glyph and GitHub link
+- *(ui)* [`241f0f4`](https://github.com/cmdcolin/ntsc.js/commit/241f0f43bb671609d29f445b8bdee94a3cff0f9e) trim resting-state copy in the signal map and preset caption
+- *(ui)* [`0053e46`](https://github.com/cmdcolin/ntsc.js/commit/0053e46464d37cb068ee7189a79eb89bc31e9a45) the number keys reach the library instead of a bank of their own
+- *(ui)* [`82cfdcd`](https://github.com/cmdcolin/ntsc.js/commit/82cfdcd27966fa3b29f9e97549817ba45038d4ba) move saved profiles button to header and remove vaporwave section
+
+### Documentation
+- [`4ffd36c`](https://github.com/cmdcolin/ntsc.js/commit/4ffd36c99ae0875385385711fc9be0e102d13b5c) jot down some future feature ideas
+- [`38904bc`](https://github.com/cmdcolin/ntsc.js/commit/38904bcab7686ebf56e4b174ecaf25fd0c4977dc) how a morph shares a frame with modulation
+- *(ui)* [`f725741`](https://github.com/cmdcolin/ntsc.js/commit/f725741882a5f4555814f713e736bbf0b237e803) the vote page stopped recording; say so where it says otherwise
+
+### Other Changes
+- [`abe5f37`](https://github.com/cmdcolin/ntsc.js/commit/abe5f372b7162654cdead600fe99fdcf87080541) Update docs
+- [`c5ffcfc`](https://github.com/cmdcolin/ntsc.js/commit/c5ffcfcd7a6bdc0af742aa1e787eeef65e1497b9) Minor version bumps
+- [`86d8bf5`](https://github.com/cmdcolin/ntsc.js/commit/86d8bf5841eb39fefb2aee89fc2bd9133b9f8845) Minor docs updates for script screenshos
+
 ## [0.22.2](https://github.com/cmdcolin/ntsc.js/compare/v0.22.1...v0.22.2) - 2026-08-08
 
 ### Features
