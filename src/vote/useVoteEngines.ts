@@ -6,15 +6,20 @@ import { AudioState } from '../signal/audiostate'
 import type { EngineApi } from '../gpu/engineapi'
 import type { RefObject } from 'react'
 
-// Two engines, on two canvases, so the two candidates in a pair are rendered and
-// recorded at the same time instead of one after the other.
+// Two engines, on two canvases, so both candidates in a pair are live at once.
 //
-// Why there are two: with one engine a pair cost ~11 s of real time to prepare
-// against ~3 s to judge, so prefetching hid none of the wait and the labeller sat
-// through most of every pair. Two engines cut that to ~6 s, and they remove the
-// worse problem for free — with one engine, candidate B developed on top of the
-// feedback A had left in VRAM, and the flush that mitigated it was itself part of
-// the cost.
+// Why there are two: with one engine the pair could not be on screen together, so
+// each candidate was rendered in turn and captured to a webm the page looped in a
+// `<video>`. That cost ~11 s of real time per pair against ~3 s to judge one, and
+// prefetching hid none of it. Two engines measured 3.7 s from a vote to the next
+// judgeable pair, and made the recorder unnecessary — the canvases *are* the
+// previews now, which also took the codec out from between the labeller and the
+// pixels and made the two candidates literally simultaneous rather than merely
+// equal in frame count.
+//
+// It fixed the contamination inside a pair for free, too: neither candidate
+// develops in the other's leftovers any more. Across pairs it still can, which is
+// why prepare.ts flushes both engines to stock signal between them.
 //
 // **Both engines share one GPUDevice, and that is not an accident.** `initGpu`
 // stashes the device it creates on `globalThis` and hands it to the next caller
