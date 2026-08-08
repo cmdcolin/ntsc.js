@@ -107,7 +107,11 @@ describe('session params', () => {
       `?src=teletype&text=${encodeURIComponent('BE KIND\nREWIND')}`,
     )
     expect(p.src).toBe('teletype')
-    expect(p.card).toEqual({ text: 'BE KIND\nREWIND', crawl: false })
+    expect(p.card).toEqual({
+      text: 'BE KIND\nREWIND',
+      crawl: false,
+      boil: false,
+    })
     expect(p.cardb).toBe(null)
   })
 
@@ -115,7 +119,26 @@ describe('session params', () => {
     expect(parseSessionParams('?src=teletype&crawl').card).toEqual({
       text: TELETYPE_DEFAULT.text,
       crawl: true,
+      boil: false,
     })
+  })
+
+  it('takes ?boil on its own as the stock card, boiling', () => {
+    expect(parseSessionParams('?src=teletype&boil').card).toEqual({
+      text: TELETYPE_DEFAULT.text,
+      crawl: false,
+      boil: true,
+    })
+  })
+
+  it('keeps the two slots’ hands apart', () => {
+    // ?boil is A's and ?boilb is B's: one card boiling and the other holding
+    // still is a mix worth having, and the flags used to be easy to cross.
+    const p = parseSessionParams(
+      '?src=teletype&srcb=teletype&text=A&textb=B&boilb',
+    )
+    expect(p.card?.boil).toBe(false)
+    expect(p.cardb?.boil).toBe(true)
   })
 
   it('clamps teletype text a link asks for', () => {
@@ -138,8 +161,8 @@ const state = (over: Partial<SessionState> = {}): SessionState => ({
   sourceBMode: 'bars',
   ytUrlA: '',
   ytUrlB: '',
-  teletypeA: { text: '', crawl: false },
-  teletypeB: { text: '', crawl: false },
+  teletypeA: { text: '', crawl: false, boil: false },
+  teletypeB: { text: '', crawl: false, boil: false },
   speedA: SPEED_DEFAULT,
   speedB: SPEED_DEFAULT,
   reverb: REVERB_DEFAULT,
@@ -203,8 +226,8 @@ describe('session round trip', () => {
     }
   })
 
-  it('returns a teletype card, mode and words and roll together', () => {
-    const card = { text: 'BE KIND\nREWIND', crawl: true }
+  it('returns a teletype card, mode and words and motion together', () => {
+    const card = { text: 'BE KIND\nREWIND', crawl: true, boil: true }
     const back = roundTrip(state({ sourceMode: 'teletype', teletypeA: card }))
     expect(back.src).toBe('teletype')
     expect(back.card).toEqual(card)
@@ -216,7 +239,10 @@ describe('session round trip', () => {
     // The words are only the source while teletype is the source; a link made
     // after switching to bars must not resurrect the card on the far end.
     const back = roundTrip(
-      state({ sourceMode: 'bars', teletypeA: { text: 'HI', crawl: true } }),
+      state({
+        sourceMode: 'bars',
+        teletypeA: { text: 'HI', crawl: true, boil: true },
+      }),
     )
     expect(back.card).toBe(null)
   })

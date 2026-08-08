@@ -67,17 +67,20 @@ export const TELETYPE_MAX = 1000
 export const clampCardText = (text: string): string =>
   Array.from(text).slice(0, TELETYPE_MAX).join('')
 
-// A card as its owner set it: what it says, and whether it rolls up the frame
-// instead of sitting still. One value rather than two loose fields, because
-// every layer between the dialog and the query string has to carry it whole.
+// A card as its owner set it: what it says, whether it rolls up the frame
+// instead of sitting still, and whether it is redrawn by an unsteady hand. One
+// value rather than three loose fields, because every layer between the dialog
+// and the query string has to carry it whole.
 export interface TeletypeCard {
   text: string
   crawl: boolean
+  boil: boolean
 }
 
 export const TELETYPE_DEFAULT: TeletypeCard = {
   text: 'PLEASE STAND BY',
   crawl: false,
+  boil: false,
 }
 
 // A monospace stack rather than `monospace` alone: the generic maps to
@@ -283,6 +286,91 @@ export function wrapText(text: string, cols: number): string[] {
   return out
 }
 
+// Boil: the card redrawn a few times a second by a hand that cannot hold still.
+// The text does not change — this is one card, and what a link carries is still
+// that one card — but every cell's dots land up to a dot off where they landed
+// last time, so the strokes crawl and the letterforms shiver.
+//
+// The reason it is worth having on a *composite* path, rather than being a cute
+// wobble: type is the harshest thing you can feed this chain, and a still card
+// gives still artifacts — the ringing parks on the same stems, the dot crawl
+// sits. Move the dots a dot and the chain has to decide all of it again every
+// frame, so the crawl actually crawls and the chroma bleed shimmers. The source
+// moves; nothing in the signal path knows about it (see teletypeSlot).
+//
+// Offsets are in dots, and only ever -1, 0 or 1. Two is already most of a
+// stroke's width at this cell size and reads as a different drawing rather than
+// as the same one redrawn.
+const BOIL_DOTS = 1
+// Wavelength of the field, in cells. This is the number that makes a boil look
+// like a hand: per-cell independent jitter would shiver every cell on its own
+// and tear a drawing into a grid of seams — a fault in the character generator,
+// not a hand. Sampled from a smooth field instead, neighbours lean together,
+// solid areas stay solid, and only the *edges* of a shape move.
+//
+// Six cells is where that lands. Measured over a 40x24 page (a 3x3 grid of
+// possible offsets, so an uncorrelated field would have adjacent cells agree
+// about 14% of the time): 2.5 cells agrees 61% and still cracks a filled area
+// open too often, 6 agrees 81%, and past ~10 the page starts leaning as one
+// block, which is the card sliding rather than boiling. A drawn shape is a
+// handful of cells across, so at 6 it mostly moves as a whole with its
+// extremities lagging — which is what a redrawn line does.
+const BOIL_CELLS = 6
+
+// Lattice hash and the 2-D value-noise field over it. Local rather than
+// `signal/noise`'s: that one is a 1-D series sampled along time, and a field
+// sampled diagonally through it streaks — the drawing would shear along one
+// diagonal instead of wobbling.
+function boilHash(x: number, y: number, seed: number): number {
+  let h =
+    Math.imul(x | 0, 0x27d4eb2d) ^
+    Math.imul(y | 0, 0x165667b1) ^
+    Math.imul(seed | 0, 0x9e3779b1)
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b)
+  h ^= h >>> 13
+  return (h >>> 0) / 0x80000000 - 1
+}
+
+const smoothstep = (f: number): number => f * f * (3 - 2 * f)
+
+function boilField(x: number, y: number, seed: number): number {
+  const xi = Math.floor(x)
+  const yi = Math.floor(y)
+  const u = smoothstep(x - xi)
+  const v = smoothstep(y - yi)
+  const top = boilHash(xi, yi, seed) * (1 - u) + boilHash(xi + 1, yi, seed) * u
+  const bot =
+    boilHash(xi, yi + 1, seed) * (1 - u) + boilHash(xi + 1, yi + 1, seed) * u
+  return top * (1 - v) + bot * v
+}
+
+// Where every cell's dots land on boil frame `phase`: dx, dy per cell, row
+// major. Exported for the tests — this is the whole mechanism, and it is
+// arithmetic, which is the part worth pinning down in node where there is no
+// canvas to look at.
+//
+// Consecutive phases are *uncorrelated* fields rather than a drift through one:
+// a boil is the drawing redrawn, not the drawing moved, so there is nothing to
+// pan through. x and y take their own seed off the phase, or every cell would
+// move along the same diagonal.
+export function boilOffsets(
+  cols: number,
+  rows: number,
+  phase: number,
+): Int8Array {
+  const out = new Int8Array(cols * rows * 2)
+  for (let r = 0; r < rows; r++) {
+    const y = r / BOIL_CELLS
+    for (let c = 0; c < cols; c++) {
+      const x = c / BOIL_CELLS
+      const i = (r * cols + c) * 2
+      out[i] = Math.round(BOIL_DOTS * boilField(x, y, phase * 2))
+      out[i + 1] = Math.round(BOIL_DOTS * boilField(x, y, phase * 2 + 1))
+    }
+  }
+  return out
+}
+
 export const makeTeletypeCard = (): OffscreenCanvas =>
   new OffscreenCanvas(CARD_W, CARD_H)
 
@@ -310,11 +398,17 @@ function shadeTile(level: number): OffscreenCanvas {
 // is the card's own rasteriser at 1:1, so there is no second renderer to keep
 // honest and no way for the preview to disagree with the picture. It wants the
 // cursor left off — that block belongs to a card being typed, not to a page
-// being drawn on.
+// being drawn on — and it never boils: a page you are drawing on has to hold
+// still under the cursor.
+//
+// `boil` is one frame's worth of per-cell dot offsets (boilOffsets). A cell
+// pushed off the far edge loses a dot column to the canvas bounds; the card
+// keeps 7% of each edge clear anyway, so there is nothing out there to lose.
 export function dotGrid(
   rows: string[][],
   cols: number,
   cursor = true,
+  boil: Int8Array | null = null,
 ): OffscreenCanvas {
   const grid = new OffscreenCanvas(cols * CELL_W, rows.length * CELL_H)
   const g = grid.getContext('2d')
@@ -327,7 +421,6 @@ export function dotGrid(
   // instead of restarting its checker at every cell boundary.
   const dither = new Map<number, CanvasPattern | null>()
   rows.forEach((row, r) => {
-    const y = r * CELL_H
     // Per character, not per line: the cell grid is the layout, and letting the
     // font's own advance place them would put the dots between columns.
     row.forEach((ch, col) => {
@@ -335,7 +428,13 @@ export function dotGrid(
       // far as the rasteriser is concerned — measuring one 960 times a redraw
       // is the whole cost of painting on a full page.
       if (ch === ' ') return
-      const x = col * CELL_W
+      // The hand, if there is one. Applied to the cell's origin rather than to
+      // its dots individually: a cell is the unit a character generator places,
+      // so a boiled cell is the same glyph a dot to the left — not a glyph with
+      // its own dots scrambled, which is noise rather than an unsteady hand.
+      const j = boil === null ? 0 : (r * cols + col) * 2
+      const x = col * CELL_W + (boil === null ? 0 : boil[j])
+      const y = r * CELL_H + (boil === null ? 0 : boil[j + 1])
       const shade = SHADES[ch]
       const mosaic = mosaicRows(ch)
       if (shade !== undefined) {
@@ -405,7 +504,15 @@ const CRAWL_GAP_ROWS = 2
 // asking for a canvas measured in tens of thousands of pixels.
 const CRAWL_MAX_ROWS = 250
 
-export function buildTeletype(text: string, crawl = false): TeletypeBuild {
+// `boilPhase` null is a still hand. Anything else is which redraw this is — the
+// dimensions come out identical either way (the offsets move dots inside the
+// grid, they do not resize it), which is what lets a boiling card be rebuilt
+// every tick without the block changing size or the crawl changing period.
+export function buildTeletype(
+  text: string,
+  crawl = false,
+  boilPhase: number | null = null,
+): TeletypeBuild {
   // A cell holds one character, whatever it took to write it down: a glyph
   // outside the BMP is one cell, not two half-surrogates rendered as tofu.
   const rows = wrapText(text, MAX_COLS)
@@ -415,7 +522,12 @@ export function buildTeletype(text: string, crawl = false): TeletypeBuild {
   // One spare column for the cursor, so a line that fills the row still has
   // somewhere to put it.
   const cols = Math.min(MAX_COLS + 1, Math.max(MIN_COLS, widest + 1))
-  const grid = dotGrid(rows, cols)
+  const grid = dotGrid(
+    rows,
+    cols,
+    true,
+    boilPhase === null ? null : boilOffsets(cols, rows.length, boilPhase),
+  )
 
   // Whole dots only. A fractional scale would make some dots a pixel wider
   // than their neighbours, which reads as a blurry font rather than a coarse

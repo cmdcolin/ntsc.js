@@ -32,15 +32,17 @@ export function TeletypeDialog(props: {
   const [mode, setMode] = useState<'type' | 'draw'>('type')
   const [text, setText] = useState(props.initial.text)
   const [crawl, setCrawl] = useState(props.initial.crawl)
+  const [boil, setBoil] = useState(props.initial.boil)
   const box = useRef<HTMLTextAreaElement>(null)
   // Snapshots of the text, one per stroke. A ref rather than state: nothing
   // renders from it, and it has to survive the switch between the two modes.
   const undo = useRef<string[]>([])
 
   const edit = (next: Partial<TeletypeCard>) => {
-    const card = { text, crawl, ...next }
+    const card = { text, crawl, boil, ...next }
     setText(card.text)
     setCrawl(card.crawl)
+    setBoil(card.boil)
     props.onLive(card)
   }
   const snapshot = () => {
@@ -115,7 +117,7 @@ export function TeletypeDialog(props: {
       <form
         onSubmit={e => {
           e.preventDefault()
-          props.onSubmit({ text, crawl })
+          props.onSubmit({ text, crawl, boil })
         }}
       >
         {mode === 'type' ? (
@@ -139,7 +141,7 @@ export function TeletypeDialog(props: {
               onKeyDown={e => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault()
-                  props.onSubmit({ text, crawl })
+                  props.onSubmit({ text, crawl, boil })
                 }
               }}
               data-autofocus
@@ -181,6 +183,19 @@ export function TeletypeDialog(props: {
             onChange={e => edit({ crawl: e.target.checked })}
           />
           crawl — roll it up the frame, on repeat, instead of holding still
+        </label>
+        {/* The card is redrawn eight times a second with every cell's dots
+            landing up to a dot off. It is one card — the words and the drawing
+            don't change, and a link still carries exactly this — but a chain
+            fed a still card gives still artifacts, and a boiling one has to
+            decide the ringing and the dot crawl again every frame. */}
+        <label className={dlg.check}>
+          <input
+            type="checkbox"
+            checked={boil}
+            onChange={e => edit({ boil: e.target.checked })}
+          />
+          boil — redraw it by an unsteady hand, so the strokes crawl
         </label>
         <div className={dlg.cardRow}>
           <div>

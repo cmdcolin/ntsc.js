@@ -5,6 +5,7 @@ import {
   MOSAIC_PALETTE,
   PAINT_ROWS,
   TELETYPE_MAX,
+  boilOffsets,
   cellsToText,
   clampCardText,
   mosaicChar,
@@ -221,6 +222,73 @@ describe('the paint grid', () => {
     const text = cellsToText(full)
     expect(Array.from(text).length).toBeLessThanOrEqual(TELETYPE_MAX)
     expect(clampCardText(text)).toBe(text)
+  })
+})
+
+describe('boilOffsets', () => {
+  const COLS = 40
+  const ROWS = 24
+  const at = (o: Int8Array, c: number, r: number): [number, number] => [
+    o[(r * COLS + c) * 2],
+    o[(r * COLS + c) * 2 + 1],
+  ]
+
+  it('offsets every cell by at most one dot', () => {
+    // Two dots is most of a stroke at this cell size, and a card that moved by
+    // that much would read as a different drawing rather than the same one
+    // redrawn.
+    for (let phase = 0; phase < 8; phase++) {
+      const o = boilOffsets(COLS, ROWS, phase)
+      expect(o).toHaveLength(COLS * ROWS * 2)
+      expect(Array.from(o).every(v => v >= -1 && v <= 1)).toBe(true)
+    }
+  })
+
+  it('gives the same phase the same hand every time', () => {
+    // The grid is rebuilt from the phase on every tick and again whenever the
+    // card is re-printed; a phase that drew differently the second time would
+    // boil at the timer's rate rather than at the hand's.
+    expect(boilOffsets(COLS, ROWS, 3)).toEqual(boilOffsets(COLS, ROWS, 3))
+  })
+
+  it('draws a different hand for the next phase', () => {
+    const a = boilOffsets(COLS, ROWS, 0)
+    const b = boilOffsets(COLS, ROWS, 1)
+    expect(a).not.toEqual(b)
+  })
+
+  it('moves neighbours together rather than shivering each cell alone', () => {
+    // The one property that separates a boil from noise: per-cell independent
+    // jitter tears a drawing into a grid of seams. Nine offsets are in play
+    // (-1/0/1 on each axis, the middle twice as likely as either end), so an
+    // uncorrelated field would have adjacent cells agree about 14% of the time.
+    // The field's wavelength is what buys the rest — see BOIL_CELLS.
+    let agree = 0
+    let pairs = 0
+    for (let phase = 0; phase < 6; phase++) {
+      const o = boilOffsets(COLS, ROWS, phase)
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c + 1 < COLS; c++) {
+          const [ax, ay] = at(o, c, r)
+          const [bx, by] = at(o, c + 1, r)
+          if (ax === bx && ay === by) agree++
+          pairs++
+        }
+      }
+    }
+    expect(agree / pairs).toBeGreaterThan(0.7)
+  })
+
+  it('does not move the whole page the same way', () => {
+    // The other half of it: a field so smooth that every cell agrees is the
+    // card sliding, not boiling — the picture would translate as one block and
+    // nothing on it would move relative to anything else.
+    const o = boilOffsets(COLS, ROWS, 5)
+    const distinct = new Set<string>()
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) distinct.add(at(o, c, r).join(','))
+    }
+    expect(distinct.size).toBeGreaterThan(3)
   })
 })
 

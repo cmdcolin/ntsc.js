@@ -1,13 +1,13 @@
 // What makes a teletype a teletype: the card is redrawn a few times a second
-// with one more chunk of the text on it, and then — if the card is set to
-// crawl — it keeps going, rolling the block up the frame for as long as the
-// slot holds it.
+// with one more chunk of the text on it, and then — if the card is set to crawl
+// or to boil — it keeps going, rolling the block up the frame and/or redrawing
+// it with an unsteady hand, for as long as the slot holds it.
 //
-// Both are timers rather than anything in the chain because that is all they
-// are: the *source* changes, not the signal path, exactly as it would if
+// All of them are timers rather than anything in the chain because that is all
+// they are: the *source* changes, not the signal path, exactly as it would if
 // someone were feeding the modulator from a character generator with a keyboard
 // on it. stopSlot owns the teardown (see videoSlot.ts), so every source change
-// already stops whichever of the two is running.
+// already stops whatever is running.
 
 import {
   TELETYPE_ASPECT,
@@ -40,6 +40,14 @@ const MAX_MS = 6000
 const CRAWL_HZ = 30
 const CRAWL_PX_PER_S = 70
 
+// The hand. Deliberately far under the display rate: a boil at 60 Hz averages
+// out into a blur that reads as a soft card, and the whole point is that each
+// redraw is legible as its own drawing. Eight a second is where a two-frame
+// animation has always sat — and it is also slow enough that rebuilding the dot
+// grid (rasterise, threshold, scale) is eight of those a second rather than
+// sixty, which is what keeps a boiling card as cheap as a rolling one.
+const BOIL_HZ = 8
+
 // `reveal` is what makes this a teletype rather than a caption: the card prints
 // a character at a time. It is off for an edit to a card that is already up —
 // retyping a word should change the word, not send the whole card back to the
@@ -60,35 +68,63 @@ export function printCard(
     if (timer !== null) clearInterval(timer)
     timer = null
   }
-  // A crawl is never finished, so the handle stays live until the slot is
-  // retired; a still card drops it once the last character has landed.
+  // A crawl or a boil is never finished, so the handle stays live until the
+  // slot is retired; a still card drops it once the last character has landed.
   slot.typer.current = { stop }
 
-  const crawl = () => {
-    const build = buildTeletype(card.text, true)
-    const period = crawlPeriod(build)
+  // Whichever of the two animations the card asked for, on one timer. One
+  // rather than two because a card can do both at once, and two intervals
+  // drawing into the same canvas would race — each would present the other's
+  // half-finished frame at whatever rate it happened to fire.
+  //
+  // The roll advances by elapsed time rather than by a fixed step per tick: a
+  // browser clamps timers to 1 Hz in a tab it isn't painting, and a card that
+  // had been rolling in the background for a minute should come back where a
+  // clock says it is, not a minute behind. The hand is on the same clock for the
+  // same reason, and on its own slower division of it.
+  const animate = () => {
+    let phase = card.boil ? 0 : null
+    let build = buildTeletype(card.text, card.crawl, phase)
+    const start = performance.now()
+    let last = start
     let offset = 0
-    // Advanced by elapsed time rather than a fixed step per tick: a browser
-    // clamps timers to 1 Hz in a tab it isn't painting, and a card that had
-    // been rolling in the background for a minute should come back where a
-    // clock says it is, not a minute behind.
-    let last = performance.now()
-    timer = setInterval(() => {
-      const now = performance.now()
-      offset = (offset + ((now - last) / 1000) * CRAWL_PX_PER_S) % period
-      last = now
-      drawCrawl(canvas, build, offset)
-      show()
-    }, 1000 / CRAWL_HZ)
+    timer = setInterval(
+      () => {
+        const now = performance.now()
+        if (phase !== null) {
+          const next = Math.floor(((now - start) / 1000) * BOIL_HZ)
+          if (next !== phase) {
+            phase = next
+            // The rebuild is the boil. Dimensions come back identical, so a
+            // rolling card keeps its period and its size across redraws.
+            build = buildTeletype(card.text, card.crawl, phase)
+          }
+        }
+        if (card.crawl) {
+          offset =
+            (offset + ((now - last) / 1000) * CRAWL_PX_PER_S) %
+            crawlPeriod(build)
+          drawCrawl(canvas, build, offset)
+        } else {
+          drawBuild(canvas, build)
+        }
+        last = now
+        show()
+      },
+      // A rolling card is presenting motion and wants a video source's rate
+      // whether or not it also boils; a still one only ever changes when the
+      // hand does.
+      1000 / (card.crawl ? CRAWL_HZ : BOIL_HZ),
+    )
   }
 
-  // The finished card, built once whether or not it rolls: the crawl needs the
-  // build anyway, and the still one gets the same grid without the vertical
-  // squeeze a mid-reveal redraw would have applied.
+  // The finished card, built once whether or not it moves: an animated card
+  // needs the build anyway, and the still one gets the same grid without the
+  // vertical squeeze a mid-reveal redraw would have applied.
   const settle = () => {
     stop()
-    if (card.crawl) {
-      crawl()
+    if (card.crawl || card.boil) {
+      animate()
     } else {
       drawBuild(canvas, buildTeletype(card.text))
       show()
