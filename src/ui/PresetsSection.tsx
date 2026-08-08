@@ -228,7 +228,14 @@ export function PresetsSection(props: {
     : active
       ? active.blurb
       : props.lastPreset === null
-        ? 'a preset is a bundle of settings, not one switch — click one for an instant look, then tweak the sliders below.'
+        ? // One line, not two. The caption's job is describing the chip under the
+          // pointer; this is only what it says when there is no chip to describe,
+          // and it was spending two lines of the panel's most expensive space on
+          // a fact the ? beside the title covers in full and the control count on
+          // every hover teaches by itself.
+          // Short enough to hold one line at the panel's docked width, which is
+          // the whole point of the rewrite: at two lines it saved nothing.
+          'a bundle of controls, not one switch — click one'
         : `modified from "${props.lastPreset}"`
   // The count rides the caption whenever the caption is describing a particular
   // preset, so browsing the chips teaches the thing the chips cannot say: this

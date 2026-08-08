@@ -154,21 +154,13 @@ export function SignalPath(props: {
         live={props.live}
         onOpen={name => props.onOpen(name)}
       />
-      {/* The empty state, saying how much is behind the boxes and in what order
-          — the header carries the instruction itself now, so this is the part
-          that only pays for its row while there is nothing in the row's place
-          anyway. Gone the moment a stage is open, since by then the answer is
-          on screen. */}
-      {shown.length > 0 ? null : (
-        <div className={styles.door}>
-          {openable.reduce(
-            (n, s) => n + s.groups.reduce((m, g) => m + g.sliders.length, 0),
-            0,
-          )}{' '}
-          controls, in the order the picture travels — A and B are your two
-          inputs, and they meet at the mixer
-        </div>
-      )}
+      {/* No empty state under the map. It used to carry a count of everything
+          behind the boxes and a line about the order the picture travels in,
+          which was two lines of the resting panel's scarcest space spent saying
+          what the map above it already draws — the boxes are in signal order and
+          B visibly joins at the mixer. A total like "205 controls" is a number
+          nobody acts on, and the standing instruction ("click a stage") lives on
+          the header line, where it costs no row and survives the first click. */}
       <div className={styles.stages}>
         {shown.map(node => (
           <div key={node.name} className={styles.stageRow}>
