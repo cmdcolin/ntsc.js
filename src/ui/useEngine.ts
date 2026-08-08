@@ -15,7 +15,6 @@ import { smpteBars, sweep } from '../sources/pattern'
 import { TELETYPE_DEFAULT } from '../sources/teletype'
 import { ytId } from '../sources/youtube'
 import { backingStoreSize } from './canvasSize'
-import { VIEW_KEYS } from './controls'
 import {
   canPickHandle,
   clearStash,
@@ -23,7 +22,7 @@ import {
   readStash,
   stashFile,
 } from './fileStash'
-import { blendPresets, randomPresetMix } from './presets'
+import { randomPresetMix, rollControls } from './presets'
 import { RebuildPolicy } from './rebuildPolicy'
 import { printCard } from './teletypeSlot'
 import {
@@ -967,14 +966,14 @@ export function useEngine() {
     // roll stays out of the A/B group either way.
     //
     // The view controls come back out of the roll, the same rule `useMix.
-    // surprise` follows and for the same reason: two of the Phosphor / CRT
-    // presets are *view* presets — 'across the room' winds the magnifier down
-    // to 0.42 and 'nose against the glass' up to 5 — so a roll that drew either
-    // one opened the app on a picture the size of a stamp in a dark room, or on
-    // a wall of phosphor grain. Clicking those chips yourself is a deliberate
-    // move and stays untouched; landing on one because a link said `?surprise`
-    // reads as the app having failed to load. Measured before the fix: two of
-    // six boot rolls came up as the little dark set.
+    // surprise` follows and for the same reason: a preset may be a *view*
+    // preset — 'nose against the glass' winds the magnifier to 5 — so a roll
+    // that drew one opened the app on a wall of phosphor grain rather than on a
+    // picture. Clicking that chip yourself is a deliberate move and stays
+    // untouched; landing on it because a link said `?surprise` reads as the app
+    // having failed to load. Measured when 'across the room' was still in the
+    // list (it wound the other way, to 0.42): two of six boot rolls came up as
+    // a stamp-sized set in a dark room.
     //
     // The button path pinned these to wherever the magnifier already was and
     // this one pinned nothing, which is one verb with two rules. Here there is
@@ -982,9 +981,7 @@ export function useEngine() {
     // stock is what it pins to. `?surprise&set=crtZoom:0.42` still works: the
     // link's own controls land after this and outrank it.
     if (params.surprise) {
-      const rolled = blendPresets(DEFAULT_CONTROLS, randomPresetMix(false))
-      for (const key of VIEW_KEYS) rolled[key] = DEFAULT_CONTROLS[key]
-      eng.applyControls(rolled)
+      eng.applyControls(rollControls(randomPresetMix(false), DEFAULT_CONTROLS))
     }
     eng.applyControls(params.controls)
     // Before either source is shown: the teletype card is typed out of the

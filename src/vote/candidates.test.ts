@@ -52,9 +52,9 @@ describe('sampleRecipe', () => {
     for (const seed of SEEDS) {
       const ws = Object.values(sampleRecipe(seed).weights)
       expect(ws.filter(w => w === 1)).toHaveLength(1)
-      for (const w of ws.filter(w => w !== 1)) {
-        expect(w).toBeGreaterThanOrEqual(0.3)
-        expect(w).toBeLessThanOrEqual(0.8)
+      for (const w of ws.filter(v => v !== 1)) {
+        expect(w).toBeGreaterThanOrEqual(0.25)
+        expect(w).toBeLessThanOrEqual(0.5)
       }
     }
   })
@@ -123,7 +123,7 @@ describe('recipeControls', () => {
   it('snaps mode controls to whole values so no shader branch sees a fraction', () => {
     for (const seed of BOARD_SEEDS) {
       const out = recipeControls(sampleRecipe(seed))
-      for (const s of ALL_SLIDERS.filter(s => s.step === 1)) {
+      for (const s of ALL_SLIDERS.filter(def => def.step === 1)) {
         expect(Number.isInteger(out[s.key]), s.key).toBe(true)
       }
     }

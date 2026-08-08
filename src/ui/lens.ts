@@ -7,9 +7,15 @@ import { travelToValue, valueToTravel } from './curve'
 import { clamp01 } from './miniFrame'
 
 // Below 1x the camera pulls back off the set until the tube is a small object in
-// a dark room. That's a preset-only easter egg now ('across the room' in
-// presets.ts) — no travel control (stage slider, panel slider, MIDI knob) can
-// reach it, so ZOOM_MIN only bounds presets and gestures, not travel.
+// a dark room (present.wgsl draws the cabinet down there). No travel control —
+// stage slider, panel slider, MIDI knob — can reach it, so ZOOM_MIN bounds only
+// presets and gestures, not travel.
+//
+// Nothing in the app aims there any more: it used to be one preset's whole
+// point ('across the room'), and that preset is gone. The floor stays where it
+// is because a link still carries raw control values, so `?set=crtZoom:0.42`
+// and any saved look built back when the chip existed still land in the room
+// rather than being clamped to the glass.
 export const ZOOM_MIN = 0.25
 export const ZOOM_MAX = 12
 

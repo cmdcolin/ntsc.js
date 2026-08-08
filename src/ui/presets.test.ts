@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
-import { SLIDER_BY_KEY } from './controls'
+import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
+import { SLIDER_BY_KEY, VIEW_KEYS } from './controls'
 import { RATE_MAX, RATE_MIN, modSource } from './modSlots'
 import {
   PRESETS,
@@ -10,6 +10,8 @@ import {
   controlsEqual,
   matchPreset,
   presetControls,
+  randomPresetMix,
+  rollControls,
 } from './presets'
 
 describe('blendPresets', () => {
@@ -114,7 +116,7 @@ describe('blendMod', () => {
     ]
     for (const p of moving) {
       for (const m of p.mod ?? []) {
-        expect(FILTER_KEYS, `${p.name}`).not.toContain(m.target)
+        expect(FILTER_KEYS, p.name).not.toContain(m.target)
       }
     }
   })
@@ -178,5 +180,114 @@ describe('controlsEqual', () => {
     expect(
       controlsEqual(blendPresets(base, weights), blendPresets(base, weights)),
     ).toBe(true)
+  })
+})
+
+// A cycling generator rather than Math.random, so a failure names a roll
+// somebody can reproduce.
+const seq = (values: number[]) => {
+  let i = 0
+  return () => values[i++ % values.length]
+}
+
+const movedBy = (name: string) => {
+  const full = blendPresets(DEFAULT_CONTROLS, new Map([[name, 1]]))
+  return CONTROL_KEYS.filter(k => full[k] !== DEFAULT_CONTROLS[k])
+}
+
+describe('randomPresetMix', () => {
+  it('leads with one preset whole and dials the rest partly in', () => {
+    for (let s = 0; s < 200; s++) {
+      const roll = [...randomPresetMix(true).values()]
+      expect(roll[0]).toBe(1)
+      for (const w of roll.slice(1)) {
+        expect(w).toBeGreaterThanOrEqual(0.25)
+        expect(w).toBeLessThan(0.5)
+      }
+    }
+  })
+
+  // The whole point of crossing families: two presets from the same group
+  // deepen one fault instead of stacking two.
+  it('never draws twice from one group', () => {
+    for (let s = 0; s < 200; s++) {
+      const groups = [...randomPresetMix(true).keys()].map(
+        n => PRESETS.find(p => p.name === n)?.group,
+      )
+      expect(new Set(groups).size).toBe(groups.length)
+    }
+  })
+
+  // What keeps a roll off the summing edge of blendPresets: a follower may meet
+  // the lead on a control or two, but not argue with it up and down the board.
+  it('will not stack a follower that treads on what is already claimed', () => {
+    for (let s = 0; s < 300; s++) {
+      const names = [...randomPresetMix(true).keys()]
+      const claimed = new Set(movedBy(names[0]))
+      for (const n of names.slice(1)) {
+        const keys = movedBy(n)
+        expect(keys.filter(k => claimed.has(k)).length).toBeLessThanOrEqual(2)
+        for (const k of keys) claimed.add(k)
+      }
+    }
+  })
+
+  // 'Full board' presets are complete looks. One can lead; layering a second
+  // whole board over a look is the mush this roll is supposed to avoid.
+  it('keeps whole-board presets out of the follower slots', () => {
+    for (let s = 0; s < 300; s++) {
+      const groups = [...randomPresetMix(true).keys()]
+        .slice(1)
+        .map(n => PRESETS.find(p => p.name === n)?.group)
+      expect(groups).not.toContain('Full board')
+    }
+  })
+
+  it('drops the A/B presets when there is no second source', () => {
+    for (let s = 0; s < 200; s++) {
+      const groups = [...randomPresetMix(false).keys()].map(
+        n => PRESETS.find(p => p.name === n)?.group,
+      )
+      expect(groups).not.toContain('A/B mixing')
+    }
+  })
+
+  // Threading the generator is what lets a roll be written down and rolled
+  // again — the seeded sampler in vote/candidates.ts wants this shape.
+  it('is reproducible from its generator', () => {
+    const draw = () => randomPresetMix(true, seq([0.11, 0.42, 0.73, 0.28, 0.9]))
+    expect([...draw().entries()]).toEqual([...draw().entries()])
+  })
+})
+
+describe('rollControls', () => {
+  // The bug this exists to make impossible: a roll that draws a view preset
+  // ('nose against the glass' winds the magnifier to 5) moving your eye. Both
+  // roll paths go through here, so one test covers both.
+  it('never lets a roll move a view control', () => {
+    const framed = { ...DEFAULT_CONTROLS, crtZoom: 3.5, crtZoomX: 0.2 }
+    for (let s = 0; s < 300; s++) {
+      const out = rollControls(randomPresetMix(true), framed)
+      for (const key of VIEW_KEYS) expect(out[key], key).toBe(framed[key])
+    }
+  })
+
+  // Every preset by name, not just the ones a random roll happened to draw:
+  // a view preset added later has to be caught by this on the first run.
+  it('holds for every authored preset at full weight', () => {
+    const framed = { ...DEFAULT_CONTROLS, crtZoom: 2 }
+    for (const p of PRESETS) {
+      const out = rollControls(new Map([[p.name, 1]]), framed)
+      for (const key of VIEW_KEYS)
+        expect(out[key], `${p.name} ${key}`).toBe(framed[key])
+    }
+  })
+
+  // Everything that is not the view still arrives, or the pin would be a way of
+  // quietly dropping half a preset.
+  it('leaves everything outside the view to the recipe', () => {
+    const weights = new Map([['vhs', 1]])
+    const out = rollControls(weights, DEFAULT_CONTROLS)
+    expect(out).toEqual(blendPresets(DEFAULT_CONTROLS, weights))
   })
 })

@@ -11,6 +11,7 @@ import {
   controlsEqual,
   presetControls,
   randomPresetMix,
+  rollControls,
 } from './presets'
 
 import type { Controls } from '../controls'
@@ -251,13 +252,13 @@ export function useMix(args: {
     surprise: () => {
       const next = randomPresetMix(args.sourceBOn)
       // Where you are looking is yours, not part of the roll — same rule
-      // mutate follows. A roll that reached "across the room" otherwise pulled
-      // the picture back into a little set in a dark room, which reads as the
-      // app having done something wrong rather than as a new look.
-      const blended = blendPresets(DEFAULT_CONTROLS, next)
-      const now = getControls()
-      for (const key of VIEW_KEYS) blended[key] = now[key]
-      apply(blended)
+      // mutate follows, and the same one the `?surprise` boot path follows in
+      // useEngine. A roll that drew a view preset otherwise moved the
+      // magnifier: 'nose against the glass' puts you up against the grain, and
+      // 'across the room' (since removed) pulled the picture back into a little
+      // set in a dark room. Either reads as the app having done something wrong
+      // rather than as a new look.
+      apply(rollControls(next, getControls()))
       setMix({ base: DEFAULT_CONTROLS, weights: next })
       // A roll is a whole look, motion included — and a roll that lands on a
       // preset with no opinion about motion leaves what was patched running,

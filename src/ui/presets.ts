@@ -1,5 +1,5 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
-import { SLIDER_BY_KEY, snapToStep } from './controls'
+import { SLIDER_BY_KEY, VIEW_KEYS, snapToStep } from './controls'
 
 import type { ControlKey, Controls } from '../controls'
 import type { ModRouting } from './modSlots'
@@ -908,22 +908,37 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'across the room',
+    name: 'radar tube',
     group: 'Phosphor / CRT',
     blurb:
-      'The magnifier wound the other way, further back than the slider ever goes: the tube stops being the whole world and turns into an object — a little set with its face bulging out at you, glowing into a dark room.',
+      'A P7 cascade — the two-layer phosphor radar and scope tubes were coated with. The beam lands on a fast blue layer and dumps most of its light there at once, but what it excites underneath is a slow yellow-green that keeps emitting long after the blue has gone. So the tail is not one colour fading: the fresh edge is white, a few tenths of a second back it is amber, and what is still glowing seconds later is green. Nothing here tints anything — the three channels are just given the decay rates the two layers have, and the colour walk falls out of them dying at different speeds.',
     patch: {
-      crtZoom: 0.42,
-      crtCutoff: 0.07,
+      // Green holds ~2.5s; the skew puts red at a quarter of that and blue at a
+      // seventh, which is the cascade. Bleed is high because the long layer is
+      // what scatters — the old light in a scope tube goes cloudy while the
+      // trace itself stays sharp.
+      phosphor: 0.9925,
+      phosphorSkew: 3,
+      phosphorBleed: 0.3,
+      // A scope tube is a dim tube read in a dark room: crushed black for the
+      // tail to register against, and a real haze on the glass.
+      crtCutoff: 0.1,
       crtGamma: 2.2,
-      crtBloom: 0.45,
-      crtHalation: 0.35,
-      crtGlow: 0.2,
-      crtSpot: 1,
-      crtGrain: 0.14,
-      phosphor: 0.65,
-      phosphorBleed: 0.2,
+      crtGlow: 0.35,
+      crtGrain: 0.18,
+      crtSpot: 1.3,
+      // The trace is enormously brighter than anything around it, which is the
+      // case keyed halation exists for: the live edge throws light well into the
+      // faceplate while the decayed tail keeps a tight halo.
+      crtBloom: 0.5,
+      crtHalation: 0.4,
+      crtHaloKey: 2,
+      scanBeam: 0.2,
+      scanBloom: 0.6,
     },
+    // A tube like this says nothing on a still picture — the whole look is what
+    // motion leaves behind it, so the preset brings its own sweep.
+    mod: [{ target: 'bendUs', source: 'smooth', rateHz: 0.12, depth: 0.1 }],
   },
   {
     name: 'nose against the glass',
@@ -1300,23 +1315,99 @@ export function matchPreset(values: Controls): PresetDef | undefined {
 // How much of each preset is dialed in, by preset name. Absent or 0 is off.
 export type PresetWeights = ReadonlyMap<string, number>
 
+// Which controls a preset moves off stock. Derived once per preset from the
+// same PRESET_FULL the blender reads, because the roll now has to know what a
+// candidate would tread on before it picks it.
+const PRESET_KEYS: ReadonlyMap<string, ReadonlySet<ControlKey>> = new Map(
+  PRESETS.map(p => {
+    const full = fullControls(p)
+    return [
+      p.name,
+      new Set(CONTROL_KEYS.filter(k => full[k] !== DEFAULT_CONTROLS[k])),
+    ]
+  }),
+)
+
+// Fisher-Yates. `toSorted(() => rand() - 0.5)` is the idiom this used to use and
+// it is not a shuffle: a comparator that ignores its arguments biases toward the
+// input order by an amount that depends on the sort implementation, and what is
+// being ordered here is which preset family gets to lead the roll. Measured over
+// 40000 draws on this engine, against a fair 9.1% each: Tape wear led 18.1% of
+// rolls and Phosphor / CRT 5.5%, a 3.3x spread across families, purely from
+// where they sit in this file. Somebody rolling and rolling and getting tape
+// again was reading the sort comparator, not the presets. (`vote/candidates.ts`
+// spells the same shuffle out for the same reason; when its TODO to take a
+// seeded `rand` through here lands, the two can share one.)
+function shuffled<T>(items: readonly T[], rand: () => number): T[] {
+  const out = [...items]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
+// How much overlap a follower may have with the controls already claimed. Not
+// zero: a couple of shared controls is two faults meeting, which is the point.
+// Past that they are arguing about the same knob rather than stacking.
+const MAX_TREAD = 2
+
 // A fresh recipe: one full preset plus one or two partial ones from other
 // groups, so a roll crosses families instead of deepening one. Shared by the
-// "surprise me" button and by `?surprise` on a link, which is how the docs
+// "random look" button and by `?surprise` on a link, which is how the docs
 // harness fills a gallery without clicking anything.
-export function randomPresetMix(sourceBOn: boolean): PresetWeights {
+//
+// Followers are chosen against what is already claimed rather than at random
+// within their group, because `blendPresets` *sums* departures from stock: when
+// two presets both move a control, the roll lands somewhere neither author put
+// it. Over 4000 simulated rolls that was 1.6 controls fought over and 1.0
+// pushed past every contributing preset, per roll — the arithmetic, not a look
+// anybody designed, and the readiest explanation for a roll coming out mush.
+// Picking the least-treading candidate in each group and skipping a group whose
+// best still collides takes that to 0.4 fought over and 0.3 overshot, and costs
+// about 1.5 of the ~10.8 controls a roll's followers used to add.
+//
+// Summing stays as it is. It is what dragging two chips by hand means, and the
+// roll has no business redefining that for the mixer — this fixes the roll by
+// not handing the blender an argument in the first place.
+export function randomPresetMix(
+  sourceBOn: boolean,
+  rand: () => number = Math.random,
+): PresetWeights {
   const pool = PRESETS.filter(
     p => p.group !== 'Clean' && (sourceBOn || p.group !== 'A/B mixing'),
   )
-  const groups = [...new Set(pool.map(p => p.group))].toSorted(
-    () => Math.random() - 0.5,
-  )
-  const weights = new Map<string, number>()
-  groups.slice(0, 2 + Math.floor(Math.random() * 2)).forEach((g, i) => {
-    const opts = pool.filter(p => p.group === g)
-    const p = opts[Math.floor(Math.random() * opts.length)]
-    weights.set(p.name, i === 0 ? 1 : 0.3 + Math.random() * 0.5)
-  })
+  const groups = shuffled([...new Set(pool.map(p => p.group))], rand)
+  // Two most of the time. Three whole authored looks at once — which is what a
+  // 50/50 split was rolling — is a lot of picture to ask one frame to hold, and
+  // the third is the one most likely to be the fault that tipped it over.
+  const wanted = rand() < 0.3 ? 3 : 2
+  const lead = pool.filter(p => p.group === groups[0])
+  const first = lead[Math.floor(rand() * lead.length)]
+  const weights = new Map<string, number>([[first.name, 1]])
+  const claimed = new Set(PRESET_KEYS.get(first.name))
+  for (const g of groups.slice(1)) {
+    if (weights.size >= wanted) break
+    // 'Full board' presets are complete looks in themselves — as a lead that is
+    // the point of them, on top of one it is a second whole board.
+    const opts = pool.filter(p => p.group === g && p.group !== 'Full board')
+    if (opts.length === 0) continue
+    const best = opts
+      .map(p => ({
+        p,
+        tread: [...(PRESET_KEYS.get(p.name) ?? [])].filter(k => claimed.has(k))
+          .length,
+      }))
+      .toSorted((a, b) => a.tread - b.tread)[0]
+    if (best.tread > MAX_TREAD) continue
+    // Lower than the 0.3-0.8 this used to roll. A follower at 0.8 is not a
+    // seasoning on the lead, it is a second look at nearly full strength, and
+    // two of those over a lead is where "fun but not the best settings" came
+    // from. Still enough to read: these are departures from stock, so a quarter
+    // of a fault is a quarter of something that was designed to be visible.
+    weights.set(best.p.name, 0.25 + rand() * 0.25)
+    for (const k of PRESET_KEYS.get(best.p.name) ?? []) claimed.add(k)
+  }
   return weights
 }
 
@@ -1396,5 +1487,25 @@ export function blendPresets(
           )
     }
   }
+  return out
+}
+
+// The board a roll means: the recipe over stock, with the view controls taken
+// back from `view` instead of from the recipe.
+//
+// One function because there are two roll paths — the button in `useMix` and
+// `?surprise` on boot in `useEngine` — and they are one verb that has to reach
+// one place. Each used to carry its own copy of this rule and one of them was
+// missing it, which is not a thing anybody notices by reading: it shows up as
+// a link occasionally opening the app on a picture the size of a stamp, weeks
+// later, with nothing to connect it to.
+//
+// What `view` should be differs, and that is the argument rather than a second
+// branch in here. The button keeps where the magnifier already is, because a
+// roll has no business moving your eye mid-session; the boot path has no
+// "already" to keep and passes stock.
+export function rollControls(weights: PresetWeights, view: Controls): Controls {
+  const out = blendPresets(DEFAULT_CONTROLS, weights)
+  for (const key of VIEW_KEYS) out[key] = view[key]
   return out
 }

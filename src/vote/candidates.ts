@@ -1,6 +1,6 @@
 import { DEFAULT_CONTROLS } from '../controls'
 import { VIEW_KEYS } from '../ui/controls'
-import { PRESETS, blendMod, blendPresets } from '../ui/presets'
+import { PRESETS, blendMod, blendPresets, randomPresetMix } from '../ui/presets'
 
 import type { Controls } from '../controls'
 import type { ModRouting } from '../ui/modSlots'
@@ -19,14 +19,19 @@ import type { PresetWeights } from '../ui/presets'
 // resolved controls come along in the record anyway (see votes.ts), so a later
 // model is free to look at them; nothing here forecloses that.
 //
-// Deliberately NOT a call into `randomPresetMix`: that function rolls
-// `Math.random()` internally, so its output cannot be reproduced from anything
-// written down. A label is worthless if the thing labelled cannot be rendered
-// again, so sampling here takes a seed and threads it through, and a recipe
-// carries the seed that produced it. Folding a `rand` parameter into
-// `randomPresetMix` the way `mutate()` already takes one would let the two share
-// this code, and that is the right cleanup — but presets.ts has uncommitted work
-// in it from another session, so this reads only its stable exports for now.
+// It IS a call into `randomPresetMix`, now that the function takes a `rand` the
+// way `mutate()` always has. It could not be before: rolling `Math.random()`
+// internally, its output could not be reproduced from anything written down, and
+// a label is worthless if the thing labelled cannot be rendered again. Threading
+// the generator settles that — the seed goes in, the recipe carries the seed,
+// and the roll comes back byte-identical.
+//
+// Sharing the sampler is not tidiness, it is the premise. This dataset is only
+// worth collecting if it ranks the space the button actually draws from; two
+// copies of "the recipe shape" drift, and the day they do, the model is being
+// taught to score rolls nobody can get. The roll's own rules — one lead whole,
+// followers that do not tread on what it claimed, no second whole board — are
+// therefore observed here for free rather than restated.
 export type RecipeKind = 'mix' | 'anchor'
 
 export interface Recipe {
@@ -57,8 +62,6 @@ export interface Recipe {
 const POOL = PRESETS.filter(
   p => p.group !== 'Clean' && p.group !== 'A/B mixing',
 )
-const POOL_GROUPS = [...new Set(POOL.map(p => p.group))]
-
 // Presets eligible to appear as an anchor — the same pool, so an anchor is
 // judged against mixes drawn from the families it belongs to.
 export const ANCHOR_PRESETS = POOL.map(p => p.name)
@@ -83,41 +86,23 @@ function rngFor(seed: number): () => number {
   }
 }
 
-// Fisher-Yates, rather than the `toSorted(() => rand() - 0.5)` idiom next door.
-// A comparator that ignores its arguments is not a shuffle — it biases toward
-// the input order by an amount that depends on the sort implementation — and the
-// thing being ordered here decides which preset families get to lead a roll.
-function shuffled<T>(items: readonly T[], rand: () => number): T[] {
-  const out = [...items]
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1))
-    ;[out[i], out[j]] = [out[j], out[i]]
-  }
-  return out
-}
-
 // Two decimals. Weights are read by eye off the record during analysis, and a
 // float with seventeen digits of tail says nothing the second digit did not.
 const round2 = (v: number) => Math.round(v * 100) / 100
 
-// One full preset plus one or two partials from *other* groups — the same recipe
-// shape "surprise" rolls, because it is the one that reliably produces a look
-// rather than mush. Crossing groups is what makes a roll interesting: deepening
-// one family gives a slightly-more-of-the-same, while a tape fault over a sync
-// fault is a picture nobody authored.
+// One full preset plus one or two partials from *other* groups — the recipe the
+// "random look" button rolls, drawn here from a seeded generator instead of
+// `Math.random`. Crossing groups is what makes a roll interesting: deepening one
+// family gives a slightly-more-of-the-same, while a tape fault over a sync fault
+// is a picture nobody authored.
+//
+// `false` for source B for the same reason POOL drops 'A/B mixing': the vote
+// page feeds one source, so those presets would render as near-nothing and lose
+// every comparison for a reason that has nothing to do with taste.
 export function sampleRecipe(seed: number): Recipe {
-  const rand = rngFor(seed)
-  const groups = shuffled(POOL_GROUPS, rand)
-  const n = 2 + Math.floor(rand() * 2)
+  const rolled = randomPresetMix(false, rngFor(seed))
   const weights: Record<string, number> = {}
-  for (const [i, g] of groups.slice(0, n).entries()) {
-    const opts = POOL.filter(p => p.group === g)
-    const pick = opts[Math.floor(rand() * opts.length)]
-    // The lead preset goes in whole and the rest partial, so a roll has a
-    // recognisable primary character instead of three faults at half strength
-    // averaging into grey.
-    weights[pick.name] = i === 0 ? 1 : round2(0.3 + rand() * 0.5)
-  }
+  for (const [name, w] of rolled) weights[name] = round2(w)
   return { seed, weights, kind: 'mix' }
 }
 

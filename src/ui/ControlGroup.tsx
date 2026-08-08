@@ -438,8 +438,8 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
           ) : null}
           <button
             className={styles.dice}
-            title={`shake only this stage's controls around where they sit — shift for a wilder roll, alt for a gentle one, ctrl (or cmd) for turbo (${group.name})`}
-            aria-label={`jitter ${group.name}`}
+            title={`nudge only this stage's controls randomly around where they sit — shift for a wilder roll, alt for a gentler one, ctrl (or cmd) for turbo (${group.name})`}
+            aria-label={`nudge ${group.name} randomly`}
             onClick={e => mutateGroup(group.sliders, mutateAmountFor(e))}
           >
             <DiceIcon />
