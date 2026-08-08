@@ -1,4 +1,9 @@
-import { SOURCE_B_MODES, SOURCE_DESC, SOURCE_MODES } from '../sources/modes'
+import {
+  SOURCE_B_MODES,
+  SOURCE_DESC,
+  SOURCE_MODES,
+  sourceOptions,
+} from '../sources/modes'
 import { FileName, ReopenFile } from './FileName'
 import { Scrub } from './Scrub'
 import { Section } from './Section'
@@ -19,8 +24,8 @@ const B_MODES = import.meta.env.DEV
   ? SOURCE_B_MODES
   : SOURCE_B_MODES.filter(m => m !== 'youtube')
 
-const A_OPTIONS = A_MODES.map(m => ({ value: m, label: SOURCE_DESC[m] }))
-const B_OPTIONS = B_MODES.map(m => ({ value: m, label: SOURCE_DESC[m] }))
+const A_OPTIONS = sourceOptions(A_MODES)
+const B_OPTIONS = sourceOptions(B_MODES)
 
 // The source-name caption shows for loaded file/YouTube sources, and for a
 // screen share — where it names the shared surface and, clicked, reopens the
@@ -45,6 +50,72 @@ const shortName = (m: SourceMode | SourceBMode, name: string): string =>
   namedMode(m) && name !== ''
     ? name
     : SOURCE_DESC[m].split(' — ')[0].replace(/…$/, '')
+
+// One input slot: its picker, and whatever that choice brings with it — the card
+// editor for teletype, the name of a loaded file or share, a click to reopen last
+// session's file, a seek bar for anything with a timeline.
+//
+// A and B are the same rig twice, so they are one component twice rather than two
+// near-identical blocks of markup. They had drifted into thirty-five mirrored
+// lines each, which is the shape that lets one slot quietly gain an affordance the
+// other lacks — the same argument controls.test.ts makes for the two feed groups.
+// Generic over the mode type so each slot keeps its own union: B can be 'none' and
+// A can be 'webcam', and neither can be handed the other's value.
+function SourceSlot<T extends SourceMode | SourceBMode>(props: {
+  tag: string
+  title: string
+  mode: T
+  name: string
+  options: readonly { value: T; label: string; group?: string | null }[]
+  onSelect: (mode: T) => void
+  teletype: TeletypeCard
+  onTeletype: (text: string) => void
+  pendingFile: string
+  onReopenFile: () => void
+  time: number
+  duration: number
+  onSeek: (time: number) => void
+  // The capture-device picker, which only A can have — a trailing row rather than
+  // a prop this component understands, so the slot stays the same shape for both.
+  children?: ReactNode
+}) {
+  return (
+    <>
+      <SelectRow
+        tag={props.tag}
+        title={props.title}
+        value={props.mode}
+        options={props.options}
+        onChange={props.onSelect}
+      />
+      {props.mode === 'teletype' ? (
+        <TeletypeRow
+          text={props.teletype.text}
+          onChange={props.onTeletype}
+          onOpenDialog={() => props.onSelect(props.mode)}
+        />
+      ) : null}
+      {namedMode(props.mode) ? (
+        <FileName
+          name={props.name}
+          onReopen={() => props.onSelect(props.mode)}
+        />
+      ) : null}
+      <ReopenFile
+        name={props.pendingFile}
+        onReopen={() => props.onReopenFile()}
+      />
+      {props.duration === 0 ? null : (
+        <Scrub
+          time={props.time}
+          duration={props.duration}
+          onSeek={props.onSeek}
+        />
+      )}
+      {props.children}
+    </>
+  )
+}
 
 export function InputSection(props: {
   sourceMode: SourceMode
@@ -100,80 +171,49 @@ export function InputSection(props: {
   return (
     <div>
       <Section title="Input" defaultOpen={false} summary={summary}>
-        <SelectRow
+        <SourceSlot
           tag="A"
           title="main source"
-          value={props.sourceMode}
+          mode={props.sourceMode}
+          name={props.sourceName}
           options={A_OPTIONS}
-          onChange={props.onSelectSource}
-        />
-        {props.sourceMode === 'teletype' ? (
-          <TeletypeRow
-            text={props.teletypeA.text}
-            onChange={props.onTeletypeA}
-            onOpenDialog={() => props.onSelectSource('teletype')}
-          />
-        ) : null}
-        {namedMode(props.sourceMode) ? (
-          <FileName
-            name={props.sourceName}
-            onReopen={() => props.onSelectSource(props.sourceMode)}
-          />
-        ) : null}
-        <ReopenFile
-          name={props.pendingFileA}
-          onReopen={() => props.onReopenFileA()}
-        />
-        {props.durationA === 0 ? null : (
-          <Scrub
-            time={props.timeA}
-            duration={props.durationA}
-            onSeek={props.onSeekA}
-          />
-        )}
-        {props.sourceMode === 'webcam' && props.videoDevices.length > 1 ? (
-          <SelectRow
-            tag="◉"
-            title="capture device"
-            value={props.webcamDeviceId}
-            options={props.videoDevices.map((d, i) => ({
-              value: d.deviceId,
-              label: d.label === '' ? `Device ${i + 1}` : d.label,
-            }))}
-            onChange={props.onStartWebcam}
-          />
-        ) : null}
-        <SelectRow
+          onSelect={props.onSelectSource}
+          teletype={props.teletypeA}
+          onTeletype={props.onTeletypeA}
+          pendingFile={props.pendingFileA}
+          onReopenFile={props.onReopenFileA}
+          time={props.timeA}
+          duration={props.durationA}
+          onSeek={props.onSeekA}
+        >
+          {props.sourceMode === 'webcam' && props.videoDevices.length > 1 ? (
+            <SelectRow
+              tag="◉"
+              title="capture device"
+              value={props.webcamDeviceId}
+              options={props.videoDevices.map((d, i) => ({
+                value: d.deviceId,
+                label: d.label === '' ? `Device ${i + 1}` : d.label,
+              }))}
+              onChange={props.onStartWebcam}
+            />
+          ) : null}
+        </SourceSlot>
+        <SourceSlot
           tag="B"
           title="second source, mixed in dirty"
-          value={props.sourceBMode}
+          mode={props.sourceBMode}
+          name={props.sourceBName}
           options={B_OPTIONS}
-          onChange={props.onSelectSourceB}
+          onSelect={props.onSelectSourceB}
+          teletype={props.teletypeB}
+          onTeletype={props.onTeletypeB}
+          pendingFile={props.pendingFileB}
+          onReopenFile={props.onReopenFileB}
+          time={props.timeB}
+          duration={props.durationB}
+          onSeek={props.onSeekB}
         />
-        {props.sourceBMode === 'teletype' ? (
-          <TeletypeRow
-            text={props.teletypeB.text}
-            onChange={props.onTeletypeB}
-            onOpenDialog={() => props.onSelectSourceB('teletype')}
-          />
-        ) : null}
-        {namedMode(props.sourceBMode) ? (
-          <FileName
-            name={props.sourceBName}
-            onReopen={() => props.onSelectSourceB(props.sourceBMode)}
-          />
-        ) : null}
-        <ReopenFile
-          name={props.pendingFileB}
-          onReopen={() => props.onReopenFileB()}
-        />
-        {props.durationB === 0 ? null : (
-          <Scrub
-            time={props.timeB}
-            duration={props.durationB}
-            onSeek={props.onSeekB}
-          />
-        )}
         {props.audioInput}
         {/* Only while B is off, where it is onboarding for a feature nothing on
             screen is showing. With B running it used to read "mix controls are
