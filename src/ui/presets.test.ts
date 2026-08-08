@@ -30,7 +30,7 @@ describe('blendPresets', () => {
         base,
         new Map([
           ['vhs', 0],
-          ['neon tube', 0],
+          ['neonTube', 0],
         ]),
       ),
     ).toEqual(base)
@@ -44,16 +44,16 @@ describe('blendPresets', () => {
 
   it('accumulates grain across stacked presets instead of clobbering it', () => {
     const worn = presetControls({ noiseIre: 7 })
-    expect(blendPresets(worn, new Map([['round tube', 1]])).noiseIre).toBe(7)
-    expect(blendPresets(worn, new Map([['mixer loop', 1]])).noiseIre).toBe(8.5)
+    expect(blendPresets(worn, new Map([['roundTube', 1]])).noiseIre).toBe(7)
+    expect(blendPresets(worn, new Map([['mixerLoop', 1]])).noiseIre).toBe(8.5)
   })
 
   it('picks one mode rather than averaging enum controls', () => {
     const mixed = blendPresets(
       DEFAULT_CONTROLS,
       new Map([
-        ['round tube', 0.4],
-        ['green terminal', 0.6],
+        ['roundTube', 0.4],
+        ['greenTerminal', 0.6],
       ]),
     )
     expect(mixed.phosphorMode).toBe(3)
@@ -61,8 +61,8 @@ describe('blendPresets', () => {
       blendPresets(
         DEFAULT_CONTROLS,
         new Map([
-          ['round tube', 0.6],
-          ['green terminal', 0.4],
+          ['roundTube', 0.6],
+          ['greenTerminal', 0.4],
         ]),
       ).phosphorMode,
     ).toBe(2)
@@ -72,9 +72,9 @@ describe('blendPresets', () => {
     const piled = blendPresets(
       DEFAULT_CONTROLS,
       new Map([
-        ['dead channel', 1],
-        ['worn tape', 1],
-        ['mistuned rf', 1],
+        ['deadChannel', 1],
+        ['wornTape', 1],
+        ['mistunedRf', 1],
       ]),
     )
     // Against the schema's own ceiling, not a copy of it — the point is that

@@ -59,7 +59,7 @@ describe('bind targets', () => {
   })
 
   it('round-trips every kind through storage', () => {
-    for (const t of ['fbMix', MOTION, presetTarget('rainbow storm')])
+    for (const t of ['fbMix', MOTION, presetTarget('rainbowStorm')])
       expect(parseTarget(t)).toBe(t)
   })
 
@@ -77,8 +77,8 @@ describe('bind targets', () => {
     // Names come from the table, not from a parser, so a space (or a colon, if
     // one ever landed in a name) survives rather than being read as structure.
     expect(presetOf(presetTarget('a: b'))).toBe('a: b')
-    expect(parseTarget(presetTarget('rainbow storm'))).toBe(
-      presetTarget('rainbow storm'),
+    expect(parseTarget(presetTarget('rainbowStorm'))).toBe(
+      presetTarget('rainbowStorm'),
     )
   })
 

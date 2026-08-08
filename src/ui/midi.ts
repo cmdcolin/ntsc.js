@@ -1,6 +1,6 @@
 import { CONTROL_KEYS } from '../controls'
 import { AUTOMAP_KEYS, SLIDER_BY_KEY, sliderFor, snapToStep } from './controls'
-import { PRESETS } from './presets'
+import { PRESETS, presetLabel } from './presets'
 import { readRecord } from './storage'
 import { fromTravel } from './travel'
 
@@ -73,7 +73,9 @@ export function targetLabel(t: BindTarget): string {
   const key = controlOf(t)
   if (key !== null) return sliderFor(key).label
   const preset = presetOf(t)
-  return preset === null ? 'motion amount' : `${preset} · preset`
+  if (preset === null) return 'motion amount'
+  const def = PRESETS.find(p => p.name === preset)
+  return `${def === undefined ? preset : presetLabel(def)} · preset`
 }
 
 // A controller's factory layout, as the CC number each physical knob sends, in

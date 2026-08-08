@@ -4,7 +4,7 @@ import { cx } from './cx'
 import { Dialog } from './Dialog'
 import { BulbIcon } from './icons'
 import { clamp01 } from './miniFrame'
-import { PRESETS, matchPreset } from './presets'
+import { PRESETS, matchPreset, presetLabel } from './presets'
 import styles from './PresetsSection.module.css'
 import { Section } from './Section'
 import { usePersistedFlag } from './storage'
@@ -52,14 +52,14 @@ const ALL_STORE = 'video_feedback_presets_expanded'
 const STARTERS = [
   'vhs',
   'broadcast',
-  'vertical hold gone',
-  'mixer loop',
-  'rainbow storm',
-  'neon tube',
+  'verticalHoldGone',
+  'mixerLoop',
+  'rainbowStorm',
+  'neonTube',
   // The one that is not a single mechanism. It sits last because the others
   // teach what the board does one fault at a time, and this one is the argument
   // for why that is worth doing — every stage at once, interfering.
-  'deep end',
+  'deepEnd',
 ]
 const SHORTLIST_MAX = 8
 
@@ -180,7 +180,7 @@ function PresetButton(props: {
         dragRef.current = null
       }}
     >
-      {props.def.name}
+      {presetLabel(props.def)}
       {props.edited ? ' •' : ''}
     </button>
   ) : (
@@ -195,7 +195,7 @@ function PresetButton(props: {
       onPointerLeave={() => props.onHover(null)}
       onClick={() => props.onApply(props.def.name, props.def.patch)}
     >
-      {props.def.name}
+      {presetLabel(props.def)}
       {props.edited ? ' •' : ''}
     </button>
   )
@@ -236,7 +236,7 @@ export function PresetsSection(props: {
           // Short enough to hold one line at the panel's docked width, which is
           // the whole point of the rewrite: at two lines it saved nothing.
           'a bundle of controls, not one switch — click one'
-        : `modified from "${props.lastPreset}"`
+        : `modified from "${PRESETS.find(p => p.name === props.lastPreset)?.displayName ?? props.lastPreset}"`
   // The count rides the caption whenever the caption is describing a particular
   // preset, so browsing the chips teaches the thing the chips cannot say: this
   // is not a switch, it is N controls moving together. "clean" has an empty

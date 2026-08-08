@@ -5,7 +5,12 @@ import type { ControlKey, Controls } from '../controls'
 import type { ModRouting } from './modSlots'
 
 export interface PresetDef {
+  // Identifier: camelCase, no spaces, since it lands bare in `?preset=` and in
+  // MIDI-binding storage keys. `displayName` carries the words a name needed.
   name: string
+  // The multi-word form a single-word `name` couldn't hold. Absent means
+  // `name` is already what a chip, palette row, or MIDI label should show.
+  displayName?: string
   group: string
   blurb: string
   patch: Partial<Controls>
@@ -19,6 +24,10 @@ export interface PresetDef {
   // frame, which is a real cost to hang on a preset someone clicked casually.
   mod?: readonly ModRouting[]
 }
+
+// What a chip, palette row, or MIDI label should show — never the bare
+// identifier when a preset has words that didn't fit in it.
+export const presetLabel = (p: PresetDef): string => p.displayName ?? p.name
 
 // Built-in presets are absolute: defaults + patch. Ordered by group so the UI
 // can render them under labeled headers.
@@ -50,7 +59,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'protected tape',
+    name: 'protectedTape',
+    displayName: 'protected tape',
     group: 'Tape wear',
     blurb:
       "A rental pressing with Macrovision on it, into a set whose AGC believes the lie: pulses in the vertical interval balloon the measured sync depth, so the gain crushes and recovers on the process's own slow cycle; colorstripe bands crawl down the frame wrong-hued; and a vertical hold this marginal lets the flashing bar itself ride into view.",
@@ -70,7 +80,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'worn tape',
+    name: 'wornTape',
+    displayName: 'worn tape',
     group: 'Tape wear',
     blurb:
       'Third-gen dub: mushy detail, heavy grain, frequent dropouts and bad tracking.',
@@ -94,7 +105,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'sticky shed',
+    name: 'stickyShed',
+    displayName: 'sticky shed',
     group: 'Tape wear',
     blurb:
       'A tape whose binder has gone hygroscopic, played unbaked: it grabs the drum, tension builds, breaks free, re-sticks — the relaxation oscillator behind squealing tapes. Bands of shear lean line by line, snap back, and hang where a strong patch holds, and because it is real timebase error the color-under phase rainbows at every slip boundary. Shedding oxide takes the RF down with it: heavy grain and a rash of dropouts where the coating let go.',
@@ -115,7 +127,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'picture search',
+    name: 'pictureSearch',
+    displayName: 'picture search',
     group: 'Tape wear',
     blurb:
       'Cue at 5x: the head crosses four tracks per sweep, noise bars sweeping the frame while the strips between them tear and rainbow.',
@@ -134,7 +147,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'stuck tape',
+    name: 'stuckTape',
+    displayName: 'stuck tape',
     group: 'Tape wear',
     blurb:
       'Deck jammed on pause: the head grinds one track boundary into a drifting noise bar, time crawls at a third of real speed, and phosphor trails smear what little still moves.',
@@ -155,7 +169,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'tracking band',
+    name: 'trackingBand',
+    displayName: 'tracking band',
     group: 'Tape wear',
     blurb:
       'The head riding half off its track: a band of hash where the signal is weakest, the picture bending through it, and colour dropping out across it because the 629 kHz carrier starves before the luma does. The thing the tracking knob on the front of the deck was for.',
@@ -176,7 +191,8 @@ export const PRESETS: PresetDef[] = [
     mod: [{ target: 'trackPos', source: 'smooth', rateHz: 0.08, depth: 0.25 }],
   },
   {
-    name: 'fm fold',
+    name: 'fmFold',
+    displayName: 'fm fold',
     group: 'Tape wear',
     blurb:
       'The white clip set too hot: every hard dark-to-bright edge overshoots past the FM response cliff and the discriminator folds back, trailing a black comet that boils frame to frame. Colour is recorded separately, so it rides straight through the fold — saturated hue smeared over black.',
@@ -191,7 +207,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'colour late',
+    name: 'colourLate',
+    displayName: 'colour late',
     group: 'Tape wear',
     blurb:
       'Chroma group delay mistrimmed against luma: every coloured area sits bodily sideways off the edge it belongs to, bleeding out of one side of things and falling short of the other. The burst travels the same wrong path, so hue stays correct — displaced colour, not rotated, which is what tells it from a timebase fault.',
@@ -204,7 +221,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'tired amplifier',
+    name: 'tiredAmplifier',
+    displayName: 'tired amplifier',
     group: 'Tape wear',
     blurb:
       'Both of the video amp’s brightness-dependent errors at once: saturation drains out of the highlights while the shadows keep theirs, and hue swings with the luma underneath it — so a face turns one way in the light and the other in the shadow. Measured on every VTR spec sheet ever printed as DG% and DP°.',
@@ -225,7 +243,8 @@ export const PRESETS: PresetDef[] = [
     patch: { noiseIre: 1.2, ghostDelayUs: 1.8, ghostGain: 0.1, demodMHz: 0.8 },
   },
   {
-    name: 'mistuned rf',
+    name: 'mistunedRf',
+    displayName: 'mistuned rf',
     group: 'RF / Broadcast',
     blurb:
       'Tuner off-station: the sound carrier climbs out of its trap and the detector multiplies it against the picture — buzz weave, a coarse 920 kHz beat, rainbow crawl on fine detail — over snow, a hard ghost and a struggling AGC.',
@@ -239,7 +258,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'adjacent channel',
+    name: 'adjacentChannel',
+    displayName: 'adjacent channel',
     group: 'RF / Broadcast',
     blurb:
       'The next channel up the cable through a worn-out trap: not their picture — their carriers. Their sound lays a fine 1.5 MHz weave, their blanking crosses as slanted dark bars with the broad windshield-wiper band sweeping at its own drifting rate, and where their content beats into our chroma band the decoder invents confetti colour no camera ever shot.',
@@ -252,7 +272,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'fringe reception',
+    name: 'fringeReception',
+    displayName: 'fringe reception',
     group: 'RF / Broadcast',
     blurb:
       'A station at the edge of its range, through the envelope detector that makes weak signal mean something: whites boil into snow first, blacks hold longest, sync dies last — a picture fighting through rather than sinking into grey fuzz, while a far-off reflection ghosts it and the AGC leans on what depth it can still find.',
@@ -266,7 +287,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'ignition storm',
+    name: 'ignitionStorm',
+    displayName: 'ignition storm',
     group: 'RF / Broadcast',
     blurb:
       'Arc interference over a dim signal: storm-clustered hits from ticks to torn slabs, plus millisecond strikes — and every big one lands on sync and the beam load, so the raster tears, the supply rings, and the AGC claws its way back while the phosphor holds each flash. The rig reacting is most of the look.',
@@ -283,7 +305,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'dead channel',
+    name: 'deadChannel',
+    displayName: 'dead channel',
     group: 'RF / Broadcast',
     blurb:
       'No signal: full snow, hum bars, rolling picture and collapsing sync.',
@@ -302,7 +325,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'dimmer hash',
+    name: 'dimmerHash',
+    displayName: 'dimmer hash',
     group: 'RF / Broadcast',
     blurb:
       'A triac dimmer on the same mains, firing twice a cycle at its set angle: the interference stops falling anywhere and bunches into two bands of hash that roll up the picture locked to the hum bar — same mains, so they travel together. Quieter than an arc storm and far more unsettling, because it is periodic.',
@@ -319,7 +343,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'cb breakthrough',
+    name: 'cbBreakthrough',
+    displayName: 'cb breakthrough',
     group: 'RF / Broadcast',
     blurb:
       'An illegal linear two streets over pushing into the front end: a slow herringbone crawling over a weak picture, with the sound carrier leaking past its trap on top. The 1970s in one look.',
@@ -337,7 +362,8 @@ export const PRESETS: PresetDef[] = [
     mod: [{ target: 'ingress', source: 'hold', rateHz: 0.6, depth: 0.4 }],
   },
   {
-    name: 'scrambled channel',
+    name: 'scrambledChannel',
+    displayName: 'scrambled channel',
     group: 'RF / Broadcast',
     blurb:
       'Premium channel with no decoder box: sync suppressed at the head-end, so every line lands at its own offset and the AGC winds up chasing a tip that is not there.',
@@ -364,7 +390,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'vertical hold gone',
+    name: 'verticalHoldGone',
+    displayName: 'vertical hold gone',
     group: 'Sync / Deflection',
     blurb:
       'Vertical oscillator detuned past its pull-in range: the picture scrolls forever, VBI bar and all, hooking sideways at every seam.',
@@ -381,14 +408,16 @@ export const PRESETS: PresetDef[] = [
     mod: [{ target: 'vFreqHz', source: 'smooth', rateHz: 0.08, depth: 0.015 }],
   },
   {
-    name: 'bent scan',
+    name: 'bentScan',
+    displayName: 'bent scan',
     group: 'Sync / Deflection',
     blurb:
       'Deflection bowed hard across the glass — the blanking interval itself curves through the picture.',
     patch: { bendUs: 24, bendShape: 2, syncBendUs: 4, noiseIre: 2 },
   },
   {
-    name: 'supply chaos',
+    name: 'supplyChaos',
+    displayName: 'supply chaos',
     group: 'Sync / Deflection',
     blurb:
       'Beam current bending its own scan through a ringing HV supply: geometry driven by picture content, never repeating.',
@@ -404,7 +433,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'full collapse',
+    name: 'fullCollapse',
+    displayName: 'full collapse',
     group: 'Sync / Deflection',
     blurb:
       'Every deflection fault at once, feeding the mixer loop — bend, roll and beam load chasing each other frame to frame.',
@@ -428,7 +458,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'bass smack',
+    name: 'bassSmack',
+    displayName: 'bass smack',
     group: 'Sync / Deflection',
     blurb:
       'Every kick slams the HV supply and knocks vertical hold loose, then it snaps back. Enable the microphone under Audio.',
@@ -448,7 +479,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'mixer loop',
+    name: 'mixerLoop',
+    displayName: 'mixer loop',
     group: 'Feedback loops',
     blurb: 'Composite fed back into itself — each line echoes into the next.',
     patch: { cfbMix: 0.65, cfbDelayUs: 0.12, cfbLines: 3, noiseIre: 1.5 },
@@ -458,7 +490,8 @@ export const PRESETS: PresetDef[] = [
     mod: [{ target: 'cfbDelayUs', source: 'sine', rateHz: 0.12, depth: 0.01 }],
   },
   {
-    name: 'loop bin',
+    name: 'loopBin',
+    displayName: 'loop bin',
     group: 'Feedback loops',
     blurb:
       'A loop of tape past three heads: the picture comes back on a beat, a generation older each lap.',
@@ -482,7 +515,8 @@ export const PRESETS: PresetDef[] = [
     ],
   },
   {
-    name: 'strobe trails',
+    name: 'strobeTrails',
+    displayName: 'strobe trails',
     group: 'Feedback loops',
     blurb: 'Held frames blended forward, smearing motion into long trails.',
     patch: {
@@ -494,7 +528,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'key loop',
+    name: 'keyLoop',
+    displayName: 'key loop',
     group: 'Feedback loops',
     blurb:
       'Luma-keyed feedback — only bright areas re-enter the loop and tunnel.',
@@ -509,7 +544,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'fb bloom',
+    name: 'fbBloom',
+    displayName: 'fb bloom',
     group: 'Feedback loops',
     blurb:
       'Camera-style zoom + rotate feedback blooming outward into a tunnel.',
@@ -530,7 +566,8 @@ export const PRESETS: PresetDef[] = [
     mod: [{ target: 'fbRotateDeg', source: 'sine', rateHz: 0.05, depth: 0.02 }],
   },
   {
-    name: 'wound spiral',
+    name: 'woundSpiral',
+    displayName: 'wound spiral',
     group: 'Feedback loops',
     blurb:
       'The camera turned a few degrees on its mount and the exposure pushed past unity — each pass lands rotated and brighter than the last, so the subject smears into a spiral instead of a tunnel.',
@@ -548,7 +585,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'shadow ladder',
+    name: 'shadowLadder',
+    displayName: 'shadow ladder',
     group: 'Feedback loops',
     blurb:
       'Loop key inverted so only the dark areas re-enter, stepped four lines every trip — the shadows climb the frame in rungs while the highlights stay put.',
@@ -561,7 +599,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'ladder climb',
+    name: 'ladderClimb',
+    displayName: 'ladder climb',
     group: 'Feedback loops',
     blurb:
       'Frame store walking six lines up per pass with its peak-hold left on: trails stack into a bleached ladder and tear the picture off its own edges.',
@@ -575,7 +614,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'subcarrier siren',
+    name: 'subcarrierSiren',
+    displayName: 'subcarrier siren',
     group: 'Feedback loops',
     blurb:
       'Resonance in the loop parked on the colour subcarrier and driven past unity: the filter stops responding to the picture and starts generating its own, in bands of pure hue.',
@@ -595,7 +635,8 @@ export const PRESETS: PresetDef[] = [
     ],
   },
   {
-    name: 'hunting servos',
+    name: 'huntingServos',
+    displayName: 'hunting servos',
     group: 'Feedback loops',
     blurb:
       "Two gain servos left underdamped — the beam limiter and the camera's auto-iris — each metering a loop it is inside. Neither can settle while the other moves, and their unequal rhythms beat: bloom, clamp, collapse, reopen, on no beat the content wrote.",
@@ -635,7 +676,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'clean dissolve',
+    name: 'cleanDissolve',
+    displayName: 'clean dissolve',
     group: 'A/B mixing',
     blurb:
       'Source B genlocked to the house reference and dissolved half over A — a clean switcher mix, no beat or roll.',
@@ -645,7 +687,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'dirty mix',
+    name: 'dirtyMix',
+    displayName: 'dirty mix',
     group: 'A/B mixing',
     blurb:
       'Source B bleeds in off-frequency and off-line, tearing the horizontal sync.',
@@ -659,7 +702,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'pause fight',
+    name: 'pauseFight',
+    displayName: 'pause fight',
     group: 'A/B mixing',
     blurb:
       'The old rig: a VCR on pause into the dirty mixer. The held frame shreds through the live picture in torn bands — the paused deck free-runs with its servo defeated, the mistrack stripe walks, hue flickers between the drum’s two reads, and when the stripe crosses B’s vertical interval the sync fight rolls.',
@@ -671,7 +715,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'pirate feed',
+    name: 'pirateFeed',
+    displayName: 'pirate feed',
     group: 'A/B mixing',
     blurb:
       'A scrambled premium channel on input A — sync suppressed at the head-end — with a pirate box summing a whisper of clean B in as substitute sync. The receiver almost saves the picture around the borrowed pulses, which is exactly how the real boxes worked; pull B gain to zero to watch it collapse into shear.',
@@ -684,7 +729,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'negative drifter',
+    name: 'negativeDrifter',
+    displayName: 'negative drifter',
     group: 'A/B mixing',
     blurb:
       "SSAVI scrambling on input B alone: its sync goes toothless before the mix, so A holds the raster steady while B's picture leaks through as a negative — a ghost image in complementary luma drifting and beating through the program.",
@@ -697,7 +743,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'house deck held',
+    name: 'houseDeckHeld',
+    displayName: 'house deck held',
     group: 'A/B mixing',
     blurb:
       "The pause button on the deck feeding input A — the house reference itself. Every line of the program scatters around the defeated servo's wander, a mistrack stripe creeps through the picture, and the clean B summed underneath starts winning sync fights it used to lose.",
@@ -709,7 +756,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'difference key',
+    name: 'differenceKey',
+    displayName: 'difference key',
     group: 'A/B mixing',
     blurb:
       'Source A inverted on its own bus fader and summed against B: where the two pictures agree they cancel to flat grey, where they differ the mix lights up, with a slow chroma beat riding through.',
@@ -723,7 +771,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'dirty dissolve',
+    name: 'dirtyDissolve',
+    displayName: 'dirty dissolve',
     group: 'A/B mixing',
     blurb:
       'A manual crossfade on the summing bus — A pulled halfway down under B — but B is still off-frequency and off-line, so the dissolve beats and rolls instead of sitting clean like the genlocked one.',
@@ -738,7 +787,75 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'wipe fight',
+    name: 'greenScreen',
+    displayName: 'green screen',
+    group: 'A/B mixing',
+    blurb:
+      "A chroma keyer across the mixer, slicing B's green out so A shows through it. B's hue is trimmed round so the two inputs disagree even when they are the same picture — the keyed band comes back in A's own colour while everything else stays rotated. Put different things in the two slots for the real thing, and note the edge: the keyer is on the bus, so it slices the chroma the encoder made, and that filter has no vertical term — the matte is soft across and razor sharp down, the way every composite key was.",
+    patch: {
+      bGenlock: 1,
+      bGain: 1,
+      bHueDeg: 150,
+      bKey: 1,
+      bKeyAcceptDeg: 34,
+      bKeyClip: 0.06,
+      bKeySoft: 0.04,
+      bKeySpill: 0.8,
+    },
+  },
+  {
+    name: 'keySweep',
+    displayName: 'key sweep',
+    group: 'A/B mixing',
+    blurb:
+      "The keyer's backing colour walked round the wheel by an LFO, so the transparent hue travels and the picture dissolves into A one colour at a time. Best with the video synth in slot B: its colorizer turns level into hue, so B is a moving ramp *through* the wheel and the key cuts a band out of it — the acceptance angle becomes the width of the hole and the key hue becomes where it sits, with nothing anywhere drawing a stripe.",
+    patch: {
+      bGenlock: 1,
+      bGain: 1,
+      bKey: 1,
+      bKeyAcceptDeg: 34,
+      bKeyClip: 0.05,
+      bKeySoft: 0.06,
+      bKeySpill: 0.5,
+      // Parked mid-wheel so the sweep below has room either side of it. The
+      // control clamps at 0 and 360, and a sweep that runs into a clamp parks
+      // the hole off the end of the picture for most of its cycle — which
+      // reads as the preset doing nothing, not as a key at the end of its
+      // travel.
+      bKeyHueDeg: 180,
+      synthShape: 0,
+      synthAHz: 15754,
+      synthColor: 1,
+    },
+    // Half depth over a 0..360 control: 90° to 270°, so the transparent hue
+    // walks through green at 241 and out the other side without ever hitting
+    // the rail.
+    mod: [{ target: 'bKeyHueDeg', source: 'sine', rateHz: 0.09, depth: 0.5 }],
+  },
+  {
+    name: 'keyIntoTheLoop',
+    displayName: 'key into the loop',
+    group: 'A/B mixing',
+    blurb:
+      "The mixer's own output patched into the keyer's fill input, so the feedback only regenerates inside the shape the key cut. What grows is the silhouette of whatever was the backing colour — the loop is bounded by a matte the picture is making for itself, and every lap it comes back a little further round the hue the delay spins it.",
+    patch: {
+      bGenlock: 1,
+      bGain: 1,
+      bHueDeg: 150,
+      bKey: 1,
+      bKeyAcceptDeg: 40,
+      bKeySpill: 0.4,
+      bKeyFill: 2,
+      cfbMix: 0.62,
+      cfbGain: 0.92,
+      cfbDelayUs: 0.3,
+      cfbLines: 2,
+      phosphor: 0.35,
+    },
+  },
+  {
+    name: 'wipeFight',
+    displayName: 'wipe fight',
     group: 'A/B mixing',
     blurb:
       'Two sources battling across a slowly sweeping wipe, sync fighting to hold.',
@@ -762,7 +879,8 @@ export const PRESETS: PresetDef[] = [
     patch: { invert: 1 },
   },
   {
-    name: 's-video miswire',
+    name: 'sVideoMiswire',
+    displayName: 's-video miswire',
     group: 'Cross-wired',
     blurb:
       'S-video pins jammed into a composite jack, the chroma pin making the best contact: color glows hot through a darkened, barely-locking picture, the subcarrier herringbones through brightness, detail decodes as rainbow blocks, and the frame rolls when the shallow sync loses its grip.',
@@ -779,21 +897,24 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'reverse polarity',
+    name: 'reversePolarity',
+    displayName: 'reverse polarity',
     group: 'Bad cables',
     blurb:
       'Signal and ground fully swapped: sync inverts too, so the picture tears and rolls as colors flip.',
     patch: { polarityFlip: 1 },
   },
   {
-    name: 'no terminator',
+    name: 'noTerminator',
+    displayName: 'no terminator',
     group: 'Bad cables',
     blurb:
       'Unterminated line running hot — blown highlights and edges ringing from the reflected wave.',
     patch: { termination: 0.7, agc: 0.3 },
   },
   {
-    name: 'daisy-chained',
+    name: 'daisyChained',
+    displayName: 'daisy-chained',
     group: 'Bad cables',
     blurb:
       'Two monitors on one line double-terminate it: dim, washed out, sync barely holding.',
@@ -803,21 +924,24 @@ export const PRESETS: PresetDef[] = [
     patch: { termination: -1.0, agc: 0.2, hHold: 0.5, noiseIre: 2 },
   },
   {
-    name: 'chroma only',
+    name: 'chromaOnly',
+    displayName: 'chroma only',
     group: 'Bad cables',
     blurb:
       'Only the chroma pin reaches the input — burst-locked color glowing on black, no luma to hold sync. The s-video miswire preset is this same patch at partial contact.',
     patch: { chromaPinOnly: 1, chromaGain: 1.4 },
   },
   {
-    name: 'loose connector',
+    name: 'looseConnector',
+    displayName: 'loose connector',
     group: 'Bad cables',
     blurb:
       'Intermittent contact: bands of the picture cut to snow and flicker as the plug wiggles.',
     patch: { connectorGlitch: 0.45, noiseIre: 2 },
   },
   {
-    name: 'bent enhancer',
+    name: 'bentEnhancer',
+    displayName: 'bent enhancer',
     group: 'Circuit bent',
     blurb:
       'Output bridged back to input through a resonant network, keyed by its own brightness: the band rings past unity and a woven oscillation eats into the picture wherever the loop finds light.',
@@ -836,7 +960,46 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'rainbow storm',
+    name: 'contourLines',
+    displayName: 'contour lines',
+    group: 'Circuit bent',
+    blurb:
+      "The video synth patched over slot A with the picture's own brightness driving its oscillator. Frequency, not phase — so the wave genuinely runs faster through bright picture and slower through dark, equal-brightness regions fall into step, and the image draws itself as contour lines nobody traced. The colorizer turns those bands into hue, and the encoder downstream has a picture full of edges it was never designed to carry.",
+    patch: {
+      synthOver: 0.6,
+      synthShape: 1,
+      synthAHz: 32000,
+      synthFm: 90000,
+      synthColor: 0.75,
+      synthLevel: 1.4,
+      lumaPeak: 1.1,
+      chromaGain: 1.2,
+    },
+  },
+  {
+    name: 'punchIn',
+    displayName: 'punch in',
+    group: 'Circuit bent',
+    blurb:
+      'A look that sits still until you hit it. The board rests just short of trouble, with two one-shot envelopes patched to the horizontal hold and the deflection bend — press ⚡ fire in the Modulation section (or the ⚡ on either slot) and the picture is knocked out of lock and recovers on its own, fast one and slow one together. The gesture the bay had no source for: everything else in there says what a knob is doing, this says what you just did.',
+    patch: {
+      hHold: 0.5,
+      bendPeriod: 40,
+      noiseIre: 1.5,
+      lumaMHz: 3.2,
+      phosphor: 0.3,
+    },
+    // Two rates on purpose: the fast one is the hit and the slow one is the
+    // settle, and firing them together reads as one event with a tail rather
+    // than two envelopes ending at different times.
+    mod: [
+      { target: 'hHold', source: 'trig', rateHz: 4, depth: 0.35 },
+      { target: 'bendUs', source: 'trig', rateHz: 1.1, depth: 0.3 },
+    ],
+  },
+  {
+    name: 'rainbowStorm',
+    displayName: 'rainbow storm',
     group: 'Circuit bent',
     blurb:
       'The 3.58 MHz crystal pulled far off-frequency: hue shears across every line and barber-poles down the frame faster than the burst loop can chase it.',
@@ -855,7 +1018,8 @@ export const PRESETS: PresetDef[] = [
     ],
   },
   {
-    name: 'neon tube',
+    name: 'neonTube',
+    displayName: 'neon tube',
     group: 'Phosphor / CRT',
     blurb:
       'A camcorder pointed at a CRT at night: beam cutoff crushes the background to true black, gamma blooms the cores white-hot, and saturated colour stays electric at the clipping point.',
@@ -870,7 +1034,27 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'round tube',
+    name: 'strobedTube',
+    displayName: 'strobed tube',
+    group: 'Phosphor / CRT',
+    blurb:
+      'The blanking gate held on: the guns cut for most of each cycle and let through in short flashes, over a long-persistence phosphor. It does not cut to black — the gate is upstream of the phosphor, so the light already on the glass goes on giving itself back through the dark, cooling toward green as red and blue die first. The beam limiter sees the beam current collapse and opens up, so the first field after each dark stretch surges before the servo catches it. Lock the rate to the beat with ♩.',
+    patch: {
+      strobeHz: 3.5,
+      strobeMs: 30,
+      phosphor: 0.86,
+      phosphorSkew: 0.5,
+      phosphorBleed: 0.18,
+      crtCutoff: 0.08,
+      crtGamma: 1.7,
+      crtHalation: 0.6,
+      abl: 0.7,
+      scanBeam: 0.35,
+    },
+  },
+  {
+    name: 'roundTube',
+    displayName: 'round tube',
     group: 'Phosphor / CRT',
     blurb:
       'Early-60s colorimetry: the deep 1953 phosphors on an Illuminant-C white — green and red pull in, whites cool, bright lines fatten between visible scanlines, and a soft-focus gun bleeds every sample into its neighbours.',
@@ -890,7 +1074,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'green terminal',
+    name: 'greenTerminal',
+    displayName: 'green terminal',
     group: 'Phosphor / CRT',
     blurb:
       'Long-persistence mono green tube (P1 family): everything lands on one phosphor, and motion hangs as a seconds-long tail that sums like light, not paint — and keeps scattering sideways in the layer while it hangs, so old light goes soft and cloudy while the fresh edge stays sharp.',
@@ -908,7 +1093,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'radar tube',
+    name: 'radarTube',
+    displayName: 'radar tube',
     group: 'Phosphor / CRT',
     blurb:
       'A P7 cascade — the two-layer phosphor radar and scope tubes were coated with. The beam lands on a fast blue layer and dumps most of its light there at once, but what it excites underneath is a slow yellow-green that keeps emitting long after the blue has gone. So the tail is not one colour fading: the fresh edge is white, a few tenths of a second back it is amber, and what is still glowing seconds later is green. Nothing here tints anything — the three channels are just given the decay rates the two layers have, and the colour walk falls out of them dying at different speeds.',
@@ -941,7 +1127,8 @@ export const PRESETS: PresetDef[] = [
     mod: [{ target: 'bendUs', source: 'smooth', rateHz: 0.12, depth: 0.1 }],
   },
   {
-    name: 'nose against the glass',
+    name: 'noseAgainstTheGlass',
+    displayName: 'nose against the glass',
     group: 'Phosphor / CRT',
     blurb:
       'The magnifier, wound up: close enough to see what the picture is made of — grille triads, the gaps between scan lines, the granular deposit, and the beam spot bleeding one sample into the next. Drag the magnifier x/y sliders in Screen to move around the glass.',
@@ -963,7 +1150,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'bent detailer',
+    name: 'bentDetailer',
+    displayName: 'bent detailer',
     group: 'Circuit bent',
     blurb:
       "Jumper across the enhancer's peaking coil: the stage is regenerative, so the sync pulse at the head of every line sets it ringing and the bars build across the picture into the amplifier's rails.",
@@ -978,7 +1166,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'howlround loom',
+    name: 'howlroundLoom',
+    displayName: 'howlround loom',
     group: 'Circuit bent',
     blurb:
       "The enhancer's peaking coil regenerative and minting its own sync, fed into a loop whose delay its video is pulling and whose ring mod re-multiplies every product: the howl, the servo warp and the raster lock weave a full-field electric tapestry with no picture left in it.",
@@ -1005,7 +1194,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'false sync',
+    name: 'falseSync',
+    displayName: 'false sync',
     group: 'Circuit bent',
     blurb:
       "The stabilizer's sync slicer bent up into picture territory: every dark area mints pulses of its own mid-line, and the set tears wherever the image goes dark.",
@@ -1018,7 +1208,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'black restore',
+    name: 'blackRestore',
+    displayName: 'black restore',
     group: 'Phosphor / CRT',
     blurb:
       'Just the beam transfer — cutoff and gun gamma with no bloom. Lifts the decoded pedestal off the floor for a clean tube with a genuinely black background.',
@@ -1070,7 +1261,8 @@ export const PRESETS: PresetDef[] = [
   // actually keep are usually three of them at the same time, and nothing here
   // reached that on its own.
   {
-    name: 'transmission fault',
+    name: 'transmissionFault',
+    displayName: 'transmission fault',
     group: 'Full board',
     blurb:
       'Sync suppressed at the head-end while the colour crystal sits off frequency and the tube is left long: every line lands at its own offset, in the wrong hue, over the ghost of the last one.',
@@ -1092,7 +1284,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'night monitor',
+    name: 'nightMonitor',
+    displayName: 'night monitor',
     group: 'Full board',
     blurb:
       'A monitor run hot in a dark room with a camera on it: the loop breeds halos out of the highlights, the faceplate scatters them, and the phosphor holds what is left.',
@@ -1118,7 +1311,8 @@ export const PRESETS: PresetDef[] = [
     mod: [{ target: 'fbGain', source: 'smooth', rateHz: 0.03, depth: 0.01 }],
   },
   {
-    name: 'deep end',
+    name: 'deepEnd',
+    displayName: 'deep end',
     group: 'Full board',
     blurb:
       'Every stage at once — scrambled sync, a bent enhancer, both feedback loops and the phosphor left long. Nothing here is drawn: each fault is one circuit misbehaving, and they interfere with each other for free.',
@@ -1171,7 +1365,8 @@ export const PRESETS: PresetDef[] = [
   // frame rather than pumping all of it together — eight heads at uneven
   // spacing, arcs that cluster, a loop ringing against its own rails.
   {
-    name: 'past the yoke',
+    name: 'pastTheYoke',
+    displayName: 'past the yoke',
     group: 'Past the redline',
     blurb:
       'The scan magnified far past anything the tube would frame, then rippled: a narrow band of raster standing in for a picture, bending against its own beam current.',
@@ -1189,7 +1384,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'arc storm',
+    name: 'arcStorm',
+    displayName: 'arc storm',
     group: 'Past the redline',
     blurb:
       'Eighteen arcs a frame at three times peak white, over a tape that has shed most of its oxide. The hits arrive clustered and the stick-slip shear moves under them, so nothing lands twice in the same place.',
@@ -1209,7 +1405,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'eight-head lap',
+    name: 'eightHeadLap',
+    displayName: 'eight-head lap',
     group: 'Past the redline',
     blurb:
       'Eight heads crowded toward the record end of a six-millimetre loop, running five times play speed. A lap returns eight times at uneven spacing, so the echoes interfere across the frame instead of ticking.',
@@ -1232,7 +1429,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'rail slam',
+    name: 'railSlam',
+    displayName: 'rail slam',
     group: 'Past the redline',
     blurb:
       'The composite bus fed back at more than unity, ninety lines up, through a resonance that howls. The loop clips to a square and stays there — it cannot run away, so what it does instead is ring.',
@@ -1254,7 +1452,8 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
-    name: 'light that stays',
+    name: 'lightThatStays',
+    displayName: 'light that stays',
     group: 'Past the redline',
     blurb:
       'A phosphor that gives almost nothing back, scattering sideways as it goes, under a gun with its gamma turned inside out. Everything the beam has touched is still on the glass, spreading.',

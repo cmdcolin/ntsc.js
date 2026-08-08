@@ -5,7 +5,7 @@ import { GROUPS } from './controls'
 import { cx } from './cx'
 import dlg from './dialog.module.css'
 import { formatValue } from './format'
-import { PRESETS } from './presets'
+import { PRESETS, presetLabel } from './presets'
 import { useModalDialog } from './useModalDialog'
 
 import type { ControlKey, Controls } from '../controls'
@@ -46,7 +46,7 @@ function score(query: string, name: string, prose: string): number {
 
 const itemName = (it: Item) =>
   it.kind === 'preset'
-    ? it.def.name
+    ? presetLabel(it.def)
     : it.kind === 'control'
       ? it.slider.label
       : it.action.name

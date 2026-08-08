@@ -10,7 +10,7 @@ import {
   targetLabel,
 } from './midi'
 import styles from './MidiSection.module.css'
-import { PRESETS } from './presets'
+import { PRESETS, presetLabel } from './presets'
 import { Section } from './Section'
 import ui from './ui.module.css'
 
@@ -107,7 +107,7 @@ export function MidiSection(props: {
             >
               {MIXABLE.map(p => (
                 <option key={p.name} value={p.name}>
-                  {p.name}
+                  {presetLabel(p)}
                 </option>
               ))}
             </select>
