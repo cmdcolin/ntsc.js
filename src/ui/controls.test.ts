@@ -124,6 +124,9 @@ describe('fine tier', () => {
       'pipY',
       'pipW',
       'pipH',
+      'crtPurityX',
+      'crtPurityY',
+      'crtPuritySize',
       'crtZoomX',
       'crtZoomY',
     ]

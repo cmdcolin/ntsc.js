@@ -226,7 +226,7 @@ const FRAMES: {
     Frame: PipControl,
   },
   {
-    group: 'Display',
+    group: 'View',
     keys: new Set<ControlKey>(['crtZoomX', 'crtZoomY']),
     Frame: ZoomControl,
   },

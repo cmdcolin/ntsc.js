@@ -121,6 +121,7 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 1,
         unit: '',
+        choices: ['off', 'on'],
         help: 'Rebuilds each frame from a single field instead of both, the way a bob deinterlacer does. Use it when an interlaced source (a captured video or webcam) shows comb teeth on horizontal motion. Costs half the vertical detail, which is exactly the trade a real deinterlacer makes.',
       },
       {
@@ -130,6 +131,7 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 1,
         unit: '',
+        choices: ['off', 'on'],
         help: 'The furniture broadcasters parked in the vertical blanking interval: VITS multiburst and a modulated staircase on lines 17-18 (the transmission-test signals engineers measured the plant with), a VIR reference on 19, and line-21 caption data — a clock run-in and dashes that change every frame, because captions are live. Invisible in normal framing; roll the picture or shrink v size and the black bar turns out to have all of this in it. On by default because a broadcast signal genuinely carried it; switch it off for a bare studio feed.',
       },
     ],
@@ -717,9 +719,20 @@ export const GROUPS: Group[] = [
         step: 0.1,
         redline: [0, 8],
         unit: 'IRE',
-        fine: true,
         help: "The medium's own noise floor. It belongs to the oxide, not to the moment, so the same grain is on the same stretch of tape every lap and gets re-recorded rather than averaging away like snow — it builds into standing streaks, and slides bodily through the picture when the speed wanders.",
       },
+    ],
+  },
+  {
+    // The mechanics of the loop, split off from what the loop sounds like above.
+    // Together they were fourteen controls under one header showing eleven rows —
+    // the longest visible group left in the panel after the Tape and Screen
+    // stages were split, and for the same reason: "loop bin" was covering the
+    // loop's mix and length, the deck driving it, the heads reading it, and the
+    // oxide wearing out, which are four different questions.
+    name: 'Loop transport & heads',
+    place: 'Feedback',
+    sliders: [
       {
         key: 'tapeRecord',
         label: 'record head',
@@ -1199,7 +1212,20 @@ export const GROUPS: Group[] = [
     ],
   },
   {
-    name: 'Tape / Channel',
+    // The Tape stage used to be one 22-control group called 'Tape / Channel'
+    // plus a spray of two- and four-row ones, which is the worst of both: the
+    // big group opened onto thirteen visible rows covering the recording, the
+    // noise floor, mains interference, ghosting, hum, the sound carrier and
+    // dropouts, while five of its neighbours cost a header each to reveal less
+    // than a header's worth. Split here into four groups whose names say what is
+    // in them, and merged below into two where the neighbours were too small to
+    // be worth finding. Same nine headers on the stage, but nothing over nine
+    // rows and nothing under four.
+    //
+    // This first one is what the recording itself did to the signal: the
+    // bandwidth it passed, the sharpener that faked it back, the amplifier's two
+    // brightness-dependent errors, and the FM fold.
+    name: 'Recording (luma & FM)',
     place: 'Tape',
     sliders: [
       {
@@ -1229,6 +1255,10 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.01,
         unit: '',
+        // Both differential errors are trims on the amplifier the three rows
+        // above set up, and neither is a look on its own — no preset in the
+        // table reaches for either.
+        fine: true,
         help: "The video amplifier's gain is not flat against the brightness it is amplifying at that instant, so the colour subcarrier riding bright picture comes through smaller than the same colour on dark picture — saturation drains out of the highlights while the shadows keep theirs. On the spec sheet of every VTR and proc amp ever sold as DG%; here the full knob wipes chroma off peak white entirely. Negative is the opposite misdesign: colour swells in the brights.",
       },
       {
@@ -1238,6 +1268,7 @@ export const GROUPS: Group[] = [
         max: 60,
         step: 0.5,
         unit: 'deg',
+        fine: true,
         help: "The same amplifier's delay moves with brightness, and a delay at 3.58 MHz is a phase shift — so hue swings with the luma underneath it: a face turns one way in the light and the other in the shadow, and flat colour picks up a wrongness that tracks the picture. The burst sits at blanking level where the shift is zero, so the decoder's reference never moves — this is hue error against a still reference, not a tint you could dial back out.",
       },
       {
@@ -1259,6 +1290,15 @@ export const GROUPS: Group[] = [
         fine: true,
         help: 'How long the demodulator takes to recover from a fold — the deemphasis time constant, which is what smears the inversion rightward. Short is a hairline shadow on every hard edge; long drags each fold out toward a microsecond-scale black comet.',
       },
+    ],
+  },
+  {
+    // Everything arriving on top of the picture rather than through it: the
+    // broadband noise floor, and the impulsive interference that comes in bursts
+    // — arcing contacts, ignition, lightning, a dimmer chopping the mains.
+    name: 'Noise & interference',
+    place: 'Tape',
+    sliders: [
       {
         key: 'noiseIre',
         label: 'noise',
@@ -1329,6 +1369,16 @@ export const GROUPS: Group[] = [
         fine: true,
         help: 'A triac dimmer fires twice per mains cycle at its set angle, so its hits bunch at two phases of the mains instead of falling anywhere. The random hits concentrate into two bands of hash that roll through the picture with the hum bar — the same mains, so they move together.',
       },
+    ],
+  },
+  {
+    // Coherent things leaking onto the signal, as against the noise above: a
+    // reflection of the picture itself, the mains, and the sound carrier beating
+    // against the vision one. All three put structure on the picture that came
+    // from somewhere else in the same building.
+    name: 'Ghosting & leakage',
+    place: 'Tape',
+    sliders: [
       {
         key: 'ghostDelayUs',
         label: 'ghost delay',
@@ -1357,7 +1407,6 @@ export const GROUPS: Group[] = [
         step: 0.1,
         redline: [0, 30],
         unit: 'IRE',
-        fine: true,
         help: 'Mains hum riding on the video from a ground loop — 60 Hz on the signal, in IRE. Because it is not quite locked to the field rate it appears as a soft bright bar drifting slowly up the picture.',
       },
       {
@@ -1381,6 +1430,16 @@ export const GROUPS: Group[] = [
         fine: true,
         help: 'The 4.5 MHz intercarrier sound leaking past the trap that is supposed to remove it. Lays a fine herringbone of interference over the picture — sound buzz you can see.',
       },
+    ],
+  },
+  {
+    // Where the head reads nothing, the circuit that tries to cover for it, and
+    // the generation count that stacks the whole stage on itself. Four rows, none
+    // folded: the compensator's two modes are the interesting part of a dropout
+    // and the length is what decides whether you see a speck or a streak.
+    name: 'Dropouts & dubs',
+    place: 'Tape',
+    sliders: [
       {
         key: 'dropoutRate',
         label: 'dropouts',
@@ -1409,7 +1468,6 @@ export const GROUPS: Group[] = [
         step: 0.5,
         redline: [1, 25],
         unit: 'us',
-        fine: true,
         help: 'How long each dropout lasts, in microseconds. A line is 63.5 µs, so 25 µs is a streak across a third of the picture width.',
       },
       {
@@ -1419,7 +1477,6 @@ export const GROUPS: Group[] = [
         max: 4,
         step: 1,
         unit: 'x',
-        fine: true,
         help: 'Runs the whole tape/channel stage this many times over — a copy of a copy of a copy. Each generation adds its own independent noise, dropouts and timebase wander on top of the last, which is why third-generation dubs fall apart much faster than one pass at triple the damage.',
       },
     ],
@@ -1503,6 +1560,9 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.01,
         unit: '',
+        // The one miswiring in the group that is a party trick rather than a
+        // fault you would meet: it takes sync and luma away entirely.
+        fine: true,
         help: 'S-video miswired into a composite input: only the chroma pin arrives. There is no luma and no sync, so the receiver free-runs on a bare subcarrier — floating colour over a black raster that has nothing to lock to.',
       },
       {
@@ -1524,12 +1584,11 @@ export const GROUPS: Group[] = [
         choices: ['pin', 'shield', 'both'],
         help: 'Which contact of the plug is intermittent. The centre pin breaks the signal path, so the jack sees an open through its own terminator and those bands collapse to the input stage’s noise floor — sync included, which is why they tear. The shell breaks the ground reference instead and leaves the signal alone: the return current goes looking for the mains earth through both boxes’ supplies, so a ground loop’s hum lands on the bad bands and the level walks and buzzes while the picture and its sync survive. Both is a genuinely wiggled plug, the two faults on independent bands so they interleave.',
       },
-    ],
-  },
-  {
-    name: 'Cable Scrambling',
-    place: 'Tape',
-    sliders: [
+      // Scrambling and macrovision were two more groups of two, sitting directly
+      // below this one and running on the same pass over the same wire. Three
+      // headers to reveal nine rows, none of which could be found without
+      // opening all three — and 'Cable Scrambling' and 'Copy Protection' are the
+      // same fact from the head-end's side and the stamper's.
       {
         key: 'scramble',
         label: 'sync suppression',
@@ -1549,12 +1608,6 @@ export const GROUPS: Group[] = [
         choices: ['gated', 'alternate', 'ssavi'],
         help: "Which scrambling system. Gated suppresses every line, so the oscillator free-runs the whole way down and the raster shears continuously. Alternate suppresses every other line, so the flywheel is hauled back half the time and the drift between corrections comes out as a ragged line-pair zigzag on every vertical edge — it tolerates far more h-osc detune before it stops being a picture. SSAVI is Zenith's: suppression plus inversion of the active video, so what does leak through is a negative. Burst sits in the back porch and is untouched, so hue survives the inversion.",
       },
-    ],
-  },
-  {
-    name: 'Copy Protection',
-    place: 'Tape',
-    sliders: [
       {
         key: 'macrovision',
         label: 'agc pulses (macrovision)',
@@ -1571,12 +1624,19 @@ export const GROUPS: Group[] = [
         max: 180,
         step: 1,
         unit: 'deg',
+        // A trim on the row above: colourstripe is the second half of macrovision
+        // and does nothing without it.
+        fine: true,
         help: "The later half of the process: colourbursts on walking bands of picture lines are rotated off the house phase by this much. The decoder corrects each line's hue by the burst it just gated, so the poisoned bands come out rotated the other way — hue banding crawling down the frame. A set that trusts its burst less (burst lock) or averages bursts over lines (chroma AGC lag) shrugs it off, which is exactly the difference between the TV this was invisible on and the VCR it was aimed at.",
       },
     ],
   },
   {
-    name: 'VHS Chroma',
+    // Both halves of what makes a VHS look like VHS rather than like a weak
+    // broadcast: the colour-under conversion, and the head failing to follow the
+    // track it recorded. They were two four-row groups in a row, and 'VHS Chroma'
+    // / 'VHS Tracking' are the same deck.
+    name: 'VHS colour & tracking',
     place: 'Tape',
     sliders: [
       {
@@ -1606,6 +1666,11 @@ export const GROUPS: Group[] = [
         step: 0.1,
         redline: [0, 25],
         unit: 'deg/line',
+        // Both of this group's gated controls fold: each shapes the character of
+        // an effect the row above it turns on (phase jitter rides colour-under,
+        // band position rides tracking error), which is exactly what the tier is
+        // for. Takes the merged group from eight rows on show to six.
+        fine: true,
         help: 'Per-line phase error in that down/up conversion. The colour-under path has to reinsert phase exactly; when it does not, hue wanders line to line and the picture picks up a coloured venetian-blind texture. Needs colour-under raised to do anything.',
       },
       {
@@ -1618,12 +1683,6 @@ export const GROUPS: Group[] = [
         unit: 'ns',
         help: "The chroma path through a deck or proc amp runs its own filters and delay lines, and when their group delay is mistrimmed against the luma path the colour arrives late (or early): every coloured area sits bodily sideways off the edge it belongs to, colour bleeding out of one side of objects and falling short of the other. The burst travels the same mistrimmed path, so the decoder's reference moves with the picture's chroma and hue stays correct — displaced colour, not rotated, which is what tells this from a timebase error. Steps are whole samples, about 70 ns each.",
       },
-    ],
-  },
-  {
-    name: 'VHS Tracking',
-    place: 'Tape',
-    sliders: [
       {
         key: 'trackAmt',
         label: 'tracking error',
@@ -1640,6 +1699,7 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.005,
         unit: '',
+        fine: true,
         help: 'Where that mistracked band sits vertically, 0 top to 1 bottom. On a real deck it drifts as the tape stretches; here you park it.',
       },
       {
@@ -2167,7 +2227,14 @@ export const GROUPS: Group[] = [
     ],
   },
   {
-    name: 'Display',
+    // The tube split into the three things you look *at* — how the beam is
+    // written, what the coating does with it, and what the glass in front of it
+    // is made of — plus where your eye is, which is not the tube at all. It was
+    // one group called 'Display' holding all twenty-four: the stage's only
+    // group, so the map's stage → group step bought nothing, and it opened onto
+    // sixteen visible rows spanning beam, phosphor, mask, convergence, purity,
+    // SVM and the magnifier. No name in the panel predicted where anything was.
+    name: 'Beam',
     place: 'Screen',
     sliders: [
       {
@@ -2217,6 +2284,37 @@ export const GROUPS: Group[] = [
         fine: true,
         help: 'How the sampled line is reconstructed into continuous light across the screen. Toward 0 is plain linear interpolation, which loses high frequencies; toward 1 is a cubic that stays flat past the subcarrier, so fine patterns hold instead of pumping as they move.',
       },
+      // Scan velocity modulation is a deflection trick played on the beam, so it
+      // files with the beam rather than with the glass — it used to sit between
+      // the purity patch and the magnifier, which is to say between two things
+      // it has nothing to do with.
+      {
+        key: 'crtSvm',
+        label: 'scan velocity mod',
+        min: -4,
+        max: 4,
+        step: 0.01,
+        redline: [-1, 1],
+        unit: '',
+        help: 'Consumer sets faked sharpness by patching differentiated luma into an extra deflection coil, slowing the beam through a dark-to-bright transition and speeding it through a bright-to-dark one. Emission follows dwell time, so light is moved across the edge rather than added: a white overshoot on one side, a black notch on the other. The asymmetry is the whole complaint people had about it. Negative wires the coil backwards and swaps which side glows.',
+      },
+      {
+        key: 'crtSvmWidth',
+        label: 'svm aperture',
+        min: 0.25,
+        max: 24,
+        step: 0.05,
+        redline: [0.5, 6],
+        unit: 'px',
+        fine: true,
+        help: 'How wide a span the differentiator looks across. Narrow gives a tight edge-liner on fine detail; wide reaches past the detail and starts shading whole objects, which is the point where it stops reading as sharpening and starts reading as relief.',
+      },
+    ],
+  },
+  {
+    name: 'Phosphor',
+    place: 'Screen',
+    sliders: [
       {
         key: 'phosphorMode',
         label: 'phosphors',
@@ -2268,6 +2366,20 @@ export const GROUPS: Group[] = [
         unit: '',
         help: 'Held light does not leave through the grain that emitted it — it scatters sideways through the layer and the glass, into phosphor that is still glowing itself. The spread therefore compounds along a trail: the fresh edge stays sharp while old light gets progressively wider and softer, instead of the tail being a stack of hard copies.',
       },
+    ],
+  },
+  {
+    // Where the three beams land on the triads: the grille they land through,
+    // the registration error that grows toward the corners, and a magnetised
+    // patch that bends all three at once. The patch is drawn on a miniature
+    // (FRAMES in ControlGroup), which is why its three placement controls carry
+    // no `fine` — they sit behind the miniature's own ▸ sliders instead. Before
+    // that they were the reverse of usable: the *strength* was on show while
+    // where-and-how-big were folded away, so the visible row moved a stain you
+    // could neither see nor place.
+    name: 'Mask & convergence',
+    place: 'Screen',
+    sliders: [
       {
         key: 'maskAmt',
         label: 'aperture grille',
@@ -2285,7 +2397,6 @@ export const GROUPS: Group[] = [
         step: 0.5,
         redline: [1.5, 12],
         unit: 'px',
-        fine: true,
         help: 'Spacing of those phosphor triads in screen pixels. Fine pitch is a high-end monitor seen from a distance; coarse is a cheap tube with your nose against it. Pitches near a small whole number of pixels alias into moiré, exactly as photographing a CRT does.',
       },
       {
@@ -2315,7 +2426,6 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.01,
         unit: '',
-        fine: true,
         help: 'Where the magnetised patch sits across the glass.',
       },
       {
@@ -2325,7 +2435,6 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.01,
         unit: '',
-        fine: true,
         help: 'Where the magnetised patch sits down the glass.',
       },
       {
@@ -2336,30 +2445,18 @@ export const GROUPS: Group[] = [
         step: 0.01,
         redline: [0.05, 0.8],
         unit: 'h',
-        fine: true,
         help: 'Radius of the magnetised patch as a fraction of picture height. Small is a screwdriver left on the cabinet; large is a set that spent a year next to a loudspeaker.',
       },
-      {
-        key: 'crtSvm',
-        label: 'scan velocity mod',
-        min: -4,
-        max: 4,
-        step: 0.01,
-        redline: [-1, 1],
-        unit: '',
-        help: 'Consumer sets faked sharpness by patching differentiated luma into an extra deflection coil, slowing the beam through a dark-to-bright transition and speeding it through a bright-to-dark one. Emission follows dwell time, so light is moved across the edge rather than added: a white overshoot on one side, a black notch on the other. The asymmetry is the whole complaint people had about it. Negative wires the coil backwards and swaps which side glows.',
-      },
-      {
-        key: 'crtSvmWidth',
-        label: 'svm aperture',
-        min: 0.25,
-        max: 24,
-        step: 0.05,
-        redline: [0.5, 6],
-        unit: 'px',
-        fine: true,
-        help: 'How wide a span the differentiator looks across. Narrow gives a tight edge-liner on fine detail; wide reaches past the detail and starts shading whole objects, which is the point where it stops reading as sharpening and starts reading as relief.',
-      },
+    ],
+  },
+  {
+    // Not the tube: where your eye is and how fast the clock runs. These are the
+    // VIEW_KEYS, the controls a mutate is forbidden to touch, and they were
+    // filed among the phosphors — so the one group in the panel that does not
+    // change the signal sat inside the group that models the glass.
+    name: 'View',
+    place: 'Screen',
+    sliders: [
       {
         key: 'crtZoom',
         label: 'magnifier',
@@ -2592,6 +2689,17 @@ export const NEEDS: Partial<Record<ControlKey, SliderNeed>> = {
     ok: above0,
     fix: 10,
     hint: 'dropouts above 0',
+  },
+  // The patch has to be magnetised before where-and-how-big mean anything. All
+  // three sit behind the miniature's ▸ sliders, so these notes are only read by
+  // somebody who opened that fold — the frame itself carries the same offer.
+  crtPurityX: { key: 'crtPurity', ok: nonzero, fix: 0.6, hint: 'purity off 0' },
+  crtPurityY: { key: 'crtPurity', ok: nonzero, fix: 0.6, hint: 'purity off 0' },
+  crtPuritySize: {
+    key: 'crtPurity',
+    ok: nonzero,
+    fix: 0.6,
+    hint: 'purity off 0',
   },
   underJitterDeg: {
     key: 'colorUnderMix',
