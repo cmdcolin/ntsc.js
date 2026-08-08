@@ -86,6 +86,83 @@ export const MOD_SOURCES: { value: ModSource; label: string }[] = [
 export const RATE_MIN = 0.02
 export const RATE_MAX = 10
 
+// The stab gate as the panel holds it (see signal/stab.ts for the mechanism).
+//
+// In the bay rather than in DEFAULT_CONTROLS on purpose, and it is the decision
+// worth understanding before moving it: a stab rate is not a setting on the
+// signal path, it is a clock driving the whole board — the same family as the
+// routings it sits with, and it wants the tempo row already at the top of this
+// section. Making it a control instead would mean a slider in some GROUP (the
+// panel gives every control exactly one row and a test holds that), which means a
+// stage on the chain map for a thing that gates every stage; it would also have
+// to be exempted from mutate and from the gate's own sweep to stock, since a
+// control that cleans itself twice a second stops being a control.
+export interface Stab {
+  // Stabs per second. 0 is off — the look runs continuously, which is what every
+  // session that has never touched this has, so it is also the resting value.
+  hz: number
+  // How long each stab lasts, in milliseconds. Absolute rather than a fraction of
+  // the cycle: doubling the rate on a duty-cycle gate halves the hit, so the one
+  // number a set wants to hold still is the one that would move.
+  ms: number
+  // Which SYNC_DIVISIONS entry the rate is locked to, if it is locked at all —
+  // the same lock a slot's rate carries, and for a stronger reason. "Twice a
+  // second" is already a musical statement, so a stab train is the thing in this
+  // panel most worth locking to the beat.
+  syncDiv?: number
+}
+
+// Off, at a length that reads as a hit rather than a flicker. 60ms is about four
+// frames: long enough for the phosphor and the loops to take a visible bite out
+// of the clean picture behind it, short enough that the clean side is what you
+// are looking at.
+export const DEFAULT_STAB: Stab = { hz: 0, ms: 60 }
+
+export const STAB_HZ_MAX = 12
+export const STAB_MS_MIN = 8
+export const STAB_MS_MAX = 400
+
+// What the gate runs at: the tempo-derived rate while it is locked and something
+// is providing a tempo, the dialed Hz otherwise. Same rule (and the same reason)
+// as slotRate above, except that 0 stays 0 — an off gate that a tempo lock could
+// silently start is a gate that turns itself on.
+export function stabRate(stab: Stab, bpm: number | null): number {
+  const div = stab.syncDiv
+  return div === undefined || bpm === null || stab.hz === 0
+    ? stab.hz
+    : clamp(bpm / 60 / SYNC_DIVISIONS[div].beats, 0, STAB_HZ_MAX)
+}
+
+// Off → each division → off, the same cycle a slot's rate and a rate control row
+// walk. `hz` rides along untouched, so the dialed rate comes back at the end.
+export function withNextStabSync(stab: Stab): Stab {
+  const next = stab.syncDiv === undefined ? 0 : stab.syncDiv + 1
+  if (next < SYNC_DIVISIONS.length) return { ...stab, syncDiv: next }
+  const free = { ...stab }
+  delete free.syncDiv
+  return free
+}
+
+// A stored gate, or the default if it isn't one. Field-checked for the same
+// reason readSlot is: localStorage is an untrusted string, and a stored `null`
+// used to take the whole app down at mount.
+export function readStab(raw: unknown): Stab {
+  if (typeof raw !== 'object' || raw === null) return DEFAULT_STAB
+  const hz = field(raw, 'hz')
+  const ms = field(raw, 'ms')
+  return {
+    hz:
+      typeof hz === 'number' && Number.isFinite(hz)
+        ? clamp(hz, 0, STAB_HZ_MAX)
+        : DEFAULT_STAB.hz,
+    ms:
+      typeof ms === 'number' && Number.isFinite(ms)
+        ? clamp(ms, STAB_MS_MIN, STAB_MS_MAX)
+        : DEFAULT_STAB.ms,
+    ...syncDivision(field(raw, 'syncDiv')),
+  }
+}
+
 const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v))
 

@@ -386,6 +386,42 @@ in, because it needs the slider schema: modes (`choices`) cut at the half-way
 point since there is no value between two phosphors, and `VIEW_KEYS` never
 morphs at all.
 
+**The stab gate is the third thing sharing that frame** (`signal/stab.ts`,
+`applyStab`). It replaces the _whole board_ with `DEFAULT_CONTROLS` for a few
+tens of milliseconds several times a second — a clean picture with the look
+poked into it, rather than the look running continuously. Like `applyMod` it
+restores at the end of the frame, so the sliders never move; unlike it, there is
+nothing to point at a target and no depth, because it drives everything at once.
+It runs immediately **after** `applyMod` and restores immediately before it, so
+a clean frame is clean including whatever the LFOs were doing to it. Three
+things it has to get right:
+
+- **`STOCK_HOLD` (`src/controls.ts`) is held back.** The engine cannot read the
+  panel's `VIEW_KEYS`, so it carries its own copy of the same five keys, and
+  `ui/controls.test.ts` asserts the two match. Without it the gate yanks the
+  magnifier and rechooses the frame lock several times a second — which
+  hold-to-compare gets away with because it happens once, under your finger.
+- **`filtersDirty` is set on the two edges of a cycle and on no frame in
+  between.** Every frame inside one half holds the same values, so the bank
+  designed on the way in is still the right bank. Marking each clean frame
+  instead is a FIR redesign at the frame rate, which is the whole cost of this
+  landing in the wrong place; at 2Hz the edges cost four rebuilds a second,
+  which is what `COARSE_STEPS` already spends on a morph.
+- **The rate is read off the wall clock**, not off a frame count. `ModState`
+  advances on a fixed `1/60`, so a 2Hz LFO is 1Hz on a 30fps machine; a train
+  you count along with — and lock to a beat — cannot afford that. The length is
+  milliseconds rather than a duty cycle for the same reason: doubling the rate
+  must not halve the hit.
+
+The gate lives in the modulation bay (`useModSlots`) rather than in
+`DEFAULT_CONTROLS`, and that is deliberate. It is a clock over the whole board,
+which is the family the routings beside it belong to, and it wants the tempo row
+already at the top of that section. As a control it would need a slider in some
+`GROUP` — the panel gives every control exactly one row and `controls.test.ts`
+holds that — which means a stage on the chain map for a thing that gates every
+stage; it would also have to be exempted from mutate and from its own sweep to
+stock, since a control that cleans itself twice a second stops being one.
+
 To check what compiled, build unminified and look for the memo-cache preamble:
 
 ```sh

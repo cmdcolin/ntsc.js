@@ -1,4 +1,4 @@
-import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
+import { CONTROL_KEYS, DEFAULT_CONTROLS, STOCK_HOLD } from '../controls'
 import { AudioState } from '../signal/audiostate'
 import {
   ACTIVE_HEIGHT,
@@ -32,6 +32,7 @@ import { MixState } from '../signal/mixstate'
 import { ModState } from '../signal/modstate'
 import { valueNoise } from '../signal/noise'
 import { RfState } from '../signal/rfstate'
+import { StabGate } from '../signal/stab'
 import { TapeState, tapeRecording } from '../signal/tapeloop'
 import { gpuPowerFromSearch, initGpu, releaseGpu } from './context'
 import { pageSearch } from './env'
@@ -76,6 +77,7 @@ import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { GlidePlan } from '../signal/glide'
 import type { LineStateControls } from '../signal/linestate'
 import type { DeckPause } from '../signal/mixstate'
+import type { StabPlan } from '../signal/stab'
 import type { Gpu, RenderTarget } from './context'
 import type { DestroyOptions, EngineApi } from './engineapi'
 import type { FeedSource } from './feedgates'
@@ -232,6 +234,18 @@ export class Engine implements EngineApi {
   private tapeState = new TapeState()
   private rfState = new RfState()
   private modSlots: ModSlot[] = []
+  // The stab gate: the whole look poked into a clean picture for a few tens of
+  // milliseconds at a time. Off until something sets a rate, so a session that
+  // has never touched it pays one wall-clock read a frame.
+  private stabGate = new StabGate()
+  private stab: StabPlan = { hz: 0, ms: 0 }
+  // What the current stab overwrote, so it can be handed back at the end of the
+  // frame. Two parallel arrays with a live length rather than a fresh array of
+  // pairs: a clean frame saves up to two hundred keys, and this runs at the frame
+  // rate on the thread that is also feeding the GPU.
+  private stabKeys: ControlKey[] = []
+  private stabVals: number[] = []
+  private stabSaved = 0
   // bent-crystal demod LO phase error, accumulated per frame (radians)
   private scPhase = 0
   // picture-search crossing pattern phase, accumulated per frame (crossings)
@@ -1618,12 +1632,61 @@ export class Engine implements EngineApi {
     this.modSlots = slots
   }
 
+  // The stab gate: how often the look is poked into an otherwise clean picture,
+  // and for how long. `hz` at 0 is off — the look runs continuously, which is
+  // what every session that has not touched this has. Written to and never read
+  // from, exactly like the modulation bay and for the same reason: it is applied
+  // and undone inside one frame, so React has to be the store.
+  setStab(stab: StabPlan): void {
+    this.stab = stab
+  }
+
   setDbgView(view: number): void {
     this.dbgView = view
   }
 
   getDbgView(): number {
     return this.dbgView
+  }
+
+  // One frame of the stab gate (signal/stab.ts): on a clean frame, every control
+  // but the five in STOCK_HOLD is swapped for stock and handed back at the end of
+  // the frame. Deliberately *after* applyMod in `render`, so a clean frame is
+  // clean including whatever the LFOs were doing to it — at the far end of the
+  // gate the picture is stock and still, which is what the clean half has to be
+  // for the stab to read as a hit rather than as a change of setting.
+  //
+  // The waves still advance on a clean frame (applyMod ran), so the stabs land on
+  // a look that is drifting underneath rather than on the same frozen frame each
+  // time.
+  private applyStab(): () => void {
+    const { clean, changed } = this.stabGate.step(this.stab, performance.now())
+    // Only on the two edges of a cycle. Every frame inside one holds the same
+    // values, so the bank designed on the way in is still the right bank —
+    // marking each clean frame instead is a FIR redesign at the frame rate, which
+    // is most of what this feature could cost and none of what it needs.
+    if (changed) this.filtersDirty = true
+    if (!clean) return NOOP
+    this.stabSaved = 0
+    for (const k of CONTROL_KEYS) {
+      const stock = DEFAULT_CONTROLS[k]
+      if (this.controls[k] === stock || STOCK_HOLD.has(k)) continue
+      this.stabKeys[this.stabSaved] = k
+      this.stabVals[this.stabSaved] = this.controls[k]
+      this.stabSaved++
+      this.controls[k] = stock
+    }
+    return this.restoreStab
+  }
+
+  // Handing the board back. A bound field rather than a closure returned from
+  // applyStab: it reads only instance state, so there is nothing to capture, and
+  // a fresh closure per clean frame is an allocation per frame on the thread
+  // feeding the GPU.
+  private readonly restoreStab = (): void => {
+    for (let i = 0; i < this.stabSaved; i++) {
+      this.controls[this.stabKeys[i]] = this.stabVals[i]
+    }
   }
 
   private applyMod(): () => void {
@@ -1721,6 +1784,10 @@ export class Engine implements EngineApi {
     if (this.lockPhase !== 0) return false
     this.advanceGlide()
     const restoreMod = this.applyMod()
+    // After the bay, and restored before it: the stab saves values the mod has
+    // already written, so handing the board back has to unwind in that order or
+    // the resting look ends up holding one frame of modulation.
+    const restoreStab = this.applyStab()
     try {
       this.simAcc = Math.min(this.simAcc + this.controls.timeScale, 1)
       if (this.simAcc >= 1) {
@@ -1730,6 +1797,7 @@ export class Engine implements EngineApi {
         this.presentHeld()
       }
     } finally {
+      restoreStab()
       restoreMod()
     }
     return true

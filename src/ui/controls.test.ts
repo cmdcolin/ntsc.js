@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CONTROL_KEYS } from '../controls'
+import { CONTROL_KEYS, STOCK_HOLD } from '../controls'
 import {
   ALL_SLIDERS,
   AUDIO_GROUPS,
@@ -73,6 +73,15 @@ describe('control tables', () => {
   // `• 1` and grew a row in "This look" whenever anyone magnified the picture.
   // Neither is visible to any other test here: both tables were internally
   // consistent, and every group did render somewhere.
+  // The engine cannot import the panel's schema, so it carries its own copy of
+  // this list (STOCK_HOLD) for the stab gate to hold. Same rule, same five keys,
+  // and this is what stops the two drifting: retuning the View group without
+  // touching the engine's set would leave a gate that yanks the magnifier and
+  // rechooses the frame lock several times a second.
+  it('holds the same keys back from a whole-board clean as it keeps off a mutate', () => {
+    expect([...STOCK_HOLD].toSorted()).toEqual([...VIEW_KEYS].toSorted())
+  })
+
   it('keeps the view controls off the signal path', () => {
     for (const g of GROUPS) {
       const view = g.sliders.filter(s => VIEW_KEYS.has(s.key))

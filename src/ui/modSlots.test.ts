@@ -3,13 +3,19 @@ import { describe, expect, it } from 'vitest'
 import { SLIDER_BY_KEY } from './controls'
 import { SYNC_DIVISIONS } from './midi'
 import {
+  DEFAULT_STAB,
   EMPTY_SLOT,
   N_SLOTS,
   RATE_MAX,
+  STAB_HZ_MAX,
+  STAB_MS_MAX,
   normalizeSlots,
+  readStab,
   routingsToSlots,
   slotsToRoutings,
+  stabRate,
   toEngineSlots,
+  withNextStabSync,
   withNextSync,
 } from './modSlots'
 
@@ -226,5 +232,69 @@ describe('routings', () => {
         { target: 'fbMix', source: 'sine', rateHz: 1, depth: 0.3 },
       ])[0].on,
     ).toBe(true)
+  })
+})
+
+describe('the stab gate', () => {
+  it('reads a stored gate back as it was written', () => {
+    const written = { hz: 2, ms: 60, syncDiv: 2 }
+    expect(readStab(JSON.parse(JSON.stringify(written)))).toEqual(written)
+  })
+
+  it('falls back to off for anything that is not a stored gate', () => {
+    // Every one of these has been in someone's localStorage: a first run, a
+    // hand-edited entry, and the `[null]` shape that used to take the app down
+    // at mount when the bay's own loader trusted it.
+    for (const raw of [null, undefined, 0, 'stab', [], { hz: 'fast' }])
+      expect(readStab(raw)).toEqual(DEFAULT_STAB)
+  })
+
+  it('clamps a stored gate into range rather than rejecting it', () => {
+    expect(readStab({ hz: 999, ms: 1e6 })).toEqual({
+      hz: STAB_HZ_MAX,
+      ms: STAB_MS_MAX,
+    })
+    // A negative rate is off, not a gate running backwards.
+    expect(readStab({ hz: -3, ms: 60 }).hz).toBe(0)
+  })
+
+  it('drops a lock on a division this build no longer has', () => {
+    // Same rule readSlot follows: every read of syncDiv indexes straight into
+    // SYNC_DIVISIONS, so a stale index would throw on the first frame instead of
+    // degrading to a free-running rate.
+    expect(readStab({ hz: 2, ms: 60, syncDiv: 99 })).not.toHaveProperty(
+      'syncDiv',
+    )
+    expect('syncDiv' in readStab({ hz: 2, ms: 60 })).toBe(false)
+  })
+
+  it('runs a locked gate at the tempo, and an unlocked one at its own rate', () => {
+    const locked = { hz: 2, ms: 60, syncDiv: 0 }
+    // Division 0 is 1/1: one stab a beat, so 120bpm is 2 a second.
+    expect(stabRate(locked, 120)).toBeCloseTo(
+      120 / 60 / SYNC_DIVISIONS[0].beats,
+    )
+    // No tempo on the wire leaves the dialed rate running rather than stopping
+    // the train — the same rule slotRate follows.
+    expect(stabRate(locked, null)).toBe(2)
+    expect(stabRate({ hz: 3, ms: 60 }, 120)).toBe(3)
+  })
+
+  it('leaves an off gate off however fast the clock is', () => {
+    // The one place this differs from a slot's rate: a lock must not be able to
+    // start a gate that is switched off, or setting a tempo would turn the
+    // whole board's cutting on by itself.
+    expect(stabRate({ hz: 0, ms: 60, syncDiv: 0 }, 174)).toBe(0)
+  })
+
+  it('walks the divisions and back to free-running, keeping the dialed rate', () => {
+    let stab = { hz: 2.5, ms: 60 }
+    for (let i = 0; i < SYNC_DIVISIONS.length; i++) {
+      stab = withNextStabSync(stab)
+      expect(stab.syncDiv).toBe(i)
+      // What the gate comes back to at the end of the cycle.
+      expect(stab.hz).toBe(2.5)
+    }
+    expect('syncDiv' in withNextStabSync(stab)).toBe(false)
   })
 })

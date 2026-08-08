@@ -1,7 +1,7 @@
 import { createContext, use } from 'react'
 
 import type { ControlKey, ModSlot } from '../controls'
-import type { ModRouting, UiSlot } from './modSlots'
+import type { ModRouting, Stab, UiSlot } from './modSlots'
 
 // The modulation bay, read by anything that needs to know what is moving: the
 // Modulation section, the ∿ on every control row, the motion strip.
@@ -22,6 +22,20 @@ export interface ModSlotsApi {
   // 1 is what each slot's own depth says.
   master: number
   setMaster: (v: number) => void
+  // The stab gate: the whole look poked into an otherwise clean picture, several
+  // times a second (signal/stab.ts). In this context rather than in the controls
+  // because it is the same kind of thing as the routings beside it — a clock over
+  // the whole board that never moves a resting value — and because it reads the
+  // same tempo they do.
+  stab: Stab
+  // What the gate is actually running at: the tempo-derived rate while it is
+  // locked, 0 while the bay is frozen. The section reads this rather than
+  // `stab.hz` for the same reason a rate row reads `slotRate` — the lock is a
+  // lock, so the tempo moving carries the train with it.
+  stabHz: number
+  setStab: (stab: Stab) => void
+  // Walk the stab rate through the clock divisions and back to free-running.
+  cycleStabSync: () => void
   // The tempo a clock-locked slot is running against — MIDI clock, or the
   // hand-set one under it — and null when nothing is providing either, which is
   // when a rate row shows its lock as set but not live.

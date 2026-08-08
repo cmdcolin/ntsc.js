@@ -294,6 +294,26 @@ export const LANDING_LOOK: Partial<Controls> = { bGain: 0.16 }
 export const atRest = (value: number, key: ControlKey) =>
   value === DEFAULT_CONTROLS[key] || value === LANDING_LOOK[key]
 
+// What a whole-board replacement by stock must leave alone: where you are
+// looking, and how fast time is running there. The stab gate (signal/stab.ts)
+// swaps the entire board for `DEFAULT_CONTROLS` for a frame or two at a time, and
+// these five are the ones that would make it yank the magnifier and rechoose the
+// frame lock several times a second. Hold-to-compare gets away with previewing
+// stock wholesale because it happens once, under your finger; a gate repeating at
+// 2Hz does not.
+//
+// The same five keys as the panel's VIEW_KEYS, and they have to stay the same
+// five — the rule is identical (where the picture is watched from is not part of
+// the look), it is just that the engine cannot reach into the UI layer to read
+// it. ui/controls.test.ts asserts the two sets match so they cannot drift.
+export const STOCK_HOLD: ReadonlySet<ControlKey> = new Set<ControlKey>([
+  'crtZoom',
+  'crtZoomX',
+  'crtZoomY',
+  'timeScale',
+  'frameLock',
+])
+
 export interface FrameStats {
   // Presented frames per second — what actually reaches the glass, which the
   // frame lock deliberately holds below the display rate.

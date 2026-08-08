@@ -34,6 +34,7 @@
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { AudioState } from '../signal/audiostate'
 import type { GlidePlan } from '../signal/glide'
+import type { StabPlan } from '../signal/stab'
 import type { FrozenKind } from './renderloop'
 
 export interface DestroyOptions {
@@ -127,6 +128,11 @@ export interface EngineApi {
   // around their slider settings. Written to, never read from — it is applied
   // and undone inside a single frame and never touches the resting values.
   setModSlots: (slots: ModSlot[]) => void
+  // The stab gate: how often the whole look is poked into an otherwise clean
+  // picture, and for how long (signal/stab.ts). Same contract as the bay above —
+  // written to, never read from, applied and undone inside one frame — so a rate
+  // of 0 is off and nothing here ever reaches `getControls`.
+  setStab: (stab: StabPlan) => void
   // Which decode-stage tap is on the glass. The engine owns the value (it reads
   // `?dbg=` at construction), so React mirrors it rather than the reverse.
   setDbgView: (view: number) => void

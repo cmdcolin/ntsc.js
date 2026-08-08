@@ -3,10 +3,14 @@ import { GROUPS } from './controls'
 import { cx } from './cx'
 import { SYNC_DIVISIONS } from './midi'
 import {
+  DEFAULT_STAB,
   MOD_SOURCES,
   RATE_MAX,
   RATE_MIN,
   EMPTY_SLOT,
+  STAB_HZ_MAX,
+  STAB_MS_MAX,
+  STAB_MS_MIN,
   slotRate,
 } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
@@ -28,23 +32,81 @@ const TARGET_OPTIONS = [
   ),
 ]
 
+// The stab gate: the one thing in this section that is not a slot. It drives the
+// whole board rather than one control, so there is nothing to point at a target —
+// which is also why it needs no depth. Two numbers and the beat.
+//
+// Directly under the tempo row because that is what it wants most: "twice a
+// second" is a musical statement, so the ♩ on the rate is the point rather than a
+// refinement, and the row that provides the beat is right above it.
+function StabRows() {
+  const { stab, stabHz, setStab, cycleStabSync, bpm } = useModSlotsApi()
+  return (
+    <>
+      <Slider
+        label="stabs"
+        unit="/s"
+        min={0}
+        max={STAB_HZ_MAX}
+        step={0.1}
+        // The resolved rate, so a clock lock reads as the rate it is running at —
+        // the same thing a slot's rate row shows. The dialed Hz stays underneath.
+        value={stabHz}
+        defaultValue={DEFAULT_STAB.hz}
+        help="Cuts the whole look out and pokes it back in, this many times a second — a clean picture with the fault stabbed into it, rather than the fault running continuously. 0 is off. What it does not do is fade: each stab is a hard cut to stock and back, so the picture between them is the clean signal, still carrying the phosphor trail and the feedback the last stab put there. The look itself is untouched — every slider stays where you left it, and so does where you are looking from. Lock it to the beat with ♩."
+        sync={{
+          label:
+            stab.syncDiv === undefined
+              ? null
+              : SYNC_DIVISIONS[stab.syncDiv].label,
+          live: bpm !== null,
+          onCycle: cycleStabSync,
+        }}
+        onChange={hz => setStab({ ...stab, hz })}
+      />
+      {/* Hidden while the gate is off rather than sitting there inert: with no
+          stabs there is nothing for a length to be the length of, and this
+          section already asks a lot of a first read. */}
+      {stab.hz === 0 ? null : (
+        <Slider
+          label="stab length"
+          unit="ms"
+          min={STAB_MS_MIN}
+          max={STAB_MS_MAX}
+          step={4}
+          value={stab.ms}
+          defaultValue={DEFAULT_STAB.ms}
+          help="How long each stab of the look lasts. Milliseconds rather than a share of the gap, so changing the rate leaves the hit the same weight: 60ms is about four frames, short enough that the clean signal is what you are watching. Below one frame it is one frame — the stab still lands rather than being skipped."
+          onChange={ms => setStab({ ...stab, ms })}
+        />
+      )}
+    </>
+  )
+}
+
 // The whole bay, one row per slot. State, persistence and the push to the
 // render loop all moved to useModSlots when motion stopped being this section's
 // private business — presets carry it, links carry it, and any control row can
 // claim a slot from its own ∿. What is left here is the view that shows all
 // eight at once, which is still the only place to see the bay as a bay.
 export function ModSection(props: { tempo: Tempo }) {
-  const { slots, bpm, setSlot, cycleSlotSync } = useModSlotsApi()
+  const { slots, bpm, setSlot, cycleSlotSync, stab } = useModSlotsApi()
   // Read off the bay itself, not off `active`: that list is scaled by the motion
   // amount, so freezing (amount 0) emptied it and the dot went out on a section
   // still holding eight routings. The dot says what is patched — the strip's own
   // ❚❚ says what is running — and it is the same rule the strip counts by.
-  const patched = slots.some(s => s.target !== '' && s.depth > 0)
+  // The gate counts as patched: it is the one thing in here that moves the
+  // picture without a slot, so a section showing no dot while the whole board is
+  // being cut in and out four times a second would be the panel's most visible
+  // effect with nothing anywhere pointing at where it lives.
+  const patched = slots.some(s => s.target !== '' && s.depth > 0) || stab.hz > 0
   return (
     <Section title="Modulation" defaultOpen={false} dot={patched}>
       <div className={ui.hint}>
         LFOs, drift and the audio envelope wiggling any control around its
-        slider setting — or press ∿ on any control row.
+        slider setting — or press ∿ on any control row. The stabs below are the
+        one that drives the whole board: it cuts the look out and pokes it back
+        in on the beat.
       </div>
       {/* The beat every ♩ in the panel reads, at the top of the section whose
           rates are the ones most often locked to it. Here rather than in MIDI:
@@ -52,6 +114,7 @@ export function ModSection(props: { tempo: Tempo }) {
           tapped in yourself is exactly what a session with no MIDI at all
           needs. */}
       <TempoRow tempo={props.tempo} />
+      <StabRows />
       {slots.map((s, i) => (
         // Slots are positional identities (slot 1..8), so the index IS the key.
         // oxlint-disable-next-line react/no-array-index-key

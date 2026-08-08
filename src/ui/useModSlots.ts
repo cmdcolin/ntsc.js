@@ -3,8 +3,11 @@ import { useEffect, useState } from 'react'
 import {
   EMPTY_SLOT,
   normalizeSlots,
+  readStab,
   routingsToSlots,
+  stabRate,
   toEngineSlots,
+  withNextStabSync,
   withNextSync,
 } from './modSlots'
 import { readArray, readJSON, writeJSONSoon } from './storage'
@@ -12,12 +15,13 @@ import { parseSessionParams } from './urlParams'
 
 import type { ControlKey } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
-import type { UiSlot } from './modSlots'
+import type { Stab, UiSlot } from './modSlots'
 import type { ModSlotsApi } from './ModSlotsContext'
 import type { Tempo } from './useTempo'
 
 const MOD_STORE = 'video_feedback_mod'
 const MASTER_STORE = 'video_feedback_motion'
+const STAB_STORE = 'video_feedback_stab'
 
 // React owns the bay; the engine is written to, never read from. `setModSlots`
 // takes a list and applies it per frame around its own controls with a restore,
@@ -53,18 +57,32 @@ const loadMaster = (): number => {
     : 1
 }
 
+// Persisted, and deliberately not on the URL yet — see the note on the motion
+// amount above, which this is *not* an instance of: a stab train is part of the
+// look in a way a freeze is not, so it belongs in `?mod=` and in a preset's own
+// routings. That is a schema change to both; until then a link carries the
+// routings and the reader's own gate stays where they left it.
+const loadStab = (): Stab => readStab(readJSON<unknown>(STAB_STORE, null))
+
 export function useModSlots(
   engine: EngineApi | null,
   tempo: Tempo,
 ): ModSlotsApi {
   const [slots, setSlotsState] = useState<readonly UiSlot[]>(loadSlots)
   const [master, setMasterState] = useState<number>(loadMaster)
+  const [stab, setStabState] = useState<Stab>(loadStab)
 
   // A locked slot's rate is resolved here, per render, rather than written into
   // the bay: the tempo is what moves, and the effect below already pushes the
   // list to the engine whenever anything in it changes — so a clock speeding up
   // carries every locked wobble with it without a single write to storage.
   const active = toEngineSlots(slots, master, tempo.bpm)
+  // The freeze has to mean it. `❚❚` says "hold everything still", and a gate
+  // still cutting the whole board in and out four times a second while the
+  // wobbles are stopped would make that a lie — so the motion amount gates the
+  // stabs as an on/off rather than scaling them, since half a stab is just a
+  // shorter stab and the length is already a knob.
+  const stabHz = master === 0 ? 0 : stabRate(stab, tempo.bpm)
 
   // Pushed from an effect rather than from each setter: the engine arrives
   // asynchronously, so a bay patched (or a link parsed) before it exists still
@@ -72,6 +90,13 @@ export function useModSlots(
   useEffect(() => {
     engine?.setModSlots(active)
   }, [engine, active])
+
+  // Its own effect, and its own object each time: the engine reads the plan every
+  // frame and holds no state but the cycle count, so a fresh `{hz, ms}` is the
+  // whole update and dialing the length mid-run does not restart the train.
+  useEffect(() => {
+    engine?.setStab({ hz: stabHz, ms: stab.ms })
+  }, [engine, stabHz, stab.ms])
 
   // Coalesced: a depth or rate slider in the row editor calls this on every
   // pointer move, and a synchronous localStorage write per frame of a drag is
@@ -105,9 +130,25 @@ export function useModSlots(
     if (next.syncDiv !== undefined) tempo.ensure()
   }
 
+  // Coalesced like the bay's own writes: both stab sliders are dragged.
+  const writeStab = (next: Stab) => {
+    writeJSONSoon(STAB_STORE, next)
+    setStabState(next)
+  }
+
   return {
     slots,
     bpm: tempo.bpm,
+    stab,
+    stabHz,
+    setStab: writeStab,
+    cycleStabSync: () => {
+      const next = withNextStabSync(stab)
+      writeStab(next)
+      // Only on the way in, the same rule cycleAt follows: landing back on a
+      // free-running rate is not a request for a beat.
+      if (next.syncDiv !== undefined) tempo.ensure()
+    },
     active,
     master,
     setMaster: writeMaster,
