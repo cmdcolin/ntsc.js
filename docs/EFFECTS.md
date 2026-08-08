@@ -40,6 +40,26 @@ them.
   subcarrier, so any colour is the receiver failing on noise — which is why
   winding the bandwidth down drains the colour out of static without touching a
   colour control, once the grain no longer reaches the chroma passband.
+- **Video synth** — the one generated source that makes a picture rather than a
+  failure to have one: two free-running oscillators, a combiner and a colorizer,
+  patched into either slot. Nothing in it draws a bar, a gradient or a diagonal.
+  It sets a frequency, and what a frequency error against a fixed raster looks
+  like is the picture — an oscillator on an exact multiple of the 15.734 kHz
+  line rate walks zero phase per line and paints standing bars, a few hertz off
+  and every line starts the wave later than the last, so they lean and creep.
+  Wound down to field rate the same ramp is a vertical gradient (a ramp
+  generator _is_ an oscillator locked to drive), and wound up to 3.579545 MHz it
+  lands on the subcarrier, so the encoder downstream reads the screen as chroma
+  and hands back flat colour that turns as you detune. The combiner sums into
+  its rails, ring-modulates (two free-runners beating draw a moire whose drift
+  is the difference of two frequency errors, so it breathes at a rate neither
+  knob names), or slices one against the other in a comparator. Patched _over_
+  slot A's picture instead of instead of it, the picture's own brightness can
+  drive the oscillator's frequency input — the patch every video synth was
+  bought for. It pulls the frequency rather than offsetting the phase, so the
+  wave genuinely runs faster through bright picture and slower through dark: the
+  spacing of the bars becomes the brightness, equal-brightness regions fall into
+  step, and the image draws itself as contour lines nobody traced.
 - **Polarity invert** — the composite waveform negated after the encoder; full
   negative at 1, solarized midpoints partway, hue flipping with it.
 - **Hard polarity flip** — signal/ground swapped at the connector, sync
@@ -281,6 +301,26 @@ into a clean switcher dissolve.
   auto-sweep.
 - **PiP inset** — B squeezed into a genlocked DVE window, with matte border and
   luma key.
+- **Chroma key** — B's backing colour cut away so A shows through it. The keyer
+  is a box on the bus, so what it slices is the chroma the _encoder_ made, not
+  the colour the camera saw: the encoder's chroma lowpass has no vertical term,
+  so the matte comes out soft across and razor sharp down — the lopsided edge
+  every composite key had, and it widens when you narrow the encoder's chroma
+  bandwidth, because it is the same filter doing both jobs. Hue, acceptance
+  angle, clip and gain are the front panel; the clip is why a keyer cannot hold
+  a dark subject against a dark backing, since below it a demodulator reports an
+  arbitrary phase. Spill kill is a chroma canceller — you cannot lift the green
+  off a composite sample, so the box reinjects the backing's own subcarrier
+  antiphase — which nulls flat only where B's carrier phase is known. Run the
+  key on the dirty path and B's detune walks its chroma per line, so the backing
+  drifts out of the acceptance wedge and back and the key breathes and tears
+  line-wise. That is what a keyer fed a non-genlocked source did, and why they
+  were genlocked. The **fill input** is what shows through the hole: the other
+  input, the box's own matte generator (a flat colour on the house carrier, so
+  it dot-crawls and demodulates like any other), or the mixer's own last frame —
+  which bounds the feedback loop to the shape the key cut, so it grows in the
+  silhouette of whatever was the backing colour. Genlocked path only: a fill is
+  what sits behind the foreground, and only a crossfade has a behind.
 
 ## Tape / channel
 
@@ -536,6 +576,17 @@ and what you see looking at one.
 
 ### The beam
 
+- **Blanking strobe** — the gate that cuts the guns during retrace, held on: the
+  beam is off for most of each cycle and let through in flashes. Not a strobe
+  drawn over the picture — it sits upstream of the phosphor, so the light
+  already on the glass goes on giving itself back through the dark, and a long
+  persistence fades between flashes (cooling toward green as red and blue die
+  first) rather than cutting to black. Everything downstream with memory sees
+  the dark frames too: the beam limiter watches the beam current collapse and
+  opens up, so the first field back surges before the servo catches it, and a
+  feedback loop pumps at the strobe rate instead of running steady. The flash
+  length is absolute rather than a duty cycle, so changing the rate does not
+  change how hard the hit reads.
 - **Beam profile / bloom** — spot size and its growth with beam current;
   scanlines show in shadows and close up in highlights.
 - **Beam spot** — the gun writes a smooth blob, not a square, so light from one

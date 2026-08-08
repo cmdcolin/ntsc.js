@@ -4,8 +4,9 @@ Things worth doing that aren't done, and things that look worth doing but aren't
 — so a future pass doesn't re-litigate them. Line numbers drift; grep the
 described feature.
 
-Ideas from the original list still unclaimed: the video-synth oscillator source
-and chroma key.
+The last two ideas from the original list — the video-synth oscillator source
+and chroma key — have shipped; see the two sections below for what each one
+deliberately left. That list is now empty.
 
 ## Modulation: kill the remaining naked periodic waves
 
@@ -161,6 +162,75 @@ that. Rough payoff order:
   never carry a protected tape. Narrow, but it is a real asymmetry, and a
   protected B summed against a clean A makes the receiver's `agc` pump against a
   signal whose sync is fine.
+
+## Chroma key follow-ons
+
+The keyer shipped in `mix_b.wgsl` on both mix paths, slicing `uvfB` — B's chroma
+after the encoder's bandlimit — so the soft-across/sharp-down composite edge and
+the per-line breathing on the dirty path are the filter and the detune doing it,
+not anything drawn. Two things learned, for whoever extends it.
+
+The keyer had to read B's chroma at **B's own raster index** on the dirty path,
+the same index the fill is resampled from. Keying at the output sample instead
+parks the hole on the output raster and the subject rolls out from under it —
+the three-domain mistake in one line.
+
+And **spill suppression cannot be a colour operation here**: luma and chroma are
+the same wire, so the only honest null is reinjecting the backing's subcarrier
+antiphase, which means the suppressor has to know B's carrier phase. It does,
+exactly, on the genlocked path; on the dirty path it is always late by however
+far the fractional slip has rotated the carrier between samples, which leaves a
+residue that breathes. That asymmetry is the mechanism, not a gap to close.
+
+What was left:
+
+Shipped since: the **fill selector** (program A, the box's matte generator, or
+the mixer loop bus). One thing learned there — a fill is only meaningful on the
+genlocked path, because a fill is what sits _behind_ the foreground and only a
+crossfade has a behind. On the dirty sum both signals are on the wire at once,
+so the key gates B's contribution and the program is simply always present. That
+is a mechanical limit, not a gap to close, and the row is gated on genlock.
+
+- **The PiP inset keeps its luma key alone.** Wiring the chroma key into the
+  inset as well is two lines, since `chromaKey` already takes an index and the
+  inset re-encodes from `yuvB`/`uvfB`; left out to keep the first pass one box.
+- **Nothing keys off A.** A self-key on the program bus (A's own backing cut so
+  the loop bus shows through) is the same function pointed at the other input,
+  and would need A's chroma materialized the way `uvfB` materializes B's.
+- **Keyer bandwidth is the encoder's.** A real keyer has its own key-processing
+  filter ahead of the slicer, usually narrower than the encoder's chroma. A
+  short boxcar over `uvfB` would make edge softness a control of its own rather
+  than a side effect of `encChromaMHz` — at the cost of four more storage taps
+  per active sample, which is why it is not there.
+
+## Video synth follow-ons
+
+Shipped as mode 3 of the same `srcNoise` selector the static sources use — one
+`videoSynth` in the prelude, two call sites, no new pass and no new buffer.
+Phase is carried as cycles at frame start plus the walk per line and per sample
+rather than as a frequency, both for f32 precision across a 477750-sample frame
+and because the per-line walk **is** the lean of the pattern.
+
+Shipped since: **the synth over a picture rather than instead of one**, which is
+what made the luma → VCO patch possible — a mix knob (`synthOver`) beside the
+source mode, plus `synthFm`. Two things learned. The FM term has to multiply the
+sample index, not the phase: pulling a frequency makes the wave genuinely run
+faster through bright picture, where offsetting a phase only slides the pattern
+about and never produces a contour. And it is **slot A only** — `compose` has
+the slot's picture in hand while `compose_b` writes its texture rather than
+reading one, so a synth over B would need that pass restructured or a second
+texture. Left as an asymmetry rather than plumbed around.
+
+- **One waveform selector serves both oscillators.** Hardware would have one per
+  VCO; a ramp beating against a pulse is a patch this cannot express.
+- **No ramp reset off drive.** Real ramp generators are reset by H and V drive,
+  which is why they hold still; here a "ramp" is an oscillator that happens to
+  be at drive rate, so it is only ever as steady as the number typed in. Exact
+  is reachable (`synthAHz` = 15734 lands within a hertz), but a genuine
+  drive-locked mode would give a gradient that cannot creep at all.
+- **The colorizer is a phase rotator, not three comparators.** Cheap colorizers
+  sliced the signal at three different thresholds, which bands by level instead
+  of turning through hue — a different and more brutal look, and one more mode.
 
 ## The mixer has no hardware model
 
@@ -382,7 +452,25 @@ probably isn't viable — it wants to be a separate app you route into.
 Shipped: the bay lifted into `useModSlots` (eight slots), a `∿` on every control
 row that claims a slot on first press, presets/scenes/`?mod=` carrying motion, a
 global motion amount with a phase-holding freeze, and an undo walk that restores
-routings alongside controls. What was deliberately left:
+routings alongside controls.
+
+Shipped since: the **one-shot envelope** (`trig`), which is the gesture the bay
+had no source for — every other source describes what a knob is doing
+continuously, this one says what you just did. Instant attack, exponential
+decay, `rateHz` read as the decay rate so the existing rate row and its clock
+lock still mean "faster". Two things it had to get right. Firing is an
+**event**, so it goes to the engine as a method rather than a field on `ModSlot`
+— a flag on a slot list that presets, links and undo rewrite wholesale would
+have to be cleared by whoever set it. And a press lands _between_ two frames, so
+the trigger is held in a set until a frame picks it up; sampling an edge at 60
+Hz loses roughly one press in every few otherwise.
+
+What is still open on it: **MIDI note-on** should fire a slot (`IDEAS.md`'s
+"MIDI note / program-change → scene recall" is the same wire), and there is no
+keyboard binding for `fire all` — both buttons are mouse-only, which is the
+wrong input for a gesture whose whole point is timing.
+
+What was deliberately left from the original pass:
 
 - **Performance macros — cut, not deferred by accident.** The design was three
   assignable 0..1 knobs, routed through the same eight slots as the LFOs. That
