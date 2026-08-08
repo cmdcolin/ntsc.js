@@ -2,9 +2,11 @@ import { COOL_KEYS } from '../labels'
 import { cx } from './cx'
 import { Popover } from './Popover'
 import styles from './TagsPopover.module.css'
+import ui from './ui.module.css'
 
 import type { TagName } from '../labels'
 import type { LookContext } from './useLookLabels'
+import type { CloudStatus } from './useSavedProfiles'
 
 // "tags" — say what the look on screen is, and how much you like it.
 //
@@ -41,9 +43,15 @@ export function TagsPopover(props: {
   onOpen: () => void
   saved: number
   pending: number
-  signedIn: boolean
+  // The same three-state account handling the saved-looks menu does, and from the
+  // same source, so the two menus in this row never disagree about who is signed
+  // in. `loading` matters: a returning user should not be pitched a feature they
+  // already have for as long as the SDK and the session take to arrive.
+  status: CloudStatus
+  error: string | null
   onSignIn: () => void
 }) {
+  const signedIn = props.status === 'ready'
   return (
     <Popover
       onOpen={props.onOpen}
@@ -57,31 +65,31 @@ export function TagsPopover(props: {
         </button>
       )}
     >
-      {id => (
-        <div className={styles.body}>
-          <p className={styles.lead}>
-            What is this look like? Pick any that fit, then say how much you
-            like it.
-          </p>
-          <div className={styles.tags}>
-            {props.vocabulary.map(tag => {
-              const on = props.tags.includes(tag.name)
-              return (
-                <button
-                  key={tag.name}
-                  className={cx(styles.tag, on && styles.tagOn)}
-                  aria-pressed={on}
-                  title={tag.hint}
-                  onClick={() => {
-                    props.onToggle(tag.name)
-                  }}
-                >
-                  {tag.name}
-                </button>
-              )
-            })}
-          </div>
-          {props.signedIn ? (
+      {id =>
+        signedIn ? (
+          <div className={styles.body}>
+            <p className={styles.lead}>
+              What is this look like? Pick any that fit, then say how much you
+              like it.
+            </p>
+            <div className={styles.tags}>
+              {props.vocabulary.map(tag => {
+                const on = props.tags.includes(tag.name)
+                return (
+                  <button
+                    key={tag.name}
+                    className={cx(styles.tag, on && styles.tagOn)}
+                    aria-pressed={on}
+                    title={tag.hint}
+                    onClick={() => {
+                      props.onToggle(tag.name)
+                    }}
+                  >
+                    {tag.name}
+                  </button>
+                )
+              })}
+            </div>
             <div className={styles.rateRow}>
               {COOL_KEYS.map(({ cool, label }) => (
                 <button
@@ -98,23 +106,39 @@ export function TagsPopover(props: {
                 </button>
               ))}
             </div>
-          ) : (
-            // Asked here rather than up front, because pressing a rating button is
-            // where somebody has shown they want to contribute. Rating without an
-            // account used to be allowed and the rows waited in this browser for a
-            // sign-in that mostly never came — work that looked collected and was
-            // not.
-            <button className={styles.signIn} onClick={props.onSignIn}>
-              sign in to rate
+            <p className={styles.note}>
+              Filed to your account.
+              {props.pending === 0 ? '' : ` ${props.pending} still to send.`}
+            </p>
+          </div>
+        ) : props.status === 'loading' ? (
+          <div className={styles.body}>
+            <div className={ui.hint}>checking your account…</div>
+          </div>
+        ) : (
+          // Signed out, the whole menu is the ask — the same shape the saved-looks
+          // menu takes. Showing the tags here and letting them be picked would be
+          // offering a gesture with nowhere to go: the first version did exactly
+          // that, queued the result, and filed it under whoever signed in next.
+          <div className={styles.body}>
+            <div className={ui.hint}>
+              sign in to rate looks — a rating is filed under your Google
+              account, and it teaches the app which settings are worth rolling.
+              Everything else here works signed out.
+            </div>
+            <button
+              className={styles.signIn}
+              title="sign in with Google — the app stores your ratings and nothing else"
+              onClick={props.onSignIn}
+            >
+              sign in with Google
             </button>
-          )}
-          <p className={styles.note}>
-            {props.signedIn
-              ? `Filed to your account.${props.pending === 0 ? '' : ` ${props.pending} still to send.`}`
-              : 'Tags are yours to pick either way — an account is what gives the rating somewhere to go.'}
-          </p>
-        </div>
-      )}
+            {props.error === null ? null : (
+              <div className={cx(ui.hint, ui.err)}>{props.error}</div>
+            )}
+          </div>
+        )
+      }
     </Popover>
   )
 }

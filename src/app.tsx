@@ -849,7 +849,8 @@ export function App() {
             readLook={readLook}
             saved={labels.saved}
             pending={labels.pending}
-            signedIn={profiles.user !== null}
+            status={profiles.status}
+            error={profiles.error}
             onSignIn={profiles.signIn}
           />
         }
