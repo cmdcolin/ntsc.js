@@ -359,6 +359,33 @@ consequences worth knowing before touching it:
   as a deliberate patch, which is why the UI allows it; not fine hanging off an
   authored preset, which is why `presets.test.ts` forbids it there.
 
+**Morphing is the opposite of modulating**, and the two share the frame.
+`signal/glide.ts` walks the *resting* values from where they were to a
+destination over a span of seconds — a preset, a roll or a scene arriving slowly
+instead of cutting — so unlike `applyMod` it does not restore afterwards: a
+morph lands, stays landed, and comes back out of `getControls` because the board
+really is there now. It runs immediately before `applyMod` in `render()`, which
+is what makes an LFO wobble around wherever the morph has reached rather than
+around a resting value the board has left. Three things it has to get right, all
+of which are the reasons it is not a `setInterval` writing controls:
+
+- **React hears about it a tenth as often as it happens.** `GLIDE_NOTIFY`
+  batches the notify to every sixth frame. Notifying per frame is a full panel
+  render per frame (19ms with every row mounted) — the morph paying for its own
+  stutter — and the landing frame always notifies regardless, because the
+  destination is a look scenes, links and the recipe chips all have to agree on.
+- **The landing frame assigns the destination** rather than evaluating the path
+  at `t=1`: `from + (to - from) * 1` is not bit-identical to `to`, and
+  `controlsEqual`/`matchPreset` compare exactly.
+- **The filter five are stepped, not swept** (`COARSE_STEPS`), since a morph
+  moves all of them at once and would otherwise be the cheapest way to buy sixty
+  bank rebuilds a second.
+
+Which controls may travel is decided in the UI layer (`ui/morph.ts`) and passed
+in, because it needs the slider schema: modes (`choices`) cut at the half-way
+point since there is no value between two phosphors, and `VIEW_KEYS` never
+morphs at all.
+
 To check what compiled, build unminified and look for the memo-cache preamble:
 
 ```sh
