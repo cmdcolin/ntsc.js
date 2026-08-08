@@ -1,0 +1,87 @@
+/* The starred-rolls dialog. Same gesture as the clip shelf and the saved-look
+   popover — read a list down its left edge, click the one you want — so it wears
+   the same row shape: a name that fills the row, small quiet verbs after it.
+   Written out rather than composed off the shelf's own module because the two
+   lists group by different things and neither owns the other's headings. */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: min(46vh, 420px);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 4px 0;
+  margin-bottom: 8px;
+}
+
+/* Which channel a star came out of. Sticky, because that is the one thing this
+   list groups by and a Commons filename says nothing about it — scroll the
+   heading away and the grouping is gone. */
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 4px 2px 2px;
+  background: var(--panel-bg);
+  color: var(--fg3);
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* The title takes the whole row: these are Commons filenames, which run long and
+   are read left to right, and a target that stopped at the end of a short one
+   would make the short ones the hard ones to hit. */
+.name {
+  composes: bare from './ui.module.css';
+  flex: 1;
+  min-width: 0;
+  border-radius: 3px;
+  padding: 5px 7px;
+  color: var(--fg);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.name:hover {
+  background: var(--ctl-bg-hover);
+}
+
+/* Send-to-the-other-deck, the file's page on Commons, and unstar. Quiet until
+   the pointer is on them: a column of live-looking glyphs beside every name
+   reads as a list made of buttons rather than of pictures. */
+.rowBtn {
+  composes: bare from './ui.module.css';
+  flex-shrink: 0;
+  min-width: 20px;
+  border-radius: 3px;
+  padding: 4px 3px;
+  color: var(--fg4);
+  font-size: var(--fs-sm);
+  line-height: 1;
+  text-align: center;
+  text-decoration: none;
+}
+.rowBtn:hover {
+  color: var(--fg);
+  background: var(--ctl-bg-hover);
+}
+
+@media (pointer: coarse) {
+  .name {
+    padding: 9px 7px;
+  }
+  .rowBtn {
+    min-width: 30px;
+    padding: 9px 3px;
+  }
+}

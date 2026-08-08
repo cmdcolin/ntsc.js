@@ -11,6 +11,12 @@ import { Engine } from '../gpu/pipeline'
 import { MAX_SRC_EDGE } from '../gpu/sources'
 import { reportPreviousTrace, trace } from '../gpu/trace'
 import { clipUrl, isClipId } from '../sources/clips'
+import {
+  commonsCaption,
+  isCommonsId,
+  resolveCommons,
+  rollCommons,
+} from '../sources/commons'
 import { smpteBars, sweep } from '../sources/pattern'
 import { TELETYPE_DEFAULT } from '../sources/teletype'
 import { ytId } from '../sources/youtube'
@@ -32,6 +38,7 @@ import { playStream, playUrl, stopSlot, stopTyping } from './videoSlot'
 import type { FrameStats } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
 import type { FrozenKind } from '../gpu/renderloop'
+import type { CommonsId, CommonsPick } from '../sources/commons'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
 import type { Fatal } from './FatalScreen'
@@ -39,6 +46,7 @@ import type { StashSlot, Stashed } from './fileStash'
 import type { PickedFileHandle } from './fsAccess'
 import type { SessionParams } from './urlParams'
 import type { SlotKind, VideoSlot } from './videoSlot'
+import type { WikiFavorite } from './wikiFavorites'
 import type { RefObject } from 'react'
 
 // Capped to the same long edge the engine's texture is, and for the same
@@ -89,6 +97,16 @@ const reason = (e: unknown): string =>
 // restored as `file` would offer the OS dialog where the shelf belongs.
 const stashMode = (stashed: Stashed): 'file' | 'library' =>
   stashed.kind === 'clip' ? 'library' : 'file'
+
+// What a slot is showing off Commons, and out of which pool. The pick's title is
+// the identity a star is kept under; the channel is the one thing the pick itself
+// cannot carry, since a favourite resolved back off Commons is the same shape as
+// a fresh roll. Null for a slot showing anything else, which is what gates the ★
+// beside the caption — there is nothing to star about bars.
+export interface WikiOnSlot {
+  pick: CommonsPick
+  channel: CommonsId | ''
+}
 
 // Backing out of a browser permission surface — the screen picker's Cancel, a
 // dismissed camera prompt. The user made a choice and it was "no", so there is
@@ -308,6 +326,19 @@ export function useEngine() {
   // deferral as the three above: picking `library` opens the dialog and touches
   // nothing else, so backing out of it leaves the current source playing.
   const [askLibrary, setAskLibrary] = useState<StashSlot | null>(null)
+  // Which slot the Commons favourites shelf was opened for, or null when closed —
+  // the same deferral again: `wiki-faves` opens a list and touches nothing, so
+  // backing out of it leaves the current source playing.
+  const [askWiki, setAskWiki] = useState<StashSlot | null>(null)
+  // What each slot has off Commons. State because the ★ and the credit link under
+  // the picker render from it; mirrored into a ref below because every path that
+  // writes it is an async reply, where closed-over state is a snapshot.
+  const [wikiA, setWikiA] = useState<WikiOnSlot | null>(null)
+  const [wikiB, setWikiB] = useState<WikiOnSlot | null>(null)
+  const wikiRef = useRef<{ a: WikiOnSlot | null; b: WikiOnSlot | null }>({
+    a: null,
+    b: null,
+  })
   const [cardA, setCardA] = useState(TELETYPE_DEFAULT)
   const [cardB, setCardB] = useState(TELETYPE_DEFAULT)
   const cardRef = useRef({ a: TELETYPE_DEFAULT, b: TELETYPE_DEFAULT })
@@ -511,6 +542,7 @@ export function useEngine() {
   // that is where the "what is on this slot" record is kept — one write per
   // source change, and no path can set a source without leaving one behind.
   const slotA: VideoSlot = {
+    id: 'a',
     ref: videoRef,
     typer: typerARef,
     rate: () => vaporRef.current.speedA,
@@ -530,6 +562,7 @@ export function useEngine() {
     },
     setLive: setVideoA,
     setYtUrl: setYtUrlA,
+    setName: setSourceName,
     card: () => cardRef.current.a,
     setCard: card => {
       cardRef.current.a = card
@@ -540,6 +573,7 @@ export function useEngine() {
     adopt,
   }
   const slotB: VideoSlot = {
+    id: 'b',
     ref: videoBRef,
     typer: typerBRef,
     rate: () => vaporRef.current.speedB,
@@ -557,6 +591,7 @@ export function useEngine() {
     },
     setLive: setVideoB,
     setYtUrl: setYtUrlB,
+    setName: setSourceBName,
     card: () => cardRef.current.b,
     setCard: card => {
       cardRef.current.b = card
@@ -569,6 +604,36 @@ export function useEngine() {
   const stopVideo = () => stopSlot(slotA)
   const stopVideoB = () => stopSlot(slotB)
 
+  const slotOf = (key: StashSlot): VideoSlot => (key === 'a' ? slotA : slotB)
+
+  const setWiki = (key: StashSlot, on: WikiOnSlot | null) => {
+    wikiRef.current[key] = on
+    if (key === 'a') setWikiA(on)
+    else setWikiB(on)
+  }
+
+  // Which load of a slot is the current one. Bumped by every path that gives a
+  // slot a new source, and the answer it hands back is the test for "is this
+  // reply still wanted".
+  const loadSeq = useRef({ a: 0, b: 0 })
+
+  // A slot is being given a new source, so anything still in flight for it is
+  // stale. This is not hypothetical tidiness: a Commons roll spends up to two
+  // requests and the cat photo is a fetch, so a slot can have a second or two of
+  // network out while the user — who has been given no reason to wait — picks
+  // something else. Without the token the late reply lands on top of whatever
+  // they went to, and the caption then names a picture that is not on screen.
+  //
+  // Clearing the Commons pick here rather than in each caller is the same
+  // argument: every way out of a wiki source passes through one of these, and a
+  // ★ still offering to star the roll after the slot moved to bars would star
+  // something nobody can see.
+  const beginLoad = (key: StashSlot): (() => boolean) => {
+    const seq = (loadSeq.current[key] += 1)
+    setWiki(key, null)
+    return () => loadSeq.current[key] === seq
+  }
+
   // The built-in sources either slot can show, picked by mode name alone since
   // both slots offer the same set. Four are synthesised on the spot; cat and
   // the bundled clips are files under public/, so cat lands a fetch later —
@@ -576,6 +641,7 @@ export function useEngine() {
   // ?iurl path — and a clip plays the same way a picked file does. Teletype
   // reads the slot's own text, since the mode name alone doesn't carry it.
   const showGenerated = (slot: VideoSlot, mode: SourceMode | SourceBMode) => {
+    const fresh = beginLoad(slot.id)
     if (mode === 'bars') slot.setImage(smpteBars())
     else if (mode === 'sweep') slot.setImage(sweep())
     else if (mode === 'tv static') slot.setNoise(1)
@@ -584,10 +650,126 @@ export function useEngine() {
     else if (mode === 'teletype') printCard(slot, slot.card())
     else if (mode === 'cat')
       loadImage(CAT_URL).then(
-        bmp => slot.setImage(bmp, bmp.width / bmp.height),
-        (e: unknown) => setError(`image: ${reason(e)}`),
+        bmp => {
+          if (fresh()) slot.setImage(bmp, bmp.width / bmp.height)
+        },
+        (e: unknown) => {
+          if (fresh()) setError(`image: ${reason(e)}`)
+        },
       )
     else if (isClipId(mode)) playUrl(slot, clipUrl(mode))
+    else if (isCommonsId(mode)) rollWiki(slot, mode)
+  }
+
+  // A Commons pick onto a slot: the caption, the subject of the ★, and then the
+  // picture. A still and a clip diverge only in the last of those — one decodes,
+  // the other plays through the same blob-less <video> path a bundled clip uses.
+  // The transcode is CORS-clean off upload.wikimedia.org and videoSlot.ts already
+  // sets crossOrigin, so nothing taints the texture upload.
+  const showWiki = (
+    slot: VideoSlot,
+    picked: CommonsPick,
+    channel: CommonsId | '',
+    fresh: () => boolean,
+  ) => {
+    // Whatever the slot was holding is retired here rather than when the request
+    // went out — that is what keeps the old picture up while the roll is in
+    // flight. It matters for the re-roll: the picker path stops the slot on its
+    // way through, but the palette's row calls rollWiki directly, and a
+    // time-lapse clip replaced without this would leave the previous element
+    // playing, adopted by the audio graph and attached to nothing.
+    stopSlot(slot)
+    slot.setName(commonsCaption(picked.title))
+    setWiki(slot.id, { pick: picked, channel })
+    if (picked.kind === 'video') playUrl(slot, picked.url)
+    else
+      loadImage(picked.url).then(
+        bmp => {
+          if (fresh()) slot.setImage(bmp, bmp.width / bmp.height)
+        },
+        (e: unknown) => {
+          if (fresh()) {
+            slot.setName('')
+            setWiki(slot.id, null)
+            setError(`commons: ${reason(e)}`)
+          }
+        },
+      )
+  }
+
+  // Roll a file out of a Commons channel and show it. Two requests' worth of
+  // latency in the worst case and none of it blocking: like the cat photo and
+  // the ?iurl path, the slot keeps showing whatever it had until the roll lands,
+  // so switching to a channel never flashes a dead slot.
+  //
+  // The caption is written twice on purpose. The first write is the only thing
+  // on screen that says a request is out — a channel can sit on the network for
+  // a second or two, and without it a pick reads as having done nothing.
+  const rollWiki = (slot: VideoSlot, id: CommonsId) => {
+    // Read before `beginLoad` clears it: what is on the slot right now is what a
+    // re-roll of the *same* channel should try not to hand back (see `avoid` on
+    // rollCommons). A roll on a channel the slot was not already on has nothing
+    // to avoid — the picture that is going away came out of a different pool.
+    const showing = wikiRef.current[slot.id]
+    const avoid = showing?.channel === id ? showing.pick.title : ''
+    const fresh = beginLoad(slot.id)
+    slot.setName('rolling…')
+    rollCommons(id, avoid).then(
+      picked => {
+        if (fresh()) showWiki(slot, picked, id, fresh)
+      },
+      (e: unknown) => {
+        if (fresh()) {
+          slot.setName('')
+          setError(`commons: ${reason(e)}`)
+        }
+      },
+    )
+  }
+
+  // Another file out of whichever deck is on a channel, for hands that are not on
+  // the sidebar — the command palette's row, and the keyboard through it. A wins
+  // when both are rolling, since A is the picture; a set with Commons on B alone
+  // still gets the command.
+  const rollAgain = () => {
+    if (isCommonsId(sourceMode)) rollWiki(slotA, sourceMode)
+    else if (isCommonsId(sourceBMode)) rollWiki(slotB, sourceBMode)
+  }
+
+  // A starred roll, back onto a slot. Resolved by title rather than replayed from
+  // a stored url (wikiFavorites.ts says why), so this is a request like a roll and
+  // not an assignment — hence the caption saying so while it is out.
+  //
+  // The mode lands on `wiki-faves` rather than on the channel the file came out
+  // of, even though the channel is known: the caption reopens whatever the mode
+  // names, and on a channel that caption *rolls*, which would throw away the very
+  // picture the user just went to their shelf for.
+  const showFavorite = (key: StashSlot, fave: WikiFavorite) => {
+    setError('')
+    setAskWiki(null)
+    const slot = slotOf(key)
+    const fresh = beginLoad(key)
+    if (key === 'a') {
+      stopVideo()
+      setSourceMode('wiki-faves')
+    } else {
+      stopVideoB()
+      setSourceBMode('wiki-faves')
+      engineRef.current?.setSourceBEnabled(true)
+    }
+    dropFile(key)
+    slot.setName('opening…')
+    resolveCommons(fave.title, fave.kind).then(
+      picked => {
+        if (fresh()) showWiki(slot, picked, fave.channel, fresh)
+      },
+      (e: unknown) => {
+        if (fresh()) {
+          slot.setName('')
+          setError(`commons: ${reason(e)}`)
+        }
+      },
+    )
   }
 
   // Decode a still into a slot. A passes the source's own aspect so compose
@@ -619,6 +801,7 @@ export function useEngine() {
     // a slot that is already playing something, offering to replace it.
     if (key === 'a') setPendingA(null)
     else setPendingB(null)
+    beginLoad(key)
     if (key === 'a') {
       stopVideo()
       setSourceMode(mode)
@@ -808,6 +991,8 @@ export function useEngine() {
         // Same deferral as the dialogs below: the shelf is a list until one of
         // its rows is clicked, and closing it unpicked leaves A as it was.
         setAskLibrary('a')
+      } else if (mode === 'wiki-faves') {
+        setAskWiki('a')
       } else if (mode === 'webcam') {
         // Defer stopVideo/setSourceMode until the user confirms in the dialog:
         // cancelling then leaves the current source (and its permission) alone.
@@ -857,6 +1042,7 @@ export function useEngine() {
             ? (track?.getSettings().displaySurface ?? 'screen')
             : track.label
         if (slot === 'a') {
+          beginLoad('a')
           stopVideo()
           setSourceMode('screen')
           setSourceName(name)
@@ -866,6 +1052,7 @@ export function useEngine() {
           // input shows, and this app has no clearer way to say "the feed went".
           playStream(slotA, stream, () => selectSource('tv static'))
         } else {
+          beginLoad('b')
           stopVideoB()
           setSourceBMode('screen')
           setSourceBName(name)
@@ -896,6 +1083,7 @@ export function useEngine() {
       const video = deviceId === '' ? true : { deviceId: { exact: deviceId } }
       navigator.mediaDevices.getUserMedia({ video }).then(
         stream => {
+          beginLoad('a')
           playStream(slotA, stream)
           setSourceMode('webcam')
           setSourceName('')
@@ -945,6 +1133,7 @@ export function useEngine() {
     if (engineRef.current && trimmed !== '') {
       stopVideo()
       setError('')
+      beginLoad('a')
       setSourceMode('youtube')
       dropFile('a')
       downloadYouTube(slotA, trimmed, setSourceName, () => {})
@@ -957,6 +1146,7 @@ export function useEngine() {
     if (current && trimmed !== '') {
       stopVideoB()
       setError('')
+      beginLoad('b')
       setSourceBMode('youtube')
       current.setSourceBEnabled(true)
       dropFile('b')
@@ -975,6 +1165,8 @@ export function useEngine() {
         pickFile('b', fileInputBRef, adoptFileB)
       } else if (mode === 'library') {
         setAskLibrary('b')
+      } else if (mode === 'wiki-faves') {
+        setAskWiki('b')
       } else if (mode === 'youtube') {
         setAskYouTube('b')
       } else if (mode === 'teletype') {
@@ -1037,9 +1229,16 @@ export function useEngine() {
       setSourceBMode(params.srcb)
     }
     const imageError = (e: unknown) => setError(`image: ${reason(e)}`)
+    // `beginLoad` in each of the three below is what makes "the link named an
+    // address as well as a mode, so the address wins" true rather than a race:
+    // ?src= has already been applied above, and where that mode was a Commons
+    // channel its roll is still out. Without the token the roll would land on
+    // top of the still the link actually named.
     if (params.iurl !== null) {
       const url = params.iurl
+      const fresh = beginLoad('a')
       loadImage(url).then(bmp => {
+        if (!fresh()) return
         // A link naming both ?src=teletype and a still means the still: stop
         // the reveal or it goes on typing over the picture that just landed.
         stopTyping(slotA)
@@ -1050,7 +1249,9 @@ export function useEngine() {
     }
     if (params.iurlb !== null) {
       const url = params.iurlb
+      const fresh = beginLoad('b')
       loadImage(url).then(bmp => {
+        if (!fresh()) return
         stopTyping(slotB)
         slotB.setImage(bmp)
         eng.setSourceBEnabled(true)
@@ -1059,6 +1260,7 @@ export function useEngine() {
       }, imageError)
     }
     if (params.vurl !== null) {
+      beginLoad('a')
       stopTyping(slotA)
       playUrl(slotA, params.vurl)
       setSourceMode('file')
@@ -1505,6 +1707,23 @@ export function useEngine() {
     askLibrary,
     setAskLibrary,
     loadClip,
+    // The Commons side of the same arrangement: which slot the starred-rolls
+    // shelf was opened for, the two ways a file gets onto a slot from it (a
+    // starred one played back, or another roll out of the channel), and what each
+    // slot currently has off Commons — which is what the ★ under the picker is
+    // rendered from and what it stars. The list itself lives in useWikiFavorites,
+    // which the engine has no business knowing about.
+    askWiki,
+    setAskWiki,
+    showFavorite,
+    rollAgain,
+    // Whether there is a pool to roll out of at all, which is not the same as
+    // there being a Commons pick up: a starred roll came off the shelf, and the
+    // shelf is a list rather than a pool. The palette row says so rather than
+    // going quiet, since a row that does nothing has to admit it.
+    wikiRollable: isCommonsId(sourceMode) || isCommonsId(sourceBMode),
+    wikiA,
+    wikiB,
     teletypeA: cardA,
     teletypeB: cardB,
     videoA,

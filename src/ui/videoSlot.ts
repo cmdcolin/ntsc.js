@@ -17,6 +17,12 @@ import type { TeletypeCard } from '../sources/teletype'
 export type SlotKind = 'none' | 'clip' | 'stream'
 
 export interface VideoSlot {
+  // Which deck this is. Everything genuinely per-slot stays with the caller, but
+  // *which* slot a helper was handed is a fact about the slot itself, and the
+  // async load paths need it to say whose reply they are holding — a Commons roll
+  // that lands after the user has moved that deck on has to be dropped, and the
+  // token it checks is kept per deck.
+  id: 'a' | 'b'
   ref: { current: HTMLVideoElement | null }
   // The teletype reveal currently printing into this slot, if any. It lives
   // here for the same reason the element does: whatever a slot holds has to be
@@ -34,6 +40,11 @@ export interface VideoSlot {
   // was loaded from (kept so the source round-trips through the query string).
   setLive: (kind: SlotKind) => void
   setYtUrl: (url: string) => void
+  // The caption under this slot's picker. Most sources leave it empty — the
+  // picker already names them — but a Commons roll has to, since the option
+  // names a pool and the caption is the only thing that says which file came
+  // back out of it.
+  setName: (name: string) => void
   // The teletype card this slot last showed, kept so the dialog reopens on it
   // and the source round-trips through the query string. A getter for the same
   // reason `rate` is one: the callers run in async callbacks and the mount-time

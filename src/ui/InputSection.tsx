@@ -1,10 +1,11 @@
+import { isCommonsId } from '../sources/commons'
 import {
   SOURCE_B_MODES,
   SOURCE_DESC,
   SOURCE_MODES,
   sourceOptions,
 } from '../sources/modes'
-import { FileName, ReopenFile } from './FileName'
+import { FileName, ReopenFile, WikiCaption } from './FileName'
 import { Scrub } from './Scrub'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
@@ -34,10 +35,32 @@ const B_OPTIONS = sourceOptions(B_MODES)
 // browser's picker, which is the only way back to a different window. Teletype
 // carries something the picker can't say too, but its words are editable, so
 // it gets a row of its own rather than a caption.
-// The clip shelf is the same shape: the option names the shelf, the caption
-// names what came off it, and clicking it reopens the shelf.
+//
+// The Commons entries join them for a different reason: the picker names a pool
+// rather than a picture, so the caption is the only thing saying which file came
+// back — and clicking it rolls another out of the same pool. The clip shelf and
+// the starred rolls are that shape once more, the option naming a list and the
+// caption naming what came off it. `library` draws its own caption instead (a
+// menu — ClipPicker.tsx) and is still a named mode, because the folded header
+// below reads the name from here.
 const namedMode = (m: SourceMode | SourceBMode): boolean =>
-  m === 'file' || m === 'library' || m === 'youtube' || m === 'screen'
+  m === 'file' ||
+  m === 'library' ||
+  m === 'wiki-faves' ||
+  m === 'youtube' ||
+  m === 'screen' ||
+  isCommonsId(m)
+
+// What clicking the caption does, which is the one thing the named modes do not
+// share: a channel rolls the next file out of the same pool, the starred list
+// reopens on the row you would change to, and a file or a share goes back out to
+// the browser's own picker.
+const captionAction = (m: SourceMode | SourceBMode): string =>
+  isCommonsId(m)
+    ? 'roll another'
+    : m === 'wiki-faves'
+      ? 'open your favorites'
+      : 'change'
 
 // The header's reading of what is patched in, so the section can start folded.
 // Input is set once a session and then costs 141px of the sidebar's most
@@ -54,6 +77,14 @@ const shortName = (m: SourceMode | SourceBMode, name: string): string =>
   namedMode(m) && name !== ''
     ? name
     : SOURCE_DESC[m].split(' — ')[0].replace(/…$/, '')
+
+// The ★ and the credit link a Commons pick carries, or null when the slot is on
+// anything else. Named because both slots take one and the caller builds them.
+export type WikiSlot = {
+  page: string
+  starred: boolean
+  onStar: () => void
+} | null
 
 // One input slot: its picker, and whatever that choice brings with it — the card
 // editor for teletype, the name of a loaded file or share, a click to reopen last
@@ -90,10 +121,16 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
   // a webcam or a share is a lie the moment it moves.
   speed: number
   onSpeed: (v: number) => void
+  // What this slot has off Commons, or null for anything else: the file's page,
+  // whether it is starred, and the toggle. Assembled by the caller because it
+  // takes one fact from the engine and one from the favourites list, and neither
+  // of those two can see the other.
+  wiki: WikiSlot
   // The capture-device picker, which only A can have — a trailing row rather than
   // a prop this component understands, so the slot stays the same shape for both.
   children?: ReactNode
 }) {
+  const { wiki } = props
   return (
     <>
       <SelectRow
@@ -119,6 +156,16 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
       ) : namedMode(props.mode) ? (
         <FileName
           name={props.name}
+          action={captionAction(props.mode)}
+          extra={
+            wiki === null ? null : (
+              <WikiCaption
+                page={wiki.page}
+                starred={wiki.starred}
+                onStar={wiki.onStar}
+              />
+            )
+          }
           onReopen={() => props.onSelect(props.mode)}
         />
       ) : null}
@@ -194,6 +241,10 @@ export function InputSection(props: {
   speedB: number
   onSpeedA: (v: number) => void
   onSpeedB: (v: number) => void
+  // Per slot, what it has off Commons — the ★ and the credit link under its own
+  // caption. Null for every other kind of source.
+  wikiA: WikiSlot
+  wikiB: WikiSlot
   // Audio in is a source too, so its picker sits with A and B; the Sound branch
   // on the chain map keeps only the knobs it drives. Its helper line comes in
   // separately: all three pickers stack first, then the hints.
@@ -230,6 +281,7 @@ export function InputSection(props: {
           onSeek={props.onSeekA}
           speed={props.speedA}
           onSpeed={props.onSpeedA}
+          wiki={props.wikiA}
         >
           {props.sourceMode === 'webcam' && props.videoDevices.length > 1 ? (
             <SelectRow
@@ -261,6 +313,7 @@ export function InputSection(props: {
           onSeek={props.onSeekB}
           speed={props.speedB}
           onSpeed={props.onSpeedB}
+          wiki={props.wikiB}
         />
         {props.audioInput}
         {/* Only while B is off, where it is onboarding for a feature nothing on

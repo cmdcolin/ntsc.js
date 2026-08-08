@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom'
 
 import styles from './app.module.css'
 import { DEFAULT_CONTROLS, atRest } from './controls'
+import { commonsCaption } from './sources/commons'
 import { AdvancedDialog } from './ui/AdvancedDialog'
 import { AppMenu, ShowMenuButton } from './ui/AppMenu'
 import { AudioHint, AudioInput } from './ui/AudioInput'
@@ -95,7 +96,9 @@ import { useScrollAnchor } from './ui/useScrollAnchor'
 import { useShortcuts } from './ui/useShortcuts'
 import { useTempo } from './ui/useTempo'
 import { useUrlState } from './ui/useUrlState'
+import { useWikiFavorites } from './ui/useWikiFavorites'
 import { WebcamDialog } from './ui/WebcamDialog'
+import { WikiFavoritesDialog } from './ui/WikiFavoritesDialog'
 import { YouTubeDialog } from './ui/YouTubeDialog'
 import { gitSha, versionLabel } from './version'
 
@@ -104,9 +107,11 @@ import type { GlidePlan } from './signal/glide'
 import type { PaletteAction } from './ui/CommandPalette'
 import type { Group } from './ui/controls'
 import type { ControlsApi, ControlStore } from './ui/ControlsContext'
+import type { WikiSlot } from './ui/InputSection'
 import type { Lens } from './ui/lens'
 import type { SavedProfile } from './ui/savedProfiles'
 import type { BranchNode, PathNode } from './ui/SignalPath'
+import type { WikiOnSlot } from './ui/useEngine'
 import type { LookContext } from './ui/useLookLabels'
 
 // Whether the menu over the picture has been dismissed. Persisted across
@@ -341,6 +346,28 @@ export function App() {
     eng.loadClip,
   )
 
+  // The starred Commons rolls, on the same footing as the shelf: a list the
+  // engine has no stake in beyond the pick that comes back off it.
+  const wiki = useWikiFavorites()
+
+  // The ★ and the credit link under a source picker, for whichever slot has a
+  // Commons pick on it. Assembled here because it takes one fact from the engine
+  // (what is on the slot) and one from the favourites list (whether that title is
+  // starred), and neither hook can see the other.
+  // Which pick the palette's two Commons rows act on: A's if it has one, else
+  // B's, the same precedence `rollAgain` uses — A is the picture.
+  const wikiPick = eng.wikiA ?? eng.wikiB
+  const wikiStarred = wikiPick !== null && wiki.starred(wikiPick.pick.title)
+
+  const wikiCaption = (on: WikiOnSlot | null): WikiSlot =>
+    on === null
+      ? null
+      : {
+          page: on.pick.page,
+          starred: wiki.starred(on.pick.title),
+          onStar: () => wiki.star(on.pick, on.channel),
+        }
+
   // `copied` (the flash on the old copy-link button) went with that button; the
   // ⌘K entry below is the only caller left, and a palette row closes on run.
   const { copyLink, profileQuery, copyQuery } = useUrlState({
@@ -553,6 +580,34 @@ export function App() {
       run: () => {
         eng.applyVaporwave()
         audio.select('video')
+      },
+    },
+    // The two verbs a Commons channel needs from the keys rather than from the
+    // sidebar. Both are in the caption row already, and the caption row is inside
+    // a section that starts folded and is 141px of the panel when it is not —
+    // which is exactly the wrong place for the one control in this app you press
+    // repeatedly while looking at the picture rather than at the panel.
+    {
+      name: 'roll another Commons file',
+      blurb: !eng.wikiRollable
+        ? 'pick one of the Commons channels as a source first'
+        : wikiPick === null
+          ? 'another out of the same pool'
+          : `another out of the same pool — ${commonsCaption(wikiPick.pick.title)} is up now`,
+      run: eng.rollAgain,
+    },
+    {
+      // Deliberately not gated on there being a pick: a row that vanishes is a
+      // row nobody learns is there, and its blurb says what it would do.
+      name: wikiStarred ? 'unstar this Commons file' : 'star this Commons file',
+      blurb:
+        wikiPick === null
+          ? 'keeps the Commons roll that is on screen — nothing is up now'
+          : wikiStarred
+            ? 'drop it from your favorites shelf'
+            : 'keep it: the next roll replaces the picture, the star does not',
+      run: () => {
+        if (wikiPick !== null) wiki.star(wikiPick.pick, wikiPick.channel)
       },
     },
     {
@@ -1073,6 +1128,8 @@ export function App() {
           speedB={eng.speedB}
           onSpeedA={eng.changeSpeedA}
           onSpeedB={eng.changeSpeedB}
+          wikiA={wikiCaption(eng.wikiA)}
+          wikiB={wikiCaption(eng.wikiB)}
           audioInput={
             <AudioInput
               mode={audio.mode}
@@ -1306,6 +1363,15 @@ export function App() {
           onForgetClip={clips.forgetClip}
           onForgetFolder={clips.forgetFolder}
           onClose={() => eng.setAskLibrary(null)}
+        />
+      ) : null}
+      {eng.askWiki !== null ? (
+        <WikiFavoritesDialog
+          slot={eng.askWiki}
+          faves={wiki.faves}
+          onPlay={(fave, slot) => eng.showFavorite(slot, fave)}
+          onForget={wiki.forget}
+          onClose={() => eng.setAskWiki(null)}
         />
       ) : null}
       {eng.askTeletype !== null ? (

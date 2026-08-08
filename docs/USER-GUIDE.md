@@ -114,57 +114,69 @@ here. **Clips…** is a shelf of your own footage: files you have opened before,
 kept as a list you click through mid-set instead of going back out to the OS
 dialog every time. Add a whole folder and everything directly inside it lands on
 the shelf at once, and every row plays into either deck, so a two-source set
-never has to reopen it. Once a clip is loaded the caption under the picker is
-the shelf in miniature — click it for the rest of the list, with a filter once
-there are enough names to need one. What a reload costs depends on the browser:
-Chrome and Edge can hold a folder open, so one permission covers the lot and the
-whole shelf comes back after a single prompt; Firefox and Safari cannot hold a
-file open past a reload at all, so the list survives and the footage does not —
+never has to reopen it. What a reload costs depends on the browser: Chrome and
+Edge can hold a folder open, so one permission covers the lot and the whole
+shelf comes back after a single prompt; Firefox and Safari cannot hold a file
+open past a reload at all, so the list survives and the footage does not —
 re-pick the same folder once and every row reconnects by name, nothing added
-twice. **Video synth** is the one generated source that makes a picture instead
-of a failure to have one: two oscillators, a combiner and a colorizer, with no
-input at all. Its one real knob is frequency, because what a video synth draws
-is where it sits against the raster — put an oscillator on an exact multiple of
-line rate and you get standing bars, a few hertz off and they lean and creep,
-wind it down to field rate and the same ramp is a vertical gradient, wind it up
-to 3.58 MHz and it lands on the colour subcarrier and the whole screen comes
-back as flat colour that turns as you detune. **Screen / window…** shares a
-window, a tab or a whole display straight into the chain, so anything on your
-desktop can be the signal: a video player, a game, a patch in TouchDesigner.
-Point it at _this_ window and the loop closes — the set is re-shooting its own
-face through the compositor, which is camera feedback without the camera. Stop
-the share from the browser's own bar and the input drops to snow, the same as a
-set losing its feed. **Teletype…** is the odd one out: type your own words and
-they are printed onto a text card a character at a time, in a dot-matrix font
-coarse enough that the chain has something to chew on. The box under the picker
-edits the card as you type. Since the card is dots rather than glyphs you can
-draw on it too — the **draw** tab in that dialog is a paint surface on the 40×24
-page the character set was designed around, with a pen that works a block at a
-time, a solid brush and the three dither shades. Right-drag erases, ⌘/ctrl+Z
-takes back a stroke, and every stroke lands back in the card's text as the
-mosaic character that carries it, so a drawing shares through a link like the
-words do. The shades are worth a try on their own: a dither is a half-rate
-checker by the time it reaches the decoder, which is exactly what dot crawl and
-chroma bleed feed on. Tick **crawl** and it rolls up the frame instead of
-holding still, and **boil** hands it to an unsteady hand: the card is redrawn
-eight times a second with every cell's dots landing up to a dot off, so the
-strokes crawl and the letters shiver. It is worth ticking for a reason beyond
-the wobble — a still card gives still artifacts, the ringing parked on the same
-stems, and a boiling one makes the chain decide all of it again every frame, so
-the dot crawl actually crawls. The words never change, and a link carries the
-same card either way. **B** is a second source, deliberately not genlocked, so
-mixing it in beats and tears against A; its controls are the **Mix** box on the
-map below — which is also where the **chroma key** lives, for cutting B's
-backing colour away so A shows through it. Because the keyer sits on the bus
-rather than on the picture, it slices the chroma the encoder made, so the matte
-comes out soft across and sharp down the way a composite key always did — and
-left un-genlocked, B's colour drifts under the key and it breathes. Its best
-trick is with the **video synth** in B: the colorizer turns level into hue, so B
-is a ramp _through_ the colour wheel and the key cuts a band out of it — the
-acceptance angle becomes the width of the hole and the backing hue becomes where
-it sits, with nothing anywhere drawing a stripe. The `key sweep` preset walks
-that hue with an LFO, so the hole travels and the picture dissolves into A one
-colour at a time. **♪** is audio in — a mic, a track, or the clip already on
+twice. The **Wikimedia Commons** band is footage nobody has to have: seven
+channels — found photos, statuary and dead malls, reefs and birds, portraits,
+and three of moving footage (time-lapse, fountains and water, animals and fire)
+— and each one is a _search_ rather than a picture, so picking it rolls a file
+out of the pool and clicking the caption underneath rolls the next one. That is
+the whole of it: the caption is the only thing on screen that says which file
+came back, and the roll before it is gone. So keep the ones worth keeping — the
+**★** beside the caption pins the picture that is up to your favourites, and
+**Favorites…** at the foot of the same band is the shelf of them, playable into
+either deck. A star keeps the file's _name_, not a copy, so it costs nothing on
+disk and comes back at whatever size the app asks for today; the **↗** next to
+it opens the file's own page on Commons, which is where the licence and the
+photographer are. Both verbs are in the command palette too (⌘K —
+`roll another`, `star this`), which is where you want them mid-set with the
+Input section folded. **Video synth** is the one generated source that makes a
+picture instead of a failure to have one: two oscillators, a combiner and a
+colorizer, with no input at all. Its one real knob is frequency, because what a
+video synth draws is where it sits against the raster — put an oscillator on an
+exact multiple of line rate and you get standing bars, a few hertz off and they
+lean and creep, wind it down to field rate and the same ramp is a vertical
+gradient, wind it up to 3.58 MHz and it lands on the colour subcarrier and the
+whole screen comes back as flat colour that turns as you detune. **Screen /
+window…** shares a window, a tab or a whole display straight into the chain, so
+anything on your desktop can be the signal: a video player, a game, a patch in
+TouchDesigner. Point it at _this_ window and the loop closes — the set is
+re-shooting its own face through the compositor, which is camera feedback
+without the camera. Stop the share from the browser's own bar and the input
+drops to snow, the same as a set losing its feed. **Teletype…** is the odd one
+out: type your own words and they are printed onto a text card a character at a
+time, in a dot-matrix font coarse enough that the chain has something to chew
+on. The box under the picker edits the card as you type. Since the card is dots
+rather than glyphs you can draw on it too — the **draw** tab in that dialog is a
+paint surface on the 40×24 page the character set was designed around, with a
+pen that works a block at a time, a solid brush and the three dither shades.
+Right-drag erases, ⌘/ctrl+Z takes back a stroke, and every stroke lands back in
+the card's text as the mosaic character that carries it, so a drawing shares
+through a link like the words do. The shades are worth a try on their own: a
+dither is a half-rate checker by the time it reaches the decoder, which is
+exactly what dot crawl and chroma bleed feed on. Tick **crawl** and it rolls up
+the frame instead of holding still, and **boil** hands it to an unsteady hand:
+the card is redrawn eight times a second with every cell's dots landing up to a
+dot off, so the strokes crawl and the letters shiver. It is worth ticking for a
+reason beyond the wobble — a still card gives still artifacts, the ringing
+parked on the same stems, and a boiling one makes the chain decide all of it
+again every frame, so the dot crawl actually crawls. The words never change, and
+a link carries the same card either way. **B** is a second source, deliberately
+not genlocked, so mixing it in beats and tears against A; its controls are the
+**Mix** box on the map below — which is also where the **chroma key** lives, for
+cutting B's backing colour away so A shows through it. Because the keyer sits on
+the bus rather than on the picture, it slices the chroma the encoder made, so
+the matte comes out soft across and sharp down the way a composite key always
+did — and left un-genlocked, B's colour drifts under the key and it breathes.
+Its best trick is with the **video synth** in B: the colorizer turns level into
+hue, so B is a ramp _through_ the colour wheel and the key cuts a band out of it
+— the acceptance angle becomes the width of the hole and the backing hue becomes
+where it sits, with nothing anywhere drawing a stripe. The `key sweep` preset
+walks that hue with an LFO, so the hole travels and the picture dissolves into A
+one colour at a time. **♪** is audio in — a mic, a track, or the clip already on
 screen playing its own sound — which does nothing until you turn up a knob in
 the **Sound** box on the map below.
 

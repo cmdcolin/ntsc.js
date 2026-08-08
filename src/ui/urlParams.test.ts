@@ -192,12 +192,14 @@ describe('session round trip', () => {
     for (const sourceMode of SOURCE_MODES) {
       const back = roundTrip(state({ sourceMode, ytUrlA: 'https://y/?v=1' }))
       // file has nothing to name, a clip off the shelf names a row in *this*
-      // browser's library and nothing in the reader's, a screen share cannot be
-      // re-granted from a link, and youtube travels as its url instead
+      // browser's library and nothing in the reader's, the starred Commons rolls
+      // are that same local list, a screen share cannot be re-granted from a
+      // link, and youtube travels as its url instead
       if (
         sourceMode === 'bars' ||
         sourceMode === 'file' ||
         sourceMode === 'library' ||
+        sourceMode === 'wiki-faves' ||
         sourceMode === 'screen'
       ) {
         expect(back.src).toBe(null)
@@ -217,6 +219,7 @@ describe('session round trip', () => {
         sourceBMode === 'bars' ||
         sourceBMode === 'file' ||
         sourceBMode === 'library' ||
+        sourceBMode === 'wiki-faves' ||
         sourceBMode === 'screen'
       ) {
         expect(back.srcb).toBe(null)

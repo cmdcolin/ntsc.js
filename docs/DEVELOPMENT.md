@@ -499,6 +499,32 @@ Clips are capped at 720p (the chain downscales to 480 lines anyway) and cached
 in `$TMPDIR/ntsc.js-yt` keyed by URL, so a reload replays instantly. The first
 load takes as long as the download; failures come back as the yt-dlp error.
 
+## Wikimedia Commons sources (the one live dependency)
+
+The five **Commons** channels are searches against
+`commons.wikimedia.org/w/api.php`, run anonymously with `origin=*` (no proxy, no
+dev middleware — unlike YouTube above, this one works in the deployed build).
+`src/sources/commons.ts` holds the pools and the readers;
+`src/ui/wikiFavorites.ts` holds the starred ones, as titles rather than urls, so
+playing a favourite is a fresh resolve.
+
+`src/sources/commons.test.ts` pins the readers against response shapes that were
+real once, which is exactly what it cannot keep being — so the live contract has
+its own harness:
+
+```
+node scripts/wikiroll.mjs http://localhost:5199
+```
+
+Fifteen checks over one browser session and a handful of live requests: a
+channel rolls and captions what it rolled, the ★ keeps a title, the shelf plays
+it back, and — the one thing no screenshot shows — a roll that lands after the
+user has moved that deck on is dropped rather than pushed onto whatever they
+went to. It exits non-zero with a line per failure, so it can be run as a gate.
+Run it when touching `commons.ts` or when a roll starts coming back empty: the
+API changing its mind about `descriptionurl`, `gsrsort=random` or its transcode
+ladder is invisible to the test suite and shows up here.
+
 ## URL parameters
 
 A link specifies a look — **copy link** in the app writes one.
@@ -510,7 +536,7 @@ A link specifies a look — **copy link** in the app writes one.
 | `?mod=t:src:hz:d,…`  | modulation routings (target, source, rate, depth)     |
 | `?iurl=` / `?iurlb=` | image source A / B                                    |
 | `?vurl=`             | video source                                          |
-| `?src=` / `?srcb=`   | source kind for A / B                                 |
+| `?src=` / `?srcb=`   | source kind for A / B (a `wiki-*` channel rolls)      |
 | `?dbg=1..6`          | signal taps (composite, luma, chroma, burst, scope)   |
 | `?surprise`          | roll a random preset stack on load                    |
 | `?gpu=low-power`     | run on the integrated GPU instead of the discrete one |

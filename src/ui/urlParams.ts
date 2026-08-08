@@ -48,12 +48,19 @@ export const VAPORWAVE_SPEED = 0.66
 // — and a link that opened someone else's app on *their* clip 14 would be worse
 // than one that opened on bars. What the slot was on is remembered locally
 // instead (fileStash's `lib` kind), which is where that fact belongs.
+//
+// `wiki-faves` is the same story with public files behind it: the pictures are on
+// Commons and would load for anyone, but *which* ones are starred is this
+// browser's list, so the mode names an empty shelf on the far end. The five
+// channels do round-trip — `?src=wiki-vapor` hands the reader their own roll out
+// of the same pool, which is what that option means.
 const LINKABLE = <T extends string>(modes: readonly T[]) =>
   modes.filter(
     m =>
       m !== 'bars' &&
       m !== 'file' &&
       m !== 'library' &&
+      m !== 'wiki-faves' &&
       m !== 'youtube' &&
       m !== 'screen',
   )

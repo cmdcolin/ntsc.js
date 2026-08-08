@@ -54,3 +54,51 @@
   color: var(--fg);
   text-decoration: underline;
 }
+
+/* The caption, and whatever belongs to the file it names (FileName.tsx). The row
+   carries the caption's own offsets so the caption itself can be a flex child
+   that ellipsises while the glyphs after it keep their width — a Commons
+   filename is long, and it is the name that has to give. */
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: -1px 0 4px 19px;
+}
+.fileCaption {
+  composes: fileName;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+/* ★ and ↗ beside a Commons caption. Quiet until the pointer is on them, for the
+   reason the clip shelf's row buttons are: two live-looking glyphs under every
+   source picker would read as chrome the panel is spending on itself. */
+.captionBtn {
+  composes: bare from './ui.module.css';
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 0 2px;
+  color: var(--fg4);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  text-align: center;
+  text-decoration: none;
+}
+.captionBtn:hover {
+  color: var(--fg);
+}
+/* A kept roll. The one lit thing in the caption row, since it is the one piece
+   of state there — everything else on the line is a name or a verb. */
+.captionOn {
+  color: var(--accent);
+}
+
+@media (pointer: coarse) {
+  .captionBtn {
+    min-width: 30px;
+    padding: 6px 2px;
+  }
+}
