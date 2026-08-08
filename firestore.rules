@@ -1,0 +1,53 @@
+rules_version = '2';
+
+// One document per signed-in user, holding that user's saved profiles and
+// nothing else. Deploy with `pnpm firebase-deploy`.
+//
+// Default deny: this file grants access to exactly one path, so every other
+// collection in the project — including any added later without a rule of its
+// own — is denied.
+//
+// Private, unlike the presence collection in phyloguessr: a saved profile is a
+// look somebody dialed in, and nobody but its author has any business reading
+// the list. `request.auth.uid == uid` makes the document path the authorization,
+// and no code in the app queries across users, so no rule needs to allow one.
+//
+// The known limit of these rules: `profiles` is a list, and rules cannot iterate
+// a list, so the *shape of each entry* is not validated here — only that the
+// document has that one field, that it is a list, and that it is not enormous.
+// The client sanitizes every entry on the way in (readProfiles in
+// savedProfiles.ts drops anything that is not {name, query} strings), which
+// protects this app's users from a bad document but would not stop someone
+// writing junk into their own. Storing one document per profile would let rules
+// check each entry, and it was not chosen for a reason worth knowing: a
+// collection has no order, and the list's insertion order is what makes it
+// readable by eye mid-set.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Both creates and updates go through this, as the same one write: the app
+    // always sends the whole list. 200 entries is far past what the popover can
+    // be scrolled through, and it is the guard that stops a bug — or a
+    // hand-rolled request — pushing an unbounded document into the project and
+    // billing it to whoever owns these rules.
+    function isValidProfileDoc() {
+      return request.resource.data.keys().hasOnly(['profiles'])
+             && request.resource.data.profiles is list
+             && request.resource.data.profiles.size() <= 200;
+    }
+
+    match /users/{uid} {
+      allow get: if isOwner(uid);
+      allow create, update: if isOwner(uid) && isValidProfileDoc();
+      // Signing out does not delete anything, and nothing in the app deletes the
+      // document — clearing the last profile writes an empty list. The rule
+      // exists so the owner is not locked out of removing their own data.
+      allow delete: if isOwner(uid);
+      // No `list`: there is no query over /users, and allowing one would let any
+      // signed-in user enumerate the collection.
+    }
+  }
+}

@@ -111,3 +111,54 @@
     padding: 9px 0;
   }
 }
+
+/* Lit amber for two seconds when a save was asked for with nobody signed in —
+   ctrl+S, or the ⌘K row. It borrows the `edited` warning colour rather than the
+   accent the ✓ uses: this is not a thing that happened, it is a thing that
+   didn't, and the two must not read alike at a glance. */
+.needsAuth {
+  border-color: #7f7f50;
+  color: #c9c98a;
+}
+
+/* The signed-out head of the menu: the sentence, then the button, stacked —
+   unlike the name box and save, which are one line because they are one action.
+   Here the sentence has to be read before the button means anything. */
+.signIn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 2px 4px 4px;
+  max-width: 300px;
+}
+
+/* The account, at the foot. Quiet: once you are signed in, whose library this is
+   is the least interesting thing in the menu, and it earns one small line. */
+.acct {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  overflow: hidden;
+}
+.acct span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acctBtn {
+  composes: bare from './ui.module.css';
+  flex-shrink: 0;
+  color: var(--fg3);
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+}
+.acctBtn:hover {
+  color: var(--fg);
+}

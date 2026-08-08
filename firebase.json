@@ -1,0 +1,20 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "auth": {
+    "authorizedDomains": [
+      "localhost",
+      "ntscjs-d4f56.firebaseapp.com",
+      "ntscjs-d4f56.web.app",
+      "cmdcolin.github.io"
+    ],
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "ntsc.js",
+        "supportEmail": "colin.diesh@gmail.com"
+      }
+    }
+  }
+}

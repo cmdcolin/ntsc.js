@@ -1,2 +1,17 @@
+# pnpm 11 refuses to run an install script it has not been given a verdict on,
+# and an undecided one makes `pnpm install` exit 1 — which takes every
+# `pnpm <script>` in the repo with it, and the `--frozen-lockfile` step in CI.
+# So each one gets an answer here rather than a prompt nobody sees.
+#
+# esbuild: yes. Its script is what puts the platform binary in place, and vite and
+# vitest are both built on it — declining it breaks the dev server and the tests.
+#
+# The two the firebase SDK brings: no. protobufjs's script builds its Node.js
+# descriptor path and @firebase/util's is a Node postinstall; nothing in this app
+# reaches either, since the SDK is imported in a browser, bundled by vite, and
+# only through the auth and firestore/lite entry points. Declining keeps the
+# install hermetic and quiet.
 allowBuilds:
   esbuild: true
+  '@firebase/util': false
+  protobufjs: false

@@ -29,3 +29,4 @@ readable without it.
 | [0002](0002-webgpu-sessions-are-scarce.md)        | Treat per-tab WebGPU sessions as a scarce budget _(superseded by 0004)_ |
 | [0003](0003-delete-the-worker-engine.md)          | Delete the worker-hosted engine                                         |
 | [0004](0004-never-destroy-a-presenting-device.md) | Never destroy a GPUDevice that has been presenting                      |
+| [0005](0005-saved-profiles-need-an-account.md)    | Saved profiles live in Firestore, and need an account                   |

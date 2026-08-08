@@ -6,11 +6,18 @@ import { PROFILE_NAME_MAX, cleanProfileName } from './savedProfiles'
 import styles from './SavedProfiles.module.css'
 import ui from './ui.module.css'
 
+import type { CloudUser } from './cloud'
 import type { SavedProfile } from './savedProfiles'
+import type { CloudStatus } from './useSavedProfiles'
 
 // The profile library, as one button in the look bar: name what is on screen and
 // get it back later. A synth's save/recall, in the row with the other verbs that
 // act on the whole board.
+//
+// Signing in lives *here* rather than in the ⋮ menu or a settings page, because
+// this is the only thing in the app an account is for. A row in a menu somewhere
+// else would be an account prompt with no visible purpose; in this popover it is
+// the answer to the question the popover just raised — where would a save go?
 //
 // The button says `saved` rather than naming the noun. "Looks" was the first
 // label and it read as a verb ("looks 3" — looks three what?); `saved` is what
@@ -38,7 +45,19 @@ export function SavedProfiles(props: {
   // The name a save just landed under, or null. Shown on the button, because two
   // of the three ways to save leave this menu shut.
   saved: string | null
+  // A save was attempted with nobody signed in. Says so on the button, since the
+  // keystroke that did it had no menu open to answer in.
+  needsAuth: boolean
+  // Who the library belongs to, and whether it can be written to at all. Saving
+  // is a signed-in act — Firestore is the only store — so `status` decides
+  // whether this menu shows a name box or a sign-in button.
+  status: CloudStatus
+  user: CloudUser | null
+  error: string | null
+  onSignIn: () => void
+  onSignOut: () => void
 }) {
+  const signedIn = props.status === 'ready'
   const [name, setName] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
   // Which row's link just went to the clipboard. A copy is otherwise silent —
@@ -67,6 +86,7 @@ export function SavedProfiles(props: {
       // the more common half. `matchMedia` off the field's own window, since the
       // panel can be living in the popout.
       onOpen={() => {
+        // No box to focus while signed out — the sign-in button is what is there.
         const el = nameRef.current
         const win = el?.ownerDocument.defaultView
         if (
@@ -80,101 +100,177 @@ export function SavedProfiles(props: {
           className={cx(
             styles.trigger,
             props.saved !== null && styles.justSaved,
+            props.needsAuth && styles.needsAuth,
           )}
           popoverTarget={attrs.popoverTarget}
           style={attrs.style}
-          title="save this look as a named profile and bring it back later, like the voices on a synth (ctrl+S saves without opening this) — the list is yours and lives in this browser"
+          title={
+            signedIn
+              ? 'save this look as a named profile and bring it back later, like the voices on a synth (ctrl+S saves without opening this) — the list lives on your account'
+              : 'sign in to save looks under a name — everything else in the app works signed out'
+          }
         >
           {/* A ✓ and the accent, not the name: the row this button sits in is
               332px with no slack (see LookBar.module.css), and a label that grew
               to `saved “worn tape”` for a second and a half would reflow the two
               buttons after it — twice, once each way. The count beside it moves
               on a new save anyway; the tick is what an overwrite has to say. */}
-          saved{props.profiles.length === 0 ? '' : ` ${props.profiles.length}`}
+          {props.needsAuth ? 'sign in' : 'saved'}
+          {props.needsAuth || props.profiles.length === 0
+            ? ''
+            : ` ${props.profiles.length}`}
           {props.saved === null ? '' : ' ✓'}
         </button>
       )}
     >
       {() => (
         <>
-          {/* Deliberately not a <form>: a form inside a popover submits and, in
+          {/* The two states of the head of this menu: a name box for a library
+              you own, or the one button that gives you one. */}
+          {signedIn ? null : (
+            <SignInPane
+              status={props.status}
+              error={props.error}
+              onSignIn={props.onSignIn}
+            />
+          )}
+          {!signedIn ? null : (
+            <>
+              {/* Deliberately not a <form>: a form inside a popover submits and, in
               every engine, that means a navigation unless it is cancelled — and
               this button is one keystroke away from throwing the session away.
               Enter is wired straight to the same call instead. */}
-          <div className={styles.saveRow}>
-            <input
-              ref={nameRef}
-              className={styles.nameInput}
-              type="text"
-              value={name}
-              maxLength={PROFILE_NAME_MAX}
-              placeholder={props.suggestedName}
-              aria-label="name for this profile"
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') save()
-              }}
-            />
-            <button
-              className={styles.saveBtn}
-              title="save the current look — controls and motion — under this name (an existing name is overwritten in place)"
-              onClick={() => save()}
-            >
-              save
-            </button>
-          </div>
-          {props.profiles.length === 0 ? (
-            <div className={ui.hint}>
-              nothing saved yet — press save to keep this look under the name in
-              the box, and it will be here next session
-            </div>
-          ) : (
-            <>
-              <div className={styles.list}>
-                {props.profiles.map(profile => (
-                  <div className={styles.row} key={profile.name}>
-                    <button
-                      className={styles.recall}
-                      title={`recall “${profile.name}” — shift+click to overwrite it with the look on screen`}
-                      onClick={e => {
-                        if (e.shiftKey) save(profile.name)
-                        else props.onRecall(profile)
-                      }}
-                    >
-                      {profile.name}
-                    </button>
-                    <button
-                      className={styles.rowBtn}
-                      title={`copy a link to “${profile.name}”`}
-                      aria-label={`copy a link to ${profile.name}`}
-                      onClick={() => copy(profile)}
-                    >
-                      {copied === profile.name ? '✓' : '⧉'}
-                    </button>
-                    <button
-                      className={styles.rowBtn}
-                      title={`delete “${profile.name}”`}
-                      aria-label={`delete ${profile.name}`}
-                      onClick={() => props.onDelete(profile.name)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+              <div className={styles.saveRow}>
+                <input
+                  ref={nameRef}
+                  className={styles.nameInput}
+                  type="text"
+                  value={name}
+                  maxLength={PROFILE_NAME_MAX}
+                  placeholder={props.suggestedName}
+                  aria-label="name for this profile"
+                  onChange={e => setName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') save()
+                  }}
+                />
+                <button
+                  className={styles.saveBtn}
+                  title="save the current look — controls and motion — under this name (an existing name is overwritten in place)"
+                  onClick={() => save()}
+                >
+                  save
+                </button>
               </div>
-              {/* What a recall does and does not do, said once. It matters: the
+              {props.profiles.length === 0 ? (
+                <div className={ui.hint}>
+                  nothing saved yet — press save to keep this look under the
+                  name in the box. It is stored on your account, so it is there
+                  on your next machine as well as your next session.
+                </div>
+              ) : (
+                <>
+                  <div className={styles.list}>
+                    {props.profiles.map(profile => (
+                      <div className={styles.row} key={profile.name}>
+                        <button
+                          className={styles.recall}
+                          title={`recall “${profile.name}” — shift+click to overwrite it with the look on screen`}
+                          onClick={e => {
+                            if (e.shiftKey) save(profile.name)
+                            else props.onRecall(profile)
+                          }}
+                        >
+                          {profile.name}
+                        </button>
+                        <button
+                          className={styles.rowBtn}
+                          title={`copy a link to “${profile.name}”`}
+                          aria-label={`copy a link to ${profile.name}`}
+                          onClick={() => copy(profile)}
+                        >
+                          {copied === profile.name ? '✓' : '⧉'}
+                        </button>
+                        <button
+                          className={styles.rowBtn}
+                          title={`delete “${profile.name}”`}
+                          aria-label={`delete ${profile.name}`}
+                          onClick={() => props.onDelete(profile.name)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {/* What a recall does and does not do, said once. It matters: the
                   saved query carries the source urls so a *link* opens on the
                   right clip, but a recall in a running session leaves whatever
                   is patched in alone — pulling the webcam out from under someone
                   mid-set to put a still back is never the intent. */}
-              <div className={ui.hint}>
-                a recall brings back the controls and the motion; the input
-                stays whatever is patched in. ⧉ copies a link that carries both.
+                  <div className={ui.hint}>
+                    a recall brings back the controls and the motion; the input
+                    stays whatever is patched in. ⧉ copies a link that carries
+                    both.
+                  </div>
+                </>
+              )}
+              {/* Who the library belongs to, at the foot of it — the account is
+                  the least interesting thing in this menu once you are in, so it
+                  goes last and small, and it is the only place sign-out lives. */}
+              <div className={styles.acct}>
+                <span className={ui.dim}>
+                  {props.user?.name ?? props.user?.uid.slice(0, 6) ?? ''}
+                </span>
+                <button
+                  className={styles.acctBtn}
+                  title="sign out — the library stays on your account, this browser just stops showing it"
+                  onClick={props.onSignOut}
+                >
+                  sign out
+                </button>
               </div>
+              {props.error === null ? null : (
+                <div className={cx(ui.hint, ui.err)}>{props.error}</div>
+              )}
             </>
           )}
         </>
       )}
     </Popover>
+  )
+}
+
+// The signed-out head of the menu: what an account is for here, and the button.
+// One sentence, because the honest version is short — this is the only feature
+// that needs one, and every other thing in the app works without it.
+function SignInPane(props: {
+  status: CloudStatus
+  error: string | null
+  onSignIn: () => void
+}) {
+  // Picking a session back up is not the same as being asked to start one: a
+  // returning user would otherwise read the pitch for a feature they already
+  // have, for as long as the SDK and the document take to arrive.
+  if (props.status === 'loading') {
+    return <div className={ui.hint}>checking your account…</div>
+  }
+  return (
+    <div className={styles.signIn}>
+      <div className={ui.hint}>
+        sign in to keep looks under a name — they live on your Google account,
+        so they follow you to another machine. Everything else here works signed
+        out.
+      </div>
+      <button
+        className={styles.saveBtn}
+        title="sign in with Google — the app stores your saved looks and nothing else"
+        onClick={props.onSignIn}
+      >
+        sign in with Google
+      </button>
+      {props.error === null ? null : (
+        <div className={cx(ui.hint, ui.err)}>{props.error}</div>
+      )}
+    </div>
   )
 }

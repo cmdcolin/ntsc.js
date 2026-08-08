@@ -5,3 +5,8 @@ clips/
 # contact sheets from scripts/contact.mjs — a working artifact of one screening
 # round, regenerated per round and superseded by whichever candidates ship
 docs/contact/
+# firebase CLI working files. Note there is no .env to ignore: the web config is
+# public and committed in src/ui/cloud.ts — see docs/adr/0005.
+.firebase/
+firebase-debug.log
+firestore-debug.log

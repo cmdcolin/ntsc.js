@@ -1,5 +1,3 @@
-import { readArray, writeJSON } from './storage'
-
 // Saved profiles: the whole board under a name, the way a synth saves a voice —
 // dial something in, name it, get it back later. Distinct from midi.ts's
 // DeviceProfile, which describes a controller's CC layout and nothing else; the
@@ -23,13 +21,16 @@ import { readArray, writeJSON } from './storage'
 //
 // Scenes stay what they were: nine numbered slots on the 1–9 keys, for a live
 // set where recall has to be one keystroke and naming things is a distraction.
-// Profiles are the library — unbounded, named, and shareable.
+// They live in this browser's localStorage, as they always have. Profiles are the
+// library — unbounded, named, shareable, and **kept in the signed-in user's
+// Firestore document, not on this device**: a saved profile is meant to be there
+// on the next machine, which a localStorage copy could never promise. Everything
+// in this file is the storage-agnostic half — the list algebra and the name
+// rules; cloud.ts is what reads and writes it.
 export interface SavedProfile {
   name: string
   query: string
 }
-
-const PROFILES_STORE = 'video_feedback_profiles'
 
 // The longest name a row will hold before the popover starts wrapping. Trimmed
 // rather than refused: a paste of a whole sentence should become a name, not an
@@ -58,12 +59,6 @@ export const readProfiles = (raw: unknown[]): SavedProfile[] =>
     const profile = readProfile(v)
     return profile === undefined ? [] : [profile]
   })
-
-export const loadProfiles = (): SavedProfile[] =>
-  readProfiles(readArray<unknown>(PROFILES_STORE, []))
-
-export const storeProfiles = (profiles: readonly SavedProfile[]) =>
-  writeJSON(PROFILES_STORE, profiles)
 
 // Save under a name, replacing any profile already using it **in place**. Order
 // is insertion order and a re-save does not disturb it: the list is read by eye

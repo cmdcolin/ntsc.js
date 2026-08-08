@@ -48,8 +48,11 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         <li>
           <b>saved</b> in the top row keeps the whole board as a named profile,
           the way a synth saves a voice — <b>Ctrl/⌘+S</b> does it in one
-          keystroke, and it is still there next session. ⧉ beside a saved one
-          copies it as a link.
+          keystroke. Saving asks you to sign in with Google, because a profile
+          is stored on your account rather than in this browser: it follows you
+          to another machine. Nothing else here needs an account. ⧉ beside a
+          saved profile copies it as a link, which needs no account at either
+          end.
         </li>
       </ol>
       <div className={dlg.helpHead}>keyboard</div>

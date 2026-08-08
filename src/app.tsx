@@ -292,6 +292,10 @@ export function App() {
     // ctrl+S keeps the board under the name the menu would have offered. The
     // library sits above this call for that reason: a handler here is read
     // through a ref every render, but the object it lives in is built now.
+    //
+    // Signed out there is nowhere for it to go, and a keystroke that silently
+    // does nothing is worse than one that refuses: saveProfile declines, and the
+    // button in the row goes amber saying `sign in` (see SavedProfiles).
     onSaveProfile: () =>
       profiles.saveProfile(suggestedProfileName, profileQuery()),
   })
@@ -377,7 +381,9 @@ export function App() {
       // and a look saved as "vhs 3" is one × in the menu away from gone if that
       // was not the name you wanted.
       name: 'save this look',
-      blurb: `keep the board as “${suggestedProfileName}” under saved`,
+      blurb: profiles.canSave
+        ? `keep the board as “${suggestedProfileName}” under saved`
+        : 'sign in first — saved looks live on your account',
       run: () => profiles.saveProfile(suggestedProfileName, profileQuery()),
     },
     {
@@ -667,6 +673,12 @@ export function App() {
             profiles={profiles.profiles}
             suggestedName={suggestedProfileName}
             saved={profiles.saved}
+            needsAuth={profiles.needsAuth}
+            status={profiles.status}
+            user={profiles.user}
+            error={profiles.error}
+            onSignIn={profiles.signIn}
+            onSignOut={profiles.signOut}
             onSave={name => profiles.saveProfile(name, profileQuery())}
             onRecall={recallProfile}
             onDelete={profiles.deleteProfile}
