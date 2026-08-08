@@ -64,6 +64,7 @@ import { SignalTapContext } from './ui/SignalTapContext'
 import { Rack } from './ui/Slider'
 import { Stage } from './ui/Stage'
 import { usePersistedFlag, usePersistedString } from './ui/storage'
+import { TagsPopover } from './ui/TagsPopover'
 import { TeletypeDialog } from './ui/TeletypeDialog'
 import ui from './ui/ui.module.css'
 import { parseSessionParams } from './ui/urlParams'
@@ -72,6 +73,7 @@ import { useCapture } from './ui/useCapture'
 import { useClockSync } from './ui/useClockSync'
 import { useEngine } from './ui/useEngine'
 import { useFavorites } from './ui/useFavorites'
+import { useLookLabels } from './ui/useLookLabels'
 import { useMediaQuery } from './ui/useMediaQuery'
 import { useMidi } from './ui/useMidi'
 import { useMix } from './ui/useMix'
@@ -98,6 +100,7 @@ import type { ControlsApi, ControlStore } from './ui/ControlsContext'
 import type { Lens } from './ui/lens'
 import type { SavedProfile } from './ui/savedProfiles'
 import type { PathNode } from './ui/SignalPath'
+import type { LookContext } from './ui/useLookLabels'
 
 // Whether the menu over the picture has been dismissed. Persisted across
 // reloads so a collapse sticks — it only ever applies where the masthead is off
@@ -316,6 +319,34 @@ export function App() {
   // saved look this app wrote lacks one) leaves the bay alone rather than
   // silencing it, the same rule a link without ?mod= follows.
   const profiles = useSavedProfiles()
+
+  // Labelling the live look — the tags menu in the look bar. Nothing leaves the
+  // browser until somebody signs in, so this is opt-in by construction.
+  const labels = useLookLabels(profiles.user?.uid ?? null)
+
+  // Read at the instant a rating is clicked rather than held in the popover: the
+  // board can move under an open menu (a slider, a knob, an LFO), and the row has
+  // to describe what was on screen when the button went down.
+  //
+  // `provenance` is a best-effort hint, and deliberately not the thing analysis
+  // should trust for the question that matters. The one that matters is "was this
+  // an untouched roll", because `surprise` samples the same distribution the
+  // labelling page does and that subset is an unbiased sample inside a biased
+  // collection. The exact test for it is offline and needs nothing from here:
+  // `weights` and `query` are both stored, so a row whose query is what those
+  // weights serialize to *is* an untouched recipe, whatever this string says.
+  const readLook = (): LookContext => ({
+    query: profileQuery(),
+    weights: Object.fromEntries(mix.weights),
+    preset: mix.lastPreset,
+    provenance:
+      mix.lastPreset !== null
+        ? 'preset'
+        : mix.weights.size > 0
+          ? 'surprise'
+          : 'hand',
+    source: eng.sourceMode,
+  })
   const recallProfile = (profile: SavedProfile) => {
     const session = parseSessionParams(`?${profile.query}`)
     mix.snapshotForUndo()
@@ -752,6 +783,19 @@ export function App() {
             onRecall={recallProfile}
             onDelete={profiles.deleteProfile}
             onCopyLink={profile => copyQuery(profile.query)}
+          />
+        }
+        tags={
+          <TagsPopover
+            tags={labels.tags}
+            vocabulary={labels.vocabulary}
+            onToggle={labels.toggle}
+            onOpen={labels.reset}
+            onRate={labels.rate}
+            readLook={readLook}
+            saved={labels.saved}
+            pending={labels.pending}
+            signedIn={profiles.user !== null}
           />
         }
         canUndo={mix.canUndo}

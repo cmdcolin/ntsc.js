@@ -1,5 +1,7 @@
 import { readProfiles } from './savedProfiles'
 
+import type { RatingRecord } from '../labels'
+import type { CandidateRecord, VoteRecord } from '../vote/votes'
 import type { SavedProfile } from './savedProfiles'
 import type { FirebaseApp } from 'firebase/app'
 import type { Auth, User } from 'firebase/auth'
@@ -155,4 +157,118 @@ export async function putProfiles(
   await fs.setDoc(fs.doc(db, 'users', uid), {
     profiles: profiles.map(p => ({ name: p.name, query: p.query })),
   })
+}
+
+// --- the vote page's training data (src/vote) ---
+//
+// These live here rather than in src/vote for one reason: `loadSdk` above is a
+// singleton promise, and it has to stay the *same* one — initializeApp throws on
+// a second call and the auth instance has to be the object the sign-in popup
+// resolved against. Exporting it so the vote page could build its own writer
+// would also break the claim at the top of this file, which is worth keeping
+// true: nothing else in the app imports firebase. The record types come in
+// type-only, so this direction of dependency costs nothing at runtime.
+
+// One candidate, keyed by the hash of its recipe.
+//
+// Create-only by rule, so writing one that already exists is denied — and that
+// is the expected case, not an error: two people rolling the same look write the
+// same id, and the document already there says exactly what this one would.
+// Swallowed for that reason. A genuine failure (offline, rules rejected the
+// shape) is swallowed too, which is the right call for this specific write: a
+// candidate is a convenience row for the training export, the vote itself
+// carries the pair seed that regenerates both sides, and failing a vote because
+// its candidate row did not land would lose the label that actually matters.
+export async function putCandidate(
+  uid: string,
+  candidate: CandidateRecord,
+): Promise<void> {
+  try {
+    const { db, fs } = await loadSdk()
+    await fs.setDoc(fs.doc(db, 'candidates', candidate.id), {
+      v: candidate.v,
+      id: candidate.id,
+      seed: candidate.seed,
+      kind: candidate.kind,
+      weights: candidate.weights,
+      query: candidate.query,
+      by: uid,
+      sat: fs.serverTimestamp(),
+    })
+  } catch {
+    // See above: already-there is the common case and nothing here is load-bearing.
+  }
+}
+
+// The votes that landed, so the caller can clear exactly those from its queue.
+//
+// Sequential rather than a batch, and that is deliberate: a batch is atomic, so
+// one malformed row would reject the whole flush and a labeller's whole session
+// with it. Written one at a time, a bad row costs itself and the rest still
+// land. `by` and `sat` are added here because the rules pin them — a client
+// cannot forge who voted or when.
+export async function putVotes(
+  uid: string,
+  votes: readonly VoteRecord[],
+): Promise<VoteRecord[]> {
+  const { db, fs } = await loadSdk()
+  const sent: VoteRecord[] = []
+  for (const vote of votes) {
+    try {
+      await fs.addDoc(fs.collection(db, 'votes'), {
+        v: vote.v,
+        a: vote.a,
+        b: vote.b,
+        choice: vote.choice,
+        ms: vote.ms,
+        seed: vote.seed,
+        source: vote.source,
+        at: vote.at,
+        by: uid,
+        sat: fs.serverTimestamp(),
+      })
+      sent.push(vote)
+    } catch {
+      // Keep going. The queue keeps whatever did not land and retries it on the
+      // next flush, so a transient failure costs nothing and a permanently
+      // rejected row does not block the ones behind it.
+    }
+  }
+  return sent
+}
+
+// The same, for rated single views. A separate collection rather than a `votes`
+// row with half its fields null: a rating is an observation about one candidate
+// and a vote is one about a pair, and merging them would make every query over
+// either have to filter the other out.
+export async function putRatings(
+  uid: string,
+  ratings: readonly RatingRecord[],
+): Promise<RatingRecord[]> {
+  const { db, fs } = await loadSdk()
+  const sent: RatingRecord[] = []
+  for (const rating of ratings) {
+    try {
+      await fs.addDoc(fs.collection(db, 'ratings'), {
+        v: rating.v,
+        tagSet: rating.tagSet,
+        look: rating.look,
+        query: rating.query,
+        weights: rating.weights,
+        preset: rating.preset,
+        provenance: rating.provenance,
+        tags: rating.tags,
+        cool: rating.cool,
+        ms: rating.ms,
+        source: rating.source,
+        at: rating.at,
+        by: uid,
+        sat: fs.serverTimestamp(),
+      })
+      sent.push(rating)
+    } catch {
+      // As above: one bad row costs itself and nothing behind it.
+    }
+  }
+  return sent
 }

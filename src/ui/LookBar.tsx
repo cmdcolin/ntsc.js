@@ -46,6 +46,11 @@ export function LookBar(props: {
   // roll something up with surprise or mutate, then name it — and before the pair
   // that walk the history, which stay the row's tail.
   saved: ReactNode
+  // The tags menu, passed in for the same reason `saved` is: it owns a popover,
+  // and this row's job is to seat it among the other whole-board verbs. It goes
+  // next to saving because the two are the same moment from two angles — one keeps
+  // a look for you, the other describes it for the model.
+  tags: ReactNode
   canUndo: boolean
   onUndo: () => void
   canRedo: boolean
@@ -93,6 +98,7 @@ export function LookBar(props: {
         mutate
       </button>
       {props.saved}
+      {props.tags}
       <button
         className={cx(styles.btn, !props.canUndo && styles.btnOff)}
         onClick={props.onUndo}

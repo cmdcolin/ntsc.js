@@ -1,0 +1,147 @@
+/* The labelling tool. Not the app's panel — nothing here is a control — so it
+   reads the theme tokens and lays itself out from scratch: two clips, the keys
+   that answer them, and nothing else competing for the eye.
+
+   The one visual rule the page has to keep: the two previews must be identical
+   in every respect except what is inside them. Same size, same border, same
+   background, no hover that lifts one and not the other. Anything that makes one
+   side more attractive as a *box* is a bias the dataset then carries. */
+.page {
+  min-height: 100vh;
+  margin: 0;
+  background: #0b0b0e;
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: var(--fs);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.bar {
+  width: 100%;
+  max-width: 1360px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.blurb {
+  color: var(--fg3);
+  line-height: var(--prose-lh);
+  margin: 0;
+  max-width: 60ch;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.count {
+  color: var(--fg2);
+  font-variant-numeric: tabular-nums;
+}
+
+.queued {
+  color: var(--edit);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn {
+  height: var(--ctl-h);
+  padding: 0 0.6rem;
+  background: var(--ctl-face);
+  color: var(--fg);
+  border: 1px solid var(--border-quiet);
+  border-radius: var(--ctl-radius);
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--border-hover);
+}
+
+.pair {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  max-width: 1360px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* The live engine canvas. Fixed aspect and a max-width rather than a percentage:
+   the raster is 4:3 and a preview that letterboxed differently on one side than
+   the other would be a difference between the two boxes. */
+.clip {
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border: 1px solid var(--border-faint);
+  border-radius: var(--ctl-radius);
+  display: block;
+}
+
+.pick {
+  height: var(--ctl-h);
+  min-width: 10rem;
+  background: var(--ctl-face);
+  color: var(--fg);
+  border: 1px solid var(--border-quiet);
+  border-radius: var(--ctl-radius);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pick:hover {
+  background: var(--ctl-bg-hover);
+  border-color: var(--border-hover);
+}
+
+.keys {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  color: var(--fg3);
+}
+
+.key {
+  font-family: var(--mono);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--ctl-radius);
+  padding: 0 0.3rem;
+}
+
+.notice {
+  color: var(--gate);
+  line-height: var(--prose-lh);
+  max-width: 60ch;
+}
+
+.error {
+  color: #e88;
+  line-height: var(--prose-lh);
+  max-width: 60ch;
+}

@@ -1,0 +1,90 @@
+/* The trigger wears the look bar's own button, composed rather than restyled, so
+   it sits in that row identically to `saved` beside it — a second definition of
+   "a look-bar button" is exactly how the two drift apart. */
+.trigger {
+  composes: btn from './LookBar.module.css';
+}
+
+/* The tags menu. Two rows of chips and a rating strip — narrow enough to hang off
+   a look-bar button, wide enough that ten tags wrap to three tidy lines rather
+   than one per line. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  width: 20rem;
+}
+
+.lead {
+  margin: 0;
+  color: var(--fg3);
+  line-height: var(--prose-lh);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.tag {
+  height: var(--ctl-h);
+  padding: 0 0.5rem;
+  background: var(--ctl-face);
+  color: var(--fg2);
+  border: 1px solid var(--border-quiet);
+  border-radius: var(--ctl-radius);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tag:hover {
+  border-color: var(--border-hover);
+}
+
+/* The panel's own lit state, so a toggled tag reads the same as a toggled
+   segment anywhere else in the app rather than inventing a second "on". */
+.tagOn {
+  background: var(--ctl-on-bg);
+  color: var(--ctl-on-fg);
+  border-color: var(--ctl-on-bg);
+}
+
+/* One press commits, so the five sit as one strip with no gaps to aim between —
+   rating has to be cheaper than moving on, or only the looks somebody already
+   liked ever get rated and the data is all positives. */
+.rateRow {
+  display: flex;
+  gap: 1px;
+}
+
+.rate {
+  flex: 1;
+  height: var(--ctl-h);
+  background: var(--ctl-face);
+  color: var(--fg);
+  border: 1px solid var(--border-quiet);
+  font: inherit;
+  cursor: pointer;
+}
+
+.rate:first-child {
+  border-radius: var(--ctl-radius) 0 0 var(--ctl-radius);
+}
+
+.rate:last-child {
+  border-radius: 0 var(--ctl-radius) var(--ctl-radius) 0;
+}
+
+.rate:hover {
+  background: var(--ctl-on-bg);
+  color: var(--ctl-on-fg);
+  border-color: var(--ctl-on-bg);
+}
+
+.note {
+  margin: 0;
+  color: var(--fg4);
+  line-height: var(--prose-lh);
+}

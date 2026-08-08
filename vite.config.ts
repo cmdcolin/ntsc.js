@@ -26,6 +26,23 @@ export default defineConfig(({ command }) => ({
     __APP_VERSION__: JSON.stringify(pkg.version),
     __GIT_SHA__: JSON.stringify(gitSha()),
   },
+  // Two pages: the instrument, and the labelling tool that builds a preference
+  // dataset out of it (src/vote). The vote page is its own entry rather than a
+  // dialog because it wants the whole screen and its own engine, and because
+  // nothing in it should cost the app a byte — a visitor to index.html never
+  // downloads it.
+  //
+  // Naming any input at all means naming index.html too: rollupOptions.input
+  // replaces vite's default entry rather than adding to it, so leaving it out
+  // would build a project whose main page is the vote page.
+  build: {
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        vote: 'vote.html',
+      },
+    },
+  },
   // Preferred port for the screenshot harness (scripts/shot.mjs, README);
   // falls back to the next free port if it's taken.
   //

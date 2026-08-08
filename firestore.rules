@@ -1,7 +1,8 @@
 rules_version = '2';
 
-// One document per signed-in user, holding that user's saved profiles and
-// nothing else. Deploy with `pnpm firebase-deploy`.
+// Two things live in this project: one document per signed-in user holding that
+// user's saved profiles, and the vote page's training data — candidates and the
+// pairwise comparisons between them. Deploy with `pnpm firebase-deploy`.
 //
 // Default deny: this file grants access to exactly one path, so every other
 // collection in the project — including any added later without a rule of its
@@ -48,6 +49,163 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
       // No `list`: there is no query over /users, and allowing one would let any
       // signed-in user enumerate the collection.
+    }
+
+    // --- the vote page (src/vote) ---
+    //
+    // A labelling tool, so the trust model is different from saved profiles in
+    // one specific way: the data is *collective*. A profile is one person's and
+    // nobody else's business; a vote is a contribution to one shared dataset,
+    // and a candidate is an item several people may end up judging. That is why
+    // these two collections are not under /users/{uid}.
+    //
+    // What that costs, and how it is paid for: anyone who can sign in can add
+    // rows. There is no way around that short of not collecting labels from
+    // other people, which is the point of collecting them. So the rules bound
+    // the damage rather than the intent — every document is create-only and
+    // immutable, size-capped, and stamped with the author's uid and the server's
+    // clock. A bad actor can add junk votes; they cannot alter or delete
+    // anybody's, cannot enumerate the collection, and cannot forge who or when.
+    // Junk is a filtering problem in the training script (which has the uid and
+    // the deliberation time to filter on), and that is the right place for it.
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // A candidate is a *recipe*: a sparse weighting of the authored presets that
+    // expands into a full board (src/vote/candidates.ts). The document id is a
+    // hash of that weighting, so the id determines the contents — which is what
+    // makes create-only safe. Two people rolling the same look write the same
+    // document, and the second create is denied because it already exists; the
+    // client swallows that, since the existing document already says the right
+    // thing.
+    //
+    // `weights` is a map, and rules cannot iterate one — so the entries' types
+    // are not checked here, only that there are few of them. A roll names two or
+    // three presets; 8 is the cap that stops an unbounded map.
+    // `cid` is passed in rather than read from the match: a function declared
+    // out here cannot see a wildcard bound inside a `match` block, and reaching
+    // for one evaluates to null — which fails the whole rule with a null-value
+    // error and denies the happy path. Caught by the emulator test; it looks
+    // exactly like a rule that is simply too strict.
+    function isValidCandidate(cid) {
+      return request.resource.data.keys().hasOnly(
+               ['v', 'id', 'seed', 'kind', 'weights', 'query', 'by', 'sat'])
+             && request.resource.data.v is int
+             && request.resource.data.id is string
+             && request.resource.data.id == cid
+             && request.resource.data.seed is number
+             && request.resource.data.kind in ['mix', 'anchor']
+             && request.resource.data.weights is map
+             && request.resource.data.weights.keys().size() <= 8
+             && request.resource.data.query is string
+             && request.resource.data.query.size() <= 8000
+             && request.resource.data.by == request.auth.uid
+             && request.resource.data.sat == request.time;
+    }
+
+    // One comparison. `by` and `sat` are the two fields a client must not be
+    // able to lie about — who voted and when — because both are what a training
+    // script filters on when a run of votes turns out to be junk. Pinning `sat`
+    // to `request.time` is what forces a real server timestamp rather than a
+    // number the page chose; the client's own clock rides along in `at`, and the
+    // gap between them is how a vote cast offline and flushed hours later is
+    // visible as exactly that.
+    function isValidVote() {
+      return request.resource.data.keys().hasOnly(
+               ['v', 'a', 'b', 'choice', 'ms', 'seed', 'source', 'at', 'by', 'sat'])
+             && request.resource.data.v is int
+             && request.resource.data.a is string
+             && request.resource.data.a.size() <= 64
+             && request.resource.data.b is string
+             && request.resource.data.b.size() <= 64
+             && request.resource.data.a != request.resource.data.b
+             && request.resource.data.choice in ['a', 'b', 'skip', 'neither']
+             && request.resource.data.ms is number
+             && request.resource.data.ms >= 0
+             && request.resource.data.ms <= 600000
+             && request.resource.data.seed is number
+             && request.resource.data.source is string
+             && request.resource.data.source.size() <= 64
+             && request.resource.data.at is number
+             && request.resource.data.by == request.auth.uid
+             && request.resource.data.sat == request.time;
+    }
+
+    match /candidates/{candidateId} {
+      // Readable by any signed-in user, because the vote page shows candidates
+      // other people rolled — that is how a shared pool gets judged by more than
+      // one pair of eyes.
+      allow get: if isSignedIn();
+      allow create: if isSignedIn() && isValidCandidate(candidateId);
+      // No update and no delete, by anyone including the author: the id is a
+      // hash of the contents, so a document that changed would be lying about
+      // its own name, and every vote already cast refers to it.
+      //
+      // No `list` either. Exporting the dataset for training is an admin job
+      // (`firebase firestore:export`, or the console) and does not go through
+      // these rules; allowing a client query would let any signed-in user pull
+      // the whole collection down.
+    }
+
+    // One rated look: a set of perceptual tags and a 1-5 score. Written from the
+    // app's tags menu as well as from the labelling page, which is why the id is a
+    // hash of the *resolved board* rather than of a preset recipe — a look dialled
+    // in by hand has no recipe behind it, and both sources have to land in one key
+    // space.
+    // `tags` is a list, and rules cannot iterate one, so the entries' *names* are
+    // not checked here — only that it is a list and a short one. The client drops
+    // anything outside the vocabulary on the way in (readRating in tags.ts), and
+    // `tagSet` records which vocabulary was on offer, so a row carrying a name this
+    // build has never heard of is readable rather than poisonous.
+    function isValidRating() {
+      return request.resource.data.keys().hasOnly(
+               ['v', 'tagSet', 'look', 'query', 'weights', 'preset',
+                'provenance', 'tags', 'cool', 'ms', 'source', 'at', 'by', 'sat'])
+             && request.resource.data.v is int
+             && request.resource.data.tagSet is int
+             && request.resource.data.look is string
+             && request.resource.data.look.size() <= 64
+             && request.resource.data.query is string
+             && request.resource.data.query.size() <= 8000
+             && request.resource.data.weights is map
+             && request.resource.data.weights.keys().size() <= 8
+             && (request.resource.data.preset == null
+                 || request.resource.data.preset is string)
+             && request.resource.data.provenance in
+                  ['surprise', 'preset', 'mutate', 'hand', 'compare']
+             && request.resource.data.tags is list
+             && request.resource.data.tags.size() <= 32
+             && request.resource.data.cool is int
+             && request.resource.data.cool >= 1
+             && request.resource.data.cool <= 5
+             && request.resource.data.ms is number
+             && request.resource.data.ms >= 0
+             && request.resource.data.ms <= 600000
+             && request.resource.data.source is string
+             && request.resource.data.source.size() <= 64
+             && request.resource.data.at is number
+             && request.resource.data.by == request.auth.uid
+             && request.resource.data.sat == request.time;
+    }
+
+    match /ratings/{ratingId} {
+      // Own ratings only, and immutable — the same reasoning as votes below.
+      allow get: if isSignedIn() && resource.data.by == request.auth.uid;
+      allow create: if isSignedIn() && isValidRating();
+    }
+
+    match /votes/{voteId} {
+      // Own votes only. A voter can check what they contributed; nobody reads
+      // anybody else's from the client, and the aggregate is not a client's
+      // business — it is a training input, fetched by an admin export.
+      allow get: if isSignedIn() && resource.data.by == request.auth.uid;
+      allow create: if isSignedIn() && isValidVote();
+      // Immutable and undeletable, deliberately. A vote is a record of what
+      // somebody said at a moment, and a dataset whose rows can be rewritten
+      // after the fact is not evidence of anything. Changing your mind means
+      // casting another vote, which is a thing the fit can see and weigh.
     }
   }
 }
