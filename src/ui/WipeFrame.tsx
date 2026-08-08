@@ -13,7 +13,11 @@ export function WipeFrame(props: {
   // The lever is being driven by the sweep, so the drawn edge is only where
   // the ping-pong started — say so rather than draw a boundary that lies.
   swept: boolean
+  // No pattern selected: the lever still moves, but nothing downstream reads
+  // it. Drawn faint, with the fix one click away, the same bargain the gate
+  // notes on ordinary rows strike.
   inert: boolean
+  onFix: () => void
   onChange: (pos: number) => void
 }) {
   const [dragging, setDragging] = useState(false)
@@ -67,9 +71,17 @@ export function WipeFrame(props: {
         )}
       </div>
       <div className={styles.readout}>
-        <span>
-          {props.swept ? 'sweeping — drag sets the start' : 'drag the boundary'}
-        </span>
+        {props.inert ? (
+          <button className={styles.fix} onClick={() => props.onFix()}>
+            no pattern — click to wipe horizontally
+          </button>
+        ) : (
+          <span>
+            {props.swept
+              ? 'sweeping — drag sets the start'
+              : 'drag the boundary'}
+          </span>
+        )}
         <span className={styles.nums}>{props.pos.toFixed(3)}</span>
       </div>
     </div>

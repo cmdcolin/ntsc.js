@@ -2485,7 +2485,7 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.005,
         unit: '',
-        help: 'Which part of the glass is under the magnifier, down.',
+        help: 'Which part of the glass is under the magnifier, down. Ignored at 1× and below, where the whole screen is already in view.',
       },
       {
         key: 'timeScale',
@@ -2580,6 +2580,16 @@ const pipKeyed: SliderNeed = {
   ok: nonzero,
   fix: 0.6,
   hint: 'luma key nonzero',
+}
+// present.wgsl discards the lens centre outright below 1× (`select(vec2f(0.5),
+// …, zoom > 1.0)`) — pulled back the whole picture is in view, so there is
+// nothing to aim. Enough magnification to see the structure, not so much that
+// the fix lands you in the grille.
+const magnified: SliderNeed = {
+  key: 'crtZoom',
+  ok: (v: number) => v > 1,
+  fix: 3,
+  hint: 'the magnifier past 1×',
 }
 
 export const NEEDS: Partial<Record<ControlKey, SliderNeed>> = {
@@ -2731,6 +2741,8 @@ export const NEEDS: Partial<Record<ControlKey, SliderNeed>> = {
     fix: 0.5,
     hint: 'supply ring above 0 (in Deflection)',
   },
+  crtZoomX: magnified,
+  crtZoomY: magnified,
   audioLoad: {
     key: 'audioSagUs',
     ok: above0,

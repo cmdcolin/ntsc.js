@@ -57,7 +57,11 @@ export function PipFrame(props: {
   // miniature shows the window as it lands rather than as a hard 1px cut.
   border: number
   soft: number
+  // The key is shut: the window is placeable but nothing composites it. Drawn
+  // faint, with the fix one click away, the same bargain the gate notes on
+  // ordinary rows strike.
   inert: boolean
+  onFix: () => void
   onChange: (box: PipBox) => void
 }) {
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -209,7 +213,13 @@ export function PipFrame(props: {
         ))}
       </div>
       <div className={styles.readout}>
-        <span>drag · grips resize · ⇧ locks</span>
+        {props.inert ? (
+          <button className={styles.fix} onClick={() => props.onFix()}>
+            inset key is at 0 — click to put it on air
+          </button>
+        ) : (
+          <span>drag · grips resize · ⇧ locks</span>
+        )}
         <span className={styles.nums}>
           {`x ${x.toFixed(2)} y ${y.toFixed(2)} · ${Math.round(w * 100)}×${Math.round(h * 100)}%`}
         </span>

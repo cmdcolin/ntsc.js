@@ -156,16 +156,18 @@ function WipeControl() {
       soft={controls.wipeSoft}
       swept={controls.wipeRate > 0}
       inert={controls.wipeMode < 1}
+      onFix={() => writeControl('wipeMode', 1)}
       onChange={pos => writeControl('wipePos', pos)}
     />
   )
 }
 
 function PipControl() {
-  const { controls, writeControls } = useControlsApi()
+  const { controls, writeControl, writeControls } = useControlsApi()
   return (
     <PipFrame
       inert={controls.pipMix === 0}
+      onFix={() => writeControl('pipMix', 0.7)}
       border={controls.pipBorder}
       soft={controls.pipSoft}
       box={{
