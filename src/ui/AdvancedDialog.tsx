@@ -6,6 +6,7 @@ import {
   FRAME_LOCK_LABELS,
   frameLockLabel,
 } from './frameLock'
+import { HelpProse } from './HelpProse'
 import { SelectRow } from './SelectRow'
 import { SIGNAL_TAPS, tapFor } from './signalTap'
 import { Slider } from './Slider'
@@ -61,19 +62,24 @@ export function AdvancedDialog(props: {
         value={props.frameLock}
         onChange={props.onFrameLockChange}
       />
-      <div className={ui.dim} style={{ margin: '4px 0 12px' }}>
-        render every second, third or fourth refresh instead of chasing every
-        one: a steady lower cadence reads as intentional where a rate wavering
-        between full and half reads as stutter. The simulation steps once per
-        rendered frame, so rolls and noise crawl proportionally slower under a
-        lock. <b>auto</b> engages the half-rate lock only once refreshes are
-        genuinely being missed, and retries full rate on its own. Also in the ☰
-        menu
-        {props.frameLock === 0
-          ? ''
-          : `, which is showing “${frameLockLabel(props.frameLock)}”`}
-        .
-      </div>
+      <HelpProse
+        className={ui.dim}
+        style={{ margin: '4px 0 12px' }}
+        text={`Render every second, third or fourth refresh instead of chasing
+          every one: a steady lower cadence reads as intentional where a rate
+          wavering between full and half reads as stutter.
+
+          - The simulation steps once per rendered frame, so rolls and noise
+            crawl proportionally slower under a lock.
+          - **auto** engages the half-rate lock only once refreshes are
+            genuinely being missed, and retries full rate on its own.
+
+          Also in the ☰ menu${
+            props.frameLock === 0
+              ? ''
+              : `, which is showing “${frameLockLabel(props.frameLock)}”`
+          }.`}
+      />
       <div className={dlg.subhead}>signal tap</div>
       <SelectRow
         tag="◫"
@@ -82,41 +88,37 @@ export function AdvancedDialog(props: {
         options={TAP_OPTIONS}
         onChange={v => props.onTapChange(Number(v))}
       />
-      <div className={ui.dim} style={{ margin: '2px 0 12px' }}>
-        see what the TV sees rather than what it drew — the fastest way to
-        understand what a control is actually doing.
-        <br />
-        <b>composite waveform</b> — the whole 910-sample line as brightness,
-        blanking and burst included, squeezed into the picture width: sync tip
-        black at the far left, then burst, then the active line. Everything the
-        decoder is handed.
-        <br />
-        <b>luma channel</b> — Y after Y/C separation, black to white. Residual
-        subcarrier here is what dot crawl is made of.
-        <br />
-        <b>chroma (U/V energy)</b> — the demodulated colour difference axes as
-        false colour: red is |U|, green is |V|. Grey areas carry no colour;
-        which axis lights up says where the hue sits.
-        <br />
-        <b>burst / decoder state</b> — what the receiver measured rather than
-        what it received: red is burst amplitude, green the phase error the hue
-        correction is riding on, blue the chroma gain the ACC settled at. Bands
-        mean the lock is chattering line to line.
-        <br />
-        <b>scope</b> — one line drawn the way the app's icon draws it: the whole
-        line against an IRE graticule, sync tip and burst included, with the
-        picture running dimmed above and a dashed cursor on the line being
-        traced. Each column is filled between its lowest and highest sample, so
-        flat luma is a thin line and anything carrying subcarrier is a block as
-        tall as its swing, tinted the colour it carries, with its luma as the
-        bright line through the middle.
-        <br />
-        The same picker sits in the panel's View group, and <code>
-          ?dbg=
-        </code>{' '}
-        in the URL sets it at load. The ☰ menu has no tap row — its trigger
-        only badges whichever tap is live, so a replaced picture always says so.
-      </div>
+      <HelpProse
+        className={ui.dim}
+        style={{ margin: '2px 0 12px' }}
+        text={`See what the TV sees rather than what it drew — the fastest way
+          to understand what a control is actually doing.
+
+          - **composite waveform** — the whole 910-sample line as brightness,
+            blanking and burst included, squeezed into the picture width: sync
+            tip black at the far left, then burst, then the active line.
+            Everything the decoder is handed.
+          - **luma channel** — Y after Y/C separation, black to white. Residual
+            subcarrier here is what dot crawl is made of.
+          - **chroma (U/V energy)** — the demodulated colour-difference axes as
+            false colour: red is |U|, green is |V|. Grey areas carry no colour;
+            which axis lights up says where the hue sits.
+          - **burst / decoder state** — what the receiver measured rather than
+            what it received: red is burst amplitude, green the phase error the
+            hue correction is riding on, blue the chroma gain the ACC settled
+            at. Bands mean the lock is chattering line to line.
+          - **scope** — one line drawn the way the app's icon draws it: the
+            whole line against an IRE graticule, sync tip and burst included,
+            with the picture running dimmed above and a dashed cursor on the
+            line being traced. Each column is filled between its lowest and
+            highest sample, so flat luma is a thin line and anything carrying
+            subcarrier is a block as tall as its swing, tinted the colour it
+            carries, with its luma as the bright line through the middle.
+
+          The same picker sits in the panel's View group, and \`?dbg=\` in the
+          URL sets it at load. The ☰ menu has no tap row — its trigger only
+          badges whichever tap is live, so a replaced picture always says so.`}
+      />
       <div className={dlg.subhead}>MIDI control</div>
       {props.midiStatus === 'idle' ? (
         <button

@@ -252,7 +252,19 @@ function SignalTapControl() {
       value={index}
       defaultValue={0}
       choices={SIGNAL_TAPS.map(t => t.short)}
-      help="View a point inside the decode instead of the finished picture. waveform: the whole line as brightness, sync tip and burst included, squeezed into the picture width. luma: Y after Y/C separation. chroma: the demodulated axes as false colour, red |U| / green |V|. burst: what the receiver measured — red burst amplitude, green phase error, blue the gain the ACC settled at. scope: one line traced against an IRE graticule, sync tip and burst included, with the picture dimmed above it. Advanced settings has the same picker with a longer note; the ☰ trigger only badges whichever tap is live."
+      help={`View a point inside the decode instead of the finished picture.
+
+        - **waveform** — the whole line as brightness, sync tip and burst
+          included, squeezed into the picture width.
+        - **luma** — Y after Y/C separation.
+        - **chroma** — the demodulated axes as false colour: red |U|, green |V|.
+        - **burst** — what the receiver measured: red burst amplitude, green
+          phase error, blue the gain the ACC settled at.
+        - **scope** — one line traced against an IRE graticule, sync tip and
+          burst included, with the picture dimmed above it.
+
+        Advanced settings has the same picker with a longer note; the ☰ trigger
+        only badges whichever tap is live.`}
       onChange={i => onTap(SIGNAL_TAPS[i].value)}
     />
   )

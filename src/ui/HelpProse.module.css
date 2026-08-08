@@ -1,0 +1,27 @@
+/* Structure for help copy: paragraphs that breathe and lists that indent,
+   sized to sit in a 260px hover card as readably as in a prose dialog. */
+.prose {
+  line-height: var(--prose-lh);
+}
+.prose > :first-child {
+  margin-top: 0;
+}
+.prose > :last-child {
+  margin-bottom: 0;
+}
+.para {
+  margin: 0 0 8px;
+}
+/* Marker outside the text column, so a wrapped item's second line lines up
+   under its first rather than under the bullet — which is the whole reason a
+   list reads faster than the sentence it came from. */
+.list {
+  margin: 0 0 8px;
+  padding-left: 15px;
+}
+.list li {
+  margin: 0 0 4px;
+}
+.list li::marker {
+  color: var(--fg3);
+}

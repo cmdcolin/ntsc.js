@@ -3,6 +3,7 @@ import { createContext, use, useId, useState } from 'react'
 import { snapToStep } from './controls'
 import { cx } from './cx'
 import { choicesFitTrack, formatValue, readingChars } from './format'
+import { HelpProse } from './HelpProse'
 import { zoomAtTravel, zoomTravel } from './lens'
 import { MenuItem, Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
@@ -582,7 +583,9 @@ export function Slider(props: {
       ) : null}
       {props.modEditor}
       {hoverHelp && !showHelp && help !== undefined ? (
-        <div className={styles.helpPop}>{help}</div>
+        <div className={styles.helpPop}>
+          <HelpProse text={help} />
+        </div>
       ) : null}
       {showHelp && help !== undefined ? (
         <SliderHelpDialog

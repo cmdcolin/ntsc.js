@@ -1,5 +1,6 @@
 import { Dialog } from './Dialog'
 import { formatValue } from './format'
+import { HelpProse } from './HelpProse'
 import ui from './ui.module.css'
 
 // The "what does this knob actually do" card behind every slider's ? icon.
@@ -19,7 +20,7 @@ export function SliderHelpDialog(props: {
     `${formatValue(v, props.step)}${props.unit === '' ? '' : ` ${props.unit}`}`
   return (
     <Dialog title={props.label} size="prose" onClose={props.onClose}>
-      <p className={ui.helpText}>{props.help}</p>
+      <HelpProse className={ui.helpText} text={props.help} />
       <div className={ui.muted}>
         range {fmt(props.min)} … {fmt(props.max)} · default{' '}
         {fmt(props.defaultValue)}
