@@ -89,6 +89,48 @@
 .phaseDot:hover {
   color: var(--edit-hi);
 }
+/* The way back to the map alone, at the far end of the stage's own heading row
+   so it reads as "close this" rather than as another control of the stage.
+   margin-left: auto is what puts it there — the name and its count stay
+   together on the left.
+
+   Boxed, like the search box's clear button (app.module.css .filterClear) and
+   for the same reason: a bare glyph in the panel's dim prose colour is a mark
+   on the heading, not a thing to press, and at hint size it was also a target
+   you had to aim at. The border is what makes it a button; the fixed square is
+   what makes it hittable without aiming. Bigger than .filterClear's because
+   that one sits inside a field that already draws its own box, while this one
+   stands alone on a heading row with nothing around it to say where it ends. */
+.stageClose {
+  composes: bare from './ui.module.css';
+  margin-left: auto;
+  flex-shrink: 0;
+  /* square, so the glyph is centred rather than sitting on the name's baseline
+     — the row is baseline-aligned, and a taller box hangs below it otherwise */
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  /* Red, and the only red in the panel's chrome. The panel is otherwise green
+     for accent and gold for edited, so the hue itself is the signal here: this
+     is the one button that takes something off screen rather than changing it.
+     Tinted rather than filled — a solid red block on a heading row would outrank
+     the stage it closes — so the edge and a wash carry it at rest and the fill
+     arrives under the pointer, where the press is about to happen. */
+  border: 1px solid color-mix(in srgb, var(--bad) 55%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+  color: var(--bad);
+  font-size: var(--fs-lg);
+  line-height: 1;
+}
+.stageClose:hover {
+  border-color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 24%, transparent);
+  color: #fff;
+}
 
 /* The bench: every stage mounted, its groups paired off into two columns once
    the panel is wide enough to hold them. Single flow until then — the query is

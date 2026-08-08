@@ -21,6 +21,9 @@ export function usePanelNav() {
     openAt,
     toggleGroup: (name: string) =>
       setOpenGroup(openGroup === name ? null : name),
+    // Back to the map alone — what the × on the open stage's heading does, and
+    // what Escape falls through to once it has nothing else to back out of.
+    closePhase: () => setOpenPhase(null),
     // On the bench every stage is already on screen, so the map is an index
     // rather than a fold: a click marks where you are (and the bench scrolls
     // there) instead of unfolding one stage and closing another.

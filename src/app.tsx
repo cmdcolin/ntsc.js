@@ -372,11 +372,20 @@ export function App() {
   useShortcuts(popout, {
     // Dialogs close themselves (each Dialog binds Escape to its own document);
     // here Escape just backs out of the panel's own modes.
+    //
+    // The open stage is the last of them and only gets the press none of the
+    // others wanted: it is where you are rather than a mode you are in, so
+    // escaping a search has no business also losing your place in the chain.
+    // Not on the bench, where every stage is mounted and the open one is a mark
+    // on the map rather than a thing on screen to back out of.
     onEscape: () => {
+      const mode =
+        filter !== '' || searchOpen || armed !== null || learn !== null
       setFilter('')
       setSearchOpen(false)
       disarm()
       stopLearn()
+      if (!mode && !bench) nav.closePhase()
     },
     onPalette: () => setShowPalette(true),
     onUndo: mix.undo,

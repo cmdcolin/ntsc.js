@@ -47,6 +47,13 @@ export function ChainMap(props: {
   // input exists at all. null when a live filter has left it nothing to show.
   branch: ChainStage | null
   open: string | null
+  // Whether clicking the box that is already open folds its stage away. True on
+  // the spine, where the map is the fold; false on the bench, where every stage
+  // is mounted and a click only marks one. The map has to know because it is
+  // the one place that can say so *before* the click — a box that opens a stage
+  // does not otherwise announce that pressing it again closes one, and the ×
+  // on the open stage's heading only answers that question once you are in.
+  folds: boolean
   // Which returns are carrying signal, so the map can show a running loop
   // rather than only the two that exist in principle.
   live: { camera: boolean; mixer: boolean }
@@ -118,6 +125,7 @@ export function ChainMap(props: {
             y={BRANCH_Y}
             boxW={branch.w}
             open={props.open === props.branch.name}
+            folds={props.folds}
             onOpen={props.onOpen}
           />
         </g>
@@ -130,6 +138,7 @@ export function ChainMap(props: {
           y={MID_Y}
           boxW={boxes[i].w}
           open={props.open === stage.name}
+          folds={props.folds}
           onOpen={props.onOpen}
         />
       ))}
@@ -146,13 +155,18 @@ function Node(props: {
   y: number
   boxW: number
   open: boolean
+  // See ChainMap's `folds`: only where a click can close a stage is this box a
+  // disclosure, and only there does it have an expanded state to report or a
+  // second thing to say in its tooltip.
+  folds: boolean
   onOpen: (name: string) => void
 }) {
   const { stage } = props
   const off = stage.off === true
+  const fold = props.folds && !off
   const title = off
     ? (stage.offHint ?? stage.blurb)
-    : `${stage.name} — ${stage.blurb}${stage.touched > 0 ? ` (${stage.touched} off stock)` : ''}`
+    : `${stage.name} — ${stage.blurb}${stage.touched > 0 ? ` (${stage.touched} off stock)` : ''}${fold ? (props.open ? ' — click to close' : ' — click to open') : ''}`
   return (
     <g
       className={cx(
@@ -163,6 +177,9 @@ function Node(props: {
       )}
       role={off ? undefined : 'button'}
       tabIndex={off ? undefined : 0}
+      // A box that folds a stage is a disclosure and says so; on the bench it is
+      // an index entry, which has no expanded state to claim.
+      aria-expanded={fold ? props.open : undefined}
       aria-label={off ? undefined : `${stage.name} — ${stage.blurb}`}
       onClick={off ? undefined : () => props.onOpen(stage.name)}
       onKeyDown={e => {

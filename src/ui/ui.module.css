@@ -288,7 +288,7 @@
   color: #cba065;
 }
 .err {
-  color: #e08484;
+  color: var(--bad);
 }
 .blue {
   color: var(--midi);

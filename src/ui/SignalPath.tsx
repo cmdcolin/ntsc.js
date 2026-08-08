@@ -32,6 +32,13 @@ function StageHead(props: {
   countHint: string
   onName: () => void
   onCount: () => void
+  // The way back to the map alone, when there is one. The fold is already on
+  // the stage name and on the map box the click came from, but neither *looks*
+  // like a way out — a name reads as a label and the box you pressed to open a
+  // stage does not announce that pressing it again closes one. Left off where
+  // it would lie: the bench folds nothing, and while a filter is live every
+  // matching stage is shown regardless of which one is open.
+  onClose?: () => void
 }) {
   const { node } = props
   return (
@@ -40,6 +47,11 @@ function StageHead(props: {
         <button
           className={styles.stageName}
           title={`${node.blurb} — ${props.nameHint}`}
+          // Only where the name folds: the heading of a stage that is rendered
+          // because it is open, so it is a disclosure that is always expanded.
+          // On the bench and under a filter it is a heading, and claiming an
+          // expanded state there would announce a fold that isn't there.
+          aria-expanded={props.onClose === undefined ? undefined : true}
           onClick={props.onName}
         >
           {node.name}
@@ -51,6 +63,16 @@ function StageHead(props: {
             onClick={props.onCount}
           >
             • {node.touched}
+          </button>
+        )}
+        {props.onClose === undefined ? null : (
+          <button
+            className={styles.stageClose}
+            title={`close ${node.name} — the map stays`}
+            aria-label={`close ${node.name}`}
+            onClick={props.onClose}
+          >
+            ×
           </button>
         )}
       </div>
@@ -151,6 +173,10 @@ export function SignalPath(props: {
         stages={props.nodes}
         branch={props.branch}
         open={props.open}
+        // The map is the fold here — except under a live filter, where a stage
+        // is on screen because it matched and clicking its box cannot take it
+        // off again.
+        folds={!props.expandAll}
         live={props.live}
         onOpen={name => props.onOpen(name)}
       />
@@ -170,6 +196,13 @@ export function SignalPath(props: {
               countHint="click to see"
               onName={() => props.onOpen(node.name)}
               onCount={() => node.onJumpTouched()}
+              // onOpen toggles, so closing is opening the stage that is
+              // already open. Not offered under a live filter: there the row
+              // is shown because it matches, and an × that left it on screen
+              // would be a button that did nothing.
+              onClose={
+                props.expandAll ? undefined : () => props.onOpen(node.name)
+              }
             />
             <NestedSections>
               <Accordion openId={props.openGroup} onToggle={props.onOpenGroup}>
@@ -223,6 +256,8 @@ function Bench(props: {
         stages={props.nodes}
         branch={props.branch}
         open={props.open}
+        // Nothing folds on the bench: a click marks the stage and scrolls to it.
+        folds={false}
         live={props.live}
         onOpen={jump}
       />

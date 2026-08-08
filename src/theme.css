@@ -81,6 +81,13 @@
      an amber: a routed knob has not been moved, it is being moved. */
   --mod: #7cbf9a;
   --midi: #9dbcea;
+  /* The panel's red — a failed write, and the one button whose job is to take
+     something off screen. Softer than the two reds on the picture (#f66 on the
+     overlay, #ff6060 on the recording button): those have to carry across a
+     room, this one sits in prose at 12px and only has to be unmistakably not
+     the amber. Was a bare hex in ui.module.css .err, which is why it is here —
+     a second thing wanted it, and a hue written twice is a hue that drifts. */
+  --bad: #e08484;
   /* prose wraps to 3–5 lines in a panel this narrow; 1.2 is unreadable there */
   --prose-lh: 1.45;
   /* One height for every control that can end up sitting beside another one.
