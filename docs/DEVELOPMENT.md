@@ -78,6 +78,14 @@ find:
 - **An occluded window throttles rAF to about 1Hz.** Frames are stepped
   (`window.vf.step()`) rather than waited for; a clip, which samples the canvas
   as it paints, has to own the only window on screen.
+- **`setTimeout` is clamped in a backgrounded tab too**, so stepping from an
+  in-page loop does not escape the trap above — it hits the same wall by the
+  other door. An in-page sampler of either kind returns three frames for two
+  seconds of wall clock, which reads as the thing you are measuring not
+  happening rather than as the harness not sampling. Drive the loop from
+  **Node** instead (one `page.evaluate` per frame, `await` the sleep outside the
+  page) whenever a measurement is against the wall clock rather than against a
+  frame count. `bringToFront()` alone is not enough.
 - **Serve from a `git worktree add --detach` copy** (or a production build) when
   anything else might be editing the tree. An HMR reload mid-run resets the
   engine under the frame counter, and a shot then captures someone else's
