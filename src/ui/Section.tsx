@@ -58,6 +58,8 @@ export function Accordion(props: {
   )
 }
 
+export type SectionHelpApi = { open: boolean; openSection: () => void }
+
 export function Section(props: {
   title: string
   children: ReactNode
@@ -72,8 +74,11 @@ export function Section(props: {
   // free rather than a thing you have to open the section to check.
   summary?: string
   // Optional accessory (e.g. a ? explainer) beside the title, outside the
-  // toggle button so its clicks are its own.
-  help?: ReactNode
+  // toggle button so its clicks are its own. Given as a function it also gets
+  // the section's open state and a way to open it: an accessory that reveals
+  // something in the body — Presets' "all" — otherwise reads as a dead button
+  // while the section is folded, since its whole effect is out of sight.
+  help?: ReactNode | ((api: SectionHelpApi) => ReactNode)
 }) {
   const nested = use(NestedContext)
   const accordion = use(AccordionContext)
@@ -110,7 +115,14 @@ export function Section(props: {
           )}
           <span className={styles.caret}>{shown ? '▾' : '▸'}</span>
         </button>
-        {props.help}
+        {typeof props.help === 'function'
+          ? props.help({
+              open: shown,
+              openSection: () => {
+                if (!shown) toggle()
+              },
+            })
+          : props.help}
       </h3>
       {shown ? <NestedSections>{props.children}</NestedSections> : null}
     </div>

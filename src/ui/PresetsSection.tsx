@@ -282,7 +282,7 @@ export function PresetsSection(props: {
   return (
     <Section
       title="Presets"
-      help={
+      help={({ openSection }) => (
         <>
           <button
             className={cx(styles.allBtn, showAll && styles.allBtnOn)}
@@ -292,7 +292,13 @@ export function PresetsSection(props: {
                 ? 'fold the catalog back to your shortlist'
                 : 'every preset, grouped by the kind of fault it models'
             }
-            onClick={() => setShowAll(!showAll)}
+            // Unfolding the catalog with the section itself folded put 74 chips
+            // somewhere you can't see, so the button read as broken. Asking for
+            // the catalog is asking to see it.
+            onClick={() => {
+              if (!showAll) openSection()
+              setShowAll(!showAll)
+            }}
           >
             all
             <span className={styles.allCount}>{PRESETS.length}</span>
@@ -305,7 +311,7 @@ export function PresetsSection(props: {
             ?
           </button>
         </>
-      }
+      )}
     >
       {hintDismissed ? null : (
         <div className={cx(ui.hint, ui.dismissHint)}>
