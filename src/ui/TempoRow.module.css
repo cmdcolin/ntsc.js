@@ -1,0 +1,52 @@
+/* The beat, on one line: the ♩ tag, the number, its unit, and tap. Laid out on
+   the panel's standard input row so the tag lines up with the ∿ and the slot
+   numbers under it — the section reads as one column of rows, not as a header
+   with a form stuck on top. */
+.row {
+  composes: inputRow from './SelectRow.module.css';
+}
+.tag {
+  composes: tag from './SelectRow.module.css';
+}
+/* Sized to its content rather than stretched like the dropdowns it sits above:
+   a tempo is four characters and a field the width of the panel would read as
+   the section's most important control, which it is not. */
+.bpm {
+  width: 4.5em;
+  box-sizing: border-box;
+  background: var(--panel-bg);
+  color: var(--fg);
+  border: 1px solid var(--border-quiet);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  text-align: right;
+}
+.bpm::placeholder {
+  color: var(--fg4);
+}
+.bpm:focus {
+  border-color: var(--fg4);
+}
+.unit {
+  color: var(--fg3);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+}
+.tap {
+  composes: btn from './ui.module.css';
+  flex-shrink: 0;
+}
+/* What the clock reports, in place of the field it takes over from. The amber
+   is the panel's one colour for "this is live and not at rest", the same one a
+   moved control and the MIDI section's own clock line wear. */
+.fromClock {
+  composes: amber from './ui.module.css';
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+}
+.note {
+  composes: dim from './ui.module.css';
+  font-size: var(--fs-sm);
+}

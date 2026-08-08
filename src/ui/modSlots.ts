@@ -8,6 +8,7 @@
 // of them should have to mount a section to get at them.
 
 import { SLIDER_BY_KEY } from './controls'
+import { SYNC_DIVISIONS } from './midi'
 
 import type { ControlKey, ModSlot } from '../controls'
 import type { ModSource } from '../signal/modstate'
@@ -26,6 +27,14 @@ export interface ModRouting {
   source: ModSource
   rateHz: number
   depth: number
+  // Which SYNC_DIVISIONS entry the rate is locked to, if it is locked at all.
+  //
+  // Unlike the run switch this *is* part of the look and travels with a link: a
+  // wobble on eighth notes is a statement about the patch, and the reader's own
+  // tempo is what it should land against — which is the whole point of saying
+  // it in beats rather than in Hz. `rateHz` rides along untouched underneath, so
+  // a reader with no tempo at all still gets the rate it was authored at.
+  syncDiv?: number
 }
 
 // A slot as the panel holds it: same fields, plus the off state. Position is
@@ -35,6 +44,10 @@ export interface UiSlot {
   source: ModSource
   rateHz: number
   depth: number
+  // The clock division this slot's rate is locked to — see ModRouting. Set, the
+  // Hz above is what the slot falls back to rather than what it runs at, so
+  // dropping the lock returns the rate you had dialed in before it.
+  syncDiv?: number
   // Whether this routing is running, as opposed to whether it exists. A patch
   // you can park: `remove` throws the routing away and dragging depth to zero
   // throws away the depth you dialed in, so neither was a way to see the picture
@@ -93,6 +106,46 @@ export function modSource(v: unknown): ModSource | null {
 const field = (o: object, k: string): unknown =>
   k in o ? Reflect.get(o, k) : undefined
 
+// A stored/pasted division index, as the patch to spread onto a slot: `{syncDiv}`
+// when the list has one there, null when it doesn't. Handing back the patch
+// rather than the number keeps "unlocked" as an *absent* key everywhere — a slot
+// carrying `syncDiv: undefined` would survive JSON round-trips as a key that
+// `'syncDiv' in slot` answers yes to and every reader has to re-check.
+export function syncDivision(v: unknown): { syncDiv: number } | null {
+  return typeof v === 'number' &&
+    Number.isInteger(v) &&
+    v >= 0 &&
+    v < SYNC_DIVISIONS.length
+    ? { syncDiv: v }
+    : null
+}
+
+// What a slot's LFO actually runs at: the tempo-derived rate while it is locked
+// to a division and something is providing a tempo, and the dialed Hz otherwise
+// — including while a lock is set but no tempo is known, so unplugging the clock
+// leaves the wobble where it was rather than stopping it.
+//
+// Clamped to the rate slider's own range: at 200 BPM a 1/16 lock asks for 13Hz,
+// which is past what the slot can hold, and a rate the readout can't show is a
+// slot that looks unlocked while running.
+export function slotRate(slot: UiSlot, bpm: number | null): number {
+  const div = slot.syncDiv
+  return div === undefined || bpm === null
+    ? slot.rateHz
+    : clamp(bpm / 60 / SYNC_DIVISIONS[div].beats, RATE_MIN, RATE_MAX)
+}
+
+// Off → each division → off, the same cycle the ♩ on a rate control row walks.
+// `rateHz` is deliberately untouched on the way through: it is what the slot
+// comes back to at the end of the cycle.
+export function withNextSync(slot: UiSlot): UiSlot {
+  const next = slot.syncDiv === undefined ? 0 : slot.syncDiv + 1
+  if (next < SYNC_DIVISIONS.length) return { ...slot, syncDiv: next }
+  const free = { ...slot }
+  delete free.syncDiv
+  return free
+}
+
 // One stored/pasted entry, or null if it isn't one. Field-checked rather than
 // trusted: `readArray` guards the parse, not the shape, and a stored `[null]`
 // used to throw out of the loader at mount and take the whole app with it.
@@ -111,6 +164,11 @@ function readSlot(raw: unknown): UiSlot | null {
     source,
     rateHz: clamp(rateHz, RATE_MIN, RATE_MAX),
     depth: clamp(depth, 0, 1),
+    // A lock on a division this build no longer has is dropped rather than
+    // kept, on the same rule useClockSync's loader follows: every read of it
+    // indexes straight into SYNC_DIVISIONS, so a stale index would throw at the
+    // first frame instead of degrading to a free-running rate.
+    ...syncDivision(field(raw, 'syncDiv')),
     // Only an explicit `false` parks a routing. Anything else — a bay stored
     // before the switch existed, a link's ModRouting, a hand-edited entry — is
     // a routing that should run, and reading it as parked would silently stop
@@ -143,7 +201,15 @@ export function normalizeSlots(stored: readonly unknown[]): UiSlot[] {
 // `master` scales every depth at once — the motion amount. At 0 nothing routes,
 // so the loop skips modulation entirely and every wave holds its phase, which
 // is what makes the freeze resume rather than restart.
-export function toEngineSlots(slots: readonly UiSlot[], master = 1): ModSlot[] {
+//
+// `bpm` is what a clock-locked slot's rate is derived from. Resolved here rather
+// than written into the slot so the lock stays a lock: the tempo moves, every
+// locked rate follows it, and nothing has to write the bay back on each tick.
+export function toEngineSlots(
+  slots: readonly UiSlot[],
+  master = 1,
+  bpm: number | null = null,
+): ModSlot[] {
   return slots.flatMap((s, id): ModSlot[] => {
     const def =
       s.target === '' || !s.on ? undefined : SLIDER_BY_KEY.get(s.target)
@@ -154,7 +220,7 @@ export function toEngineSlots(slots: readonly UiSlot[], master = 1): ModSlot[] {
           {
             id,
             source: s.source,
-            rateHz: s.rateHz,
+            rateHz: slotRate(s, bpm),
             depth,
             target: def.key,
             min: def.min,
@@ -184,6 +250,7 @@ export function slotsToRoutings(slots: readonly UiSlot[]): ModRouting[] {
             source: s.source,
             rateHz: s.rateHz,
             depth: s.depth,
+            ...(s.syncDiv === undefined ? {} : { syncDiv: s.syncDiv }),
           },
         ],
   )

@@ -5,6 +5,7 @@ import {
   normalizeSlots,
   routingsToSlots,
   toEngineSlots,
+  withNextSync,
 } from './modSlots'
 import { readArray, readJSON, writeJSONSoon } from './storage'
 import { parseSessionParams } from './urlParams'
@@ -13,6 +14,7 @@ import type { ControlKey } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
 import type { UiSlot } from './modSlots'
 import type { ModSlotsApi } from './ModSlotsContext'
+import type { Tempo } from './useTempo'
 
 const MOD_STORE = 'video_feedback_mod'
 const MASTER_STORE = 'video_feedback_motion'
@@ -51,11 +53,18 @@ const loadMaster = (): number => {
     : 1
 }
 
-export function useModSlots(engine: EngineApi | null): ModSlotsApi {
+export function useModSlots(
+  engine: EngineApi | null,
+  tempo: Tempo,
+): ModSlotsApi {
   const [slots, setSlotsState] = useState<readonly UiSlot[]>(loadSlots)
   const [master, setMasterState] = useState<number>(loadMaster)
 
-  const active = toEngineSlots(slots, master)
+  // A locked slot's rate is resolved here, per render, rather than written into
+  // the bay: the tempo is what moves, and the effect below already pushes the
+  // list to the engine whenever anything in it changes — so a clock speeding up
+  // carries every locked wobble with it without a single write to storage.
+  const active = toEngineSlots(slots, master, tempo.bpm)
 
   // Pushed from an effect rather than from each setter: the engine arrives
   // asynchronously, so a bay patched (or a link parsed) before it exists still
@@ -80,13 +89,35 @@ export function useModSlots(engine: EngineApi | null): ModSlotsApi {
     setMasterState(v)
   }
 
+  // Off → 1/1 → … → 1/16 → off, for the slot at `i`. Rendered from the same
+  // SYNC_DIVISIONS the control rows walk, so "1/4" means one cycle per quarter
+  // note wherever it is written in the panel.
+  //
+  // `ensure` is the half that makes the button do something on a machine with
+  // no clock on the wire: the lock is being asked for, so a tempo appears for it
+  // to read rather than a ♩ that lights up and changes nothing.
+  const cycleAt = (i: number) => {
+    const next = withNextSync(slots[i])
+    commit(slots.map((s, j) => (j === i ? next : s)))
+    // Only on the way in — landing back on a free-running rate is not a request
+    // for a beat, so switching the last division off cannot leave a tempo behind
+    // in a session that never had one.
+    if (next.syncDiv !== undefined) tempo.ensure()
+  }
+
   return {
     slots,
+    bpm: tempo.bpm,
     active,
     master,
     setMaster: writeMaster,
     setSlot: (i, patch) =>
       commit(slots.map((s, j) => (j === i ? { ...s, ...patch } : s))),
+    cycleSlotSync: cycleAt,
+    cycleSyncForKey: key => {
+      const at = indexFor(key)
+      if (at !== -1) cycleAt(at)
+    },
     setSlots: next => commit(normalizeSlots(next)),
     setRoutings: mod => commit(routingsToSlots(mod)),
     modFor: key => slots.find(s => s.target === key) ?? null,

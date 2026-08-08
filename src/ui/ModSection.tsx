@@ -1,12 +1,22 @@
 import { PASS_THROUGH } from '../signal/modstate'
 import { GROUPS } from './controls'
 import { cx } from './cx'
-import { MOD_SOURCES, RATE_MAX, RATE_MIN, EMPTY_SLOT } from './modSlots'
+import { SYNC_DIVISIONS } from './midi'
+import {
+  MOD_SOURCES,
+  RATE_MAX,
+  RATE_MIN,
+  EMPTY_SLOT,
+  slotRate,
+} from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
+import { TempoRow } from './TempoRow'
 import ui from './ui.module.css'
+
+import type { Tempo } from './useTempo'
 
 // Every slider is a bend point: flatten the groups into target options. The
 // slider's range doubles as the modulation span, so depth stays meaningful
@@ -23,8 +33,8 @@ const TARGET_OPTIONS = [
 // private business — presets carry it, links carry it, and any control row can
 // claim a slot from its own ∿. What is left here is the view that shows all
 // eight at once, which is still the only place to see the bay as a bay.
-export function ModSection() {
-  const { slots, setSlot } = useModSlotsApi()
+export function ModSection(props: { tempo: Tempo }) {
+  const { slots, bpm, setSlot, cycleSlotSync } = useModSlotsApi()
   // Read off the bay itself, not off `active`: that list is scaled by the motion
   // amount, so freezing (amount 0) emptied it and the dot went out on a section
   // still holding eight routings. The dot says what is patched — the strip's own
@@ -36,6 +46,12 @@ export function ModSection() {
         LFOs, drift and the audio envelope wiggling any control around its
         slider setting — or press ∿ on any control row.
       </div>
+      {/* The beat every ♩ in the panel reads, at the top of the section whose
+          rates are the ones most often locked to it. Here rather than in MIDI:
+          that section only exists once a controller is wired up, and a tempo you
+          tapped in yourself is exactly what a session with no MIDI at all
+          needs. */}
+      <TempoRow tempo={props.tempo} />
       {slots.map((s, i) => (
         // Slots are positional identities (slot 1..8), so the index IS the key.
         // oxlint-disable-next-line react/no-array-index-key
@@ -69,9 +85,19 @@ export function ModSection() {
                   min={RATE_MIN}
                   max={RATE_MAX}
                   step={0.02}
-                  value={s.rateHz}
+                  // Tempo's business while ♩ is set; the dialed Hz stays put
+                  // underneath and comes back when the lock cycles off.
+                  value={slotRate(s, bpm)}
                   defaultValue={EMPTY_SLOT.rateHz}
-                  help="How fast this slot's LFO cycles, in Hz. Slow rates drift the target control the way a warming-up circuit does; fast ones buzz it per-frame."
+                  help="How fast this slot's LFO cycles, in Hz. Slow rates drift the target control the way a warming-up circuit does; fast ones buzz it per-frame. Lock it to the beat with ♩ in the ⋮ menu."
+                  sync={{
+                    label:
+                      s.syncDiv === undefined
+                        ? null
+                        : SYNC_DIVISIONS[s.syncDiv].label,
+                    live: bpm !== null,
+                    onCycle: () => cycleSlotSync(i),
+                  }}
                   onChange={v => setSlot(i, { rateHz: v })}
                 />
               )}

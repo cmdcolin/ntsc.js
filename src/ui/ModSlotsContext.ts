@@ -22,8 +22,18 @@ export interface ModSlotsApi {
   // 1 is what each slot's own depth says.
   master: number
   setMaster: (v: number) => void
+  // The tempo a clock-locked slot is running against — MIDI clock, or the
+  // hand-set one under it — and null when nothing is providing either, which is
+  // when a rate row shows its lock as set but not live.
+  bpm: number | null
   // Positional edit, from the Modulation section's own rows.
   setSlot: (i: number, patch: Partial<UiSlot>) => void
+  // Walk a slot's rate through the clock divisions and back to free-running.
+  // Two ways in for the same reason the run switch has two: the Modulation
+  // section addresses a slot by position, and a control row only knows the
+  // control it is. Cycling a lock on gives the session a tempo if it has none.
+  cycleSlotSync: (i: number) => void
+  cycleSyncForKey: (key: ControlKey) => void
   // Whole-bay restore, positions kept, so undo resumes phases rather than
   // reseeding them.
   setSlots: (next: readonly UiSlot[]) => void

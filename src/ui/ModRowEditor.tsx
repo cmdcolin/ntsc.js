@@ -2,8 +2,15 @@ import { PASS_THROUGH } from '../signal/modstate'
 import { sliderFor } from './controls'
 import { useControlsApi } from './ControlsContext'
 import { cx } from './cx'
+import { SYNC_DIVISIONS } from './midi'
 import styles from './ModRowEditor.module.css'
-import { EMPTY_SLOT, MOD_SOURCES, RATE_MAX, RATE_MIN } from './modSlots'
+import {
+  EMPTY_SLOT,
+  MOD_SOURCES,
+  RATE_MAX,
+  RATE_MIN,
+  slotRate,
+} from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
@@ -22,7 +29,8 @@ export function ModRowEditor(props: {
   // that flag, and remove is the one action here that ends the editor's subject.
   onDone: () => void
 }) {
-  const { slots, modFor, setSlotForKey, setSlotOn } = useModSlotsApi()
+  const { slots, bpm, modFor, setSlotForKey, setSlotOn, cycleSyncForKey } =
+    useModSlotsApi()
   const { controls } = useControlsApi()
   const key = props.controlKey
   const slot = modFor(key)
@@ -86,11 +94,34 @@ export function ModRowEditor(props: {
           min={RATE_MIN}
           max={RATE_MAX}
           step={0.02}
-          value={slot.rateHz}
+          // What it is running at, which is the tempo's business while the ♩ is
+          // set. The dialed Hz underneath is untouched and comes back when the
+          // lock does off — same as a clock-locked control row.
+          value={slotRate(slot, bpm)}
           defaultValue={EMPTY_SLOT.rateHz}
-          help="How fast this wobble cycles, in Hz. Slow rates drift the control the way a warming-up circuit does; fast ones buzz it per frame."
+          help="How fast this wobble cycles, in Hz. Slow rates drift the control the way a warming-up circuit does; fast ones buzz it per frame. Lock it to the beat with ♩ in the ⋮ menu."
+          sync={{
+            label:
+              slot.syncDiv === undefined
+                ? null
+                : SYNC_DIVISIONS[slot.syncDiv].label,
+            live: bpm !== null,
+            onCycle: () => cycleSyncForKey(key),
+          }}
           onChange={rateHz => setSlotForKey(key, { ...slot, rateHz })}
         />
+      )}
+      {/* Where the beat is coming from, said once, at the only place a lock can
+          be thrown from without the tempo being on screen: the ♩ in this editor
+          is three folds away from the Modulation section that holds the number
+          it reads, so a rate locked from here would otherwise show a division
+          and a Hz with nothing to say what put them together. */}
+      {slot.syncDiv === undefined ? null : (
+        <div className={ui.hint}>
+          ♩{SYNC_DIVISIONS[slot.syncDiv].label} of{' '}
+          {bpm === null ? 'a tempo not set yet' : `${bpm.toFixed(1)} BPM`} — the
+          tempo is at the top of Modulation, below.
+        </div>
       )}
       <Slider
         label="depth"

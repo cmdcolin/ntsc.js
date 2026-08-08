@@ -47,6 +47,7 @@ import { ScenesSection } from './ui/ScenesSection'
 import { Section } from './ui/Section'
 import { SignalPath } from './ui/SignalPath'
 import { SignalPathDialog } from './ui/SignalPathDialog'
+import { SignalTapContext } from './ui/SignalTapContext'
 import { Rack } from './ui/Slider'
 import { Stage } from './ui/Stage'
 import { usePersistedFlag } from './ui/storage'
@@ -68,6 +69,7 @@ import { usePopout } from './ui/usePopout'
 import { useSavedProfiles } from './ui/useSavedProfiles'
 import { useScenes } from './ui/useScenes'
 import { useShortcuts } from './ui/useShortcuts'
+import { useTempo } from './ui/useTempo'
 import { useUrlState } from './ui/useUrlState'
 import { VaporwaveSection } from './ui/VaporwaveSection'
 import { WebcamDialog } from './ui/WebcamDialog'
@@ -142,9 +144,14 @@ export function App() {
     engine === null ? subscribeNever : engine.subscribeControls,
     engine === null ? getDefaultControls : engine.getControls,
   )
+  // MIDI clock when there is one, the hand-set tempo under it when there isn't.
+  // Every ♩ in the panel — the rate control rows, and a modulation slot's rate —
+  // reads this one number.
+  const tempo = useTempo(bpm)
   const { cycleSync, syncLabel, displayValue } = useClockSync({
     controls,
-    bpm,
+    bpm: tempo.bpm,
+    ensureTempo: tempo.ensure,
     writeControl,
   })
   const { popout, openPopout } = usePopout()
@@ -181,7 +188,7 @@ export function App() {
   // The modulation bay, owned here so the panel, the rows and the mix all see
   // one copy. The engine is written to and never read from — it applies the
   // routings inside its own frame and restores, so React has to be the store.
-  const modApi = useModSlots(engine)
+  const modApi = useModSlots(engine, tempo)
   const mix = useMix({
     controls,
     writeControls,
@@ -318,7 +325,7 @@ export function App() {
     armed,
     toggleArm,
     pickup: key => pickups[key],
-    clockLive: bpm !== null,
+    clockLive: tempo.bpm !== null,
     syncLabel,
     cycleSync,
     mutateGroup: mix.mutateGroup,
@@ -548,7 +555,6 @@ export function App() {
     lens,
     onLens: setLens,
     tap: eng.tap,
-    onTap: eng.changeTap,
     frameLock: controls.frameLock,
     onFrameLock: (v: number) => writeControl('frameLock', v),
     onGrabStill: capture.grabStill,
@@ -832,7 +838,7 @@ export function App() {
             onClear={clearScene}
           />
 
-          <ModSection />
+          <ModSection tempo={tempo} />
 
           {/* Only for a clip, not for any live <video>: everything this
               section offers — the rate, the pitch that falls with it, the audio
@@ -892,7 +898,14 @@ export function App() {
         {/* Its own context beside the controls one: a slider drag rewrites
             controls every pointer move, and rebuilding the bay's consumers on
             each of those frames would cost more than the bay ever does. */}
-        <ModSlotsContext value={modApi}>{panelBody}</ModSlotsContext>
+        <ModSlotsContext value={modApi}>
+          {/* And a third beside those two: dbgView lives on the engine, not in
+              Controls, so the View group's tap row needs its own way down to
+              eng.tap/eng.changeTap. */}
+          <SignalTapContext value={{ tap: eng.tap, onTap: eng.changeTap }}>
+            {panelBody}
+          </SignalTapContext>
+        </ModSlotsContext>
       </ControlsContext>
     </FilterContext>
   )

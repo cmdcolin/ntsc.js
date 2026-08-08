@@ -27,9 +27,13 @@ const loadSync = (): SyncMap => {
 export function useClockSync(args: {
   controls: Controls
   bpm: number | null
+  // Called when a lock is switched on, to make sure there is a tempo for it to
+  // read: see Tempo.ensure. Without it the ♩ was a control that did nothing at
+  // all unless something on the wire happened to be sending clock.
+  ensureTempo: () => void
   writeControl: (key: ControlKey, value: number) => void
 }) {
-  const { controls, bpm, writeControl } = args
+  const { controls, bpm, ensureTempo, writeControl } = args
   const [syncMap, setSyncMap] = useState<SyncMap>(loadSync)
 
   const syncLabel = (key: ControlKey): string | null => {
@@ -64,6 +68,11 @@ export function useClockSync(args: {
 
   // Cycle a control through off → each division → off, persisting the choice.
   const cycleSync = (key: ControlKey) => {
+    // Only on the way in: landing back on "off" is not a request for a beat, and
+    // a session that has never had one should not acquire a tempo by switching
+    // the last division off again.
+    const set = syncMap[key]
+    if (set === undefined || set + 1 < SYNC_DIVISIONS.length) ensureTempo()
     setSyncMap(prev => {
       const cur = prev[key]
       const nextIdx = cur === undefined ? 0 : cur + 1

@@ -317,6 +317,21 @@ describe('motion on a link', () => {
     expect(roundTrip(state({ mod })).mod).toEqual(mod)
   })
 
+  it('carries a beat lock, and leaves a free-running rate four fields wide', () => {
+    const locked = [{ ...mod[0], syncDiv: 3 }, mod[1]]
+    const q = writeSessionParams(new URLSearchParams(), state({ mod: locked }))
+    expect(q.get('mod')).toBe('fbZoom:sine:0.5:0.2:3,cfbMix:lorenz:2:0.45')
+    expect(roundTrip(state({ mod: locked })).mod).toEqual(locked)
+  })
+
+  it('drops a division the current list no longer has, keeping the routing', () => {
+    // The reader indexes straight into SYNC_DIVISIONS, so a hand-edited or
+    // outlived index has to come back as a free-running rate rather than as a
+    // lock that throws on the first frame.
+    const [r] = parseSessionParams('?mod=fbZoom:sine:0.5:0.2:99').mod ?? []
+    expect(r).toEqual(mod[0])
+  })
+
   it('says "nothing is moving" out loud rather than by omission', () => {
     // Same argument as the empty ?set= marker: a link is a statement about a
     // session, so a still look has to be distinguishable from an old link that

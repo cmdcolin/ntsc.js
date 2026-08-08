@@ -197,6 +197,13 @@ The **Modulation** section shows all eight slots at once if you would rather
 patch them there — and it is the one place to see the bay as a bay, which is
 what tells you why the ninth ∿ has nowhere to go.
 
+At the top of it is the **tempo**: type a BPM in, or hit **tap** four times on
+the beat. Any wobble's rate can then be locked to it — **♩** in the rate
+slider's **⋮** cycles 1/1, 1/2, 1/4, 1/8, 1/16 and back to free-running, and the
+row shows a **♩1/4** badge while it is locked. The Hz you had dialed in waits
+underneath and comes back when you cycle the lock off. MIDI clock takes the
+tempo over whenever something is sending it — see [MIDI.md](MIDI.md).
+
 ![The app window, the Modulation section with two of its eight slots routed, boxed in red](img/modulation.jpg)
 
 **Sound into the picture** — audio into the hold and deflection circuits: bass

@@ -9,7 +9,14 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS, LANDING_LOOK } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { TELETYPE_DEFAULT, clampCardText } from '../sources/teletype'
-import { N_SLOTS, RATE_MAX, RATE_MIN, modSource, modTarget } from './modSlots'
+import {
+  N_SLOTS,
+  RATE_MAX,
+  RATE_MIN,
+  modSource,
+  modTarget,
+  syncDivision,
+} from './modSlots'
 import { PRESETS, presetControls } from './presets'
 
 import type { Controls } from '../controls'
@@ -83,15 +90,20 @@ function parseSet(raw: string): Partial<Controls> {
   return patch
 }
 
-// `target:source:rateHz:depth` pairs, same separator family as ?set=. Every
-// field is checked against the live schema and the numbers are clamped, so a
-// link outliving a renamed control or carrying a hand-edited depth loses that
-// one routing rather than installing something the panel can't show.
+// `target:source:rateHz:depth` pairs, same separator family as ?set=, with a
+// fifth `:division` on a routing whose rate is locked to the beat. Every field
+// is checked against the live schema and the numbers are clamped, so a link
+// outliving a renamed control or carrying a hand-edited depth loses that one
+// routing rather than installing something the panel can't show.
+//
+// The fifth field is optional at both ends: it is written only by a locked
+// routing, and a link from before it existed simply has four, which is the same
+// thing an unlocked routing writes today.
 function parseMod(raw: string): ModRouting[] {
   const out: ModRouting[] = []
   for (const entry of raw.split(',')) {
     if (out.length === N_SLOTS) break
-    const [t, s, r, d] = entry.split(':')
+    const [t, s, r, d, v] = entry.split(':')
     const target = modTarget(t)
     const source = modSource(s)
     const rateHz = Number(r)
@@ -107,6 +119,7 @@ function parseMod(raw: string): ModRouting[] {
         source,
         rateHz: Math.min(RATE_MAX, Math.max(RATE_MIN, rateHz)),
         depth: Math.min(1, Math.max(0, depth)),
+        ...(v === undefined ? {} : (syncDivision(Number(v)) ?? {})),
       })
     }
   }
@@ -224,7 +237,12 @@ export function writeSessionParams(
   q.set(
     'mod',
     state.mod
-      .map(m => `${m.target}:${m.source}:${short(m.rateHz)}:${short(m.depth)}`)
+      .map(
+        m =>
+          `${m.target}:${m.source}:${short(m.rateHz)}:${short(m.depth)}${
+            m.syncDiv === undefined ? '' : `:${m.syncDiv}`
+          }`,
+      )
       .join(','),
   )
   // A one-shot instruction, not part of the look: once the roll has happened,

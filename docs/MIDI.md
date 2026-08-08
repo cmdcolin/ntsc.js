@@ -153,26 +153,47 @@ weight takes over the moment you touch it — see above for why.
 
 ## Locking a rate to the beat
 
-If your controller or DAW sends **MIDI clock**, the MIDI panel shows the tempo:
-**clock ♩ = 128.0 BPM**. No clock arriving, and it reads **no signal**.
+The beat comes from one of two places. If your controller or DAW sends **MIDI
+clock**, that is the tempo, and the MIDI panel shows it: **clock ♩ = 128.0
+BPM**. With nothing arriving it reads **no signal** and the tempo is instead the
+one at the top of the **Modulation** section — type it in, or hit **tap** four
+times on the beat. Clock wins whenever it is running, and the hand-set number
+waits underneath for it to stop.
 
-Two controls can follow it — **sweep** (the wipe auto-sweep) and **line offset**
-(source B's line rate). Both have a **♩** button. Clicking it cycles through
-1/1, 1/2, 1/4, 1/8, 1/16 and back to off. While locked, the slider is driven by
-the tempo and ignores its own value; stop the clock and it goes back to what it
-was.
+Three kinds of rate can follow the beat, each through the **♩** in its own **⋮**
+menu. Clicking it cycles through 1/1, 1/2, 1/4, 1/8, 1/16 and back to off, and
+the row wears a **♩1/4** badge while it is locked:
+
+- **sweep** — the wipe auto-sweep.
+- **line offset** — source B's line rate.
+- **any modulation slot's rate** — the LFO under a ∿, whether you reach it from
+  the row's own editor or from the Modulation section.
+
+While locked, the rate is driven by the tempo and ignores its own value. The Hz
+you had dialed in is kept underneath, not overwritten, so cycling the lock back
+off returns to it — and so does unplugging a clock with nothing hand-set behind
+it.
+
+Asking for a lock when there is no tempo at all sets one at 120 BPM, rather than
+lighting up a ♩ that changes nothing.
 
 **sweep** tops out at 2 Hz, so past about 120 BPM the fast divisions all pin to
-the ceiling and stop sounding different.
+the ceiling and stop sounding different. A modulation rate tops out at 10 Hz,
+which 1/16 reaches at 150 BPM.
 
-The app only listens for clock ticks and stop. It never sends clock, and there's
-no tap tempo.
+The app only listens for clock ticks and stop. It never sends clock.
 
 ## What sticks around
 
-Bindings and clock-lock settings are saved in this browser and survive reloads.
-They are **not** part of presets, scenes, or the shareable URL — a link you send
-someone carries the look, not your knob layout. There's no way to export a
+Bindings, the hand-set tempo, and the clock locks on **sweep** and **line
+offset** are saved in this browser and survive reloads. They are **not** part of
+presets, scenes, or the shareable URL — a link you send someone carries the
+look, not your knob layout.
+
+A modulation slot's lock is the exception, and deliberately: it rides along on
+the link with the rest of the routing, because "this wobbles on eighth notes" is
+a statement about the patch, and it should land against the tempo of whoever
+opens it. There's no way to export a
 mapping to a file, so a different browser or machine means mapping again.
 
 A preset weight is bound by preset name, so if a preset is ever renamed or

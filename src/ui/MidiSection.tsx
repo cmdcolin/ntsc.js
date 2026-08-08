@@ -165,7 +165,9 @@ export function MidiSection(props: {
           : `clock ♩ = ${props.bpm.toFixed(1)} BPM`}
       </div>
       <div className={ui.dim}>
-        click ♩ on a rate slider to lock it to the beat.
+        ♩ in a rate slider’s ⋮ locks it to the beat — a wipe or a hum bar, and
+        any modulation slot’s rate. With no clock on the wire they read the
+        tempo at the top of Modulation instead.
       </div>
     </Section>
   )

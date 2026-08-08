@@ -190,8 +190,8 @@ function RowMenu(props: {
                   icon="♩"
                   label={
                     sync.label === null
-                      ? 'lock to MIDI clock'
-                      : 'change the clock division'
+                      ? 'lock it to the beat'
+                      : 'change the beat division'
                   }
                   hint={sync.label ?? ''}
                   closes={id}
@@ -359,7 +359,7 @@ export function Slider(props: {
             styles.badge,
             sync.live ? styles.iconOn : styles.iconSyncSet,
           )}
-          title={`clock-synced (${sync.label})${sync.live ? '' : ' — no clock running'}`}
+          title={`locked to the beat (${sync.label})${sync.live ? '' : ' — no tempo yet: set one at the top of Modulation'}`}
         >
           ♩{sync.label}
         </span>
