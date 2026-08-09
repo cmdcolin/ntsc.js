@@ -2,6 +2,11 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.25.1](https://github.com/cmdcolin/ntsc.js/compare/v0.25.0...v0.25.1) - 2026-08-09
+
+### Other Changes
+- [`70b922e`](https://github.com/cmdcolin/ntsc.js/commit/70b922ec61d7e0832f60fd93e82398d44f13bccd) Bump deps
+
 ## [0.25.0](https://github.com/cmdcolin/ntsc.js/compare/v0.24.0...v0.25.0) - 2026-08-09
 
 ### Features
