@@ -65,6 +65,13 @@ export class ModState {
   // survive being sampled at 60 Hz: a press between two frames has to still be
   // there when the next one runs, or firing from a button — or worse, from a
   // drummer — feels like it misses every few hits.
+  //
+  // It waits for the next frame and no longer: `update` empties this whether or
+  // not a routing was there to collect it. An edge held indefinitely stops being
+  // an edge and becomes a queue — press ⚡ on a slot that is parked, or whose
+  // depth is at zero, and the press would sit here until the slot came back and
+  // then fire an envelope nobody asked for, minutes later and at the velocity of
+  // a hit they have forgotten making.
   private fired = new Map<number, number>()
 
   // Fire one routing's one-shot at `level`. `id` is ModWave.id — the slot's
@@ -93,6 +100,21 @@ export class ModState {
     level: number,
     hit: number,
     rand: () => number = Math.random,
+  ): number[] {
+    const out = this.sample(waves, level, hit, rand)
+    // Whatever no routing collected above is dropped, not deferred — see the
+    // note on `fired`. Called every frame, including the ones where the bay is
+    // empty, so a press with nothing running to hear it dies on the next frame
+    // rather than waiting for something to come back.
+    this.fired.clear()
+    return out
+  }
+
+  private sample(
+    waves: readonly ModWave[],
+    level: number,
+    hit: number,
+    rand: () => number,
   ): number[] {
     return waves.map(w => {
       let s = this.waveState.get(w.id)
@@ -151,7 +173,6 @@ export class ModState {
         // gesture instead of a set of ramps ending at different times.
         const struck = this.fired.get(w.id)
         if (struck !== undefined) {
-          this.fired.delete(w.id)
           // Struck *to* the level, not summed onto what is left: a re-hit while
           // the tail is still ringing is a fresh hit at that strength, which is
           // how a drum answers and how the previous envelope stops mattering.

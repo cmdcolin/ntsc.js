@@ -196,6 +196,31 @@ describe('ModState', () => {
       expect(out[0]).toBe(0)
       expect(out[1]).toBeGreaterThan(0.9)
     })
+
+    // A trigger waits for the next frame and no longer. The bay hands the engine
+    // a compacted list, so a parked slot — or one at zero depth — is not on it at
+    // all, and ⚡ on that row used to leave a press sitting in `fired` until the
+    // slot came back. Two seconds or two minutes later the envelope struck
+    // itself, at the velocity of a hit nobody remembered making.
+    it('drops a press no routing was there to collect', () => {
+      const m = new ModState()
+      const parked = [{ id: 3, source: 'trig', rateHz: 2 } as const]
+      m.fire(3)
+      // frames run with slot 3 off the list
+      step(m, [{ id: 0, source: 'sine', rateHz: 1 }], 120)
+      // the run switch goes back on: the slot resumes at rest, not mid-strike
+      expect(step(m, parked, 1)[0]).toBe(0)
+    })
+
+    // The same rule with nothing patched at all, which is the path that only
+    // holds because the engine advances the bay every frame rather than skipping
+    // an empty one.
+    it('drops a press made while the bay is empty', () => {
+      const m = new ModState()
+      m.fire(0)
+      step(m, [], 1)
+      expect(step(m, [{ id: 0, source: 'trig', rateHz: 2 }], 1)[0]).toBe(0)
+    })
   })
 
   it('tracks independent phase per slot', () => {

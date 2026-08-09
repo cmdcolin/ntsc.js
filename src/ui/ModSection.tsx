@@ -182,8 +182,14 @@ export function ModSection(props: { tempo: Tempo }) {
               {/* The only control in the bay you play rather than set. It has
                   to be next to the rate, because the rate is this envelope's
                   decay and the two are read together — press, watch it fall,
-                  adjust, press again. */}
-              {s.source === 'trig' ? (
+                  adjust, press again.
+
+                  Gone while the slot is parked, because ❚❚ means it: a parked
+                  routing is not on the engine's list, so the strike would land
+                  on nothing. The button going with the switch says that, where
+                  a live button that quietly does nothing would read as the
+                  envelope being broken. */}
+              {s.source === 'trig' && s.on ? (
                 <button
                   className={ui.btn}
                   title={`strike slot ${i + 1}'s envelope`}

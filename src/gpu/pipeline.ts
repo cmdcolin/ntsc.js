@@ -1821,12 +1821,16 @@ export class Engine implements EngineApi {
 
   private applyMod(): () => void {
     let restore: () => void = NOOP
+    // Advanced every frame, bay or no bay: with nothing patched this returns an
+    // empty list, and the only work it does is letting an unclaimed trigger
+    // expire (see ModState.update) instead of it queueing up for whenever a
+    // routing next appears.
+    const vals = this.modState.update(
+      this.modSlots,
+      this.audioState.level,
+      this.audioState.hit,
+    )
     if (this.modSlots.length > 0) {
-      const vals = this.modState.update(
-        this.modSlots,
-        this.audioState.level,
-        this.audioState.hit,
-      )
       const saved = this.modSlots.map(
         s => [s.target, this.controls[s.target]] as const,
       )
