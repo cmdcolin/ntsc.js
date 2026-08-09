@@ -5,11 +5,18 @@ import { VideoPump } from './videopump'
 
 import type { PumpedFrame } from './videopump'
 
-// A <video> as far as the pump is concerned: it reads five properties off one
-// and never touches the element otherwise, which is the whole reason this half
-// of the input path is separable from Sources.
-const videoEl = (over: Partial<HTMLVideoElement> = {}) =>
-  ({
+// A <video> as far as the pump is concerned: it reads a handful of properties off
+// one and listens for `seeked`, which is the whole reason this half of the input
+// path is separable from Sources.
+//
+// `fire` is the test's handle on that listener — the wrap's cost is the time from
+// the seek being issued to the decoder saying it landed, so a test that cannot say
+// when it landed cannot exercise the measurement at all.
+type FakeVideo = HTMLVideoElement & { fire: (type: string) => void }
+
+const videoEl = (over: Partial<HTMLVideoElement> = {}): FakeVideo => {
+  const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>()
+  return {
     readyState: 2,
     videoWidth: 640,
     videoHeight: 480,
@@ -18,8 +25,28 @@ const videoEl = (over: Partial<HTMLVideoElement> = {}) =>
     // with a timeline, so a stream arm overrides this with Infinity.
     duration: 30,
     paused: false,
+    addEventListener: (
+      type: string,
+      fn: EventListenerOrEventListenerObject,
+    ) => {
+      const set = listeners.get(type) ?? new Set()
+      set.add(fn)
+      listeners.set(type, set)
+    },
+    removeEventListener: (
+      type: string,
+      fn: EventListenerOrEventListenerObject,
+    ) => {
+      listeners.get(type)?.delete(fn)
+    },
+    fire: (type: string) => {
+      for (const fn of listeners.get(type) ?? []) {
+        if (typeof fn === 'function') fn(new Event(type))
+      }
+    },
     ...over,
-  }) as HTMLVideoElement
+  } as unknown as FakeVideo
+}
 
 // createImageBitmap is the only global the pump calls. Each stub records the
 // calls and hands back a bitmap whose close() is observable, because a leaked
@@ -374,6 +401,154 @@ describe('VideoPump', () => {
 
       pump.pump(s)
       expect(el.currentTime).toBe(9.9)
+    })
+
+    // The wrap-cost measurement, which exists so the panel can tell the user a
+    // clip judders because of how it was encoded (ui/cue.ts reads the threshold).
+    //
+    // The failure mode it has to be held against is reporting nothing, or zero. An
+    // earlier version watched `currentTime` instead of the `seeked` event and did
+    // exactly that: assigning currentTime snaps to a frame boundary, so the write
+    // the wrap made read back as movement and closed the gap instantly.
+    describe('wrap cost', () => {
+      // performance.now() is what the pump times with, so the clock is driven
+      // rather than waited on.
+      const clock = () => {
+        let t = 1000
+        vi.stubGlobal('performance', { now: () => t })
+        return {
+          advance: (ms: number) => {
+            t += ms
+          },
+        }
+      }
+
+      // One lap of a `frameMs`-per-frame clip: move the playhead the way a decoder
+      // would, pumping across each frame like a 60Hz loop. The pump has to run
+      // *after* the playhead moves, or the frame that crosses the out-point never
+      // gets wrapped.
+      const play = (
+        pump: VideoPump,
+        s: ReturnType<typeof sink>,
+        el: FakeVideo,
+        c: ReturnType<typeof clock>,
+        frames: number,
+        frameMs: number,
+      ) => {
+        for (let f = 0; f < frames; f++) {
+          el.currentTime = Number((el.currentTime + frameMs / 1000).toFixed(3))
+          for (let tick = 0; tick < frameMs / 16; tick++) {
+            c.advance(16)
+            pump.pump(s)
+          }
+        }
+      }
+
+      // The decoder taking `ms` to land the wrap's seek, then saying so.
+      const seekTakes = (
+        pump: VideoPump,
+        s: ReturnType<typeof sink>,
+        el: FakeVideo,
+        c: ReturnType<typeof clock>,
+        ms: number,
+      ) => {
+        for (let t = 0; t < ms; t += 16) {
+          c.advance(16)
+          pump.pump(s)
+        }
+        el.fire('seeked')
+      }
+
+      // Six laps of a region, each wrap taking `seekMs` to complete.
+      const laps = (
+        pump: VideoPump,
+        s: ReturnType<typeof sink>,
+        el: FakeVideo,
+        c: ReturnType<typeof clock>,
+        seekMs: number,
+      ) => {
+        for (let lap = 0; lap < 6; lap++) {
+          play(pump, s, el, c, 7, 32) // 1.0 -> 1.224, past a 1.2 out-point
+          expect(el.currentTime).toBe(1)
+          seekTakes(pump, s, el, c, seekMs)
+        }
+      }
+
+      const looping = (el: FakeVideo) => {
+        stubBitmaps()
+        const pump = new VideoPump()
+        const s = sink()
+        pump.setA(el)
+        pump.setRegionA({ start: 1, end: 1.2 })
+        return { pump, s }
+      }
+
+      it('says nothing until a loop has gone round twice', () => {
+        const c = clock()
+        const el = videoEl({ currentTime: 1 })
+        const { pump, s } = looping(el)
+        play(pump, s, el, c, 7, 32)
+        seekTakes(pump, s, el, c, 200)
+        expect(pump.health().a.laps).toBe(1)
+      })
+
+      it('measures a quick wrap as short, and not as zero', () => {
+        const c = clock()
+        const el = videoEl({ currentTime: 1 })
+        const { pump, s } = looping(el)
+        laps(pump, s, el, c, 16)
+
+        const h = pump.health().a
+        expect(h.laps).toBeGreaterThanOrEqual(2)
+        expect(h.medianMs).toBeGreaterThan(0)
+        expect(h.medianMs).toBeLessThan(50)
+      })
+
+      it('measures a stalling wrap in the hundreds of ms', () => {
+        const c = clock()
+        const el = videoEl({ currentTime: 1 })
+        const { pump, s } = looping(el)
+        laps(pump, s, el, c, 208)
+
+        expect(pump.health().a.medianMs).toBeGreaterThan(150)
+      })
+
+      // A seek nobody's wrap asked for — the scrub bar, a retrigger — must not be
+      // counted, or dragging the bar would write a reading the note is rendered
+      // from.
+      it('ignores a seek that was not a wrap', () => {
+        const c = clock()
+        const el = videoEl({ currentTime: 1 })
+        const { pump } = looping(el)
+        c.advance(500)
+        el.fire('seeked')
+        expect(pump.health().a.laps).toBe(0)
+      })
+
+      it('forgets what it measured when the region moves', () => {
+        const c = clock()
+        const el = videoEl({ currentTime: 1 })
+        const { pump, s } = looping(el)
+        laps(pump, s, el, c, 208)
+        expect(pump.health().a.laps).toBeGreaterThanOrEqual(2)
+
+        // A different in-point sits a different distance from a keyframe, so the
+        // old reading says nothing about it.
+        pump.setRegionA({ start: 5, end: 5.2 })
+        expect(pump.health().a.laps).toBe(0)
+      })
+
+      it('stops listening to an element the slot has let go of', () => {
+        const c = clock()
+        const el = videoEl({ currentTime: 1 })
+        const { pump, s } = looping(el)
+        laps(pump, s, el, c, 208)
+        pump.setA(null)
+        // The old element outlives the slot briefly (stopSlot retires it after);
+        // a stray seeked from it must not reach a slot that has moved on.
+        expect(() => el.fire('seeked')).not.toThrow()
+        expect(pump.health().a.laps).toBe(0)
+      })
     })
 
     it('wraps the two slots independently', () => {

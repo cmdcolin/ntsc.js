@@ -204,25 +204,29 @@ costs whatever the decoder has to walk through to get there: from the nearest
 keyframe at or before your in-point, forward, a frame at a time. A file with
 keyframes every half second loops freely anywhere in it. One with four keyframes
 in twenty seconds can stall a fifth of a second on every lap wherever you mark
-it — and how bad that gets depends on the footage as much as on the spacing,
-since a busy frame costs more to decode than a simple one.
+it — and how bad it gets depends on the footage as much as on the spacing, since
+a busy frame costs more to decode than a simple one.
 
-The clips on the shelf here differ by a factor of twenty, measured
+The clips on the shelf here differ by more than ten to one, measured
 (`scripts/loopseek.mjs` takes `--file=` and will say the same about your own
 footage):
 
-| Clip               | Loops                                                    |
-| ------------------ | -------------------------------------------------------- |
-| Minnie the Moocher | cleanly anywhere — a keyframe every 0.4s                 |
-| Popeye             | cleanly anywhere                                         |
-| The Haunted House  | judders every lap — four keyframes in twenty-one seconds |
-| Test pattern       | worst of them — one keyframe in the whole six seconds    |
+| Clip               | Jump back costs | Why                          |
+| ------------------ | --------------- | ---------------------------- |
+| Minnie the Moocher | ~15ms           | a keyframe every 0.4s        |
+| Popeye             | 15–60ms         | every ~3s, and small frames  |
+| Test pattern       | 120–165ms       | one keyframe in six seconds  |
+| The Haunted House  | 130–230ms       | four keyframes in twenty-one |
 
-If a loop judders, two things help: mark it somewhere else in the file, since
-some in-points land near a keyframe and are cheap and there is no way to see
-from here which; or re-export that file with denser keyframes, which is one flag
-to ffmpeg (`-x264-params keyint=30`). Nothing about the loop is wrong when this
-happens and the picture keeps playing — it is the jump back that stalls.
+You do not have to take that on trust or go measuring: with a loop running, the
+cue row shows what its own jump back is costing — `wrap 0.15s`. Under about a
+tenth of a second nothing is visible. Above it the picture catches on every lap,
+and the number is the thing to work against: mark the loop somewhere else and
+watch it change, since some in-points land near a keyframe and are cheap and
+there is no way to see from here which. Failing that, re-export the file with
+denser keyframes, which is one flag to ffmpeg (`-x264-params keyint=30`).
+Nothing about the loop is wrong when this happens and the picture keeps playing
+— it is the jump back that stalls.
 
 Running locally adds a **YouTube…** source (`yt-dlp` on the dev server); the
 hosted build has no server to do that with.

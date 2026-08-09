@@ -56,12 +56,51 @@ interface Region {
   end: number
 }
 
+// What a loop's wrap is actually costing, measured rather than predicted.
+//
+// Worth measuring in the app at all because the cost cannot be predicted from
+// here: it is the decode from the previous keyframe forward to the in-point, and
+// JS cannot see where the keyframes are or how expensive the frames between them
+// are. Two of the four clips this repo ships stall on it (scripts/loopseek.mjs
+// --file=), so it is not a rarity worth ignoring.
+//
+// Measured with the `seeked` event: the decoder's own answer for how long the jump
+// took. That is the instrument scripts/loopseek.mjs validated from the outside —
+// its `seeked` column tracks the visibly dropped frames within about 10%.
+//
+// It replaced a version that watched `currentTime` instead, to avoid putting a
+// listener on an element this class does not own. That was the wrong trade and the
+// harness caught it: assigning `currentTime` snaps to a frame boundary, so the
+// write the wrap absorbs sometimes reads back as movement and closes the gap
+// instantly. It under-reported by two to four times and swung 2x between runs on
+// one clip — 237ms then 122ms where rVFC measured 541ms. A listener is no more
+// invasive than the `currentTime` write already made two lines below it.
+export interface WrapHealth {
+  // Typical time the jump back took, across the wraps measured so far, in ms.
+  // Absolute rather than a ratio: it is what the eye registers, and it needs no
+  // baseline to be meaningful.
+  medianMs: number
+  // Wraps measured. The verdict says nothing below two — the first lap of a
+  // fresh region can be slow for reasons that are not the seek.
+  laps: number
+}
+
+// How many wrap gaps to keep. A median over eight is enough to shrug off the
+// occasional multi-hundred-ms stall that is the compositor's doing rather than
+// the decoder's — which a plain worst-of would report as the loop's fault.
+const WRAP_WINDOW = 8
+
 interface Slot {
   el: HTMLVideoElement | null
   inFlight: boolean
   ready: PumpedFrame | null
   // Where this slot's loop runs, or null for "play straight through".
   region: Region | null
+  // Wrap timing: when the wrap's seek was issued (0 for none outstanding), the
+  // listener that closes it, and the window of durations it has collected.
+  wrapAt: number
+  onSeeked: (() => void) | null
+  wrapGaps: number[]
   // currentTime of the last frame requested. Video plays at its own rate
   // (24/30 fps) under a 60 fps loop, so without this check most requests
   // re-decode a frame the texture already holds. -1 forces the first one.
@@ -78,9 +117,18 @@ const emptySlot = (): Slot => ({
   inFlight: false,
   ready: null,
   region: null,
+  wrapAt: 0,
+  onSeeked: null,
+  wrapGaps: [],
   lastTime: -1,
   gen: 0,
 })
+
+const median = (xs: readonly number[]): number => {
+  if (xs.length === 0) return 0
+  const s = xs.toSorted((a, b) => a - b)
+  return s[Math.floor((s.length - 1) / 2)]
+}
 
 const probe = (el: HTMLVideoElement | null) =>
   el === null
@@ -121,10 +169,12 @@ export class VideoPump {
   // its own end, where `loop` on the element takes over as it always did.
   setRegionA(region: Region | null): void {
     this.a.region = region
+    this.resetHealth(this.a)
   }
 
   setRegionB(region: Region | null): void {
     this.b.region = region
+    this.resetHealth(this.b)
   }
 
   // Everything about the slot goes back to untouched, `inFlight` included. A
@@ -135,6 +185,8 @@ export class VideoPump {
   // decode cleared a flag the *new* one had set, and the next pump started a
   // second decode of a source already being decoded.
   private retarget(slot: Slot, el: HTMLVideoElement | null): void {
+    // Before `slot.el` moves: the old element is where the old listener lives.
+    this.listen(slot, el)
     slot.el = el
     slot.lastTime = -1
     slot.inFlight = false
@@ -147,6 +199,7 @@ export class VideoPump {
     // single frame. The panel clears its own cue on a source change too
     // (videoSlot.ts's stopSlot); this is the half that cannot be forgotten.
     slot.region = null
+    this.resetHealth(slot)
   }
 
   // Once per rendered frame: hand over anything that finished decoding, then
@@ -207,6 +260,56 @@ export class VideoPump {
   // third of a millisecond per frame the decoder has to walk forward, so a
   // normally-encoded clip wraps invisibly and one with no keyframes in it does
   // not.
+  // Watch the playhead so a wrap's cost can be reported. Runs every frame, before
+  // the wrap below, so the "last position the picture was actually at" is current
+  // when a wrap is issued.
+  //
+  // The wrap's own write to currentTime is absorbed rather than counted: it moves
+  // the property instantly while the picture stays on the pre-seek frame, so
+  // treating it as movement would report every stall as zero — the same mistake
+  // the first version of scripts/loopseek.mjs made from the outside.
+  // Listen for the end of a seek on whatever element this slot now holds. One
+  // listener for the life of the element rather than one per wrap: a wrap can fire
+  // several times a second, and adding and removing a listener each time is churn
+  // that also races its own removal.
+  //
+  // A `seeked` with no wrap outstanding is a seek somebody else asked for — the
+  // scrub bar, a retrigger — and is ignored, because it is not what the note is
+  // about. (A retrigger lands on the same in-point and costs the same, so counting
+  // it would not be *wrong*; it is left out so the reading means one thing.)
+  private listen(slot: Slot, el: HTMLVideoElement | null): void {
+    const prev = slot.el
+    if (prev !== null && slot.onSeeked !== null) {
+      prev.removeEventListener('seeked', slot.onSeeked)
+    }
+    slot.onSeeked = null
+    if (el === null) return
+    const handler = () => {
+      if (slot.wrapAt === 0) return
+      const took = performance.now() - slot.wrapAt
+      slot.wrapAt = 0
+      slot.wrapGaps.push(took)
+      if (slot.wrapGaps.length > WRAP_WINDOW) slot.wrapGaps.shift()
+    }
+    slot.onSeeked = handler
+    el.addEventListener('seeked', handler)
+  }
+
+  // Forget what was measured: a different region is a different in-point, and the
+  // cost is a property of where the in-point sits relative to a keyframe.
+  private resetHealth(slot: Slot): void {
+    slot.wrapGaps = []
+    slot.wrapAt = 0
+  }
+
+  health(): { a: WrapHealth; b: WrapHealth } {
+    const read = (s: Slot): WrapHealth => ({
+      medianMs: median(s.wrapGaps),
+      laps: s.wrapGaps.length,
+    })
+    return { a: read(this.a), b: read(this.b) }
+  }
+
   private wrap(slot: Slot): void {
     const el = slot.el
     const r = slot.region
@@ -217,7 +320,12 @@ export class VideoPump {
     // against a playhead that never comes back — and the guard belongs here
     // rather than at each caller, because this is the line that would do it.
     if (!Number.isFinite(el.duration)) return
-    if (el.currentTime >= r.end) el.currentTime = r.start
+    if (el.currentTime < r.end) return
+    // Stamped before the assignment: `seeked` can fire synchronously for a seek
+    // that is already satisfied, and a handler finding wrapAt still 0 would drop
+    // the cheapest wraps and leave the median reading only the expensive ones.
+    slot.wrapAt = performance.now()
+    el.currentTime = r.start
   }
 
   private take(slot: Slot): PumpedFrame | null {
@@ -336,6 +444,7 @@ export class VideoPump {
     // this and must find the flag already set.
     this.disposed = true
     for (const slot of [this.a, this.b]) {
+      this.listen(slot, null)
       slot.el = null
       slot.ready?.bmp.close()
       slot.ready = null

@@ -64,6 +64,19 @@
   color: var(--fg4);
   font-size: var(--fs-xs);
 }
+/* "wrap 0.15s" — the measured cost of the jump back. Deliberately in the quiet
+   foreground rather than the panel's amber: it is a reading, not a warning, and
+   the number cannot be thresholded honestly (see ui/cue.ts). Dotted underline to
+   say the tooltip carries the explanation, the way prose marks a term with a
+   definition behind it. */
+.cueWrap {
+  color: var(--fg4);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  text-decoration: underline dotted;
+  cursor: help;
+}
 .scrubTime {
   flex-shrink: 0;
   color: var(--fg3);

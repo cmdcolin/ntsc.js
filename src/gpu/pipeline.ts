@@ -85,7 +85,7 @@ import type { DestroyOptions, EngineApi } from './engineapi'
 import type { FeedSource } from './feedgates'
 import type { ParamName } from './prelude'
 import type { FrozenKind } from './renderloop'
-import type { PumpedFrame } from './videopump'
+import type { PumpedFrame, WrapHealth } from './videopump'
 
 const N = SAMPLES_PER_LINE * LINES
 const LINE_PARAM_BYTES = LINES * 16
@@ -1254,6 +1254,10 @@ export class Engine implements EngineApi {
 
   setVideoRegionB(region: { start: number; end: number } | null): void {
     this.pump.setRegionB(region)
+  }
+
+  loopHealth(): { a: WrapHealth; b: WrapHealth } {
+    return this.pump.health()
   }
 
   setNoiseSourceB(kind: number): void {

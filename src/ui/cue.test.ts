@@ -8,6 +8,7 @@ import {
   insideCue,
   MIN_CUE_LOOP,
   parseCue,
+  wrapCostMs,
   tapCue,
 } from './cue'
 
@@ -92,6 +93,25 @@ describe('insideCue', () => {
 
   it('is false for a cue with no loop', () => {
     expect(insideCue({ in: 3, out: null }, 3)).toBe(false)
+  })
+})
+
+// The threshold that decides whether the panel says anything. The measuring is
+// the pump's (gpu/videopump.test.ts); this is the judgement about what a user is
+// worth telling, which is why it is a separate, testable piece.
+describe('wrapCostMs', () => {
+  it('says nothing until two laps have been measured', () => {
+    // The first wrap of a fresh region pays for a decode nothing has warmed up.
+    expect(wrapCostMs({ medianMs: 500, laps: 1 })).toBe(null)
+    expect(wrapCostMs({ medianMs: 500, laps: 2 })).toBe(500)
+  })
+
+  // No threshold, on purpose — see the note in cue.ts. A cheap wrap reports its
+  // number just as an expensive one does, because the number is the useful thing
+  // and the verdict was the part that could not be calibrated.
+  it('reports a cheap wrap as readily as an expensive one', () => {
+    expect(wrapCostMs({ medianMs: 15, laps: 8 })).toBe(15)
+    expect(wrapCostMs({ medianMs: 233, laps: 8 })).toBe(233)
   })
 })
 

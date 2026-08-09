@@ -36,6 +36,7 @@ import type { AudioState } from '../signal/audiostate'
 import type { GlidePlan } from '../signal/glide'
 import type { StabPlan } from '../signal/stab'
 import type { FrozenKind } from './renderloop'
+import type { WrapHealth } from './videopump'
 
 export interface DestroyOptions {
   // Leave the audio graph open, because a successor engine is taking it over.
@@ -135,6 +136,11 @@ export interface EngineApi {
   setImageSourceB: (source: OffscreenCanvas | ImageBitmap) => void
   setVideoSourceB: (el: HTMLVideoElement | null) => void
   setVideoRegionB: (region: { start: number; end: number } | null) => void
+  // What each slot's loop wrap is actually costing, for the note the cue row
+  // shows when a clip's encoding makes looping it judder. Polled rather than
+  // pushed: the panel already reads the playheads at 10 Hz and this rides along
+  // in the same tick, where a callback per wrap would be React work at loop rate.
+  loopHealth: () => { a: WrapHealth; b: WrapHealth }
   setNoiseSourceB: (kind: number) => void
   setSourceBEnabled: (on: boolean) => void
   // Whether B is summing into the picture. The panel's mode enum is a different

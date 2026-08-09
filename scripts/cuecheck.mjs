@@ -93,7 +93,13 @@ const arm = async (label, query, during) => {
     await new Promise(r => setTimeout(r, WATCH_MS))
     // The jsonValue round-trips are async; let the last few land.
     await new Promise(r => setTimeout(r, 800))
-    return { label, times, urlAfter, pressedAt }
+    // What the app itself concluded about the wrap cost, off the engine the
+    // harnesses already reach through. This is the number the cue row's "stalls
+    // Nx" note is rendered from.
+    const health = await page
+      .evaluate(() => window.vf?.loopHealth?.().a ?? null)
+      .catch(() => null)
+    return { label, times, urlAfter, pressedAt, health }
   } finally {
     await browser.close().catch(() => {})
     await new Promise(r => setTimeout(r, 700))
@@ -141,7 +147,45 @@ results.push(
 )
 results.push(await armTwice('control', '?vurl=/test.mp4&debug'))
 
+// Does the app's own wrap-cost reading agree with what loopseek measures from the
+// outside? Two clips in public/, looped at the same in-point, differing only in how
+// they were encoded: test.mp4 has one keyframe in six seconds, demo-v2.mp4 one every
+// ~0.45s.
+//
+// The assertion is the **ordering**, not a threshold, and that is the finding rather
+// than a convenience. The absolute numbers move by about 2x with machine load — the
+// same file and in-point has read 137ms and 513ms on this box — so a fixed cutoff
+// misclassifies one clip or the other depending on what else is running. The
+// ordering has held across every run, which is what the panel's readout relies on
+// and all it claims.
+const stallArms = [
+  { label: 'enc:sparse', file: 'test.mp4' },
+  { label: 'enc:dense', file: 'demo-v2.mp4' },
+]
+const encRead = {}
+for (const a of stallArms) {
+  const r = await armTwice(a.label, `?vurl=/${a.file}&cuea=5.1,5.4&debug`)
+  const h = r.health
+  encRead[a.label] = h
+  console.log(
+    `${a.label.padEnd(11)} laps=${h?.laps ?? 0} ` +
+      `wrap=${h?.medianMs?.toFixed(0) ?? '--'}ms`,
+  )
+}
+
 const fails = []
+const sparse = encRead['enc:sparse']
+const dense = encRead['enc:dense']
+if ((sparse?.laps ?? 0) < 2 || (dense?.laps ?? 0) < 2) {
+  fails.push('enc: one of the arms never measured two laps')
+} else if (!(sparse.medianMs > dense.medianMs * 1.4)) {
+  fails.push(
+    `enc: sparse ${sparse.medianMs.toFixed(0)}ms should clearly exceed dense ` +
+      `${dense.medianMs.toFixed(0)}ms — the reading has stopped tracking how the ` +
+      'clip was encoded',
+  )
+}
+
 for (const r of results) {
   const cue = cueFromUrl(r.urlAfter)
   // Only the samples taken after the cue existed can be judged against it.
@@ -163,14 +207,21 @@ for (const r of results) {
   // the sample can legitimately sit just past it.
   if (cue !== null && cue.out !== null) {
     const inside = after.every(t => t >= cue.in - 0.05 && t <= cue.out + 0.1)
+    const moved = new Set(after).size
+    // Wraps *seen* in the samples, reported but not asserted on. The ?debug log
+    // prints every 30 frames — about twice a second — so a sub-second loop aliases
+    // against it and a run can show one backward step or none while looping
+    // perfectly. That cost a false failure.
+    //
+    // Confinement plus movement is the proof and needs no lap count: a paused clip
+    // would show one distinct value, and one playing freely would have covered most
+    // of its six seconds instead of staying inside a 0.4s window.
     const laps = after.filter((t, i) => i > 0 && t < after[i - 1]).length
     console.log(
-      `         confined: ${inside ? 'yes' : 'NO'}, laps: ${laps}, distinct: ${new Set(after).size}`,
+      `         confined: ${inside ? 'yes' : 'NO'}, moving: ${moved}, wraps seen: ${laps}`,
     )
     if (!inside) fails.push(`${r.label}: left its region`)
-    if (laps < 2) fails.push(`${r.label}: did not lap`)
-    // A loop that stopped delivering new frames is a still, not a loop.
-    if (new Set(after).size < 3) fails.push(`${r.label}: stopped moving`)
+    if (moved < 3) fails.push(`${r.label}: stopped moving`)
   }
 }
 

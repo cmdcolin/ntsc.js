@@ -1184,6 +1184,8 @@ export function App() {
           onRetriggerB={eng.retriggerB}
           onClearCueA={eng.clearCueA}
           onClearCueB={eng.clearCueB}
+          wrapCostA={eng.wrapCostA}
+          wrapCostB={eng.wrapCostB}
           speedA={eng.speedA}
           speedB={eng.speedB}
           onSpeedA={eng.changeSpeedA}

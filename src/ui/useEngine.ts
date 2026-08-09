@@ -21,7 +21,14 @@ import { smpteBars, sweep } from '../sources/pattern'
 import { TELETYPE_DEFAULT } from '../sources/teletype'
 import { ytId } from '../sources/youtube'
 import { backingStoreSize } from './canvasSize'
-import { cueLooping, cueRegion, dropLoop, insideCue, tapCue } from './cue'
+import {
+  cueLooping,
+  cueRegion,
+  dropLoop,
+  insideCue,
+  wrapCostMs,
+  tapCue,
+} from './cue'
 import { clearStash, readStash, stashClip, stashFile } from './fileStash'
 import { canPickHandle, pickHandle } from './fsAccess'
 import { randomPresetMix, rollControls } from './presets'
@@ -377,6 +384,13 @@ export function useEngine() {
   // Deliberately not controls. A cue is two timestamps into one particular clip,
   // so a preset that recalled them would be pointing at nothing, and mutate would
   // cheerfully scramble them mid-take (see ui/cue.ts).
+  // What each slot's loop is spending on the jump back, in ms, or null before
+  // there is a reading. Read off the pump in the playhead tick below rather than
+  // pushed, because a wrap is not a React event and there can be several a second.
+  const [stall, setStall] = useState<{
+    a: number | null
+    b: number | null
+  }>({ a: null, b: null })
   const cueRef = useRef<{ a: Cue | null; b: Cue | null }>({ a: null, b: null })
   const [cue, setCueState] = useState<{ a: Cue | null; b: Cue | null }>({
     a: null,
@@ -525,6 +539,12 @@ export function useEngine() {
         setTransport(prev =>
           samePlayhead(prev.a, a) && samePlayhead(prev.b, b) ? prev : { a, b },
         )
+        const h = engineRef.current?.loopHealth()
+        const next = {
+          a: h === undefined ? null : wrapCostMs(h.a),
+          b: h === undefined ? null : wrapCostMs(h.b),
+        }
+        setStall(prev => (prev.a === next.a && prev.b === next.b ? prev : next))
       }, 100)
     }
     return () => clearInterval(id)
@@ -1840,6 +1860,10 @@ export function useEngine() {
     retriggerB: () => retriggerOn('b'),
     clearCueA: () => clearCueOn('a'),
     clearCueB: () => clearCueOn('b'),
+    // Measured, not predicted: what the jump back costs this clip at this
+    // in-point. Reported as a number rather than judged — see ui/cue.ts.
+    wrapCostA: stall.a,
+    wrapCostB: stall.b,
     speedA,
     speedB,
     reverb,

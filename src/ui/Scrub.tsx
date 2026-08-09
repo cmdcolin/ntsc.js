@@ -79,6 +79,10 @@ export function CueRow(props: {
   onTap: () => void
   onRetrigger: () => void
   onClear: () => void
+  // What the jump back is costing, in ms, or null before there is a reading.
+  // Reported, not judged — see the note on wrapCostMs in ui/cue.ts for why there
+  // is no threshold behind this.
+  wrapCost: number | null
   // Which slot's keys to name in the tooltips. The bindings live in
   // useShortcuts; naming them here is what makes them findable, since a key
   // nothing mentions is a key nobody presses.
@@ -127,6 +131,28 @@ export function CueRow(props: {
           ✕
         </button>
       )}
+      {/* What this particular wrap costs, measured on this clip at this in-point
+          over the laps it has run. Quiet, and stated rather than judged: anyone who
+          does not care about it can ignore a small grey number, and anyone who does
+          can re-mark the loop and watch it change, which is the actual remedy. A
+          threshold could only have said "bad" — and could not be calibrated
+          (ui/cue.ts). Inline rather than a second row: the panel is 332px. */}
+      {looping && props.wrapCost !== null ? (
+        <span
+          className={styles.cueWrap}
+          title={
+            'What the jump back to the in-point costs, measured. The decoder has to ' +
+            'start at the last keyframe before your in-point and decode forward to it, ' +
+            'so this is set by how the file was encoded, not by the loop.\n\n' +
+            'Under about 0.1s nothing is visible. Higher than that the picture catches ' +
+            'on every lap: mark the loop somewhere else and watch this number — some ' +
+            'in-points land near a keyframe and are cheap — or re-export the file with ' +
+            'denser keyframes (ffmpeg -x264-params keyint=30).'
+          }
+        >
+          wrap {(props.wrapCost / 1000).toFixed(2)}s
+        </span>
+      ) : null}
     </div>
   )
 }

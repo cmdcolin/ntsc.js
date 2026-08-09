@@ -547,19 +547,19 @@ clamp is `VideoPump.wrap`. Three things around it are deliberately not done.
   machine with no tempo set, which is most of them. The free-marked loop works
   everywhere and is the thing worth having first.
 
-- **Telling the user a cue will judder.** This was declined on the grounds that
-  only a pathological encode hitches, and then measuring the real shelf
-  falsified that: `scripts/loopseek.mjs --file=` puts `public/test.mp4` at 541ms
-  a lap and `example-haunted-house` at 172-209ms _anywhere in it_, against a
-  42ms frame interval — two of the four bundled clips. So the case for it is now
-  made rather than hypothetical. The mechanism is cheap: time the wrap's own
-  seek with the `seeked` event, which tracks the visible gap within about 10%,
-  so one lap is enough to know. What is not obvious is what to _do_ with the
-  answer — a warning on the cue row costs panel space for something the user
-  cannot fix in the app, and the honest remedies are "mark it somewhere else" or
-  "re-export the file". `fastSeek()` is the other lever and is not a free win:
-  it lands on a keyframe, which on a 5s-GOP clip can be seconds outside a short
-  loop.
+- **Judging the wrap cost rather than reporting it.** The cue row now shows what
+  a loop's jump back is measuring (`wrap 0.15s`, off the `seeked` event in
+  `VideoPump`), and deliberately makes no claim about whether that is bad. Two
+  goes at a threshold were both wrong, and the second is the one worth
+  remembering: at 2.2x-the-frame-cadence it fired on `public/demo-v2.mp4`, a
+  _well_ encoded file, which the enc:dense arm of `scripts/cuecheck.mjs` caught.
+  Re-measuring then showed why no cutoff works here — the reproducible gap
+  between the fine tier (~90ms) and the slow tier (~150ms) is about the size of
+  the run-to-run variance on a loaded machine, and one early reading of 513ms on
+  a file that otherwise sits near 150ms is how much a single sample is worth. A
+  verdict is buildable on a quiet machine with a proper distribution behind it;
+  it was not buildable from what was measured here, and a readout the user can
+  re-mark against turned out to be more useful than a label anyway.
 
 A last one is a real limit rather than a choice: the wrap is a hard cut in the
 clip's audio, audible as a click when playback audio is on. Nothing short of a

@@ -132,6 +132,8 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
   onRetrigger: () => void
   onClearCue: () => void
   cueKeys: { tap: string; retrigger: string }
+  // The measured cost of this slot's loop wrap, or null before there is a reading.
+  wrapCost: number | null
   // Playback rate, and the pitch that falls with it — a property of this deck
   // and nothing else, which is why it sits under this slot's own transport
   // rather than in a "Vaporwave" section that named the sound it makes instead
@@ -209,6 +211,7 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
             onRetrigger={props.onRetrigger}
             onClear={props.onClearCue}
             keys={props.cueKeys}
+            wrapCost={props.wrapCost}
           />
           <Slider
             label="speed"
@@ -276,6 +279,8 @@ export function InputSection(props: {
   onRetriggerB: () => void
   onClearCueA: () => void
   onClearCueB: () => void
+  wrapCostA: number | null
+  wrapCostB: number | null
   // Playback rate per slot, under that slot's own transport.
   speedA: number
   speedB: number
@@ -324,6 +329,7 @@ export function InputSection(props: {
           onRetrigger={props.onRetriggerA}
           onClearCue={props.onClearCueA}
           cueKeys={CUE_KEYS.a}
+          wrapCost={props.wrapCostA}
           speed={props.speedA}
           onSpeed={props.onSpeedA}
           wiki={props.wikiA}
@@ -361,6 +367,7 @@ export function InputSection(props: {
           onRetrigger={props.onRetriggerB}
           onClearCue={props.onClearCueB}
           cueKeys={CUE_KEYS.b}
+          wrapCost={props.wrapCostB}
           speed={props.speedB}
           onSpeed={props.onSpeedB}
           wiki={props.wikiB}

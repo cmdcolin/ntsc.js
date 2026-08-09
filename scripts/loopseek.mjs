@@ -59,28 +59,38 @@
 // decode as exists. Measured with `--file=` on what this repo actually ships, the
 // same "frames back" buys an order of magnitude more:
 //
-//   file                in-point  frames back  wrap gap  seeked   verdict
-//   public/test.mp4         0.9s           27      83ms    73ms   visible seam
-//   public/test.mp4         5.1s          153     541ms   513ms   HITCH (12.9x)
-//   example-haunted-house   3.18s          95     172ms   171ms   HITCH (4.1x)
-//   example-haunted-house  17.99s          89     209ms   194ms   HITCH (5.0x)
-//   example-popeye          3.39s           35      96ms    64ms   free (1.5x)
-//   example-popeye         19.23s           63      62ms    39ms   free (1.0x)
-//   example-minnie-moocher any            <12      21ms    14ms   free
+//   file                    in-point   seeked, across runs
+//   example-minnie-moocher   any         12-15ms
+//   example-popeye           any         15-64ms
+//   public/demo-v2.mp4       5.1s        62-90ms
+//   public/test.mp4          0.9s        73-96ms
+//   public/test.mp4          5.1s       122-165ms  (one run: 513ms)
+//   example-haunted-house    3.18s      128-171ms
+//   example-haunted-house   17.99s      194-233ms
 //
-// test.mp4 at 5.1s is ~3.4ms a frame against the synthetic 0.33ms. So the only
-// honest general statement is the *ordering*: denser keyframes are cheaper, and
-// the constant has to be measured per file.
+// **Read the ordering, not the numbers.** Those are ranges because the absolute
+// values move by about 2x with whatever else is running on the machine, and the
+// outlier in brackets is real: one early run had test.mp4 at 513ms where every
+// later run put it near 150ms. A single reading of this is worth very little, and
+// a per-frame constant fitted to one is worth less — which is how the synthetic
+// 0.33ms figure above came to be quoted as if it were general.
+//
+// What *is* stable across every run is the ranking, and it is the ranking the
+// keyframe spacing predicts. So: denser keyframes are cheaper; measure the file you
+// care about; and do not build a threshold on top of this without checking it on a
+// quiet machine, because the gap between the fine tier (~90ms) and the slow tier
+// (~150ms) is about the size of the run-to-run noise.
 //
 // Two consequences for anything built on this:
 //
 //   - **This is not a rare pathology.** Two of the four clips on this repo's own
-//     shelf hitch: test.mp4 (one IDR in 180 frames) everywhere including near the
-//     start, and haunted-house (four keyframes in 21s) everywhere. The cartoons
-//     are stream-copied excerpts and were never encoded for seeking.
-//   - JS cannot see where the keyframes are. What it CAN do is time the wrap's own
-//     seek via the `seeked` event — the column above tracks the wrap gap within
-//     about 10%, so one lap is enough to know whether a given cue will be smooth.
+//     shelf are in the slow tier: test.mp4 (one IDR in 180 frames) and
+//     haunted-house (four keyframes in 21s), the latter anywhere in the file. The
+//     cartoons are stream-copied excerpts and were never encoded for seeking.
+//   - JS cannot see where the keyframes are, but it can time the wrap's own seek
+//     with the `seeked` event, which tracks the visible gap within about 10%. The
+//     app does exactly that and shows the number on the cue row — a number and not
+//     a warning, for the calibration reason above (see ui/cue.ts).
 //     `fastSeek()` is the other lever and is not a free win: it lands on a
 //     keyframe, which on a 5s-GOP clip can be seconds outside a short loop.
 //

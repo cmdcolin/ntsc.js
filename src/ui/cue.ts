@@ -98,6 +98,38 @@ export const dropLoop = (cue: Cue | null): Cue | null =>
 export const insideCue = (cue: Cue | null, time: number): boolean =>
   cueLooping(cue) && time >= cue.in && time <= cue.out
 
+// What the jump back is costing this loop, in ms, or null before there is a
+// reading. Measured by the pump off the `seeked` event (gpu/videopump.ts).
+//
+// **Deliberately not a verdict.** Two attempts at thresholding this were both
+// wrong, and the second failure is the instructive one. Reproducible medians,
+// `scripts/loopseek.mjs --file=` and the enc arms of `scripts/cuecheck.mjs`:
+//
+//   example-minnie-moocher   keyframe every 0.4s    12-15ms
+//   example-popeye           every ~3.2s, 320x240   15-25ms
+//   public/demo-v2.mp4       every ~0.45s           64-90ms
+//   public/test.mp4          1 in 6s               137-165ms
+//   example-haunted-house    4 in 21s              128-233ms
+//
+// The ordering is stable across runs; the absolute numbers move by about 2x with
+// what else is running on the machine. Which means the gap between "fine" (~90ms)
+// and "slow" (~150ms) is the same size as the noise, so any fixed threshold
+// misclassifies one of them some of the time — a note that cries wolf on demo-v2,
+// or stays silent on haunted-house, depending on the day.
+//
+// So the panel reports the number and makes no claim about it. That has a real
+// advantage over a warning as well as being the honest option: the remedy is to
+// mark the loop somewhere else, and a live number is something you can re-mark
+// against and watch change. A threshold could only ever have said "bad".
+export function wrapCostMs(health: {
+  medianMs: number
+  laps: number
+}): number | null {
+  // One lap says nothing: the first wrap of a fresh region pays for a decode
+  // nothing has warmed up yet.
+  return health.laps >= 2 ? health.medianMs : null
+}
+
 // How a cue reads in a link: `in,out`, or just `in` when there is no loop.
 // Rounded to milliseconds, which is finer than anything a hand can mark and
 // keeps a shared link from carrying sixteen digits of float.
