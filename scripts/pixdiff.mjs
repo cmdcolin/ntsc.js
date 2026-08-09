@@ -28,6 +28,32 @@
 //   either exactly 0 or exactly mean ~0.6/255 with a max of 108 at one fixed
 //   pixel — never anything between, which is the tell. Handled here by grabbing
 //   two consecutive frames per arm and taking the better of the two alignments.
+//
+// Both of those are the same root cause, and it bounds what this script can
+// compare at all: the two arms stop the loop at DIFFERENT absolute frame
+// counts, so anything keyed to that counter cannot match and no alignment
+// trick will save it. Establish the floor for the exact `?set=` you intend to
+// A/B, not for a bare one — a control that looks innocent can put the floor at
+// mean 30/255. Three families are out of reach:
+//
+//   - GPU noise seeded on P.frame: trackAmt, headClog, headSwitchNoise,
+//     dropoutRate, tapeWear, tapeSplice, rfSnow, humAmp (its bar creeps per
+//     frame), and anything that lands in rfNull/dropoutNull.
+//   - CPU state advanced per frame or seeded per session: the impulse storm
+//     clustering, the adjacent channel's wander, ingress keying, a paused
+//     deck's servo (aPause/bPause), the time-base walk behind shuttleX.
+//   - Loops above unity round-trip gain: cfbMix or tapeMix wound up is chaotic
+//     by design, so it never forgets where it started. A SUB-unity loop does
+//     converge to a session-independent fixed point and reads a clean 0 —
+//     cfbMix 0.3 / cfbGain 0.5 / cfbFilterBoost 1 is a working resonant-loop
+//     arm, and it is the strictest check there is on anything inside the loop,
+//     because a one-bit error compounds every lap instead of averaging out.
+//
+// What IS comparable, and covers most of the signal path: accLagLines,
+// colorUnderMix, combMode, chromaCoarse, svideoBleed, scramble, termination,
+// vbi, mvAgcIre, mvStripe, dropoutComp, and the whole deflection/faceplate set
+// (vSize, bendAmt, hvSag, crtSpot, crtConverge, crtSvm, crtPurity, maskAmt,
+// crtZoom). Those hold a floor of 0 together.
 
 import puppeteer from 'puppeteer-core'
 
