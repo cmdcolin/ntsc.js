@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 
 import { writeProfileParams, writeSessionParams } from './urlParams'
 
@@ -43,9 +43,9 @@ const linkFor = (query: string) =>
   `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
 
 // Mirrors the live look into the query string so a reload or shared link
-// restores it, and hands back a copy-to-clipboard action with its transient
-// "copied" flash — plus the two halves the saved-look library needs: the query
-// string for the look on screen, and the link for a query string it kept.
+// restores it, and hands back a copy-to-clipboard action — plus the two halves
+// the saved-look library needs: the query string for the look on screen, and the
+// link for a query string it kept.
 export function useUrlState({
   controls,
   mod,
@@ -62,8 +62,6 @@ export function useUrlState({
   cueA,
   cueB,
 }: UrlStateArgs) {
-  const [copied, setCopied] = useState(false)
-
   // The whole query-string rule lives in urlParams beside the parser that has
   // to read it back; what is left here is the browser half — which params are
   // already on the address bar, and where the link points.
@@ -126,13 +124,7 @@ export function useUrlState({
   }, [engineReady, stateUrl])
 
   const copyLink = () => {
-    navigator.clipboard
-      .writeText(stateUrl())
-      .then(() => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1200)
-      })
-      .catch(() => {})
+    navigator.clipboard.writeText(stateUrl()).catch(() => {})
   }
 
   // What a saved look records — the same serialization, minus the params that
@@ -147,5 +139,5 @@ export function useUrlState({
     navigator.clipboard.writeText(linkFor(query)).catch(() => {})
   }
 
-  return { copyLink, copied, profileQuery, copyQuery }
+  return { copyLink, profileQuery, copyQuery }
 }

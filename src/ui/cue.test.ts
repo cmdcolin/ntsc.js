@@ -58,6 +58,29 @@ describe('tapCue', () => {
   it('does not clamp against an unknown duration', () => {
     expect(tapCue(null, 4.2, 0)).toEqual({ in: 4.2, out: null })
   })
+
+  // The same collapse from the other end. Both marks land on the last frame, the
+  // clamp has nowhere later to put the out-point, and the region the pump would
+  // get is empty — a seek every frame against a playhead already past the end.
+  // The minimum is held by moving the in-point back instead.
+  it('holds the minimum against a cue marked at the very end', () => {
+    const armed = tapCue(null, DUR, DUR)
+    const looping = tapCue(armed, DUR, DUR)
+    expect(looping).toEqual({ in: DUR - MIN_CUE_LOOP, out: DUR })
+    expect(cueRegion(looping)).toEqual({
+      start: DUR - MIN_CUE_LOOP,
+      end: DUR,
+    })
+  })
+
+  // A clip shorter than the minimum loop cannot have one, so it gets the whole
+  // clip rather than a region starting before its own beginning.
+  it('gives a clip shorter than the minimum its whole timeline', () => {
+    expect(tapCue(tapCue(null, 0.05, 0.05), 0.05, 0.05)).toEqual({
+      in: 0,
+      out: 0.05,
+    })
+  })
 })
 
 describe('cueRegion', () => {

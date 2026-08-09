@@ -320,6 +320,13 @@ export class VideoPump {
     // against a playhead that never comes back — and the guard belongs here
     // rather than at each caller, because this is the line that would do it.
     if (!Number.isFinite(el.duration)) return
+    // An empty region is the same shape of fault one line down: the playhead is
+    // never strictly before the end, so every frame issues a seek that lands
+    // right back where the test fails again, and the slot pins on one frame while
+    // the decoder is asked to jump sixty times a second. `tapCue` and `parseCue`
+    // both hold a non-empty span, but `setVideoRegion` is on the public engine
+    // API that the harnesses drive, and this is the line that would spin.
+    if (r.end <= r.start) return
     if (el.currentTime < r.end) return
     // Stamped before the assignment: `seeked` can fire synchronously for a seek
     // that is already satisfied, and a handler finding wrapAt still 0 would drop

@@ -83,7 +83,22 @@ export function tapCue(cue: Cue | null, time: number, duration: number): Cue {
   if (cue === null || cue.out !== null) return { in: t, out: null }
   const lo = Math.min(cue.in, t)
   const hi = Math.max(cue.in, t)
-  return { in: lo, out: clampTo(Math.max(hi, lo + MIN_CUE_LOOP), duration) }
+  const out = clampTo(Math.max(hi, lo + MIN_CUE_LOOP), duration)
+  // The widening above buys the minimum length by pushing the out-point later,
+  // and at the very end of a clip there is nowhere later to push it: the clamp
+  // hands it straight back onto the in-point, and a zero-length region is the one
+  // shape the pump cannot survive. `wrap` re-seeks whenever the playhead is not
+  // strictly before the end, so an empty region seeks every single frame and pins
+  // the slot on one frame — the freeze parseCue already refuses to install off a
+  // link, arriving instead from a cue marked twice against the last frame. With
+  // no room after the marks, the in-point is what gives way.
+  //
+  // Only when the span has actually collapsed, and not "whenever it came out
+  // under the minimum": a region shorter than MIN_CUE_LOOP but non-empty is the
+  // fair stutter described above and wraps perfectly well, while re-deriving the
+  // in-point on every ordinary tap would walk it a float's width off the mark the
+  // hand made.
+  return { in: out > lo ? lo : Math.max(0, out - MIN_CUE_LOOP), out }
 }
 
 // Let go of the loop but keep the cue. What a seek out of the region does: the

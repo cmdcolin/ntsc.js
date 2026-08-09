@@ -55,9 +55,6 @@ export const uvInRect = (r: DOMRect, clientX: number, clientY: number) => ({
   v: clamp01((clientY - r.top) / r.height),
 })
 
-export const uvIn = (el: Element, clientX: number, clientY: number) =>
-  uvInRect(el.getBoundingClientRect(), clientX, clientY)
-
 export interface WipeShape {
   // Distance function from mix_b.wgsl: B wins where wipePos exceeds it, so the
   // value under the cursor IS the lever position that puts the edge there.

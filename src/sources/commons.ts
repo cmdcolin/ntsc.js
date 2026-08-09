@@ -153,8 +153,6 @@ const COMMONS_ID_SET: ReadonlySet<string> = new Set(COMMONS_IDS)
 export const isCommonsId = (mode: string): mode is CommonsId =>
   COMMONS_ID_SET.has(mode)
 
-export const commonsKind = (id: CommonsId): CommonsKind => COMMONS[id].kind
-
 // What a roll hands back: a URL the <video>/image path can take as-is, plus the
 // Commons page title for the caption. `title` is what the picker cannot say —
 // two rolls of the same channel are different pictures, and this is the only
