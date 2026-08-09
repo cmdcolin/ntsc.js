@@ -532,15 +532,14 @@ The layering is worth knowing before changing any of it:
   type both roll, and the two real differences ride on it as fields (`owned` for
   the archive.org blob, `kind` for Commons stills). `OnProgress` reaches
   archive.org only: a Commons transcode streams into the element, so there is no
-  wait to report on. archive.ts also holds what it has
-  downloaded, in two tiers over the network — 96 MB in memory,
-  least-recently-played out, over 256 MB in a Cache API store,
-  least-recently-downloaded out. Measured per read: memory 0ms, disk 1ms to
-  match then ~2.8ms/MB to materialise (27ms at 3 MB, 176ms at 64), network
-  3-20s. Keyed by the file url and not the identifier, since a roll and a shelf
-  entry read one item under different byte caps and can land on different
-  renditions of it. The tiers hold Blobs rather than object urls precisely so
-  that `releasePick` revoking one costs them nothing.
+  wait to report on. archive.ts also holds what it has downloaded, in two tiers
+  over the network — 96 MB in memory, least-recently-played out, over 256 MB in
+  a Cache API store, least-recently-downloaded out. Measured per read: memory
+  0ms, disk 1ms to match then ~2.8ms/MB to materialise (27ms at 3 MB, 176ms at
+  64), network 3-20s. Keyed by the file url and not the identifier, since a roll
+  and a shelf entry read one item under different byte caps and can land on
+  different renditions of it. The tiers hold Blobs rather than object urls
+  precisely so that `releasePick` revoking one costs them nothing.
 
   Nothing there is load-bearing: no `caches`, a private window, a full quota or
   a corrupt entry all fall through to the tier below and end at a download. The
@@ -549,6 +548,7 @@ The layering is worth knowing before changing any of it:
   copies the user's own clip into OPFS — their footage outranks a
   re-downloadable advert, so `toDisk` applies the same headroom test `fits`
   does. Bump `DISK_CACHE` when what is stored changes shape.
+
 - `src/sources/commons.ts`, `archive.ts` — one flat list of tested query pools
   each, plus the readers that vet a response. Neither knows the other exists.
 - `src/sources/pools.ts` — the front door. Everything above the sources imports
@@ -586,10 +586,10 @@ Two fields the browser leans on are optional, and neither failing would look
 like a failure. Commons returns a clip's `duration` alongside the thumbnail for
 free; archive.org's search returns `runtime` on roughly one item in three, and
 the grid says `clip` rather than a length for the rest. What that search will
-*not* honestly tell you is how big a pick is: `item_size` counts every file in
+_not_ honestly tell you is how big a pick is: `item_size` counts every file in
 the item and was measured between 1.0x and 2176x the rendition a roll would
-actually download, so the size comes from the metadata read at pick time
-instead — see the note over `browseArchive`.
+actually download, so the size comes from the metadata read at pick time instead
+— see the note over `browseArchive`.
 
 ## URL parameters
 
