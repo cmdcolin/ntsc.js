@@ -48,6 +48,7 @@ import {
   packParams,
 } from './prelude'
 import { RenderLoop } from './renderloop'
+import { SavedBoard } from './savedBoard'
 import blitExtSrc from './shaders/blit_ext.wgsl?raw'
 import channelSrc from './shaders/channel.wgsl?raw'
 import chromaExtractSrc from './shaders/chroma_extract.wgsl?raw'
@@ -250,18 +251,24 @@ export class Engine implements EngineApi {
   // and travels in presets and links like every other fault.
   private strobeGate = new StrobeGate()
   private modSlots: ModSlot[] = []
+  // What the bay overwrote this frame (savedBoard.ts) — reused frame to frame,
+  // because a patched bay runs on *every* frame, where the stab below only lands
+  // on the clean ones.
+  private readonly modSaved = new SavedBoard()
+  // Whether anything the bay moved this frame feeds a filter design, so the
+  // restore knows to mark them dirty a second time. Instance state rather than a
+  // local the restore closes over, which is the point of the bound field below.
+  private modTouchedFilter = false
   // The stab gate: the whole look poked into a clean picture for a few tens of
   // milliseconds at a time. Off until something sets a rate, so a session that
   // has never touched it pays one wall-clock read a frame.
   private stabGate = new StabGate()
   private stab: StabPlan = { hz: 0, ms: 0 }
   // What the current stab overwrote, so it can be handed back at the end of the
-  // frame. Two parallel arrays with a live length rather than a fresh array of
-  // pairs: a clean frame saves up to two hundred keys, and this runs at the frame
-  // rate on the thread that is also feeding the GPU.
-  private stabKeys: ControlKey[] = []
-  private stabVals: number[] = []
-  private stabSaved = 0
+  // frame (savedBoard.ts). A clean frame saves up to two hundred keys and this
+  // runs at frame rate on the thread that is also feeding the GPU, which is the
+  // whole reason that record is reused rather than rebuilt.
+  private readonly stabSaved = new SavedBoard()
   // bent-crystal demod LO phase error, accumulated per frame (radians)
   private scPhase = 0
   // picture-search crossing pattern phase, accumulated per frame (crossings)
@@ -1050,6 +1057,15 @@ export class Engine implements EngineApi {
     }
   }
 
+  // The resting board, which is not the same thing as the board this frame was
+  // rendered from. The bay and the stab write the live controls and unwind them
+  // inside one frame without ever calling `emitControls`, so what comes back here
+  // is the look you dialled in rather than the look on screen this instant —
+  // right for a panel, and a trap for anything trying to *observe* modulation.
+  // A probe polling this to watch an LFO move, or to catch the bay failing to
+  // hand a control back, is reading a copy the bay never touches: it reports a
+  // flat line either way. Poke any control first (that re-snapshots), or read
+  // `engine.controls` directly.
   readonly getControls = (): Controls => this.snapshot
 
   // Leading edge now, everything else in the frame folded into one trailing
@@ -1797,13 +1813,11 @@ export class Engine implements EngineApi {
     // is most of what this feature could cost and none of what it needs.
     if (changed) this.filtersDirty = true
     if (!clean) return NOOP
-    this.stabSaved = 0
+    this.stabSaved.begin()
     for (const k of CONTROL_KEYS) {
       const stock = DEFAULT_CONTROLS[k]
       if (this.controls[k] === stock || STOCK_HOLD.has(k)) continue
-      this.stabKeys[this.stabSaved] = k
-      this.stabVals[this.stabSaved] = this.controls[k]
-      this.stabSaved++
+      this.stabSaved.save(this.controls, k)
       this.controls[k] = stock
     }
     return this.restoreStab
@@ -1814,13 +1828,18 @@ export class Engine implements EngineApi {
   // a fresh closure per clean frame is an allocation per frame on the thread
   // feeding the GPU.
   private readonly restoreStab = (): void => {
-    for (let i = 0; i < this.stabSaved; i++) {
-      this.controls[this.stabKeys[i]] = this.stabVals[i]
-    }
+    this.stabSaved.restore(this.controls)
   }
 
+  // Lay the bay over the board for one frame, and hand back the way to undo it.
+  //
+  // Saved into two parallel arrays with a live length, and undone by a bound
+  // field, for the reason spelled out on `restoreStab` below — except that this
+  // one runs on every frame a routing exists rather than only on a clean one.
+  // The version this replaced built a fresh array of `[key, value]` pairs *and* a
+  // fresh closure over it per frame, which is one allocation per slot plus two,
+  // every frame, on the thread that is also feeding the GPU.
   private applyMod(): () => void {
-    let restore: () => void = NOOP
     // Advanced every frame, bay or no bay: with nothing patched this returns an
     // empty list, and the only work it does is letting an unclaimed trigger
     // expire (see ModState.update) instead of it queueing up for whenever a
@@ -1830,30 +1849,34 @@ export class Engine implements EngineApi {
       this.audioState.level,
       this.audioState.hit,
     )
-    if (this.modSlots.length > 0) {
-      const saved = this.modSlots.map(
-        s => [s.target, this.controls[s.target]] as const,
-      )
-      const touchedFilter = this.modSlots.some(s => FILTER_KEYS.has(s.target))
-      this.modSlots.forEach((s, i) => {
-        const v = this.controls[s.target] + s.depth * (s.max - s.min) * vals[i]
-        this.controls[s.target] = Math.min(s.max, Math.max(s.min, v))
-      })
-      if (touchedFilter) {
-        this.filtersDirty = true
-      }
-      restore = () => {
-        for (const [k, v] of saved) {
-          this.controls[k] = v
-        }
-        // rebuilt from the modulated value this frame; make sure the next
-        // frame (possibly with the slot removed) starts from the resting one
-        if (touchedFilter) {
-          this.filtersDirty = true
-        }
-      }
+    this.modSaved.begin()
+    this.modTouchedFilter = false
+    if (this.modSlots.length === 0) return NOOP
+    // Save-then-write in one pass, including where two routings drive the same
+    // control — the second stacks on the first by design, and SavedBoard restores
+    // backwards so the resting value is still the one that lands.
+    for (let i = 0; i < this.modSlots.length; i++) {
+      const s = this.modSlots[i]
+      this.modSaved.save(this.controls, s.target)
+      if (FILTER_KEYS.has(s.target)) this.modTouchedFilter = true
+      const v = this.controls[s.target] + s.depth * (s.max - s.min) * vals[i]
+      this.controls[s.target] = Math.min(s.max, Math.max(s.min, v))
     }
-    return restore
+    if (this.modTouchedFilter) {
+      this.filtersDirty = true
+    }
+    return this.restoreMod
+  }
+
+  // Handing the board back, as `restoreStab` does — see the note there.
+  private readonly restoreMod = (): void => {
+    this.modSaved.restore(this.controls)
+    // The filters were rebuilt from the modulated value this frame; mark them
+    // again so the next frame — possibly with the slot removed — starts from the
+    // resting one.
+    if (this.modTouchedFilter) {
+      this.filtersDirty = true
+    }
   }
 
   // Bent-crystal LO phase error keeps growing frame over frame; advance by
