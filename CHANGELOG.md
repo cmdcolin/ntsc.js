@@ -2,6 +2,11 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.25.2](https://github.com/cmdcolin/ntsc.js/compare/v0.25.1...v0.25.2) - 2026-08-09
+
+### Fixes
+- [`7243a05`](https://github.com/cmdcolin/ntsc.js/commit/7243a050b3dde3fc63a41ba25bd507a5ff1e998d) allow re2 native build in pnpm workspace
+
 ## [0.25.1](https://github.com/cmdcolin/ntsc.js/compare/v0.25.0...v0.25.1) - 2026-08-09
 
 ### Other Changes
