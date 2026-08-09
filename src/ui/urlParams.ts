@@ -52,18 +52,20 @@ export const VAPORWAVE_SPEED = 0.66
 // than one that opened on bars. What the slot was on is remembered locally
 // instead (fileStash's `lib` kind), which is where that fact belongs.
 //
-// `wiki-faves` is the same story with public files behind it: the pictures are on
-// Commons and would load for anyone, but *which* ones are starred is this
-// browser's list, so the mode names an empty shelf on the far end. The five
-// channels do round-trip — `?src=wiki-vapor` hands the reader their own roll out
-// of the same pool, which is what that option means.
+// `browse` is out for a third reason: it is a dialog with a search field, and
+// what it was showing is neither a source nor a thing a link can put back. What
+// came *out* of it is a public file that would load for anyone, but a link that
+// reopened someone else's app on an empty search box would be worse than one
+// that opened on bars. The two random archives do round-trip —
+// `?src=wiki-random` hands the reader their own roll out of the same pool, which
+// is exactly what that option means.
 const LINKABLE = <T extends string>(modes: readonly T[]) =>
   modes.filter(
     m =>
       m !== 'bars' &&
       m !== 'file' &&
       m !== 'library' &&
-      m !== 'wiki-faves' &&
+      m !== 'browse' &&
       m !== 'youtube' &&
       m !== 'screen',
   )

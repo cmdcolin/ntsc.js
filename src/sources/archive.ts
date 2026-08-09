@@ -27,10 +27,20 @@
 // seek landing in 50ms. That is what the byte caps below are really capping: the
 // wait before the clip appears.
 
+import { BROWSE_LIMIT, isRecord, num, randomIndex, rotate, str } from './pool'
+
+import type { BrowseHit, PoolPick, PoolRef } from './pool'
+
 const SEARCH = 'https://archive.org/advancedsearch.php'
 const METADATA = 'https://archive.org/metadata/'
 const CORS_FILES = 'https://archive.org/cors/'
 const DETAILS = 'https://archive.org/details/'
+// A poster for an item, at no part of the download's cost. This is what makes
+// the browser dialog worth having on this source in particular: a roll here has
+// to fetch the whole rendition before anything appears (see the head of this
+// file), so until there was a thumbnail endpoint the only way to see a clip was
+// to commit to it. Answers 200 image/jpeg for a bare identifier.
+const ITEM_IMAGE = 'https://archive.org/services/img/'
 
 // The whole file is fetched before it plays, so a byte cap here is a stopwatch
 // rather than a disk budget. /cors/ was measured between 0.9 and 9.4 MB/s, most
@@ -105,25 +115,16 @@ const PLAYABLE: ReadonlySet<string> = new Set([
 // and an `.mkv` under a format this list allows would load as nothing.
 const PLAYABLE_EXT = /\.(mp4|m4v|webm)$/i
 
-interface Channel {
-  label: string
-  // Rolled per pick, so one channel spans several pools without any of them
-  // dominating. Every query here has been run against the live API.
-  queries: readonly string[]
-  // The longest download this channel is allowed to ask for. Per channel rather
-  // than global because a 30-second ident and a 20-minute industrial film are
-  // not the same bargain: holding the film to the ident's cap does not make it
-  // arrive sooner, it makes the channel empty.
-  maxBytes: number
-}
-
-export const ARCHIVE_IDS = [
-  'ia-openings',
-  'ia-adverts',
-  'ia-industrial',
-] as const
-export type ArchiveId = (typeof ARCHIVE_IDS)[number]
-
+// One tested collection: a query that has been run against the live API, what to
+// call it, and the longest download it is allowed to ask for.
+//
+// A flat list, for the reason commons.ts is one — the source dropdown offered a
+// channel per mood and is now one entry, "Random archive.org", so the extra
+// level of grouping was carrying nothing. The byte cap stays per pool rather
+// than going global, because a 30-second ident and a 20-minute industrial film
+// are not the same bargain: holding the film to the ident's cap does not make it
+// arrive sooner, it makes the pool empty.
+//
 // Pinned to named collections rather than open `mediatype:movies`, for the same
 // reason commons.ts pins to categories and one more besides: an open movies
 // search returns plenty that nobody has cleared for redistribution, and a
@@ -140,76 +141,53 @@ export type ArchiveId = (typeof ARCHIVE_IDS)[number]
 // reads like Prelinger and is not: 0 usable in 11 at 24 MB and 2 in 11 at *any*
 // larger cap, because its scans are 90 MB and up with no small derivative
 // beside them. Short-form collections are what works here.
-export const ARCHIVE: Record<ArchiveId, Channel> = {
+export interface Pool {
+  label: string
+  query: string
+  maxBytes: number
+}
+
+export const ARCHIVE_POOLS: readonly Pool[] = [
   // The core of it: distributor logos, FBI warnings, "coming soon on videotape"
   // reels. 16.6k items, and what comes back is 15-30s at 0.1-5 MB, so a roll is
   // over almost as soon as it starts.
-  'ia-openings': {
-    label: 'Archive: tape openings — logos, idents, FBI warnings',
-    queries: ['collection:vhsopenings'],
+  {
+    label: 'Tape openings',
+    query: 'collection:vhsopenings',
     maxBytes: SHORT_BYTES,
   },
-  // Two collections of the same thing kept separate upstream, rolled as one:
-  // 18.2k taped off broadcast, 8k curated. 15-30s, 0.3-12 MB.
-  'ia-adverts': {
-    label: 'Archive: TV commercials — 80s and 90s, taped off air',
-    queries: ['collection:vhscommercials', 'collection:classic_tv_commercials'],
+  // Two collections of the same thing kept separate upstream: 18.2k taped off
+  // broadcast, 8k curated. 15-30s, 0.3-12 MB.
+  {
+    label: 'TV commercials',
+    query: 'collection:vhscommercials',
     maxBytes: SHORT_BYTES,
   },
-  // The long end, and the only channel here whose licence is unambiguous:
-  // Prelinger is ephemeral and industrial film released to the public domain,
-  // which is the footage the other two channels are advertising over. It pays
-  // for that twice — the clips run to minutes rather than seconds, and the cap
-  // has to be LONG_BYTES to reach their h.264 renditions at all (3 usable in 11
-  // at the short cap). A roll here can take twenty seconds, which is what the
-  // band heading in modes.ts warns about.
-  'ia-industrial': {
-    label: 'Archive: industrial film — Prelinger, public domain',
-    queries: ['collection:prelinger'],
+  {
+    label: 'Classic commercials',
+    query: 'collection:classic_tv_commercials',
+    maxBytes: SHORT_BYTES,
+  },
+  // The long end, and the only pool here whose licence is unambiguous: Prelinger
+  // is ephemeral and industrial film released to the public domain, which is the
+  // footage the other three are advertising over. It pays for that twice — the
+  // clips run to minutes rather than seconds, and the cap has to be LONG_BYTES to
+  // reach their h.264 renditions at all (3 usable in 11 at the short cap). A roll
+  // here can take twenty seconds, which is what the option label warns about.
+  {
+    label: 'Prelinger industrial film',
+    query: 'collection:prelinger',
     maxBytes: LONG_BYTES,
   },
-}
+]
 
-const ARCHIVE_ID_SET: ReadonlySet<string> = new Set(ARCHIVE_IDS)
-export const isArchiveId = (mode: string): mode is ArchiveId =>
-  ARCHIVE_ID_SET.has(mode)
-
-// What a roll hands back. `url` is a `blob:` url the <video> path takes as-is,
-// which is why a pick has to be *released* rather than merely dropped — see
-// `releaseArchivePick`. `title` is the item's own identifier: the picker names a
-// pool, so this is the only thing on screen saying which clip came out of it,
-// and unlike a Commons title it is already url-safe.
-export interface ArchivePick {
-  url: string
-  title: string
-  // The item's page: who uploaded it, and under what terms. Same argument as
-  // CommonsPick.page — this app composites other people's footage into
-  // something recordable, so the one link that leads to the credit travels
-  // with it.
-  page: string
-}
-
-// --- response narrowing -----------------------------------------------------
-// Untyped JSON from another origin, walked with guards rather than asserted into
-// a shape. Anything unexpected reads as "this item is not usable", which is the
-// same branch a missing rendition takes.
-
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null
-
-const str = (v: unknown): string | null => (typeof v === 'string' ? v : null)
-
-// Every numeric field in an archive.org file entry arrives as a *string* —
-// `"size": "3214809"`, `"length": "30.65"` — and `length` is sometimes a
-// timestamp (`"1:04:12"`) instead of seconds. Both read as absent rather than
-// being half-parsed: `Number('1:04:12')` is NaN, and a NaN slipping past the
-// caps is how a two-hour master would get downloaded.
-const num = (v: unknown): number | null => {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : null
-  if (typeof v !== 'string') return null
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
-}
+// What a roll hands back is a `PoolPick` (pool.ts), the shape Commons rolls too.
+// The fields this half fills in: `title` is the item's own identifier — the
+// picker names a pool, so it is the only thing on screen saying which clip came
+// out of it, and unlike a Commons title it is already url-safe. `kind` is always
+// 'video'; this app reads archive.org for footage. `owned` is always true, since
+// `url` is a `blob:` holding the whole clip, which is why a pick that never
+// reaches a slot has to be released rather than merely dropped.
 
 // How long a search or a metadata read is given before it is abandoned.
 //
@@ -271,6 +249,22 @@ const request = async (
 const distance = (height: number, bytes: number): number =>
   Math.abs(height - IDEAL_HEIGHT) * 1e9 + bytes
 
+// Where an identifier's credit lives, derived rather than fetched — the same
+// trick `commonsPageUrl` plays, and what lets a shelf entry offer the uploader
+// and the terms without spending a request to find out where they are.
+export const archivePageUrl = (identifier: string): string =>
+  `${DETAILS}${encodeURIComponent(identifier)}`
+
+// One item's chosen file, before anything has been downloaded. Not yet a
+// `PoolPick`: its url is the `/cors/` one, which plays but cannot be seeked
+// (the head of this file has the measurement), so it is a thing to *fetch*
+// rather than a thing to show.
+export interface Rendition {
+  url: string
+  title: string
+  page: string
+}
+
 // One item's usable rendition, or null. Everything here is a reason a roll skips
 // to the next candidate rather than an error: an item with only a 1.3 GB master,
 // an hour-long lecture, a `files` list holding nothing but a thumbnail and a
@@ -279,7 +273,7 @@ export const renditionFrom = (
   item: unknown,
   identifier: string,
   maxBytes = SHORT_BYTES,
-): ArchivePick | null => {
+): Rendition | null => {
   if (!isRecord(item)) return null
   const files = item.files
   if (!Array.isArray(files)) return null
@@ -316,7 +310,7 @@ export const renditionFrom = (
     // and the identifier must not have its own slashes escaped away.
     url: `${CORS_FILES}${encodeURIComponent(identifier)}/${encodeURIComponent(best.name)}`,
     title: identifier,
-    page: `${DETAILS}${encodeURIComponent(identifier)}`,
+    page: archivePageUrl(identifier),
   }
 }
 
@@ -389,31 +383,37 @@ const CANDIDATES = 12
 // to the first page rather than to fail.
 const PAGE_SPAN = 200
 
-const rotate = <T>(xs: readonly T[], by: number): T[] => [
-  ...xs.slice(by),
-  ...xs.slice(0, by),
-]
+// Which pool this roll reads. Starting somewhere random keeps a roll spread over
+// all of them without the first dominating. Unlike the Commons plan there is no
+// retry list: a roll here already opens up to ATTEMPTS *items* out of the pool it
+// landed on, which is the retry, and each one costs a metadata request.
+export const chosenPool = (pools: readonly Pool[], start: number): Pool =>
+  rotate(pools, start)[0] ?? pools[0]
 
-// Which pool of a channel this roll reads. Starting somewhere random keeps one
-// channel spanning both its collections without the first dominating.
-export const queryPlan = (queries: readonly string[], start: number): string =>
-  rotate(queries, start)[0] ?? ''
-
-export const searchUrl = (query: string, page: number): string => {
+// A search over the collections, ranked or shuffled. `rows` and `sort` differ
+// between the two callers and nothing else does — a roll wants a disjoint dozen
+// out of a fixed arbitrary order (see PAGE_SPAN), and a browse wants the best
+// matches for words somebody actually typed.
+export const searchUrl = (
+  query: string,
+  page: number,
+  opts: { rows?: number; random?: boolean } = {},
+): string => {
   // `fl[]` and `sort[]` repeat their key, which URLSearchParams handles, but the
   // brackets must survive — archive.org reads `fl[]`, not `fl`.
   const params = new URLSearchParams({
     q: `${query} AND mediatype:movies`,
-    rows: String(CANDIDATES),
+    rows: String(opts.rows ?? CANDIDATES),
     page: String(page),
     output: 'json',
   })
   params.append('fl[]', 'identifier')
+  params.append('fl[]', 'title')
   // Random rather than relevance for the same reason `gsrsort=random` is right
   // on Commons: the channel is a pool, and the point is a different clip each
   // pick rather than the best match for a word nobody typed. It does not vary on
   // its own, though — see PAGE_SPAN, which is where the variation comes from.
-  params.append('sort[]', 'random')
+  if (opts.random !== false) params.append('sort[]', 'random')
   return `${SEARCH}?${params.toString()}`
 }
 
@@ -427,32 +427,36 @@ const fetchAsBlobUrl = async (url: string): Promise<string> => {
   return URL.createObjectURL(await r.blob())
 }
 
-// A pick's blob url is a live allocation holding the whole clip in memory, so
-// dropping the pick is not enough — an abandoned one leaks until the tab goes.
-// stopSlot already revokes whatever `blob:` url is on the element it retires;
-// this is for the roll that is *thrown away* before it ever reaches a slot,
-// which is every roll that lands after the user has moved that deck on.
-export const releaseArchivePick = (picked: ArchivePick): void => {
-  URL.revokeObjectURL(picked.url)
-}
+// A rendition, downloaded and turned into something showable. Every pick from
+// this source goes through here, which is the one place `owned: true` is
+// written — that flag is what tells `releasePick` there is a blob to hand back.
+const fetchPick = async (rendition: Rendition): Promise<PoolPick> => ({
+  origin: 'archive',
+  title: rendition.title,
+  kind: 'video',
+  page: rendition.page,
+  owned: true,
+  url: await fetchAsBlobUrl(rendition.url),
+})
 
-// Roll one clip out of a channel. Two requests at best — a search and one
+// Roll one clip out of archive.org. Two requests at best — a search and one
 // item's metadata — plus the download, and up to ATTEMPTS metadata requests
 // where the first items hold nothing playable.
-export async function rollArchive(
-  id: ArchiveId,
-  avoid = '',
-): Promise<ArchivePick> {
-  const channel = ARCHIVE[id]
-  const start = Math.floor(Math.random() * channel.queries.length)
-  const query = queryPlan(channel.queries, start)
-  const page = 1 + Math.floor(Math.random() * PAGE_SPAN)
-  let found = identifiersIn(await request(searchUrl(query, page)))
+export async function rollArchive(avoid = ''): Promise<PoolPick> {
+  const pool = chosenPool(ARCHIVE_POOLS, randomIndex(ARCHIVE_POOLS.length))
+  return rollFromPool(pool, avoid)
+}
+
+// One roll out of one named pool. What `rollArchive` does after choosing, and
+// what a browser preset calls to stay inside the collection it names.
+export async function rollFromPool(pool: Pool, avoid = ''): Promise<PoolPick> {
+  const page = 1 + randomIndex(PAGE_SPAN)
+  let found = identifiersIn(await request(searchUrl(pool.query, page)))
   // A pool smaller than PAGE_SPAN pages answers a deep page with nothing. That
   // is a fact about the pool rather than a failed roll, so the first page —
   // which every non-empty pool has — is the fallback.
   if (found.length === 0 && page !== 1)
-    found = identifiersIn(await request(searchUrl(query, 1)))
+    found = identifiersIn(await request(searchUrl(pool.query, 1)))
   for (const identifier of candidateOrder(found, avoid).slice(0, ATTEMPTS)) {
     // A candidate that will not answer in time is a candidate that is not
     // usable, which is the same branch as one holding nothing playable. Only the
@@ -465,12 +469,68 @@ export async function rollArchive(
     } catch {
       continue
     }
-    const rendition = renditionFrom(meta, identifier, channel.maxBytes)
+    const rendition = renditionFrom(meta, identifier, pool.maxBytes)
     if (rendition === null) continue
-    return { ...rendition, url: await fetchAsBlobUrl(rendition.url) }
+    return fetchPick(rendition)
   }
   throw new Error('nothing playable came back — roll again')
 }
+
+// One named item, read by the same reader that vetted it when it was rolled.
+// The archive.org half of what `resolveCommons` does, and the reason a clip from
+// here can now be kept on the shelf at all.
+//
+// It was previously held that it could not be: a Commons entry is a title and an
+// archive.org pick is a downloaded blob, so the two looked like different kinds
+// of thing. They are not — the blob is the *playback* and the identifier is the
+// identity, and re-reading one item's metadata is the same request a roll makes
+// per candidate anyway. What it costs is the download again, which is exactly
+// what a roll costs; what it buys is a clip you liked surviving the next roll.
+//
+// LONG_BYTES rather than the channel's own cap, since a shelf entry has no
+// channel by the time it is played, and refusing to reopen a clip this app
+// itself put on the shelf would be the worse failure.
+export async function resolveArchive(identifier: string): Promise<PoolPick> {
+  const meta = await request(`${METADATA}${encodeURIComponent(identifier)}`)
+  const rendition = renditionFrom(meta, identifier, LONG_BYTES)
+  if (rendition === null)
+    throw new Error(`${archiveCaption(identifier)} is no longer playable`)
+  return fetchPick(rendition)
+}
+
+// A page of results for an arbitrary query, as the browser dialog draws them.
+//
+// Ranked rather than shuffled, which is the difference between this and a roll —
+// and cheap in a way a roll can never be: an item's poster comes off
+// `services/img/` with none of the download behind it, so two dozen clips can be
+// looked at for the price of one search. Until this existed the only way to see
+// what a channel held was to commit to a clip and wait out its bytes.
+//
+// No metadata read per hit, so a result is not yet known to be playable. That is
+// the deliberate half of the bargain: checking two dozen items would be two
+// dozen requests against an endpoint measured stalling for 33 seconds, and the
+// check happens anyway at the moment one is chosen.
+export async function browseArchive(query: string): Promise<BrowseHit[]> {
+  const body = await request(
+    searchUrl(query, 1, { rows: BROWSE_LIMIT, random: false }),
+  )
+  return identifiersIn(body).map(identifier => ({
+    origin: 'archive' as const,
+    title: identifier,
+    kind: 'video' as const,
+    label: archiveCaption(identifier),
+    thumb: `${ITEM_IMAGE}${encodeURIComponent(identifier)}`,
+    page: archivePageUrl(identifier),
+  }))
+}
+
+// The ref an item is stored under. Trivial, and exported so nothing outside this
+// file has to know that an archive.org entry is always a clip.
+export const archiveRef = (identifier: string): PoolRef => ({
+  origin: 'archive',
+  title: identifier,
+  kind: 'video',
+})
 
 // An identifier is a slug rather than a sentence, and the caption has one line.
 // Underscores and hyphens are what archive.org's own uploads use as spaces, and

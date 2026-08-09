@@ -1,10 +1,17 @@
 import { useState } from 'react'
 
-import { FILTER_FROM, filterLibrary, libraryGroups } from './clipLibrary'
+import { ORIGIN_LABEL, poolPageUrl } from '../sources/pools'
+import {
+  FILTER_FROM,
+  clipRef,
+  filterLibrary,
+  libraryGroups,
+} from './clipLibrary'
 import styles from './ClipLibrary.module.css'
 import { cx } from './cx'
 import { Dialog } from './Dialog'
 import { MEDIA_ACCEPT } from './fsAccess'
+import { CreditLink, OtherSlotButton } from './MediaRow'
 import ui from './ui.module.css'
 
 import type { Clip, ClipFolder, Library, LibraryAccess } from './clipLibrary'
@@ -12,7 +19,13 @@ import type { StashSlot } from './fileStash'
 import type { RefObject } from 'react'
 
 // The shelf. Files you have opened before, kept as a list you can click through
-// mid-set instead of going back out to the OS dialog every time.
+// mid-set instead of going back out to the OS dialog every time — and, in their
+// own groups at the foot of it, the rolls you kept off the two public archives.
+//
+// Those used to have a dialog of their own, which was this one with the folders
+// taken out. They belong here: what a user is doing at either is picking from
+// the clips they have chosen to keep, and where a clip's bytes happen to live is
+// a fact about how the row opens rather than about what the list is for.
 //
 // It is a dialog and not a panel section for the reason the saved-look library
 // is a popover: browsing is a thing you do for a few seconds with your eye on a
@@ -20,8 +33,6 @@ import type { RefObject } from 'react'
 // session including the ones that never open it. Unlike that library this one
 // starts *useful* on a second visit even signed out — the whole point is that
 // nothing here needs an account.
-
-const other = (slot: StashSlot): StashSlot => (slot === 'a' ? 'b' : 'a')
 
 // A clip's state, as one character at the head of its row. Deliberately quiet:
 // on a browser that remembers handles every row is `ready` and a column of
@@ -49,8 +60,11 @@ function ClipRow(props: {
   const { clip, slot } = props
   // Undefined is "not resolved yet", which reads as ready: the shelf opens
   // before IndexedDB answers, and a row that flashed ⊘ on the way to being
-  // fine would be lying for exactly as long as anyone looks at it.
+  // fine would be lying for exactly as long as anyone looks at it. A kept roll
+  // is never resolved at all — it has no grant to lose — and lands here for the
+  // same reason.
   const state = props.state ?? 'ready'
+  const remote = clipRef(clip)
   return (
     <div className={styles.row}>
       <span
@@ -67,16 +81,30 @@ function ClipRow(props: {
       >
         {clip.name}
       </button>
+      <OtherSlotButton
+        slot={slot}
+        label={clip.name}
+        onPlay={to => props.onPlay(clip, to)}
+        className={styles.rowBtn}
+      />
+      {/* The credit, for the half of the shelf that is somebody else's work.
+          Same link the caption carries while it is playing, kept on the row so a
+          clip you kept months ago can still be traced to its licence. */}
+      {remote === null ? null : (
+        <CreditLink
+          origin={remote.origin}
+          href={poolPageUrl(remote)}
+          label={clip.name}
+          className={styles.rowBtn}
+        />
+      )}
       <button
         className={styles.rowBtn}
-        title={`play ${clip.name} on source ${other(slot).toUpperCase()} instead`}
-        onClick={() => props.onPlay(clip, other(slot))}
-      >
-        {other(slot).toUpperCase()}
-      </button>
-      <button
-        className={styles.rowBtn}
-        title={`take ${clip.name} off the shelf — the file itself is untouched`}
+        title={
+          remote === null
+            ? `take ${clip.name} off the shelf — the file itself is untouched`
+            : `take ${clip.name} off the shelf — it stays on ${ORIGIN_LABEL[remote.origin]}`
+        }
         aria-label={`remove ${clip.name}`}
         onClick={() => props.onForget(clip)}
       >
@@ -86,11 +114,13 @@ function ClipRow(props: {
   )
 }
 
-// A folder's heading, and the two things that can be done to a folder as a
+// A group's heading, and the two things that can be done to a *folder* as a
 // whole. Its own component so `folder` is narrowed once, as a const the click
-// handlers can close over — the loose group's heading is a null folder and has
-// neither button.
+// handlers can close over — the loose picks and the two kept-roll groups have a
+// null folder and neither button, since there is nothing on disk to rescan and
+// no grant to drop.
 function GroupHead(props: {
+  label: string
   folder: ClipFolder | null
   rescannable: boolean
   onRescan: (folder: ClipFolder) => void
@@ -99,9 +129,7 @@ function GroupHead(props: {
   const { folder } = props
   return (
     <div className={styles.head}>
-      <span className={styles.headName}>
-        {folder === null ? 'picked files' : `${folder.name}/`}
-      </span>
+      <span className={styles.headName}>{props.label}</span>
       {folder === null || !props.rescannable ? null : (
         <button
           className={styles.rowBtn}
@@ -162,6 +190,11 @@ export function ClipLibraryDialog(props: {
   const lost = props.lib.clips.filter(
     c => props.access.clips.get(c.id)?.state === 'lost',
   ).length
+  // Which halves of the shelf are occupied, which is what decides the two
+  // closing paragraphs: they say different things about what survives a reload,
+  // and neither is true of the other half.
+  const disk = props.lib.clips.filter(c => c.at === 'disk').length
+  const kept = props.lib.clips.length - disk
   // Pulled off the props object rather than read as `props.filesRef` at the
   // <input>: a ref read during render marks the whole props object as ref-ish
   // to the React Compiler, which then drops this component's memoization
@@ -215,15 +248,17 @@ export function ClipLibraryDialog(props: {
         <div className={ui.hint}>
           nothing on the shelf yet. Add the folder your rips live in and every
           clip in it is one click away for the rest of the session — and, on a
-          browser that can hold a folder open, every session after this one.
+          browser that can hold a folder open, every session after this one. The
+          ★ beside a rolled picture keeps that too, on the same shelf.
         </div>
       ) : groups.length === 0 ? (
         <div className={ui.hint}>no clip matches “{query}”</div>
       ) : (
         <div className={styles.list}>
           {groups.map(group => (
-            <div key={group.folder?.id ?? 'loose'}>
+            <div key={group.id}>
               <GroupHead
+                label={group.label}
                 folder={group.folder}
                 rescannable={
                   group.folder !== null &&
@@ -261,11 +296,27 @@ export function ClipLibraryDialog(props: {
         </div>
       )}
 
-      <div className={ui.hint}>
-        {props.canRemember
-          ? 'a folder is one permission covering everything in it, so the next session asks once and the whole shelf opens. Only files directly inside the folder count — add each folder you want.'
-          : 'this browser can’t hold a file open past a reload, so the shelf keeps the list and not the footage: next session, re-pick the folder once and every row comes back. Only files directly inside it count.'}
-      </div>
+      {/* Only where there is footage on disk to say it about. Everything in that
+          sentence — the grant, the re-pick, the folder — is about files the
+          browser has to be given back, and a shelf holding nothing but kept
+          rolls has none: those come back on their own, which is the line below
+          it. Shown unconditionally it was a promise of work nobody had to do. */}
+      {disk === 0 ? null : (
+        <div className={ui.hint}>
+          {props.canRemember
+            ? 'a folder is one permission covering everything in it, so the next session asks once and the whole shelf opens. Only files directly inside the folder count — add each folder you want.'
+            : 'this browser can’t hold a file open past a reload, so the shelf keeps the list and not the footage: next session, re-pick the folder once and every row comes back. Only files directly inside it count.'}
+        </div>
+      )}
+
+      {kept === 0 ? null : (
+        <div className={ui.hint}>
+          a kept roll is the file’s name and not the picture, so it costs
+          nothing on disk and comes back on its own next session — playing one
+          asks the archive for it again, at whatever size this app wants today.
+          Kept in this browser: a shared link carries the look, not the shelf.
+        </div>
+      )}
 
       {/* Hidden pickers for the browsers with no disk dialog. `multiple` and
           `webkitdirectory` are the two shapes of the same fallback, and both

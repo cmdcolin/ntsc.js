@@ -1,0 +1,182 @@
+/* The media browser. A grid rather than the list shape the clip shelf and the
+   saved-look popover share, and that is the whole point of the dialog: these
+   results are *pictures* nobody has seen before, where a shelf row is a name you
+   chose yourself and already recognise. A column of Commons filenames would be
+   the roll it replaces, minus the surprise. */
+
+/* Which archive is being searched. Two tabs and nothing else — the sources hold
+   different things and answer at different speeds, and a single field over both
+   would double every wait to show half as much of each. */
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.tab {
+  composes: bare from './ui.module.css';
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 5px 10px;
+  color: var(--fg3);
+}
+.tab:hover {
+  color: var(--fg);
+  background: var(--ctl-bg-hover);
+}
+.tabOn {
+  color: var(--fg);
+  border-color: var(--fg4);
+  background: var(--ctl-bg-hover);
+}
+
+.search {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.field {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  background: var(--panel-bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  /* The app's face, like the shelf's filter: what is typed here is a search
+     phrase and the results it fetches are captioned in the app's face too. */
+  font-family: inherit;
+  font-size: var(--fs-sm);
+}
+
+/* The tested queries, as buttons. They wrap rather than scroll: there are
+   sixteen of them on the Commons tab and a horizontal strip would hide the last
+   dozen behind a gesture nobody makes in a dialog. */
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.preset {
+  composes: bare from './ui.module.css';
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px 9px;
+  color: var(--fg3);
+  font-size: var(--fs-sm);
+}
+.preset:hover {
+  color: var(--fg);
+  background: var(--ctl-bg-hover);
+}
+
+/* Fixed-width cells rather than a fraction of the card, so the same result is
+   the same size whatever the card is: `auto-fill` then leaves whatever is over
+   as gap instead of stretching four thumbnails across a wide window. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  max-height: min(52vh, 460px);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+  margin-bottom: 8px;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* The thumbnail is the button: it is the largest target in the cell and the
+   thing the eye is already on. A fixed height with `object-fit: cover` because
+   these arrive at every aspect there is — a 1:1 museum photograph beside a 16:9
+   time-lapse — and a ragged grid is harder to scan than a cropped one. */
+.shot {
+  composes: bare from './ui.module.css';
+  display: block;
+  width: 100%;
+  height: 84px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--ctl-bg);
+  padding: 0;
+}
+.shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.shot:hover {
+  border-color: var(--fg4);
+}
+
+/* Two lines and then an ellipsis. These are upstream filenames and run long —
+   one line loses too many of them to tell two results apart, and three would
+   make the caption taller than the picture. */
+.label {
+  color: var(--fg2);
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-word;
+}
+
+/* Send to the other deck, keep, and the credit. Quiet until the pointer is on
+   them, like the shelf's row buttons: a grid of live-looking glyphs would read
+   as a page of controls rather than a page of pictures. */
+.acts {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.act {
+  composes: bare from './ui.module.css';
+  flex-shrink: 0;
+  min-width: 20px;
+  border-radius: 3px;
+  padding: 2px 3px;
+  color: var(--fg4);
+  font-size: var(--fs-sm);
+  line-height: 1;
+  text-align: center;
+  text-decoration: none;
+}
+.act:hover {
+  color: var(--fg);
+  background: var(--ctl-bg-hover);
+}
+.actOn {
+  color: var(--fg);
+}
+
+/* A clip and a still play differently and cost differently to fetch, and the
+   grid cannot say which is which — a Commons video shows its poster frame, which
+   looks exactly like a photograph. */
+.mark {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg4);
+  font-size: var(--fs-sm);
+  line-height: 1;
+}
+
+@media (pointer: coarse) {
+  .act {
+    min-width: 30px;
+    padding: 8px 3px;
+  }
+  .preset {
+    padding: 7px 11px;
+  }
+}

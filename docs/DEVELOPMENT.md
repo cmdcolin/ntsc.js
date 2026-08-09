@@ -499,31 +499,52 @@ Clips are capped at 720p (the chain downscales to 480 lines anyway) and cached
 in `$TMPDIR/ntsc.js-yt` keyed by URL, so a reload replays instantly. The first
 load takes as long as the download; failures come back as the yt-dlp error.
 
-## Wikimedia Commons sources (the one live dependency)
+## The public archives (the one live dependency)
 
-The five **Commons** channels are searches against
-`commons.wikimedia.org/w/api.php`, run anonymously with `origin=*` (no proxy, no
-dev middleware — unlike YouTube above, this one works in the deployed build).
-`src/sources/commons.ts` holds the pools and the readers;
-`src/ui/wikiFavorites.ts` holds the starred ones, as titles rather than urls, so
-playing a favourite is a fresh resolve.
+Two sources are fetched from somebody else's server at pick time: **Random
+Commons** searches `commons.wikimedia.org/w/api.php` and **Random archive.org**
+searches `archive.org/advancedsearch.php`, both anonymously — no proxy and no
+dev middleware, so unlike YouTube above these work in the deployed build.
+**Browse…** is the same two APIs asked a different question: ranked rather than
+random, so an arbitrary phrase is worth typing.
 
-`src/sources/commons.test.ts` pins the readers against response shapes that were
-real once, which is exactly what it cannot keep being — so the live contract has
-its own harness:
+The layering is worth knowing before changing any of it:
+
+- `src/sources/pool.ts` — what the two have in common. `PoolPick` is the one
+  type both roll, and the two real differences ride on it as fields (`owned` for
+  the archive.org blob, `kind` for Commons stills).
+- `src/sources/commons.ts`, `archive.ts` — one flat list of tested query pools
+  each, plus the readers that vet a response. Neither knows the other exists.
+- `src/sources/pools.ts` — the front door. Everything above the sources imports
+  from here and never from the two modules under it, which is what keeps the
+  engine to one roll, one resolve and one state slot per deck.
+- `src/ui/clipLibrary.ts` — the shelf, which holds a kept roll as a title beside
+  your own files. There is no separate favourites store; a kept roll is the easy
+  case of a clip, with no handle, no grant and no re-link.
+
+`commons.test.ts` and `archive.test.ts` pin the readers against response shapes
+that were real once, which is exactly what they cannot keep being — so the live
+contract has its own harness:
 
 ```
-node scripts/wikiroll.mjs http://localhost:5199
+node scripts/poolcheck.mjs http://localhost:5199
 ```
 
-Fifteen checks over one browser session and a handful of live requests: a
-channel rolls and captions what it rolled, the ★ keeps a title, the shelf plays
-it back, and — the one thing no screenshot shows — a roll that lands after the
-user has moved that deck on is dropped rather than pushed onto whatever they
+Seventeen checks over one browser session and a handful of live requests: a
+random source rolls and captions what it rolled, the ★ puts it on the clip shelf
+as a title, the shelf plays it back, the browser answers with thumbnails from
+both archives, and — the one thing no screenshot shows — a roll that lands after
+the user has moved that deck on is dropped rather than pushed onto whatever they
 went to. It exits non-zero with a line per failure, so it can be run as a gate.
-Run it when touching `commons.ts` or when a roll starts coming back empty: the
-API changing its mind about `descriptionurl`, `gsrsort=random` or its transcode
-ladder is invisible to the test suite and shows up here.
+
+Run it when touching either source module, or when a pick starts coming back
+empty. Four things it watches are outside this project entirely and invisible to
+the test suite: Commons changing its mind about `descriptionurl` or
+`gsrsort=random`, its transcode ladder being rebuilt, archive.org's
+`sort[]=random` ceasing to be stably seeded (which is what `PAGE_SPAN` exists
+for), and `archive.org/services/img/` going away — that last one is what lets
+the browser show a clip without downloading it, and its loss would turn the grid
+into a page of empty boxes with nothing else complaining.
 
 ## URL parameters
 

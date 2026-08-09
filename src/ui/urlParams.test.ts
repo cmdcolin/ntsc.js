@@ -201,7 +201,7 @@ describe('session round trip', () => {
         sourceMode === 'bars' ||
         sourceMode === 'file' ||
         sourceMode === 'library' ||
-        sourceMode === 'wiki-faves' ||
+        sourceMode === 'browse' ||
         sourceMode === 'screen'
       ) {
         expect(back.src).toBe(null)
@@ -221,7 +221,7 @@ describe('session round trip', () => {
         sourceBMode === 'bars' ||
         sourceBMode === 'file' ||
         sourceBMode === 'library' ||
-        sourceBMode === 'wiki-faves' ||
+        sourceBMode === 'browse' ||
         sourceBMode === 'screen'
       ) {
         expect(back.srcb).toBe(null)

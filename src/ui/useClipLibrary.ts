@@ -6,27 +6,31 @@ import {
   addPickedFiles,
   addPickedFolder,
   adoptLocalFiles,
+  clipRef,
+  hasPick,
+  keepPick,
   loadLibrary,
   removeClip,
   removeFolder,
   saveLibrary,
   syncFolder,
 } from './clipLibrary'
+import { reason } from './format'
 import { canPickFolder, canPickHandle } from './fsAccess'
 
+import type { PoolRef } from '../sources/pools'
 import type { Clip, ClipFolder, Library, LibraryAccess } from './clipLibrary'
 import type { StashSlot } from './fileStash'
 
 // The shelf, as the app holds it: the list itself, what the browser can open of
-// it right now, and the six verbs the dialog offers.
+// it right now, and the verbs the dialog and the browser offer.
 //
 // It is its own hook rather than more of useEngine because none of it is the
 // engine's business — the library is a list of names until the moment one is
-// clicked, and the only thing that crosses into the engine is the File that
-// comes back. `load` is that crossing, passed in.
-
-const reason = (e: unknown): string =>
-  e instanceof Error ? e.message : String(e)
+// clicked. Two things cross into the engine and both are passed in: `load`, the
+// File a disk clip opens to, and `show`, the name a kept roll resolves by. That
+// second crossing is the whole difference between the two halves of the shelf,
+// and it is one argument wide.
 
 // What was picked, said once. Counts rather than prose because all four numbers
 // can be non-zero at once — a re-pick of a folder on Firefox typically re-links
@@ -53,6 +57,7 @@ function report(r: {
 export function useClipLibrary(
   open: boolean,
   load: (slot: StashSlot, file: File, clip: Clip) => void,
+  show: (slot: StashSlot, ref: PoolRef) => void,
 ) {
   // Read once, from localStorage: the list is what the shelf *is*, and it costs
   // nothing to have on hand whether the dialog is open or not.
@@ -144,7 +149,17 @@ export function useClipLibrary(
   // Play a clip. The click is the gesture a lapsed grant needs, so `open` is
   // called with nothing awaited in front of it; a shelf entry with no bytes
   // behind it says so instead of failing silently.
+  //
+  // A kept roll takes neither path: there is nothing to grant and nothing to
+  // reconnect, so it goes straight out as a request and the engine puts the
+  // answer on the slot.
   const play = (clip: Clip, slot: StashSlot) => {
+    const ref = clipRef(clip)
+    if (ref !== null) {
+      setNote('')
+      show(slot, ref)
+      return
+    }
     const how = access.clips.get(clip.id)
     if (how === undefined || how.open === null) {
       setNote(`${clip.name} — reconnect this shelf to play it`)
@@ -155,6 +170,14 @@ export function useClipLibrary(
         (e: unknown) => setNote(`${clip.name}: ${reason(e)}`),
       )
     }
+  }
+
+  // Keep a pick, or take it off again — the ★ under a caption and the browser's
+  // own. Written through immediately, because keeping one is a deliberate single
+  // click that has to survive the tab closing straight afterwards.
+  const keep = (ref: PoolRef, label: string) => {
+    setNote('')
+    setLib(keepPick(lib, ref, label))
   }
 
   const forgetClip = (clip: Clip) => {
@@ -182,6 +205,8 @@ export function useClipLibrary(
     adopt,
     rescan,
     play,
+    keep,
+    kept: (ref: PoolRef) => hasPick(lib, ref),
     forgetClip,
     forgetFolder,
   }

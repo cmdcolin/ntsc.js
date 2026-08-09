@@ -1,6 +1,5 @@
-import { isArchiveId } from '../sources/archive'
-import { isCommonsId } from '../sources/commons'
-import { FileName, ReopenFile, WikiCaption } from './FileName'
+import { isPoolMode } from '../sources/pools'
+import { FileName, PickCaption, ReopenFile } from './FileName'
 import { CueRow, Scrub } from './Scrub'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
@@ -9,6 +8,7 @@ import ui from './ui.module.css'
 import { SPEED_DEFAULT } from './urlParams'
 
 import type { SourceBMode, SourceMode } from '../sources/modes'
+import type { PoolOrigin } from '../sources/pools'
 import type { SlotView } from './slotView'
 import type { ReactNode, RefObject } from 'react'
 
@@ -27,40 +27,36 @@ const CUE_KEYS = {
 // carries something the picker can't say too, but its words are editable, so
 // it gets a row of its own rather than a caption.
 //
-// The Commons entries join them for a different reason: the picker names a pool
-// rather than a picture, so the caption is the only thing saying which file came
-// back — and clicking it rolls another out of the same pool. The clip shelf and
-// the starred rolls are that shape once more, the option naming a list and the
-// caption naming what came off it. `library` draws its own caption instead (a
-// menu — ClipPicker.tsx).
+// The two random-archive entries join them for a different reason: the picker
+// names a pool rather than a picture, so the caption is the only thing saying
+// which file came back — and clicking it rolls another out of the same pool. The
+// clip shelf and the browser are that shape once more, the option naming a way
+// in and the caption naming what came through it. `library` draws its own
+// caption instead (a menu — ClipPicker.tsx).
 const namedMode = (m: SourceMode | SourceBMode): boolean =>
   m === 'file' ||
   m === 'library' ||
-  m === 'wiki-faves' ||
+  m === 'browse' ||
   m === 'youtube' ||
   m === 'screen' ||
-  isCommonsId(m) ||
-  isArchiveId(m)
+  isPoolMode(m)
 
 // What clicking the caption does, which is the one thing the named modes do not
-// share: a channel rolls the next file out of the same pool, the starred list
-// reopens on the row you would change to, and a file or a share goes back out to
-// the browser's own picker.
+// share: a random archive rolls the next file out of the same source, the
+// browser reopens where you left it, and a file or a share goes back out to the
+// browser's own picker.
 const captionAction = (m: SourceMode | SourceBMode): string =>
-  isCommonsId(m) || isArchiveId(m)
-    ? 'roll another'
-    : m === 'wiki-faves'
-      ? 'open your favorites'
-      : 'change'
+  isPoolMode(m) ? 'roll another' : m === 'browse' ? 'search again' : 'change'
 
-// The credit link a rolled pick carries — and, where there is a shelf to keep it
-// on, the ★ as well — or null when the slot is on anything else. Built by the
-// caller from the slot's own pick, because it takes one fact from the engine and
-// one from the favourites list and neither of those two can see the other.
-export type WikiSlot = {
+// The credit link a pick carries, and the ★ that keeps it, or null when the slot
+// is on anything else. Built by the caller from the slot's own pick, because it
+// takes one fact from the engine and one from the shelf and neither of those two
+// can see the other.
+export type PickSlot = {
   page: string
-  where: string
-  star: { starred: boolean; onStar: () => void } | null
+  origin: PoolOrigin
+  kept: boolean
+  onKeep: () => void
 } | null
 
 // The hidden file picker behind a slot's "file" mode. One component rather than
@@ -125,15 +121,32 @@ export function SourceSlot<T extends SourceMode | SourceBMode>(props: {
   title: string
   options: readonly { value: T; label: string; group?: string | null }[]
   // This slot's clip menu, built by the app because the shelf's state is the
-  // app's — the same arrangement the sound's picker is passed in under.
-  clipPicker: ReactNode
-  // The ★ and credit line for a Commons pick, likewise assembled by the app.
-  wiki: WikiSlot
+  // app's — the same arrangement the sound's picker is passed in under. A
+  // function rather than a node because it has to be handed the caption's
+  // trailing glyphs, which are this component's to assemble.
+  clipPicker: (extra: ReactNode) => ReactNode
+  // The ★ and credit line for a pick off one of the public archives, likewise
+  // assembled by the app.
+  pick: PickSlot
   // The capture-device picker, which only A can have — a trailing row rather than
   // a prop this component understands, so the slot stays the same shape for both.
   children?: ReactNode
 }) {
-  const { slot, wiki } = props
+  const { slot, pick } = props
+  // The ★ and the credit for whatever is on this slot, or nothing. Built once
+  // and given to whichever caption is drawing: the shelf's menu and the plain
+  // caption are two ways of naming the same picture, and a kept roll played off
+  // the shelf lost its licence link entirely while only the second of them
+  // carried this.
+  const extra =
+    pick === null ? null : (
+      <PickCaption
+        page={pick.page}
+        origin={pick.origin}
+        kept={pick.kept}
+        onKeep={pick.onKeep}
+      />
+    )
   // The tooltips name this slot's own keys, looked up from the slot rather than
   // passed alongside it: one more pair that cannot now be crossed.
   const cueKeys = CUE_KEYS[slot.key]
@@ -158,20 +171,12 @@ export function SourceSlot<T extends SourceMode | SourceBMode>(props: {
           source handler, which is the only way back to a picker the <select>
           cannot re-emit for. */}
       {slot.mode === 'library' ? (
-        props.clipPicker
+        props.clipPicker(extra)
       ) : namedMode(slot.mode) ? (
         <FileName
           name={slot.name}
           action={captionAction(slot.mode)}
-          extra={
-            wiki === null ? null : (
-              <WikiCaption
-                page={wiki.page}
-                where={wiki.where}
-                star={wiki.star}
-              />
-            )
-          }
+          extra={extra}
           onReopen={() => slot.select(slot.mode)}
         />
       ) : null}

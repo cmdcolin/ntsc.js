@@ -5,17 +5,22 @@ import {
   EMPTY_LIBRARY,
   addClips,
   addFolder,
+  addPick,
   clipKey,
+  clipRef,
   dropClip,
   dropFolder,
+  dropPick,
   filterLibrary,
   groupPicked,
+  hasPick,
   libraryGroups,
   matchPicked,
   readLibrary,
   syncFolder,
 } from './clipLibrary'
 
+import type { PoolRef } from '../sources/pools'
 import type { Library } from './clipLibrary'
 
 // The list algebra above `── the store ──`, which is where every way the shelf
@@ -44,20 +49,26 @@ describe('clipKey', () => {
   it('is the name alone inside a folder', () => {
     // A folder cannot hold two files of one name, so the name is identity —
     // which is what lets a rescan recognise every clip it already has.
-    expect(clipKey({ name: 'a.mp4', folder: 'f1', size: 0 })).toBe(
-      clipKey({ name: 'a.mp4', folder: 'f1', size: 4096 }),
+    expect(
+      clipKey({ name: 'a.mp4', folder: 'f1', size: 0, at: 'disk', ref: '' }),
+    ).toBe(
+      clipKey({ name: 'a.mp4', folder: 'f1', size: 4096, at: 'disk', ref: '' }),
     )
   })
 
   it('separates the same name in two folders', () => {
-    expect(clipKey({ name: '01.mp4', folder: 'f1', size: 0 })).not.toBe(
-      clipKey({ name: '01.mp4', folder: 'f2', size: 0 }),
+    expect(
+      clipKey({ name: '01.mp4', folder: 'f1', size: 0, at: 'disk', ref: '' }),
+    ).not.toBe(
+      clipKey({ name: '01.mp4', folder: 'f2', size: 0, at: 'disk', ref: '' }),
     )
   })
 
   it('takes the size in for a loose pick, which has no folder to be unique in', () => {
-    expect(clipKey({ name: '01.mp4', folder: '', size: 10 })).not.toBe(
-      clipKey({ name: '01.mp4', folder: '', size: 11 }),
+    expect(
+      clipKey({ name: '01.mp4', folder: '', size: 10, at: 'disk', ref: '' }),
+    ).not.toBe(
+      clipKey({ name: '01.mp4', folder: '', size: 11, at: 'disk', ref: '' }),
     )
   })
 })
@@ -369,9 +380,33 @@ describe('readLibrary', () => {
   it('keeps the entries that are whole and drops the ones that are not', () => {
     const got = readLibrary({
       clips: [
-        { id: 'c1', name: 'a.mp4', folder: '', kind: 'video', size: 1 },
-        { id: 'c2', name: 'b.mp4', folder: '', kind: 'movie', size: 1 },
-        { id: '', name: 'c.mp4', folder: '', kind: 'video', size: 1 },
+        {
+          id: 'c1',
+          name: 'a.mp4',
+          folder: '',
+          kind: 'video',
+          size: 1,
+          at: 'disk',
+          ref: '',
+        },
+        {
+          id: 'c2',
+          name: 'b.mp4',
+          folder: '',
+          kind: 'movie',
+          size: 1,
+          at: 'disk',
+          ref: '',
+        },
+        {
+          id: '',
+          name: 'c.mp4',
+          folder: '',
+          kind: 'video',
+          size: 1,
+          at: 'disk',
+          ref: '',
+        },
         null,
       ],
       folders: [{ id: 'f1', name: 'rips' }, { name: 'nameless' }],
@@ -379,6 +414,46 @@ describe('readLibrary', () => {
     })
     expect(names(got)).toEqual(['a.mp4'])
     expect(got.folders.map(f => f.id)).toEqual(['f1'])
+  })
+
+  // A kept roll is a title and where it came from, and a row missing either is
+  // one the shelf cannot resolve — worse than absent, because it would spend a
+  // request on whatever was there and fail with the archive's own error.
+  it('drops a kept roll with nowhere to resolve to', () => {
+    const got = readLibrary({
+      clips: [
+        {
+          id: 'c1',
+          name: 'Marble bust',
+          folder: '',
+          kind: 'image',
+          size: 0,
+          at: 'commons',
+          ref: 'File:Bust.jpg',
+        },
+        {
+          id: 'c2',
+          name: 'no ref',
+          folder: '',
+          kind: 'image',
+          size: 0,
+          at: 'commons',
+          ref: '',
+        },
+        {
+          id: 'c3',
+          name: 'no such archive',
+          folder: '',
+          kind: 'video',
+          size: 0,
+          at: 'youtube',
+          ref: 'abc',
+        },
+      ],
+      folders: [],
+      seq: 3,
+    })
+    expect(names(got)).toEqual(['Marble bust'])
   })
 
   it('outruns every id it read, whatever the stored counter claims', () => {
@@ -413,5 +488,153 @@ describe('dropping', () => {
     const next = dropFolder(lib, lib.folders[0].id)
     expect(names(next).toSorted()).toEqual(['b.mp4', 'c.mp4'])
     expect(next.folders.map(f => f.name)).toEqual(['more'])
+  })
+})
+
+// ── kept rolls ───────────────────────────────────────────────────────────────
+// The half of the shelf that is not on disk. It had a file of its own until the
+// two were folded together, and what that file could not do — because it was
+// written for Commons alone and keyed on a Commons title — was hold an
+// archive.org clip. Everything below is that asymmetry being gone.
+
+const bust: PoolRef = {
+  origin: 'commons',
+  title: 'File:Marble bust of Agrippa.jpg',
+  kind: 'photo',
+}
+const ident: PoolRef = {
+  origin: 'archive',
+  title: 'gold-key-logo-1971',
+  kind: 'video',
+}
+
+describe('addPick', () => {
+  it('keeps a roll off either archive, with no bytes and no folder', () => {
+    const lib = addPick(
+      addPick(EMPTY_LIBRARY, bust, 'Agrippa').lib,
+      ident,
+      'gold key',
+    ).lib
+    expect(lib.clips.map(c => c.at)).toEqual(['archive', 'commons'])
+    expect(lib.clips.every(c => c.folder === '' && c.size === 0)).toBe(true)
+  })
+
+  // Newest first: keeping one is a thing you do to what is on screen right now,
+  // and the one you just kept is the one you are about to want.
+  it('puts the newest at the top', () => {
+    const lib = addPick(
+      addPick(EMPTY_LIBRARY, bust, 'Agrippa').lib,
+      ident,
+      'gold key',
+    ).lib
+    expect(lib.clips[0].ref).toBe(ident.title)
+  })
+
+  // The ★ under the caption is a toggle and the browser's is a button; either
+  // pressed twice must not shelve one file twice.
+  it('recognises what it already holds', () => {
+    const once = addPick(EMPTY_LIBRARY, bust, 'Agrippa').lib
+    const twice = addPick(once, bust, 'Agrippa')
+    expect(twice.lib.clips).toHaveLength(1)
+    expect(twice.clip.id).toBe(once.clips[0].id)
+  })
+
+  // Nothing stops an archive.org identifier from reading like a Commons title,
+  // and the two namespaces are unrelated.
+  it('tells the same title on two archives apart', () => {
+    const lib = addPick(
+      addPick(EMPTY_LIBRARY, { ...bust, title: 'same' }, 'a').lib,
+      { ...ident, title: 'same' },
+      'b',
+    ).lib
+    expect(lib.clips).toHaveLength(2)
+  })
+
+  it('reads back as the ref it was given', () => {
+    const lib = addPick(EMPTY_LIBRARY, bust, 'Agrippa').lib
+    expect(clipRef(lib.clips[0])).toEqual(bust)
+  })
+})
+
+describe('hasPick / dropPick', () => {
+  const lib = addPick(EMPTY_LIBRARY, bust, 'Agrippa').lib
+
+  it('answers what the ★ renders from', () => {
+    expect(hasPick(lib, bust)).toBe(true)
+    expect(hasPick(lib, ident)).toBe(false)
+  })
+
+  it('takes one off by what it is, not by which row holds it', () => {
+    expect(hasPick(dropPick(lib, bust), bust)).toBe(false)
+  })
+
+  // A disk clip whose name happens to match must not answer for a kept roll —
+  // `clipRef` is null for it, so it cannot be compared to one at all.
+  it('never mistakes a file on disk for a kept roll', () => {
+    const mixed = addClips(lib, '', [{ name: bust.title, size: 4 }]).lib
+    expect(dropPick(mixed, bust).clips.map(c => c.at)).toEqual(['disk'])
+  })
+})
+
+describe('libraryGroups with kept rolls', () => {
+  it('puts each archive under its own heading, after the disk clips', () => {
+    let lib = shelf([{ name: 'rips', files: ['a.mp4'] }])
+    lib = addPick(lib, bust, 'Agrippa').lib
+    lib = addPick(lib, ident, 'gold key').lib
+    expect(libraryGroups(lib).map(g => g.id)).toEqual([
+      lib.folders[0].id,
+      'commons',
+      'archive',
+    ])
+  })
+
+  it('leaves out an archive nothing was kept from', () => {
+    const lib = addPick(EMPTY_LIBRARY, bust, 'Agrippa').lib
+    expect(libraryGroups(lib).map(g => g.id)).toEqual(['commons'])
+  })
+})
+
+describe('filterLibrary with kept rolls', () => {
+  let lib = shelf([{ name: 'rips', files: ['a.mp4'] }])
+  lib = addPick(lib, bust, 'Marble bust of Agrippa').lib
+  lib = addPick(lib, ident, 'gold key logo 1971').lib
+
+  it('narrows on the caption', () => {
+    expect(filterLibrary(lib, 'agrippa').clips.map(c => c.ref)).toEqual([
+      bust.title,
+    ])
+  })
+
+  // Where a clip lives is part of what it is called here, and for a kept roll
+  // that is the archive rather than a folder.
+  it('narrows on the archive it came from', () => {
+    expect(filterLibrary(lib, 'archive.org').clips.map(c => c.ref)).toEqual([
+      ident.title,
+    ])
+  })
+})
+
+describe('syncFolder with kept rolls', () => {
+  // A rescan compares a folder's names against what is on disk. Kept rolls have
+  // no name on disk at all, so without an explicit pass-through a single rescan
+  // would sweep the whole kept half of the shelf away.
+  it('leaves them alone', () => {
+    let lib = shelf([{ name: 'rips', files: ['a.mp4', 'b.mp4'] }])
+    lib = addPick(lib, bust, 'Agrippa').lib
+    const after = syncFolder(lib, lib.folders[0].id, ['a.mp4'])
+    expect(after.gone).toBe(1)
+    expect(after.lib.clips.filter(c => c.at === 'commons')).toHaveLength(1)
+  })
+})
+
+describe('matchPicked with kept rolls', () => {
+  // The re-link matches a picked File by name. A kept roll has no file behind
+  // it, so one whose caption happened to match would be quietly repointed at
+  // somebody's disk.
+  it('never re-links one to a file off the disk', () => {
+    const lib = addPick(EMPTY_LIBRARY, bust, 'Agrippa').lib
+    expect(matchPicked(lib, [{ name: 'Agrippa', path: '', size: 10 }])).toEqual(
+      [],
+    )
   })
 })

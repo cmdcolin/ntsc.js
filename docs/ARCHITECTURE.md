@@ -206,9 +206,9 @@ mirroring is the thing to keep honest: change the transform in the shader and
 
 Step 4 above still holds without exception: **every control keeps its slider.**
 The miniature only hides the ones it duplicates, behind the group's `▸ sliders`
-toggle. That is what keeps MIDI binding, clock sync, favorites, presets, scenes
-and URL state working untouched — a miniature is another writer of a normal
-control, never the only one.
+toggle. That is what keeps MIDI binding, clock sync, presets, scenes and URL
+state working untouched — a miniature is another writer of a normal control,
+never the only one.
 
 The **fine tier** is the second sanctioned hider, under the same contract. A
 `fine: true` on a `SliderDef` in `src/ui/controls.ts` marks a trim — a control

@@ -20,6 +20,16 @@
 // `deepcat:` rather than `incategory:` because Commons categories are a deep
 // tree and `incategory:` matches direct membership only — "1980s photographs"
 // has 17 files directly in it and tens of thousands below it.
+//
+// The channels are not the only way in any more: ui/MediaBrowserDialog.tsx runs
+// arbitrary queries through `browseCommons`, which is *ranked* rather than
+// random and therefore does not have the problem the paragraph above describes.
+// The pools stay because a channel is a one-click gesture mid-set and a dialog
+// is not.
+
+import { BROWSE_LIMIT, isRecord, num, randomIndex, rotate, str } from './pool'
+
+import type { BrowseHit, PickKind, PoolPick, PoolRef } from './pool'
 
 const API = 'https://commons.wikimedia.org/w/api.php'
 
@@ -29,6 +39,12 @@ const API = 'https://commons.wikimedia.org/w/api.php'
 // is still comfortably above the 754px active raster, and is a quarter of the
 // bytes. Originals are never fetched: they run to 40 megapixels.
 const THUMB_WIDTH = 1024
+
+// Width asked for a browse result, which is a picture to *choose* by rather than
+// one to show. Two dozen of these load at once, so the grid cell's width is the
+// budget — 240 covers it at 2× and is a fortieth of the bytes a playable
+// thumbnail costs.
+const BROWSE_THUMB = 240
 
 // Transcodes taller than this are ignored. Commons pre-renders a ladder for
 // every video it holds, and the source of truth for "how big is this really" is
@@ -41,144 +57,114 @@ const MAX_VIDEO_HEIGHT = 480
 // of them and deepcat wanders into conference talks from almost anywhere.
 const MAX_VIDEO_SECONDS = 20 * 60
 
-export type CommonsKind = 'photo' | 'video'
-
-interface Channel {
+// One tested pool: a query that has been run against the live API, what to call
+// it, and which of the two readers vets what comes back.
+//
+// A flat list, where this was a two-level table of seven named "channels" each
+// holding three or four of these. The nesting existed for one reason — the
+// source dropdown offered a channel per mood, so the queries had to be grouped
+// under names like "statuary, neon, dead malls, sunsets" — and that dropdown is
+// now one entry, "Random Commons". The grouping was also lossy in both
+// directions: three queries appeared in two channels each and so rolled at
+// double weight, and no single pool could be reached deliberately even though
+// the good ones (Fortepan; marble busts) are the reason the feature works.
+//
+// Flat, every pool is exactly one roll's worth of weight, and every one is a
+// button in the browser dialog — which is where a name like "Marble busts"
+// finally does something a mood label could not.
+export interface Pool {
   label: string
-  kind: CommonsKind
-  // Rolled per pick, so one channel spans several pools without any of them
-  // dominating. Every query here has been run against the live API.
-  queries: readonly string[]
+  query: string
+  kind: PickKind
 }
-
-export const COMMONS_IDS = [
-  'wiki-retro',
-  'wiki-vapor',
-  'wiki-nature',
-  'wiki-people',
-  'wiki-timelapse',
-  'wiki-vapor-video',
-  'wiki-nature-video',
-] as const
-export type CommonsId = (typeof COMMONS_IDS)[number]
 
 const BITMAP = 'filetype:bitmap'
 
-export const COMMONS: Record<CommonsId, Channel> = {
+export const COMMONS_POOLS: readonly Pool[] = [
   // Fortepan is the anchor: ~67k donated Hungarian amateur photographs running
   // from the 1900s to the 1990s, which is the closest thing Commons has to a
-  // shoebox of found snapshots. The rest are the environments that read as the
-  // same era.
-  'wiki-retro': {
-    label: 'Commons: found photos — Fortepan, neon, malls, CRTs',
-    kind: 'photo',
-    queries: [
-      `Fortepan ${BITMAP}`,
-      `deepcat:"Neon signs" ${BITMAP}`,
-      `deepcat:"Interiors of shopping malls" ${BITMAP}`,
-      `VHS OR camcorder OR "cathode ray" ${BITMAP}`,
-    ],
-  },
+  // shoebox of found snapshots.
+  { label: 'Fortepan snapshots', query: `Fortepan ${BITMAP}`, kind: 'photo' },
   // Marble busts are the surprise here and the best single pool of the lot —
   // Gordian I, Agrippa, anonymous Greek heads, all shot against flat museum
   // backdrops, which is the exact look the aesthetic borrows.
-  'wiki-vapor': {
-    label: 'Commons: statuary, neon, dead malls, sunsets',
+  {
+    label: 'Marble busts',
+    query: `deepcat:"Marble busts" ${BITMAP}`,
     kind: 'photo',
-    queries: [
-      `deepcat:"Marble busts" ${BITMAP}`,
-      `deepcat:"Neon signs" ${BITMAP}`,
-      `deepcat:"Interiors of shopping malls" ${BITMAP}`,
-      `deepcat:"Sunsets" ${BITMAP}`,
-    ],
   },
-  'wiki-nature': {
-    label: 'Commons: reefs, birds, sunsets',
+  {
+    label: 'Neon signs',
+    query: `deepcat:"Neon signs" ${BITMAP}`,
     kind: 'photo',
-    queries: [
-      `deepcat:"Underwater photographs" ${BITMAP}`,
-      `deepcat:"Quality images of birds" ${BITMAP}`,
-      `deepcat:"Sunsets" ${BITMAP}`,
-    ],
   },
-  'wiki-people': {
-    label: 'Commons: portrait and fashion photography',
+  {
+    label: 'Dead malls',
+    query: `deepcat:"Interiors of shopping malls" ${BITMAP}`,
     kind: 'photo',
-    queries: [
-      `deepcat:"Portrait photographs of women" ${BITMAP}`,
-      `deepcat:"Fashion photographs" ${BITMAP}`,
-    ],
   },
-  // The only video pool that held up. "Videos of animals" sounds better and is
-  // 23k files, but random-sorted it returns football highlights and animated
+  {
+    label: 'VHS and CRTs',
+    query: `VHS OR camcorder OR "cathode ray" ${BITMAP}`,
+    kind: 'photo',
+  },
+  { label: 'Sunsets', query: `deepcat:"Sunsets" ${BITMAP}`, kind: 'photo' },
+  {
+    label: 'Underwater',
+    query: `deepcat:"Underwater photographs" ${BITMAP}`,
+    kind: 'photo',
+  },
+  {
+    label: 'Birds',
+    query: `deepcat:"Quality images of birds" ${BITMAP}`,
+    kind: 'photo',
+  },
+  {
+    label: 'Portraits',
+    query: `deepcat:"Portrait photographs of women" ${BITMAP}`,
+    kind: 'photo',
+  },
+  {
+    label: 'Fashion',
+    query: `deepcat:"Fashion photographs" ${BITMAP}`,
+    kind: 'photo',
+  },
+  // The moving half. Every one was rolled against the live API and returns clips
+  // with transcodes; named categories that sound better and return *nothing* are
+  // worth recording so nobody adds them back — "Videos of cities at night",
+  // "Videos of waves" and "Videos of aurorae" are all empty or non-existent,
+  // which is why there is no moving equivalent of the neon above.
+  //
+  // Time-lapse is the strongest of them. "Videos of animals" sounds better and
+  // is 23k files, but random-sorted it returns football highlights and animated
   // GIFs; time-lapse is a format rather than a subject, so the category stays
   // honest, and a 30-second clip of moving cloud is ideal material besides.
-  'wiki-timelapse': {
-    label: 'Commons: time-lapse video',
+  {
+    label: 'Time-lapse',
+    query: 'deepcat:"Time-lapse videos"',
     kind: 'video',
-    queries: ['deepcat:"Time-lapse videos"'],
   },
-  // The moving half of the two photo channels above, as channels of their own
-  // rather than a mode switch on those: a channel's `kind` decides which API
-  // property is asked for and which reader vets the answer, so one entry that
-  // could return either would be two channels wearing one name — and the
-  // picker would have no way to say which one a click was about to get.
-  //
-  // Every pool here was rolled against the live API and returns clips with
-  // transcodes. Named categories that sound better and return *nothing* are
-  // worth recording so nobody adds them back: "Videos of cities at night",
-  // "Videos of waves" and "Videos of aurorae" are all empty or non-existent,
-  // which is why neither channel has the neon the photo ones lean on.
-  'wiki-vapor-video': {
-    label: 'Commons: fountains, cloud and water, moving',
+  {
+    label: 'Fountains',
+    query: 'deepcat:"Videos of fountains"',
     kind: 'video',
-    queries: [
-      'deepcat:"Videos of fountains"',
-      'deepcat:"Videos of clouds"',
-      'deepcat:"Underwater videos"',
-    ],
   },
-  'wiki-nature-video': {
-    label: 'Commons: animals, fire, weather',
+  { label: 'Clouds', query: 'deepcat:"Videos of clouds"', kind: 'video' },
+  {
+    label: 'Underwater, moving',
+    query: 'deepcat:"Underwater videos"',
     kind: 'video',
-    queries: [
-      'deepcat:"Videos of animals"',
-      'deepcat:"Videos of fire"',
-      'deepcat:"Underwater videos"',
-    ],
   },
-}
+  { label: 'Animals', query: 'deepcat:"Videos of animals"', kind: 'video' },
+  { label: 'Fire', query: 'deepcat:"Videos of fire"', kind: 'video' },
+]
 
-const COMMONS_ID_SET: ReadonlySet<string> = new Set(COMMONS_IDS)
-export const isCommonsId = (mode: string): mode is CommonsId =>
-  COMMONS_ID_SET.has(mode)
-
-// What a roll hands back: a URL the <video>/image path can take as-is, plus the
-// Commons page title for the caption. `title` is what the picker cannot say —
-// two rolls of the same channel are different pictures, and this is the only
-// thing that names which one is up. It is also the *identity* of a pick, which
-// is what a favourite is stored as: a thumbnail url is a derivative that can be
-// re-rendered at another width, and the title is what survives.
-export interface CommonsPick {
-  url: string
-  title: string
-  kind: CommonsKind
-  // The file's own page: who shot it, and under which licence. Nothing else
-  // here leads to the credit, and this app composites other people's pictures
-  // into something recordable — so the one link that does travels with them.
-  page: string
-}
-
-// --- response narrowing -----------------------------------------------------
-// The API is untyped JSON from another origin, so it is walked with guards
-// rather than asserted into a shape. Anything unexpected reads as "this file is
-// not usable", which is the same branch a missing transcode takes.
-
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null
-
-const str = (v: unknown): string | null => (typeof v === 'string' ? v : null)
-const num = (v: unknown): number | null => (typeof v === 'number' ? v : null)
+// What a roll hands back is a `PoolPick` (pool.ts), the shape archive.org rolls
+// too. The fields this half fills in: `title` is the Commons page title, which
+// is what the picker cannot say — two rolls of the same channel are different
+// pictures, and the title is the only thing naming which one is up, as well as
+// the identity a shelf entry keeps. `owned` is always false: these urls are
+// upload.wikimedia.org's, not ours to revoke.
 
 // `query.pages` is an object keyed by page id, and the generator returns them
 // in no useful order.
@@ -247,9 +233,15 @@ const pageOf = (info: Record<string, unknown>, title: string): string =>
 // and a TIFF is not something a browser will decode.
 const OK_IMAGE = /^image\/(jpeg|png|gif|webp)$/
 
-export const stillFrom = (
-  page: Record<string, unknown>,
-): CommonsPick | null => {
+// The two fields every Commons pick answers the same way, filled in once.
+const made = (fields: {
+  url: string
+  title: string
+  kind: PickKind
+  page: string
+}): PoolPick => ({ ...fields, origin: 'commons', owned: false })
+
+export const stillFrom = (page: Record<string, unknown>): PoolPick | null => {
   const head = infoOf(page, 'imageinfo')
   if (head === null) return null
   const { title, info } = head
@@ -258,7 +250,7 @@ export const stillFrom = (
   const url = str(info.thumburl) ?? str(info.url)
   return url === null
     ? null
-    : { url, title, kind: 'photo', page: pageOf(info, title) }
+    : made({ url, title, kind: 'photo', page: pageOf(info, title) })
 }
 
 // A page's usable rendition: the biggest VP9 WebM transcode within the height
@@ -266,9 +258,7 @@ export const stillFrom = (
 // the upload was Ogg Theora the transcode is the only modern container on
 // offer. `transcodekey` is what marks a derivative as a rendition rather than
 // the source file repeated back.
-export const videoFrom = (
-  page: Record<string, unknown>,
-): CommonsPick | null => {
+export const videoFrom = (page: Record<string, unknown>): PoolPick | null => {
   const head = infoOf(page, 'videoinfo')
   if (head === null) return null
   const { title, info } = head
@@ -289,7 +279,7 @@ export const videoFrom = (
   }
   return best === null
     ? null
-    : { url: best.url, title, kind: 'video', page: pageOf(info, title) }
+    : made({ url: best.url, title, kind: 'video', page: pageOf(info, title) })
 }
 
 // What the API has to be asked for, per kind: a capped thumbnail for a still,
@@ -297,7 +287,7 @@ export const videoFrom = (
 // site because there are two ways in now — rolling a channel, and resolving one
 // file by name — and a favourite has to come back through exactly the reader
 // that vetted it when it was rolled.
-const WANTED: Record<CommonsKind, Record<string, string>> = {
+const WANTED: Record<PickKind, Record<string, string>> = {
   photo: {
     prop: 'imageinfo',
     iiprop: 'url|size|mime',
@@ -307,11 +297,11 @@ const WANTED: Record<CommonsKind, Record<string, string>> = {
 }
 
 const READ: Record<
-  CommonsKind,
-  (page: Record<string, unknown>) => CommonsPick | null
+  PickKind,
+  (page: Record<string, unknown>) => PoolPick | null
 > = { photo: stillFrom, video: videoFrom }
 
-const usableIn = (body: unknown, kind: CommonsKind): CommonsPick[] =>
+const usableIn = (body: unknown, kind: PickKind): PoolPick[] =>
   pagesOf(body).flatMap(page => {
     const found = READ[kind](page)
     return found === null ? [] : [found]
@@ -324,9 +314,9 @@ const usableIn = (body: unknown, kind: CommonsKind): CommonsPick[] =>
 // failed. The preference yields rather than empties: a pool that has genuinely
 // narrowed to one file is not a failure to roll.
 export function choosePick(
-  candidates: readonly CommonsPick[],
+  candidates: readonly PoolPick[],
   avoid: string,
-): CommonsPick | null {
+): PoolPick | null {
   const fresh = candidates.filter(c => c.title !== avoid)
   return pick(fresh.length === 0 ? candidates : fresh)
 }
@@ -340,26 +330,14 @@ export function choosePick(
 // retry: a channel that answers nothing twice is a channel worth looking at.
 const ATTEMPTS = 2
 
-const rotate = <T>(xs: readonly T[], by: number): T[] => [
-  ...xs.slice(by),
-  ...xs.slice(0, by),
-]
-
 // Which pools this roll will try, in order. Starting somewhere random is what
-// keeps one channel spanning several pools without the first one dominating;
-// moving on rather than asking the same pool twice is what makes the retry worth
-// having, since a pool whose transcodes are all missing stays that way. The
-// doubling covers a one-pool channel, where the retry is the same query again —
-// which is a different page of candidates, the sort being random.
-export const queryPlan = (
-  queries: readonly string[],
-  start: number,
-): string[] => {
-  const order = rotate(queries, start)
-  return [...order, ...order].slice(0, ATTEMPTS)
-}
+// spreads a roll over all of them without the first dominating; moving on rather
+// than asking the same pool twice is what makes the retry worth having, since a
+// pool whose transcodes are all missing stays that way.
+export const rollPlan = <T>(pools: readonly T[], start: number): T[] =>
+  rotate(pools, start).slice(0, ATTEMPTS)
 
-// Roll one file out of a channel. A single request does the whole job: a search
+// Roll one file out of Commons. A single request does the whole job: a search
 // generator feeding the imageinfo/videoinfo the caller actually needs, so
 // there is no title round-trip in between.
 //
@@ -368,42 +346,101 @@ export const queryPlan = (
 // locally is what lets a video roll skip the ones whose transcodes are missing
 // without going back to the network, and what gives `avoid` something to choose
 // between.
-export async function rollCommons(
-  id: CommonsId,
-  avoid = '',
-): Promise<CommonsPick> {
-  const channel = COMMONS[id]
-  const start = Math.floor(Math.random() * channel.queries.length)
-  for (const search of queryPlan(channel.queries, start)) {
-    const body = await query({
-      generator: 'search',
-      gsrsearch: search,
-      gsrnamespace: '6',
-      gsrlimit: '12',
-      gsrsort: 'random',
-      ...WANTED[channel.kind],
-    })
-    const chosen = choosePick(usableIn(body, channel.kind), avoid)
-    if (chosen !== null) return chosen
+//
+// A roll can hand back a still or a clip, since the pools hold both and this is
+// one entry in the picker rather than seven. `rollFromPool` below is what a
+// browser preset uses to stay inside one of them.
+export async function rollCommons(avoid = ''): Promise<PoolPick> {
+  const start = randomIndex(COMMONS_POOLS.length)
+  for (const pool of rollPlan(COMMONS_POOLS, start)) {
+    const found = await rollFromPool(pool, avoid)
+    if (found !== null) return found
   }
   throw new Error('nothing usable came back — roll again')
 }
 
+// One roll out of one named pool, or null when that pool answered with nothing
+// this app can use. The retry above is a *different* pool rather than the same
+// query twice, so this stays a single request.
+export async function rollFromPool(
+  pool: Pool,
+  avoid = '',
+): Promise<PoolPick | null> {
+  const body = await query({
+    generator: 'search',
+    gsrsearch: pool.query,
+    gsrnamespace: '6',
+    gsrlimit: '12',
+    gsrsort: 'random',
+    ...WANTED[pool.kind],
+  })
+  return choosePick(usableIn(body, pool.kind), avoid)
+}
+
 // One named file, fetched the same way and read by the same reader. This is what
-// a favourite *is*: the title, resolved when it is played rather than a
-// thumbnail url kept from the day it was starred. A derivative url is a promise
+// a shelf entry *is*: the title, resolved when it is played rather than a
+// thumbnail url kept from the day it was kept. A derivative url is a promise
 // about a rendering — the thumbnailer's buckets, a file overwritten by a better
 // scan, a transcode ladder rebuilt — and none of that outlives a shelf that is
 // meant to still work next year, where the title does.
-export async function resolveCommons(
-  title: string,
-  kind: CommonsKind,
-): Promise<CommonsPick> {
-  const body = await query({ titles: title, ...WANTED[kind] })
-  const found = usableIn(body, kind)[0]
+export async function resolveCommons(ref: PoolRef): Promise<PoolPick> {
+  const body = await query({ titles: ref.title, ...WANTED[ref.kind] })
+  const found = usableIn(body, ref.kind)[0]
   if (found === undefined)
-    throw new Error(`${commonsCaption(title)} is no longer playable`)
+    throw new Error(`${commonsCaption(ref.title)} is no longer playable`)
   return found
+}
+
+// A page of results for an arbitrary query, as the browser dialog draws them.
+//
+// The other three requests in this file ask for what it takes to *play* a file;
+// this one asks for what it takes to look at two dozen and choose. That is one
+// `imageinfo` at 240px whatever the kind — Commons renders a poster frame for a
+// clip as readily as a thumbnail for a still, verified against the live API — so
+// browsing costs one query shape and no transcode ladders. `mime` is what says
+// which kind a hit turned out to be, and the ref carries that through to
+// `resolveCommons`, which then asks for the right thing.
+//
+// Ranked rather than random, which is the whole difference between this and a
+// channel: `gsrsort=random` throws relevance away, so a typed query would answer
+// with a Greek vase (see the head of this file). Sorted by relevance, an
+// arbitrary query is finally worth offering.
+export async function browseCommons(search: string): Promise<BrowseHit[]> {
+  const body = await query({
+    generator: 'search',
+    gsrsearch: search,
+    gsrnamespace: '6',
+    gsrlimit: String(BROWSE_LIMIT),
+    prop: 'imageinfo',
+    iiprop: 'url|mime',
+    iiurlwidth: String(BROWSE_THUMB),
+  })
+  return pagesOf(body).flatMap(page => {
+    const head = infoOf(page, 'imageinfo')
+    if (head === null) return []
+    const { title, info } = head
+    const mime = str(info.mime)
+    const thumb = str(info.thumburl)
+    // No poster and no readable mime means nothing to draw and nothing to say
+    // it would play, which is the same branch as a PDF landing in the results.
+    if (thumb === null || mime === null) return []
+    const kind: PickKind | null = OK_IMAGE.test(mime)
+      ? 'photo'
+      : mime.startsWith('video/')
+        ? 'video'
+        : null
+    if (kind === null) return []
+    return [
+      {
+        origin: 'commons' as const,
+        title,
+        kind,
+        label: commonsCaption(title),
+        thumb,
+        page: pageOf(info, title),
+      },
+    ]
+  })
 }
 
 // "File:Sunset over Logan Square.webm" is how Commons names a page; the prefix

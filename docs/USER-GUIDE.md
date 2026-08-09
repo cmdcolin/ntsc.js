@@ -124,21 +124,34 @@ Edge can hold a folder open, so one permission covers the lot and the whole
 shelf comes back after a single prompt; Firefox and Safari cannot hold a file
 open past a reload at all, so the list survives and the footage does not —
 re-pick the same folder once and every row reconnects by name, nothing added
-twice. The **Wikimedia Commons** band is footage nobody has to have: seven
-channels — found photos, statuary and dead malls, reefs and birds, portraits,
-and three of moving footage (time-lapse, fountains and water, animals and fire)
-— and each one is a _search_ rather than a picture, so picking it rolls a file
-out of the pool and clicking the caption underneath rolls the next one. That is
+twice. The **Public archives** band is footage nobody has to
+have, in three entries. **Random Commons** and **Random archive.org** are each a
+_search_ rather than a picture: picking one rolls a file out of the pool and
+clicking the caption underneath rolls the next one. Commons brings found photos,
+marble busts, dead malls, reefs and time-lapse; archive.org brings tape idents,
+80s and 90s commercials and Prelinger industrial film, and warns you because it
+is slower — that site will not serve byte ranges, so a pick downloads the whole
+clip before it appears, usually a few seconds and sometimes twenty. Rolling is
 the whole of it: the caption is the only thing on screen that says which file
 came back, and the roll before it is gone. So keep the ones worth keeping — the
-**★** beside the caption pins the picture that is up to your favourites, and
-**Favorites…** at the foot of the same band is the shelf of them, playable into
-either deck. A star keeps the file's _name_, not a copy, so it costs nothing on
-disk and comes back at whatever size the app asks for today; the **↗** next to
-it opens the file's own page on Commons, which is where the licence and the
-photographer are. Both verbs are in the command palette too (⌘K —
-`roll another`, `star this`), which is where you want them mid-set with the
-stage folded. **Video synth** is the one generated source that makes a picture
+**★** beside the caption puts the picture that is up on your clip shelf,
+alongside your own footage and playable into either deck. It keeps the file's
+_name_, not a copy, so it costs nothing on disk and comes back at whatever size
+the app asks for today; the **↗** next to it opens the file's own page upstream,
+which is where the licence and the photographer are. Both verbs are in the
+command palette too (⌘K — `roll another`, `keep this file`), which is where you
+want them mid-set with the stage folded.
+
+**Browse…** is the third entry and the answer to not wanting to gamble. It
+searches both archives and shows you what it found: a grid of thumbnails,
+including for clips, so you can see a piece of footage without waiting for it to
+download. Type anything — results are ranked, so ordinary words work here in a
+way they cannot for a random pick — or take one of the tested pools along the
+top, which are the same ones a random pick rolls out of, with names like
+`Marble busts` and `Tape openings`. Every result plays into either deck, and the
+★ on it keeps it on the shelf without playing it at all.
+
+**Video synth** is the one generated source that makes a picture
 instead of a failure to have one: two oscillators, a combiner and a colorizer,
 with no input at all. Its one real knob is frequency, because what a video synth
 draws is where it sits against the raster — put an oscillator on an exact
@@ -248,12 +261,17 @@ chain runs to the glass while the loops feed the picture back into it. Amber is
 a stage you've moved something in, and a dashed **Source B** and **Mix** mean
 nothing is patched into B yet. Click one to open its controls below:
 
-The three wires arcing over the trunk are the feedback loops, each named on its
-own run and each a button: **camera** is optical and drawn dashed, **mixer** is
-the composite bus patched back into itself, and **tape** is the short one
-straddling **Feedback** — a loop bin across the bus rather than a run around the
-chain. A run lights up while its loop is actually running, and clicking one
-opens that loop's controls rather than the whole **Feedback** stage.
+The three wires arcing over the trunk are the feedback loops, and each is a
+stage in its own right — its run is the button, because none of the three is
+something the picture passes through and so none of them has a box on the trunk.
+**camera** is optical and drawn dashed: it shoots the tube's face, so it reaches
+back from **Screen** and comes in at the head of the chain, ahead of the
+encoder. **mixer** is the composite bus patched back into itself, off the
+**Receiver** and onto the bus out of the mixer. **tape** is the short one
+straddling **Mix** — a loop bin across the bus rather than a run around the
+chain. A run wears the same colours a box does (amber for an edit, accent for
+the one you have open), lights up while its loop is actually running, and
+clicking it opens that loop and nothing else.
 
 **diagram ⤢**, beside the map's heading, draws the same path with room for the
 parts the miniature has to leave out — each source's own feed, and a sentence on

@@ -73,3 +73,10 @@ export const choicesFitTrack = (choices: readonly string[]) =>
   ) +
     Math.max(0, choices.length - 1) * TRACK_FIT.gap <=
   TRACK_FIT.floorRem * TRACK_FIT.rem
+
+// What an unknown throw reads as. Every async path in this app ends at a banner
+// or a dialog note, and `String(e)` on a real Error prints "Error: …" while
+// `e.message` on a rejected non-Error prints nothing at all — so both callers
+// grew the same three lines rather than pick one and be wrong half the time.
+export const reason = (e: unknown): string =>
+  e instanceof Error ? e.message : String(e)

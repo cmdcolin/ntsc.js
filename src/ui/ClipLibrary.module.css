@@ -142,8 +142,15 @@
    The caption under the source row, opened as a menu. It wears the caption's
    own class so nothing about the slot moves when a clip is on it — what changes
    is that clicking it drops a list rather than a dialog over the picture. */
+/* The caption row for a slot that is on the shelf: the trigger, then whatever
+   belongs to the clip it names. Wears the same offsets as FileName's row so a
+   slot moving between the shelf and a rolled source does not shift the panel by
+   a pixel. */
+.pickCaption {
+  composes: fileRow from './SelectRow.module.css';
+}
 .trigger {
-  composes: fileName from './SelectRow.module.css';
+  composes: fileCaption from './SelectRow.module.css';
 }
 
 .filter {

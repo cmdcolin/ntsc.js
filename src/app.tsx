@@ -10,8 +10,8 @@ import { createPortal } from 'react-dom'
 
 import styles from './app.module.css'
 import { DEFAULT_CONTROLS, atRest } from './controls'
-import { commonsCaption } from './sources/commons'
 import { A_OPTIONS, B_OPTIONS } from './sources/modes'
+import { poolCaption } from './sources/pools'
 import { AdvancedDialog } from './ui/AdvancedDialog'
 import { AppMenu, ShowMenuButton } from './ui/AppMenu'
 import { AudioHint, AudioInput } from './ui/AudioInput'
@@ -57,6 +57,7 @@ import { HelpDialog } from './ui/HelpDialog'
 import { CrosshairIcon } from './ui/icons'
 import { LookBar } from './ui/LookBar'
 import { LookSection } from './ui/LookSection'
+import { MediaBrowserDialog } from './ui/MediaBrowserDialog'
 import { MidiSection } from './ui/MidiSection'
 import { ModSection } from './ui/ModSection'
 import { slotsToRoutings } from './ui/modSlots'
@@ -100,9 +101,7 @@ import { useScrollAnchor } from './ui/useScrollAnchor'
 import { useShortcuts } from './ui/useShortcuts'
 import { useTempo } from './ui/useTempo'
 import { useUrlState } from './ui/useUrlState'
-import { useWikiFavorites } from './ui/useWikiFavorites'
 import { WebcamDialog } from './ui/WebcamDialog'
-import { WikiFavoritesDialog } from './ui/WikiFavoritesDialog'
 import { YouTubeDialog } from './ui/YouTubeDialog'
 import { gitSha, versionLabel } from './version'
 
@@ -117,8 +116,9 @@ import type { Lens } from './ui/lens'
 import type { SavedProfile } from './ui/savedProfiles'
 import type { BranchNode, PathNode } from './ui/SignalPath'
 import type { AnySlotView } from './ui/slotView'
-import type { WikiSlot } from './ui/SourceSlot'
+import type { PickSlot } from './ui/SourceSlot'
 import type { LookContext } from './ui/useLookLabels'
+import type { SourcePrompt } from './ui/useSourcePrompt'
 import type { ReactNode } from 'react'
 
 // Whether the menu over the picture has been dismissed. Persisted across
@@ -405,10 +405,11 @@ export function App() {
   // grant is an await and the click's transient activation does not survive
   // one. Nothing here prompts — `hasRead` only asks what the answer already is.
   const clips = useClipLibrary(
-    eng.askLibrary !== null ||
+    eng.prompt.slotFor('library') !== null ||
       eng.a.mode === 'library' ||
       eng.b.mode === 'library',
     eng.loadClip,
+    (slot, ref) => eng.showRef(slot, ref, 'library'),
   )
 
   // Either slot, by the key something outside handed over. Four surfaces are
@@ -424,45 +425,39 @@ export function App() {
   // dialog — which is correct only because nothing can move that state while the
   // dialog is up, and reads as though something might. Resolved at the open, the
   // dialog holds the slot it belongs to and its verbs are that slot's.
-  const teletypeSlot =
-    eng.askTeletype === null ? null : slotFor(eng.askTeletype)
-  const youTubeSlot = eng.askYouTube === null ? null : slotFor(eng.askYouTube)
+  const asked = (kind: SourcePrompt): AnySlotView | null => {
+    const key = eng.prompt.slotFor(kind)
+    return key === null ? null : slotFor(key)
+  }
+  const teletypeSlot = asked('teletype')
+  const youTubeSlot = asked('youtube')
+  // The other two take a key rather than a slot view: the shelf and the browser
+  // are lists of media, not verbs on a deck, and what they need to know is which
+  // deck a plain click plays into.
+  const libraryFor = eng.prompt.slotFor('library')
+  const browseFor = eng.prompt.slotFor('browse')
 
-  // The starred Commons rolls, on the same footing as the shelf: a list the
-  // engine has no stake in beyond the pick that comes back off it.
-  const wiki = useWikiFavorites()
+  // Which pick the palette's two rows act on: A's if it has one, else B's, the
+  // same precedence `rollAgain` uses — A is the picture.
+  const shown = eng.a.pick ?? eng.b.pick
+  const shownKept = shown !== null && clips.kept(shown)
 
-  // Which pick the palette's two Commons rows act on: A's if it has one, else
-  // B's, the same precedence `rollAgain` uses — A is the picture.
-  const wikiPick = eng.a.wiki ?? eng.b.wiki
-  const wikiStarred = wikiPick !== null && wiki.starred(wikiPick.pick.title)
-
-  // The ★ and the credit link under a source picker, for a slot that has a
-  // Commons pick on it. Assembled here because it takes one fact from the engine
-  // (what is on the slot) and one from the favourites list (whether that title is
-  // starred), and neither hook can see the other — but it takes the *slot* rather
-  // than the pick already dug out of one, so a source slot can ask it per slot and
-  // the answer cannot arrive under the wrong picker.
-  //
-  // An archive.org roll comes through the same caption with no ★: there is no
-  // shelf for one (a favourite is resolved by title on Commons, and an
-  // archive.org pick is a downloaded blob rather than something a title can be
-  // turned back into), so it carries the credit link alone.
-  const wikiCaption = (slot: AnySlotView): WikiSlot => {
-    const on = slot.wiki
-    if (on !== null)
-      return {
-        page: on.pick.page,
-        where: 'Wikimedia Commons',
-        star: {
-          starred: wiki.starred(on.pick.title),
-          onStar: () => wiki.star(on.pick, on.channel),
-        },
-      }
-    const ia = slot.archive
-    return ia === null
+  // The ★ and the credit link under a source picker, for a slot with something
+  // off one of the public archives on it. Assembled here because it takes one
+  // fact from the engine (what is on the slot) and one from the shelf (whether
+  // that file is on it), and neither hook can see the other — but it takes the
+  // *slot* rather than the pick already dug out of one, so a source slot can ask
+  // it per slot and the answer cannot arrive under the wrong picker.
+  const pickCaption = (slot: AnySlotView): PickSlot => {
+    const on = slot.pick
+    return on === null
       ? null
-      : { page: ia.page, where: 'archive.org', star: null }
+      : {
+          page: on.page,
+          origin: on.origin,
+          kept: clips.kept(on),
+          onKeep: () => clips.keep(on, poolCaption(on)),
+        }
   }
 
   // The link still takes its per-slot values flat, because the query string is a
@@ -685,32 +680,32 @@ export function App() {
         audio.select('video')
       },
     },
-    // The two verbs a Commons channel needs from the keys rather than from the
+    // The two verbs a random archive needs from the keys rather than from the
     // sidebar. Both are in the caption row already, and the caption row is inside
     // a section that starts folded and is 141px of the panel when it is not —
     // which is exactly the wrong place for the one control in this app you press
     // repeatedly while looking at the picture rather than at the panel.
     {
-      name: 'roll another Commons file',
-      blurb: !eng.wikiRollable
-        ? 'pick one of the Commons channels as a source first'
-        : wikiPick === null
-          ? 'another out of the same pool'
-          : `another out of the same pool — ${commonsCaption(wikiPick.pick.title)} is up now`,
+      name: 'roll another file',
+      blurb: !eng.rollable
+        ? 'put one of the random archives on a source first'
+        : shown === null
+          ? 'another out of the same archive'
+          : `another out of the same archive — ${poolCaption(shown)} is up now`,
       run: eng.rollAgain,
     },
     {
       // Deliberately not gated on there being a pick: a row that vanishes is a
       // row nobody learns is there, and its blurb says what it would do.
-      name: wikiStarred ? 'unstar this Commons file' : 'star this Commons file',
+      name: shownKept ? 'unkeep this file' : 'keep this file',
       blurb:
-        wikiPick === null
-          ? 'keeps the Commons roll that is on screen — nothing is up now'
-          : wikiStarred
-            ? 'drop it from your favorites shelf'
-            : 'keep it: the next roll replaces the picture, the star does not',
+        shown === null
+          ? 'keeps the rolled file that is on screen — nothing is up now'
+          : shownKept
+            ? 'take it off your clip shelf'
+            : 'keep it on your clip shelf: the next roll replaces the picture, the shelf keeps it',
       run: () => {
-        if (wikiPick !== null) wiki.star(wikiPick.pick, wikiPick.channel)
+        if (shown !== null) clips.keep(shown, poolCaption(shown))
       },
     },
     ...cueVerbs(eng.a),
@@ -956,17 +951,20 @@ export function App() {
   // `…B` pair this was two four-line copies whose only difference was three
   // letters, which is the shape that ends up opening the shelf for A while
   // captioning it with B's clip.
-  const clipPicker = (slot: AnySlotView): ReactNode => (
-    <ClipPicker
-      slot={slot.key}
-      name={slot.name}
-      lib={clips.lib}
-      access={clips.access}
-      note={clips.note}
-      onPlay={clips.play}
-      onOpenShelf={() => eng.setAskLibrary(slot.key)}
-    />
-  )
+  const clipPicker =
+    (slot: AnySlotView) =>
+    (extra: ReactNode): ReactNode => (
+      <ClipPicker
+        slot={slot.key}
+        name={slot.name}
+        lib={clips.lib}
+        access={clips.access}
+        note={clips.note}
+        extra={extra}
+        onPlay={clips.play}
+        onOpenShelf={() => eng.prompt.ask('library', slot.key)}
+      />
+    )
 
   // What heads a stage, above the groups that shape what it brings in: the
   // picker that decides what feeds it. Exactly three stages have one, and they
@@ -995,7 +993,7 @@ export function App() {
         title="main source"
         options={A_OPTIONS}
         clipPicker={clipPicker(eng.a)}
-        wiki={wikiCaption(eng.a)}
+        pick={pickCaption(eng.a)}
       >
         {eng.a.mode === 'webcam' && eng.videoDevices.length > 1 ? (
           <SelectRow
@@ -1017,7 +1015,7 @@ export function App() {
         title="second source, mixed in dirty"
         options={B_OPTIONS}
         clipPicker={clipPicker(eng.b)}
-        wiki={wikiCaption(eng.b)}
+        pick={pickCaption(eng.b)}
       />
     ),
     [SOUND_STAGE]: () => (
@@ -1492,25 +1490,26 @@ export function App() {
           onClose={() => setShowAdvanced(false)}
         />
       ) : null}
-      {eng.askWebcam ? (
+      {/* None of these five closes itself on a successful pick: committing a
+          source is what dismisses the question, from `beginLoad` in useEngine
+          (useSourcePrompt.ts says why that is the only place it can go). What
+          is left here is Escape and the × — the ways out that pick nothing. */}
+      {eng.prompt.slotFor('webcam') === null ? null : (
         <WebcamDialog
           onContinue={() => eng.startWebcam('')}
-          onClose={() => eng.setAskWebcam(false)}
+          onClose={eng.prompt.dismiss}
         />
-      ) : null}
+      )}
       {youTubeSlot === null ? null : (
         <YouTubeDialog
           slot={youTubeSlot.key}
-          onSubmit={url => {
-            youTubeSlot.loadYouTube(url)
-            eng.setAskYouTube(null)
-          }}
-          onClose={() => eng.setAskYouTube(null)}
+          onSubmit={youTubeSlot.loadYouTube}
+          onClose={eng.prompt.dismiss}
         />
       )}
-      {eng.askLibrary !== null ? (
+      {libraryFor === null ? null : (
         <ClipLibraryDialog
-          slot={eng.askLibrary}
+          slot={libraryFor}
           lib={clips.lib}
           access={clips.access}
           note={clips.note}
@@ -1524,28 +1523,25 @@ export function App() {
           onPlay={clips.play}
           onForgetClip={clips.forgetClip}
           onForgetFolder={clips.forgetFolder}
-          onClose={() => eng.setAskLibrary(null)}
+          onClose={eng.prompt.dismiss}
         />
-      ) : null}
-      {eng.askWiki !== null ? (
-        <WikiFavoritesDialog
-          slot={eng.askWiki}
-          faves={wiki.faves}
-          onPlay={(fave, slot) => eng.showFavorite(slot, fave)}
-          onForget={wiki.forget}
-          onClose={() => eng.setAskWiki(null)}
+      )}
+      {browseFor === null ? null : (
+        <MediaBrowserDialog
+          slot={browseFor}
+          kept={clips.kept}
+          onPlay={(ref, slot) => eng.showRef(slot, ref, 'browse')}
+          onKeep={clips.keep}
+          onClose={eng.prompt.dismiss}
         />
-      ) : null}
+      )}
       {teletypeSlot === null ? null : (
         <TeletypeDialog
           slot={teletypeSlot.key}
           initial={teletypeSlot.teletype}
           onLive={teletypeSlot.retype}
-          onSubmit={card => {
-            teletypeSlot.loadTeletype(card)
-            eng.setAskTeletype(null)
-          }}
-          onClose={() => eng.setAskTeletype(null)}
+          onSubmit={teletypeSlot.loadTeletype}
+          onClose={eng.prompt.dismiss}
         />
       )}
       {showDiagram ? (

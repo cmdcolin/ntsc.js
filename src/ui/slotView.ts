@@ -22,23 +22,12 @@
 // only B can be 'none', only A can be 'webcam' — so neither slot will accept the
 // other's mode even though everything else about them is the same shape.
 
-import type { ArchivePick } from '../sources/archive'
-import type { CommonsId, CommonsPick } from '../sources/commons'
 import type { SourceBMode, SourceMode } from '../sources/modes'
+import type { PoolPick } from '../sources/pools'
 import type { TeletypeCard } from '../sources/teletype'
 import type { Cue } from './cue'
 import type { StashSlot } from './fileStash'
 import type { SlotKind } from './videoSlot'
-
-// What a slot has off Wikimedia Commons: the file that came back, and the
-// channel it was rolled out of (or '' for one played back off the starred
-// shelf, which is a list rather than a pool). Lives here rather than in
-// useEngine because it is a fact about a slot, and this is the file that says
-// what those are.
-export interface WikiOnSlot {
-  pick: CommonsPick
-  channel: CommonsId | ''
-}
 
 export interface SlotView<T extends SourceMode | SourceBMode> {
   // Which slot this is. Carried on the object so nothing downstream has to be
@@ -96,13 +85,18 @@ export interface SlotView<T extends SourceMode | SourceBMode> {
   speed: number
   changeSpeed: (rate: number) => void
 
-  wiki: WikiOnSlot | null
-  // What this slot has off archive.org, if anything. A second field rather than
-  // a widened `wiki` because the two are not the same thing to the UI: a Commons
-  // pick can be starred and this cannot — there is no shelf for it — and its url
-  // is a `blob:` allocation holding the whole clip, which is a fact about its
-  // lifetime that nothing on the Commons side has.
-  archive: ArchivePick | null
+  // What this slot has off one of the pools — Commons or archive.org — if
+  // anything: the file that came back, the channel it was rolled out of (or ''
+  // when it came off the shelf, which is a list rather than a pool), and where
+  // the credit lives.
+  //
+  // One field rather than the two this used to be. They were split on the
+  // grounds that a Commons pick could be kept and an archive.org one could not,
+  // which stopped being true when the identifier turned out to re-resolve like a
+  // title (sources/archive.ts, `resolveArchive`) — and the split was costing the
+  // engine two of every state slot and the caption a branch, to record a
+  // difference the UI no longer has.
+  pick: PoolPick | null
 }
 
 // Either slot, whichever mode union it carries. What to write when a caller

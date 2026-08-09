@@ -1,6 +1,8 @@
 import { cx } from './cx'
+import { CreditLink } from './MediaRow'
 import styles from './SelectRow.module.css'
 
+import type { PoolOrigin } from '../sources/pools'
 import type { ReactNode } from 'react'
 
 // Caption under a loaded file/URL source. Clicking it re-fires the source
@@ -66,55 +68,52 @@ export function FileName(props: {
   )
 }
 
-// What a rolled pick adds to its caption. Up to two glyphs, both of them things
-// the picker cannot say: whether this roll has been kept, and where the credit
-// is.
+// What a pick off one of the public archives adds to its caption: two glyphs,
+// both of them things the picker cannot say — whether this one has been kept,
+// and where the credit is.
 //
-// The ★ is the whole answer to what a channel *is* — the caption beside it rolls
-// the next file and this one is gone — so it sits where the picture is named
-// rather than in the dialog that lists the kept ones, which is a place you go
-// after the moment has passed. It is optional because only the Commons channels
-// have a shelf to keep a roll on; an archive.org roll carries the credit link
-// alone rather than a ☆ that would do nothing when pressed.
-export function WikiCaption(props: {
+// The ★ is the whole answer to what a random source *is*: the caption beside it
+// rolls the next file and this one is gone. So it sits where the picture is
+// named rather than in the dialog that lists the kept ones, which is a place you
+// go after the moment has passed.
+//
+// It is no longer optional. Both sources used to be here but only Commons had a
+// shelf, so an archive.org roll drew the credit link alone — a clip you liked
+// could only be kept by being lucky enough to have rolled it off the other one.
+// The shelf takes either now (ui/clipLibrary.ts), so both get the ★.
+export function PickCaption(props: {
   page: string
-  // Where the link goes, named for the tooltip — "Wikimedia Commons",
-  // "archive.org". The two bands roll from different places and the credit is
-  // the one thing a caption must not be vague about.
-  where: string
-  star: { starred: boolean; onStar: () => void } | null
+  // Which archive the link goes to. Named on the tooltip, because the two roll
+  // from different places and the credit is the one thing a caption must not be
+  // vague about.
+  origin: PoolOrigin
+  kept: boolean
+  onKeep: () => void
 }) {
-  const { star } = props
   return (
     <>
-      {star === null ? null : (
-        <button
-          type="button"
-          className={cx(styles.captionBtn, star.starred && styles.captionOn)}
-          title={
-            star.starred
-              ? 'starred — click to drop it from your Commons favorites'
-              : 'keep this one: star it and it is on your Commons favorites shelf, whatever the next roll brings'
-          }
-          aria-label={star.starred ? 'unstar this file' : 'star this file'}
-          aria-pressed={star.starred}
-          onClick={() => star.onStar()}
-        >
-          {star.starred ? '★' : '☆'}
-        </button>
-      )}
-      {/* These files carry a licence and an author and this app carries neither,
-          so every pick keeps one link to the page that does. A new tab: a set is
-          never navigated away from. */}
-      <a
-        className={styles.captionBtn}
-        href={props.page}
-        target="_blank"
-        rel="noreferrer"
-        title={`open this file on ${props.where} — who made it, and under which licence`}
+      <button
+        type="button"
+        className={cx(styles.captionBtn, props.kept && styles.captionOn)}
+        title={
+          props.kept
+            ? 'kept — click to take it off your clip shelf'
+            : 'keep this one: it goes on your clip shelf, whatever the next roll brings'
+        }
+        aria-label={props.kept ? 'unkeep this file' : 'keep this file'}
+        aria-pressed={props.kept}
+        onClick={() => props.onKeep()}
       >
-        ↗
-      </a>
+        {props.kept ? '★' : '☆'}
+      </button>
+      {/* These files carry a licence and an author and this app carries neither,
+          so every pick keeps one link to the page that does. */}
+      <CreditLink
+        origin={props.origin}
+        href={props.page}
+        label="this file"
+        className={styles.captionBtn}
+      />
     </>
   )
 }

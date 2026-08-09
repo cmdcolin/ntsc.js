@@ -644,7 +644,7 @@ clamp is `VideoPump.wrap`. Three things around it are deliberately not done.
   control — two timestamps into one clip cannot be recalled by a preset or moved
   by mutate. So the Deck would need a way to take per-source state, which is a
   new pattern rather than a placement. The command palette carries the two verbs
-  in the meantime, which is where the Commons verbs went for the same reason.
+  in the meantime, which is where the roll-and-keep verbs went for the same reason.
 - **MIDI on the cue.** This is the one that would matter most for playing it,
   and it is blocked behind the same gap the mod bay's triggers are: `midi.ts`
   takes any Note On as "fire the whole bay", so there is no way to bind one note

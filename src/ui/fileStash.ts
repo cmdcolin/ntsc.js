@@ -17,7 +17,9 @@
 //   lib — the source came off the clip library, which already remembers how to
 //     reopen it and by which grant. Nothing is stored here but the entry's id:
 //     a second copy of a clip the shelf is holding would be the one duplication
-//     the library exists to avoid.
+//     the library exists to avoid. This one covers the shelf's kept rolls too,
+//     and they are the easy case — nothing on disk, nothing to grant, so the
+//     slot comes back on its own at load with no click anywhere.
 //
 // Which one a slot used is recorded alongside the name and mime type in
 // localStorage, since none of the three backends remembers those on its own.
@@ -27,21 +29,35 @@ import { grantRead, isPickedFile } from './fsAccess'
 import { idbDelete, idbGet, idbPut } from './idb'
 import { readRecord, writeJSON } from './storage'
 
+import type { PoolRef } from '../sources/pools'
 import type { PickedFileHandle } from './fsAccess'
 
 export type StashSlot = 'a' | 'b'
 
-// What the slot can reopen. `open` does the re-grant when there is one to do, so
-// a caller only has to know whether a click has to come first, and `kind` is
-// which source mode the restored file lands on — a clip off the shelf goes back
-// as a clip, not as a one-off pick, or the caption would offer the file dialog
-// where the shelf belongs.
-export interface Stashed {
-  name: string
-  kind: 'file' | 'clip'
-  needsGesture: boolean
-  open: () => Promise<File>
-}
+// The deck a row's second button sends to. Every list of media in this app — the
+// clip shelf, the media browser — plays into the deck it was opened for on a
+// plain click and offers the other one beside it, so a two-deck set never has to
+// reopen a dialog to load B. Written once here rather than at the top of each of
+// those files, which is where two copies of it lived.
+export const otherSlot = (slot: StashSlot): StashSlot =>
+  slot === 'a' ? 'b' : 'a'
+
+// What the slot can reopen. Two shapes, because the two differ in exactly the
+// thing a caller has to act on: bytes that may need a click to re-grant read, or
+// a name to ask an archive for.
+//
+// `mode` is which source mode the restored source lands on — a clip off the
+// shelf goes back as a clip, not as a one-off pick, or the caption would offer
+// the file dialog where the shelf belongs.
+export type Stashed =
+  | {
+      at: 'file'
+      name: string
+      mode: 'file' | 'library'
+      needsGesture: boolean
+      open: () => Promise<File>
+    }
+  | { at: 'pool'; name: string; mode: 'library'; ref: PoolRef }
 
 interface Meta {
   name: string
@@ -162,7 +178,11 @@ export async function readStash(slot: StashSlot): Promise<Stashed | null> {
     if (meta.kind === 'lib') {
       const clip =
         typeof meta.id === 'string' ? await openClipById(meta.id) : null
-      if (clip !== null) stashed = { ...clip, kind: 'clip' }
+      if (clip !== null)
+        stashed =
+          clip.at === 'pool'
+            ? { at: 'pool', name: clip.name, mode: 'library', ref: clip.ref }
+            : { ...clip, at: 'file', mode: 'library' }
     } else if (meta.kind === 'handle') {
       const stored = await idbGet(slot)
       if (isPickedFile(stored)) {
@@ -171,16 +191,18 @@ export async function readStash(slot: StashSlot): Promise<Stashed | null> {
         const granted =
           (await stored.queryPermission({ mode: 'read' })) === 'granted'
         stashed = {
+          at: 'file',
           name: meta.name,
-          kind: 'file',
+          mode: 'file',
           needsGesture: !granted,
           open: () => openHandle(stored, granted),
         }
       }
     } else {
       stashed = {
+        at: 'file',
         name: meta.name,
-        kind: 'file',
+        mode: 'file',
         needsGesture: false,
         open: () => openCopy(slot, meta),
       }

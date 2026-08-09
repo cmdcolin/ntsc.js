@@ -1,17 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  COMMONS,
-  COMMONS_IDS,
+  COMMONS_POOLS,
   choosePick,
   commonsCaption,
   commonsPageUrl,
-  isCommonsId,
-  queryPlan,
+  rollPlan,
   stillFrom,
   videoFrom,
 } from './commons'
-import { SOURCE_B_MODES, SOURCE_DESC, SOURCE_KIND, SOURCE_MODES } from './modes'
+import { SOURCE_B_MODES, SOURCE_KIND, SOURCE_MODES } from './modes'
 
 // The API hands back arbitrary JSON from another origin, and the reason these
 // readers exist is that the search generator does not honour the filters
@@ -223,6 +221,8 @@ describe('choosePick', () => {
     url: `https://upload/${title}`,
     kind: 'photo' as const,
     page: 'https://commons/x',
+    origin: 'commons' as const,
+    owned: false,
   })
 
   it('never hands back the one that is already up', () => {
@@ -246,24 +246,18 @@ describe('choosePick', () => {
   })
 })
 
-describe('queryPlan', () => {
-  // The retry has to be a *different* pool where there is one, because the
-  // failure it exists for — a category whose files have no usable renditions —
-  // does not go away when the same query is asked twice.
+describe('rollPlan', () => {
+  // The retry has to be a *different* pool, because the failure it exists for —
+  // a category whose files have no usable renditions — does not go away when the
+  // same query is asked twice.
   it('starts where the roll said and moves on', () => {
-    expect(queryPlan(['a', 'b', 'c'], 1)).toEqual(['b', 'c'])
-    expect(queryPlan(['a', 'b', 'c'], 2)).toEqual(['c', 'a'])
+    expect(rollPlan(['a', 'b', 'c'], 1)).toEqual(['b', 'c'])
+    expect(rollPlan(['a', 'b', 'c'], 2)).toEqual(['c', 'a'])
   })
 
-  // …and where there is only one pool, the same query again is still a fresh
-  // page: `gsrsort=random` samples anew every request.
-  it('gives a one-pool channel two goes at it', () => {
-    expect(queryPlan(['only'], 0)).toEqual(['only', 'only'])
-  })
-
-  it('spends the same number of requests whatever the channel', () => {
-    for (const id of COMMONS_IDS)
-      expect(queryPlan(COMMONS[id].queries, 0)).toHaveLength(2)
+  it('spends the same number of requests wherever it starts', () => {
+    for (let i = 0; i < COMMONS_POOLS.length; i += 1)
+      expect(rollPlan(COMMONS_POOLS, i)).toHaveLength(2)
   })
 })
 
@@ -277,46 +271,50 @@ describe('commonsCaption', () => {
   })
 })
 
-describe('channels', () => {
-  it('offers every channel on both slots, banded as commons', () => {
-    for (const id of COMMONS_IDS) {
-      expect(SOURCE_MODES).toContain(id)
-      expect(SOURCE_B_MODES).toContain(id)
-      expect(SOURCE_KIND[id]).toBe('commons')
-      expect(SOURCE_DESC[id]).toBe(COMMONS[id].label)
-    }
+describe('pools', () => {
+  // One picker entry, not one per pool. The pools are what a roll draws from and
+  // what the browser dialog offers as presets; neither of those is a source
+  // mode, and eleven of them used to be.
+  it('offers one random entry on both slots, banded with the archives', () => {
+    for (const modes of [SOURCE_MODES, SOURCE_B_MODES])
+      expect(modes).toContain('wiki-random')
+    expect(SOURCE_KIND['wiki-random']).toBe('pool')
   })
 
-  // Without filetype:bitmap a photo channel starts returning PDFs and the audio
+  // Without filetype:bitmap a photo pool starts returning PDFs and the audio
   // pronunciation clips that make up a tenth of namespace 6 — stillFrom drops
   // them, but only after a request has been spent rolling nothing.
-  it('constrains every photo channel to bitmaps', () => {
-    for (const id of COMMONS_IDS) {
-      const channel = COMMONS[id]
-      if (channel.kind !== 'photo') continue
-      for (const q of channel.queries)
-        expect(q, `${id}: ${q}`).toContain('filetype:bitmap')
+  it('constrains every photo pool to bitmaps', () => {
+    for (const pool of COMMONS_POOLS) {
+      if (pool.kind !== 'photo') continue
+      expect(pool.query, pool.label).toContain('filetype:bitmap')
     }
   })
 
-  it('gives every channel at least one query', () => {
-    for (const id of COMMONS_IDS)
-      expect(COMMONS[id].queries.length).toBeGreaterThan(0)
+  it('gives every pool a label and a query', () => {
+    for (const pool of COMMONS_POOLS) {
+      expect(pool.label.length).toBeGreaterThan(0)
+      expect(pool.query.length).toBeGreaterThan(0)
+    }
   })
 
-  it('recognises its own ids and nothing else', () => {
-    expect(isCommonsId('wiki-vapor')).toBe(true)
-    expect(isCommonsId('clip-popeye')).toBe(false)
-    expect(isCommonsId('cat')).toBe(false)
+  // The flattening was worth doing partly because the nested version weighted
+  // three queries double — they appeared in two "channels" each, and a roll
+  // picked a channel first. A duplicate here would put that back.
+  it('holds each query once, so every pool rolls at the same weight', () => {
+    const queries = COMMONS_POOLS.map(p => `${p.kind}\n${p.query}`)
+    expect(new Set(queries).size).toBe(queries.length)
   })
 
-  // The starred-rolls entry is a Commons source and not a channel: it bands with
-  // the channels in the picker, and anything that *rolls* has to keep its hands
-  // off it — a shelf asked to roll would fire a search for a pool that is not one.
-  it('offers the starred rolls beside the channels without making it one', () => {
-    expect(SOURCE_MODES).toContain('wiki-faves')
-    expect(SOURCE_B_MODES).toContain('wiki-faves')
-    expect(SOURCE_KIND['wiki-faves']).toBe('commons')
-    expect(isCommonsId('wiki-faves')).toBe(false)
+  it('names each pool once, so the browser has no two buttons alike', () => {
+    const labels = COMMONS_POOLS.map(p => p.label)
+    expect(new Set(labels).size).toBe(labels.length)
+  })
+
+  // Both kinds in one entry, which is new: a roll used to be a still *or* a clip
+  // according to which of seven channels was picked, and there is one now.
+  it('rolls stills and clips out of the same entry', () => {
+    const kinds = new Set(COMMONS_POOLS.map(p => p.kind))
+    expect(kinds).toEqual(new Set(['photo', 'video']))
   })
 })

@@ -1,6 +1,5 @@
-import { ARCHIVE, ARCHIVE_IDS } from './archive'
 import { CLIP_IDS, CLIPS } from './clips'
-import { COMMONS, COMMONS_IDS } from './commons'
+import { POOL_MODES } from './pools'
 
 export const SOURCE_MODES = [
   'bars',
@@ -10,9 +9,8 @@ export const SOURCE_MODES = [
   'synth',
   'cat',
   ...CLIP_IDS,
-  ...COMMONS_IDS,
-  'wiki-faves',
-  ...ARCHIVE_IDS,
+  ...POOL_MODES,
+  'browse',
   'teletype',
   'file',
   'library',
@@ -29,9 +27,8 @@ export const SOURCE_B_MODES = [
   'synth',
   'cat',
   ...CLIP_IDS,
-  ...COMMONS_IDS,
-  'wiki-faves',
-  ...ARCHIVE_IDS,
+  ...POOL_MODES,
+  'browse',
   'teletype',
   'file',
   'library',
@@ -54,17 +51,11 @@ export const SOURCE_DESC: Record<SourceMode | SourceBMode, string> = {
   'clip-popeye': CLIPS['clip-popeye'].label,
   'clip-haunted-house': CLIPS['clip-haunted-house'].label,
   'clip-minnie-moocher': CLIPS['clip-minnie-moocher'].label,
-  'wiki-retro': COMMONS['wiki-retro'].label,
-  'wiki-vapor': COMMONS['wiki-vapor'].label,
-  'wiki-nature': COMMONS['wiki-nature'].label,
-  'wiki-people': COMMONS['wiki-people'].label,
-  'wiki-timelapse': COMMONS['wiki-timelapse'].label,
-  'wiki-vapor-video': COMMONS['wiki-vapor-video'].label,
-  'wiki-nature-video': COMMONS['wiki-nature-video'].label,
-  'wiki-faves': 'Favorites… — the Commons rolls you starred',
-  'ia-openings': ARCHIVE['ia-openings'].label,
-  'ia-adverts': ARCHIVE['ia-adverts'].label,
-  'ia-industrial': ARCHIVE['ia-industrial'].label,
+  'wiki-random':
+    'Random Commons — found photos, statuary, time-lapse; a new one each pick',
+  'ia-random':
+    'Random archive.org — tape idents, ads, industrial film; downloads first',
+  browse: 'Browse… — search both, and see the results before you take one',
   teletype: 'Teletype… — type your own text card',
   file: 'File… — open an image or video',
   library: 'Clips… — your own shelf, kept between sessions',
@@ -88,8 +79,7 @@ export type SourceKind =
   | 'off'
   | 'pattern'
   | 'bundled'
-  | 'commons'
-  | 'archive'
+  | 'pool'
   | 'yours'
   | 'live'
 
@@ -105,20 +95,9 @@ export const SOURCE_KIND: Record<SourceMode | SourceBMode, SourceKind> = {
   'clip-popeye': 'bundled',
   'clip-haunted-house': 'bundled',
   'clip-minnie-moocher': 'bundled',
-  'wiki-retro': 'commons',
-  'wiki-vapor': 'commons',
-  'wiki-nature': 'commons',
-  'wiki-people': 'commons',
-  'wiki-timelapse': 'commons',
-  'wiki-vapor-video': 'commons',
-  'wiki-nature-video': 'commons',
-  // Starred rolls are Commons files too, so they band with the channels they
-  // came out of rather than with 'yours' — what is yours about them is the
-  // choosing, and the band above says where the pictures live.
-  'wiki-faves': 'commons',
-  'ia-openings': 'archive',
-  'ia-adverts': 'archive',
-  'ia-industrial': 'archive',
+  'wiki-random': 'pool',
+  'ia-random': 'pool',
+  browse: 'pool',
   teletype: 'yours',
   file: 'yours',
   library: 'yours',
@@ -137,19 +116,20 @@ export const SOURCE_KIND_LABEL: Record<SourceKind, string | null> = {
   off: null,
   pattern: 'Generated — switches instantly',
   bundled: 'Bundled with the app',
-  // The one band whose entries are not a *thing* but a pool: picking one rolls
-  // a file, and picking it again rolls a different one. The heading says so
+  // The one band whose entries are not a *thing*: two of them roll a file out of
+  // a public archive and hand back something different every pick, and the third
+  // is the way to look before you leap. The heading says the band is fetched
   // because nothing else can — an option that quietly changes what it means
   // between two picks is worth warning about, and re-picking is the feature.
-  // The last entry in the band is the answer to it: the rolls you starred, which
-  // are the only ones that come back the same.
-  commons: 'Wikimedia Commons — a channel rolls a new one each pick',
-  // A pool like the Commons band, and banded apart from it for the one thing a
-  // user feels: a roll here downloads the whole clip before it appears, because
-  // archive.org will not serve byte ranges (archive.ts says why). Seconds, not
-  // milliseconds — so the heading warns rather than letting a slow pick read as
-  // a broken one.
-  archive: 'archive.org — rolls a clip, and waits for it to download',
+  //
+  // This was two bands of eleven entries, one per curated pool. The pools are
+  // still there and are better placed: they are the preset buttons in the
+  // browser, where their names lead somewhere you can see rather than naming a
+  // gamble. What used to close the Commons band — "Favorites…", the rolls you
+  // starred — is now the ★ beside the caption, which puts a roll on the clip
+  // shelf alongside your own footage, because "the ones I keep" belongs with the
+  // other things you keep.
+  pool: 'Public archives — fetched live, and never the same twice',
   yours: 'Your own — opens a picker',
   live: 'Live — asks the browser',
 }
@@ -158,8 +138,7 @@ export const SOURCE_KIND_ORDER: readonly SourceKind[] = [
   'off',
   'pattern',
   'bundled',
-  'commons',
-  'archive',
+  'pool',
   'yours',
   'live',
 ]

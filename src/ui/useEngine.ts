@@ -10,20 +10,16 @@ import {
 import { Engine } from '../gpu/pipeline'
 import { MAX_SRC_EDGE } from '../gpu/sources'
 import { reportPreviousTrace, trace } from '../gpu/trace'
-import {
-  archiveCaption,
-  isArchiveId,
-  releaseArchivePick,
-  rollArchive,
-} from '../sources/archive'
 import { clipUrl, isClipId } from '../sources/clips'
-import {
-  commonsCaption,
-  isCommonsId,
-  resolveCommons,
-  rollCommons,
-} from '../sources/commons'
 import { smpteBars, sweep } from '../sources/pattern'
+import {
+  MODE_ORIGIN,
+  isPoolMode,
+  poolCaption,
+  releasePick,
+  resolvePool,
+  rollPool,
+} from '../sources/pools'
 import { TELETYPE_DEFAULT } from '../sources/teletype'
 import { ytId } from '../sources/youtube'
 import { backingStoreSize } from './canvasSize'
@@ -36,6 +32,7 @@ import {
   tapCue,
 } from './cue'
 import { clearStash, readStash, stashClip, stashFile } from './fileStash'
+import { reason } from './format'
 import { canPickHandle, pickHandle } from './fsAccess'
 import { randomPresetMix, rollControls } from './presets'
 import { RebuildPolicy } from './rebuildPolicy'
@@ -47,23 +44,22 @@ import {
   parseSessionParams,
   urlName,
 } from './urlParams'
+import { useSourcePrompt } from './useSourcePrompt'
 import { playStream, playUrl, stopSlot, stopTyping } from './videoSlot'
 
 import type { FrameStats } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
 import type { FrozenKind } from '../gpu/renderloop'
-import type { ArchiveId, ArchivePick } from '../sources/archive'
-import type { CommonsId, CommonsPick } from '../sources/commons'
 import type { SourceBMode, SourceMode } from '../sources/modes'
+import type { PoolMode, PoolPick, PoolRef } from '../sources/pools'
 import type { TeletypeCard } from '../sources/teletype'
 import type { Cue } from './cue'
 import type { Fatal } from './FatalScreen'
 import type { StashSlot, Stashed } from './fileStash'
 import type { PickedFileHandle } from './fsAccess'
-import type { SlotView, WikiOnSlot } from './slotView'
+import type { SlotView } from './slotView'
 import type { SessionParams } from './urlParams'
 import type { SlotKind, VideoSlot } from './videoSlot'
-import type { WikiFavorite } from './wikiFavorites'
 import type { RefObject } from 'react'
 
 // Capped to the same long edge the engine's texture is, and for the same
@@ -104,16 +100,6 @@ const fetchYouTube = (url: string): Promise<Blob> =>
       ? r.blob()
       : r.text().then(t => Promise.reject(new Error(t || `${r.status}`))),
   )
-
-const reason = (e: unknown): string =>
-  e instanceof Error ? e.message : String(e)
-
-// Which picker entry a restored stash lands on — the file dialog for a one-off
-// pick, the shelf for a clip that came off it. The distinction is not cosmetic:
-// the caption under the picker reopens whatever the mode names, so a shelf clip
-// restored as `file` would offer the OS dialog where the shelf belongs.
-const stashMode = (stashed: Stashed): 'file' | 'library' =>
-  stashed.kind === 'clip' ? 'library' : 'file'
 
 // Backing out of a browser permission surface — the screen picker's Cancel, a
 // dismissed camera prompt. The user made a choice and it was "no", so there is
@@ -238,6 +224,25 @@ const NO_STATS: FrameStats = { fps: 0, lock: 1 }
 const subscribeNever = () => () => {}
 const getNoStats = (): FrameStats => NO_STATS
 
+// Keep what lets a slot reopen its file after a reload (fileStash.ts). Never a
+// banner: the source is loaded and playing either way, and all that is lost is
+// getting it back next session.
+//
+// Out here rather than inside the hook because it closes over nothing — the
+// slot it acts on is an argument, which is what `dropFile` beside it cannot say.
+const keepFile = (
+  key: StashSlot,
+  file: File,
+  handle: PickedFileHandle | undefined,
+) => {
+  stashFile(key, file, handle).then(
+    kept => {
+      if (!kept) console.log('DEBUG stash skipped, too large', file.name)
+    },
+    (e: unknown) => console.log('DEBUG stash failed', reason(e)),
+  )
+}
+
 // Owns the singleton Engine (a GPUDevice + rAF loop), its lifecycle, and every
 // video/image source path (patterns, files, webcam/USB capture, source B).
 export function useEngine() {
@@ -318,39 +323,28 @@ export function useEngine() {
   // it here and the panel offers the click (see fileStash.ts).
   const [pendingA, setPendingA] = useState<Stashed | null>(null)
   const [pendingB, setPendingB] = useState<Stashed | null>(null)
-  // Webcam/USB capture: a dialog gates the browser permission prompt, and the
-  // device list only carries labels once that grant lands — so both stay empty
-  // until the user opts in.
-  const [askWebcam, setAskWebcam] = useState(false)
-  // Which slot the YouTube URL dialog is loading into, or null when closed.
-  const [askYouTube, setAskYouTube] = useState<'a' | 'b' | null>(null)
-  // Same for the teletype text dialog, plus the text each slot last showed —
-  // kept so reopening the dialog starts on what is on screen, the caption can
-  // say what the card reads, and the card survives a shared link. The ref is
-  // the copy the async paths read, exactly like vaporRef below.
-  const [askTeletype, setAskTeletype] = useState<'a' | 'b' | null>(null)
-  // Which slot the clip shelf was opened for, or null when it is closed. Same
-  // deferral as the three above: picking `library` opens the dialog and touches
-  // nothing else, so backing out of it leaves the current source playing.
-  const [askLibrary, setAskLibrary] = useState<StashSlot | null>(null)
-  // Which slot the Commons favourites shelf was opened for, or null when closed —
-  // the same deferral again: `wiki-faves` opens a list and touches nothing, so
-  // backing out of it leaves the current source playing.
-  const [askWiki, setAskWiki] = useState<StashSlot | null>(null)
-  // What each slot has off Commons. State because the ★ and the credit link under
-  // the picker render from it; mirrored into a ref below because every path that
-  // writes it is an async reply, where closed-over state is a snapshot.
-  const [wikiA, setWikiA] = useState<WikiOnSlot | null>(null)
-  const [wikiB, setWikiB] = useState<WikiOnSlot | null>(null)
-  const wikiRef = useRef<{ a: WikiOnSlot | null; b: WikiOnSlot | null }>({
-    a: null,
-    b: null,
-  })
-  // The same three for archive.org: what each slot has off it, mirrored into a
-  // ref because every path that writes it is an async reply.
-  const [archiveA, setArchiveA] = useState<ArchivePick | null>(null)
-  const [archiveB, setArchiveB] = useState<ArchivePick | null>(null)
-  const archiveRef = useRef<{ a: ArchivePick | null; b: ArchivePick | null }>({
+  // The five picker entries that ask a question before they change anything —
+  // the shelf, the browser, the YouTube box, the teletype card and the webcam
+  // permission — as one state (useSourcePrompt.ts). Backing out of any of them
+  // leaves the deck as it was; answering one closes it, from `beginLoad` below,
+  // so no source path has to remember to.
+  //
+  // The teletype card each slot last showed is separate state further down: the
+  // dialog reopens on what is on screen, the caption says what the card reads,
+  // and the card survives a shared link.
+  const prompt = useSourcePrompt()
+  // What each slot has off one of the pools — Commons or archive.org. State
+  // because the ★ and the credit link under the picker render from it; mirrored
+  // into a ref below because every path that writes it is an async reply, where
+  // closed-over state is a snapshot.
+  //
+  // One pair rather than the two pairs this was. The Commons and archive.org
+  // halves were separate types (slotView.ts says why they no longer are), and
+  // the cost showed up here as six state slots, two setters and two clears for
+  // one fact about a deck.
+  const [pickA, setPickA] = useState<PoolPick | null>(null)
+  const [pickB, setPickB] = useState<PoolPick | null>(null)
+  const pickRef = useRef<{ a: PoolPick | null; b: PoolPick | null }>({
     a: null,
     b: null,
   })
@@ -708,20 +702,14 @@ export function useEngine() {
 
   const slotOf = (key: StashSlot): VideoSlot => (key === 'a' ? slotA : slotB)
 
-  const setWiki = (key: StashSlot, on: WikiOnSlot | null) => {
-    wikiRef.current[key] = on
-    if (key === 'a') setWikiA(on)
-    else setWikiB(on)
-  }
-
-  // The archive.org half of the same. Deliberately not a revoke: the url this
-  // clears is still on the element that is still playing, and stopSlot revokes
-  // whatever `blob:` it retires. The only pick that has to be released by hand is
-  // one that never reached a slot — see `rollIA`.
-  const setArchive = (key: StashSlot, on: ArchivePick | null) => {
-    archiveRef.current[key] = on
-    if (key === 'a') setArchiveA(on)
-    else setArchiveB(on)
+  // What a slot has off a pool. Deliberately not a release: the url this clears
+  // is still on the element that is still playing, and stopSlot revokes whatever
+  // `blob:` it retires. The only pick that has to be handed back by hand is one
+  // that never reached a slot — see `rollFrom`.
+  const setPick = (key: StashSlot, on: PoolPick | null) => {
+    pickRef.current[key] = on
+    if (key === 'a') setPickA(on)
+    else setPickB(on)
   }
 
   // Which load of a slot is the current one. Bumped by every path that gives a
@@ -736,14 +724,20 @@ export function useEngine() {
   // something else. Without the token the late reply lands on top of whatever
   // they went to, and the caption then names a picture that is not on screen.
   //
-  // Clearing the Commons pick here rather than in each caller is the same
-  // argument: every way out of a wiki source passes through one of these, and a
-  // ★ still offering to star the roll after the slot moved to bars would star
+  // Clearing the pool pick here rather than in each caller is the same
+  // argument: every way out of a pool source passes through one of these, and a
+  // ★ still offering to keep the roll after the slot moved to bars would keep
   // something nobody can see.
+  // Dismissing the open dialog here is the other half of the same idea, and the
+  // reason `useSourcePrompt` is one state rather than five: this runs on every
+  // path that gives a slot a source, so the question that was being asked about
+  // that slot goes away when it is answered — whoever answered it. Left to the
+  // callers it was forgotten exactly once, by a kept roll played off the shelf,
+  // which then went on playing behind the shelf.
   const beginLoad = (key: StashSlot): (() => boolean) => {
     const seq = (loadSeq.current[key] += 1)
-    setWiki(key, null)
-    setArchive(key, null)
+    setPick(key, null)
+    prompt.dismiss()
     return () => loadSeq.current[key] === seq
   }
 
@@ -771,30 +765,29 @@ export function useEngine() {
         },
       )
     else if (isClipId(mode)) playUrl(slot, clipUrl(mode))
-    else if (isCommonsId(mode)) rollWiki(slot, mode)
-    else if (isArchiveId(mode)) rollIA(slot, mode)
+    else if (isPoolMode(mode)) rollFrom(slot, mode)
   }
 
-  // A Commons pick onto a slot: the caption, the subject of the ★, and then the
+  // A pool pick onto a slot: the caption, the subject of the ★, and then the
   // picture. A still and a clip diverge only in the last of those — one decodes,
-  // the other plays through the same blob-less <video> path a bundled clip uses.
-  // The transcode is CORS-clean off upload.wikimedia.org and videoSlot.ts already
-  // sets crossOrigin, so nothing taints the texture upload.
-  const showWiki = (
+  // the other plays through the same <video> path a bundled clip uses. A Commons
+  // transcode is CORS-clean off upload.wikimedia.org and an archive.org clip is a
+  // same-origin `blob:`, and videoSlot.ts sets crossOrigin either way, so nothing
+  // taints the texture upload.
+  const showPick = (
     slot: VideoSlot,
-    picked: CommonsPick,
-    channel: CommonsId | '',
+    picked: PoolPick,
     fresh: () => boolean,
   ) => {
     // Whatever the slot was holding is retired here rather than when the request
     // went out — that is what keeps the old picture up while the roll is in
     // flight. It matters for the re-roll: the picker path stops the slot on its
-    // way through, but the palette's row calls rollWiki directly, and a
+    // way through, but the palette's row calls `rollFrom` directly, and a
     // time-lapse clip replaced without this would leave the previous element
     // playing, adopted by the audio graph and attached to nothing.
     stopSlot(slot)
-    slot.setName(commonsCaption(picked.title))
-    setWiki(slot.id, { pick: picked, channel })
+    slot.setName(poolCaption(picked))
+    setPick(slot.id, picked)
     if (picked.kind === 'video') playUrl(slot, picked.url)
     else
       loadImage(picked.url).then(
@@ -804,78 +797,53 @@ export function useEngine() {
         (e: unknown) => {
           if (fresh()) {
             slot.setName('')
-            setWiki(slot.id, null)
-            setError(`commons: ${reason(e)}`)
+            setPick(slot.id, null)
+            setError(`${picked.origin}: ${reason(e)}`)
           }
         },
       )
   }
 
-  // Roll a file out of a Commons channel and show it. Two requests' worth of
-  // latency in the worst case and none of it blocking: like the cat photo and
-  // the ?iurl path, the slot keeps showing whatever it had until the roll lands,
-  // so switching to a channel never flashes a dead slot.
-  //
-  // The caption is written twice on purpose. The first write is the only thing
-  // on screen that says a request is out — a channel can sit on the network for
-  // a second or two, and without it a pick reads as having done nothing.
-  const rollWiki = (slot: VideoSlot, id: CommonsId) => {
-    // Read before `beginLoad` clears it: what is on the slot right now is what a
-    // re-roll of the *same* channel should try not to hand back (see `avoid` on
-    // rollCommons). A roll on a channel the slot was not already on has nothing
-    // to avoid — the picture that is going away came out of a different pool.
-    const showing = wikiRef.current[slot.id]
-    const avoid = showing?.channel === id ? showing.pick.title : ''
-    const fresh = beginLoad(slot.id)
-    slot.setName('rolling…')
-    rollCommons(id, avoid).then(
-      picked => {
-        if (fresh()) showWiki(slot, picked, id, fresh)
-      },
-      (e: unknown) => {
-        if (fresh()) {
-          slot.setName('')
-          setError(`commons: ${reason(e)}`)
-        }
-      },
-    )
+  // A pick that lost its slot while it was in flight. Every reply from a pool
+  // goes through here rather than being merely ignored: an archive.org roll has
+  // already spent its download and is holding a blob url with the whole clip
+  // behind it, and dropping the reference leaks that until the tab goes.
+  const landPick = (
+    slot: VideoSlot,
+    picked: PoolPick,
+    fresh: () => boolean,
+  ) => {
+    if (fresh()) showPick(slot, picked, fresh)
+    else releasePick(picked)
   }
 
-  // Roll a clip out of an archive.org channel and show it. Shaped like rollWiki
-  // above, and slower for a reason the user is told about in the picker's band
-  // heading: archive.org will not serve byte ranges, so the whole file is
-  // downloaded before anything can play (sources/archive.ts has the measurement).
-  // Seconds, not milliseconds — which is exactly why the old picture is left up
-  // until the clip lands, and why the caption says a roll is out.
-  const rollIA = (slot: VideoSlot, id: ArchiveId) => {
-    // Read before `beginLoad` clears it, same as the Commons roll: a re-roll of
-    // the channel the slot is already on should try not to hand back the clip
-    // that is on it.
-    const showing = archiveRef.current[slot.id]
-    const onSameChannel =
-      slot.id === 'a' ? sourceMode === id : sourceBMode === id
-    const avoid = onSameChannel && showing !== null ? showing.title : ''
+  // Roll a file out of a channel and show it, whichever pool the channel belongs
+  // to. None of the latency blocks: like the cat photo and the ?iurl path, the
+  // slot keeps showing whatever it had until the roll lands, so switching to a
+  // channel never flashes a dead slot. On archive.org that wait is seconds rather
+  // than milliseconds — the whole file is downloaded before anything can play
+  // (sources/archive.ts has the measurement) — which is what the picker's band
+  // heading warns about and why the old picture is left up.
+  //
+  // The caption is written twice on purpose. The first write is the only thing
+  // on screen that says a request is out, and without it a pick reads as having
+  // done nothing.
+  const rollFrom = (slot: VideoSlot, mode: PoolMode) => {
+    const origin = MODE_ORIGIN[mode]
+    // Read before `beginLoad` clears it: what is on the slot right now is what a
+    // re-roll of the *same* source should try not to hand back. A roll on the
+    // other source has nothing to avoid — the picture that is going away came
+    // from somewhere else entirely.
+    const showing = pickRef.current[slot.id]
+    const avoid = showing?.origin === origin ? showing.title : ''
     const fresh = beginLoad(slot.id)
     slot.setName('rolling…')
-    rollArchive(id, avoid).then(
-      picked => {
-        // A roll that lost its slot has already spent the download, and what it
-        // is holding is a blob url with the whole clip behind it. Dropping the
-        // reference would leak that until the tab goes, so a stale reply is
-        // released rather than merely ignored.
-        if (!fresh()) {
-          releaseArchivePick(picked)
-          return
-        }
-        stopSlot(slot)
-        slot.setName(archiveCaption(picked.title))
-        setArchive(slot.id, picked)
-        playUrl(slot, picked.url)
-      },
+    rollPool(origin, avoid).then(
+      picked => landPick(slot, picked, fresh),
       (e: unknown) => {
         if (fresh()) {
           slot.setName('')
-          setError(`archive: ${reason(e)}`)
+          setError(`${origin}: ${reason(e)}`)
         }
       },
     )
@@ -883,46 +851,46 @@ export function useEngine() {
 
   // Another file out of whichever deck is on a channel, for hands that are not on
   // the sidebar — the command palette's row, and the keyboard through it. A wins
-  // when both are rolling, since A is the picture; a set with Commons on B alone
-  // still gets the command.
+  // when both are rolling, since A is the picture; a set with a channel on B
+  // alone still gets the command.
   const rollAgain = () => {
-    if (isCommonsId(sourceMode)) rollWiki(slotA, sourceMode)
-    else if (isArchiveId(sourceMode)) rollIA(slotA, sourceMode)
-    else if (isCommonsId(sourceBMode)) rollWiki(slotB, sourceBMode)
-    else if (isArchiveId(sourceBMode)) rollIA(slotB, sourceBMode)
+    if (isPoolMode(sourceMode)) rollFrom(slotA, sourceMode)
+    else if (isPoolMode(sourceBMode)) rollFrom(slotB, sourceBMode)
   }
 
-  // A starred roll, back onto a slot. Resolved by title rather than replayed from
-  // a stored url (wikiFavorites.ts says why), so this is a request like a roll and
-  // not an assignment — hence the caption saying so while it is out.
+  // One named file onto a slot, off the shelf or out of the browser. Resolved
+  // rather than replayed from a stored url (sources/pool.ts says why), so this is
+  // a request like a roll and not an assignment — hence the caption saying so
+  // while it is out.
   //
-  // The mode lands on `wiki-faves` rather than on the channel the file came out
-  // of, even though the channel is known: the caption reopens whatever the mode
-  // names, and on a channel that caption *rolls*, which would throw away the very
-  // picture the user just went to their shelf for.
-  const showFavorite = (key: StashSlot, fave: WikiFavorite) => {
+  // The mode lands on whichever surface the click came from rather than on the
+  // channel the file was originally rolled out of, even where that is known: the
+  // caption reopens whatever the mode names, and on a channel that caption
+  // *rolls*, which would throw away the very picture the user just chose.
+  const showRef = (
+    key: StashSlot,
+    ref: PoolRef,
+    mode: 'library' | 'browse',
+  ) => {
     setError('')
-    setAskWiki(null)
     const slot = slotOf(key)
     const fresh = beginLoad(key)
     if (key === 'a') {
       stopVideo()
-      setSourceMode('wiki-faves')
+      setSourceMode(mode)
     } else {
       stopVideoB()
-      setSourceBMode('wiki-faves')
+      setSourceBMode(mode)
       engineRef.current?.setSourceBEnabled(true)
     }
     dropFile(key)
     slot.setName('opening…')
-    resolveCommons(fave.title, fave.kind).then(
-      picked => {
-        if (fresh()) showWiki(slot, picked, fave.channel, fresh)
-      },
+    resolvePool(ref).then(
+      picked => landPick(slot, picked, fresh),
       (e: unknown) => {
         if (fresh()) {
           slot.setName('')
-          setError(`commons: ${reason(e)}`)
+          setError(`${ref.origin}: ${reason(e)}`)
         }
       },
     )
@@ -988,24 +956,8 @@ export function useEngine() {
     stashClip(key, clip).catch((e: unknown) =>
       console.log('DEBUG stash failed', reason(e)),
     )
-    setAskLibrary(null)
   }
 
-  // Keep / drop what lets a slot reopen its file after a reload (fileStash.ts).
-  // Never a banner: the source is loaded and playing either way, and all that is
-  // lost is getting it back next session.
-  const keepFile = (
-    key: StashSlot,
-    file: File,
-    handle: PickedFileHandle | undefined,
-  ) => {
-    stashFile(key, file, handle).then(
-      kept => {
-        if (!kept) console.log('DEBUG stash skipped, too large', file.name)
-      },
-      (e: unknown) => console.log('DEBUG stash failed', reason(e)),
-    )
-  }
   const dropFile = (key: StashSlot) => {
     if (key === 'a') setPendingA(null)
     else setPendingB(null)
@@ -1014,23 +966,24 @@ export function useEngine() {
     )
   }
 
-  // What the slot held last session, put back. A copied stash opens straight
-  // away; a disk handle whose read permission died with the page needs a click,
-  // so it is parked in `pending` for the caption to offer instead.
+  // What the slot held last session, put back. A kept roll off the shelf is a
+  // request and comes straight back; a copied stash opens straight away too; a
+  // disk handle whose read permission died with the page needs a click, so it is
+  // parked in `pending` for the caption to offer instead.
   const reopenStashed = (key: StashSlot, park: (stashed: Stashed) => void) => {
     readStash(key).then(
       stashed => {
-        if (stashed !== null) {
-          if (stashed.needsGesture) park(stashed)
-          else
-            stashed.open().then(
-              file => adoptInto(key, file, stashMode(stashed)),
-              (e: unknown) => {
-                console.log('DEBUG stash reopen failed', reason(e))
-                dropFile(key)
-              },
-            )
-        }
+        if (stashed === null) return
+        if (stashed.at === 'pool') showRef(key, stashed.ref, 'library')
+        else if (stashed.needsGesture) park(stashed)
+        else
+          stashed.open().then(
+            file => adoptInto(key, file, stashed.mode),
+            (e: unknown) => {
+              console.log('DEBUG stash reopen failed', reason(e))
+              dropFile(key)
+            },
+          )
       },
       (e: unknown) => console.log('DEBUG stash read failed', reason(e)),
     )
@@ -1038,13 +991,14 @@ export function useEngine() {
 
   // The click the parked handle was waiting for. requestPermission runs on the
   // gesture's transient activation, which is why `open` is called with nothing
-  // awaited in front of it.
+  // awaited in front of it. Only a disk stash is ever parked — a kept roll needs
+  // no gesture and has already been put back above.
   const reopenPending = (key: StashSlot, pending: Stashed | null) => {
-    if (pending !== null)
+    if (pending !== null && pending.at === 'file')
       pending.open().then(
         // `adoptInto` is what clears the park, since every way out of it ends
         // there — the grant landing, or another source arriving first.
-        file => adoptInto(key, file, stashMode(pending)),
+        file => adoptInto(key, file, pending.mode),
         (e: unknown) => setError(`reopen ${pending.name}: ${reason(e)}`),
       )
   }
@@ -1097,6 +1051,7 @@ export function useEngine() {
     if (engineRef.current) {
       stopVideo()
       setError('')
+      beginLoad('a')
       setSourceMode('teletype')
       dropFile('a')
       printOn(slotA, patch)
@@ -1108,6 +1063,7 @@ export function useEngine() {
     if (current) {
       stopVideoB()
       setError('')
+      beginLoad('b')
       setSourceBMode('teletype')
       current.setSourceBEnabled(true)
       dropFile('b')
@@ -1142,19 +1098,19 @@ export function useEngine() {
       } else if (mode === 'library') {
         // Same deferral as the dialogs below: the shelf is a list until one of
         // its rows is clicked, and closing it unpicked leaves A as it was.
-        setAskLibrary('a')
-      } else if (mode === 'wiki-faves') {
-        setAskWiki('a')
+        prompt.ask('library', 'a')
+      } else if (mode === 'browse') {
+        prompt.ask('browse', 'a')
       } else if (mode === 'webcam') {
         // Defer stopVideo/setSourceMode until the user confirms in the dialog:
         // cancelling then leaves the current source (and its permission) alone.
-        setAskWebcam(true)
+        prompt.ask('webcam', 'a')
       } else if (mode === 'youtube') {
         // Same deferral: wait for a URL in the dialog before touching state.
-        setAskYouTube('a')
+        prompt.ask('youtube', 'a')
       } else if (mode === 'teletype') {
         // And again: the card is whatever the dialog comes back with.
-        setAskTeletype('a')
+        prompt.ask('teletype', 'a')
       } else if (mode === 'screen') {
         // No dialog of our own: the browser's picker *is* the confirmation, and
         // this handler still holds the click's transient activation, which
@@ -1239,7 +1195,6 @@ export function useEngine() {
           playStream(slotA, stream)
           setSourceMode('webcam')
           setSourceName('')
-          setAskWebcam(false)
           dropFile('a')
           // Capture cards weave interlaced fields, so combing shows on motion;
           // bob-deinterlace on by default for this source (toggle in Signal A).
@@ -1316,13 +1271,13 @@ export function useEngine() {
       if (mode === 'file') {
         pickFile('b', fileInputBRef, adoptFileB)
       } else if (mode === 'library') {
-        setAskLibrary('b')
-      } else if (mode === 'wiki-faves') {
-        setAskWiki('b')
+        prompt.ask('library', 'b')
+      } else if (mode === 'browse') {
+        prompt.ask('browse', 'b')
       } else if (mode === 'youtube') {
-        setAskYouTube('b')
+        prompt.ask('youtube', 'b')
       } else if (mode === 'teletype') {
-        setAskTeletype('b')
+        prompt.ask('teletype', 'b')
       } else if (mode === 'screen') {
         startScreen('b')
       } else {
@@ -1867,8 +1822,7 @@ export function useEngine() {
       onFile,
       speed: speed.a,
       changeSpeed: r => changeSpeed('a', r),
-      wiki: wikiA,
-      archive: archiveA,
+      pick: pickA,
     } satisfies SlotView<SourceMode>,
     b: {
       key: 'b',
@@ -1895,11 +1849,12 @@ export function useEngine() {
       onFile: onFileB,
       speed: speed.b,
       changeSpeed: r => changeSpeed('b', r),
-      wiki: wikiB,
-      archive: archiveB,
+      pick: pickB,
     } satisfies SlotView<SourceBMode>,
-    askWebcam,
-    setAskWebcam,
+    // Which source dialog is open, for which deck, and the two verbs that move
+    // it (useSourcePrompt.ts). One object rather than five ask/setAsk pairs, and
+    // the panel never closes one by hand: committing a source does it.
+    prompt,
     videoDevices,
     webcamDeviceId,
     startWebcam,
@@ -1912,36 +1867,21 @@ export function useEngine() {
     // `engineRef` out in its first destructure.
     fileInputRef,
     fileInputBRef,
-    askYouTube,
-    setAskYouTube,
-    askTeletype,
-    setAskTeletype,
-    // The clip shelf: which slot it was opened for, and the one way in and out
-    // of it. `loadClip` is what the dialog's rows call — everything else about
+    // The one way into the engine from the clip shelf — everything else about
     // the library lives in useClipLibrary, which the engine has no business
     // knowing about (the File that comes back is the whole of the crossing).
-    askLibrary,
-    setAskLibrary,
     loadClip,
-    // The Commons side of the same arrangement: which slot the starred-rolls
-    // shelf was opened for, the two ways a file gets onto a slot from it (a
-    // starred one played back, or another roll out of the channel), and what each
-    // slot currently has off Commons — which is what the ★ under the picker is
-    // rendered from and what it stars. The list itself lives in useWikiFavorites,
-    // which the engine has no business knowing about.
-    askWiki,
-    setAskWiki,
-    showFavorite,
+    // And the one way in from a *name*, which is what both the shelf's kept
+    // rolls and the media browser hand over. Its second argument is which
+    // picker entry the slot lands on, since the caption reopens whatever the
+    // mode names and those two are different doors.
+    showRef,
     rollAgain,
     // Whether there is a pool to roll out of at all, which is not the same as
-    // there being a Commons pick up: a starred roll came off the shelf, and the
-    // shelf is a list rather than a pool. The palette row says so rather than
-    // going quiet, since a row that does nothing has to admit it.
-    wikiRollable:
-      isCommonsId(sourceMode) ||
-      isCommonsId(sourceBMode) ||
-      isArchiveId(sourceMode) ||
-      isArchiveId(sourceBMode),
+    // there being a pick up: a file taken off the shelf came out of a list, and a
+    // list is not a pool. The palette row says so rather than going quiet, since
+    // a row that does nothing has to admit it.
+    rollable: isPoolMode(sourceMode) || isPoolMode(sourceBMode),
     reverb,
     setVideoAudio,
     changeReverb,

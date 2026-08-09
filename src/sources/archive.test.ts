@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ARCHIVE,
-  ARCHIVE_IDS,
+  ARCHIVE_POOLS,
   archiveCaption,
   candidateOrder,
+  chosenPool,
   identifiersIn,
-  isArchiveId,
-  queryPlan,
   renditionFrom,
   searchUrl,
 } from './archive'
-import { SOURCE_B_MODES, SOURCE_DESC, SOURCE_KIND, SOURCE_MODES } from './modes'
+import { SOURCE_B_MODES, SOURCE_KIND, SOURCE_MODES } from './modes'
+
+// The pool with the biggest download budget, which is Prelinger's — read off the
+// table rather than restated, so raising a cap does not leave this asserting
+// against a number nobody kept in step.
+const longestPool = () =>
+  ARCHIVE_POOLS.reduce((a, b) => (b.maxBytes > a.maxBytes ? b : a))
 
 // archive.org hands back arbitrary JSON from another origin, and the reason
 // these readers exist is that an item says nothing useful about itself until
@@ -144,10 +148,10 @@ describe('renditionFrom', () => {
     ).toBeNull()
   })
 
-  // The long channel raises its own cap, because holding a 20-minute industrial
+  // The long pool raises its own cap, because holding a 20-minute industrial
   // film to a 30-second ident's budget does not make it arrive sooner — it makes
-  // the channel empty. Prelinger measured 3 usable in 11 at the short cap, and
-  // its h.264 reels run 48-57 MB, which is what the long cap is sized for.
+  // the pool empty. Prelinger measured 3 usable in 11 at the short cap, and its
+  // h.264 reels run 48-57 MB, which is what the long cap is sized for.
   it('takes a rendition the short cap would have refused, on the long cap', () => {
     const film = {
       files: [
@@ -162,7 +166,7 @@ describe('renditionFrom', () => {
     }
     expect(renditionFrom(film, 'nevada')).toBeNull()
     expect(
-      renditionFrom(film, 'nevada', ARCHIVE['ia-industrial'].maxBytes)?.url,
+      renditionFrom(film, 'nevada', longestPool().maxBytes)?.url,
     ).toContain('nevada.mp4')
   })
 
@@ -370,24 +374,20 @@ describe('candidateOrder', () => {
     expect(candidateOrder(['a'], 'a')).toEqual(['a'])
   })
 
-  it('has nothing to avoid on a channel the slot was not already on', () => {
+  it('has nothing to avoid when the slot came from somewhere else', () => {
     expect(candidateOrder(['a', 'b'], '')).toEqual(['a', 'b'])
   })
 })
 
-describe('queryPlan', () => {
+describe('chosenPool', () => {
   it('starts at the offset it was given', () => {
-    expect(queryPlan(['x', 'y'], 0)).toBe('x')
-    expect(queryPlan(['x', 'y'], 1)).toBe('y')
-  })
-
-  it('says nothing for a channel with no pools', () => {
-    expect(queryPlan([], 0)).toBe('')
+    expect(chosenPool(ARCHIVE_POOLS, 0)).toBe(ARCHIVE_POOLS[0])
+    expect(chosenPool(ARCHIVE_POOLS, 2)).toBe(ARCHIVE_POOLS[2])
   })
 })
 
 // archive.org's `sort[]=random` is stably seeded — the same query returns the
-// same order forever — so the page is what makes a channel a pool rather than a
+// same order forever — so the page is what makes a pool a pool rather than a
 // fixed clip. That is easy to "tidy" away, hence a test on the url itself.
 describe('searchUrl', () => {
   it('asks for a page, so two rolls do not see the same dozen', () => {
@@ -404,8 +404,19 @@ describe('searchUrl', () => {
     expect(url.searchParams.get('q')).toBe(
       'collection:prelinger AND mediatype:movies',
     )
-    expect(url.searchParams.get('fl[]')).toBe('identifier')
+    expect(url.searchParams.getAll('fl[]')).toContain('identifier')
     expect(url.searchParams.get('output')).toBe('json')
+  })
+
+  // The browser wants the best matches for words somebody typed, which is the
+  // opposite of what a roll wants. Shuffling those would make the dialog's whole
+  // claim — look before you pick — a lie about a random dozen.
+  it('ranks rather than shuffles when a browse asks it to', () => {
+    const url = new URL(
+      searchUrl('test pattern', 1, { rows: 24, random: false }),
+    )
+    expect(url.searchParams.get('sort[]')).toBe(null)
+    expect(url.searchParams.get('rows')).toBe('24')
   })
 })
 
@@ -428,31 +439,26 @@ describe('archiveCaption', () => {
   })
 })
 
-describe('channels', () => {
-  it('every id has a channel, a label, a pool and a download budget', () => {
-    for (const id of ARCHIVE_IDS) {
-      const channel = ARCHIVE[id]
-      expect(channel.label.length).toBeGreaterThan(0)
-      expect(channel.queries.length).toBeGreaterThan(0)
-      expect(channel.maxBytes).toBeGreaterThan(0)
+describe('pools', () => {
+  it('gives every pool a label, a query and a download budget', () => {
+    for (const pool of ARCHIVE_POOLS) {
+      expect(pool.label.length).toBeGreaterThan(0)
+      expect(pool.query.length).toBeGreaterThan(0)
+      expect(pool.maxBytes).toBeGreaterThan(0)
     }
   })
 
-  it('recognises its own ids and nothing else', () => {
-    for (const id of ARCHIVE_IDS) expect(isArchiveId(id)).toBe(true)
-    expect(isArchiveId('wiki-retro')).toBe(false)
-    expect(isArchiveId('bars')).toBe(false)
+  it('names each pool once, so the browser has no two buttons alike', () => {
+    const labels = ARCHIVE_POOLS.map(p => p.label)
+    expect(new Set(labels).size).toBe(labels.length)
   })
 
-  // Same line controls.test.ts holds for a control's `place`: a channel added
-  // to ARCHIVE_IDS has to be offered by both pickers and banded, or this fails
-  // rather than the option quietly going missing from one of them.
-  it('is offered by both pickers, described, and banded as archive', () => {
-    for (const id of ARCHIVE_IDS) {
-      expect(SOURCE_MODES).toContain(id)
-      expect(SOURCE_B_MODES).toContain(id)
-      expect(SOURCE_DESC[id]).toBe(ARCHIVE[id].label)
-      expect(SOURCE_KIND[id]).toBe('archive')
-    }
+  // One picker entry, not one per collection. The collections are what a roll
+  // draws from and what the browser offers as presets; neither is a source mode,
+  // and three of them used to be.
+  it('offers one random entry on both slots, banded with the archives', () => {
+    for (const modes of [SOURCE_MODES, SOURCE_B_MODES])
+      expect(modes).toContain('ia-random')
+    expect(SOURCE_KIND['ia-random']).toBe('pool')
   })
 })
