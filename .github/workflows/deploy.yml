@@ -59,12 +59,17 @@ jobs:
       # emulator is present; this is the arm that actually runs them.
       #
       # The emulator is a jar the CLI downloads on first use, cached here for the
-      # same reason naga is. Java comes with the runner image.
+      # same reason naga is. firebase-tools requires JDK 21+ to run it, which is
+      # newer than what ubuntu-latest ships by default, so it's installed explicitly.
       #
       # Keyed on the lockfile rather than on the jar's own version: which emulator
       # build gets fetched is decided by the pinned firebase-tools, and a CLI bump
       # deletes the old jar and downloads another. A key naming the jar version
       # would then hold a file nothing uses, and quietly stop caching anything.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
       - name: Cache Firestore emulator
         uses: actions/cache@v4
         with:
