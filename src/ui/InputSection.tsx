@@ -15,8 +15,7 @@ import ui from './ui.module.css'
 import { SPEED_DEFAULT } from './urlParams'
 
 import type { SourceBMode, SourceMode } from '../sources/modes'
-import type { TeletypeCard } from '../sources/teletype'
-import type { Cue } from './cue'
+import type { AnySlotView, SlotView } from './slotView'
 import type { ReactNode, RefObject } from 'react'
 
 // The YouTube option is backed by the dev-only yt-dlp bridge, so hide it in
@@ -89,12 +88,41 @@ const shortName = (m: SourceMode | SourceBMode, name: string): string =>
     : SOURCE_DESC[m].split(' — ')[0].replace(/…$/, '')
 
 // The ★ and the credit link a Commons pick carries, or null when the slot is on
-// anything else. Named because both slots take one and the caller builds them.
+// anything else. Built by the caller from the slot's own `wiki`, because it takes
+// one fact from the engine and one from the favourites list and neither of those
+// two can see the other.
 export type WikiSlot = {
   page: string
   starred: boolean
   onStar: () => void
 } | null
+
+// The hidden file picker behind a slot's "file" mode. One component rather than
+// two <input>s, because the interesting line is the last one: without resetting
+// `value`, picking the *same* file twice fires no change event and the second
+// pick silently does nothing. That is exactly the kind of detail one of two
+// copies loses.
+//
+// Mounted outside the collapsible Section by its caller, so a folded Input can
+// still fire the dialog through the ref.
+function HiddenFilePicker(props: {
+  inputRef: RefObject<HTMLInputElement | null>
+  onFile: (file: File | undefined) => void
+}) {
+  const { inputRef } = props
+  return (
+    <input
+      ref={inputRef}
+      type="file"
+      accept="video/*,image/*"
+      style={{ display: 'none' }}
+      onChange={e => {
+        props.onFile(e.target.files?.[0])
+        e.target.value = '' // allow re-picking the same file
+      }}
+    />
+  )
+}
 
 // One input slot: its picker, and whatever that choice brings with it — the card
 // editor for teletype, the name of a loaded file or share, a click to reopen last
@@ -104,80 +132,59 @@ export type WikiSlot = {
 // near-identical blocks of markup. They had drifted into thirty-five mirrored
 // lines each, which is the shape that lets one slot quietly gain an affordance the
 // other lacks — the same argument controls.test.ts makes for the two feed groups.
+//
+// It takes the slot *whole* (ui/slotView.ts) rather than as eighteen unpacked
+// props. The unpacked version put the pairing in the caller — eighteen chances to
+// hand B's picker A's cue, each of which typechecks — and this component is the
+// only reason those pairs existed. What is left beside `slot` is the two things
+// the engine genuinely does not own: the option list for this slot's mode union,
+// and the shelf menu, which is the app's state.
+//
 // Generic over the mode type so each slot keeps its own union: B can be 'none' and
 // A can be 'webcam', and neither can be handed the other's value.
 function SourceSlot<T extends SourceMode | SourceBMode>(props: {
-  tag: string
+  slot: SlotView<T>
   title: string
-  mode: T
-  name: string
   options: readonly { value: T; label: string; group?: string | null }[]
-  onSelect: (mode: T) => void
-  teletype: TeletypeCard
-  onTeletype: (text: string) => void
-  pendingFile: string
-  onReopenFile: () => void
   // This slot's clip menu, built by the app because the shelf's state is the
   // app's — the same arrangement `audioInput` below is passed in under.
   clipPicker: ReactNode
-  time: number
-  duration: number
-  onSeek: (time: number) => void
-  // This slot's cue point, and the three things a hand does to one. Passed down
-  // rather than read from a context because it belongs to the *source* on this
-  // slot, like the playhead above it — not to the look, which is what everything
-  // reached through ControlsContext is.
-  cue: Cue | null
-  onTapCue: () => void
-  onRetrigger: () => void
-  onClearCue: () => void
-  cueKeys: { tap: string; retrigger: string }
-  // The measured cost of this slot's loop wrap, or null before there is a reading.
-  wrapCost: number | null
-  // Playback rate, and the pitch that falls with it — a property of this deck
-  // and nothing else, which is why it sits under this slot's own transport
-  // rather than in a "Vaporwave" section that named the sound it makes instead
-  // of the thing it belongs to. Gated on the same duration the seek bar is: an
-  // element backed by a MediaStream ignores playbackRate, so a rate slider over
-  // a webcam or a share is a lie the moment it moves.
-  speed: number
-  onSpeed: (v: number) => void
-  // What this slot has off Commons, or null for anything else: the file's page,
-  // whether it is starred, and the toggle. Assembled by the caller because it
-  // takes one fact from the engine and one from the favourites list, and neither
-  // of those two can see the other.
+  // The ★ and credit line for a Commons pick, likewise assembled by the app.
   wiki: WikiSlot
   // The capture-device picker, which only A can have — a trailing row rather than
   // a prop this component understands, so the slot stays the same shape for both.
   children?: ReactNode
 }) {
-  const { wiki } = props
+  const { slot, wiki } = props
+  // The tooltips name this slot's own keys, looked up from the slot rather than
+  // passed alongside it: one more pair that cannot now be crossed.
+  const cueKeys = CUE_KEYS[slot.key]
   return (
     <>
       <SelectRow
-        tag={props.tag}
+        tag={slot.tag}
         title={props.title}
-        value={props.mode}
+        value={slot.mode}
         options={props.options}
-        onChange={props.onSelect}
+        onChange={slot.select}
       />
-      {props.mode === 'teletype' ? (
+      {slot.mode === 'teletype' ? (
         <TeletypeRow
-          text={props.teletype.text}
-          onChange={props.onTeletype}
-          onOpenDialog={() => props.onSelect(props.mode)}
+          text={slot.teletype.text}
+          onChange={text => slot.retype({ text })}
+          onOpenDialog={() => slot.select(slot.mode)}
         />
       ) : null}
       {/* The shelf gets a caption that is also a menu, so changing clip does not
           go through the dialog (ClipPicker.tsx). Everything else re-fires the
           source handler, which is the only way back to a picker the <select>
           cannot re-emit for. */}
-      {props.mode === 'library' ? (
+      {slot.mode === 'library' ? (
         props.clipPicker
-      ) : namedMode(props.mode) ? (
+      ) : namedMode(slot.mode) ? (
         <FileName
-          name={props.name}
-          action={captionAction(props.mode)}
+          name={slot.name}
+          action={captionAction(slot.mode)}
           extra={
             wiki === null ? null : (
               <WikiCaption
@@ -187,41 +194,45 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
               />
             )
           }
-          onReopen={() => props.onSelect(props.mode)}
+          onReopen={() => slot.select(slot.mode)}
         />
       ) : null}
-      <ReopenFile
-        name={props.pendingFile}
-        onReopen={() => props.onReopenFile()}
-      />
-      {props.duration === 0 ? null : (
+      <ReopenFile name={slot.pendingFile} onReopen={() => slot.reopenFile()} />
+      {slot.duration === 0 ? null : (
         <>
           <Scrub
-            time={props.time}
-            duration={props.duration}
-            cue={props.cue}
-            onSeek={props.onSeek}
+            time={slot.time}
+            duration={slot.duration}
+            cue={slot.cue}
+            onSeek={slot.seek}
           />
           {/* Behind the same duration gate as the seek bar, and for the same
               reason: a cue is a position on a timeline, and a webcam or a share
               has not got one. */}
           <CueRow
-            cue={props.cue}
-            onTap={props.onTapCue}
-            onRetrigger={props.onRetrigger}
-            onClear={props.onClearCue}
-            keys={props.cueKeys}
-            wrapCost={props.wrapCost}
+            cue={slot.cue}
+            onTap={slot.tapCue}
+            onRetrigger={slot.retrigger}
+            onClear={slot.clearCue}
+            keys={cueKeys}
+            wrapCost={slot.wrapCost}
           />
+          {/* Playback rate, and the pitch that falls with it — a property of
+              this deck and nothing else, which is why it sits under this slot's
+              own transport rather than in a "Vaporwave" section that named the
+              sound it makes instead of the thing it belongs to. Behind the same
+              duration gate: an element backed by a MediaStream ignores
+              playbackRate, so a rate slider over a webcam or a share is a lie
+              the moment it moves. */}
           <Slider
             label="speed"
             unit="×"
             min={0.25}
             max={1.5}
             step={0.01}
-            value={props.speed}
+            value={slot.speed}
             defaultValue={SPEED_DEFAULT}
-            onChange={props.onSpeed}
+            onChange={slot.changeSpeed}
           />
         </>
       )}
@@ -231,110 +242,48 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
 }
 
 export function InputSection(props: {
-  sourceMode: SourceMode
-  sourceName: string
-  onSelectSource: (mode: SourceMode) => void
-  sourceBMode: SourceBMode
-  sourceBName: string
-  onSelectSourceB: (mode: SourceBMode) => void
-  // Each slot's teletype card, shown and edited in place while that slot is on
-  // teletype. Edits land on the card as they are typed.
-  teletypeA: TeletypeCard
-  teletypeB: TeletypeCard
-  onTeletypeA: (text: string) => void
-  onTeletypeB: (text: string) => void
+  // The two slots, whole. Everything that used to arrive here as a `…A`/`…B`
+  // pair is inside one of these; what remains beside them is the handful of
+  // things the engine does not own.
+  a: SlotView<SourceMode>
+  b: SlotView<SourceBMode>
   webcamDeviceId: string
   videoDevices: MediaDeviceInfo[]
   onStartWebcam: (deviceId: string) => void
   fileInputRef: RefObject<HTMLInputElement | null>
   fileInputBRef: RefObject<HTMLInputElement | null>
-  onFile: (file: File | undefined) => void
-  onFileB: (file: File | undefined) => void
-  // Last session's file for each slot when it needs a click to come back, '' when
-  // there is nothing waiting.
-  pendingFileA: string
-  pendingFileB: string
-  onReopenFileA: () => void
-  onReopenFileB: () => void
-  // The clip menu per slot, shown in place of the caption while that slot is on
-  // the shelf.
-  clipPickerA: ReactNode
-  clipPickerB: ReactNode
-  // Playhead per slot, for the seek bar under each picker. A duration of 0 is
-  // "this source has no timeline" — a pattern, a still, a webcam — and the bar
-  // stays off, the same gate the audio file's transport uses.
-  timeA: number
-  durationA: number
-  timeB: number
-  durationB: number
-  onSeekA: (time: number) => void
-  onSeekB: (time: number) => void
-  // Each slot's cue point and the actions on it. Per slot rather than one pair,
-  // because the two decks are cued independently — that is most of the point.
-  cueA: Cue | null
-  cueB: Cue | null
-  onTapCueA: () => void
-  onTapCueB: () => void
-  onRetriggerA: () => void
-  onRetriggerB: () => void
-  onClearCueA: () => void
-  onClearCueB: () => void
-  wrapCostA: number | null
-  wrapCostB: number | null
-  // Playback rate per slot, under that slot's own transport.
-  speedA: number
-  speedB: number
-  onSpeedA: (v: number) => void
-  onSpeedB: (v: number) => void
-  // Per slot, what it has off Commons — the ★ and the credit link under its own
-  // caption. Null for every other kind of source.
-  wikiA: WikiSlot
-  wikiB: WikiSlot
+  // The clip menu and the Commons caption, as *functions of a slot* rather than
+  // as two pairs. Both are the app's to build — the shelf and the favourites
+  // list are its state — but asking for them one slot at a time is what keeps
+  // the answer attached to the slot it was asked about: there is no second
+  // argument to get the wrong way round.
+  clipPicker: (slot: AnySlotView) => ReactNode
+  wikiCaption: (slot: AnySlotView) => WikiSlot
   // Audio in is a source too, so its picker sits with A and B; the Sound branch
   // on the chain map keeps only the knobs it drives. Its helper line comes in
   // separately: all three pickers stack first, then the hints.
   audioInput: ReactNode
   audioHint: ReactNode
 }) {
-  // Pulled out rather than read as `props.fileInputRef` at each <input>: a ref
+  // Pulled out rather than read as `props.fileInputRef` at each picker: a ref
   // read off the props object marks the whole object as ref-ish to the React
   // Compiler, which then refuses every other `props.x` read as a ref access
   // during render and drops this component's memoization entirely.
-  const { fileInputRef, fileInputBRef } = props
+  const { fileInputRef, fileInputBRef, a, b } = props
   const summary =
-    shortName(props.sourceMode, props.sourceName) +
-    (props.sourceBMode === 'none'
-      ? ''
-      : ` + ${shortName(props.sourceBMode, props.sourceBName)}`)
+    shortName(a.mode, a.name) +
+    (b.mode === 'none' ? '' : ` + ${shortName(b.mode, b.name)}`)
   return (
     <div>
       <Section title="Input" defaultOpen={false} summary={summary}>
         <SourceSlot
-          tag="A"
+          slot={a}
           title="main source"
-          mode={props.sourceMode}
-          name={props.sourceName}
           options={A_OPTIONS}
-          onSelect={props.onSelectSource}
-          teletype={props.teletypeA}
-          onTeletype={props.onTeletypeA}
-          pendingFile={props.pendingFileA}
-          onReopenFile={props.onReopenFileA}
-          clipPicker={props.clipPickerA}
-          time={props.timeA}
-          duration={props.durationA}
-          onSeek={props.onSeekA}
-          cue={props.cueA}
-          onTapCue={props.onTapCueA}
-          onRetrigger={props.onRetriggerA}
-          onClearCue={props.onClearCueA}
-          cueKeys={CUE_KEYS.a}
-          wrapCost={props.wrapCostA}
-          speed={props.speedA}
-          onSpeed={props.onSpeedA}
-          wiki={props.wikiA}
+          clipPicker={props.clipPicker(a)}
+          wiki={props.wikiCaption(a)}
         >
-          {props.sourceMode === 'webcam' && props.videoDevices.length > 1 ? (
+          {a.mode === 'webcam' && props.videoDevices.length > 1 ? (
             <SelectRow
               tag="◉"
               title="capture device"
@@ -348,29 +297,11 @@ export function InputSection(props: {
           ) : null}
         </SourceSlot>
         <SourceSlot
-          tag="B"
+          slot={b}
           title="second source, mixed in dirty"
-          mode={props.sourceBMode}
-          name={props.sourceBName}
           options={B_OPTIONS}
-          onSelect={props.onSelectSourceB}
-          teletype={props.teletypeB}
-          onTeletype={props.onTeletypeB}
-          pendingFile={props.pendingFileB}
-          onReopenFile={props.onReopenFileB}
-          clipPicker={props.clipPickerB}
-          time={props.timeB}
-          duration={props.durationB}
-          onSeek={props.onSeekB}
-          cue={props.cueB}
-          onTapCue={props.onTapCueB}
-          onRetrigger={props.onRetriggerB}
-          onClearCue={props.onClearCueB}
-          cueKeys={CUE_KEYS.b}
-          wrapCost={props.wrapCostB}
-          speed={props.speedB}
-          onSpeed={props.onSpeedB}
-          wiki={props.wikiB}
+          clipPicker={props.clipPicker(b)}
+          wiki={props.wikiCaption(b)}
         />
         {props.audioInput}
         {/* Only while B is off, where it is onboarding for a feature nothing on
@@ -378,7 +309,7 @@ export function InputSection(props: {
             in A/B Mix below" — a line of prose pointing at the section directly
             underneath it, which is a row the panel was spending to say nothing
             the next header does not. */}
-        {props.sourceBMode === 'none' ? (
+        {b.mode === 'none' ? (
           <div className={ui.hint}>
             pick a source B to mix a second signal in.
           </div>
@@ -386,7 +317,7 @@ export function InputSection(props: {
         {/* The one thing about a share the browser's picker can't tell you:
             pointing it at this very window closes an optical loop through the
             compositor — a camera on the tube, without the camera. */}
-        {props.sourceMode === 'screen' || props.sourceBMode === 'screen' ? (
+        {a.mode === 'screen' || b.mode === 'screen' ? (
           <div className={ui.hint}>
             share this window itself for a real feedback tunnel. stop sharing
             from the browser and the input goes to snow.
@@ -395,27 +326,12 @@ export function InputSection(props: {
         {props.audioHint}
       </Section>
       {/* Hidden pickers stay mounted outside the collapsible Section, so a
-          collapsed Input can still fire the file dialog through its ref. */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="video/*,image/*"
-        style={{ display: 'none' }}
-        onChange={e => {
-          props.onFile(e.target.files?.[0])
-          e.target.value = '' // allow re-picking the same file
-        }}
-      />
-      <input
-        ref={fileInputBRef}
-        type="file"
-        accept="video/*,image/*"
-        style={{ display: 'none' }}
-        onChange={e => {
-          props.onFileB(e.target.files?.[0])
-          e.target.value = '' // allow re-picking the same file
-        }}
-      />
+          collapsed Input can still fire the file dialog through its ref. Each
+          line carries both halves of its pair, which is the most a ref can be
+          tied to its slot — refs cannot ride on the slot objects themselves
+          without costing this component its memoization (see above). */}
+      <HiddenFilePicker inputRef={fileInputRef} onFile={a.onFile} />
+      <HiddenFilePicker inputRef={fileInputBRef} onFile={b.onFile} />
     </div>
   )
 }

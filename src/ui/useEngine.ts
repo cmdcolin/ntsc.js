@@ -53,6 +53,7 @@ import type { Cue } from './cue'
 import type { Fatal } from './FatalScreen'
 import type { StashSlot, Stashed } from './fileStash'
 import type { PickedFileHandle } from './fsAccess'
+import type { SlotView, WikiOnSlot } from './slotView'
 import type { SessionParams } from './urlParams'
 import type { SlotKind, VideoSlot } from './videoSlot'
 import type { WikiFavorite } from './wikiFavorites'
@@ -106,16 +107,6 @@ const reason = (e: unknown): string =>
 // restored as `file` would offer the OS dialog where the shelf belongs.
 const stashMode = (stashed: Stashed): 'file' | 'library' =>
   stashed.kind === 'clip' ? 'library' : 'file'
-
-// What a slot is showing off Commons, and out of which pool. The pick's title is
-// the identity a star is kept under; the channel is the one thing the pick itself
-// cannot carry, since a favourite resolved back off Commons is the same shape as
-// a fresh roll. Null for a slot showing anything else, which is what gates the ★
-// beside the caption — there is nothing to star about bars.
-export interface WikiOnSlot {
-  pick: CommonsPick
-  channel: CommonsId | ''
-}
 
 // Backing out of a browser permission surface — the screen picker's Cancel, a
 // dismissed camera prompt. The user made a choice and it was "no", so there is
@@ -355,8 +346,8 @@ export function useEngine() {
   // mix on the tail the clips are heard through. videoA/videoB track what kind
   // of <video> each slot currently holds — only a clip has a rate to change
   // (see SlotKind).
-  const [speedA, setSpeedA] = useState(SPEED_DEFAULT)
-  const [speedB, setSpeedB] = useState(SPEED_DEFAULT)
+  // One record rather than a useState each, so the rate can be changed by key.
+  const [speed, setSpeed] = useState({ a: SPEED_DEFAULT, b: SPEED_DEFAULT })
   // Whether the clips are routed is not state here: the audio picker holds that
   // answer now, and nothing this hook renders asks. The mirror below is what the
   // re-routing on a source change reads, and it is a ref for the same reason the
@@ -400,8 +391,7 @@ export function useEngine() {
   // happens inside async fetch callbacks and the mount-time restore, where the
   // state it would close over is stale; this mirror always holds the latest.
   const vaporRef = useRef({
-    speedA: SPEED_DEFAULT,
-    speedB: SPEED_DEFAULT,
+    speed: { a: SPEED_DEFAULT, b: SPEED_DEFAULT },
     playAudio: false,
     reverb: REVERB_DEFAULT,
   })
@@ -475,19 +465,13 @@ export function useEngine() {
     engineRef.current?.audioState.routeMedia(els, mix)
   }
 
-  const changeSpeedA = (rate: number) => {
-    vaporRef.current.speedA = rate
-    setSpeedA(rate)
-    const v = videoRef.current
-    if (v !== null) {
-      v.defaultPlaybackRate = rate
-      v.playbackRate = rate
-    }
-  }
-  const changeSpeedB = (rate: number) => {
-    vaporRef.current.speedB = rate
-    setSpeedB(rate)
-    const v = videoBRef.current
+  // `defaultPlaybackRate` as well as `playbackRate`, or loading the next src
+  // resets the rate to 1 — which is the half of this that was easiest to lose
+  // when it was written out twice.
+  const changeSpeed = (key: StashSlot, rate: number) => {
+    vaporRef.current.speed[key] = rate
+    setSpeed(prev => ({ ...prev, [key]: rate }))
+    const v = (key === 'a' ? videoRef : videoBRef).current
     if (v !== null) {
       v.defaultPlaybackRate = rate
       v.playbackRate = rate
@@ -516,8 +500,8 @@ export function useEngine() {
   // clip's audio on is the caller's job — that is the audio picker's state now,
   // and this hook has no way to move it.
   const applyVaporwave = () => {
-    changeSpeedA(VAPORWAVE_SPEED)
-    changeSpeedB(VAPORWAVE_SPEED)
+    changeSpeed('a', VAPORWAVE_SPEED)
+    changeSpeed('b', VAPORWAVE_SPEED)
     changeReverb(REVERB_DEFAULT)
   }
 
@@ -581,8 +565,6 @@ export function useEngine() {
     const cur = cueRef.current[key]
     if (cueLooping(cur) && !insideCue(cur, time)) writeCue(key, dropLoop(cur))
   }
-  const seekA = (time: number) => seekOut('a', time)
-  const seekB = (time: number) => seekOut('b', time)
 
   // One press of a slot's cue button. The playhead comes from the element rather
   // than from the polled readout: the poll is a tenth of a second stale, and this
@@ -645,7 +627,7 @@ export function useEngine() {
     id: 'a',
     ref: videoRef,
     typer: typerARef,
-    rate: () => vaporRef.current.speedA,
+    rate: () => vaporRef.current.speed.a,
     attach: el => {
       lastSrc.current.a = el === null ? { kind: 'none' } : { kind: 'video' }
       engineRef.current?.setVideoSource(el)
@@ -678,7 +660,7 @@ export function useEngine() {
     id: 'b',
     ref: videoBRef,
     typer: typerBRef,
-    rate: () => vaporRef.current.speedB,
+    rate: () => vaporRef.current.speed.b,
     attach: el => {
       lastSrc.current.b = el === null ? { kind: 'none' } : { kind: 'video' }
       engineRef.current?.setVideoSourceB(el)
@@ -1071,14 +1053,10 @@ export function useEngine() {
   // can be opened over a webcam or a clip, and those are only given up once
   // something is actually sent — typing a letter into a box should not pull the
   // camera out from under the picture.
-  const retypeTeletype = (patch: Partial<TeletypeCard>) => {
-    if (engineRef.current && sourceMode === 'teletype')
-      printOn(slotA, patch, true)
-  }
-
-  const retypeTeletypeB = (patch: Partial<TeletypeCard>) => {
-    if (engineRef.current && sourceBMode === 'teletype')
-      printOn(slotB, patch, true)
+  const retypeOn = (key: StashSlot, patch: Partial<TeletypeCard>) => {
+    const mode = key === 'a' ? sourceMode : sourceBMode
+    if (engineRef.current && mode === 'teletype')
+      printOn(slotOf(key), patch, true)
   }
 
   const selectSource = (mode: SourceMode) => {
@@ -1377,9 +1355,16 @@ export function useEngine() {
     // Audio is left off however the link arrived: browsers block unmuted
     // autoplay without a gesture, so a restored clip must load muted and the
     // user re-enables sound with one click on the panel toggle.
-    vaporRef.current = { ...params.vapor, playAudio: false }
-    setSpeedA(params.vapor.speedA)
-    setSpeedB(params.vapor.speedB)
+    const restored = {
+      a: params.vapor.speedA,
+      b: params.vapor.speedB,
+    }
+    vaporRef.current = {
+      speed: restored,
+      reverb: params.vapor.reverb,
+      playAudio: false,
+    }
+    setSpeed(restored)
     setReverb(params.vapor.reverb)
     if (params.yt !== null) loadYouTube(params.yt)
     if (params.ytb !== null) loadYouTubeB(params.ytb)
@@ -1784,34 +1769,79 @@ export function useEngine() {
     setScale,
     tap,
     changeTap,
-    sourceMode,
-    sourceName,
-    selectSource,
-    sourceBMode,
-    sourceBName,
-    selectSourceB,
+    // The two input slots, each whole (ui/slotView.ts). Everything that used to
+    // be a `…A`/`…B` pair on this object is inside one of these, so nothing
+    // downstream pairs a value with a slot by hand any more.
+    a: {
+      key: 'a',
+      tag: 'A',
+      time: transport.a.time,
+      duration: transport.a.duration,
+      seek: t => seekOut('a', t),
+      cue: cue.a,
+      tapCue: () => tapCueOn('a'),
+      retrigger: () => retriggerOn('a'),
+      clearCue: () => clearCueOn('a'),
+      wrapCost: stall.a,
+      mode: sourceMode,
+      name: sourceName,
+      select: selectSource,
+      live: videoA,
+      teletype: cardA,
+      retype: p => retypeOn('a', p),
+      loadTeletype,
+      ytUrl: ytUrlA,
+      loadYouTube,
+      pendingFile: pendingA === null ? '' : pendingA.name,
+      reopenFile: reopenFileA,
+      onFile,
+      speed: speed.a,
+      changeSpeed: r => changeSpeed('a', r),
+      wiki: wikiA,
+    } satisfies SlotView<SourceMode>,
+    b: {
+      key: 'b',
+      tag: 'B',
+      time: transport.b.time,
+      duration: transport.b.duration,
+      seek: t => seekOut('b', t),
+      cue: cue.b,
+      tapCue: () => tapCueOn('b'),
+      retrigger: () => retriggerOn('b'),
+      clearCue: () => clearCueOn('b'),
+      wrapCost: stall.b,
+      mode: sourceBMode,
+      name: sourceBName,
+      select: selectSourceB,
+      live: videoB,
+      teletype: cardB,
+      retype: p => retypeOn('b', p),
+      loadTeletype: loadTeletypeB,
+      ytUrl: ytUrlB,
+      loadYouTube: loadYouTubeB,
+      pendingFile: pendingB === null ? '' : pendingB.name,
+      reopenFile: reopenFileB,
+      onFile: onFileB,
+      speed: speed.b,
+      changeSpeed: r => changeSpeed('b', r),
+      wiki: wikiB,
+    } satisfies SlotView<SourceBMode>,
     askWebcam,
     setAskWebcam,
     videoDevices,
     webcamDeviceId,
     startWebcam,
+    // The file pickers' refs, deliberately *not* inside the slot objects above.
+    // Reading a ref off an object marks that whole object as ref-ish to the
+    // React Compiler, and every later plain read of it during render then trips
+    // "cannot access refs during render" — one error and the component loses all
+    // its memoization. `eng.a` is read a dozen times while building the panel, so
+    // it must stay a value the compiler can treat as one. Same reason App pulls
+    // `engineRef` out in its first destructure.
     fileInputRef,
     fileInputBRef,
-    onFile,
-    onFileB,
-    // '' unless last session's file is waiting on a click to re-grant read.
-    pendingFileA: pendingA === null ? '' : pendingA.name,
-    pendingFileB: pendingB === null ? '' : pendingB.name,
-    reopenFileA,
-    reopenFileB,
-    loadYouTube,
-    loadYouTubeB,
     askYouTube,
     setAskYouTube,
-    loadTeletype,
-    loadTeletypeB,
-    retypeTeletype,
-    retypeTeletypeB,
     askTeletype,
     setAskTeletype,
     // The clip shelf: which slot it was opened for, and the one way in and out
@@ -1836,41 +1866,7 @@ export function useEngine() {
     // shelf is a list rather than a pool. The palette row says so rather than
     // going quiet, since a row that does nothing has to admit it.
     wikiRollable: isCommonsId(sourceMode) || isCommonsId(sourceBMode),
-    wikiA,
-    wikiB,
-    teletypeA: cardA,
-    teletypeB: cardB,
-    videoA,
-    videoB,
-    // Transport per slot: 0 duration means there is nothing to seek.
-    timeA: transport.a.time,
-    durationA: transport.a.duration,
-    timeB: transport.b.time,
-    durationB: transport.b.duration,
-    seekA,
-    seekB,
-    // The cue point per slot, and the three things a hand does to one: tap it
-    // (mark, close the loop, re-arm), stab back to it, drop it. Marked on the
-    // clip's own timeline, so it goes away with the clip rather than with a look.
-    cueA: cue.a,
-    cueB: cue.b,
-    tapCueA: () => tapCueOn('a'),
-    tapCueB: () => tapCueOn('b'),
-    retriggerA: () => retriggerOn('a'),
-    retriggerB: () => retriggerOn('b'),
-    clearCueA: () => clearCueOn('a'),
-    clearCueB: () => clearCueOn('b'),
-    // Measured, not predicted: what the jump back costs this clip at this
-    // in-point. Reported as a number rather than judged — see ui/cue.ts.
-    wrapCostA: stall.a,
-    wrapCostB: stall.b,
-    speedA,
-    speedB,
     reverb,
-    ytUrlA,
-    ytUrlB,
-    changeSpeedA,
-    changeSpeedB,
     setVideoAudio,
     changeReverb,
     applyVaporwave,

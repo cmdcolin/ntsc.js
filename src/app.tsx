@@ -107,12 +107,12 @@ import type { GlidePlan } from './signal/glide'
 import type { PaletteAction } from './ui/CommandPalette'
 import type { Group } from './ui/controls'
 import type { ControlsApi, ControlStore } from './ui/ControlsContext'
-import type { Cue } from './ui/cue'
+import type { StashSlot } from './ui/fileStash'
 import type { WikiSlot } from './ui/InputSection'
 import type { Lens } from './ui/lens'
 import type { SavedProfile } from './ui/savedProfiles'
 import type { BranchNode, PathNode } from './ui/SignalPath'
-import type { WikiOnSlot } from './ui/useEngine'
+import type { AnySlotView } from './ui/slotView'
 import type { LookContext } from './ui/useLookLabels'
 
 // Whether the menu over the picture has been dismissed. Persisted across
@@ -155,14 +155,15 @@ const OPEN_STAGES = [
 // The name tracks the state, the way the star's does. A press means something
 // different depending on what is marked, and a row that read "cue" while the next
 // press would close a loop would be lying about what it does.
-const cueVerbs = (
-  tag: string,
-  duration: number,
-  cue: Cue | null,
-  tap: () => void,
-  back: () => void,
-): PaletteAction[] => {
-  const noClip = duration === 0
+//
+// One argument, and it is the slot: the tag, the duration, the cue and both verbs
+// all come out of it together. Handed over as five loose values — which is what
+// this took before ui/slotView.ts existed — it was possible to label B's row with
+// A's tag, or to wire the tag and the cue to one slot and `run` to the other, and
+// nothing but reading would have caught it.
+const cueVerbs = (slot: AnySlotView): PaletteAction[] => {
+  const { tag, cue } = slot
+  const noClip = slot.duration === 0
   const cueArmed = cue !== null && cue.out === null
   return [
     {
@@ -178,7 +179,7 @@ const cueVerbs = (
           : cue !== null
             ? 'drop this loop and mark a fresh cue at the playhead'
             : 'mark the playhead — press again to loop from there',
-      run: tap,
+      run: slot.tapCue,
     },
     {
       name: `back to the cue on source ${tag}`,
@@ -186,7 +187,7 @@ const cueVerbs = (
         cue === null
           ? `nothing cued on source ${tag} yet`
           : 'jump back and keep playing — stab it in time for a stutter',
-      run: back,
+      run: slot.retrigger,
     },
   ]
 }
@@ -335,7 +336,7 @@ export function App() {
     startGlide,
     getGlideTarget,
     morphSeconds,
-    sourceBOn: eng.sourceBMode !== 'none',
+    sourceBOn: eng.b.mode !== 'none',
     mod: modApi,
   })
 
@@ -387,50 +388,73 @@ export function App() {
   // one. Nothing here prompts — `hasRead` only asks what the answer already is.
   const clips = useClipLibrary(
     eng.askLibrary !== null ||
-      eng.sourceMode === 'library' ||
-      eng.sourceBMode === 'library',
+      eng.a.mode === 'library' ||
+      eng.b.mode === 'library',
     eng.loadClip,
   )
+
+  // Either slot, by the key something outside handed over. Four surfaces are
+  // told which slot to act on rather than choosing — the keyboard, and the three
+  // dialogs, each of which was opened *for* a slot — and every one of them used
+  // to spell out its own `key === 'a' ? …A : …B`, once per verb. One lookup, and
+  // what follows it is the verb on a slot.
+  const slotFor = (key: StashSlot): AnySlotView => (key === 'a' ? eng.a : eng.b)
+
+  // The slot each of the two editing dialogs was opened for, resolved once here
+  // rather than re-derived inside every callback. Those callbacks used to branch
+  // on `eng.askTeletype === 'b'` at the moment they fired, three times in one
+  // dialog — which is correct only because nothing can move that state while the
+  // dialog is up, and reads as though something might. Resolved at the open, the
+  // dialog holds the slot it belongs to and its verbs are that slot's.
+  const teletypeSlot =
+    eng.askTeletype === null ? null : slotFor(eng.askTeletype)
+  const youTubeSlot = eng.askYouTube === null ? null : slotFor(eng.askYouTube)
 
   // The starred Commons rolls, on the same footing as the shelf: a list the
   // engine has no stake in beyond the pick that comes back off it.
   const wiki = useWikiFavorites()
 
-  // The ★ and the credit link under a source picker, for whichever slot has a
-  // Commons pick on it. Assembled here because it takes one fact from the engine
-  // (what is on the slot) and one from the favourites list (whether that title is
-  // starred), and neither hook can see the other.
   // Which pick the palette's two Commons rows act on: A's if it has one, else
   // B's, the same precedence `rollAgain` uses — A is the picture.
-  const wikiPick = eng.wikiA ?? eng.wikiB
+  const wikiPick = eng.a.wiki ?? eng.b.wiki
   const wikiStarred = wikiPick !== null && wiki.starred(wikiPick.pick.title)
 
-  const wikiCaption = (on: WikiOnSlot | null): WikiSlot =>
-    on === null
+  // The ★ and the credit link under a source picker, for a slot that has a
+  // Commons pick on it. Assembled here because it takes one fact from the engine
+  // (what is on the slot) and one from the favourites list (whether that title is
+  // starred), and neither hook can see the other — but it takes the *slot* rather
+  // than the pick already dug out of one, so InputSection can ask it per slot and
+  // the answer cannot arrive under the wrong picker.
+  const wikiCaption = (slot: AnySlotView): WikiSlot => {
+    const on = slot.wiki
+    return on === null
       ? null
       : {
           page: on.pick.page,
           starred: wiki.starred(on.pick.title),
           onStar: () => wiki.star(on.pick, on.channel),
         }
+  }
 
-  // `copied` (the flash on the old copy-link button) went with that button; the
-  // ⌘K entry below is the only caller left, and a palette row closes on run.
+  // The link still takes its per-slot values flat, because the query string is a
+  // flat thing and urlParams.ts names these keys on the wire (?cueA=, ?vapor=).
+  // Unpacked here, next to each other, rather than left as thirty fields on the
+  // engine for everything else to unpack too.
   const { copyLink, profileQuery, copyQuery } = useUrlState({
     controls,
     mod: slotsToRoutings(modApi.slots),
     engineReady: engine !== null,
-    sourceMode: eng.sourceMode,
-    sourceBMode: eng.sourceBMode,
-    ytUrlA: eng.ytUrlA,
-    ytUrlB: eng.ytUrlB,
-    teletypeA: eng.teletypeA,
-    teletypeB: eng.teletypeB,
-    speedA: eng.speedA,
-    speedB: eng.speedB,
+    sourceMode: eng.a.mode,
+    sourceBMode: eng.b.mode,
+    ytUrlA: eng.a.ytUrl,
+    ytUrlB: eng.b.ytUrl,
+    teletypeA: eng.a.teletype,
+    teletypeB: eng.b.teletype,
+    speedA: eng.a.speed,
+    speedB: eng.b.speed,
     reverb: eng.reverb,
-    cueA: eng.cueA,
-    cueB: eng.cueB,
+    cueA: eng.a.cue,
+    cueB: eng.b.cue,
   })
 
   // The saved-profile library, which is the query string above kept under a name.
@@ -468,7 +492,7 @@ export function App() {
         : mix.weights.size > 0
           ? 'surprise'
           : 'hand',
-    source: eng.sourceMode,
+    source: eng.a.mode,
   })
   // `landLook` rather than a plain write: a recall is the same gesture as a
   // preset click — a whole board at once — so it arrives however the look bar
@@ -537,8 +561,8 @@ export function App() {
     onEndCompare: endCompare,
     onToggleRecord: capture.toggleRecord,
     onGrabStill: capture.grabStill,
-    onTapCue: slot => (slot === 'a' ? eng.tapCueA() : eng.tapCueB()),
-    onRetrigger: slot => (slot === 'a' ? eng.retriggerA() : eng.retriggerB()),
+    onTapCue: key => slotFor(key).tapCue(),
+    onRetrigger: key => slotFor(key).retrigger(),
     onSaveSlot: saveSlot,
     onRecallSlot: recallSlot,
     // ctrl+S keeps the board under the name the menu would have offered. The
@@ -660,8 +684,8 @@ export function App() {
         if (wikiPick !== null) wiki.star(wikiPick.pick, wikiPick.channel)
       },
     },
-    ...cueVerbs('A', eng.durationA, eng.cueA, eng.tapCueA, eng.retriggerA),
-    ...cueVerbs('B', eng.durationB, eng.cueB, eng.tapCueB, eng.retriggerB),
+    ...cueVerbs(eng.a),
+    ...cueVerbs(eng.b),
     {
       name: 'undo',
       blurb: 'step back through the looks you have been through',
@@ -810,7 +834,7 @@ export function App() {
   // are still drawn — together they are the one thing on screen saying a second
   // input exists — but neither opens, and neither wears the amber that says
   // "you changed something in here": nothing in them is reaching the picture.
-  const bOn = eng.sourceBMode !== 'none'
+  const bOn = eng.b.mode !== 'none'
   const B_OFF_HINT = 'no source B — pick one in Input to mix a second signal in'
   const unpatched = (node: PathNode): PathNode =>
     bOn ? node : { ...node, touched: 0, off: true, offHint: B_OFF_HINT }
@@ -1128,71 +1152,30 @@ export function App() {
 
       {filtering ? null : (
         <InputSection
-          sourceMode={eng.sourceMode}
-          sourceName={eng.sourceName}
-          onSelectSource={eng.selectSource}
-          sourceBMode={eng.sourceBMode}
-          sourceBName={eng.sourceBName}
-          onSelectSourceB={eng.selectSourceB}
-          teletypeA={eng.teletypeA}
-          teletypeB={eng.teletypeB}
-          onTeletypeA={text => eng.retypeTeletype({ text })}
-          onTeletypeB={text => eng.retypeTeletypeB({ text })}
+          a={eng.a}
+          b={eng.b}
           webcamDeviceId={eng.webcamDeviceId}
           videoDevices={eng.videoDevices}
           onStartWebcam={eng.startWebcam}
           fileInputRef={eng.fileInputRef}
           fileInputBRef={eng.fileInputBRef}
-          onFile={eng.onFile}
-          onFileB={eng.onFileB}
-          pendingFileA={eng.pendingFileA}
-          pendingFileB={eng.pendingFileB}
-          onReopenFileA={() => eng.reopenFileA()}
-          onReopenFileB={() => eng.reopenFileB()}
-          clipPickerA={
+          // Asked for one slot at a time, so the name on the menu and the slot
+          // the shelf opens for both come off the same object. As a `…A`/`…B`
+          // pair this was two four-line copies whose only difference was three
+          // letters, which is the shape that ends up opening the shelf for A
+          // while captioning it with B's clip.
+          clipPicker={slot => (
             <ClipPicker
-              slot="a"
-              name={eng.sourceName}
+              slot={slot.key}
+              name={slot.name}
               lib={clips.lib}
               access={clips.access}
               note={clips.note}
               onPlay={clips.play}
-              onOpenShelf={() => eng.setAskLibrary('a')}
+              onOpenShelf={() => eng.setAskLibrary(slot.key)}
             />
-          }
-          clipPickerB={
-            <ClipPicker
-              slot="b"
-              name={eng.sourceBName}
-              lib={clips.lib}
-              access={clips.access}
-              note={clips.note}
-              onPlay={clips.play}
-              onOpenShelf={() => eng.setAskLibrary('b')}
-            />
-          }
-          timeA={eng.timeA}
-          durationA={eng.durationA}
-          timeB={eng.timeB}
-          durationB={eng.durationB}
-          onSeekA={eng.seekA}
-          onSeekB={eng.seekB}
-          cueA={eng.cueA}
-          cueB={eng.cueB}
-          onTapCueA={eng.tapCueA}
-          onTapCueB={eng.tapCueB}
-          onRetriggerA={eng.retriggerA}
-          onRetriggerB={eng.retriggerB}
-          onClearCueA={eng.clearCueA}
-          onClearCueB={eng.clearCueB}
-          wrapCostA={eng.wrapCostA}
-          wrapCostB={eng.wrapCostB}
-          speedA={eng.speedA}
-          speedB={eng.speedB}
-          onSpeedA={eng.changeSpeedA}
-          onSpeedB={eng.changeSpeedB}
-          wikiA={wikiCaption(eng.wikiA)}
-          wikiB={wikiCaption(eng.wikiB)}
+          )}
+          wikiCaption={wikiCaption}
           audioInput={
             <AudioInput
               mode={audio.mode}
@@ -1211,7 +1194,7 @@ export function App() {
           audioHint={
             <AudioHint
               mode={audio.mode}
-              hasClip={eng.videoA === 'clip' || eng.videoB === 'clip'}
+              hasClip={eng.a.live === 'clip' || eng.b.live === 'clip'}
               error={audio.error}
             />
           }
@@ -1398,17 +1381,16 @@ export function App() {
           onClose={() => eng.setAskWebcam(false)}
         />
       ) : null}
-      {eng.askYouTube !== null ? (
+      {youTubeSlot === null ? null : (
         <YouTubeDialog
-          slot={eng.askYouTube}
+          slot={youTubeSlot.key}
           onSubmit={url => {
-            if (eng.askYouTube === 'b') eng.loadYouTubeB(url)
-            else eng.loadYouTube(url)
+            youTubeSlot.loadYouTube(url)
             eng.setAskYouTube(null)
           }}
           onClose={() => eng.setAskYouTube(null)}
         />
-      ) : null}
+      )}
       {eng.askLibrary !== null ? (
         <ClipLibraryDialog
           slot={eng.askLibrary}
@@ -1437,27 +1419,23 @@ export function App() {
           onClose={() => eng.setAskWiki(null)}
         />
       ) : null}
-      {eng.askTeletype !== null ? (
+      {teletypeSlot === null ? null : (
         <TeletypeDialog
-          slot={eng.askTeletype}
-          initial={eng.askTeletype === 'b' ? eng.teletypeB : eng.teletypeA}
-          onLive={card => {
-            if (eng.askTeletype === 'b') eng.retypeTeletypeB(card)
-            else eng.retypeTeletype(card)
-          }}
+          slot={teletypeSlot.key}
+          initial={teletypeSlot.teletype}
+          onLive={teletypeSlot.retype}
           onSubmit={card => {
-            if (eng.askTeletype === 'b') eng.loadTeletypeB(card)
-            else eng.loadTeletype(card)
+            teletypeSlot.loadTeletype(card)
             eng.setAskTeletype(null)
           }}
           onClose={() => eng.setAskTeletype(null)}
         />
-      ) : null}
+      )}
       {showDiagram ? (
         <SignalPathDialog
           controls={controls}
           live={loopsLive}
-          bOn={eng.sourceBMode !== 'none'}
+          bOn={bOn}
           soundOn={soundOn}
           onOpen={nav.openAt}
           onClose={() => setShowDiagram(false)}
