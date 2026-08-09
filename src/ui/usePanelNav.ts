@@ -1,4 +1,4 @@
-import { SOURCE_A_STAGE, stageGroups } from './controls'
+import { CAMERA_LOOP_STAGE, SOURCE_A_STAGE, stageGroups } from './controls'
 import { usePersistedString } from './storage'
 
 // Which stage, and which group inside it, are unfolded — one of each, so the
@@ -21,8 +21,20 @@ const OPEN_PHASE_STORE = 'video_feedback_open_phase'
 // as null and closing the stage re-opens it on the next load, forever — the
 // round trip below is the whole point of the pair, and the pair is the whole
 // reason these are functions worth naming.
+// A stage that no longer exists is the third case, and it is stored state from
+// before the split: 'Feedback' was one stage over three loops, and it is now
+// three. Left alone it comes back as a name nothing renders and no box on the
+// map opens — a session that returns to a panel showing nothing, with no way to
+// tell that from having closed it. The camera loop is where it lands because it
+// held the group 'Feedback' opened at first.
+const GONE: Readonly<Record<string, string>> = { Feedback: CAMERA_LOOP_STAGE }
+
 export const openStageFrom = (stored: string | null): string | null =>
-  stored === null ? SOURCE_A_STAGE : stored === '' ? null : stored
+  stored === null
+    ? SOURCE_A_STAGE
+    : stored === ''
+      ? null
+      : (GONE[stored] ?? stored)
 export const storeOpenStage = (name: string | null): string => name ?? ''
 
 export function usePanelNav() {

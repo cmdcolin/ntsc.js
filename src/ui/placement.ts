@@ -1,4 +1,12 @@
-import { GROUPS, SOUND_STAGE, SOURCE_B_STAGE, VIEW_STAGE } from './controls'
+import {
+  CAMERA_LOOP_STAGE,
+  GROUPS,
+  MIXER_LOOP_STAGE,
+  SOUND_STAGE,
+  SOURCE_B_STAGE,
+  TAPE_LOOP_STAGE,
+  VIEW_STAGE,
+} from './controls'
 
 import type { ControlKey } from '../controls'
 import type { Group } from './controls'
@@ -25,12 +33,19 @@ export function groupOf(key: ControlKey): Group | undefined {
 
 // The placements that are not a stage name. Every other `place` is a Phase and
 // is already the name of the stage that opens it, so this is the whole
-// translation — a table rather than a chain of ternaries, because there are
-// three of them now and a fourth would have kept extending the chain.
+// translation — a table rather than a chain of ternaries, because there are six
+// of them now and a chain would have kept growing.
+//
+// `Partial<Record<Group['place'], …>>` is what holds it to the placements that
+// actually exist: a seventh added to the union without a row here is a control
+// whose caption in "This look" points at a stage nobody can open.
 const OFF_SPINE_STAGE: Partial<Record<Group['place'], string>> = {
   b: SOURCE_B_STAGE,
   audio: SOUND_STAGE,
   view: VIEW_STAGE,
+  camera: CAMERA_LOOP_STAGE,
+  mixer: MIXER_LOOP_STAGE,
+  tape: TAPE_LOOP_STAGE,
 }
 
 // The off-spine placements are named for what they hold; the stage each opens

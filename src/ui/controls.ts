@@ -53,15 +53,29 @@ export interface SliderDef {
 // So the trunk's head is 'Source A', its mirror hangs below it (SOURCE_B_STAGE,
 // which is not a Phase — B joins the trunk rather than dividing it), and 'Mix'
 // is the stage where the two meet and nothing else.
+// 'Feedback' was here, between Mix and Tape, and it was not a stage. It was
+// three machines filed under one word: a camera looking at the tube, the mixer
+// bus patched into itself, and a second deck threaded with a loop of tape. They
+// do not even re-enter at the same place — `compose` for the camera, ahead of
+// the encoder, and `fbComposite`/`tapePlay` for the other two, straight after
+// the A/B sum (gpu/pipeline.ts) — so the box was standing on the wire between
+// two different re-entry points and claiming to be both. Each is now a stage of
+// its own, hung off the trunk on the loop band, and each is reached by pressing
+// its own return. See LOOP_STAGES.
 export const PHASE_ORDER = [
   'Source A',
   'Mix',
-  'Feedback',
   'Tape',
   'Receiver',
   'Screen',
 ] as const
 export type Phase = (typeof PHASE_ORDER)[number]
+
+// The three loops, as placements. A loop is not a division of the trunk — it is
+// a machine patched across it — so it is off the spine for the same reason the
+// two branches are, and its groups say which loop rather than which stage.
+export const LOOP_PLACES = ['camera', 'mixer', 'tape'] as const
+export type LoopPlace = (typeof LOOP_PLACES)[number]
 
 // Where a group lives in the panel — its single source of placement truth, so
 // nothing can silently fail to render:
@@ -71,7 +85,10 @@ export type Phase = (typeof PHASE_ORDER)[number]
 //   'audio' — on the map's Sound branch (SOUND_STAGE), openable only when an
 //             audio input is picked;
 //   'view'  — on the map's View box (VIEW_STAGE), which is not in the signal
-//             path at all: it is where the picture is watched from.
+//             path at all: it is where the picture is watched from;
+//   a LoopPlace — on one of the three returns drawn over the trunk, openable
+//             by pressing that return. Always openable: unlike a branch there
+//             is nothing to patch into a loop, the loop *is* the patch.
 //
 // 'b' is the one placement that can take a control off screen entirely, so it
 // is only for controls that genuinely have nothing to do without a second
@@ -81,7 +98,7 @@ export type Phase = (typeof PHASE_ORDER)[number]
 // rule from the other side: it is a Phase, so it is always drawn, but with
 // nothing patched into B every control in it is inert and it opens onto
 // nothing — see PathNode.off.
-export type Placement = Phase | 'b' | 'audio' | 'view'
+export type Placement = Phase | 'b' | 'audio' | 'view' | LoopPlace
 
 export interface Group {
   name: string
@@ -107,15 +124,6 @@ export const FEED_A_CABLE_GROUP = 'Feed A · cable'
 export const FEED_B_GROUP = 'Feed B · deck'
 export const FEED_B_CABLE_GROUP = 'Feed B · cable'
 
-// The three loops, named here for the same reason the feeds are: the map and
-// the diagram address each one by identity, because each of them is a return
-// wire you can click rather than a stage you can open. They are three because
-// three passes close three different paths (see gpu/pipeline.ts) — the camera
-// re-enters at `compose`, ahead of the encoder; the mixer at `fbComposite`,
-// straight after the A/B sum; and the loop bin at `tapePlay`/`tapeRec`, which
-// leaves and returns at that same point rather than going round the chain at
-// all. Nothing but the Feedback stage held them before, which is why the loop
-// bin was the one loop the diagram never drew.
 // The video synth's group, named for the same reason the feeds are: it is one
 // of the two generator groups that describe whichever slot is showing them
 // rather than belonging to input A, so the test that holds A and B to the same
@@ -126,19 +134,80 @@ export const CAMERA_LOOP_GROUP = 'Camera loop (optical)'
 export const MIXER_LOOP_GROUP = 'Mixer loop (electrical)'
 export const TAPE_LOOP_GROUP = 'Tape loop (loop bin)'
 
-// The stage all three return into, named because the map and the diagram open
-// it without walking PHASES to find it.
-export const FEEDBACK_STAGE = 'Feedback'
-
 // Which of the three are actually carrying signal, so a drawing can show a
 // running loop rather than only the three that exist in principle. One shape
-// for both drawings — the miniature has room for two of them and the diagram
-// for all three, and this is what stops the two disagreeing about the names.
-export interface LoopsLive {
-  camera: boolean
-  mixer: boolean
-  tape: boolean
+// for both drawings and for the panel, and this is what stops them disagreeing
+// about the names.
+export type LoopsLive = Record<LoopPlace, boolean>
+
+// The three loops as stages of the panel — one table, because five surfaces ask
+// about them and every one of them used to answer for itself: the miniature
+// drew and named the runs, the full diagram drew and named them again with a
+// second set of sentences, the legend under it had a third, the panel filed all
+// five of their groups under one 'Feedback' header, and the test that holds a
+// lit run to a dispatched pass named the three mixes a fourth time.
+//
+// They are three because three passes close three different paths (see
+// gpu/pipeline.ts), and the paths are what the names are for — the physics that
+// closes a loop is the only thing that tells one from another once more than
+// one is running. The camera loop is optical: it points at the tube's face, so
+// it can only do what a lens can. The mixer loop is electrical: it carries the
+// subcarrier round with it, so it does things optics cannot. The loop bin is
+// mechanical: it re-records what it returns, so what circulates ages a
+// generation a lap.
+export interface LoopStage {
+  loop: LoopPlace
+  // What the panel calls the stage, and what the map opens by name.
+  name: string
+  // The word that rides the run on the miniature, where there is room for one.
+  short: string
+  // The one-liner the run's hover and the stage's heading carry.
+  blurb: string
+  // The whole sentence, for the full diagram's legend — the one place with room.
+  what: string
+  // The mix that decides whether this loop is running. The pass closing the
+  // loop is gated on the same control, so a lit run and a dispatched pass mean
+  // the same thing (controls.test.ts holds the three to real controls).
+  mix: ControlKey
 }
+
+// The three by name, for the surfaces that address one of them by identity —
+// written above the table and read out of it, so a rename lands in one place.
+export const CAMERA_LOOP_STAGE = 'Camera loop'
+export const MIXER_LOOP_STAGE = 'Mixer loop'
+export const TAPE_LOOP_STAGE = 'Tape loop'
+
+export const LOOP_STAGES: readonly LoopStage[] = [
+  {
+    loop: 'camera',
+    name: CAMERA_LOOP_STAGE,
+    short: 'camera',
+    blurb:
+      'optical — a camera on the tube’s face, its picture mixed back in ahead of the encoder, plus the gun and glass it is pointed at',
+    what: 'light rather than wire — a camera on the tube’s face, its picture mixed back into the input ahead of the encoder. It carries an image that has already been decoded and lit, so it can only do what a lens can: zoom, shift, defocus, cut a black level. Past unity gain it breeds structure on its own',
+    mix: 'fbMix',
+  },
+  {
+    loop: 'mixer',
+    name: MIXER_LOOP_STAGE,
+    short: 'mixer',
+    blurb:
+      'electrical — the composite off the bus, crossfaded back against the live signal, subcarrier and all',
+    what: 'the composite itself, patched off the bus into an input and crossfaded against the live signal. The subcarrier rides round with it, so each sample of cable delay spins fed-back hue 90° a generation and colour does things optics cannot',
+    mix: 'cfbMix',
+  },
+  {
+    loop: 'tape',
+    name: TAPE_LOOP_STAGE,
+    short: 'tape',
+    blurb:
+      'mechanical — a second deck threaded with a loop of tape, patched across the bus: what goes round is re-recorded and ages a generation a lap',
+    what: 'a second machine threaded with a loop of tape, patched across the bus rather than round the chain: a play head returns what was laid down a lap ago, a record head lays the sum back down, and whatever keeps circulating ages a generation every time round',
+    mix: 'tapeMix',
+  },
+]
+
+export const LOOP_STAGE_NAMES: readonly string[] = LOOP_STAGES.map(l => l.name)
 
 export const GROUPS: Group[] = [
   {
@@ -477,7 +546,7 @@ export const GROUPS: Group[] = [
   // returns, so what circulates ages a generation a lap.
   {
     name: CAMERA_LOOP_GROUP,
-    place: 'Feedback',
+    place: 'camera',
     sliders: [
       {
         key: 'fbMix',
@@ -594,15 +663,17 @@ export const GROUPS: Group[] = [
     ],
   },
   // The gun and the glass, split out of the camera group because none of it is
-  // a camera: it is the tube's own transfer curve and faceplate. It sits here
-  // rather than under Screen because it is the camera loop's subject — the
-  // light the lens is pointed at — so it is what decides which structures
-  // survive a trip around and which die, and tuning a loop means reaching for
-  // these in the same breath as the lens. The mixer loop taps ahead of the
-  // tube and never sees them.
+  // a camera: it is the tube's own transfer curve and faceplate. It sits on the
+  // camera loop rather than under Screen because it is that loop's subject —
+  // the light the lens is pointed at — so it is what decides which structures
+  // survive a trip around and which die, and tuning the loop means reaching for
+  // these in the same breath as the lens. The mixer loop taps ahead of the tube
+  // and never sees them, which is exactly why these two stages are two: filed
+  // together under one 'Feedback' header, the faceplate read as something all
+  // three loops went through.
   {
     name: 'Tube face (what the camera shoots)',
-    place: 'Feedback',
+    place: 'camera',
     sliders: [
       {
         key: 'crtCutoff',
@@ -678,7 +749,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: MIXER_LOOP_GROUP,
-    place: 'Feedback',
+    place: 'mixer',
     sliders: [
       {
         key: 'cfbMix',
@@ -823,7 +894,7 @@ export const GROUPS: Group[] = [
   },
   {
     name: TAPE_LOOP_GROUP,
-    place: 'Feedback',
+    place: 'tape',
     sliders: [
       {
         key: 'tapeMix',
@@ -884,7 +955,7 @@ export const GROUPS: Group[] = [
     // loop's mix and length, the deck driving it, the heads reading it, and the
     // oxide wearing out, which are four different questions.
     name: 'Loop transport & heads',
-    place: 'Feedback',
+    place: 'tape',
     sliders: [
       {
         key: 'tapeRecord',
@@ -3188,8 +3259,6 @@ const PHASE_BLURBS: Record<Phase, string> = {
   'Source A':
     'input A becoming a composite waveform — the encoder, the static generator, and the deck and cable this one signal arrives on',
   Mix: 'where the two signals meet — the mixer that beats them together, the wipe and the PiP inset. Needs a source B to do anything',
-  Feedback:
-    'three loops — one optical (a camera on the tube), one electrical (the mixer bus patched into itself), one mechanical (a second deck threaded with a loop of tape)',
   Tape: 'the recording and the wire it came down — VHS color-under, dropouts, timebase wander, the tuner and the program cable',
   Receiver:
     'a TV hunting for sync and decoding color from whatever arrives — hold, deflection, the decoder',
@@ -3303,13 +3372,15 @@ export const OFF_HINT: Readonly<Record<string, string>> = {
     'nothing to mix — the mixer, the wipe and the inset all need a second signal, so pick a source B',
 }
 
-// The groups behind an openable stage name, trunk or branch. One lookup rather
-// than two, so anything that opens a stage (the map, the palette, the panel's
-// own nav) reaches a branch without knowing it is not a Phase.
+// The groups behind an openable stage name — trunk, branch or loop. One lookup
+// rather than four, so anything that opens a stage (the map, the palette, the
+// panel's own nav) reaches one without knowing it is not a Phase.
 export function stageGroups(name: string): Group[] {
   if (name === SOURCE_B_STAGE) return B_GROUPS
   if (name === SOUND_STAGE) return AUDIO_GROUPS
   if (name === VIEW_STAGE) return VIEW_GROUPS
+  const loop = LOOP_STAGES.find(l => l.name === name)
+  if (loop !== undefined) return loopGroups(loop.loop)
   return PHASES.find(p => p.name === name)?.groups ?? []
 }
 
@@ -3380,6 +3451,19 @@ export const B_GROUPS = GROUPS.filter(g => g.place === 'b')
 export const AUDIO_GROUPS = GROUPS.filter(g => g.place === 'audio')
 export const VIEW_GROUPS = GROUPS.filter(g => g.place === 'view')
 
+// A loop's own groups, in table order — one or two apiece, which is the whole
+// point of the loops being three stages instead of one: pressing the run you
+// can see running now brings up that machine and nothing else, where before it
+// brought up all five groups of 'Feedback' and left you to find which two were
+// the camera's.
+export function loopGroups(loop: LoopPlace): Group[] {
+  return GROUPS.filter(g => g.place === loop)
+}
+
+// The loops are deliberately *not* in here. They are off the spine as a
+// placement, but every one of them is a look-maker of the first order, so they
+// keep their place in the leading band of the auto-map ranking — where they sat
+// as part of 'Feedback', in the same order.
 const OFF_SPINE = new Set<Placement>(['b', 'audio', 'view'])
 const automapSliders = [
   ...GROUPS.filter(g => !OFF_SPINE.has(g.place)),

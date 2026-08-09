@@ -52,12 +52,36 @@
 .mapReturnOptical .mapWire {
   stroke-dasharray: 2 2;
 }
+/* The run carries an edit, in the same amber a box wears for one. Written above
+   the two accent states because a running loop, and the loop you are looking
+   at, are both worth more than "something in here is off stock" — and a loop
+   whose mix is up is off stock by definition, so the two would otherwise fight
+   over every lit run. */
+.mapReturnTouched {
+  color: var(--edit);
+}
+.mapReturnTouched .mapLoopLabel {
+  fill: var(--edit);
+}
 /* the loop is actually running — its mix is off zero */
 .mapReturnLive {
   color: var(--accent);
 }
-/* Each run is its own button, opening the Feedback stage at that loop's group.
-   A hairline has no fill to light, so colour is the whole hover state — and the
+/* The loop whose stage is open. A box says this with a tinted fill; a hairline
+   has no fill, so it says it by getting heavier — which is also the only state
+   here that survives being the same colour as `live`, and a running loop you
+   have opened is the common case. */
+.mapReturnOn {
+  color: var(--accent);
+}
+.mapReturnOn .mapWire {
+  stroke-width: 1.8;
+}
+.mapReturnOn .mapLoopLabel {
+  fill: var(--accent);
+}
+/* Each run is its own button, and the only way into that loop's stage. A
+   hairline has no fill to light, so colour is the whole hover state — and the
    run already carries it, arrowhead included. */
 .mapLoopBtn {
   cursor: pointer;

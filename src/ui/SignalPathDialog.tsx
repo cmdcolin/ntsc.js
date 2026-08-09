@@ -1,20 +1,18 @@
 import { atRest } from '../controls'
 import {
-  CAMERA_LOOP_GROUP,
   FEED_A_GROUP,
   FEED_B_GROUP,
-  FEEDBACK_STAGE,
+  LOOP_STAGES,
   MIX_STAGE,
-  MIXER_LOOP_GROUP,
   OFF_HINT,
   PHASES,
   PICKER_STAGES,
   SOUND_BLURB,
   SOUND_STAGE,
+  SOURCE_A_STAGE,
   SOURCE_B_BLURB,
   SOURCE_B_STAGE,
   stageGroups,
-  TAPE_LOOP_GROUP,
   VIEW_BLURB,
   VIEW_STAGE,
 } from './controls'
@@ -28,9 +26,10 @@ import type { Controls } from '../controls'
 import type { LoopsLive } from './controls'
 
 // The path drawn at a size that can carry it. The sidebar's miniature has room
-// for the five trunk stages and B's branch and nothing else, so the two things
-// it cannot say are exactly the two the second input made worth saying: that
-// each source has a feed of its own before the mixer, and which loop is which.
+// for the trunk, its branches and the three runs over the top, and nothing
+// else, so what it cannot say is exactly what the second input made worth
+// saying: that each source has a feed of its own before the mixer, and what
+// each loop actually does rather than only which is which.
 //
 // Left to right, like the miniature — same drawing, unfolded — so opening this
 // teaches the map rather than replacing it. Every box opens the panel where its
@@ -38,11 +37,11 @@ import type { LoopsLive } from './controls'
 // illustration of NTSC.
 const W = 660
 // The trunk sits low enough for three loop runs to stack above it at the 22
-// units apart their labels need. That band is the only thing that grew: a third
-// *column* would have been the obvious way to give the loops their own targets
-// and it costs every box 12% of its width — at 7 columns 'Receiver' already
-// fills its box at 11px type, so the loops earn their room vertically, where
-// there was nothing but wire, rather than horizontally, where there is none.
+// units apart their labels need. A box each would have been the obvious way to
+// give the loops their own targets and it costs a column apiece; the loops earn
+// their room vertically, where there was nothing but wire, rather than
+// horizontally, where there is none — and dropping the box they used to share
+// gave a column back.
 const H = 148
 const GUTTER = 14
 const GAP = 14
@@ -52,13 +51,18 @@ const BOX_H = 22
 const HEAD = 3
 const TURN = 5
 
-// Seven columns: A's two boxes, then the trunk's five. B's two sit under the
+// Six columns: A's two boxes, then the trunk's four. B's two sit under the
 // first two, which is where a source and its feed belong on either row; the
 // sound sits under the receiver, the one stage it is patched into; and the view
 // sits under the screen, which is what feeds it. The lower row is therefore not
 // "input B's row" but everything wired to one stage rather than passing along
 // the trunk — and the arrowheads say which way each of them goes.
-const COLS = 7
+//
+// It was seven while a FEEDBACK box stood between Mix and Tape. Nothing was
+// removed from the drawing when it went — the three loops it stood for are
+// still here, drawn where they actually re-enter — and every remaining box got
+// 15% wider for it.
+const COLS = 6
 const STEP = (W - GUTTER - 10) / COLS
 const BOX_W = STEP - GAP
 const colX = (i: number) => GUTTER + STEP * (i + 0.5)
@@ -82,14 +86,14 @@ const phaseBlurb = (name: string) =>
 const BOXES: Box[] = [
   {
     label: 'Source A',
-    stage: 'Source A',
+    stage: SOURCE_A_STAGE,
     col: 0,
     row: 'a',
     what: phaseBlurb('Source A'),
   },
   {
     label: 'Feed A',
-    stage: 'Source A',
+    stage: SOURCE_A_STAGE,
     group: FEED_A_GROUP,
     col: 1,
     row: 'a',
@@ -118,30 +122,23 @@ const BOXES: Box[] = [
     what: phaseBlurb(MIX_STAGE),
   },
   {
-    label: 'Feedback',
-    stage: 'Feedback',
-    col: 3,
-    row: 'trunk',
-    what: phaseBlurb('Feedback'),
-  },
-  {
     label: 'Tape',
     stage: 'Tape',
-    col: 4,
+    col: 3,
     row: 'trunk',
     what: phaseBlurb('Tape'),
   },
   {
     label: 'Receiver',
     stage: 'Receiver',
-    col: 5,
+    col: 4,
     row: 'trunk',
     what: phaseBlurb('Receiver'),
   },
   {
     label: 'Screen',
     stage: 'Screen',
-    col: 6,
+    col: 5,
     row: 'trunk',
     what: phaseBlurb('Screen'),
   },
@@ -152,7 +149,7 @@ const BOXES: Box[] = [
   {
     label: 'Sound',
     stage: SOUND_STAGE,
-    col: 5,
+    col: 4,
     row: 'b',
     what: SOUND_BLURB,
   },
@@ -161,90 +158,99 @@ const BOXES: Box[] = [
   {
     label: 'View',
     stage: VIEW_STAGE,
-    col: 6,
+    col: 5,
     row: 'b',
     what: VIEW_BLURB,
   },
 ]
 
-// The Feedback column, which every run leaves from or returns to.
-const FB_COL = 3
+// The last trunk column, which the run out of the drawing leaves from and the
+// camera loop taps — and the receiver's, which the sound climbs into. Named
+// because losing the FEEDBACK column shifted every trunk index by one, and a
+// literal 5 meant two different boxes on either side of that change.
+const LAST_COL = 5
+const SOUND_COL = 4
 
-// The three loops, each one its own button. They were one box before, and the
-// box is still there — but "Feedback" is the *node* the returns land on, and
-// what a first visit wants to press is the loop it can see running. The wires
-// were already the only thing telling the three apart (dashed for light, solid
-// for a wire, and each with its own name on it), so the wires are what became
-// pressable rather than a row of new boxes; that also costs the drawing no
-// width, which a fourth trunk column would have.
+// Where each run leaves, where it lands, and which band it rides. Split from
+// LOOP_STAGES because this half is geometry and that half is what the loop *is*
+// — the panel and the miniature need the second and have no use for the first.
+interface LoopRun {
+  from: number
+  to: number
+  y: number
+  turn: number
+  // Where the name starts: just clear of the right edge of the box the run
+  // lands on, so a name sits beside its own arrowhead rather than somewhere
+  // along a span it shares with the other two.
+  lx: number
+  optical: boolean
+}
+// Just past the right edge of a landing column, which is where all three names
+// begin. They no longer share one column of text, because they no longer share
+// one box to land on.
+const nameX = (col: number) => colX(col) + BOX_W / 2 + 10
+const LOOP_RUN: Record<(typeof LOOP_STAGES)[number]['loop'], LoopRun> = {
+  // The one run that reaches back past the decoder: it shoots the glass, so it
+  // taps after the Screen, and what it returns is a picture rather than a
+  // waveform — which is why it re-enters at the head of the chain, ahead of the
+  // encoder, and not on the bus with the other two.
+  camera: {
+    from: colX(LAST_COL),
+    to: colX(0),
+    // The top run's name sits 5 above it and rises 7 more; below 16 the
+    // ascenders are cut off by the top of the viewBox.
+    y: 16,
+    turn: 6,
+    lx: nameX(0),
+    optical: true,
+  },
+  // Off the bus and back onto it one pass later, so it taps at the Receiver —
+  // what goes round is the composite the decoder saw.
+  mixer: {
+    from: colX(4),
+    to: colX(2),
+    y: 38,
+    turn: 5,
+    lx: nameX(2),
+    optical: false,
+  },
+  // Both ends on the mixer's own box top, wide enough to clear the mixer loop's
+  // single arrowhead at its centre — so three verticals on one box top still
+  // read as a pair and a single.
+  tape: {
+    from: colX(2) + 26,
+    to: colX(2) - 26,
+    y: 60,
+    turn: 5,
+    lx: nameX(2),
+    optical: false,
+  },
+}
+
+// The three loops, each one its own button and its own stage. They were one box
+// before — 'Feedback', standing on the trunk between Mix and Tape — and that
+// box was the drawing's one lie: the three do not re-enter at the same place,
+// so no single node could be where they land. The pass graph is what settled
+// it (gpu/pipeline.ts): the camera comes back at `compose`, ahead of the
+// encoder, which is inside Source A; the mixer at `fbComposite` and the loop
+// bin at `tapePlay`/`tapeRec`, both straight after the A/B sum, which is Mix.
+//
+// So the wires are the whole of it now, which is what they had already become:
+// dashed for light and solid for a wire, each with its own name, each lighting
+// up while its loop runs. Making them the door as well costs the drawing no
+// width — a box for each would have cost three columns — and it is what let the
+// trunk drop from five boxes to four.
 //
 // Each label sits in the band above its own run, so the runs are what separate
 // them — 22 units apart, because at the 18 they started on, two sentences read
-// as one paragraph with a wire through it.
+// as one paragraph with a wire through it. `lx` is measured from the box the
+// run lands on, so a name sits beside its own arrowhead.
 //
 // `from` and `to` are absolute, not column indices, because the loop bin is not
-// a run around the chain at all: `tapePlay` returns onto the bus and `tapeRec`
-// lays the sum back down at that same point, both ahead of the deck's own
-// playback block. So it is drawn as a tight loop leaving and re-entering the
-// Feedback box's own top edge — a second machine patched across one node —
-// while the other two reach back from the stage they actually tap.
-const RETURNS = [
-  {
-    loop: 'camera' as const,
-    group: CAMERA_LOOP_GROUP,
-    from: colX(6),
-    // The top run's name sits 5 above it and rises 7 more; below 16 the
-    // ascenders are cut off by the top of the viewBox.
-    to: colX(FB_COL) - 9,
-    y: 16,
-    turn: 6,
-    lx: 20,
-    optical: true,
-    label: 'camera loop — optical, a camera on the tube',
-  },
-  {
-    loop: 'mixer' as const,
-    group: MIXER_LOOP_GROUP,
-    from: colX(5),
-    to: colX(FB_COL) + 9,
-    y: 38,
-    turn: 5,
-    lx: 20,
-    optical: false,
-    label: 'mixer loop — the composite, patched back in',
-  },
-  {
-    loop: 'tape' as const,
-    group: TAPE_LOOP_GROUP,
-    // Wide enough to clear the other two arrowheads at ±9, so four verticals
-    // landing on one box top still read as two pairs.
-    from: colX(FB_COL) + 26,
-    to: colX(FB_COL) - 26,
-    y: 60,
-    turn: 5,
-    // Clear of its own run, which is the only one that does not reach past the
-    // Feedback column — and no further, because this is the label that starts
-    // furthest right and so the one that decides whether any of them can run
-    // off the drawing.
-    lx: 30,
-    optical: false,
-    // Kept short for the same reason. With ' — running • 1' on the end at
-    // 10.5px this reached 652 of 660 units, which is not margin, it is luck
-    // holding on a font metric.
-    label: 'tape loop — a loop bin across the bus',
-  },
-]
-
-// A loop's sentence for the legend, where there is room for one. The three are
-// named for the physics that closes them, because that is the only thing that
-// tells them apart once more than one is running.
-const LOOP_WHAT: Record<(typeof RETURNS)[number]['loop'], string> = {
-  camera:
-    'light rather than wire — a camera on the tube’s face, its picture mixed back into the input ahead of the encoder. It carries an image that has already been decoded and lit, so it can only do what a lens can: zoom, shift, defocus, cut a black level. Past unity gain it breeds structure on its own',
-  mixer:
-    'the composite itself, patched off the bus into an input and crossfaded against the live signal. The subcarrier rides round with it, so each sample of cable delay spins fed-back hue 90° a generation and colour does things optics cannot',
-  tape: 'a second machine threaded with a loop of tape, patched across the bus rather than round the chain: a play head returns what was laid down a lap ago, a record head lays the sum back down, and whatever keeps circulating ages a generation every time round',
-}
+// a run around the chain at all: it leaves and re-enters the same box top, a
+// second machine patched across one node, while the other two reach back from
+// the stage they actually tap.
+const RETURNS = LOOP_STAGES.map(l => ({ ...l, ...LOOP_RUN[l.loop] }))
 
 // What an inert box says instead of its blurb, off the one table both drawings
 // read (controls.ts). It used to be written out here as well, and the two copies
@@ -280,20 +286,18 @@ export function SignalPathDialog(props: {
       .flatMap(g => g.sliders)
       .filter(s => !atRest(controls[s.key], s.key)).length
   }
-  // The same count for a loop, which is a group of the Feedback stage without
-  // being a box of its own.
-  const touchedInGroup = (group: string) =>
-    (
-      stageGroups(FEEDBACK_STAGE).find(g => g.name === group)?.sliders ?? []
-    ).filter(s => !atRest(controls[s.key], s.key)).length
-  const open = (box: Box) => {
-    onOpen(box.stage, box.group ?? stageGroups(box.stage)[0]?.name ?? '')
+  // The same count for a loop, which is a stage without being a box of its own —
+  // its run is where a box would be, because there is no point on the trunk to
+  // draw one at.
+  const touchedInLoop = (stage: string) =>
+    stageGroups(stage)
+      .flatMap(g => g.sliders)
+      .filter(s => !atRest(controls[s.key], s.key)).length
+  const openStage = (stage: string, group?: string) => {
+    onOpen(stage, group ?? stageGroups(stage)[0]?.name ?? '')
     onClose()
   }
-  const openLoop = (group: string) => {
-    onOpen(FEEDBACK_STAGE, group)
-    onClose()
-  }
+  const open = (box: Box) => openStage(box.stage, box.group)
   const rowY = (row: Box['row']) => (row === 'b' ? BRANCH_Y : MID_Y)
   // B's feed joins the run between Feed A and the mixer, which is where mixB
   // sits in the pass order.
@@ -334,7 +338,7 @@ export function SignalPathDialog(props: {
           className={styles.wire}
           d={`M10 ${MID_Y}H${colX(0) - BOX_W / 2}`}
         />
-        {[0, 1, 2, 3, 4, 5].map(i => (
+        {Array.from({ length: LAST_COL }, (_, i) => (
           <path
             key={i}
             className={styles.wire}
@@ -343,7 +347,7 @@ export function SignalPathDialog(props: {
         ))}
         <path
           className={styles.wire}
-          d={`M${colX(6) + BOX_W / 2} ${MID_Y}H${W - 8}`}
+          d={`M${colX(LAST_COL) + BOX_W / 2} ${MID_Y}H${W - 8}`}
         />
         <path
           className={styles.arrow}
@@ -377,15 +381,15 @@ export function SignalPathDialog(props: {
         <g className={cx(!props.soundOn && styles.dim)}>
           <path
             className={styles.wire}
-            d={`M${colX(5) - BOX_W / 2 - 12} ${BRANCH_Y}H${colX(5) - BOX_W / 2}`}
+            d={`M${colX(SOUND_COL) - BOX_W / 2 - 12} ${BRANCH_Y}H${colX(SOUND_COL) - BOX_W / 2}`}
           />
           <path
             className={styles.wire}
-            d={`M${colX(5)} ${BRANCH_Y - BOX_H / 2}V${TOP + BOX_H}`}
+            d={`M${colX(SOUND_COL)} ${BRANCH_Y - BOX_H / 2}V${TOP + BOX_H}`}
           />
           <path
             className={styles.arrow}
-            d={`M${colX(5) - HEAD} ${TOP + BOX_H + HEAD * 1.6}L${colX(5)} ${TOP + BOX_H}L${colX(5) + HEAD} ${TOP + BOX_H + HEAD * 1.6}Z`}
+            d={`M${colX(SOUND_COL) - HEAD} ${TOP + BOX_H + HEAD * 1.6}L${colX(SOUND_COL)} ${TOP + BOX_H}L${colX(SOUND_COL) + HEAD} ${TOP + BOX_H + HEAD * 1.6}Z`}
           />
         </g>
         {/* The view's run: the same riser under Screen, with the arrowhead at
@@ -394,15 +398,20 @@ export function SignalPathDialog(props: {
             thing the chain is delivered to. */}
         <path
           className={styles.wire}
-          d={`M${colX(6)} ${TOP + BOX_H}V${BRANCH_Y - BOX_H / 2}`}
+          d={`M${colX(LAST_COL)} ${TOP + BOX_H}V${BRANCH_Y - BOX_H / 2}`}
         />
         <path
           className={styles.arrow}
-          d={`M${colX(6) - HEAD} ${BRANCH_Y - BOX_H / 2 - HEAD * 1.6}L${colX(6)} ${BRANCH_Y - BOX_H / 2}L${colX(6) + HEAD} ${BRANCH_Y - BOX_H / 2 - HEAD * 1.6}Z`}
+          d={`M${colX(LAST_COL) - HEAD} ${BRANCH_Y - BOX_H / 2 - HEAD * 1.6}L${colX(LAST_COL)} ${BRANCH_Y - BOX_H / 2}L${colX(LAST_COL) + HEAD} ${BRANCH_Y - BOX_H / 2 - HEAD * 1.6}Z`}
         />
         {RETURNS.map(r => {
           const d = returnPath(r.from, r.to, r.y, r.turn)
-          const n = touchedInGroup(r.group)
+          const n = touchedInLoop(r.name)
+          const live = props.live[r.loop]
+          // The stage name rather than a sentence about the loop. It is the
+          // heading you land on, and the sentence is two inches below in the
+          // legend — where it can be read rather than fitted.
+          const said = `${r.name} — ${r.blurb}${live ? ' — running' : ''}${n > 0 ? ` (${n} off stock)` : ''}`
           return (
             <g
               key={r.loop}
@@ -410,23 +419,21 @@ export function SignalPathDialog(props: {
                 styles.return,
                 styles.loopBtn,
                 r.optical && styles.optical,
-                props.live[r.loop] && styles.live,
+                live && styles.live,
                 n > 0 && styles.loopTouched,
               )}
               role="button"
               tabIndex={0}
-              aria-label={`${r.label} — open its controls`}
-              onClick={() => openLoop(r.group)}
+              aria-label={`${said} — open its controls`}
+              onClick={() => openStage(r.name)}
               onKeyDown={e => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
-                  openLoop(r.group)
+                  openStage(r.name)
                 }
               }}
             >
-              <title>
-                {`${r.label}${props.live[r.loop] ? ' — running' : ''}${n > 0 ? ` (${n} off stock)` : ''} — click for its controls`}
-              </title>
+              <title>{`${said} — click for its controls`}</title>
               {/* The wire is 1.25 units of stroke and the thing you are meant to
                   press, so it carries a transparent one wide enough to hit. At
                   14 it stays inside the 22 units between one run and the next,
@@ -437,13 +444,9 @@ export function SignalPathDialog(props: {
                 className={styles.arrow}
                 d={`M${r.to - HEAD} ${TOP - HEAD * 1.6}L${r.to} ${TOP}L${r.to + HEAD} ${TOP - HEAD * 1.6}Z`}
               />
-              <text
-                className={styles.loopLabel}
-                x={colX(FB_COL) + r.lx}
-                y={r.y - 5}
-              >
-                {r.label}
-                {props.live[r.loop] ? ' — running' : ''}
+              <text className={styles.loopLabel} x={r.lx} y={r.y - 5}>
+                {r.name}
+                {live ? ' — running' : ''}
                 {n > 0 ? ` • ${n}` : ''}
               </text>
             </g>
@@ -527,16 +530,16 @@ export function SignalPathDialog(props: {
             order: a run is a path, and a path with role=button is a tab stop on
             a picture rather than a line you can find. */}
         {RETURNS.map(r => {
-          const n = touchedInGroup(r.group)
+          const n = touchedInLoop(r.name)
           return (
             <li key={r.loop}>
               <button
                 className={styles.legendBtn}
-                onClick={() => openLoop(r.group)}
+                onClick={() => openStage(r.name)}
               >
-                <span className={styles.legendName}>{r.loop} loop</span>
+                <span className={styles.legendName}>{r.name}</span>
                 <span className={styles.legendWhat}>
-                  {LOOP_WHAT[r.loop]}
+                  {r.what}
                   {props.live[r.loop] ? ' — running now' : ''}
                 </span>
                 {n > 0 ? (

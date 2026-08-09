@@ -11,8 +11,9 @@ import {
   FEED_A_GROUP,
   FEED_B_CABLE_GROUP,
   FEED_B_GROUP,
-  FEEDBACK_STAGE,
   GROUPS,
+  LOOP_STAGE_NAMES,
+  LOOP_STAGES,
   MIXER_LOOP_GROUP,
   MIX_STAGE,
   NEEDS,
@@ -58,9 +59,13 @@ describe('control tables', () => {
   // into a stage — so the two have to agree over the whole table.
   it('puts every group behind a stage the map opens', () => {
     const reachable = new Set(
-      [...PHASE_ORDER, SOURCE_B_STAGE, SOUND_STAGE, VIEW_STAGE].flatMap(name =>
-        stageGroups(name).map(g => g.name),
-      ),
+      [
+        ...PHASE_ORDER,
+        SOURCE_B_STAGE,
+        SOUND_STAGE,
+        VIEW_STAGE,
+        ...LOOP_STAGE_NAMES,
+      ].flatMap(name => stageGroups(name).map(g => g.name)),
     )
     for (const g of GROUPS) expect(reachable.has(g.name)).toBe(true)
   })
@@ -164,28 +169,53 @@ describe('control tables', () => {
       expect(GROUPS.some(g => g.name === name)).toBe(true)
   })
 
-  // The same trap one level down, and a worse one: each of the three feedback
-  // returns is now a *button* that opens the Feedback stage at its own group by
-  // name. A rename touching only the group would leave a wire that lights up
-  // while its loop runs and opens nothing when pressed — which looks like a
-  // dead drawing rather than a broken lookup, so nothing would ever report it.
-  it('keeps each loop’s group reachable from its own return', () => {
-    const names = stageGroups(FEEDBACK_STAGE).map(g => g.name)
-    expect(names.length).toBeGreaterThan(0)
-    for (const group of [CAMERA_LOOP_GROUP, MIXER_LOOP_GROUP, TAPE_LOOP_GROUP])
-      expect(names, group).toContain(group)
+  // The same trap one level down, and a worse one: a loop has no box on the
+  // trunk, so its return *is* its door. A stage name that nothing files a group
+  // under leaves a wire that lights up while its loop runs and opens onto
+  // nothing when pressed — which looks like a dead drawing rather than a broken
+  // lookup, so nothing would ever report it.
+  it('gives every loop a stage of its own with something in it', () => {
+    for (const l of LOOP_STAGES) {
+      const names = stageGroups(l.name).map(g => g.name)
+      expect(names, l.name).not.toHaveLength(0)
+    }
+    // And the split itself: the loop each group belongs to, rather than one
+    // 'Feedback' header over all five. The tube face goes with the camera
+    // because it is what the camera is pointed at — the mixer loop taps ahead
+    // of the tube and never sees it.
+    expect(stageGroups('Camera loop').map(g => g.name)).toEqual([
+      CAMERA_LOOP_GROUP,
+      'Tube face (what the camera shoots)',
+    ])
+    expect(stageGroups('Mixer loop').map(g => g.name)).toEqual([
+      MIXER_LOOP_GROUP,
+    ])
+    expect(stageGroups('Tape loop').map(g => g.name)).toEqual([
+      TAPE_LOOP_GROUP,
+      'Loop transport & heads',
+    ])
   })
 
-  // Each return also claims a loop is running off one control, and the pass
-  // that closes that loop is gated on the same one (gpu/pipeline.ts). If a mix
-  // stopped being the gate, a lit wire and a dispatched pass would part
-  // company.
+  // No loop may be a Phase. That is the mistake the split undid: 'Feedback' sat
+  // on the trunk between Mix and Tape as though the picture passed through it,
+  // while what it stood for was three machines patched *across* the chain that
+  // do not even re-enter at the same place (gpu/pipeline.ts).
+  it('keeps the loops off the trunk', () => {
+    for (const name of LOOP_STAGE_NAMES)
+      expect(PHASE_ORDER, name).not.toContain(name)
+    expect(PHASE_ORDER).not.toContain('Feedback')
+  })
+
+  // Each return claims a loop is running off one control, and the pass that
+  // closes that loop is gated on the same one (gpu/pipeline.ts). If a mix
+  // stopped being the gate — or stopped being a control at all — a lit wire and
+  // a dispatched pass would part company.
   it('gives every loop a mix to be judged running by', () => {
-    const keys = stageGroups(FEEDBACK_STAGE).flatMap(g =>
-      g.sliders.map(s => s.key),
-    )
-    for (const key of ['fbMix', 'cfbMix', 'tapeMix'] as const)
-      expect(keys, key).toContain(key)
+    expect(LOOP_STAGES.map(l => l.mix)).toEqual(['fbMix', 'cfbMix', 'tapeMix'])
+    for (const l of LOOP_STAGES) {
+      const keys = stageGroups(l.name).flatMap(g => g.sliders.map(s => s.key))
+      expect(keys, l.mix).toContain(l.mix)
+    }
   })
 })
 

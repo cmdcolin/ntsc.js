@@ -15,7 +15,7 @@ import { cx } from './cx'
 import { MapBox } from './MapBox'
 
 import type { BranchSpec } from './chainLayout'
-import type { LoopsLive } from './controls'
+import type { LoopPlace, LoopsLive } from './controls'
 
 // The chain in miniature at the head of the sidebar: a box per stage, wired
 // left to right in the order the picture travels, with the three feedback
@@ -26,10 +26,12 @@ import type { LoopsLive } from './controls'
 // a box is a filled chip on the wire rather than another hairline rectangle in
 // the same colour as the wire (see ChainMap.module.css).
 //
-// A return is navigation too, and its own kind of it: the box under the three
-// of them opens the Feedback stage at whichever group comes first, so pressing
-// the loop you can see running was never how you reached it. Each run carries
-// its name and opens its own group.
+// A return is navigation of the same kind, and it is the *only* way into one of
+// the three loops: none of them is a stage of the trunk, so none of them has a
+// box. A run carries its name, wears the same three states a box does, and
+// opens its own stage — where a single FEEDBACK box used to open all five of
+// three machines' groups at once, and the loop you could see running was not
+// the loop a click reached.
 //
 // State reads as colour on one element: idle until you point at it, amber for a
 // stage carrying an edit, accent for the stage that is open.
@@ -68,6 +70,14 @@ export interface ChainStage {
 // the layout needs and a trunk stage has no use for.
 export interface ChainBranchStage extends ChainStage, BranchSpec {}
 
+// A stage that hangs *over* the trunk, on its own return. Where it leaves and
+// re-enters is not the caller's to say — that is the pass graph's, and it is
+// written down once in chainLayout's RETURNS — so all this adds is which of the
+// three runs is this stage's.
+export interface ChainLoopStage extends ChainStage {
+  loop: LoopPlace
+}
+
 export function ChainMap(props: {
   stages: ChainStage[]
   // The branches, drawn under the trunk. Drawn whether or not anything is
@@ -75,6 +85,10 @@ export function ChainMap(props: {
   // saying that input exists at all. A live filter can leave one with nothing
   // to show, and it drops out.
   branches: ChainBranchStage[]
+  // The loops, drawn over the trunk. Each is a stage in its own right and the
+  // run is its only door, so a loop the filter has left nothing to show simply
+  // is not in here and its run is not drawn.
+  loops: ChainLoopStage[]
   open: string | null
   // Whether clicking the box that is already open folds its stage away. True on
   // the spine, where the map is the fold; false on the bench, where every stage
@@ -84,14 +98,12 @@ export function ChainMap(props: {
   // on the open stage's heading only answers that question once you are in.
   folds: boolean
   // Which returns are carrying signal, so the map can show a running loop
-  // rather than only the two that exist in principle. Typed as all three even
-  // though the miniature draws two: the shape is shared with the full diagram,
-  // which has the room for the loop bin as well.
+  // rather than only the three that exist in principle. The same shape the full
+  // diagram takes, which is what stops the two drawings disagreeing about which
+  // of three machines is on.
   live: LoopsLive
+  // Opens a stage by name — a box or a run, because both are stages now.
   onOpen: (name: string) => void
-  // A run, as against the box under it: opens the Feedback stage at the one
-  // group that loop's controls live in.
-  onOpenLoop: (group: string) => void
 }) {
   const { boxes, wires, returns, branches } = chainLayout(
     props.stages.map(s => s.name),
@@ -117,32 +129,55 @@ export function ChainMap(props: {
         />
       ))}
       {returns.map(r => {
+        const node = props.loops.find(l => l.loop === r.loop)
+        // A filter can leave a loop with nothing to show. Its run goes with it:
+        // the run is the stage's only door, so drawing one onto nothing would be
+        // the map's version of a heading over a blank.
+        if (node === undefined) return null
         const d = returnPath(r.from, r.to, top, r.y, r.turn)
+        const open = props.open === node.name
+        const live = props.live[r.loop]
+        // The same three things a box says, on a wire that has no fill to say
+        // them with: idle, carrying an edit, open. `live` is the fourth and the
+        // one only a loop has — its mix is off zero, so this machine is actually
+        // running — and it outranks the amber, because "is it on" is the
+        // question you ask of a loop and "have I touched it" is not.
+        const state = open
+          ? styles.mapReturnOn
+          : live
+            ? styles.mapReturnLive
+            : node.touched > 0
+              ? styles.mapReturnTouched
+              : undefined
+        const say = `${node.name} — ${node.blurb}`
+        const said = `${say}${live ? ' — running' : ''}${node.touched > 0 ? ` (${node.touched} off stock)` : ''}`
+        const press = () => props.onOpen(node.name)
         return (
-          /* A run is a button of its own: the two loops are the one thing on
-             this map that is visibly two things and used to open as one. The
-             box below them still opens the stage; the run opens the loop. */
+          /* A run is a button, and for a loop it is the whole of the door: none
+             of the three has a box on the trunk, because none of them is a stage
+             the picture passes through. */
           <g
             key={r.loop}
             className={cx(
               styles.mapReturn,
               styles.mapLoopBtn,
               r.optical && styles.mapReturnOptical,
-              props.live[r.loop] && styles.mapReturnLive,
+              state,
             )}
             role="button"
             tabIndex={0}
-            aria-label={`${r.label} — open its controls`}
-            onClick={() => props.onOpenLoop(r.group)}
+            aria-expanded={props.folds ? open : undefined}
+            aria-label={`${said} — open its controls`}
+            onClick={press}
             onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
-                props.onOpenLoop(r.group)
+                press()
               }
             }}
           >
             <title>
-              {`${props.live[r.loop] ? `${r.label} — running` : r.label} — click for its controls`}
+              {`${said}${props.folds ? (open ? ' — click to close' : ' — click to open') : ' — click for its controls'}`}
             </title>
             {/* The run is a 1px hairline and the target. 8 units of transparent
                 stroke is what makes it pressable without moving it, and it

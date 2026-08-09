@@ -2,14 +2,13 @@ import { Fragment, useRef } from 'react'
 
 import { ChainMap } from './ChainMap'
 import { ControlGroup } from './ControlGroup'
-import { FEEDBACK_STAGE } from './controls'
 import { Accordion, NestedSections } from './Section'
 import styles from './SignalPath.module.css'
 import { hasBody, stageBody } from './stageBody'
 
 import type { BranchSpec } from './chainLayout'
 import type { ChainStage } from './ChainMap'
-import type { Group, LoopsLive } from './controls'
+import type { Group, LoopPlace, LoopsLive } from './controls'
 import type { ReactNode } from 'react'
 
 // A stage as the panel needs it: what the map draws, plus its groups as data.
@@ -32,6 +31,15 @@ export interface PathNode extends Omit<ChainStage, 'opens'> {
 // BranchSpec rather than ChainBranchStage for the reason above: `opens` is not
 // the caller's to say.
 export interface BranchNode extends PathNode, BranchSpec {}
+
+// And for one that hangs over it: a loop, which is a machine patched across the
+// chain rather than a stage of it. Three of them, and each is reached by its own
+// return — the run *is* the box, because there is no point on the trunk to draw
+// one at. They used to be five groups filed under a 'Feedback' stage that stood
+// on the wire between two different re-entry points and claimed to be both.
+export interface LoopNode extends PathNode {
+  loop: LoopPlace
+}
 
 // One stage as the map takes it — the panel's node with that answer stamped on.
 type MapNode<T extends PathNode> = T & { opens: boolean }
@@ -110,12 +118,11 @@ function StageHead(props: {
 // no row of its own and it is still there on the visit where you have forgotten.
 //
 // It is also where the full diagram is offered from. The miniature has room for
-// the six trunk stages and the three boxes under them and no more — a seventh
-// trunk box drops the fit to 0.81 and leaves a label about a unit of padding
-// inside its box; the names on the two feeds and the sentence on each loop and
-// each stage need a card, so they get one. The miniature now draws all three
-// loops and names them — what it still cannot carry is what any of them *do*,
-// which is a sentence per run and three sentences the band has no room for.
+// the five trunk stages, the three boxes under them and the three runs over
+// them, and no more — the names on the two feeds and the sentence on each loop
+// and each stage need a card, so they get one. It draws all three loops and
+// names them; what it still cannot carry is what any of them *do*, which is a
+// sentence per run and three sentences the band has no room for.
 function PathHead(props: { onShowDiagram: () => void }) {
   return (
     <div className={styles.pathHead}>
@@ -143,6 +150,11 @@ export function SignalPath(props: {
   // out; the map's arrowheads are what say which. One drops out when a live
   // filter has left it nothing to show.
   branches: BranchNode[]
+  // The three loops, drawn over the trunk on their own returns. Like a branch
+  // each is a stage without being a Phase; unlike a branch there is nothing to
+  // patch into one, so none of them ever goes inert — a loop is the patch. One
+  // drops out when a live filter has left it nothing to show.
+  loops: LoopNode[]
   // null = no stage picked, which is where exploration starts. Ignored while a
   // filter is live: then every stage with a match shows at once.
   open: string | null
@@ -152,10 +164,6 @@ export function SignalPath(props: {
   // Which feedback returns are carrying signal, for the map to mark.
   live: LoopsLive
   onOpen: (name: string) => void
-  // Opens the Feedback stage at one loop's own group — what a return wire on
-  // the map does, as against the box under it, which opens the stage at
-  // whichever of its groups comes first.
-  onOpenLoop: (group: string) => void
   // Which group inside the open stage is unfolded — one at a time.
   openGroup: string | null
   onOpenGroup: (name: string) => void
@@ -195,17 +203,21 @@ export function SignalPath(props: {
   })
   const nodes = props.nodes.map(opensOn)
   const branches = props.branches.map(opensOn)
-  const openable = [...nodes, ...branches].filter(n => n.opens)
+  const loops = props.loops.map(opensOn)
+  // Trunk, then loops, then branches — the order the panel lists them in, and
+  // the order the drawing reads in from the top: the returns ride over the
+  // chain and the branches hang under it.
+  const openable = [...nodes, ...loops, ...branches].filter(n => n.opens)
   if (props.bench) {
     return (
       <Bench
         nodes={nodes}
         openable={openable}
         branches={branches}
+        loops={loops}
         open={props.open}
         live={props.live}
         onOpen={props.onOpen}
-        onOpenLoop={props.onOpenLoop}
         onShowDiagram={props.onShowDiagram}
         stageTop={props.stageTop}
       />
@@ -227,6 +239,7 @@ export function SignalPath(props: {
       <ChainMap
         stages={nodes}
         branches={branches}
+        loops={loops}
         open={props.open}
         // The map is the fold here — except under a live filter, where a stage
         // is on screen because it matched and clicking its box cannot take it
@@ -234,7 +247,6 @@ export function SignalPath(props: {
         folds={!props.expandAll}
         live={props.live}
         onOpen={name => props.onOpen(name)}
-        onOpenLoop={props.onOpenLoop}
       />
       {/* No empty state under the map. It used to carry a count of everything
           behind the boxes and a line about the order the picture travels in,
@@ -298,10 +310,10 @@ function Bench(props: {
   // heading and a set of cards for.
   openable: MapNode<PathNode>[]
   branches: MapNode<BranchNode>[]
+  loops: MapNode<LoopNode>[]
   open: string | null
   live: LoopsLive
   onOpen: (name: string) => void
-  onOpenLoop: (group: string) => void
   onShowDiagram: () => void
   stageTop: Partial<Record<string, () => ReactNode>>
 }) {
@@ -317,25 +329,20 @@ function Bench(props: {
     props.onOpen(name)
     scrollTo(name)
   }
-  // A loop opens its group and scrolls to the stage holding it, which is the
-  // bench's answer to every other click on the map: nothing folds, so reaching
-  // something means bringing it up rather than unfolding it.
-  const jumpLoop = (group: string) => {
-    props.onOpenLoop(group)
-    scrollTo(FEEDBACK_STAGE)
-  }
   return (
     <>
       <PathHead onShowDiagram={props.onShowDiagram} />
       <ChainMap
         stages={props.nodes}
         branches={props.branches}
+        loops={props.loops}
         open={props.open}
         // Nothing folds on the bench: a click marks the stage and scrolls to it.
+        // A run answers the same way a box does now, which is what it could not
+        // do while a loop was a group inside somebody else's stage.
         folds={false}
         live={props.live}
         onOpen={jump}
-        onOpenLoop={jumpLoop}
       />
       <div className={styles.bench}>
         {props.openable.map(node => {

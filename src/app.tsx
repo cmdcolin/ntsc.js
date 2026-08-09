@@ -23,7 +23,9 @@ import {
   ALL_SLIDERS,
   AUDIO_GROUPS,
   B_GROUPS,
-  FEEDBACK_STAGE,
+  LOOP_STAGE_NAMES,
+  LOOP_STAGES,
+  loopGroups,
   MIX_STAGE,
   OFF_HINT,
   PHASES,
@@ -114,7 +116,7 @@ import type { ControlsApi, ControlStore } from './ui/ControlsContext'
 import type { StashSlot } from './ui/fileStash'
 import type { Lens } from './ui/lens'
 import type { SavedProfile } from './ui/savedProfiles'
-import type { BranchNode, PathNode } from './ui/SignalPath'
+import type { BranchNode, LoopNode, PathNode } from './ui/SignalPath'
 import type { AnySlotView } from './ui/slotView'
 import type { PickSlot } from './ui/SourceSlot'
 import type { LookContext } from './ui/useLookLabels'
@@ -146,6 +148,11 @@ const stageSet = (b: boolean, sound: boolean): ReadonlySet<string> =>
     ...(sound ? [SOUND_STAGE] : []),
     // Always: there is no input to patch into the view, so it never goes inert.
     VIEW_STAGE,
+    // Nor into a loop — a loop *is* a patch, across a chain that is always
+    // carrying A. So all three are open to a jump in every arrangement, which
+    // is what a caption in "This look" needs to know before it offers the way
+    // back to the knob that made the look.
+    ...LOOP_STAGE_NAMES,
   ])
 const OPEN_STAGES = [
   [stageSet(false, false), stageSet(false, true)],
@@ -891,16 +898,33 @@ export function App() {
   // and this branch would have called itself dead while it was working.
   const soundOn = audio.active
   // Which of the three returns is actually carrying signal. Read off each
-  // loop's own mix rather than the whole group: a loop with its mix at zero is
+  // loop's own mix rather than the whole stage: a loop with its mix at zero is
   // patched but silent, and both drawings are answering "is it running". The
   // same three predicates gate the passes that close them (compose, fbComposite
   // and tapePlay in gpu/pipeline.ts), so a lit run and a dispatched pass mean
   // the same thing.
+  //
+  // Which control is a loop's mix is the loop table's to say, not this file's:
+  // three keys written out here were a fourth copy of a list that already
+  // decides what the run is named and what its stage holds.
   const loopsLive = {
     camera: controls.fbMix > 0,
     mixer: controls.cfbMix > 0,
     tape: controls.tapeMix > 0,
   }
+  // The three loops, drawn over the trunk. Never inert: there is nothing to
+  // patch into a loop and the chain under it is always carrying A, so unlike a
+  // branch a loop has no off state to draw. One drops out only when a live
+  // filter has left it nothing — and then its run goes too, because for a loop
+  // the run is the whole door.
+  const loops: LoopNode[] = LOOP_STAGES.flatMap((l): LoopNode[] => {
+    const groups = loopGroups(l.loop).filter(g =>
+      groupMatches(g, query, isRouted),
+    )
+    return groups.length === 0
+      ? []
+      : [{ ...pathNode(l.name, l.blurb, groups), loop: l.loop }]
+  })
   const unheard = (node: PathNode): PathNode =>
     soundOn ? node : inert(node, OFF_HINT[SOUND_STAGE])
   // The two branches, drawn under the trunk. Unlike a trunk stage each survives
@@ -1345,6 +1369,7 @@ export function App() {
       <SignalPath
         nodes={pathNodes}
         branches={branches}
+        loops={loops}
         open={nav.openPhase}
         expandAll={filtering}
         bench={bench}
@@ -1353,7 +1378,6 @@ export function App() {
         // On the bench nothing is folded, so the map marks a stage and scrolls
         // to it rather than unfolding one and closing another.
         onOpen={bench ? nav.jumpPhase : nav.togglePhase}
-        onOpenLoop={group => nav.openAt(FEEDBACK_STAGE, group)}
         openGroup={nav.openGroup}
         onOpenGroup={nav.toggleGroup}
         stageTop={stageTop}

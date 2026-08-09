@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { boxWidth, branchArrow, chainLayout, LEAD, OUT, W } from './chainLayout'
 import {
+  LOOP_STAGES,
   MIX_STAGE,
   PHASE_ORDER,
   SOUND_JOIN,
   SOUND_STAGE,
+  SOURCE_A_STAGE,
   SOURCE_B_STAGE,
   VIEW_STAGE,
 } from './controls'
@@ -40,7 +42,7 @@ const VIEW: BranchSpec = {
 const BOTH = [B, SOUND]
 const ALL = [B, SOUND, VIEW]
 
-// Every non-empty subset of the six stages, in chain order — which is exactly
+// Every non-empty subset of the five stages, in chain order — which is exactly
 // the set of shapes `groupMatches` can hand the map.
 const subsets = (names: string[]): string[][] =>
   Array.from({ length: 1 << names.length }, (_, mask) =>
@@ -59,7 +61,7 @@ const numbers = (v: unknown): number[] =>
 describe('chain map geometry', () => {
   it('draws the full chain across the whole width', () => {
     const l = chainLayout(FULL)
-    expect(l.boxes).toHaveLength(6)
+    expect(l.boxes).toHaveLength(PHASE_ORDER.length)
     // Fed from off the left edge and delivered off the right: the lead-out
     // reaches the edge rather than stopping short of it.
     expect(l.wires.at(-1)?.x1).toBe(W)
@@ -70,14 +72,15 @@ describe('chain map geometry', () => {
       )
   })
 
-  // What made room for the sixth box: a box is as wide as its own name, so MIX
-  // does not take the same share of a 304-unit row as FEEDBACK.
+  // What made room for a sixth box back when there were six: a box is as wide
+  // as its own name, so MIX does not take the same share of a 304-unit row as
+  // RECEIVER.
   it('sizes each box to its label', () => {
     const l = chainLayout(FULL)
     const w = (name: Phase) => l.boxes[FULL.indexOf(name)].w
-    expect(w('Mix')).toBeLessThan(w('Feedback'))
+    expect(w('Mix')).toBeLessThan(w('Screen'))
     expect(w('Tape')).toBeLessThan(w('Receiver'))
-    expect(w('Source A')).toBeCloseTo(w('Feedback'), 5)
+    expect(w('Source A')).toBeCloseTo(w('Receiver'), 5)
   })
 
   // The regression, restated for a row that is no longer equal columns: with
@@ -189,41 +192,86 @@ describe('chain map geometry', () => {
     expect(chainLayout([], ALL).branches).toEqual([])
   })
 
-  // A return is a return only if it comes back from downstream. With Feedback
-  // filtered out there is nothing for either to re-enter.
-  it('draws a loop only when it taps downstream of Feedback', () => {
+  // A return is a return only if it comes back from downstream of where it
+  // re-enters — and the three re-enter in two different places, which is the
+  // whole reason there is no longer one FEEDBACK box for them all to land on.
+  // Drop either end and the run has nothing to draw between.
+  it('draws a loop only when both of its ends are on the row', () => {
     expect(chainLayout(FULL).returns.map(r => r.loop)).toEqual([
       'camera',
       'mixer',
       'tape',
     ])
+    // The camera re-enters at the head of the chain (`compose`, ahead of the
+    // encoder) and the other two on the bus out of the mixer, so a filter that
+    // leaves the tail of the chain strands all three.
     expect(chainLayout(['Tape', 'Receiver', 'Screen']).returns).toEqual([])
-    // The loop bin comes with Feedback, because Feedback is both of its ends —
-    // it is the one return no filter can strand by dropping the stage it taps.
+    // With the mixer gone the camera loop still has both its ends.
     expect(
-      chainLayout(['Feedback', 'Screen']).returns.map(r => r.loop),
-    ).toEqual(['camera', 'tape'])
-    // Feedback downstream of the tap it would re-enter from is not a loop. The
-    // loop bin survives: it taps the box it returns to, so there is no
-    // downstream for it to be on the wrong side of.
+      chainLayout([SOURCE_A_STAGE, 'Screen']).returns.map(r => r.loop),
+    ).toEqual(['camera'])
+    // The loop bin comes with Mix, because Mix is both of its ends — it is the
+    // one return no filter can strand by dropping the stage it taps.
+    expect(chainLayout([MIX_STAGE]).returns.map(r => r.loop)).toEqual(['tape'])
+    // A tap upstream of the re-entry is not a loop. The loop bin survives: it
+    // taps the box it returns to, so there is no downstream for it to be on the
+    // wrong side of.
     expect(
-      chainLayout(['Screen', 'Feedback']).returns.map(r => r.loop),
+      chainLayout(['Screen', SOURCE_A_STAGE, MIX_STAGE]).returns.map(
+        r => r.loop,
+      ),
     ).toEqual(['tape'])
   })
 
-  // Each run carries its own name now, and where the name sits is the half of
-  // that which can go wrong silently: a name off the end of its run reads as a
-  // word floating over the chain. The two long returns start their names just
-  // clear of the Feedback box and have run left to cover them; the loop bin
-  // centres its name on the little run it has.
+  // A long return lands on the centre of the box it re-enters and leaves from
+  // the centre of the box it taps. A self loop is the one that can silently
+  // stop being drawable: it straddles its box, so its ends have to sit *outside*
+  // that box and still inside the runs either side — and the box under them
+  // narrows with `fit` while the runs do not. Every subset, because only the
+  // crowded ones scale `fit` below 1.
+  it('lands a return on its box and straddles it for a self loop', () => {
+    for (const names of subsets(FULL)) {
+      const { boxes, returns, gap } = chainLayout(names, ALL)
+      for (const r of returns) {
+        const box = boxes.find(b => b.name === r.into)
+        if (box === undefined) throw new Error(`${r.loop}: no ${r.into} box`)
+        const tap = boxes.find(b => b.name === r.tap)
+        if (tap === undefined) throw new Error(`${r.loop}: no ${r.tap} box`)
+        if (!r.self) {
+          expect(r.to, r.loop).toBeCloseTo(box.x, 9)
+          expect(r.from, r.loop).toBeCloseTo(tap.x, 9)
+          continue
+        }
+        // Clear of the box on both sides…
+        const out = box.w / 2
+        expect(box.x - r.to, r.loop).toBeGreaterThan(out)
+        expect(r.from - box.x, r.loop).toBeGreaterThan(out)
+        // …and not so far clear that an end reaches the next box along. `gap`
+        // is 0 with one stage on the row, and then the ends are out on the
+        // lead-in and lead-out, which is still wire.
+        const reach = out + Math.max(gap / 2, LEAD, OUT)
+        expect(box.x - r.to, r.loop).toBeLessThanOrEqual(reach)
+        expect(r.from - box.x, r.loop).toBeLessThanOrEqual(reach)
+        // And on the map at all — a self loop on the first box reaches left
+        // into the lead-in.
+        expect(r.to, r.loop).toBeGreaterThan(0)
+        expect(r.from, r.loop).toBeLessThan(W)
+      }
+    }
+  })
+
+  // Each run carries its own name, and where the name sits is the half of that
+  // which can go wrong silently: a name off the end of its run reads as a word
+  // floating over the chain. Each long return starts its name just clear of the
+  // box it lands on and has run left to cover it; the loop bin sets its name
+  // outside its own little loop, clear of the knot of wires at the box top.
   it('puts each loop’s name on its own run', () => {
     const { boxes, returns } = chainLayout(FULL)
-    const fb = boxes.find(b => b.name === 'Feedback')
-    if (fb === undefined) throw new Error('no Feedback box')
     for (const r of returns) {
+      const box = boxes.find(b => b.name === r.into)
+      if (box === undefined) throw new Error(`${r.loop}: no ${r.into} box`)
       if (r.self) {
-        // set outside its own loop, on the far side from the two long runs'
-        // names, and still on the map
+        // set outside its own loop, and still on the map
         expect(r.nameAt.x, r.loop).toBeLessThan(Math.min(r.from, r.to))
         expect(r.nameAt.x, r.loop).toBeGreaterThan(0)
       } else {
@@ -231,8 +279,17 @@ describe('chain map geometry', () => {
         const [lo, hi] = [Math.min(r.from, r.to), Math.max(r.from, r.to)]
         expect(r.nameAt.x, r.loop).toBeGreaterThanOrEqual(lo)
         expect(r.nameAt.x, r.loop).toBeLessThanOrEqual(hi)
-        expect(r.nameAt.x, r.loop).toBeGreaterThan(fb.x + fb.w / 2)
+        expect(r.nameAt.x, r.loop).toBeGreaterThan(box.x + box.w / 2)
       }
     }
+  })
+
+  // The map names a loop whatever the panel calls it. A run whose label came
+  // from anywhere but the loop table could go on saying 'camera' about a stage
+  // renamed to something else, and nothing renders wrong.
+  it('names each run out of the loop table', () => {
+    const names = chainLayout(FULL).returns.map(r => r.name)
+    expect(names).toEqual(LOOP_STAGES.map(l => l.short))
+    for (const n of names) expect(n).not.toBe('')
   })
 })

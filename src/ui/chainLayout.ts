@@ -1,11 +1,16 @@
 import {
-  CAMERA_LOOP_GROUP,
-  MIXER_LOOP_GROUP,
-  TAPE_LOOP_GROUP,
+  CAMERA_LOOP_STAGE,
+  LOOP_STAGES,
+  MIX_STAGE,
+  MIXER_LOOP_STAGE,
+  SOURCE_A_STAGE,
+  TAPE_LOOP_STAGE,
 } from './controls'
 
+import type { LoopPlace } from './controls'
+
 // The chain map's arithmetic, with none of its markup (see ChainMap.tsx for the
-// drawing). Its own module because a filter hands the map any subset of the six
+// drawing). Its own module because a filter hands the map any subset of the
 // stages, and every bug it has shipped has been in this arithmetic rather than
 // in the elements: an empty chain divided the width by zero and wrote `NaN` into
 // every attribute, which the browser drops; a one-stage chain divided it by one
@@ -30,7 +35,7 @@ export const H = 78
 export const GAP = 10
 export const GAP_MAX = 26
 // The stubs the signal arrives and leaves on, so the chain reads as something
-// fed and something delivered rather than six stages that begin nowhere.
+// fed and something delivered rather than a row of stages that begins nowhere.
 export const LEAD = 8
 export const OUT = 10
 export const MID_Y = 44
@@ -60,22 +65,33 @@ const PAD = 8
 const MIN_BOX = 20
 
 // Boxes are sized to what they say rather than to an equal share of the width.
-// That is what let a sixth box onto the row: at equal columns six stages gave
-// RECEIVER 38 units for 37 units of text, while TAPE sat in the same 38 with 19.
-// MIX asks for a third of what FEEDBACK does, and the difference is exactly the
-// room the mixer's own box needed.
+// That is what let a sixth box onto the row back when the trunk had six: at
+// equal columns RECEIVER got 38 units for 37 units of text while TAPE sat in
+// the same 38 with 19. MIX asks for half of what RECEIVER does, and giving the
+// difference back is what buys the shorter names their padding.
 export const boxWidth = (name: string) =>
   Math.max(MIN_BOX, name.length * CHAR + PAD)
 
 // The three feedback returns, which are different loops around different parts
-// of the chain — not one arrow drawn three times. The camera loop is optical:
-// it points at the tube's face, so it taps the picture after the Screen. The
-// mixer loop is electrical: it patches the composite the decoder saw back into
-// the bus, so it taps at the Receiver. The loop bin is mechanical, and it is
-// the one that taps nowhere: `tapePlay` returns onto the bus and `tapeRec` lays
-// the sum back down at that same point, so it is a tight loop *across* the
-// Feedback node rather than a run around anything. All three re-enter at the
-// Feedback stage, each on its own run.
+// of the chain — not one arrow drawn three times, and not three arrows landing
+// on one box either. That is what the drawing used to say, because a 'Feedback'
+// stage sat on the trunk and all three re-entered *it*; the pass graph says
+// otherwise (gpu/pipeline.ts), and the difference is the whole reason the three
+// are worth telling apart:
+//
+//   camera — optical, and the only one that reaches back past the decoder: it
+//     shoots the tube's face, so it taps after the Screen, and `compose` mixes
+//     it in ahead of the encoder — which is inside Source A, before this signal
+//     is a composite waveform at all.
+//   mixer — electrical: `fbComposite` crossfades the bus against itself
+//     straight after the A/B sum, so it re-enters at Mix, and it taps at the
+//     Receiver because what goes round is the composite the decoder saw.
+//   tape — mechanical, and the one that taps nowhere: `tapePlay` returns onto
+//     the bus and `tapeRec` lays the sum back down at that same point, one pass
+//     later. So it is a tight loop *across* the mixer's output rather than a
+//     run around anything, which is why `self` is a field and not a special
+//     case — the filter rules below are different for a return whose two ends
+//     are one box.
 //
 // Each is routed rather than swooped — up, back along its run, then straight
 // down into the stage it feeds, so the wire is vertical where the arrowhead
@@ -86,61 +102,84 @@ export const boxWidth = (name: string) =>
 // difference between them here, which is why the map used to be the one place
 // both were visible and still could not say which was which: a hover carried
 // the names, and a hover is an answer you have to already suspect the question
-// of. Each now carries its own name on its own run — `name`, short enough to
-// ride a 304-unit drawing, as against `label`, which is what the hover and the
-// screen reader get. Each also lights up while its own loop is actually
-// running, so "which loop is on" is answered here rather than by opening the
-// stage and reading three mixes.
+// of. Each now carries its own name on its own run — `short`, off LOOP_STAGES,
+// because it has to ride a 304-unit drawing — and lights up while its own loop
+// is actually running, so "which loop is on" is answered here rather than by
+// opening a stage and reading three mixes.
 //
-// And each is a button: the run opens the Feedback stage at its own group. That
-// is what none of them had ever been — the box under them opened all five of
-// the stage's groups at whichever came first, so the loop you could see running
-// was not the loop a click reached.
-const RETURNS = [
+// And each is the way into its own stage: a run is the box for a machine that
+// has no place on the trunk to draw one.
+interface ReturnSpec {
+  // The stage it taps — where the wire leaves the chain. Named `tap` and not
+  // `from` because the layout below hands back a `from`, and that one is the
+  // x it leaves at: a spec is stage names and an output is coordinates.
+  tap: string
+  // The stage it re-enters — where the arrowhead lands.
+  into: string
+  loop: LoopPlace
+  // The panel stage the run opens.
+  stage: string
+  optical: boolean
+  // Which band it rides, and the corner radius at that height.
+  y: number
+  turn: number
+  // A return whose two ends are the same box, drawn straddling it — see
+  // SELF_STRADDLE. The other two land on the centre of what they tap and what
+  // they re-enter, so they need no offsets at all.
+  self: boolean
+}
+
+// How far outside its box a self loop's two ends sit. MIX is the narrowest box
+// on the row, and stacking a self loop's pair on its top edge beside the mixer
+// loop's single arrowhead put three verticals inside 16 units of a 24-unit box:
+// a knot rather than three wires. Straddling the box says the same thing better
+// — a machine patched *across* one node, which is what a loop bin is — and it
+// leaves the mixer loop alone on the box top. Comfortably inside GAP, so the
+// ends stay on the runs either side and never reach the next box.
+const SELF_STRADDLE = 5
+
+const RETURNS: readonly ReturnSpec[] = [
   {
-    from: 'Screen',
+    tap: 'Screen',
+    into: SOURCE_A_STAGE,
     loop: 'camera',
-    group: CAMERA_LOOP_GROUP,
-    name: 'camera',
-    label: 'camera loop (optical) — the tube, re-shot and fed back in',
+    stage: CAMERA_LOOP_STAGE,
     optical: true,
     y: 7,
     turn: 4,
-    dx: -7,
-    fromDx: 0,
     self: false,
   },
   {
-    from: 'Receiver',
+    tap: 'Receiver',
+    into: MIX_STAGE,
     loop: 'mixer',
-    group: MIXER_LOOP_GROUP,
-    name: 'mixer',
-    label:
-      'mixer loop (electrical) — the composite the decoder saw, patched back in',
+    stage: MIXER_LOOP_STAGE,
     optical: false,
     y: 18,
     turn: 4,
-    dx: 7,
-    fromDx: 0,
     self: false,
   },
   {
-    // Both ends on the Feedback box's own top edge, far enough apart to clear
-    // the other two arrowheads at ±7 and still land inside the box. It is the
-    // shortest run on the map because it is the shortest loop in the rig.
-    from: 'Feedback',
+    // Straddling the mixer's box rather than landing on it twice. It is the
+    // shortest run on the map because it is the shortest loop in the rig: it
+    // leaves the bus and returns to it at the same node, one pass apart.
+    tap: MIX_STAGE,
+    into: MIX_STAGE,
     loop: 'tape',
-    group: TAPE_LOOP_GROUP,
-    name: 'tape',
-    label: 'tape loop (mechanical) — a loop bin patched across the bus',
+    stage: TAPE_LOOP_STAGE,
     optical: false,
     y: 29,
     turn: 3,
-    dx: -16,
-    fromDx: 16,
     self: true,
   },
-] as const
+]
+
+// The short word each run carries, off the one loop table, so the map cannot
+// name a loop something the panel does not call it. Falls back to the placement
+// key, which is the word the table's own `short` is: a loop added to RETURNS
+// and not to LOOP_STAGES draws its own name rather than a blank.
+const shortOf = (loop: LoopPlace): string =>
+  LOOP_STAGES.find(l => l.loop === loop)?.short ?? loop
 
 export function returnPath(
   from: number,
@@ -281,36 +320,35 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
       : [{ key: 'out', x0: boxes[last].x + boxes[last].w / 2, x1: W }]),
   ]
   // A return only reads as a return if it comes back from somewhere downstream
-  // — except the loop bin, which taps the node it re-enters and so is the one
-  // return whose two ends are the same box. Both cases need Feedback on the row
-  // at all, which a filter can take away.
-  const feedbackAt = at('Feedback')
+  // of where it re-enters — except the loop bin, which taps the box it returns
+  // to and so is the one return whose two ends are the same. Both cases need
+  // both of their stages on the row, which a filter can take away.
+  //
+  // A self loop's two ends are taken off the box's own edges rather than from a
+  // fixed offset: a squeezed row narrows every box, and a pair pinned at ±8
+  // while the box between them shrank to 14 would end up straddling nothing.
   const returns = RETURNS.flatMap(r => {
-    const tap = at(r.from)
-    if (feedbackAt < 0 || (r.self ? tap !== feedbackAt : tap <= feedbackAt))
-      return []
-    const to = centers[feedbackAt] + r.dx
-    const from = centers[tap] + r.fromDx
+    const tap = at(r.tap)
+    const back = at(r.into)
+    if (tap < 0 || back < 0 || (r.self ? tap !== back : tap <= back)) return []
+    const straddle = boxes[back].w / 2 + SELF_STRADDLE
+    const to = r.self ? centers[back] - straddle : centers[back]
+    const from = r.self ? centers[tap] + straddle : centers[tap]
     // Where the run's own name rides it. A run that reaches back across the map
     // has its whole horizontal length to offer, and the name goes at the near
-    // end of it — just clear of the Feedback box, so the two read down as a
-    // column beside the stage they return to rather than scattering along two
-    // different spans.
+    // end of it — just clear of the box it lands on, so a name sits beside its
+    // own arrowhead rather than somewhere along a span shared with two others.
     //
-    // The loop bin gets the other side. Centred on its own run is the obvious
-    // place and the wrong one: that run is four units of span between the two
-    // arrowheads the long returns land on, so the word comes down in the one
-    // spot on the map where three wires converge, and knocking it out of them
-    // leaves a knot rather than a label. Set to the left of the loop instead it
-    // is clear of every wire, still at its own run's height, and the three names
-    // balance either side of the stage they all belong to.
+    // The loop bin gets the other side of the box it straddles. Centred on its
+    // own run is the obvious place and the wrong one: that span is the box
+    // itself, so the word comes down on top of the stage name and the two
+    // arrowheads either side of it. Set to the left of the loop instead it is
+    // clear of every wire and still at its own run's height.
+    const edge = boxes[back].x + boxes[back].w / 2
     const nameAt = r.self
       ? { x: Math.min(from, to) - 4, anchor: 'end' as const }
-      : {
-          x: centers[feedbackAt] + boxes[feedbackAt].w / 2 + 5,
-          anchor: 'start' as const,
-        }
-    return [{ ...r, from, to, nameAt }]
+      : { x: edge + 5, anchor: 'start' as const }
+    return [{ ...r, name: shortOf(r.loop), from, to, nameAt }]
   })
   // The branch row, laid out left to right with a cursor: each box takes the
   // place its anchor asks for, and is pushed right if that would land it on the
