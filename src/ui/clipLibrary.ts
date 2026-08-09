@@ -271,11 +271,18 @@ export const dropPick = (lib: Library, ref: PoolRef): Library => ({
 // added, what has gone is dropped. Dropping is the half that needs stating —
 // a row that cannot be opened because the file was moved is worse than no row,
 // since the shelf's whole claim is that clicking a name plays it.
+//
+// `dropped` carries `addClips`'s refusal through rather than swallowing it.
+// `scanFolder` caps its own read at CLIP_LIMIT, so this can only bite once the
+// shelf is already partly full — which is the ordinary state of a shelf being
+// rescanned. Swallowed, a rescan of a 300-clip folder onto a shelf already
+// holding 400 reported "100 added" and said nothing about the 200 it turned
+// away, which reads as the folder having shrunk.
 export function syncFolder(
   lib: Library,
   folder: string,
   names: readonly string[],
-): { lib: Library; added: number; gone: number } {
+): { lib: Library; added: number; gone: number; dropped: number } {
   const present = new Set(names)
   // Remote entries are never in a folder and never go missing from one, so they
   // pass through untouched — without this a rescan would sweep the whole kept
@@ -289,7 +296,12 @@ export function syncFolder(
     folder,
     names.map(name => ({ name, size: 0 })),
   )
-  return { lib: grown.lib, added: grown.added.length, gone }
+  return {
+    lib: grown.lib,
+    added: grown.added.length,
+    gone,
+    dropped: grown.dropped,
+  }
 }
 
 export const dropClip = (lib: Library, id: string): Library => ({
@@ -748,9 +760,12 @@ export async function addPickedFiles(
 // A whole folder, by directory handle: the one pick whose grant covers
 // everything it holds, now and after the next reload. Null when the user backed
 // out of the picker.
-export async function addPickedFolder(
-  lib: Library,
-): Promise<{ lib: Library; added: number; gone: number } | null> {
+export async function addPickedFolder(lib: Library): Promise<{
+  lib: Library
+  added: number
+  gone: number
+  dropped: number
+} | null> {
   const dir = await pickFolder()
   if (dir === null) return null
   const { lib: withFolder, folder } = addFolder(lib, dir.name)

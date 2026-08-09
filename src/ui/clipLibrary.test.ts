@@ -179,6 +179,25 @@ describe('syncFolder', () => {
     expect(synced.gone).toBe(1)
   })
 
+  it('counts what the limit turned away, like a fresh pick does', () => {
+    // The one loss a rescan can suffer silently. scanFolder caps its own read
+    // at CLIP_LIMIT, so this needs a shelf that is already partly full — which
+    // is the ordinary state of one being rescanned. Swallowed, the note read
+    // "N added" over a folder that had just lost most of itself.
+    const full = Array.from({ length: CLIP_LIMIT - 1 }, (_, i) => `${i}.mp4`)
+    const lib = shelf([
+      { name: 'old', files: full },
+      { name: 'rips', files: [] },
+    ])
+    const synced = syncFolder(lib, lib.folders[1].id, [
+      'a.mp4',
+      'b.mp4',
+      'c.mp4',
+    ])
+    expect(synced.added).toBe(1)
+    expect(synced.dropped).toBe(2)
+  })
+
   it('keeps an id stable across a rescan that dropped its neighbour', () => {
     // The id keys the stored handle, so a rescan that renumbered would point a
     // surviving row at a record that is no longer its own.
