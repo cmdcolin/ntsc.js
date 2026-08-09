@@ -522,6 +522,36 @@ main one, which is the case the current model cannot express.
   would need per-line offsets on the loop read, which `decode`'s row-uniform
   constraint does not block but `tape_play` has no per-line buffer for yet.
 
+## Clip cues — what shipped left
+
+`ui/cue.ts` marks a cue on a clip's own timeline and loops a stretch of it; the
+clamp is `VideoPump.wrap`. Three things around it are deliberately not done.
+
+- **A cue row in the Deck.** The Deck is the panel's second index for controls a
+  hand moves during a take (`DeckSection.tsx` argues the case), and a cue is
+  exactly that. It is not there because every row the Deck renders is backed by
+  a control read through `ControlsContext`, and a cue is deliberately _not_ a
+  control — two timestamps into one clip cannot be recalled by a preset or moved
+  by mutate. So the Deck would need a way to take per-source state, which is a
+  new pattern rather than a placement. The command palette carries the two verbs
+  in the meantime, which is where the Commons verbs went for the same reason.
+- **MIDI on the cue.** This is the one that would matter most for playing it,
+  and it is blocked behind the same gap the mod bay's triggers are: `midi.ts`
+  takes any Note On as "fire the whole bay", so there is no way to bind one note
+  to one action. A per-note binding family is the prerequisite (already noted
+  above), and the cue tap and the retrigger are two of the best arguments for
+  building it — the retrigger in particular is a drum pad, not a knob.
+- **Beat-snapped loops.** `useTempo` already has a beat, from MIDI clock or
+  tapped in, and ½/1/2/4-bar buttons from the cue would give exact musical
+  loops. Left out on purpose for now: it doubles the row, and it is inert on a
+  machine with no tempo set, which is most of them. The free-marked loop works
+  everywhere and is the thing worth having first.
+
+A fourth is a real limit rather than a choice: the wrap is a hard cut in the
+clip's audio, audible as a click when playback audio is on. Nothing short of a
+crossfade fixes it, and a crossfade needs two read heads on one element, which a
+`<video>` does not have.
+
 ## In flight — preset screening, round 2
 
 Ten retuned candidates sit schema-checked in `scripts/candidates.example.mjs`;

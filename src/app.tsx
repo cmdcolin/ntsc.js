@@ -107,6 +107,7 @@ import type { GlidePlan } from './signal/glide'
 import type { PaletteAction } from './ui/CommandPalette'
 import type { Group } from './ui/controls'
 import type { ControlsApi, ControlStore } from './ui/ControlsContext'
+import type { Cue } from './ui/cue'
 import type { WikiSlot } from './ui/InputSection'
 import type { Lens } from './ui/lens'
 import type { SavedProfile } from './ui/savedProfiles'
@@ -144,6 +145,51 @@ const OPEN_STAGES = [
   [stageSet(false, false), stageSet(false, true)],
   [stageSet(true, false), stageSet(true, true)],
 ]
+
+// The cue verbs for one slot. Both are already on the row under that slot's seek
+// bar and both have a key, and they are in the palette as well for the reason the
+// Commons verbs in the same list are: that row lives inside a section which starts
+// folded, and these are pressed while looking at the picture rather than at the
+// panel.
+//
+// The name tracks the state, the way the star's does. A press means something
+// different depending on what is marked, and a row that read "cue" while the next
+// press would close a loop would be lying about what it does.
+const cueVerbs = (
+  tag: string,
+  duration: number,
+  cue: Cue | null,
+  tap: () => void,
+  back: () => void,
+): PaletteAction[] => {
+  const noClip = duration === 0
+  const cueArmed = cue !== null && cue.out === null
+  return [
+    {
+      name: cueArmed
+        ? `close the loop on source ${tag}`
+        : cue !== null
+          ? `re-cue source ${tag}`
+          : `cue source ${tag}`,
+      blurb: noClip
+        ? `nothing with a timeline on source ${tag} — a clip or a file first`
+        : cueArmed
+          ? 'the stretch since the cue starts repeating at once'
+          : cue !== null
+            ? 'drop this loop and mark a fresh cue at the playhead'
+            : 'mark the playhead — press again to loop from there',
+      run: tap,
+    },
+    {
+      name: `back to the cue on source ${tag}`,
+      blurb:
+        cue === null
+          ? `nothing cued on source ${tag} yet`
+          : 'jump back and keep playing — stab it in time for a stutter',
+      run: back,
+    },
+  ]
+}
 
 const toggleFullscreen = () => {
   if (document.fullscreenElement) {
@@ -614,6 +660,8 @@ export function App() {
         if (wikiPick !== null) wiki.star(wikiPick.pick, wikiPick.channel)
       },
     },
+    ...cueVerbs('A', eng.durationA, eng.cueA, eng.tapCueA, eng.retriggerA),
+    ...cueVerbs('B', eng.durationB, eng.cueB, eng.tapCueB, eng.retriggerB),
     {
       name: 'undo',
       blurb: 'step back through the looks you have been through',
