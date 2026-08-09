@@ -639,11 +639,25 @@ const toDisk = async (url: string, blob: Blob): Promise<void> => {
 // disk tier is keyed the same way, and has to be.
 const held = new Map<string, Blob>()
 
-// Downloads that have gone out and not come back. Two decks can be sent to the
-// same kept clip at once — one per source, which is an ordinary thing to do
-// here — and without this that is the same tens of megabytes twice, in parallel,
-// racing each other into the cache.
-const inflight = new Map<string, Promise<Blob>>()
+// A download that has gone out and not come back, and everyone waiting on it.
+//
+// The shared job is why this exists at all: two decks can be sent to the same
+// kept clip at once — one per source, which is an ordinary thing to do here —
+// and without it that is the same tens of megabytes twice, in parallel, racing
+// each other into the cache.
+//
+// `waiting` is the other half of the same fact, and it is the half that was
+// missing. A deck that joins an existing transfer is not a lesser case of one
+// that started it: it is looking at the same blank slot for the same twenty
+// seconds. Handed only the promise, its caption sat on `opening…` for the whole
+// wait while the deck beside it counted the same bytes down — and this is the
+// one wait in the app with no picture behind it, which is the entire reason
+// there is a readout to miss.
+interface Fetching {
+  job: Promise<Blob>
+  waiting: Set<OnProgress>
+}
+const inflight = new Map<string, Fetching>()
 
 const keep = (url: string, blob: Blob): Blob => {
   for (const gone of evictionOrder(
@@ -689,10 +703,24 @@ const blobFor = (
     return Promise.resolve(ready)
   }
   const already = inflight.get(url)
-  if (already !== undefined) return already
+  if (already !== undefined) {
+    // Joining costs one entry in a set rather than a second transfer. The
+    // announcement (`onProgress(0, bytes)`) has already been made to whoever
+    // started it, so a joiner picks the readout up at the next tick — fifty of
+    // those over a transfer of any length, so it is a caption arriving a
+    // fiftieth late rather than one that never arrives.
+    already.waiting.add(onProgress)
+    return already.job
+  }
 
-  const job = fetchOrRead(url, bytes, onProgress).then(blob => keep(url, blob))
-  inflight.set(url, job)
+  // One reader, however many are listening: the fan-out is here so `download`
+  // and `fetchOrRead` go on knowing about exactly one callback. The set is read
+  // per report rather than captured, so a deck that joins mid-transfer is heard.
+  const waiting = new Set<OnProgress>([onProgress])
+  const job = fetchOrRead(url, bytes, (loaded, total) => {
+    for (const say of waiting) say(loaded, total)
+  }).then(blob => keep(url, blob))
+  inflight.set(url, { job, waiting })
   return job.finally(() => inflight.delete(url))
 }
 
