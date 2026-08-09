@@ -6,7 +6,9 @@ import {
   FEEDBACK_STAGE,
   MIX_STAGE,
   MIXER_LOOP_GROUP,
+  OFF_HINT,
   PHASES,
+  PICKER_STAGES,
   SOUND_BLURB,
   SOUND_STAGE,
   SOURCE_B_BLURB,
@@ -18,6 +20,7 @@ import {
 } from './controls'
 import { cx } from './cx'
 import { Dialog } from './Dialog'
+import { MapBox } from './MapBox'
 import styles from './SignalPathDialog.module.css'
 import ui from './ui.module.css'
 
@@ -243,14 +246,12 @@ const LOOP_WHAT: Record<(typeof RETURNS)[number]['loop'], string> = {
   tape: 'a second machine threaded with a loop of tape, patched across the bus rather than round the chain: a play head returns what was laid down a lap ago, a record head lays the sum back down, and whatever keeps circulating ages a generation every time round',
 }
 
-// What an inert box says instead of its blurb: which input is missing, and
-// where to pick one. The picker for each is at the head of that stage in the
-// panel, which is what "open its box" means — this card has no pickers of its
-// own, it is the drawing.
-const deadHint = (box: Box) =>
-  box.stage === SOUND_STAGE
-    ? 'no audio input — open the Sound stage in the panel and pick a mic, a track, or the clip’s own audio'
-    : 'no source B — open the Source B stage in the panel and pick one to mix a second signal in'
+// What an inert box says instead of its blurb, off the one table both drawings
+// read (controls.ts). It used to be written out here as well, and the two copies
+// had already drifted — this one still sent you to an `Input` section that no
+// longer exists. A feed box carries its own source's stage, so Feed B answers
+// with B's hint without a case of its own.
+const deadHint = (box: Box) => OFF_HINT[box.stage] ?? ''
 
 function returnPath(from: number, to: number, y: number, turn: number) {
   return `M${from} ${TOP}V${y + turn}Q${from} ${y} ${from - turn} ${y}H${to + turn}Q${to} ${y} ${to} ${y + turn}V${TOP}`
@@ -302,6 +303,14 @@ export function SignalPathDialog(props: {
   const dead = (box: Box) =>
     (!props.bOn && (box.stage === MIX_STAGE || box.stage === SOURCE_B_STAGE)) ||
     (!props.soundOn && box.stage === SOUND_STAGE)
+  // Drawn inert and opens onto something are two questions, and on the branches
+  // they part company: a source branch with nothing patched in still opens,
+  // because the picker that ends that state heads its stage in the panel and is
+  // the whole reason to press it. Off `PICKER_STAGES`, which is the same list
+  // app.tsx keys its pickers by — a box that opened here and not on the
+  // miniature was the same drawing answering twice, which is what it did until
+  // this stopped being written out per drawing.
+  const opens = (box: Box) => !dead(box) || PICKER_STAGES.has(box.stage)
 
   return (
     <Dialog title="the signal path" size="diagram" onClose={onClose}>
@@ -449,29 +458,23 @@ export function SignalPathDialog(props: {
           const n = touchedIn(box)
           const off = dead(box)
           return (
-            <g
+            <MapBox
               key={box.label}
+              name={box.label}
+              blurb={box.what}
+              offHint={deadHint(box)}
+              off={off}
+              opens={opens(box)}
+              // No fold to describe here — this card marks and opens, it never
+              // closes a stage — so the hover text stops at the off-stock count.
+              title={`${box.label} — ${box.what}${n > 0 ? ` (${n} off stock)` : ''}`}
               className={cx(
                 styles.node,
                 off && styles.nodeOff,
                 !off && n > 0 && styles.nodeTouched,
               )}
-              role={off ? undefined : 'button'}
-              tabIndex={off ? undefined : 0}
-              aria-label={off ? undefined : `${box.label} — ${box.what}`}
-              onClick={off ? undefined : () => open(box)}
-              onKeyDown={e => {
-                if (!off && (e.key === 'Enter' || e.key === ' ')) {
-                  e.preventDefault()
-                  open(box)
-                }
-              }}
+              onOpen={() => open(box)}
             >
-              <title>
-                {off
-                  ? deadHint(box)
-                  : `${box.label} — ${box.what}${n > 0 ? ` (${n} off stock)` : ''}`}
-              </title>
               <rect
                 className={styles.box}
                 x={colX(box.col) - BOX_W / 2}
@@ -489,7 +492,7 @@ export function SignalPathDialog(props: {
               >
                 {box.label}
               </text>
-            </g>
+            </MapBox>
           )
         })}
       </svg>
@@ -504,7 +507,7 @@ export function SignalPathDialog(props: {
             <li key={box.label}>
               <button
                 className={styles.legendBtn}
-                disabled={off}
+                disabled={!opens(box)}
                 onClick={() => open(box)}
               >
                 <span className={styles.legendName}>{box.label}</span>

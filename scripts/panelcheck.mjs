@@ -300,20 +300,43 @@ await phase(
   },
 )
 
-// --- the fps stat is wired only while something reads it --------------------
+// --- the fps stat is read only while something is looking at it -------------
 // The loop reports the frame rate every fifteen frames and each report is a
-// fresh object, so leaving the callback wired re-renders the whole app four
-// times a second for a readout that is off by default and not persisted.
+// fresh object, so a reader that stays attached re-renders the whole app four
+// times a second for a readout that is off by default and not persisted — the
+// monitor perturbing the very thing it exists to measure.
 //
-// Which handler is on the engine is the direct evidence. Deliberately *not*
-// asserting the readout reaches a number above zero: rAF is throttled in an
-// occluded window and `vf.step()` renders directly rather than through the loop
-// that reports, so a backgrounded run reads "0 fps" however healthy the wiring.
+// This phase used to prove that by reading `window.vf.onStats` and asserting the
+// app swapped a real handler in when the readout opened. It no longer can, and
+// the assertion sat failing for exactly that reason: the readout was moved onto
+// a store (`subscribeStats` / `getStats` — pipeline.ts), and `onStats` is now
+// the vote page's alone. A store is *subscribed by nobody* when nothing is
+// mounted, so the invariant is no longer a handler swap to catch — it is the
+// mount itself, and `FpsMonitor` calling `useSyncExternalStore` is the whole of
+// it. So the checks below are the mount, plus the inverted form of the old one:
+// `onStats` must stay a no-op even with the readout open, because going back to
+// the callback is the regression that caused the problem in the first place.
+//
+// Deliberately *not* asserting the readout reaches a number above zero: rAF is
+// throttled in an occluded window and `vf.step()` renders directly rather than
+// through the loop that reports, so a backgrounded run reads "0 fps" however
+// healthy the wiring.
 await phase('fps stat', {}, async page => {
   const { run, settle } = runner(page)
   const handler = () => page.evaluate(() => String(window.vf.onStats))
   const noop = s => s.replace(/\s/g, '') === '()=>{}'
+  // The readout, which carries the rate and — under a frame lock — a ·½ marker
+  // after it, so this matches the number and lets the rest be.
+  const readout = () =>
+    run(`
+    const el = [...document.querySelectorAll('span')]
+      .find(s => /^\\d+ fps\\b/.test(s.textContent ?? ''))
+    return el?.textContent ?? null`)
 
+  check(
+    (await readout()) === null,
+    'the fps readout drew before it was asked for',
+  )
   const off = await handler()
   check(
     noop(off),
@@ -324,20 +347,21 @@ await phase('fps stat', {}, async page => {
   await settle(400)
   await run(`press(byPart('show fps')); return 0`)
   await settle(800)
-  const shown = await run(`
-    const el = [...document.querySelectorAll('span')]
-      .find(s => /^\\d+ fps$/.test(s.textContent ?? ''))
-    return { text: el?.textContent ?? null }`)
-  check(shown.text !== null, 'the fps readout did not appear from the ☰ menu')
+  check(
+    (await readout()) !== null,
+    'the fps readout did not appear from the ☰ menu',
+  )
   const on = await handler()
-  check(!noop(on), 'the readout is open and the frame stats are still no-oped')
+  check(
+    noop(on),
+    `the readout is back on the onStats callback, which re-renders the whole panel four times a second: ${on.slice(0, 60)}`,
+  )
 
   await run(`press(byTitle('hide the fps monitor')); return 0`)
   await settle(500)
-  const again = await handler()
   check(
-    noop(again),
-    `dismissing the readout left the stats wired: ${again.slice(0, 60)}`,
+    (await readout()) === null,
+    'dismissing the readout left it mounted, so it is still subscribed',
   )
 })
 

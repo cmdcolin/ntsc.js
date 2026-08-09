@@ -25,6 +25,7 @@ import {
   B_GROUPS,
   FEEDBACK_STAGE,
   MIX_STAGE,
+  OFF_HINT,
   PHASES,
   SOUND_BLURB,
   SOUND_JOIN,
@@ -195,6 +196,18 @@ const cueVerbs = (slot: AnySlotView): PaletteAction[] => {
     },
   ]
 }
+
+// A stage with nothing patched into it: no amber however far off stock its
+// controls sit, because none of them is reaching the picture, and the hint in
+// place of the blurb. Whether the box still *opens* is not decided here — a
+// source branch does, on the strength of the picker at its head, and SignalPath
+// works that out from the pickers themselves.
+const inert = (node: PathNode, hint: string): PathNode => ({
+  ...node,
+  touched: 0,
+  off: true,
+  offHint: hint,
+})
 
 const toggleFullscreen = () => {
   if (document.fullscreenElement) {
@@ -845,17 +858,14 @@ export function App() {
   // press SOURCE B to patch something in, and there is no picker for "a second
   // signal" to put in the mixer's box.
   //
-  // It is why they no longer share a hint, though. One is an instruction and
-  // the other an explanation, and only one of them is on a box you can press.
+  // It is why they no longer share a hint, and why the hints are not written
+  // here: `OFF_HINT` is the one table, because the full diagram draws these same
+  // dead boxes and the two copies had already drifted.
   const bOn = eng.b.mode !== 'none'
-  const B_OFF_HINT =
-    'no source B — click to pick one and mix a second signal into the chain'
-  const MIX_OFF_HINT =
-    'nothing to mix — the mixer, the wipe and the inset all need a second signal, so pick a source B'
   const unpatched = (node: PathNode): PathNode =>
-    bOn ? node : { ...node, touched: 0, off: true, offHint: B_OFF_HINT }
+    bOn ? node : inert(node, OFF_HINT[SOURCE_B_STAGE])
   const unmixed = (node: PathNode): PathNode =>
-    bOn ? node : { ...node, touched: 0, off: true, offHint: MIX_OFF_HINT }
+    bOn ? node : inert(node, OFF_HINT[MIX_STAGE])
   const pathNodes = PHASES.flatMap((phase): PathNode[] => {
     const groups = phase.groups.filter(g => groupMatches(g, query, isRouted))
     const node = pathNode(phase.name, phase.blurb, groups)
@@ -884,10 +894,8 @@ export function App() {
     mixer: controls.cfbMix > 0,
     tape: controls.tapeMix > 0,
   }
-  const SOUND_OFF_HINT =
-    'no sound reaching it — click and pick a mic, a track, or the clip’s own audio, and it drives the receiver'
   const unheard = (node: PathNode): PathNode =>
-    soundOn ? node : { ...node, touched: 0, off: true, offHint: SOUND_OFF_HINT }
+    soundOn ? node : inert(node, OFF_HINT[SOUND_STAGE])
   // The two branches, drawn under the trunk. Unlike a trunk stage each survives
   // having nothing patched into it — a drawn, inert box is the one thing on
   // screen saying that input exists at all — so one is dropped only when a live

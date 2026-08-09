@@ -12,6 +12,7 @@ import {
 } from './chainLayout'
 import styles from './ChainMap.module.css'
 import { cx } from './cx'
+import { MapBox } from './MapBox'
 
 import type { BranchSpec } from './chainLayout'
 import type { LoopsLive } from './controls'
@@ -250,51 +251,29 @@ function Node(props: {
   onOpen: (name: string) => void
 }) {
   const { stage } = props
-  // Drawn inert and opens onto something are two questions now, and a source
-  // branch answers them differently — so every line below picks the one it is
-  // actually about. `off` colours the box; `opens` decides whether it is a
-  // button at all.
   const off = stage.off === true
-  const opens = stage.opens
-  const fold = props.folds && opens
-  // An inert box that still opens has to say both things: what is missing, and
-  // that this is where you fix it. The off hints are written to end in that
-  // instruction, so there is nothing to append here.
-  const title = off
-    ? (stage.offHint ?? stage.blurb)
-    : `${stage.name} — ${stage.blurb}${stage.touched > 0 ? ` (${stage.touched} off stock)` : ''}${fold ? (props.open ? ' — click to close' : ' — click to open') : ''}`
+  // Only where a click can close a stage is this box a disclosure — see `folds`.
+  const fold = props.folds && stage.opens
   return (
-    <g
+    <MapBox
+      name={stage.name}
+      blurb={stage.blurb}
+      offHint={stage.offHint ?? stage.blurb}
+      off={off}
+      opens={stage.opens}
+      // The miniature's own addition to the hover text: whether pressing again
+      // folds the stage back up. The card below has no fold to describe, which
+      // is why this string is assembled here rather than in MapBox.
+      title={`${stage.name} — ${stage.blurb}${stage.touched > 0 ? ` (${stage.touched} off stock)` : ''}${fold ? (props.open ? ' — click to close' : ' — click to open') : ''}`}
       className={cx(
         styles.mapNode,
         off && styles.mapNodeOff,
         !off && stage.touched > 0 && styles.mapNodeTouched,
         props.open && styles.mapNodeOn,
       )}
-      role={opens ? 'button' : undefined}
-      tabIndex={opens ? 0 : undefined}
-      // A box that folds a stage is a disclosure and says so; on the bench it is
-      // an index entry, which has no expanded state to claim.
-      aria-expanded={fold ? props.open : undefined}
-      // Named first either way — the name is what the box says on its face, and
-      // a label that opened on the hint instead announced the Sound box as "no
-      // sound reaching it". What follows it is the part that differs: an inert
-      // box is announced by what it is *for*, which is picking the input it is
-      // missing, rather than by the blurb of controls that cannot act yet.
-      aria-label={
-        opens
-          ? `${stage.name} — ${off ? (stage.offHint ?? stage.blurb) : stage.blurb}`
-          : undefined
-      }
-      onClick={opens ? () => props.onOpen(stage.name) : undefined}
-      onKeyDown={e => {
-        if (opens && (e.key === 'Enter' || e.key === ' ')) {
-          e.preventDefault()
-          props.onOpen(stage.name)
-        }
-      }}
+      expanded={fold ? props.open : undefined}
+      onOpen={() => props.onOpen(stage.name)}
     >
-      <title>{title}</title>
       <rect
         className={styles.mapBox}
         x={props.x - props.boxW / 2}
@@ -312,6 +291,6 @@ function Node(props: {
       >
         {stage.name}
       </text>
-    </g>
+    </MapBox>
   )
 }

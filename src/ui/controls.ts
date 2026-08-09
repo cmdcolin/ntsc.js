@@ -3256,6 +3256,42 @@ export const VIEW_STAGE = 'View'
 export const VIEW_BLURB =
   'not the rig — where the picture is watched from: the magnifier and where it is pointed, how fast the whole simulation is stepped, and the frame-rate lock. Nothing in here changes the signal, and a mutate is forbidden to touch any of it'
 
+// The stages headed by a picker — the three things that can be patched in, and
+// so the three that decide what everything downstream of them is working on.
+// Named as a set because two separate questions are answered off it and would
+// otherwise be answered twice: which stages render a picker above their groups,
+// and which boxes stay pressable while nothing is patched into them. A box you
+// press to patch something in has to open even while it is drawn inert — that is
+// the entire reason to press it.
+//
+// Mix is the stage this excludes and the reason the set is worth writing down:
+// with no source B its every control is inert exactly like B's own, but there is
+// no picker for "a second signal" to offer, only B's. So it is drawn inert and
+// opens nothing, and it is the only box in the app that is both.
+export const PICKER_STAGES: ReadonlySet<string> = new Set([
+  SOURCE_A_STAGE,
+  SOURCE_B_STAGE,
+  SOUND_STAGE,
+])
+
+// What a box says while nothing is patched into it, in place of its blurb. One
+// per inert stage, here rather than at either drawing, because the miniature and
+// the full diagram both draw the same dead branch and had drifted into
+// describing it two different ways — one of them still pointing at an `Input`
+// section that no longer exists.
+//
+// Two of these are instructions and one is an explanation, which is the same
+// division `PICKER_STAGES` makes: you press SOURCE B or SOUND to fix the state
+// the hint describes, and there is nothing to press on Mix.
+export const OFF_HINT: Readonly<Record<string, string>> = {
+  [SOURCE_B_STAGE]:
+    'no source B — click to pick one and mix a second signal into the chain',
+  [SOUND_STAGE]:
+    'no sound reaching it — click and pick a mic, a track, or the clip’s own audio, and it drives the receiver',
+  [MIX_STAGE]:
+    'nothing to mix — the mixer, the wipe and the inset all need a second signal, so pick a source B',
+}
+
 // The groups behind an openable stage name, trunk or branch. One lookup rather
 // than two, so anything that opens a stage (the map, the palette, the panel's
 // own nav) reaches a branch without knowing it is not a Phase.
