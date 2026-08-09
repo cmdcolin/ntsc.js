@@ -465,9 +465,9 @@ export function SignalPathDialog(props: {
               offHint={deadHint(box)}
               off={off}
               opens={opens(box)}
-              // No fold to describe here — this card marks and opens, it never
-              // closes a stage — so the hover text stops at the off-stock count.
-              title={`${box.label} — ${box.what}${n > 0 ? ` (${n} off stock)` : ''}`}
+              touched={n}
+              // No `foldHint`: this card marks and opens, it never closes a
+              // stage, so the hover text stops at the off-stock count.
               className={cx(
                 styles.node,
                 off && styles.nodeOff,

@@ -5,6 +5,7 @@ import { ControlGroup } from './ControlGroup'
 import { FEEDBACK_STAGE } from './controls'
 import { Accordion, NestedSections } from './Section'
 import styles from './SignalPath.module.css'
+import { hasBody, stageBody } from './stageBody'
 
 import type { BranchSpec } from './chainLayout'
 import type { ChainStage } from './ChainMap'
@@ -185,9 +186,12 @@ export function SignalPath(props: {
   // a box that opens and a stage with something to show cannot come apart. Mix
   // is what it leaves shut: B unpatched leaves its every control inert, and
   // there is no picker for "a second signal", only B's.
+  // Asked as "is there a picker" rather than "is there a key": a key present
+  // with nothing behind it would open a box onto the empty stage it is drawn
+  // inert for, which is the one outcome this is here to make impossible.
   const opensOn = <T extends PathNode>(n: T): MapNode<T> => ({
     ...n,
-    opens: n.off !== true || n.name in props.stageTop,
+    opens: n.off !== true || props.stageTop[n.name] !== undefined,
   })
   const nodes = props.nodes.map(opensOn)
   const branches = props.branches.map(opensOn)
@@ -207,7 +211,16 @@ export function SignalPath(props: {
       />
     )
   }
-  const shown = openable.filter(n => props.expandAll || props.open === n.name)
+  // Under a live filter every matching stage shows at once; otherwise it is the
+  // one that is open — and either way, only if it has a body to show. Paired up
+  // with that body here so the list and the markup below are the same answer.
+  const shown = openable
+    .filter(n => props.expandAll || props.open === n.name)
+    .map(node => ({
+      node,
+      body: stageBody(node, props.stageTop, !props.expandAll),
+    }))
+    .filter(({ body }) => hasBody(body))
   return (
     <>
       <PathHead onShowDiagram={props.onShowDiagram} />
@@ -231,7 +244,7 @@ export function SignalPath(props: {
           nobody acts on, and the standing instruction ("click a stage") lives on
           the header line, where it costs no row and survives the first click. */}
       <div className={styles.stages}>
-        {shown.map(node => (
+        {shown.map(({ node, body }) => (
           <div key={node.name} className={styles.stageRow}>
             <StageHead
               node={node}
@@ -248,22 +261,15 @@ export function SignalPath(props: {
               }
             />
             {/* The picker first, because it is what the rest of the stage is
-                downstream of — and above the `off` gate below, since an inert
-                stage is exactly the one you came here to patch something into.
-                Out entirely under a live filter, where everything below the box
-                is the result set and a picker is not a result: the same gate the
-                Input section used to sit behind, kept. */}
-            {props.expandAll ? null : props.stageTop[node.name]?.()}
-            {/* An off stage shows its picker and stops there. Its groups are
-                real rows that would draw, drag and reach nothing — the input
-                they act on is the thing you opened the stage to pick. */}
-            {node.off === true ? null : (
+                downstream of. */}
+            {body.picker?.()}
+            {body.groups.length === 0 ? null : (
               <NestedSections>
                 <Accordion
                   openId={props.openGroup}
                   onToggle={props.onOpenGroup}
                 >
-                  {node.groups.map(group => (
+                  {body.groups.map(group => (
                     <ControlGroup key={group.name} group={group} />
                   ))}
                 </Accordion>
@@ -332,38 +338,42 @@ function Bench(props: {
         onOpenLoop={jumpLoop}
       />
       <div className={styles.bench}>
-        {props.openable.map(node => (
-          <Fragment key={node.name}>
-            <div
-              className={styles.benchStage}
-              ref={el => {
-                if (el === null) heads.current.delete(node.name)
-                else heads.current.set(node.name, el)
-              }}
-            >
-              <StageHead
-                node={node}
-                nameHint="click to mark this stage on the map"
-                countHint="click to bring the stage up"
-                onName={() => props.onOpen(node.name)}
-                onCount={() => jump(node.name)}
-              />
-              {/* The picker rides with the heading rather than in a card of its
-                  own: it is what the stage is fed by, not one more module of
-                  it. No filter gate here — the bench does not narrow. */}
-              {props.stageTop[node.name]?.()}
-            </div>
-            {node.off === true
-              ? null
-              : node.groups.map(group => (
-                  <div key={group.name} className={styles.groupCard}>
-                    <NestedSections>
-                      <ControlGroup group={group} />
-                    </NestedSections>
-                  </div>
-                ))}
-          </Fragment>
-        ))}
+        {props.openable.map(node => {
+          // The bench never narrows, so the picker is always in — but the body
+          // comes from the same place the spine's does, so an inert stage drops
+          // its groups here for the same reason and by the same line of code.
+          const body = stageBody(node, props.stageTop, true)
+          return (
+            <Fragment key={node.name}>
+              <div
+                className={styles.benchStage}
+                ref={el => {
+                  if (el === null) heads.current.delete(node.name)
+                  else heads.current.set(node.name, el)
+                }}
+              >
+                <StageHead
+                  node={node}
+                  nameHint="click to mark this stage on the map"
+                  countHint="click to bring the stage up"
+                  onName={() => props.onOpen(node.name)}
+                  onCount={() => jump(node.name)}
+                />
+                {/* The picker rides with the heading rather than in a card of
+                  its own: it is what the stage is fed by, not one more module
+                  of it. */}
+                {body.picker?.()}
+              </div>
+              {body.groups.map(group => (
+                <div key={group.name} className={styles.groupCard}>
+                  <NestedSections>
+                    <ControlGroup group={group} />
+                  </NestedSections>
+                </div>
+              ))}
+            </Fragment>
+          )
+        })}
       </div>
     </>
   )

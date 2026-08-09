@@ -1,5 +1,3 @@
-import { cx } from './cx'
-
 import type { ReactNode } from 'react'
 
 // One pressable box on a drawing of the chain — the `<g>` around it, and the
@@ -35,10 +33,15 @@ export function MapBox(props: {
   offHint: string
   off: boolean
   opens: boolean
-  // The hover text. Passed in rather than built here: this is the one thing the
-  // two drawings genuinely say differently — the miniature adds whether a click
-  // will fold the stage back up, and the card has no fold to describe.
-  title: string
+  // How many of this stage's controls sit off stock, for the hover text. A
+  // number rather than a finished clause: both drawings phrased it identically
+  // and both wrote it out, which is one more thing that had no reason to be
+  // said twice.
+  touched: number
+  // What the miniature adds on the end when a press will fold the stage back up
+  // again. The only part of the hover text the two drawings genuinely differ on,
+  // and the card passes nothing because it has no fold to describe.
+  foldHint?: string
   // The drawing's own classes for this box, its state included.
   className: string
   // Only where a press can close the stage again is the box a disclosure with a
@@ -51,23 +54,26 @@ export function MapBox(props: {
   children: ReactNode
 }) {
   const { opens, off } = props
+  // Named first either way — the name is what the box says on its face, and a
+  // label that opened on the hint instead announced the Sound box as "no sound
+  // reaching it". What follows is the part that differs: an inert box is
+  // announced by what it is *for*, which is picking the input it is missing,
+  // rather than by the blurb of controls that cannot act yet.
+  const said = `${props.name} — ${off ? props.offHint : props.blurb}`
+  // The hover text is that same sentence with the counts on it, and an inert box
+  // has no counts worth reading — nothing in it is reaching the picture, which
+  // is the whole of what its hint says.
+  const title = off
+    ? said
+    : `${said}${props.touched > 0 ? ` (${props.touched} off stock)` : ''}${props.foldHint ?? ''}`
   return (
     <g
-      className={cx(props.className)}
+      className={props.className}
       role={opens ? 'button' : undefined}
       tabIndex={opens ? 0 : undefined}
       aria-expanded={props.expanded}
-      // Named first either way — the name is what the box says on its face, and
-      // a label that opened on the hint instead announced the Sound box as "no
-      // sound reaching it". What follows is the part that differs: an inert box
-      // is announced by what it is *for*, which is picking the input it is
-      // missing, rather than by the blurb of controls that cannot act yet.
-      aria-label={
-        opens
-          ? `${props.name} — ${off ? props.offHint : props.blurb}`
-          : undefined
-      }
-      onClick={opens ? () => props.onOpen() : undefined}
+      aria-label={opens ? said : undefined}
+      onClick={opens ? props.onOpen : undefined}
       onKeyDown={e => {
         if (opens && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault()
@@ -75,10 +81,7 @@ export function MapBox(props: {
         }
       }}
     >
-      {/* An inert box says the same sentence on both drawings, so that case is
-          answered here rather than at each of them; the caller's `title` is
-          only ever the live one. */}
-      <title>{off ? props.offHint : props.title}</title>
+      <title>{title}</title>
       {props.children}
     </g>
   )

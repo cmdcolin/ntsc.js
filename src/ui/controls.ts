@@ -3210,7 +3210,11 @@ export const PHASES = PHASE_ORDER.map(name => ({
 // The head of the trunk, named here as well as in PHASE_ORDER because it is the
 // one stage something asks for by identity without knowing the chain: it holds
 // A's picker, so it is where a session with nothing patched in yet has to land.
-export const SOURCE_A_STAGE: Phase = 'Source A'
+//
+// `satisfies` rather than a `: Phase` annotation, which would widen it to the
+// whole union and take the literal type off `PICKER_STAGE_NAMES` below — the
+// point of that list being that it names three stages and not any six.
+export const SOURCE_A_STAGE = 'Source A' satisfies Phase
 
 // The mixer's own stage, on the trunk: everything downstream of it carries both
 // signals, so it is something the picture passes through rather than a fork off
@@ -3268,11 +3272,18 @@ export const VIEW_BLURB =
 // with no source B its every control is inert exactly like B's own, but there is
 // no picker for "a second signal" to offer, only B's. So it is drawn inert and
 // opens nothing, and it is the only box in the app that is both.
-export const PICKER_STAGES: ReadonlySet<string> = new Set([
+// Two shapes of the same list, because two different questions are asked of it.
+// The names keep their literal types so `PickerStage` can key the record app.tsx
+// builds its pickers in: adding a fourth picker there without adding it here is
+// then a compile error rather than a fourth box that draws inert and never
+// opens. The set is for the drawings, which hold a stage name as a plain string.
+export const PICKER_STAGE_NAMES = [
   SOURCE_A_STAGE,
   SOURCE_B_STAGE,
   SOUND_STAGE,
-])
+] as const
+export type PickerStage = (typeof PICKER_STAGE_NAMES)[number]
+export const PICKER_STAGES: ReadonlySet<string> = new Set(PICKER_STAGE_NAMES)
 
 // What a box says while nothing is patched into it, in place of its blurb. One
 // per inert stage, here rather than at either drawing, because the miniature and

@@ -261,10 +261,17 @@ function Node(props: {
       offHint={stage.offHint ?? stage.blurb}
       off={off}
       opens={stage.opens}
-      // The miniature's own addition to the hover text: whether pressing again
-      // folds the stage back up. The card below has no fold to describe, which
-      // is why this string is assembled here rather than in MapBox.
-      title={`${stage.name} — ${stage.blurb}${stage.touched > 0 ? ` (${stage.touched} off stock)` : ''}${fold ? (props.open ? ' — click to close' : ' — click to open') : ''}`}
+      touched={stage.touched}
+      // The miniature's own addition to the hover text, and the only part of it
+      // the card has no equivalent for: whether pressing again folds the stage
+      // back up.
+      foldHint={
+        fold
+          ? props.open
+            ? ' — click to close'
+            : ' — click to open'
+          : undefined
+      }
       className={cx(
         styles.mapNode,
         off && styles.mapNodeOff,

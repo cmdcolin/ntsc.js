@@ -22,8 +22,8 @@ import type { ControlKey, Controls } from '../controls'
 // the one that lands, which is the resting one by definition — so a caller cannot
 // get this wrong by choosing the obvious loop.
 export class SavedBoard {
-  private keys: ControlKey[] = []
-  private vals: number[] = []
+  private readonly keys: ControlKey[] = []
+  private readonly vals: number[] = []
   private n = 0
 
   // Start a frame's record. Cheaper than a new instance and the point of the

@@ -110,6 +110,7 @@ import type { ControlKey, Controls } from './controls'
 import type { GlidePlan } from './signal/glide'
 import type { PaletteAction } from './ui/CommandPalette'
 import type { Group } from './ui/controls'
+import type { PickerStage } from './ui/controls'
 import type { ControlsApi, ControlStore } from './ui/ControlsContext'
 import type { StashSlot } from './ui/fileStash'
 import type { Lens } from './ui/lens'
@@ -966,10 +967,17 @@ export function App() {
   //
   // Thunks rather than nodes, for the reason `groups` is handed over as data:
   // only the stages on screen call theirs, so a folded map builds no pickers at
-  // all. Which stages are keyed here is also the answer to which boxes on the
-  // map open while nothing is patched into them — SignalPath takes both off this
-  // one record, so a picker cannot end up behind a box that will not open.
-  const stageTop: Partial<Record<string, () => ReactNode>> = {
+  // all.
+  //
+  // Which stages are keyed here is also the answer to which boxes stay pressable
+  // while nothing is patched into them — SignalPath reads both off this one
+  // record, so a picker cannot end up behind a box that will not open. `Partial<
+  // Record<PickerStage, …>>` is what holds the *other* drawing to it: the full
+  // diagram has no `stageTop` to read and decides off `PICKER_STAGES` instead, so
+  // the keys are typed to that same list and a fourth picker added here without
+  // being added there is a compile error rather than a silent disagreement
+  // between two pictures of the same chain.
+  const stageTop: Partial<Record<PickerStage, () => ReactNode>> = {
     [SOURCE_A_STAGE]: () => (
       <SourceSlot
         slot={eng.a}
