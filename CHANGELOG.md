@@ -2,6 +2,78 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.24.0](https://github.com/cmdcolin/ntsc.js/compare/v0.23.0...v0.24.0) - 2026-08-09
+
+### Features
+- *(gpu)* [`e0c7a0e`](https://github.com/cmdcolin/ntsc.js/commit/e0c7a0e4a9441aaef6d94b2cf1fc2704648ca9fe) model phosphor decay as second-order, not a frame echo
+- *(signal)* [`a48a13c`](https://github.com/cmdcolin/ntsc.js/commit/a48a13c43ad7dd041d27d95ba47310418c5a6ae1) stab the whole look into a clean picture on the beat
+- *(ui)* [`2a95feb`](https://github.com/cmdcolin/ntsc.js/commit/2a95feb19f34729cabeb80ed012fba4784761386) give persistence a log dial, and key halation off beam current
+- *(ui)* [`d80ae13`](https://github.com/cmdcolin/ntsc.js/commit/d80ae13f217e7fe14c84f143d73f2efd9c3a42d6) morph undo and redo, and draw a morph in flight
+- *(ui)* [`9e0da4c`](https://github.com/cmdcolin/ntsc.js/commit/9e0da4c6bb3114425c2d8a796ee1d5ea49da4c07) give presets camelCase identifiers, with displayName for the words
+- *(gpu)* [`e273959`](https://github.com/cmdcolin/ntsc.js/commit/e27395987383fb49094f29b4c426bf5ab13f89a5) key, synthesize and strobe, with a one-shot to play them
+- *(midi)* [`44ac39f`](https://github.com/cmdcolin/ntsc.js/commit/44ac39f1296527c89c30efa98beb999fa0748a3c) let a note fire the bay's one-shots, at its velocity
+- *(ui)* [`ac6792a`](https://github.com/cmdcolin/ntsc.js/commit/ac6792aa3ac74e0b928381bb6232be6ba509adcc) keep a shelf of your own clips, reopenable without the OS dialog
+- *(ui)* [`66d2f76`](https://github.com/cmdcolin/ntsc.js/commit/66d2f761326aa7ee1e48f24a7c9bc32a65e0f8ca) roll sources off Wikimedia Commons, and star the ones worth keeping
+- *(ui)* [`727884a`](https://github.com/cmdcolin/ntsc.js/commit/727884af74b9959cebefb80e6b305812159af884) cue a clip, loop a marked section, stab back to the cue
+- *(ui)* [`e182099`](https://github.com/cmdcolin/ntsc.js/commit/e182099b811a034b0adc00f50169a06ae7ce0eda) put the cue verbs in the command palette
+- *(ui)* [`583992a`](https://github.com/cmdcolin/ntsc.js/commit/583992a77ae99585622e65506aa0d10ae6dddd9c) show what a loop's jump back costs, measured on the clip
+- *(ui)* [`5fd56e0`](https://github.com/cmdcolin/ntsc.js/commit/5fd56e07b3074ad332a0671a3c7eb757dd4ec205) roll clips from archive.org, a pool Commons doesn't have
+- *(ui)* [`4ad132e`](https://github.com/cmdcolin/ntsc.js/commit/4ad132e24afa08fef3916ec8c528754748072223) search the archives, instead of only rolling out of them
+- *(ui)* [`2803339`](https://github.com/cmdcolin/ntsc.js/commit/2803339d30acd9eaa751341ca27f62b6ed3b2186) say what an archive.org clip will cost before it costs it
+
+### Fixes
+- *(ui)* [`f2e1d8e`](https://github.com/cmdcolin/ntsc.js/commit/f2e1d8e586a1eaf365134b3fd3595be30e1dee97) make a random look land somewhere an author put it
+- *(gpu)* [`a19c485`](https://github.com/cmdcolin/ntsc.js/commit/a19c485e25edfc57094f27579be7311e4251778a) stop counting device creations against a session
+- *(gpu)* [`4590fc3`](https://github.com/cmdcolin/ntsc.js/commit/4590fc3d31009bdaead6c0af20cd5e4bc7fa4bcc) stop perf.mjs reporting an ablate delta it cannot support
+- *(ui)* [`c819614`](https://github.com/cmdcolin/ntsc.js/commit/c819614f8e0f0cdbe0c8e526bc2a1cb4206e052c) stop the tape deck's speed keys impersonating a transport
+- *(ui)* [`4df2a65`](https://github.com/cmdcolin/ntsc.js/commit/4df2a6540e6221ed04efe1558b78de18b8341821) state the deck's wipe gate once, not once per row
+- *(ui)* [`771bf2e`](https://github.com/cmdcolin/ntsc.js/commit/771bf2ec7ea041a946b6ec1f720957d1048baff5) stop "This look" moving the panel under your pointer
+- *(ui)* [`430a63f`](https://github.com/cmdcolin/ntsc.js/commit/430a63f7923c034935db27bc4f397ce32fc80d8e) stop a cue marked at the clip's end collapsing into a seek storm
+- *(ui)* [`1cb68c4`](https://github.com/cmdcolin/ntsc.js/commit/1cb68c414b219e5a7c0c24acb3f1c5253b8f5d41) let an unclaimed one-shot trigger expire instead of queueing
+- *(gpu)* [`ac3d521`](https://github.com/cmdcolin/ntsc.js/commit/ac3d5216f8a49dc04e5b0c888ccecbd89749fe9e) keep the keyer's fill out of circuit when the key is at zero
+- *(ui)* [`a4560c8`](https://github.com/cmdcolin/ntsc.js/commit/a4560c83dd9cff76b814a5c048c38d0f69299445) stop a filter listing an inert stage as a heading over nothing
+
+### Performance
+- *(gpu)* [`efe437c`](https://github.com/cmdcolin/ntsc.js/commit/efe437c17162f6c414a92d4dbe44fc41766fcd17) gate the two scatter spreads apart, and tier bloom's taps
+- *(gpu)* [`f232449`](https://github.com/cmdcolin/ntsc.js/commit/f232449d023d4e2d8f2976837363535455c1b532) design each filter once, not once per sample
+- *(gpu)* [`00ff671`](https://github.com/cmdcolin/ntsc.js/commit/00ff6714d0f601b1d9a6fa9525ce4a3f3125b225) stop rebuilding the bay's undo record on every frame
+
+### Refactor
+- *(signal)* [`4863299`](https://github.com/cmdcolin/ntsc.js/commit/4863299fea509a6ebe0bf1dbe48ccdfd556e66f7) state the pulse train's two rules once, not once per gate
+- *(ui)* [`0d85735`](https://github.com/cmdcolin/ntsc.js/commit/0d85735d05b3dd3c12060066a79b90a6d86fd1dc) hand the panel a slot, not thirty fields ending in A or B
+- *(gpu)* [`e1d16b4`](https://github.com/cmdcolin/ntsc.js/commit/e1d16b45084bc5f8026b16e7b7e5990506d21934) state each mechanism once, and name the last three indices
+- *(ui)* [`bf8c3ae`](https://github.com/cmdcolin/ntsc.js/commit/bf8c3ae9cb2666ce3729ffc780f08b77ed4a4604) pick a mod target at the control, not out of a list of all 273
+- *(ui)* [`e4ac2f8`](https://github.com/cmdcolin/ntsc.js/commit/e4ac2f8b5333ca8fe7a0e9db8c349d8bfccb8e39) put the source picker in the box that already carries its name
+- *(ui)* [`3ac9db7`](https://github.com/cmdcolin/ntsc.js/commit/3ac9db7cbead547a386279b00c4da2df83030f2b) say once what an unpatched box is, and what pressing it does
+- *(ui)* [`580ae14`](https://github.com/cmdcolin/ntsc.js/commit/580ae146d0b893ef6d687eb36db0f97d3cb61b89) split the Feedback stage into three loop stages
+
+### Documentation
+- [`fa30767`](https://github.com/cmdcolin/ntsc.js/commit/fa30767a26927e10f7b6fed4822a80d7d8dd74ef) compare the analog-video tools and correct the ntsc-rs entry
+- [`8730669`](https://github.com/cmdcolin/ntsc.js/commit/87306696411de0d3b6b38d0b6889755a7d6c125f) name the setTimeout half of the occluded-window trap
+- *(ui)* [`3d66954`](https://github.com/cmdcolin/ntsc.js/commit/3d66954a52a245fcd06834bbe946f3cdf8b5015a) correct the phosphor comments the decay rewrite outdated
+- [`8e2efd6`](https://github.com/cmdcolin/ntsc.js/commit/8e2efd60d6a0911d51ce80b855ecbc9a44d9564f) write up the keyer, the synth, the strobe and the one-shot
+- [`69c5c4f`](https://github.com/cmdcolin/ntsc.js/commit/69c5c4f9a8c81d51277701a8334f46829a0bd982) measure what the keyer, the synth and the strobe actually cost
+- [`3e9a3c7`](https://github.com/cmdcolin/ntsc.js/commit/3e9a3c7815b2fd03261616a15586ebf7a95a19e9) write down how to actually get a worktree copy serving
+- [`e634181`](https://github.com/cmdcolin/ntsc.js/commit/e634181ea42c36e2a985d6940e17dcf25a87cc52) name what makes the perf numbers bimodal, and correct the scatter cost
+- [`fc57d18`](https://github.com/cmdcolin/ntsc.js/commit/fc57d18065000064ccbe133af321683e88c2cfd4) ablation ranks passes, it does not size them
+- [`bc6b141`](https://github.com/cmdcolin/ntsc.js/commit/bc6b14104c0a2eae96b4fcddd20527738a68add1) measure the real clips, and correct what the loop cost model claimed
+- *(gpu)* [`c758081`](https://github.com/cmdcolin/ntsc.js/commit/c758081790a22a0e18deb389e1a0a0a6c53e8281) write down what pixdiff cannot compare
+- *(ui)* [`62de78c`](https://github.com/cmdcolin/ntsc.js/commit/62de78cdcf6cc80acbf43bf91e6bd7889ed7485e) the bay is read and unpatched here, not patched here
+- [`4e0b8df`](https://github.com/cmdcolin/ntsc.js/commit/4e0b8df597d67e68b6e0933f93e46231bd748391) reflow COMPARISON.md and adr/0004 to the line width
+- [`5ceda57`](https://github.com/cmdcolin/ntsc.js/commit/5ceda57e4a33cb556b27ea953fc905cdf83e6768) sketch fixed-framerate export and what a desktop shell would buy
+
+### Style
+- *(ui)* [`b60692d`](https://github.com/cmdcolin/ntsc.js/commit/b60692d89ed9b9ca58390c39494e1962cd17df2e) set buttons in the app's face, not the monospace one
+
+### Tests
+- *(ui)* [`da138f0`](https://github.com/cmdcolin/ntsc.js/commit/da138f04b4e9a8fd732bbdd01116311f9c56fae3) hold the docs' quoted control count to the schema
+- *(gpu)* [`0d3c865`](https://github.com/cmdcolin/ntsc.js/commit/0d3c865f24102d3592fb5a31da39b9098c721597) add a pixel differ for proving an approximation is free
+
+### Chores
+- [`2df4493`](https://github.com/cmdcolin/ntsc.js/commit/2df449319ced6112ba25752971e624f28f7d59b3) check the test files, and catch React Compiler bailouts
+- *(ui)* [`85daca0`](https://github.com/cmdcolin/ntsc.js/commit/85daca0799b3af634fbae92f1b9d81c52630b607) regen doc/panel screenshots for the loop-stage split
+- [`94662f7`](https://github.com/cmdcolin/ntsc.js/commit/94662f7af983e05e9cee43c8f2a1be1c3ca25924) drop the loop-split handoff doc
+
 ## [0.23.0](https://github.com/cmdcolin/ntsc.js/compare/v0.22.2...v0.23.0) - 2026-08-08
 
 ### Features
