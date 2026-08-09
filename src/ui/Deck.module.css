@@ -129,7 +129,10 @@
 .deckBtn {
   padding: 3px 6px;
   min-width: 24px;
-  font-family: var(--mono);
+  /* The app's face, not the mono stack: min-width already keeps the row even,
+     so monospace was buying nothing and making the words on these keys (CUT,
+     TAKE) read as terminal output. */
+  font-family: inherit;
   font-size: var(--fs-xs);
   line-height: 1.2;
   color: var(--fg2);
@@ -297,7 +300,7 @@
 }
 .holdBtn {
   padding: 3px 8px;
-  font-family: var(--mono);
+  font-family: inherit;
   font-size: var(--fs-sm);
   color: var(--fg2);
   background: var(--ctl-face);

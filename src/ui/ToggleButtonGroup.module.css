@@ -12,7 +12,10 @@
 .button {
   flex: 1;
   padding: 4px 5px;
-  font-family: var(--mono);
+  /* The app's face, not the UA's and not the mono stack: these carry words
+     ("Off", "Comb", "Fast"), and a word set in monospace inside a panel of
+     sans-serif labels reads as a different kind of thing than it is. */
+  font-family: inherit;
   font-size: var(--fs-xs);
   color: var(--fg2);
   background: var(--ctl-face);

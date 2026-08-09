@@ -23,7 +23,7 @@
 .cueBtn {
   padding: 2px 5px;
   min-width: 22px;
-  font-family: var(--mono);
+  font-family: inherit;
   font-size: var(--fs-xs);
   line-height: 1.2;
   color: var(--fg2);

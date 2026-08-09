@@ -60,8 +60,11 @@
   color: var(--fg2);
   border: 1px solid var(--border);
   border-radius: 3px;
+  /* The app's face. The card's *content* is block characters and wants
+     --mono-blocks (see .textArea and .chip); its tabs just say "Type" and
+     "Draw", and setting those in a drawing font made the tabs look like part
+     of the artwork. */
   font: inherit;
-  font-family: var(--mono-blocks);
   cursor: pointer;
 }
 .tab:hover {

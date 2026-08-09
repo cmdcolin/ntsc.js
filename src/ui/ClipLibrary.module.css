@@ -132,7 +132,9 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 4px 6px;
-  font-family: var(--mono);
+  /* The app's face: what is typed here is a clip name, and the list it filters
+     is set in the app's face too. */
+  font-family: inherit;
   font-size: var(--fs-sm);
 }
 
