@@ -96,6 +96,10 @@ function ShuttleStrip(props: {
 // loop bin's below — they are two machines, and the tape in each was written at
 // a different time by a different head. Folding them into one set of buttons
 // would be the tidier panel and the wrong signal path.
+//
+// Head speed, and only that. It is not the clip's playhead and never was: that
+// lives under the source picker, where the timeline it addresses is. See
+// SHUTTLE_STOPS for why the keys read as numbers rather than as ◀◀ ❚❚ ▶ ▶▶.
 export function TapeTransport() {
   const shuttleX = useControlValue('shuttleX')
   const { writeControl } = useControlsApi()
@@ -103,7 +107,7 @@ export function TapeTransport() {
     <div className={styles.deckRow}>
       <div
         className={styles.deckLabel}
-        title="the deck playing the incoming tape"
+        title="the deck playing the incoming tape — how fast its head sweeps, not the clip’s playhead. At 1x the head follows one recorded track and the picture is clean"
       >
         tape deck
       </div>

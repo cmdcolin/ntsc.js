@@ -77,15 +77,24 @@ export const shuttleToTravel = (v: number) =>
 // The speeds worth a button rather than a throw: review, pause, play, cue. Play
 // is the one the ring springs back to, and it is the only one of the four that
 // is not an artifact — off it the head crosses tracks and the noise bars start.
+//
+// Labelled as speeds and not as `◀◀ ❚❚ ▶ ▶▶`, which is what they were. The
+// glyphs made this row a media transport, and it is not one: shuttleX is a
+// signal control, the sweep rate of the spinning head, and what it produces off
+// 1 is noise bars (`shuttleBars` in gpu/pipeline.ts). Nothing here plays or
+// pauses anything. The damage was that `▶` sat lit in every fresh session —
+// shuttleX rests at 1 — beside a source with no timeline at all, while the real
+// playhead (Scrub/CueRow, under the source picker) looked less like a transport
+// than this did. A number cannot make that claim: `1x` reads as the speed it is.
 export const SHUTTLE_STOPS = [
-  { value: -2, label: '◀◀', title: 'review — 2x backwards' },
-  { value: 0, label: '❚❚', title: 'pause — the head re-reads one sweep' },
+  { value: -2, label: '-2x', title: 'review — twice play speed, backwards' },
+  { value: 0, label: '0', title: 'stopped — the head re-reads one sweep' },
   {
     value: 1,
-    label: '▶',
-    title: 'play — the head tracks, the picture is clean',
+    label: '1x',
+    title: 'play speed — the head tracks one recording, the picture is clean',
   },
-  { value: 4, label: '▶▶', title: 'cue — 4x forwards' },
+  { value: 4, label: '4x', title: 'cue — four times play speed, forwards' },
 ]
 
 // The loop bin's own deck: which way a held loop runs past the heads. Index is
