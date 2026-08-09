@@ -131,7 +131,9 @@ clicking the caption underneath rolls the next one. Commons brings found photos,
 marble busts, dead malls, reefs and time-lapse; archive.org brings tape idents,
 80s and 90s commercials and Prelinger industrial film, and warns you because it
 is slower — that site will not serve byte ranges, so a pick downloads the whole
-clip before it appears, usually a few seconds and sometimes twenty. Rolling is
+clip before it appears, usually a few seconds and sometimes twenty. The caption
+names the size before the first byte and counts it out, so the wait tells you
+how long it will be rather than letting you find out. Rolling is
 the whole of it: the caption is the only thing on screen that says which file
 came back, and the roll before it is gone. So keep the ones worth keeping — the
 **★** beside the caption puts the picture that is up on your clip shelf,
@@ -149,7 +151,9 @@ download. Type anything — results are ranked, so ordinary words work here in a
 way they cannot for a random pick — or take one of the tested pools along the
 top, which are the same ones a random pick rolls out of, with names like
 `Marble busts` and `Tape openings`. Every result plays into either deck, and the
-★ on it keeps it on the shelf without playing it at all.
+★ on it keeps it on the shelf without playing it at all. A clip says how long it
+runs under its thumbnail wherever the archive will tell us — a fifteen-second
+ident and a twenty-minute reel look identical as a still frame.
 
 **Video synth** is the one generated source that makes a picture
 instead of a failure to have one: two oscillators, a combiner and a colorizer,

@@ -32,7 +32,7 @@ import {
   tapCue,
 } from './cue'
 import { clearStash, readStash, stashClip, stashFile } from './fileStash'
-import { reason } from './format'
+import { formatBytes, reason } from './format'
 import { canPickHandle, pickHandle } from './fsAccess'
 import { randomPresetMix, rollControls } from './presets'
 import { RebuildPolicy } from './rebuildPolicy'
@@ -51,7 +51,7 @@ import type { FrameStats } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
 import type { FrozenKind } from '../gpu/renderloop'
 import type { SourceBMode, SourceMode } from '../sources/modes'
-import type { PoolMode, PoolPick, PoolRef } from '../sources/pools'
+import type { OnProgress, PoolMode, PoolPick, PoolRef } from '../sources/pools'
 import type { TeletypeCard } from '../sources/teletype'
 import type { Cue } from './cue'
 import type { Fatal } from './FatalScreen'
@@ -242,6 +242,31 @@ const keepFile = (
     (e: unknown) => console.log('DEBUG stash failed', reason(e)),
   )
 }
+
+// The caption while an archive.org clip is coming down, which is the one wait
+// in this app that has no picture behind it — up to twenty seconds of it, and
+// it used to read `rolling…` throughout. Written as the slot's name because
+// that line is already the only thing on screen about this pick.
+//
+// The size is in it from the first call, before a byte is asked for: the
+// metadata read that chose the rendition knows how big it is, so the wait can
+// announce its own length rather than reveal it. `total` is 0 only when
+// nothing upstream would say, and then bytes-so-far still beats an ellipsis.
+const downloading =
+  (slot: VideoSlot, fresh: () => boolean): OnProgress =>
+  (loaded, total) => {
+    if (!fresh()) return
+    // Three readings, because the first call is the announcement and has no
+    // progress to report yet: the size alone, then bytes against it, and just
+    // bytes where the transfer would not say how many there are in total.
+    slot.setName(
+      loaded === 0 && total > 0
+        ? `fetching… ${formatBytes(total)}`
+        : total === 0
+          ? `fetching… ${formatBytes(loaded)}`
+          : `fetching… ${formatBytes(loaded)} of ${formatBytes(total)}`,
+    )
+  }
 
 // Owns the singleton Engine (a GPUDevice + rAF loop), its lifecycle, and every
 // video/image source path (patterns, files, webcam/USB capture, source B).
@@ -838,7 +863,7 @@ export function useEngine() {
     const avoid = showing?.origin === origin ? showing.title : ''
     const fresh = beginLoad(slot.id)
     slot.setName('rolling…')
-    rollPool(origin, avoid).then(
+    rollPool(origin, avoid, downloading(slot, fresh)).then(
       picked => landPick(slot, picked, fresh),
       (e: unknown) => {
         if (fresh()) {
@@ -885,7 +910,7 @@ export function useEngine() {
     }
     dropFile(key)
     slot.setName('opening…')
-    resolvePool(ref).then(
+    resolvePool(ref, downloading(slot, fresh)).then(
       picked => landPick(slot, picked, fresh),
       (e: unknown) => {
         if (fresh()) {

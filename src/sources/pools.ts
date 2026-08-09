@@ -28,9 +28,22 @@ import {
   rollCommons,
 } from './commons'
 
-import type { BrowseHit, PoolOrigin, PoolPick, PoolRef } from './pool'
+import type {
+  BrowseHit,
+  OnProgress,
+  PoolOrigin,
+  PoolPick,
+  PoolRef,
+} from './pool'
 
-export type { BrowseHit, PickKind, PoolOrigin, PoolPick, PoolRef } from './pool'
+export type {
+  BrowseHit,
+  OnProgress,
+  PickKind,
+  PoolOrigin,
+  PoolPick,
+  PoolRef,
+} from './pool'
 export { BROWSE_LIMIT, refKey, releasePick, sameRef } from './pool'
 
 // The two picker entries that roll, and which source each reads.
@@ -62,15 +75,30 @@ export const ORIGIN_LABEL: Record<PoolOrigin, string> = {
 }
 
 // Roll one file out of a source, avoiding what is already on the slot.
-export const rollPool = (origin: PoolOrigin, avoid = ''): Promise<PoolPick> =>
-  origin === 'commons' ? rollCommons(avoid) : rollArchive(avoid)
+//
+// `onProgress` reaches archive.org and nowhere else, which is not an oversight:
+// a Commons transcode streams into the <video> element and starts playing off
+// the front of the file, so there is no wait to report on. The archive.org half
+// has to hold the whole rendition first (see the head of archive.ts) and is the
+// one place in this app that makes you wait without a picture.
+export const rollPool = (
+  origin: PoolOrigin,
+  avoid = '',
+  onProgress?: OnProgress,
+): Promise<PoolPick> =>
+  origin === 'commons' ? rollCommons(avoid) : rollArchive(avoid, onProgress)
 
 // One named file, resolved back into something playable. This is what a shelf
 // entry is worth: both sources keep an identity rather than a url, and both can
 // be asked for it again — see the note on `resolveArchive`, which is the half
 // that used to be missing and the reason an archive.org clip can be kept at all.
-export const resolvePool = (ref: PoolRef): Promise<PoolPick> =>
-  ref.origin === 'commons' ? resolveCommons(ref) : resolveArchive(ref.title)
+export const resolvePool = (
+  ref: PoolRef,
+  onProgress?: OnProgress,
+): Promise<PoolPick> =>
+  ref.origin === 'commons'
+    ? resolveCommons(ref)
+    : resolveArchive(ref.title, onProgress)
 
 // What a title reads as on one line, with the upstream's scaffolding off: the
 // "File:" and the extension on Commons, the underscores and the de-duplicator's

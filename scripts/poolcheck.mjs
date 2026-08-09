@@ -169,7 +169,11 @@ await wait(6000)
 now = await state()
 check(now.caption !== kept, 'clicking the caption rolls a different file', kept)
 check(now.star === '☆', 'the new roll is not kept', now.star)
-check(now.kept.length === 1, 'the shelf still holds the kept one', now.kept.length)
+check(
+  now.kept.length === 1,
+  'the shelf still holds the kept one',
+  now.kept.length,
+)
 
 // ── the shelf plays it back ──────────────────────────────────────────────────
 await pickA('library')
@@ -252,6 +256,57 @@ for (const tab of [
 await press('close')
 await wait(400)
 
+// ── the download says how big it is, and how far it has got ─────────────────
+// archive.org is the one source that makes you wait with no picture, so the
+// caption is the only thing standing between a working pick and a hung one. Two
+// things have to survive: the size arrives *before* the bytes, off the metadata
+// read, and the readout moves. A revert to `r.blob()` would keep the clip
+// working and quietly take both away, which nothing else here would notice.
+await pickA('ia-random')
+// The caption alone, not `state()`: that one reads the canvas back through an
+// OffscreenCanvas every call, which is far too slow to sample a readout that
+// moves fifty times in a couple of seconds — polled with it, the whole download
+// went past between two looks.
+const captionOnly = () =>
+  page.evaluate(() => {
+    const b = [...document.querySelectorAll('button')].find(x =>
+      x.title.includes('roll another'),
+    )
+    return b?.textContent?.trim() ?? null
+  })
+const readings = []
+// Bounded by the clock rather than by a count, because what is being waited on
+// is a search, up to six metadata reads at six seconds each, and then a download
+// — a roll that lands on a bad run of Prelinger items can spend half a minute
+// before the first byte.
+const until = 90_000
+for (let spent = 0; spent < until; spent += 50) {
+  await wait(50)
+  const seen = await captionOnly()
+  if (seen === null || seen === '' || seen === readings.at(-1)) continue
+  readings.push(seen)
+  // The clip's own name is the end of the sequence, and the only reading that
+  // is neither of the two waits. Waiting for it also keeps this roll from
+  // landing in the middle of the check below.
+  if (readings.length > 1 && !/^(rolling|fetching)…/.test(seen)) break
+}
+const sized = readings.filter(r => /^fetching….*\d/.test(r))
+check(
+  readings[0] === 'rolling…',
+  'the search and the metadata read say so first',
+  JSON.stringify(readings.slice(0, 2)),
+)
+check(
+  sized.length >= 2,
+  'the download names a size and then counts it out',
+  JSON.stringify(readings.slice(0, 6)),
+)
+check(
+  /^fetching… [\d.]+ [kM]B$/.test(sized[0] ?? ''),
+  'and names it before the first byte, not after',
+  JSON.stringify(sized[0]),
+)
+
 // ── a late roll is dropped ───────────────────────────────────────────────────
 // The one failure a screenshot cannot show: the request is out for a second or
 // two, the user is free to leave, and the reply must not land on what they went
@@ -280,5 +335,6 @@ if (failures.length > 0) {
   process.exit(1)
 }
 console.log(
-  '\nPools: rolls, the shelf, the browser and the stale-reply guard all hold.',
+  '\nPools: rolls, the shelf, the browser, the download readout and the' +
+    ' stale-reply guard all hold.',
 )

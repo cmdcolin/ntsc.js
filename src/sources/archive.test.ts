@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ARCHIVE_POOLS,
   archiveCaption,
+  runtimeSeconds,
   candidateOrder,
   chosenPool,
   identifiersIn,
@@ -461,4 +462,51 @@ describe('pools', () => {
       expect(modes).toContain('ia-random')
     expect(SOURCE_KIND['ia-random']).toBe('pool')
   })
+})
+
+describe('renditionFrom byte count', () => {
+  // The size is carried out of the metadata so the caption can name the wait
+  // before it starts. Dropping it is invisible — the download still works, the
+  // readout just goes back to counting up towards nothing.
+  it('reports what the chosen rendition will cost', () => {
+    const got = renditionFrom(
+      {
+        files: [
+          { name: 'big.mp4', format: 'h.264', size: '8000000', height: '480' },
+          {
+            name: 'small.mp4',
+            format: 'h.264 IA',
+            size: '3214809',
+            height: '480',
+          },
+        ],
+      },
+      'ident',
+    )
+    expect(got?.bytes).toBe(3214809)
+    expect(got?.url).toContain('small.mp4')
+  })
+})
+
+describe('runtimeSeconds', () => {
+  // archive.org's runtime field is whatever the uploader or the deriver put
+  // there, and about one item in three has none at all.
+  it.each([
+    ['24:54', 1494],
+    ['1:04:12', 3852],
+    ['30.65', 30.65],
+    ['9', 9],
+  ])('reads %s as %d seconds', (raw, want) => {
+    expect(runtimeSeconds(raw)).toBeCloseTo(want, 3)
+  })
+
+  // Everything unreadable is "unknown", which draws the same as absent — the
+  // grid says `clip` and lets the pick say the rest. Half-parsing one of these
+  // would put a wrong number under a picture, which is worse than no number.
+  it.each([undefined, null, 42, '', 'PT2M', '1:2:3:4', '-5', '0'])(
+    'reads %p as unknown',
+    raw => {
+      expect(runtimeSeconds(raw)).toBeNull()
+    },
+  )
 })

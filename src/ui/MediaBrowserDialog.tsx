@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { ORIGIN_LABEL, presetsOf } from '../sources/pools'
 import { cx } from './cx'
 import { Dialog } from './Dialog'
+import { formatClock } from './format'
 import styles from './MediaBrowser.module.css'
 import { CreditLink, OtherSlotButton } from './MediaRow'
 import ui from './ui.module.css'
@@ -84,11 +85,15 @@ function Result(props: {
         {hit.label}
       </div>
       <div className={styles.acts}>
-        {/* Which of the two it is. A poster frame looks exactly like a
-            photograph, and a clip is the one that brings a timeline, a cue and a
-            speed control with it. */}
+        {/* Which of the two it is, and how long it runs where the listing said.
+            A poster frame looks exactly like a photograph, and a clip is the one
+            that brings a timeline, a cue and a speed control with it — and the
+            one whose length the picture cannot show. A fifteen-second ident and
+            a twenty-minute reel are the same thumbnail. */}
         <span className={styles.mark} aria-hidden>
-          {hit.kind === 'video' ? '▶ clip' : 'still'}
+          {hit.kind === 'video'
+            ? `▶ ${hit.seconds === null ? 'clip' : formatClock(hit.seconds)}`
+            : 'still'}
         </span>
         <OtherSlotButton
           slot={slot}

@@ -512,7 +512,9 @@ The layering is worth knowing before changing any of it:
 
 - `src/sources/pool.ts` — what the two have in common. `PoolPick` is the one
   type both roll, and the two real differences ride on it as fields (`owned` for
-  the archive.org blob, `kind` for Commons stills).
+  the archive.org blob, `kind` for Commons stills). `OnProgress` reaches
+  archive.org only: a Commons transcode streams into the element, so there is no
+  wait to report on.
 - `src/sources/commons.ts`, `archive.ts` — one flat list of tested query pools
   each, plus the readers that vet a response. Neither knows the other exists.
 - `src/sources/pools.ts` — the front door. Everything above the sources imports
@@ -545,6 +547,15 @@ the test suite: Commons changing its mind about `descriptionurl` or
 for), and `archive.org/services/img/` going away — that last one is what lets
 the browser show a clip without downloading it, and its loss would turn the grid
 into a page of empty boxes with nothing else complaining.
+
+Two fields the browser leans on are optional, and neither failing would look
+like a failure. Commons returns a clip's `duration` alongside the thumbnail for
+free; archive.org's search returns `runtime` on roughly one item in three, and
+the grid says `clip` rather than a length for the rest. What that search will
+*not* honestly tell you is how big a pick is: `item_size` counts every file in
+the item and was measured between 1.0x and 2176x the rendition a roll would
+actually download, so the size comes from the metadata read at pick time
+instead — see the note over `browseArchive`.
 
 ## URL parameters
 

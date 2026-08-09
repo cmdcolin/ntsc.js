@@ -29,7 +29,7 @@
 
 import { BROWSE_LIMIT, isRecord, num, randomIndex, rotate, str } from './pool'
 
-import type { BrowseHit, PoolPick, PoolRef } from './pool'
+import type { BrowseHit, OnProgress, PoolPick, PoolRef } from './pool'
 
 const SEARCH = 'https://archive.org/advancedsearch.php'
 const METADATA = 'https://archive.org/metadata/'
@@ -263,6 +263,10 @@ export interface Rendition {
   url: string
   title: string
   page: string
+  // What the download is about to cost, known from the metadata before a single
+  // byte is asked for. This is the whole of "no surprises": the caption can name
+  // the size the moment a clip is chosen rather than after it has arrived.
+  bytes: number
 }
 
 // One item's usable rendition, or null. Everything here is a reason a roll skips
@@ -278,7 +282,7 @@ export const renditionFrom = (
   const files = item.files
   if (!Array.isArray(files)) return null
 
-  let best: { name: string; score: number } | null = null
+  let best: { name: string; bytes: number; score: number } | null = null
   for (const f of files) {
     if (!isRecord(f)) continue
     const name = str(f.name)
@@ -300,7 +304,7 @@ export const renditionFrom = (
       continue
 
     const score = distance(height ?? IDEAL_HEIGHT, bytes)
-    if (best === null || score < best.score) best = { name, score }
+    if (best === null || score < best.score) best = { name, bytes, score }
   }
 
   if (best === null) return null
@@ -311,6 +315,7 @@ export const renditionFrom = (
     url: `${CORS_FILES}${encodeURIComponent(identifier)}/${encodeURIComponent(best.name)}`,
     title: identifier,
     page: archivePageUrl(identifier),
+    bytes: best.bytes,
   }
 }
 
@@ -318,16 +323,36 @@ export const renditionFrom = (
 
 // The identifiers a search came back with, in the order the API gave them —
 // which is already random, since every query below sorts that way.
-export const identifiersIn = (body: unknown): string[] => {
+export const identifiersIn = (body: unknown): string[] =>
+  docsIn(body).flatMap(d => {
+    const id = str(d.identifier)
+    return id === null ? [] : [id]
+  })
+
+const docsIn = (body: unknown): Record<string, unknown>[] => {
   if (!isRecord(body)) return []
   const response = body.response
   if (!isRecord(response)) return []
   const docs = response.docs
-  if (!Array.isArray(docs)) return []
-  return docs.flatMap(d => {
-    const id = isRecord(d) ? str(d.identifier) : null
-    return id === null ? [] : [id]
-  })
+  return Array.isArray(docs) ? docs.filter(isRecord) : []
+}
+
+// `"24:54"`, `"1:04:12"` or `"1494.5"` — archive.org's runtime field is whatever
+// the uploader or the deriver put there. Anything that is not one of those three
+// reads as unknown, which is the same branch as the two items in three that do
+// not carry the field at all.
+export const runtimeSeconds = (raw: unknown): number | null => {
+  const text = str(raw)
+  if (text === null) return null
+  const parts = text.split(':')
+  if (parts.length > 3) return null
+  let total = 0
+  for (const part of parts) {
+    const n = num(part)
+    if (n === null || n < 0) return null
+    total = total * 60 + n
+  }
+  return Number.isFinite(total) && total > 0 ? total : null
 }
 
 // Candidates to try, preferring anything that is not already on the slot. Same
@@ -409,6 +434,10 @@ export const searchUrl = (
   })
   params.append('fl[]', 'identifier')
   params.append('fl[]', 'title')
+  // Patchy — about one item in three carries it — but exact where it is there,
+  // and it is the only thing either archive will say cheaply about how long a
+  // clip runs. See `browseArchive` for what is deliberately *not* asked for.
+  params.append('fl[]', 'runtime')
   // Random rather than relevance for the same reason `gsrsort=random` is right
   // on Commons: the channel is a pool, and the point is a different clip each
   // pick rather than the best match for a word nobody typed. It does not vary on
@@ -417,39 +446,100 @@ export const searchUrl = (
   return `${SEARCH}?${params.toString()}`
 }
 
-// Download the whole rendition and hand back a blob url. This is the seek fix
-// described at the top of the file, and it is also why a roll here is slower
-// than a Commons roll: nothing appears until the last byte lands. The caller
-// keeps the old picture up meanwhile.
-const fetchAsBlobUrl = async (url: string): Promise<string> => {
+// How often a download is allowed to say where it has got to: every fiftieth of
+// the file, so a caption ticks about fifty times over a wait of any length.
+//
+// Not per chunk. The body arrives in ~64 KB pieces, so a 24 MB clip would report
+// nearly four hundred times, and each report is a caption write — engine state,
+// which re-renders the panel. That is measured at 3ms with the stages folded and
+// 19ms with them all mounted, so an unthrottled readout would spend several
+// seconds of jank telling you how long you were waiting.
+const PROGRESS_STEPS = 50
+
+// Download the whole rendition and hand back a blob url, saying where it has
+// got to as it goes. This is the seek fix described at the top of the file, and
+// it is also why a roll here is slower than a Commons roll: nothing appears
+// until the last byte lands. The caller keeps the old picture up meanwhile — and
+// now has something to put under it.
+const fetchAsBlobUrl = async (
+  url: string,
+  bytes: number,
+  onProgress: OnProgress,
+): Promise<string> => {
   const r = await timed(url, DOWNLOAD_TIMEOUT_MS, 'the download')
   if (!r.ok) throw new Error(`archive ${r.status}`)
-  return URL.createObjectURL(await r.blob())
+  // `content-length` over the metadata's figure where both are there: it is what
+  // this transfer will actually carry, and the two have been seen to disagree
+  // where a derivative was re-encoded after the item was indexed.
+  const total = num(r.headers.get('content-length')) ?? bytes
+  const type = r.headers.get('content-type') ?? ''
+  const body = r.body
+  // No streams to read means no progress to report, which is a worse experience
+  // and not a broken one.
+  if (body === null) return URL.createObjectURL(await r.blob())
+
+  const chunks: BlobPart[] = []
+  let loaded = 0
+  let said = 0
+  const step = total > 0 ? total / PROGRESS_STEPS : 1_000_000
+  const reader = body.getReader()
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    // Sliced to its own ArrayBuffer rather than pushed as the view: a Uint8Array
+    // over a SharedArrayBuffer is not a BlobPart, and the reader makes no promise
+    // about which it hands back.
+    chunks.push(value.slice().buffer)
+    loaded += value.length
+    if (loaded - said >= step) {
+      said = loaded
+      onProgress(loaded, total)
+    }
+  }
+  // The type has to be carried over by hand. `r.blob()` takes it from the
+  // response; a Blob built from chunks has none, and a `blob:` url with no type
+  // is one a <video> will refuse to play rather than sniff.
+  return URL.createObjectURL(new Blob(chunks, { type }))
 }
 
 // A rendition, downloaded and turned into something showable. Every pick from
 // this source goes through here, which is the one place `owned: true` is
 // written — that flag is what tells `releasePick` there is a blob to hand back.
-const fetchPick = async (rendition: Rendition): Promise<PoolPick> => ({
-  origin: 'archive',
-  title: rendition.title,
-  kind: 'video',
-  page: rendition.page,
-  owned: true,
-  url: await fetchAsBlobUrl(rendition.url),
-})
+const fetchPick = async (
+  rendition: Rendition,
+  onProgress: OnProgress,
+): Promise<PoolPick> => {
+  // Said before the first byte is asked for, which is the point of carrying the
+  // size this far: the wait announces its own length instead of revealing it.
+  onProgress(0, rendition.bytes)
+  return {
+    origin: 'archive',
+    title: rendition.title,
+    kind: 'video',
+    page: rendition.page,
+    owned: true,
+    url: await fetchAsBlobUrl(rendition.url, rendition.bytes, onProgress),
+  }
+}
 
 // Roll one clip out of archive.org. Two requests at best — a search and one
 // item's metadata — plus the download, and up to ATTEMPTS metadata requests
 // where the first items hold nothing playable.
-export async function rollArchive(avoid = ''): Promise<PoolPick> {
+export async function rollArchive(
+  avoid = '',
+  onProgress: OnProgress = () => {},
+): Promise<PoolPick> {
   const pool = chosenPool(ARCHIVE_POOLS, randomIndex(ARCHIVE_POOLS.length))
-  return rollFromPool(pool, avoid)
+  return rollFromPool(pool, avoid, onProgress)
 }
 
 // One roll out of one named pool. What `rollArchive` does after choosing, and
 // what a browser preset calls to stay inside the collection it names.
-export async function rollFromPool(pool: Pool, avoid = ''): Promise<PoolPick> {
+export async function rollFromPool(
+  pool: Pool,
+  avoid = '',
+  onProgress: OnProgress = () => {},
+): Promise<PoolPick> {
   const page = 1 + randomIndex(PAGE_SPAN)
   let found = identifiersIn(await request(searchUrl(pool.query, page)))
   // A pool smaller than PAGE_SPAN pages answers a deep page with nothing. That
@@ -471,7 +561,7 @@ export async function rollFromPool(pool: Pool, avoid = ''): Promise<PoolPick> {
     }
     const rendition = renditionFrom(meta, identifier, pool.maxBytes)
     if (rendition === null) continue
-    return fetchPick(rendition)
+    return fetchPick(rendition, onProgress)
   }
   throw new Error('nothing playable came back — roll again')
 }
@@ -490,12 +580,15 @@ export async function rollFromPool(pool: Pool, avoid = ''): Promise<PoolPick> {
 // LONG_BYTES rather than the channel's own cap, since a shelf entry has no
 // channel by the time it is played, and refusing to reopen a clip this app
 // itself put on the shelf would be the worse failure.
-export async function resolveArchive(identifier: string): Promise<PoolPick> {
+export async function resolveArchive(
+  identifier: string,
+  onProgress: OnProgress = () => {},
+): Promise<PoolPick> {
   const meta = await request(`${METADATA}${encodeURIComponent(identifier)}`)
   const rendition = renditionFrom(meta, identifier, LONG_BYTES)
   if (rendition === null)
     throw new Error(`${archiveCaption(identifier)} is no longer playable`)
-  return fetchPick(rendition)
+  return fetchPick(rendition, onProgress)
 }
 
 // A page of results for an arbitrary query, as the browser dialog draws them.
@@ -506,22 +599,44 @@ export async function resolveArchive(identifier: string): Promise<PoolPick> {
 // looked at for the price of one search. Until this existed the only way to see
 // what a channel held was to commit to a clip and wait out its bytes.
 //
-// No metadata read per hit, so a result is not yet known to be playable. That is
-// the deliberate half of the bargain: checking two dozen items would be two
-// dozen requests against an endpoint measured stalling for 33 seconds, and the
-// check happens anyway at the moment one is chosen.
+// No metadata read per hit, so a result is not yet known to be playable, nor how
+// big its rendition is. That is the deliberate half of the bargain: checking two
+// dozen items would be two dozen requests against an endpoint measured stalling
+// for 33 seconds, and the check happens anyway at the moment one is chosen.
+//
+// **`item_size` is deliberately not asked for**, and this has to be written down
+// or it will be helpfully added: the search *will* return it, it looks exactly
+// like the download estimate this dialog wants, and it is not one. It counts
+// every file in the item — masters, thumbnails, derivatives, metadata — where a
+// roll takes the smallest playable rendition. Measured against what a pick would
+// actually download, over twelve random items: 1.0x, 1.1x and 2.1x on short
+// idents, then 15.4x, 15.6x, 16.1x and 54.4x, and one Prelinger item reporting
+// 363 GB against a 167 MB rendition. Shown in the grid it would frighten people
+// off good clips and be wrong by three orders of magnitude while doing it. The
+// honest number arrives with the metadata at pick time, which is where the
+// caption says it (`Rendition.bytes`).
 export async function browseArchive(query: string): Promise<BrowseHit[]> {
   const body = await request(
     searchUrl(query, 1, { rows: BROWSE_LIMIT, random: false }),
   )
-  return identifiersIn(body).map(identifier => ({
-    origin: 'archive' as const,
-    title: identifier,
-    kind: 'video' as const,
-    label: archiveCaption(identifier),
-    thumb: `${ITEM_IMAGE}${encodeURIComponent(identifier)}`,
-    page: archivePageUrl(identifier),
-  }))
+  return docsIn(body).flatMap(doc => {
+    const identifier = str(doc.identifier)
+    if (identifier === null) return []
+    return [
+      {
+        origin: 'archive' as const,
+        title: identifier,
+        kind: 'video' as const,
+        // The item's own title where it has one, which reads far better than the
+        // slug: "Gracie Films (Halloween) / 20th Television Logo 1992" against
+        // "gracie films halloween 20th television logo 1992".
+        label: str(doc.title) ?? archiveCaption(identifier),
+        thumb: `${ITEM_IMAGE}${encodeURIComponent(identifier)}`,
+        page: archivePageUrl(identifier),
+        seconds: runtimeSeconds(doc.runtime),
+      },
+    ]
+  })
 }
 
 // The ref an item is stored under. Trivial, and exported so nothing outside this

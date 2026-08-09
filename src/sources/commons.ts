@@ -412,7 +412,12 @@ export async function browseCommons(search: string): Promise<BrowseHit[]> {
     gsrnamespace: '6',
     gsrlimit: String(BROWSE_LIMIT),
     prop: 'imageinfo',
-    iiprop: 'url|mime',
+    // `size` is what carries `duration` for a clip, which is the one number
+    // worth showing before a pick — verified against the live API. Its `size`
+    // field comes along with it and is deliberately *not* shown: for a clip that
+    // is the uploaded master, not the transcode the app would play, and the two
+    // differ by an order of magnitude on anything large.
+    iiprop: 'url|mime|size',
     iiurlwidth: String(BROWSE_THUMB),
   })
   return pagesOf(body).flatMap(page => {
@@ -438,6 +443,7 @@ export async function browseCommons(search: string): Promise<BrowseHit[]> {
         label: commonsCaption(title),
         thumb,
         page: pageOf(info, title),
+        seconds: num(info.duration),
       },
     ]
   })

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import { ALL_SLIDERS, GROUPS } from './controls'
-import { choicesFitTrack, formatValue, readingChars } from './format'
+import {
+  choicesFitTrack,
+  formatBytes,
+  formatClock,
+  formatValue,
+  readingChars,
+} from './format'
 
 describe('formatValue', () => {
   it('scales decimals to the step: finer steps show more places', () => {
@@ -64,5 +70,38 @@ describe('choicesFitTrack', () => {
         : []
     })
     expect(overpaid).toEqual([])
+  })
+})
+
+describe('formatBytes', () => {
+  // A size somebody is weighing a wait against, not an exact figure. One decimal
+  // below 100 and none above: "3.2 MB" and "148 MB" carry the same amount of
+  // decision, where "3 MB" loses the difference between a blink and a pause.
+  it.each([
+    [3_214_809, '3.2 MB'],
+    [147_600_000, '148 MB'],
+    [64_000_000, '64.0 MB'],
+    [512_000, '512 kB'],
+    [900, '1 kB'],
+    [0, '0 kB'],
+  ])('%d reads as %s', (bytes, want) => {
+    expect(formatBytes(bytes)).toBe(want)
+  })
+})
+
+describe('formatClock', () => {
+  it.each([
+    [15, '0:15'],
+    [59.911, '1:00'],
+    [1494, '24:54'],
+    [0.4, '0:01'],
+  ])('%d seconds reads as %s', (seconds, want) => {
+    expect(formatClock(seconds)).toBe(want)
+  })
+
+  // Rounded up, never down: a clip announced as shorter than it is, or as
+  // `0:00`, is the readout being wrong in the direction that surprises.
+  it('never rounds a clip away to nothing', () => {
+    expect(formatClock(0.01)).toBe('0:01')
   })
 })

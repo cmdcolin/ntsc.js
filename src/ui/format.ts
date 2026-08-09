@@ -80,3 +80,23 @@ export const choicesFitTrack = (choices: readonly string[]) =>
 // grew the same three lines rather than pick one and be wrong half the time.
 export const reason = (e: unknown): string =>
   e instanceof Error ? e.message : String(e)
+
+// A size a human can weigh a wait against. One decimal below 100, none above:
+// "3.2 MB" and "148 MB" are both four characters of information, where "3 MB"
+// loses the difference between a blink and a pause and "147.6 MB" spends a digit
+// on precision nobody is acting on.
+export const formatBytes = (bytes: number): string => {
+  const mb = bytes / 1_000_000
+  // Rounded away from zero below a kilobyte, so a transfer that has genuinely
+  // moved never reads as having moved nothing.
+  if (mb < 1)
+    return `${bytes === 0 ? 0 : Math.max(1, Math.round(bytes / 1000))} kB`
+  return `${mb < 100 ? mb.toFixed(1) : Math.round(mb)} MB`
+}
+
+// A duration, as the transport already writes one (ui/Scrub.tsx). Rounded up so
+// a clip is never announced as shorter than it is, and never `0:00`.
+export const formatClock = (seconds: number): string => {
+  const whole = Math.max(1, Math.ceil(seconds))
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
+}

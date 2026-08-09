@@ -105,6 +105,17 @@ export const num = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null
 }
 
+// How a download says where it has got to. `total` is 0 when nothing upstream
+// would say — the caller then has bytes and no denominator, which is still
+// better than a caption that has said `rolling…` for eighteen seconds.
+//
+// Only ever called by the archive.org half. A Commons transcode is streamed by
+// the <video> element off upload.wikimedia.org with ordinary range requests, so
+// there is no download step to report on: the picture starts when the first
+// frames arrive. archive.org has to fetch the whole file first (see the head of
+// archive.ts), which is the wait this exists for.
+export type OnProgress = (loaded: number, total: number) => void
+
 // --- rolling ----------------------------------------------------------------
 
 // Start a list somewhere other than the beginning. Both sources roll several
@@ -134,6 +145,13 @@ export interface BrowseHit extends PoolRef {
   // A small image. Never the file itself.
   thumb: string
   page: string
+  // How long the clip runs, or null when the listing would not say. The one
+  // number worth showing before a pick, and the reason it is a *duration* and
+  // not a size: a poster frame says nothing about whether this is a 15-second
+  // ident or a twenty-minute reel, which is the surprise a grid of stills can
+  // hand you. Commons answers it for free alongside the thumbnail; archive.org
+  // has it on some items and not others (see `browseArchive`).
+  seconds: number | null
 }
 
 // How many results a browse asks for. Two dozen fills the grid without the
