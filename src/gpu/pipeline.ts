@@ -1207,6 +1207,10 @@ export class Engine implements EngineApi {
     this.pump.setA(el)
   }
 
+  setVideoRegion(region: { start: number; end: number } | null): void {
+    this.pump.setRegionA(region)
+  }
+
   // A GPU-generated noise field (1 TV static, 2 VHS static); 0 restores the
   // texture path. Any real image/video source clears it.
   // A video frame decoded somewhere else. On the main thread the pump feeds
@@ -1246,6 +1250,10 @@ export class Engine implements EngineApi {
   setVideoSourceB(el: HTMLVideoElement | null): void {
     if (el !== null) this.sources.setNoiseSourceB(0)
     this.pump.setB(el)
+  }
+
+  setVideoRegionB(region: { start: number; end: number } | null): void {
+    this.pump.setRegionB(region)
   }
 
   setNoiseSourceB(kind: number): void {

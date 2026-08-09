@@ -26,6 +26,12 @@ interface Handlers {
   onSaveSlot: (n: number) => void
   onRecallSlot: (n: number) => void
   onSaveProfile: () => void
+  // The cue gestures, per slot. `i` marks/closes/re-arms, `o` stabs back to the
+  // cue; shift picks slot B. Bound rather than left to the buttons because both
+  // are beaten in time to something, and a mouse trip to a 22px button in the
+  // Input section is not a gesture you can perform.
+  onTapCue: (slot: 'a' | 'b') => void
+  onRetrigger: (slot: 'a' | 'b') => void
 }
 
 // Global keyboard shortcuts, bound wherever the panel lives (main window and the
@@ -91,6 +97,16 @@ export function useShortcuts(popout: Window | null, handlers: Handlers) {
         h.onToggleRecord()
       } else if (!typing && key === 's' && !e.repeat) {
         h.onGrabStill()
+      } else if (!typing && key === 'i' && !e.ctrlKey && !e.metaKey) {
+        // Not guarded against repeat, unlike the one-shots above: held down, `i`
+        // marking a cue then closing a loop on it is harmless, and a performer
+        // leaning on the key gets a run of short loops rather than a stuck one.
+        h.onTapCue(e.shiftKey ? 'b' : 'a')
+      } else if (!typing && key === 'o' && !e.ctrlKey && !e.metaKey) {
+        // This one IS guarded: one press is one stab. Auto-repeat would turn a
+        // held key into a seek fired every few milliseconds, which is a loop the
+        // decoder never gets ahead of and a picture that stops moving.
+        if (!e.repeat) h.onRetrigger(e.shiftKey ? 'b' : 'a')
       } else if (!typing) {
         // The saved library's first nine, by position in the list. Read from
         // `e.code` rather than `e.key` so shift+1 is still slot 1 and not `!`.

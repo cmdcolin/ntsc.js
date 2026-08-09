@@ -14,6 +14,9 @@ const videoEl = (over: Partial<HTMLVideoElement> = {}) =>
     videoWidth: 640,
     videoHeight: 480,
     currentTime: 0,
+    // Finite by default: a clip. The loop region is only honoured on something
+    // with a timeline, so a stream arm overrides this with Infinity.
+    duration: 30,
     paused: false,
     ...over,
   }) as HTMLVideoElement
@@ -268,5 +271,124 @@ describe('VideoPump', () => {
     expect(s.extB).toHaveLength(0)
     pump.pump(s)
     expect(s.extB).toHaveLength(1)
+  })
+
+  // The loop region: the cue buttons mark it, the pump is what actually holds the
+  // playhead inside it, because this is the only thing that reads an element once
+  // a frame.
+  describe('loop region', () => {
+    it('wraps the playhead back to the start once it passes the end', () => {
+      stubBitmaps()
+      const pump = new VideoPump()
+      const s = sink()
+      const el = videoEl({ currentTime: 4.0 })
+      pump.setA(el)
+      pump.setRegionA({ start: 4.0, end: 4.3 })
+
+      pump.pump(s)
+      expect(el.currentTime).toBe(4.0) // inside: left alone
+      el.currentTime = 4.29
+      pump.pump(s)
+      expect(el.currentTime).toBe(4.29)
+      el.currentTime = 4.31
+      pump.pump(s)
+      expect(el.currentTime).toBe(4.0)
+    })
+
+    it('wraps on the end exactly, not one frame past it', () => {
+      stubBitmaps()
+      const pump = new VideoPump()
+      const s = sink()
+      const el = videoEl({ currentTime: 4.3 })
+      pump.setA(el)
+      pump.setRegionA({ start: 4.0, end: 4.3 })
+
+      pump.pump(s)
+      expect(el.currentTime).toBe(4.0)
+    })
+
+    // A held deck stops delivering pictures; the element underneath it keeps
+    // playing. If the wrap were behind the freeze gate the loop would run out of
+    // its region while the button was down and come back somewhere else.
+    it('wraps even while the deck is frozen', () => {
+      stubBitmaps()
+      const pump = new VideoPump()
+      const s = sink()
+      const el = videoEl({ currentTime: 4.5 })
+      pump.setA(el)
+      pump.setRegionA({ start: 4.0, end: 4.3 })
+
+      pump.pump(s, true, false)
+      expect(el.currentTime).toBe(4.0)
+      expect(s.a).toHaveLength(0) // and still delivered nothing
+    })
+
+    it('wraps in direct mode too', () => {
+      stubBitmaps()
+      const pump = new VideoPump(true)
+      const s = sink()
+      const el = videoEl({ currentTime: 9.9 })
+      pump.setB(el)
+      pump.setRegionB({ start: 8.0, end: 9.0 })
+
+      pump.pump(s)
+      expect(el.currentTime).toBe(8.0)
+    })
+
+    it('leaves the playhead alone with no region', () => {
+      stubBitmaps()
+      const pump = new VideoPump()
+      const s = sink()
+      const el = videoEl({ currentTime: 12 })
+      pump.setA(el)
+
+      pump.pump(s)
+      expect(el.currentTime).toBe(12)
+    })
+
+    // A region names positions in one particular clip. Carried across a source
+    // change it would clamp a new timeline against numbers that mean nothing in
+    // it — and a short region would pin the fresh clip on a single frame.
+    it('forgets the region when the slot is pointed at something else', () => {
+      stubBitmaps()
+      const pump = new VideoPump()
+      const s = sink()
+      pump.setA(videoEl({ currentTime: 4 }))
+      pump.setRegionA({ start: 4.0, end: 4.3 })
+
+      const next = videoEl({ currentTime: 12 })
+      pump.setA(next)
+      pump.pump(s)
+      expect(next.currentTime).toBe(12)
+    })
+
+    // A live stream reports Infinity and ignores seeks. Left unguarded this is a
+    // seek attempted every frame against a playhead that never comes back.
+    it('never wraps a source with no timeline', () => {
+      stubBitmaps()
+      const pump = new VideoPump()
+      const s = sink()
+      const el = videoEl({ currentTime: 9.9, duration: Infinity })
+      pump.setA(el)
+      pump.setRegionA({ start: 8.0, end: 9.0 })
+
+      pump.pump(s)
+      expect(el.currentTime).toBe(9.9)
+    })
+
+    it('wraps the two slots independently', () => {
+      stubBitmaps()
+      const pump = new VideoPump()
+      const s = sink()
+      const a = videoEl({ currentTime: 5 })
+      const b = videoEl({ currentTime: 5 })
+      pump.setA(a)
+      pump.setB(b)
+      pump.setRegionA({ start: 1, end: 2 })
+
+      pump.pump(s)
+      expect(a.currentTime).toBe(1)
+      expect(b.currentTime).toBe(5)
+    })
   })
 })

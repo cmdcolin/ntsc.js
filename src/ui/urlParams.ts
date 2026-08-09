@@ -9,6 +9,7 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS, LANDING_LOOK } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { TELETYPE_DEFAULT, clampCardText } from '../sources/teletype'
+import { formatCue, parseCue } from './cue'
 import {
   N_SLOTS,
   RATE_MAX,
@@ -22,6 +23,7 @@ import { PRESETS, presetControls } from './presets'
 import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
+import type { Cue } from './cue'
 import type { ModRouting } from './modSlots'
 
 // Vaporwave playback defaults, shared with the rows that now carry these —
@@ -87,6 +89,14 @@ export interface SessionParams {
   card: TeletypeCard | null
   cardb: TeletypeCard | null
   vapor: { speedA: number; speedB: number; reverb: number }
+  // Each slot's cue point, and the loop on it if there was one. Carried because
+  // the loop is half of what a link of a clip is *of* — "this two seconds of this
+  // file" is the thing being shared, and a link that restored the clip and lost
+  // the loop would land somewhere in the middle of it. Only meaningful next to a
+  // source the link also names, so it rides with ?vurl and the shelf modes and is
+  // simply ignored by a link that names neither.
+  cueA: Cue | null
+  cueB: Cue | null
   debug: boolean
   // `?surprise` — roll a random preset stack on load, the same one the button
   // rolls. Layered under ?preset/?set, so an explicit control still wins.
@@ -204,6 +214,8 @@ export function parseSessionParams(search: string): SessionParams {
       speedB: num('speedb', SPEED_DEFAULT),
       reverb: num('reverb', REVERB_DEFAULT),
     },
+    cueA: parseCue(q.get('cuea')),
+    cueB: parseCue(q.get('cueb')),
     debug: q.has('debug'),
     surprise: q.has('surprise'),
     // ?mod= wins over the preset's own motion, atomically: a link that names
@@ -232,6 +244,8 @@ export interface SessionState {
   speedA: number
   speedB: number
   reverb: number
+  cueA: Cue | null
+  cueB: Cue | null
 }
 
 // The value a link records for a control: 4 decimals is lossless, since the
@@ -307,6 +321,8 @@ export function writeSessionParams(
   put('boilb', cardB && state.teletypeB.boil, '1')
   put('speeda', state.speedA !== SPEED_DEFAULT, short(state.speedA))
   put('speedb', state.speedB !== SPEED_DEFAULT, short(state.speedB))
+  put('cuea', state.cueA !== null, formatCue(state.cueA))
+  put('cueb', state.cueB !== null, formatCue(state.cueB))
   put('reverb', state.reverb !== REVERB_DEFAULT, short(state.reverb))
   return q
 }

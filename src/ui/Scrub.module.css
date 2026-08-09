@@ -7,12 +7,103 @@
   gap: 6px;
   margin: 2px 0 4px 19px;
 }
+/* The cue buttons, sitting under the bar they mark up. Same left indent as
+   .scrubRow so the transport reads as one block rather than two rows that
+   happen to be adjacent. */
+.cueRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 4px 19px;
+}
+/* The deck's button, at the deck's size — this is the same kind of thing as the
+   transport stops in Deck.module.css, and two button shapes for two transports
+   would be a difference that means nothing. Not `composes`, because that would
+   couple this sheet to the deck's file for four declarations. */
+.cueBtn {
+  padding: 2px 5px;
+  min-width: 22px;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  line-height: 1.2;
+  color: var(--fg2);
+  background: var(--ctl-face);
+  border: 1px solid var(--border);
+  border-radius: var(--ctl-radius);
+  cursor: pointer;
+}
+.cueBtn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--border-hover);
+}
+.cueBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+/* Lit while a loop is running, in the same violet the span on the bar is drawn
+   in, so the button and the marking are visibly the same fact. */
+.cueBtnOn {
+  color: var(--cue-fg);
+  background: var(--cue);
+  border-color: var(--cue);
+}
+.cueBtnOn:hover:not(:disabled) {
+  color: var(--cue-fg);
+}
+/* Wider than the rest: it is the one that gets hit repeatedly and in a hurry. */
+.cueStab {
+  min-width: 30px;
+}
+.cueLen {
+  color: var(--cue);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+.cueHint {
+  color: var(--fg4);
+  font-size: var(--fs-xs);
+}
 .scrubTime {
   flex-shrink: 0;
   color: var(--fg3);
   font-family: var(--mono);
   font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
+}
+/* The loop marks sit over the track, so the track needs to be something they can
+   be positioned against. It takes the slider's flex sizing so the row lays out
+   exactly as it did before there was anything drawn on it. */
+.scrubTrack {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+/* Both marks: under the thumb, and transparent to the pointer so the bar stays
+   draggable across a marked loop. */
+.cueMark,
+.cueSpan {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+/* A cue with no loop yet: one tick where the playhead was when it was marked. */
+.cueMark {
+  width: 2px;
+  margin-left: -1px;
+  background: var(--cue);
+}
+/* The loop, once closed. A wash rather than a fill — the accent progress fill
+   underneath has to stay readable through it, since the two together are what
+   say "the playhead is here, inside this". The edges are drawn hard because the
+   in and out points are the things being placed. */
+.cueSpan {
+  background: color-mix(in srgb, var(--cue) 22%, transparent);
+  border-left: 2px solid var(--cue);
+  border-right: 2px solid var(--cue);
+  box-sizing: border-box;
 }
 /* The track and thumb rules are `ui.range`'s — this is a control row's slider
    with a different fill, not a different kind of control. --p (progress) is set

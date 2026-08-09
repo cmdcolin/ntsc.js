@@ -5,6 +5,7 @@ import { writeProfileParams, writeSessionParams } from './urlParams'
 import type { Controls } from '../controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
+import type { Cue } from './cue'
 import type { ModRouting } from './modSlots'
 
 interface UrlStateArgs {
@@ -28,6 +29,10 @@ interface UrlStateArgs {
   speedA: number
   speedB: number
   reverb: number
+  // Each slot's cue point, so a shared link of a clip carries the loop that was
+  // marked on it as well as the clip itself.
+  cueA: Cue | null
+  cueB: Cue | null
 }
 
 // Where a query string points. Split out from the writers because a saved look
@@ -54,6 +59,8 @@ export function useUrlState({
   speedA,
   speedB,
   reverb,
+  cueA,
+  cueB,
 }: UrlStateArgs) {
   const [copied, setCopied] = useState(false)
 
@@ -73,6 +80,8 @@ export function useUrlState({
       speedA,
       speedB,
       reverb,
+      cueA,
+      cueB,
     }),
     [
       controls,
@@ -86,6 +95,8 @@ export function useUrlState({
       speedA,
       speedB,
       reverb,
+      cueA,
+      cueB,
     ],
   )
 

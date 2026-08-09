@@ -52,6 +52,11 @@ export interface VideoSlot {
   card: () => TeletypeCard
   setCard: (card: TeletypeCard) => void
   onError: (message: string) => void
+  // Forget this slot's cue point and whatever loop hung off it. A cue is a pair
+  // of positions on one particular clip's timeline, so it cannot outlive the clip
+  // — carried over it would clamp a new source against numbers that mean nothing
+  // in it. Called by stopSlot, which every load path already opens with.
+  clearCue: () => void
   // Audio graph: drop a retired element, adopt a fresh one.
   release: (el: HTMLMediaElement) => void
   adopt: () => void
@@ -86,6 +91,7 @@ export function stopSlot(slot: VideoSlot): void {
   }
   slot.setLive('none')
   slot.setYtUrl('')
+  slot.clearCue()
   slot.attach(null)
 }
 

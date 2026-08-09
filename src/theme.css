@@ -81,6 +81,18 @@
      an amber: a routed knob has not been moved, it is being moved. */
   --mod: #7cbf9a;
   --midi: #9dbcea;
+  /* A marked position on a source's own timeline: the cue point on a clip, and
+     the loop hung off it. A fourth kind of statement from the three above and
+     from the ambers — not a control's value, not its wiring, but a place in
+     something that is playing. Violet because it is drawn directly on top of the
+     seek bar's --accent progress fill and has to stay legible there, which rules
+     out a second green; an amber would have read as --edit's "moved off stock".
+     Here rather than in Scrub.module.css because the bar's marks and the cue
+     row's lit button are the same fact shown twice, and a hue written twice is a
+     hue that drifts. */
+  --cue: #b98ae0;
+  /* and the ink that stays readable on it, for the lit cue button */
+  --cue-fg: #14101a;
   /* The panel's red — a failed write, and the one button whose job is to take
      something off screen. Softer than the two reds on the picture (#f66 on the
      overlay, #ff6060 on the recording button): those have to carry across a

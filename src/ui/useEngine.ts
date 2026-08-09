@@ -21,6 +21,7 @@ import { smpteBars, sweep } from '../sources/pattern'
 import { TELETYPE_DEFAULT } from '../sources/teletype'
 import { ytId } from '../sources/youtube'
 import { backingStoreSize } from './canvasSize'
+import { cueLooping, cueRegion, dropLoop, insideCue, tapCue } from './cue'
 import { clearStash, readStash, stashClip, stashFile } from './fileStash'
 import { canPickHandle, pickHandle } from './fsAccess'
 import { randomPresetMix, rollControls } from './presets'
@@ -41,6 +42,7 @@ import type { FrozenKind } from '../gpu/renderloop'
 import type { CommonsId, CommonsPick } from '../sources/commons'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
+import type { Cue } from './cue'
 import type { Fatal } from './FatalScreen'
 import type { StashSlot, Stashed } from './fileStash'
 import type { PickedFileHandle } from './fsAccess'
@@ -366,6 +368,20 @@ export function useEngine() {
   // lands and for anything without a finite timeline, which is what keeps the
   // bar off a webcam or a screen share.
   const [transport, setTransport] = useState({ a: NO_CLIP, b: NO_CLIP })
+  // Each slot's cue point, and the loop hanging off it if there is one. Both a
+  // ref and state, for the reason vaporRef below is: the rebuild-after-loss path
+  // reads from a mount-time closure where state is the first render's snapshot,
+  // and the tap handler needs the current value to decide which of the three
+  // presses this is. The ref is the authority; the state exists to render from.
+  //
+  // Deliberately not controls. A cue is two timestamps into one particular clip,
+  // so a preset that recalled them would be pointing at nothing, and mutate would
+  // cheerfully scramble them mid-take (see ui/cue.ts).
+  const cueRef = useRef<{ a: Cue | null; b: Cue | null }>({ a: null, b: null })
+  const [cue, setCueState] = useState<{ a: Cue | null; b: Cue | null }>({
+    a: null,
+    b: null,
+  })
   // Each new element is stamped with the current playback config, but that
   // happens inside async fetch callbacks and the mount-time restore, where the
   // state it would close over is stale; this mirror always holds the latest.
@@ -514,23 +530,87 @@ export function useEngine() {
     return () => clearInterval(id)
   }, [clipA, clipB])
 
-  // Seeking moves the readout at once, so the thumb doesn't snap back and wait
-  // out the poll interval. Held on the deck (`aPause`/`bPause`) the picture
-  // won't follow until the deck rolls again — the pump is frozen — which is what
-  // holding a deck means.
-  const seekA = (time: number) => {
-    const v = videoRef.current
-    if (v !== null) {
-      v.currentTime = time
-      setTransport(p => ({ ...p, a: { ...p.a, time } }))
-    }
+  // Move a playhead, and move its readout with it so the thumb doesn't snap back
+  // and wait out the poll interval. Held on the deck (`aPause`/`bPause`) the
+  // picture won't follow until the deck rolls again — the pump is frozen — which
+  // is what holding a deck means.
+  const jump = (key: StashSlot, time: number) => {
+    const v = (key === 'a' ? videoRef : videoBRef).current
+    if (v === null) return
+    v.currentTime = time
+    setTransport(p => ({ ...p, [key]: { ...p[key], time } }))
   }
-  const seekB = (time: number) => {
-    const v = videoBRef.current
-    if (v !== null) {
-      v.currentTime = time
-      setTransport(p => ({ ...p, b: { ...p.b, time } }))
-    }
+
+  // Write a cue through to both the render loop and the panel. One place, because
+  // a cue that reached the ref but not the engine is a loop the buttons claim is
+  // running and the picture ignores.
+  const writeCue = (key: StashSlot, next: Cue | null) => {
+    cueRef.current[key] = next
+    setCueState(p => ({ ...p, [key]: next }))
+    const region = cueRegion(next)
+    if (key === 'a') engineRef.current?.setVideoRegion(region)
+    else engineRef.current?.setVideoRegionB(region)
+  }
+
+  // Dragging the seek bar out of a running loop lets go of the loop but keeps the
+  // cue. The alternative is a bar that hauls you back inside the region on every
+  // drag, which is a transport you cannot use — and the in-point is still where
+  // you want to come back to, so throwing that away as well would be worse.
+  const seekOut = (key: StashSlot, time: number) => {
+    jump(key, time)
+    const cur = cueRef.current[key]
+    if (cueLooping(cur) && !insideCue(cur, time)) writeCue(key, dropLoop(cur))
+  }
+  const seekA = (time: number) => seekOut('a', time)
+  const seekB = (time: number) => seekOut('b', time)
+
+  // One press of a slot's cue button. The playhead comes from the element rather
+  // than from the polled readout: the poll is a tenth of a second stale, and this
+  // gesture is being beaten in time to something.
+  const tapCueOn = (key: StashSlot) => {
+    const v = (key === 'a' ? videoRef : videoBRef).current
+    if (v === null || !Number.isFinite(v.duration)) return
+    writeCue(key, tapCue(cueRef.current[key], v.currentTime, v.duration))
+  }
+
+  // Jump back to the cue and keep playing — the whole gesture on its own, with no
+  // loop involved. Stabbed in time it is the stutter a DJ gets off a cue button;
+  // it is also what makes an in-point worth marking before you know where the
+  // out-point goes.
+  //
+  // Not through `seekA`, deliberately: that one reads a landing outside the region
+  // as leaving the loop, and the cue is the one position that must never be taken
+  // to mean that. A retrigger with no cue marked is a no-op rather than a jump to
+  // zero, which would be a button that rewound the clip for no stated reason.
+  const retriggerOn = (key: StashSlot) => {
+    const cur = cueRef.current[key]
+    if (cur !== null) jump(key, cur.in)
+  }
+
+  const clearCueOn = (key: StashSlot) => writeCue(key, null)
+
+  // A cue a link asked for, waiting for the clip it belongs to.
+  //
+  // It cannot simply be written at load time. Every path that puts a source on a
+  // slot opens with stopSlot, which clears the cue on purpose — a cue is two
+  // positions in one particular clip and must not outlive it — and most of those
+  // paths are async (a fetched shelf clip, a YouTube resolve, last session's
+  // stashed file). A cue set before them would be wiped by the very load it was
+  // meant for. So it waits here and is claimed by `attach`, which is the one
+  // funnel every video source ends up going through, and which runs after
+  // stopSlot has had its say.
+  const pendingCue = useRef<{ a: Cue | null; b: Cue | null }>({
+    a: null,
+    b: null,
+  })
+  // Claimed once, so that the *next* source change does not resurrect a cue the
+  // link asked for two clips ago. Only a real element claims it: stopSlot's own
+  // `attach(null)` is the clearing half and must not consume anything.
+  const takePendingCue = (key: StashSlot) => {
+    const want = pendingCue.current[key]
+    if (want === null) return
+    pendingCue.current[key] = null
+    writeCue(key, want)
   }
 
   // The two slots, as data. Everything below that touches a <video> goes
@@ -549,6 +629,7 @@ export function useEngine() {
     attach: el => {
       lastSrc.current.a = el === null ? { kind: 'none' } : { kind: 'video' }
       engineRef.current?.setVideoSource(el)
+      if (el !== null) takePendingCue('a')
     },
     // Only A keeps its own aspect — B is staged to the raster with a 4:3 crop,
     // so its shader needs no aspect at all (see gpu/sources.ts).
@@ -563,6 +644,7 @@ export function useEngine() {
     setLive: setVideoA,
     setYtUrl: setYtUrlA,
     setName: setSourceName,
+    clearCue: () => clearCueOn('a'),
     card: () => cardRef.current.a,
     setCard: card => {
       cardRef.current.a = card
@@ -580,6 +662,7 @@ export function useEngine() {
     attach: el => {
       lastSrc.current.b = el === null ? { kind: 'none' } : { kind: 'video' }
       engineRef.current?.setVideoSourceB(el)
+      if (el !== null) takePendingCue('b')
     },
     setImage: source => {
       lastSrc.current.b = { kind: 'still', source }
@@ -592,6 +675,7 @@ export function useEngine() {
     setLive: setVideoB,
     setYtUrl: setYtUrlB,
     setName: setSourceBName,
+    clearCue: () => clearCueOn('b'),
     card: () => cardRef.current.b,
     setCard: card => {
       cardRef.current.b = card
@@ -1213,6 +1297,10 @@ export function useEngine() {
       eng.applyControls(rollControls(randomPresetMix(false), DEFAULT_CONTROLS))
     }
     eng.applyControls(params.controls)
+    // Armed before any source is touched, and claimed by whichever load the link
+    // goes on to start (see takePendingCue). A link that names no clip leaves
+    // these sitting unclaimed, which is correct: there is nothing to cue.
+    pendingCue.current = { a: params.cueA, b: params.cueB }
     // Before either source is shown: the teletype card is typed out of the
     // slot's own text, so the link's text has to be on the slot by then.
     if (params.card !== null) slotA.setCard(params.card)
@@ -1538,6 +1626,12 @@ export function useEngine() {
             // writes through engineRef too.
             restoreSlot(slotA, lastSrc.current.a)
             restoreSlot(slotB, lastSrc.current.b)
+            // And the loops they were running. The elements played straight
+            // through the device loss — they are the browser's, not the GPU's —
+            // so the cue is still valid and only the fresh pump needs telling.
+            // Read off the ref, since this closure was made at mount.
+            created.setVideoRegion(cueRegion(cueRef.current.a))
+            created.setVideoRegionB(cueRegion(cueRef.current.b))
             // Forced, like the loss that caused it: if the replacement wedges
             // too, the next session's trace has to show that this one already
             // came back from a loss rather than starting clean.
@@ -1735,6 +1829,17 @@ export function useEngine() {
     durationB: transport.b.duration,
     seekA,
     seekB,
+    // The cue point per slot, and the three things a hand does to one: tap it
+    // (mark, close the loop, re-arm), stab back to it, drop it. Marked on the
+    // clip's own timeline, so it goes away with the clip rather than with a look.
+    cueA: cue.a,
+    cueB: cue.b,
+    tapCueA: () => tapCueOn('a'),
+    tapCueB: () => tapCueOn('b'),
+    retriggerA: () => retriggerOn('a'),
+    retriggerB: () => retriggerOn('b'),
+    clearCueA: () => clearCueOn('a'),
+    clearCueB: () => clearCueOn('b'),
     speedA,
     speedB,
     reverb,

@@ -6,7 +6,7 @@ import {
   sourceOptions,
 } from '../sources/modes'
 import { FileName, ReopenFile, WikiCaption } from './FileName'
-import { Scrub } from './Scrub'
+import { CueRow, Scrub } from './Scrub'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
@@ -16,6 +16,7 @@ import { SPEED_DEFAULT } from './urlParams'
 
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
+import type { Cue } from './cue'
 import type { ReactNode, RefObject } from 'react'
 
 // The YouTube option is backed by the dev-only yt-dlp bridge, so hide it in
@@ -26,6 +27,15 @@ const A_MODES = import.meta.env.DEV
 const B_MODES = import.meta.env.DEV
   ? SOURCE_B_MODES
   : SOURCE_B_MODES.filter(m => m !== 'youtube')
+
+// What the cue tooltips call the keys useShortcuts binds. Written beside the rows
+// that mention them rather than imported from the shortcut table: that table maps
+// keys to handlers and has no idea which slot a handler ended up on, so the two
+// agree by convention either way — and this is the end that has to be read.
+const CUE_KEYS = {
+  a: { tap: 'i', retrigger: 'o' },
+  b: { tap: 'shift+I', retrigger: 'shift+O' },
+} as const
 
 const A_OPTIONS = sourceOptions(A_MODES)
 const B_OPTIONS = sourceOptions(B_MODES)
@@ -113,6 +123,15 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
   time: number
   duration: number
   onSeek: (time: number) => void
+  // This slot's cue point, and the three things a hand does to one. Passed down
+  // rather than read from a context because it belongs to the *source* on this
+  // slot, like the playhead above it — not to the look, which is what everything
+  // reached through ControlsContext is.
+  cue: Cue | null
+  onTapCue: () => void
+  onRetrigger: () => void
+  onClearCue: () => void
+  cueKeys: { tap: string; retrigger: string }
   // Playback rate, and the pitch that falls with it — a property of this deck
   // and nothing else, which is why it sits under this slot's own transport
   // rather than in a "Vaporwave" section that named the sound it makes instead
@@ -178,7 +197,18 @@ function SourceSlot<T extends SourceMode | SourceBMode>(props: {
           <Scrub
             time={props.time}
             duration={props.duration}
+            cue={props.cue}
             onSeek={props.onSeek}
+          />
+          {/* Behind the same duration gate as the seek bar, and for the same
+              reason: a cue is a position on a timeline, and a webcam or a share
+              has not got one. */}
+          <CueRow
+            cue={props.cue}
+            onTap={props.onTapCue}
+            onRetrigger={props.onRetrigger}
+            onClear={props.onClearCue}
+            keys={props.cueKeys}
           />
           <Slider
             label="speed"
@@ -236,6 +266,16 @@ export function InputSection(props: {
   durationB: number
   onSeekA: (time: number) => void
   onSeekB: (time: number) => void
+  // Each slot's cue point and the actions on it. Per slot rather than one pair,
+  // because the two decks are cued independently — that is most of the point.
+  cueA: Cue | null
+  cueB: Cue | null
+  onTapCueA: () => void
+  onTapCueB: () => void
+  onRetriggerA: () => void
+  onRetriggerB: () => void
+  onClearCueA: () => void
+  onClearCueB: () => void
   // Playback rate per slot, under that slot's own transport.
   speedA: number
   speedB: number
@@ -279,6 +319,11 @@ export function InputSection(props: {
           time={props.timeA}
           duration={props.durationA}
           onSeek={props.onSeekA}
+          cue={props.cueA}
+          onTapCue={props.onTapCueA}
+          onRetrigger={props.onRetriggerA}
+          onClearCue={props.onClearCueA}
+          cueKeys={CUE_KEYS.a}
           speed={props.speedA}
           onSpeed={props.onSpeedA}
           wiki={props.wikiA}
@@ -311,6 +356,11 @@ export function InputSection(props: {
           time={props.timeB}
           duration={props.durationB}
           onSeek={props.onSeekB}
+          cue={props.cueB}
+          onTapCue={props.onTapCueB}
+          onRetrigger={props.onRetriggerB}
+          onClearCue={props.onClearCueB}
+          cueKeys={CUE_KEYS.b}
           speed={props.speedB}
           onSpeed={props.onSpeedB}
           wiki={props.wikiB}

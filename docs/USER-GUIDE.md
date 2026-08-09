@@ -180,6 +180,33 @@ one colour at a time. **♪** is audio in — a mic, a track, or the clip alread
 screen playing its own sound — which does nothing until you turn up a knob in
 the **Sound** box on the map below.
 
+Anything with a timeline — a file, a clip off the shelf, a Commons roll — gets a
+seek bar under its picker and a **cue** button under that. The cue is one button
+doing three things in a cycle: press it and it marks the playhead, press it
+again and the stretch between the two marks becomes a loop that starts repeating
+at once, press it a third time and the loop drops and a new cue lands where you
+are. The span shows up drawn on the seek bar, so a loop is something you can see
+the length and the position of rather than two numbers to read. **⇤** beside it
+jumps back to the cue without waiting for the loop to come round — on its own,
+with no loop marked at all, that is a stutter you play by hand, and hammering it
+in time is the point of it. `i` and `o` are the same two gestures on the
+keyboard, and `shift` puts them on source B, which is where they are worth
+having: both decks loop independently, so one can hold a half-second stutter
+while the other runs. A loop is two positions in one particular clip, so it goes
+away when the source does — it is not part of a look, and no preset will bring
+it back — but it does ride along in a shared link, so "this two seconds of this
+file" is a thing you can send someone. Dragging the seek bar out of a running
+loop lets the loop go and keeps the cue.
+
+One thing worth knowing if a loop ever judders on the wrap rather than running
+clean: the cost of jumping back is set by how far the decoder has to walk to get
+there, which is a property of how the file was encoded rather than of the loop.
+Most footage is fine anywhere in it, and the bundled clips are. A file exported
+with almost no keyframes in it is not — a loop near the start still runs clean,
+one marked deep into a long file can stall about a fifth of a second on every
+lap. Re-exporting that file is the fix. `scripts/loopseek.mjs` is the
+measurement, if you want the numbers for your own footage.
+
 Running locally adds a **YouTube…** source (`yt-dlp` on the dev server); the
 hosted build has no server to do that with.
 
@@ -380,6 +407,8 @@ resolution.
 | `c` (hold)              | preview the clean signal                            |
 | `r` / `s`               | record a clip / save a still                        |
 | `f`                     | fullscreen                                          |
+| `i`                     | cue a clip · press again to loop from there         |
+| `o`                     | stab back to the cue · `+shift` for source B        |
 | `1`–`9` / `shift+1`–`9` | recall / overwrite one of your first nine saves     |
 | `ctrl/⌘+z`              | step back a look · `+shift` steps forward again     |
 | `esc`                   | close a dialog, cancel a MIDI arm, clear the filter |

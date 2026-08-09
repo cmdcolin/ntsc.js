@@ -46,10 +46,22 @@ export interface VideoFrameSink {
   pushExtB: (el: HTMLVideoElement) => void
 }
 
+// A stretch of a clip's own timeline to keep the playhead inside. Set by the
+// panel's cue buttons (ui/cue.ts), applied here because this is the only place
+// that touches an element once a frame — the 10 Hz playhead poll the seek bar
+// reads is a tenth of a second coarse, which on a short loop is a quarter of it
+// played past the out-point before anything notices.
+interface Region {
+  start: number
+  end: number
+}
+
 interface Slot {
   el: HTMLVideoElement | null
   inFlight: boolean
   ready: PumpedFrame | null
+  // Where this slot's loop runs, or null for "play straight through".
+  region: Region | null
   // currentTime of the last frame requested. Video plays at its own rate
   // (24/30 fps) under a 60 fps loop, so without this check most requests
   // re-decode a frame the texture already holds. -1 forces the first one.
@@ -65,6 +77,7 @@ const emptySlot = (): Slot => ({
   el: null,
   inFlight: false,
   ready: null,
+  region: null,
   lastTime: -1,
   gen: 0,
 })
@@ -103,6 +116,17 @@ export class VideoPump {
     this.retarget(this.b, el)
   }
 
+  // Point a slot's loop at a stretch of its clip, or at nothing. Null is the
+  // ordinary state and means the element plays straight through — including past
+  // its own end, where `loop` on the element takes over as it always did.
+  setRegionA(region: Region | null): void {
+    this.a.region = region
+  }
+
+  setRegionB(region: Region | null): void {
+    this.b.region = region
+  }
+
   // Everything about the slot goes back to untouched, `inFlight` included. A
   // decode from the outgoing source is still running and cannot be cancelled,
   // but it belongs to a generation this slot has retired, so it is not allowed
@@ -117,6 +141,12 @@ export class VideoPump {
     slot.gen += 1
     slot.ready?.bmp.close()
     slot.ready = null
+    // A region belongs to the clip it was marked on, not to the slot: carried
+    // over to the next source it would clamp a new timeline against positions
+    // that mean nothing in it, and a short one would pin the fresh clip on a
+    // single frame. The panel clears its own cue on a source change too
+    // (videoSlot.ts's stopSlot); this is the half that cannot be forgotten.
+    slot.region = null
   }
 
   // Once per rendered frame: hand over anything that finished decoding, then
@@ -127,6 +157,13 @@ export class VideoPump {
   // — a decoded frame already waiting stays queued for the moment the button
   // comes up.
   pump(sink: VideoFrameSink, freezeA = false, freezeB = false): void {
+    // Before anything is delivered, and outside the freeze gates below. A held
+    // deck stops the *pictures*, not the tape: its element goes on playing, so a
+    // loop that stopped wrapping while the button was down would come back off it
+    // somewhere else entirely — and the region is a property of playback, which
+    // is exactly what freezing a deck does not touch.
+    this.wrap(this.a)
+    this.wrap(this.b)
     if (this.direct) {
       if (!freezeA) this.deliverDirect(this.a, el => sink.pushExtA(el))
       if (!freezeB) this.deliverDirect(this.b, el => sink.pushExtB(el))
@@ -155,6 +192,32 @@ export class VideoPump {
       slot.lastTime = el.currentTime
       push(el)
     }
+  }
+
+  // Bring a slot's playhead back to the top of its loop once it has run past the
+  // end. Nothing else is needed to make the next frame arrive: `due` compares
+  // currentTime against lastTime, and a seek moves currentTime, so the wrapped
+  // position reads as a fresh frame on its own.
+  //
+  // The seek is issued on the frame the playhead crossed the out-point, so the
+  // picture overshoots by one frame at most — measured at 21ms against a 42ms
+  // delivery interval on Firefox Nightly (scripts/loopseek.mjs), which is inside
+  // the cadence the clip already had. What the same harness found the cost
+  // actually tracks is how far back the previous keyframe is: about 17ms plus a
+  // third of a millisecond per frame the decoder has to walk forward, so a
+  // normally-encoded clip wraps invisibly and one with no keyframes in it does
+  // not.
+  private wrap(slot: Slot): void {
+    const el = slot.el
+    const r = slot.region
+    if (el === null || r === null) return
+    // Nothing without a timeline gets looped, whatever it was handed. A webcam, a
+    // grabber or a screen share reports a duration of Infinity and ignores a seek
+    // anyway, so a region over one would be a wrap attempted every single frame
+    // against a playhead that never comes back — and the guard belongs here
+    // rather than at each caller, because this is the line that would do it.
+    if (!Number.isFinite(el.duration)) return
+    if (el.currentTime >= r.end) el.currentTime = r.start
   }
 
   private take(slot: Slot): PumpedFrame | null {

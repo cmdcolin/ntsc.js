@@ -128,6 +128,9 @@ export function candidateRecord(recipe: Recipe): CandidateRecord {
     sourceBMode: 'none',
     ytUrlA: '',
     ytUrlB: '',
+    // A candidate is a look on bars: no clip, so nothing to cue on one.
+    cueA: null,
+    cueB: null,
     teletypeA: TELETYPE_DEFAULT,
     teletypeB: TELETYPE_DEFAULT,
     speedA: SPEED_DEFAULT,

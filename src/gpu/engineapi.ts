@@ -122,11 +122,19 @@ export interface EngineApi {
     aspect?: number,
   ) => void
   setVideoSource: (el: HTMLVideoElement | null) => void
+  // The stretch of this slot's clip to keep the playhead inside, or null to play
+  // straight through. Positions on the *source's* own timeline, which is why this
+  // is a source setter and not a control: a pair of timestamps means nothing
+  // against a different clip, so it must never be recalled by a preset or moved
+  // by mutate. Held here rather than in the panel because the wrap has to happen
+  // once a frame (see VideoPump.wrap) and nothing in React runs that often.
+  setVideoRegion: (region: { start: number; end: number } | null) => void
   // A GPU-generated noise field instead of a texture (1 TV static, 2 VHS
   // static); 0 restores the texture path.
   setNoiseSource: (kind: number) => void
   setImageSourceB: (source: OffscreenCanvas | ImageBitmap) => void
   setVideoSourceB: (el: HTMLVideoElement | null) => void
+  setVideoRegionB: (region: { start: number; end: number } | null) => void
   setNoiseSourceB: (kind: number) => void
   setSourceBEnabled: (on: boolean) => void
   // Whether B is summing into the picture. The panel's mode enum is a different

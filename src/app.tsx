@@ -383,6 +383,8 @@ export function App() {
     speedA: eng.speedA,
     speedB: eng.speedB,
     reverb: eng.reverb,
+    cueA: eng.cueA,
+    cueB: eng.cueB,
   })
 
   // The saved-profile library, which is the query string above kept under a name.
@@ -489,6 +491,8 @@ export function App() {
     onEndCompare: endCompare,
     onToggleRecord: capture.toggleRecord,
     onGrabStill: capture.grabStill,
+    onTapCue: slot => (slot === 'a' ? eng.tapCueA() : eng.tapCueB()),
+    onRetrigger: slot => (slot === 'a' ? eng.retriggerA() : eng.retriggerB()),
     onSaveSlot: saveSlot,
     onRecallSlot: recallSlot,
     // ctrl+S keeps the board under the name the menu would have offered. The
@@ -1124,6 +1128,14 @@ export function App() {
           durationB={eng.durationB}
           onSeekA={eng.seekA}
           onSeekB={eng.seekB}
+          cueA={eng.cueA}
+          cueB={eng.cueB}
+          onTapCueA={eng.tapCueA}
+          onTapCueB={eng.tapCueB}
+          onRetriggerA={eng.retriggerA}
+          onRetriggerB={eng.retriggerB}
+          onClearCueA={eng.clearCueA}
+          onClearCueB={eng.clearCueB}
           speedA={eng.speedA}
           speedB={eng.speedB}
           onSpeedA={eng.changeSpeedA}

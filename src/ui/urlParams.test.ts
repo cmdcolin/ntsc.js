@@ -166,6 +166,8 @@ const state = (over: Partial<SessionState> = {}): SessionState => ({
   speedA: SPEED_DEFAULT,
   speedB: SPEED_DEFAULT,
   reverb: REVERB_DEFAULT,
+  cueA: null,
+  cueB: null,
   ...over,
 })
 
@@ -256,6 +258,22 @@ describe('session round trip', () => {
   it('returns the playback settings', () => {
     const back = roundTrip(state({ speedA: 0.66, speedB: 1.5, reverb: 0.8 }))
     expect(back.vapor).toEqual({ speedA: 0.66, speedB: 1.5, reverb: 0.8 })
+  })
+
+  // A cue rides with the clip it was marked on, so a shared link of "this two
+  // seconds of this file" opens on the two seconds and not just the file.
+  it('carries a marked loop per slot', () => {
+    const back = roundTrip(
+      state({ cueA: { in: 4.25, out: 5.5 }, cueB: { in: 1, out: null } }),
+    )
+    expect(back.cueA).toEqual({ in: 4.25, out: 5.5 })
+    expect(back.cueB).toEqual({ in: 1, out: null })
+  })
+
+  it('writes no cue params when nothing is cued', () => {
+    const q = writeSessionParams(new URLSearchParams(), state()).toString()
+    expect(q).not.toContain('cuea')
+    expect(q).not.toContain('cueb')
   })
 
   it('leaves the params it does not manage alone', () => {
