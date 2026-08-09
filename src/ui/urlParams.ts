@@ -9,6 +9,7 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS, LANDING_LOOK } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { TELETYPE_DEFAULT, clampCardText } from '../sources/teletype'
+import { SLIDER_BY_KEY } from './controls'
 import { formatCue, parseCue } from './cue'
 import {
   N_SLOTS,
@@ -113,13 +114,32 @@ export interface SessionParams {
 // `key:value` pairs against the control schema. Anything unrecognised or
 // non-finite is dropped rather than poisoning the look — a link outliving a
 // renamed control should lose that one knob, not fail to load.
+//
+// And clamped to the control's own range, which finiteness alone does not buy.
+// Every link this app writes is already in range — `writeSessionParams` reads
+// live controls, and those come from a slider, a preset or `snapToStep` — so
+// this is only ever about a hand-edited one, and one of those can stop the app
+// dead. Measured: `?set=frameLock:-1` gives the render loop a divisor of 0, and
+// `lockPhase % 0` is NaN, so the equality that gates a rendered frame is never
+// true and the picture freezes on frame 0 for good. That is indistinguishable
+// on screen from the lost rendering step in docs/adr/0004 — the one fault whose
+// whole diagnosis is "this is not the signal path" — so a link must not be able
+// to counterfeit it.
+//
+// Clamped rather than snapped to the step grid: clamping is the safety
+// property, while snapping would quietly move values in existing links that
+// were doing no harm.
 function parseSet(raw: string): Partial<Controls> {
   const patch: Partial<Controls> = {}
   for (const pair of raw.split(',')) {
     const [k, v] = pair.split(':')
     const n = Number(v)
     const key = CONTROL_KEYS.find(c => c === k)
-    if (key !== undefined && Number.isFinite(n)) patch[key] = n
+    if (key !== undefined && Number.isFinite(n)) {
+      const def = SLIDER_BY_KEY.get(key)
+      patch[key] =
+        def === undefined ? n : Math.min(def.max, Math.max(def.min, n))
+    }
   }
   return patch
 }
@@ -361,8 +381,26 @@ export function writeProfileParams(
 }
 
 // Last path segment of a URL, for labeling ?iurl/?vurl sources by name.
+//
+// Never throws, which is the whole of the try. `new URL` rejects a handful of
+// strings even with a base — `?vurl=http://` is one — and this is called
+// straight from `restoreSession` for ?vurl, where a throw would abandon the
+// rest of the restore: the vaporwave settings, the YouTube params, and the
+// stash reopen that puts a slot back on last session's clip. A caption is not
+// worth any of those, so an unparseable url is simply its own label. It is
+// also, at that point, a url the <video> is about to refuse for the same
+// reason, and *that* failure has a banner of its own.
 export const urlName = (url: string): string => {
-  const path = new URL(url, location.href).pathname
-  const name = decodeURIComponent(path.slice(path.lastIndexOf('/') + 1))
-  return name === '' ? url : name
+  try {
+    // The base is only ever needed to resolve a *relative* url, and only a
+    // document has one — read off globalThis rather than as a bare `location`
+    // so this stays a function about a string, testable without a DOM. Reading
+    // the bare global instead made every call throw under the test runner, and
+    // the catch above swallowed it: the happy path could not be asserted at all.
+    const path = new URL(url, globalThis.location?.href).pathname
+    const name = decodeURIComponent(path.slice(path.lastIndexOf('/') + 1))
+    return name === '' ? url : name
+  } catch {
+    return url
+  }
 }

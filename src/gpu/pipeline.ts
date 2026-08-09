@@ -1932,10 +1932,21 @@ export class Engine implements EngineApi {
     // no work at all — modulation therefore steps once per rendered frame and
     // slows with the lock, like everything else the sim clocks.
     const lockSel = Math.round(this.controls.frameLock)
-    const lockDiv =
+    // Floored at 1, and this is the line that would spin — the same guard, for
+    // the same reason, that `wrap` in gpu/videopump.ts puts on an empty region.
+    // A divisor of 0 makes `lockPhase % lockDiv` NaN, so the `!== 0` below is
+    // true on every refresh and nothing is ever rendered: a picture frozen on
+    // frame 0, which is the signature docs/adr/0004 spends its length teaching
+    // people to read as a lost rendering step rather than as a bug here.
+    // `?set=` cannot reach it any more (ui/urlParams.ts clamps), but
+    // `setControl` is on the public engine API that the harnesses drive, and a
+    // control that stops the app is worth being unable to express at all.
+    const lockDiv = Math.max(
+      1,
       lockSel === LOCK_AUTO
         ? this.autoLock.tick(performance.now())
-        : 1 + lockSel
+        : 1 + lockSel,
+    )
     this.lockDivLive = lockDiv
     this.lockPhase = (this.lockPhase + 1) % lockDiv
     if (this.lockPhase !== 0) return false

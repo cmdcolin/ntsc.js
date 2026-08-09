@@ -3,17 +3,19 @@ import { describe, expect, it } from 'vitest'
 import { CONTROL_KEYS, DEFAULT_CONTROLS, LANDING_LOOK } from '../controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { TELETYPE_DEFAULT, TELETYPE_MAX } from '../sources/teletype'
-import { ALL_SLIDERS } from './controls'
+import { ALL_SLIDERS, sliderFor } from './controls'
 import { mutate } from './mutate'
 import { PRESETS, presetControls } from './presets'
 import {
   REVERB_DEFAULT,
   SPEED_DEFAULT,
   parseSessionParams,
+  urlName,
   writeProfileParams,
   writeSessionParams,
 } from './urlParams'
 
+import type { ControlKey } from '../controls'
 import type { SessionState } from './urlParams'
 
 const vhs = PRESETS.find(p => p.name === 'vhs')
@@ -49,6 +51,42 @@ describe('session params', () => {
     expect(p.controls.colorUnderMix).toBe(vhs?.patch.colorUnderMix)
     // and a preset resets what it does not name, so its absent keys are default
     expect(p.controls.crtBloom).toBe(DEFAULT_CONTROLS.crtBloom)
+  })
+
+  it('clamps a hand-edited ?set to the control it names', () => {
+    // Not tidiness: `frameLock:-1` reaches the render loop as a divisor of 0,
+    // `lockPhase % 0` is NaN, and the picture freezes on frame 0 — which is the
+    // signature docs/adr/0004 teaches people to read as a lost rendering step
+    // rather than as anything in the app. Verified in the browser before this
+    // was written: frameNo 0 -> 0 across five seconds, against 39 -> 89 at
+    // stock. A link must not be able to counterfeit that.
+    const lock = sliderFor('frameLock')
+    expect(parseSessionParams('?set=frameLock:-1').controls.frameLock).toBe(
+      lock.min,
+    )
+    expect(parseSessionParams('?set=frameLock:99').controls.frameLock).toBe(
+      lock.max,
+    )
+    // Every control, so a range added or retuned cannot leave one unguarded.
+    const wild = CONTROL_KEYS.map(k => `${k}:-9999,${k}:9999`).join(',')
+    for (const [key, value] of Object.entries(
+      parseSessionParams(`?set=${wild}`).controls,
+    )) {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries widens to string; the keys are the ones just written
+      const def = sliderFor(key as ControlKey)
+      expect(value).toBeGreaterThanOrEqual(def.min)
+      expect(value).toBeLessThanOrEqual(def.max)
+    }
+  })
+
+  it('labels a url it cannot parse with the url itself', () => {
+    // `new URL` throws on a few strings even with a base, and urlName is called
+    // straight from restoreSession — a throw there abandons the vaporwave
+    // settings, the YouTube params and the stash reopen behind it.
+    expect(urlName('http://')).toBe('http://')
+    expect(urlName('https://example.com/a/b/clip%20one.mp4')).toBe(
+      'clip one.mp4',
+    )
   })
 
   it('asks for nothing when the named preset is gone', () => {
