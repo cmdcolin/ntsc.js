@@ -9,16 +9,16 @@ Everything below is free and open source unless noted.
 
 ## Start here
 
-| If you want to…                                              | Use                                              |
-| ------------------------------------------------------------ | ------------------------------------------------ |
-| Put this look on a clip in your edit                          | **ntsc-rs** (AE / Premiere / OpenFX / Resolve)   |
-| Render a file at above-NTSC resolution                        | **ntsc-rs**                                      |
-| Play the signal live — knobs, MIDI, audio-reactive, feedback  | **ntsc.js** (this project)                       |
-| Try it in ten seconds with nothing installed                  | **ntsc.js** — [live demo][demo]                  |
-| Composite artifacts inside a game emulator                    | **Blargg's `nes_ntsc` / `snes_ntsc`**            |
-| A CRT *screen* look over anything                             | **RetroArch CRT shaders**                        |
-| The reference implementation to read or build on              | **composite-video-simulator**                    |
-| Real analog hardware, no simulation                           | **LZX Industries** and similar (commercial)      |
+| If you want to…                                              | Use                                            |
+| ------------------------------------------------------------ | ---------------------------------------------- |
+| Put this look on a clip in your edit                         | **ntsc-rs** (AE / Premiere / OpenFX / Resolve) |
+| Render a file at above-NTSC resolution                       | **ntsc-rs**                                    |
+| Play the signal live — knobs, MIDI, audio-reactive, feedback | **ntsc.js** (this project)                     |
+| Try it in ten seconds with nothing installed                 | **ntsc.js** — [live demo][demo]                |
+| Composite artifacts inside a game emulator                   | **Blargg's `nes_ntsc` / `snes_ntsc`**          |
+| A CRT _screen_ look over anything                            | **RetroArch CRT shaders**                      |
+| The reference implementation to read or build on             | **composite-video-simulator**                  |
+| Real analog hardware, no simulation                          | **LZX Industries** and similar (commercial)    |
 
 [demo]: https://cmdcolin.github.io/ntsc.js/
 
@@ -58,10 +58,10 @@ when you want to know how the encode and decode actually work.
 A related but distinct problem. Blargg's filters model composite artifacts for a
 specific console's video output, very fast and very accurate for that narrow
 case — this is what makes NES dithering blend into extra colours the way it did
-on a real TV. The RetroArch CRT shaders (`crt-royale`,
-`crt-guest-advanced`) mostly model the **display**: shadow mask, scanlines,
-phosphor, geometry, glow. If your source is a game and you want it to look
-right on a period television, that pairing is the mature answer.
+on a real TV. The RetroArch CRT shaders (`crt-royale`, `crt-guest-advanced`)
+mostly model the **display**: shadow mask, scanlines, phosphor, geometry, glow.
+If your source is a game and you want it to look right on a period television,
+that pairing is the mature answer.
 
 ### Hardware
 
@@ -104,8 +104,8 @@ answer:
 - **The raster is fixed** at 910×525 samples with a 754×480 active picture, so a
   4K source is sampled down to NTSC resolution. That is faithful, and it is also
   a real limitation if you want your delivery resolution back.
-- **Recording is real-time**, not a deterministic offline render, so a capture is
-  subject to whatever the machine was doing at the time.
+- **Recording is real-time**, not a deterministic offline render, so a capture
+  is subject to whatever the machine was doing at the time.
 - **It needs a WebGPU browser**, and on Linux that currently means Firefox
   Nightly or Chrome.
 - **The model is progressive** 525/60 rather than interlaced at field rate — the

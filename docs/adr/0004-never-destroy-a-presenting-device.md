@@ -187,8 +187,8 @@ page, so it can go upstream as-is.
 
 ## Amendment, 2026-08-08 — the build ceiling is gone
 
-`DOC_GPU_BUILD_LIMIT` is removed. `outOfGpuBudget()` now asks one question:
-has this tab destroyed a presenting device. Nothing else refuses a session.
+`DOC_GPU_BUILD_LIMIT` is removed. `outOfGpuBudget()` now asks one question: has
+this tab destroyed a presenting device. Nothing else refuses a session.
 
 The ceiling was the last thing in here still shaped by
 [0002](0002-webgpu-sessions-are-scarce.md) — a count of creations, kept as a
