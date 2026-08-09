@@ -447,6 +447,116 @@ Note for anyone evaluating the reverse arrangement: Max's `jweb` embeds a web
 view but is unlikely to expose WebGPU, so hosting ntsc.js inside a patch
 probably isn't viable — it wants to be a separate app you route into.
 
+## Fixed-framerate export (and whether it wants a desktop app)
+
+Not to be confused with **Capture / deinterlace** above, which is about a
+composite grabber on the way _in_. This is the way _out_: rendering a clip where
+frame N is a pure function of N, at a constant frame rate, decoupled from
+whatever the GPU managed in real time. It is what separates "screen recording of
+a toy" from "an export an editor will conform".
+
+The expensive precondition is already paid, for reasons that had nothing to do
+with export. **The signal path is a fixed-timestep 60 Hz simulation:**
+
+- Artifacts clock off the frame counter, not the wall clock —
+  `impulseStorm(this.frame / 60)`, and the comment above it says it outright
+  ("deterministic in the frame count, so harness runs stay reproducible"). Same
+  for `tapeFrame`, `scPhase`, `shuttlePhase`, `impulseTrainPos`.
+- The modulation bay is `const DT = 1 / 60` (`signal/modstate.ts`) advanced once
+  per rendered frame. LFOs, random walk, Lorenz, envelope decay — all of it.
+- `Engine.step()` already exists and deliberately forces a full sim step past
+  `timeScale` and the frame lock. `scripts/shot.mjs` already drives 120 frames
+  through it with rAF out of the picture, because occluded windows throttle rAF.
+
+So "render frame N" is nearly a pure function already. Four things are not.
+
+- **The video source — this is the actual project, and the only large item.**
+  `VideoPump.due()` gates on `el.currentTime !== slot.lastTime`, and a `<video>`
+  advances at wall rate. An offline loop faster than real time therefore renders
+  the same input frame hundreds of times; one slower than real time skips. Needs
+  frame-exact pull, and the async decode has to be _awaited_ before the render
+  call rather than polled the way `pump()` does. Two routes:
+  - _Cheap:_ `el.currentTime = n / fps`, await `seeked`, decode. The cost model
+    is already measured — `scripts/loopseek.mjs` and the `WrapHealth` comment in
+    `videopump.ts` put it at ~17 ms plus ~0.3 ms per frame walked forward from
+    the previous keyframe. A 60 s render at 60 fps is 3600 seeks, which is fine
+    offline, except that **two of the four shipped clips already stall on this**
+    — a badly-keyframed source is pathological, not merely slow.
+  - _Proper:_ WebCodecs `VideoDecoder` plus a demuxer (mp4box.js), pulling
+    frames in decode order by index. No seeking, no `createImageBitmap` race.
+    **But see the Firefox constraint below — it does not land cleanly here.**
+- **Four wall-clock reads, three of which move pixels.** `advanceGlide` (twice),
+  `stabGate`, `strobeGate`, and `autoLock` all take `performance.now()`. Fix is
+  one argument each: pass the virtual `frame * 1000 / fps`. Note `strobeGate`'s
+  comment argues _for_ wall clock so the rate is honest under a frame lock and
+  on a 144 Hz panel — that reasoning is right for live and inverted for export,
+  where the output timebase is the honest one.
+- **Live input has no offline meaning.** MIDI and mic/line audio can't be
+  re-rendered. The interesting answer is not to stub them but to record the
+  _automation_: capture control writes with frame stamps during a live take,
+  replay them into the offline render. That is the feature that would actually
+  make this a performance tool — perform at whatever rate the GPU gives you,
+  render at quality afterwards — and it reuses the single
+  `writeControl(key, value)` funnel that the OSC idea above also leans on.
+- **The encoder is variable-framerate by construction.** `useCapture.ts` is
+  `captureStream()` + `MediaRecorder`, which timestamps by wall clock; an NLE
+  conforms that badly. The replacement is `VideoEncoder` with an explicit
+  `timestamp: i * 1e6 / fps` per frame and an mp4 muxer — CFR by construction,
+  and indifferent to how long each frame took to render. It also lets the whole
+  `present` path be bypassed: render to an offscreen target and
+  `copyTextureToBuffer`, which drops the mirror-through-a-2D-canvas hack that
+  `useCapture.ts` needs today (Firefox returns a blank image from a WebGPU
+  canvas's `toBlob`, and `captureStream()` emits no frames from one).
+
+### The Firefox constraint that shapes the choice
+
+Measured on Nightly on this box and written up in
+`docs/handoffs/2026-08-05-freezes-and-the-worker.md`:
+`copyExternalImageToTexture` accepts only `ImageBitmap`, `HTMLImageElement`,
+`HTMLCanvasElement` and `OffscreenCanvas`. `importExternalTexture` is
+`undefined`
+([bug 1827116](https://bugzilla.mozilla.org/show_bug.cgi?id=1827116)), and **a
+WebCodecs `VideoFrame` is rejected outright**. So the clean decoder path — pull
+a `VideoFrame`, hand it to the GPU — does not exist here; it would have to route
+through `createImageBitmap(frame)`, paying a conversion per frame. Offline that
+is affordable, but it means the WebCodecs route buys frame-exactness and not
+zero-copy. Re-measure before building on it; it is a snapshot of one Nightly
+build. (The engine's `direct` mode in `videopump.ts` is the capability-gated
+path for browsers where this _does_ work.)
+
+### What a desktop shell actually buys
+
+Honestly: **nothing for any of the four items above.** Every one is browser-API
+work that runs identically in the web app, so an Electron decision is not on the
+critical path and should not be allowed to block the export work. Where a shell
+earns its keep is the boundary on either side:
+
+- **Writing the file.** A multi-minute export cannot accumulate as `Blob[]` in
+  memory. The web answer is File System Access `createWritable()`, which is
+  Chromium-only — and the browser this project develops and measures against is
+  Firefox. This is the strongest single argument.
+- **Codecs.** A bundled ffmpeg gets ProRes / DNxHR and audio mux. WebCodecs gets
+  H.264/VP9/AV1 — delivery codecs, not the intermediates an editor wants.
+- **A pinned Chromium.** Most of `gpu/renderloop.ts` is Firefox/Linux rAF-stall
+  archaeology; owning the runtime deletes that whole class of problem, and would
+  restore `importExternalTexture` above. Against it: per `CLAUDE.md`, Chrome's
+  ANGLE/Vulkan backend on Linux reports spurious texture-allocation errors, so
+  that has to be spiked before it counts as a win. Tauri is _not_ the option
+  here — WebKitGTK has no WebGPU (tauri#6381, closed not-planned).
+
+Whatever shell it runs in, an offline render must **adopt the live device, not
+create or destroy one** — see
+[adr/0004](adr/0004-never-destroy-a-presenting-device.md).
+
+### Suggested order
+
+Build it in the web app first; it is the same code either way and all the risk
+lives there. Virtual clock (small — four call sites) → `VideoEncoder` CFR export
+replacing `useCapture` (self-contained, and fixes the VFR problem for the
+recording that already ships) → frame-exact video pull (the real project) →
+automation recording. Revisit Electron only when the file-size wall or ProRes
+actually arrives.
+
 ## Motion follow-ups (after the ∿-on-every-row pass)
 
 Shipped: the bay lifted into `useModSlots` (eight slots), a `∿` on every control
