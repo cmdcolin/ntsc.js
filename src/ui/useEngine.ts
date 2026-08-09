@@ -1051,9 +1051,18 @@ export function useEngine() {
 
   // Download a clip and hand it to the slot. What differs between A and B —
   // the mode enum, B's enable flag — stays with the callers below.
+  //
+  // `fresh` is the deck's load token, and this is the path that needs it most:
+  // yt-dlp fetches the whole clip through the dev bridge, which is the longest
+  // wait in the app by some way, and it is the one anybody is most likely to
+  // give up on. Without the check the download lands whenever it lands — a new
+  // element attached to the engine over whatever the user went to instead, under
+  // a picker still naming that other source, and a failure clearing *its*
+  // caption and raising a banner about a deck that moved on minutes ago.
   const downloadYouTube = (
     slot: VideoSlot,
     url: string,
+    fresh: () => boolean,
     label: (text: string) => void,
     onFail: () => void,
   ) => {
@@ -1061,10 +1070,15 @@ export function useEngine() {
     label(`youtube: ${ytId(url)} — downloading…`)
     fetchYouTube(url).then(
       blob => {
+        // Nothing is allocated for a stale reply: the object url is made here
+        // rather than before the check precisely so a dropped download is
+        // dropped whole, and the blob goes with the reference.
+        if (!fresh()) return
         playUrl(slot, URL.createObjectURL(blob))
         label(`youtube: ${ytId(url)}`)
       },
       (e: unknown) => {
+        if (!fresh()) return
         setError(`youtube: ${reason(e)}`)
         label('')
         onFail()
@@ -1265,10 +1279,10 @@ export function useEngine() {
     if (engineRef.current && trimmed !== '') {
       stopVideo()
       setError('')
-      beginLoad('a')
+      const fresh = beginLoad('a')
       setSourceMode('youtube')
       dropFile('a')
-      downloadYouTube(slotA, trimmed, setSourceName, () => {})
+      downloadYouTube(slotA, trimmed, fresh, setSourceName, () => {})
     }
   }
 
@@ -1278,11 +1292,11 @@ export function useEngine() {
     if (current && trimmed !== '') {
       stopVideoB()
       setError('')
-      beginLoad('b')
+      const fresh = beginLoad('b')
       setSourceBMode('youtube')
       current.setSourceBEnabled(true)
       dropFile('b')
-      downloadYouTube(slotB, trimmed, setSourceBName, () => {
+      downloadYouTube(slotB, trimmed, fresh, setSourceBName, () => {
         setSourceBMode('none')
         current.setSourceBEnabled(false)
       })
