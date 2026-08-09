@@ -30,6 +30,7 @@ const PAGES = [
     out: 'how-it-works.html',
     nav: 'How it works',
   },
+  { file: 'docs/FEATURES.md', out: 'features.html', nav: 'Features' },
   { file: 'docs/EFFECTS.md', out: 'effects.html', nav: 'Effects' },
   { file: 'docs/MIDI.md', out: 'midi.html', nav: 'MIDI' },
   // Where this sits among the other analog-video tools, including the cases
@@ -51,6 +52,7 @@ const REPO = 'https://github.com/cmdcolin/ntsc.js/blob/main/'
 const LINKS = new Map([
   ['USER-GUIDE.md', 'index.html'],
   ['HOW-IT-WORKS.md', 'how-it-works.html'],
+  ['FEATURES.md', 'features.html'],
   ['EFFECTS.md', 'effects.html'],
   ['MIDI.md', 'midi.html'],
   ['COMPARISON.md', 'comparison.html'],
