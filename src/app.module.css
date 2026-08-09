@@ -201,3 +201,14 @@
   border-color: var(--fg4);
   color: var(--fg);
 }
+
+/* The wrapper "This look" grows inside, held to its own block formatting
+   context. Not cosmetic: useScrollAnchor compensates the scroller by the
+   height this box reports, and without it the section's first and last child
+   margins — 7px above the header, 2px under the last row — collapse straight
+   through this box and out into the panel. The box then reports 83px of growth
+   for 92px of content, and the row you were dragging still slid 9px (measured,
+   panel scrolled to 900; flow-root takes it to 0). */
+.lookAnchor {
+  display: flow-root;
+}

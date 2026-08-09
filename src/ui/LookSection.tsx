@@ -52,8 +52,20 @@ const OFF_SPINE_STAGE: Partial<Record<Group['place'], string>> = {
 // and each is a way into that module on the map, so the section doubles as a
 // contents page for the look.
 //
-// Costs nothing on a clean board — with nothing off stock there is nothing to
-// list, and app.tsx doesn't render the section.
+// Folded by default, and present on a clean board, because this is the one
+// section in the panel that grows on its own — every other one is the size it
+// is until you open it. It sits above everything you work on, so a row arriving
+// here used to push the control under your pointer 87px down the screen
+// (measured: first edit, panel at the top). useScrollAnchor takes that back
+// when the section is out of sight above the fold, but nothing can take it back
+// while the section is on screen: the growth is above your row and there is
+// nothing above it to scroll away, so either your row moves or the masthead
+// does.
+//
+// So the section doesn't grow. Folded it is a header and a count, and the count
+// going from 3 to 4 is not a layout change; the header is rendered at zero rows
+// too, so the first edit isn't one either. Opening it is a click you made, and
+// from then on it grows in view like anything you unfold.
 export function LookSection(props: {
   sliders: readonly SliderDef[]
   // The stages a caption can jump to right now — see GroupCaption.
@@ -87,12 +99,26 @@ export function LookSection(props: {
       : list.filter(s => sliderMatches(s, query, mod.modFor(s.key) !== null))
   const rest = matched.length - CAP
   const shown = all ? matched : matched.slice(0, CAP)
-  return matched.length === 0 ? null : (
+  // Under a query the section is a result list like any other, and a header
+  // over nothing is a dead end in one — so the empty header is for the resting
+  // panel only, where it is what keeps the first edit from moving anything.
+  if (matched.length === 0 && query !== '') return null
+  return (
     <Section
       title="This look"
+      defaultOpen={false}
       openOnFilter
-      summary={`${matched.length} off stock`}
+      summary={
+        matched.length === 0
+          ? 'nothing off stock'
+          : `${matched.length} off stock`
+      }
     >
+      {matched.length === 0 ? (
+        <div className={styles.empty}>
+          every control is at its default — move one and it turns up here
+        </div>
+      ) : null}
       {/* One rack over the whole list, not one per caption: these rows are
           gathered out of six stages and the captions between them are
           headings, not divisions — tracks that stepped left and right down the

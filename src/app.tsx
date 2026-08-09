@@ -767,9 +767,12 @@ export function App() {
   // "This look" grows as you work, and it sits above everything you work *on*:
   // move a control eight stages down and a row for it appears up here, pushing
   // the row still under your pointer 44px down the screen for no reason you can
-  // see. The wrapper it hangs off is always in the tree — the section itself
-  // comes and goes with the first edit, and an element that mounts at its full
-  // height has no growth to observe.
+  // see. Folded it doesn't grow at all (see LookSection), so what is left for
+  // the anchor is the section you unfolded yourself and then scrolled past —
+  // a preset applied from the palette, say, while you are eight stages down.
+  // The wrapper is a block formatting context (`lookAnchor`, app.module.css):
+  // the section's outer margins collapse straight through a bare div, and the
+  // anchor would then compensate 9px short of what actually grew.
   const lookRef = useRef<HTMLDivElement>(null)
   useScrollAnchor(lookRef)
   // The contextual groups, dropped when the filter leaves them nothing: a
@@ -1115,14 +1118,12 @@ export function App() {
           five folds down the chain map. Unlike them it stays under a filter:
           its rows are real control rows, so the query narrows them like any
           other result. */}
-      <div ref={lookRef}>
-        {edited.length === 0 ? null : (
-          <LookSection
-            sliders={edited}
-            openStages={openStages}
-            onOpenGroup={nav.openAt}
-          />
-        )}
+      <div ref={lookRef} className={styles.lookAnchor}>
+        <LookSection
+          sliders={edited}
+          openStages={openStages}
+          onOpenGroup={nav.openAt}
+        />
       </div>
 
       {filtering ? null : (

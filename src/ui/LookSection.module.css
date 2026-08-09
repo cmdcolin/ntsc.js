@@ -38,3 +38,12 @@ button.from:hover {
 .more:hover {
   color: var(--fg);
 }
+
+/* What the section says when it is opened on a clean board. Only reachable by
+   unfolding an empty section, so it is a sentence rather than a control: the
+   header above it already carries the count. */
+.empty {
+  margin: 4px 0 6px;
+  font-size: var(--fs-sm);
+  color: var(--fg3);
+}
