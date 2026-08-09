@@ -766,14 +766,84 @@ export function useEngine() {
     return () => loadSeq.current[key] === seq
   }
 
+  // Everything that is true of *every* source change on a deck, said once: the
+  // load is opened, whatever the slot held is retired, the picker lands on the
+  // entry that names what is arriving, its caption is set, and what the deck
+  // would reopen next session is let go of. B adds the one thing that is
+  // genuinely its own — whether it is summing into the composite at all.
+  //
+  // These five steps were written out at nine call sites, in four different
+  // orders, and the token was the part that went missing: `beginLoad`'s answer
+  // is the only defence against a slow reply landing on a deck the user has
+  // moved on from, and every path had to remember to keep it by hand. One of
+  // them did not (the yt-dlp fetch, which is the longest wait of the lot). Now
+  // committing a source *is* how you get the token, so there is nothing left to
+  // forget.
+  //
+  // Two functions rather than one taking a key, because the mode unions are the
+  // one place A and B genuinely differ — only B can be 'none', only A can be
+  // 'webcam' — and a shared signature could only take them by widening to a
+  // union neither setter accepts. The shared half is three lines and is not
+  // worth a cast to reach.
+  const commitDeck = (key: StashSlot, stash: 'drop' | 'keep') => {
+    const fresh = beginLoad(key)
+    if (key === 'a') stopVideo()
+    else stopVideoB()
+    // `keep` is `adoptInto`'s alone, and it is not a nicety: a file *is* the
+    // thing the stash remembers, and that path writes one straight afterwards —
+    // including on the reopen, where dropping it here would erase the very entry
+    // the reopen came from. Answering the parked "↺ reopen last session's file"
+    // offer still happens either way, since a deck that has been given a source
+    // must not go on offering to replace it.
+    if (stash === 'drop') dropFile(key)
+    else if (key === 'a') setPendingA(null)
+    else setPendingB(null)
+    return fresh
+  }
+
+  const commitA = (
+    mode: SourceMode,
+    name = '',
+    stash: 'drop' | 'keep' = 'drop',
+  ): (() => boolean) => {
+    const fresh = commitDeck('a', stash)
+    setSourceMode(mode)
+    setSourceName(name)
+    return fresh
+  }
+
+  const commitB = (
+    mode: SourceBMode,
+    name = '',
+    stash: 'drop' | 'keep' = 'drop',
+  ): (() => boolean) => {
+    const fresh = commitDeck('b', stash)
+    setSourceBMode(mode)
+    setSourceBName(name)
+    // Off is a mode like any other here, so the enable follows the mode rather
+    // than being a flag each caller sets: every source but 'none' means B is
+    // summing, and 'none' is the one that means it is not.
+    engineRef.current?.setSourceBEnabled(mode !== 'none')
+    return fresh
+  }
+
   // The built-in sources either slot can show, picked by mode name alone since
   // both slots offer the same set. Four are synthesised on the spot; cat and
   // the bundled clips are files under public/, so cat lands a fetch later —
   // the slot keeps showing whatever it had until then, exactly like the
   // ?iurl path — and a clip plays the same way a picked file does. Teletype
   // reads the slot's own text, since the mode name alone doesn't carry it.
-  const showGenerated = (slot: VideoSlot, mode: SourceMode | SourceBMode) => {
-    const fresh = beginLoad(slot.id)
+  //
+  // `fresh` is handed in rather than opened here, because the two callers that
+  // are source *changes* have already opened one through `commit`, and a second
+  // token would silence the first. The pool branch is the exception and says so:
+  // `rollFrom` opens its own, since a roll can also be re-fired on a deck that
+  // is already on that channel.
+  const showGenerated = (
+    slot: VideoSlot,
+    mode: SourceMode | SourceBMode,
+    fresh: () => boolean,
+  ) => {
     if (mode === 'bars') slot.setImage(smpteBars())
     else if (mode === 'sweep') slot.setImage(sweep())
     else if (mode === 'tv static') slot.setNoise(1)
@@ -899,16 +969,7 @@ export function useEngine() {
   ) => {
     setError('')
     const slot = slotOf(key)
-    const fresh = beginLoad(key)
-    if (key === 'a') {
-      stopVideo()
-      setSourceMode(mode)
-    } else {
-      stopVideoB()
-      setSourceBMode(mode)
-      engineRef.current?.setSourceBEnabled(true)
-    }
-    dropFile(key)
+    const fresh = key === 'a' ? commitA(mode) : commitB(mode)
     slot.setName('opening…')
     resolvePool(ref, downloading(slot, fresh)).then(
       picked => landPick(slot, picked, fresh),
@@ -944,25 +1005,12 @@ export function useEngine() {
   // whatever the mode names, and a shelf clip that read as `file` would offer
   // the OS dialog where the shelf belongs.
   const adoptInto = (key: StashSlot, file: File, mode: 'file' | 'library') => {
-    // Whatever last session parked for this slot has been answered, whether by
-    // the click it was waiting for or by the user going somewhere else
-    // entirely. Left set, its "↺ reopen last session's file" caption sits under
-    // a slot that is already playing something, offering to replace it.
-    if (key === 'a') setPendingA(null)
-    else setPendingB(null)
-    beginLoad(key)
-    if (key === 'a') {
-      stopVideo()
-      setSourceMode(mode)
-      setSourceName(file.name)
-      showFile(slotA, file)
-    } else {
-      stopVideoB()
-      setSourceBMode(mode)
-      setSourceBName(file.name)
-      engineRef.current?.setSourceBEnabled(true)
-      showFile(slotB, file)
-    }
+    // 'keep', because this is the one path whose caller writes the stash itself
+    // — and the one that reopens *from* it, where dropping it would erase what
+    // the reopen came from. See commitDeck.
+    if (key === 'a') commitA(mode, file.name, 'keep')
+    else commitB(mode, file.name, 'keep')
+    showFile(slotOf(key), file)
   }
   const adoptFileA = (file: File) => adoptInto('a', file, 'file')
   const adoptFileB = (file: File) => adoptInto('b', file, 'file')
@@ -1088,24 +1136,16 @@ export function useEngine() {
 
   const loadTeletype = (patch: Partial<TeletypeCard>) => {
     if (engineRef.current) {
-      stopVideo()
       setError('')
-      beginLoad('a')
-      setSourceMode('teletype')
-      dropFile('a')
+      commitA('teletype')
       printOn(slotA, patch)
     }
   }
 
   const loadTeletypeB = (patch: Partial<TeletypeCard>) => {
-    const current = engineRef.current
-    if (current) {
-      stopVideoB()
+    if (engineRef.current) {
       setError('')
-      beginLoad('b')
-      setSourceBMode('teletype')
-      current.setSourceBEnabled(true)
-      dropFile('b')
+      commitB('teletype')
       printOn(slotB, patch)
     }
   }
@@ -1156,11 +1196,7 @@ export function useEngine() {
         // getDisplayMedia requires.
         startScreen('a')
       } else {
-        stopVideo()
-        setSourceMode(mode)
-        setSourceName('')
-        dropFile('a')
-        showGenerated(slotA, mode)
+        showGenerated(slotA, mode, commitA(mode))
       }
     }
   }
@@ -1189,22 +1225,13 @@ export function useEngine() {
             ? (track?.getSettings().displaySurface ?? 'screen')
             : track.label
         if (slot === 'a') {
-          beginLoad('a')
-          stopVideo()
-          setSourceMode('screen')
-          setSourceName(name)
-          dropFile('a')
+          commitA('screen', name)
           // A share the user ended from the browser's own bar leaves the slot
           // holding a frozen last frame. Snow is what a set with nothing on its
           // input shows, and this app has no clearer way to say "the feed went".
           playStream(slotA, stream, () => selectSource('tv static'))
         } else {
-          beginLoad('b')
-          stopVideoB()
-          setSourceBMode('screen')
-          setSourceBName(name)
-          dropFile('b')
-          engineRef.current?.setSourceBEnabled(true)
+          commitB('screen', name)
           // B is optional by nature, so its "the feed went" is off rather than
           // snow: summing static into the composite would be a bigger change to
           // the look than letting go of a share asks for.
@@ -1223,6 +1250,13 @@ export function useEngine() {
   // OS default, otherwise pins the chosen capture device (e.g. an RCA grabber).
   // No resolution constraint — composite dongles deliver 720x480, so we take
   // whatever the device negotiates rather than forcing 1280x720.
+  //
+  // The one source path that does not go through `commitA`, and it is not an
+  // oversight: the slot is given up *before* getUserMedia rather than after,
+  // which is the asymmetry startScreen's own note is about. Folding it into the
+  // commit would move that stop into the success branch, so a denied camera
+  // would leave the picture up — better, probably, but a decision about what a
+  // refused permission should do rather than a place two paths had drifted.
   const startWebcam = (deviceId: string) => {
     const current = engineRef.current
     if (current) {
@@ -1277,11 +1311,8 @@ export function useEngine() {
   const loadYouTube = (url: string) => {
     const trimmed = url.trim()
     if (engineRef.current && trimmed !== '') {
-      stopVideo()
       setError('')
-      const fresh = beginLoad('a')
-      setSourceMode('youtube')
-      dropFile('a')
+      const fresh = commitA('youtube')
       downloadYouTube(slotA, trimmed, fresh, setSourceName, () => {})
     }
   }
@@ -1290,12 +1321,8 @@ export function useEngine() {
     const current = engineRef.current
     const trimmed = url.trim()
     if (current && trimmed !== '') {
-      stopVideoB()
       setError('')
-      const fresh = beginLoad('b')
-      setSourceBMode('youtube')
-      current.setSourceBEnabled(true)
-      dropFile('b')
+      const fresh = commitB('youtube')
       downloadYouTube(slotB, trimmed, fresh, setSourceBName, () => {
         setSourceBMode('none')
         current.setSourceBEnabled(false)
@@ -1320,12 +1347,7 @@ export function useEngine() {
       } else if (mode === 'screen') {
         startScreen('b')
       } else {
-        stopVideoB()
-        setSourceBMode(mode)
-        setSourceBName('')
-        dropFile('b')
-        current.setSourceBEnabled(mode !== 'none')
-        showGenerated(slotB, mode)
+        showGenerated(slotB, mode, commitB(mode))
       }
     }
   }
@@ -1370,12 +1392,16 @@ export function useEngine() {
     if (params.src === 'webcam') {
       selectSource('webcam')
     } else if (params.src !== null) {
-      showGenerated(slotA, params.src)
+      // `beginLoad` rather than the `commit` pair the picker uses: what the link
+      // says about the stash is decided below, once every param has been read
+      // (`linkNamesA`), and committing here would answer that question early —
+      // for `?src=` alone, and before `?vurl=` had been looked at.
+      showGenerated(slotA, params.src, beginLoad('a'))
       setSourceMode(params.src)
     }
     if (params.srcb !== null) {
       eng.setSourceBEnabled(params.srcb !== 'none')
-      showGenerated(slotB, params.srcb)
+      showGenerated(slotB, params.srcb, beginLoad('b'))
       setSourceBMode(params.srcb)
     }
     const imageError = (e: unknown) => setError(`image: ${reason(e)}`)
@@ -1759,8 +1785,8 @@ export function useEngine() {
               // landing bars are recorded like every other source and a device
               // lost before the user has touched anything still comes back on
               // them.
-              showGenerated(slotA, 'bars')
-              showGenerated(slotB, 'bars')
+              showGenerated(slotA, 'bars', beginLoad('a'))
+              showGenerated(slotB, 'bars', beginLoad('b'))
               created.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
               restoreSession(created, parseSessionParams(location.search))
             }
