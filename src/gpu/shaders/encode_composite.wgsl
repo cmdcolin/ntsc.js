@@ -40,9 +40,7 @@ fn main(
     for (var k = 0u; k < m; k = k + 1u) {
       uv = uv + filters[SEC_ENC_CHROMA * FILTER_STRIDE + k] * (tileUV[c + k - m] + tileUV[c + m - k]);
     }
-    let uf = uv.x;
-    let vf = uv.y;
-    out = activeComposite(yuv[n].x, uf, vf, carrier(n, P.frame), 1.0, P.invert);
+    out = activeComposite(yuv[n].x, uv.x, uv.y, carrier(n, P.frame), 1.0, P.invert);
   }
 
   // What broadcasters actually parked in the vertical interval: test and

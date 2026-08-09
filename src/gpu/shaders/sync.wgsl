@@ -6,9 +6,9 @@
 // measurements.
 //
 // timing[0..524]      per-line horizontal offset the deflection actually used
-// timing[525]         vertical oscillator phase error, lines (persistent, signed)
-// timing[526]         PLL state (persistent)
-// timing[527]         AGC gain state (persistent): IF gain normalizing the
+// timing[V_PHASE]     vertical oscillator phase error, lines (persistent, signed)
+// timing[PLL_STATE]   PLL state (persistent)
+// timing[AGC_GAIN]    AGC gain state (persistent): IF gain normalizing the
 //                     measured sync-tip depth to 40 IRE, slewed per frame
 // timing[ABL_GAIN/VEL]   beam-limiter servo state (persistent): the video
 //                     drive the flyback can afford, plus its slew velocity
@@ -42,8 +42,8 @@ fn wrapLines(v: f32) -> f32 {
 
 @compute @workgroup_size(1, 1, 1)
 fn main() {
-  var pll = timing[526u];
-  var vroll = timing[525u];
+  var pll = timing[PLL_STATE];
+  var vroll = timing[V_PHASE];
 
   // vertical sync check: broad pulses should sit at sync level mid-line
   var vscore = 0.0;
@@ -175,7 +175,7 @@ fn main() {
     timing[row] = pll;
   }
 
-  var agc = timing[527u];
+  var agc = timing[AGC_GAIN];
   if (agc < 0.05) {
     agc = 1.0;
   }
@@ -252,14 +252,14 @@ fn main() {
     irisV = 0.0;
   }
 
-  timing[525u] = vroll;
+  timing[V_PHASE] = vroll;
   // A detuned H-osc ramps the phase every line without ever relocking, so the
   // carried-over state has to wrap or it grows without bound. One full line of
   // offset reads the next line's content, which is where a diagonal tear wraps
   // anyway — so the wrap is invisible.
   let spl = f32(SPL);
-  timing[526u] = pll - spl * floor(pll / spl + 0.5);
-  timing[527u] = clamp(agc, 0.25, 4.0);
+  timing[PLL_STATE] = pll - spl * floor(pll / spl + 0.5);
+  timing[AGC_GAIN] = clamp(agc, 0.25, 4.0);
   timing[ABL_GAIN] = ablG;
   timing[ABL_VEL] = ablV;
   timing[IRIS_GAIN] = irisG;

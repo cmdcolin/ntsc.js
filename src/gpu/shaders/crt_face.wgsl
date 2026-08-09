@@ -157,7 +157,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // offset of the entire scan, applied here in the deflection domain. A
   // rolling or settling picture glides instead of stepping line by line.
   // Identity when locked — the oscillator phase rests at exactly 0.
-  let uv = (vec2f(gid.xy) + vec2f(0.5, 0.5 + fract(timing[525u]))) / dim;
+  let uv = (vec2f(gid.xy) + vec2f(0.5, 0.5 + fract(timing[V_PHASE]))) / dim;
   // Beam transfer → saturate → gamut-fit is the emissive stage: put it here so
   // the feedback camera photographs phosphor light, not decoder voltages.
   let center = beam(textureSampleLevel(srcTex, samp, uv, 0.0).rgb);

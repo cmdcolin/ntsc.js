@@ -21,7 +21,7 @@ const SLICE = -20.0; // IRE slicing level
 // genuinely breathes the horizontal lock. Last frame's gain, which is the lag
 // a real AGC's time constant gives; identity while the agc control is 0.
 fn ifGain() -> f32 {
-  return mix(1.0, timing[527u], P.agc);
+  return mix(1.0, timing[AGC_GAIN], P.agc);
 }
 
 fn levelAt(n: i32) -> f32 {

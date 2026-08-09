@@ -23,19 +23,16 @@
 //     = cos t cos dS (x[-d] + x[+d]) + sin t sin dS (x[-d] - x[+d])
 //
 // so one phasor walked outward covers both halves, and the kernel costs half
-// the coefficient loads and no per-tap cos().
-const UP_STEP = 2.0 * PI * DOWN_PER_SAMPLE;
-
+// the coefficient loads and no per-tap cos(). The step itself is `stepPhasor`
+// in the prelude, shared with the record side in under_down: the same
+// (fsc - f_under) walks both ways through the same deck.
+//
+// The extra lp.z over the record side's phase is this playback pass's own
+// jitter — the head is not put back exactly where it wrote.
 fn upPhasor(row: u32, s: f32) -> vec2f {
   let lp = lineParams[row];
   let th = lp.y + lp.z + 2.0 * PI * fract(DOWN_PER_SAMPLE * s);
   return vec2f(cos(th), sin(th));
-}
-
-fn stepPhasor(p: vec2f) -> vec2f {
-  let c = cos(UP_STEP);
-  let s = sin(UP_STEP);
-  return vec2f(p.x * c - p.y * s, p.x * s + p.y * c);
 }
 
 // Color-under sample at global index ci, carrier noise included. Seeded on the
@@ -350,8 +347,10 @@ fn main(
       // hits bunch at two phases of the hum — bands that roll with the hum
       // bar, because they are the same mains.
       if (P.impulseMains > 0.0) {
-        let mrow = s0 / f32(SPL);
-        let mph = 2.0 * PI * (mrow / f32(NLINES) + f32(P.frame) * 0.0037);
+        // The same mains the hum bar rides, asked at the fractional line the
+        // event landed on — one definition, so the bands and the bar cannot
+        // creep at different rates and stop being the same building's supply.
+        let mph = humPhase(s0 / f32(SPL), P.frame);
         let w = pow(0.5 + 0.5 * cos(2.0 * mph - 2.2), 6.0);
         if (rand01(eh ^ 0x6fu) > mix(1.0, clamp(w * 5.0, 0.0, 1.0), P.impulseMains)) {
           continue;
@@ -415,7 +414,7 @@ fn main(
 
   // 60 Hz hum: one cycle per field, slowly rolling
   if (P.humAmp > 0.0 || P.humMod > 0.0) {
-    let ph = humPhase(row, P.frame);
+    let ph = humPhase(f32(row), P.frame);
     out = out + P.humAmp * sin(ph);
     // Hum modulation: the same mains ripple, but inside the supply of an
     // amplifier in the signal path rather than on a ground loop, so it moves
@@ -555,8 +554,7 @@ fn main(
     if (P.dropoutComp > 0.5 && row >= bl && !droppedAt(row - bl, s)) {
       out = out + comp[clampIdx(i32(n) - i32(bl * SPL))] - comp[n];
     } else {
-      let snow = 55.0 + 45.0 * gauss(n ^ pcg(P.frame * 977u + P.gen * 7919u));
-      out = mix(out, snow, 0.95);
+      out = dropoutNull(out, 0.95, n ^ pcg(P.frame * 977u + P.gen * 7919u));
     }
   }
 
@@ -577,8 +575,7 @@ fn main(
   if (P.headClog > 0.0) {
     let cloggedSweep = select(row >= HEAD_SWITCH_LINE, row < HEAD_SWITCH_LINE, (P.frame & 1u) == 0u);
     if (cloggedSweep) {
-      let snow = 45.0 * gauss(n ^ pcg(P.frame * 15013u + row * 5u + P.gen * 131u));
-      out = mix(out, snow, clamp(P.headClog * 1.15, 0.0, 0.95));
+      out = rfNull(out, P.headClog * 1.15, n ^ pcg(P.frame * 15013u + row * 5u + P.gen * 131u));
     }
   }
 
@@ -592,27 +589,15 @@ fn main(
     let d = abs(f32(row) - center);
     if (d < half) {
       let edge = 1.0 - d / half;
-      let snow = 45.0 * gauss(n ^ pcg(P.frame * 6151u + row + P.gen * 97u));
-      out = mix(out, snow, clamp(P.trackAmt * edge * 1.3, 0.0, 0.95));
+      out = rfNull(out, P.trackAmt * edge * 1.3, n ^ pcg(P.frame * 6151u + row + P.gen * 97u));
     }
   }
 
-  // VHS picture search: off play speed the spinning head no longer follows a
-  // single recorded track — each sweep crosses |speed-1| of them, and the RF
-  // envelope nulls at every crossing, so that many noise bars sweep the frame.
-  // The strips between bars are different tracks; their timing and color-under
-  // phase offsets ride in via lineParams like the tracking tear.
-  if (P.shuttleBars != 0.0) {
-    let ab = abs(P.shuttleBars);
-    let fx = fract(f32(row) / f32(NLINES) * ab + P.shuttlePhase);
-    let dLines = min(fx, 1.0 - fx) / ab * f32(NLINES);
-    let half = 8.0;
-    if (dLines < half) {
-      let edge = 1.0 - dLines / half;
-      let snow = 45.0 * gauss(n ^ pcg(P.frame * 24593u + row * 3u + P.gen * 389u));
-      out = mix(out, snow, clamp(edge * 1.7, 0.0, 0.95));
-    }
-  }
+  // VHS picture search (prelude `shuttleNull`, shared with the loop bin's own
+  // drum). The strips between bars are different tracks; their timing and
+  // color-under phase offsets ride in via lineParams like the tracking tear.
+  out = shuttleNull(out, row, P.shuttleBars, P.shuttlePhase,
+    n ^ pcg(P.frame * 24593u + row * 3u + P.gen * 389u));
 
   // Loose connector on the program bus (prelude `connectorAt`), shared with the
   // per-source feeds, which wiggle one input's plug alone.

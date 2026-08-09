@@ -103,7 +103,7 @@ fn headOutput(read: u32, t: f32, n: u32) -> f32 {
   // drop out every lap; the head recovers nothing there and reads its own
   // noise floor.
   if (P.tapeWear > 0.0 && rand01(pcg((read / SPL) ^ 0x9e3779b9u)) < P.tapeWear) {
-    v = mix(v, 55.0 + 45.0 * gauss(n ^ pcg(P.frame * 977u)), 0.9);
+    v = dropoutNull(v, 0.9, n ^ pcg(P.frame * 977u));
   }
   return v;
 }
@@ -128,7 +128,10 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let phase = P.tapeHoldFrames * BUF_LEN + u32(floor(P.tapeHoldRem));
   let loopLen = P.tapeDelayFrames * BUF_LEN + u32(floor(P.tapeDelaySamples));
   let frac = fract(P.tapeDelaySamples);
-  let heads = clamp(u32(P.tapeHeads + 0.5), 1u, MAX_HEADS);
+  // Clamped before the conversion, not after: u32() of a negative float is the
+  // undefined behaviour wrapRow exists to dodge, and a clamp downstream of it
+  // is already too late to help.
+  let heads = u32(clamp(P.tapeHeads + 0.5, 1.0, f32(MAX_HEADS)));
   let splicePast = P.tapeSpliceFrames * BUF_LEN + u32(floor(P.tapeSpliceRem));
 
   var acc = 0.0;
@@ -184,8 +187,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
       let at = f32(n) - f32(m);
       if (m < i32(BUF_LEN) && at >= 0.0 && at < SPLICE_LEN) {
         let edge = 1.0 - at / SPLICE_LEN;
-        v = mix(v, 45.0 * gauss(n ^ pcg(P.frame * 6151u + k * 7919u)),
-                clamp(P.tapeSplice * edge * 1.4, 0.0, 0.95));
+        v = rfNull(v, P.tapeSplice * edge * 1.4, n ^ pcg(P.frame * 6151u + k * 7919u));
       }
     }
     acc = acc + v;
@@ -195,24 +197,13 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // level — otherwise the fader means something different at every head count.
   var out = acc / f32(heads);
 
-  // Off play speed the head stops following one track: each sweep crosses
-  // |speed - 1| of them and the RF envelope nulls at every crossing. That is
-  // one bar standing still — the paused-VHS bar — and four sweeping the frame
-  // at five times play. Same model and the same constants the deck uses for
-  // `shuttleX` in channel.wgsl, applied to the summed bus rather than per head
-  // because it is one drum and one RF path losing the signal, not each head
-  // independently.
-  if (P.tapeShuttleBars != 0.0) {
-    let ab = abs(P.tapeShuttleBars);
-    let fx = fract(f32(row) / f32(NLINES) * ab + P.tapeShuttlePhase);
-    let dLines = min(fx, 1.0 - fx) / ab * f32(NLINES);
-    let half = 8.0;
-    if (dLines < half) {
-      let edge = 1.0 - dLines / half;
-      let snow = 45.0 * gauss(n ^ pcg(P.frame * 24593u + row * 3u));
-      out = mix(out, snow, clamp(edge * 1.7, 0.0, 0.95));
-    }
-  }
+  // Off play speed the head stops following one track: one bar standing still —
+  // the paused-VHS bar — and four sweeping the frame at five times play. The
+  // same prelude `shuttleNull` the deck uses for `shuttleBars` in channel.wgsl,
+  // applied to the summed bus rather than per head because it is one drum and
+  // one RF path losing the signal, not each head independently.
+  out = shuttleNull(out, row, P.tapeShuttleBars, P.tapeShuttlePhase,
+    n ^ pcg(P.frame * 24593u + row * 3u));
 
   // A fader is a crossfade, not a sum, which is why a loop left up regresses
   // instead of whiting out. Amplifier rails clip whatever gets past it.

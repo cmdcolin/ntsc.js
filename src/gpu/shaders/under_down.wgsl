@@ -16,18 +16,11 @@
 //     = cos t cos dS (x[-d] + x[+d]) + sin t sin dS (x[-d] - x[+d])
 //
 // so one phasor walked outward covers both halves, and the kernel costs half
-// the coefficient loads and no per-tap cos().
-const DOWN_STEP = 2.0 * PI * DOWN_PER_SAMPLE;
-
+// the coefficient loads and no per-tap cos(). The step itself is `stepPhasor`
+// in the prelude, shared with the playback up-conversion in channel.
 fn downPhasor(row: u32, s: f32) -> vec2f {
   let th = lineParams[row].y + 2.0 * PI * fract(DOWN_PER_SAMPLE * s);
   return vec2f(cos(th), sin(th));
-}
-
-fn stepPhasor(p: vec2f) -> vec2f {
-  let c = cos(DOWN_STEP);
-  let s = sin(DOWN_STEP);
-  return vec2f(p.x * c - p.y * s, p.x * s + p.y * c);
 }
 
 var<workgroup> tile: array<f32, TILE>;

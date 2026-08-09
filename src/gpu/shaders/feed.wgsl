@@ -25,9 +25,9 @@
 // Snow deviates staged once per workgroup: the 1-2-1 band-limit below reads
 // each neighbour's deviate, and gauss() is Box-Muller — the same redundancy
 // channel.wgsl stages away.
-var<workgroup> tileNs: array<f32, 66>;
+var<workgroup> tileNs: array<f32, TILE_WG + 2u>;
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size(TILE_WG, 1, 1)
 fn main(
   @builtin(global_invocation_id) gid: vec3u,
   @builtin(local_invocation_id) lid: vec3u,
@@ -37,8 +37,8 @@ fn main(
   if (P.noiseSigma > 0.0) {
     let ns = pcg(P.frame * 2654435761u + P.gen * 2246822519u);
     // slot 1 is this workgroup's first sample, so slot i is global index n0+i-1
-    let n0 = row * SPL + wid.x * 64u;
-    for (var i = lid.x; i < 66u; i = i + 64u) {
+    let n0 = row * SPL + wid.x * TILE_WG;
+    for (var i = lid.x; i < TILE_WG + 2u; i = i + TILE_WG) {
       tileNs[i] = gauss((n0 + i - 1u) ^ ns);
     }
   }
@@ -86,7 +86,10 @@ fn main(
     su = su - floor(su / spl) * spl;
     srcS = u32(su);
     let frac = su - f32(srcS);
-    srcRow = wrapRow(i32(row) + i32(P.bRowOff));
+    // floor, not truncation: the servo's hunt only walks one way today, but
+    // i32() of a negative float rounds toward zero, so a two-sided hunt would
+    // land a line short on one side alone. mix_b floors the same quantity.
+    srcRow = wrapRow(i32(row) + i32(floor(P.bRowOff)));
     let np = i32(srcRow * SPL + srcS);
     out = catmull(src[clampIdx(np - 1)], src[clampIdx(np)], src[clampIdx(np + 1)], src[clampIdx(np + 2)], frac);
     echoBase = np;
@@ -98,8 +101,7 @@ fn main(
       let edge = 1.0 - dBar / half;
       // the deck's RF detector, which keeps running: this snow is live even
       // while the tape is parked, unlike the dropouts below
-      let snow = 45.0 * gauss(n ^ pcg(P.frame * 15187u + row * 5u));
-      out = mix(out, snow, clamp(edge * 1.6 * P.bPause, 0.0, 0.95));
+      out = rfNull(out, edge * 1.6 * P.bPause, n ^ pcg(P.frame * 15187u + row * 5u));
     }
   } else {
     out = src[n];
@@ -125,8 +127,7 @@ fn main(
       let len = P.dropoutLen * (0.4 + 1.2 * rand01(h ^ 0x9134u));
       let fs = f32(srcS);
       if (fs >= start && fs < start + len) {
-        let snow = 55.0 + 45.0 * gauss(srcN ^ pcg(P.srcFrame * 977u + P.gen * 7919u));
-        out = mix(out, snow, 0.95);
+        out = dropoutNull(out, 0.95, srcN ^ pcg(P.srcFrame * 977u + P.gen * 7919u));
       }
     }
   }
@@ -166,7 +167,7 @@ fn main(
   // with B's picture through the slip and roll while A's stays put — which is
   // what tells the two cables apart on screen.
   if (P.humAmp != 0.0) {
-    out = out + P.humAmp * sin(humPhase(row, P.frame));
+    out = out + P.humAmp * sin(humPhase(f32(row), P.frame));
   }
 
   // The plug at the mixer's input jack going intermittent, on this input alone

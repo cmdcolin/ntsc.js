@@ -252,7 +252,7 @@ fn main(
 ) {
   // roll wraps over the whole 525-line frame, so the VBI decodes as the
   // classic rolling black bar instead of the picture wrapping seamlessly
-  let vroll = timing[525u];
+  let vroll = timing[V_PHASE];
   let rrF = rasterRowF(f32(gid.y));
   let offRaster = rrF < 0.0 || rrF > f32(NLINES) - 1.0;
   let rr = u32(clamp(rrF, 0.0, f32(NLINES) - 1.0));
@@ -295,7 +295,7 @@ fn main(
   var vs = uvd.y;
   // receiver AGC: IF gain ahead of the demod, so luma, chroma, and black
   // level all pump together when sync depth is mismeasured
-  let gif = mix(1.0, timing[527u], P.agc);
+  let gif = mix(1.0, timing[AGC_GAIN], P.agc);
   us = us * 2.0 * gif;
   vs = vs * 2.0 * gif;
 

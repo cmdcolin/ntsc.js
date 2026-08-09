@@ -357,6 +357,13 @@ const ACTIVE_START = ${ACTIVE_START}u;
 const ACTIVE_W = ${ACTIVE_WIDTH}u;
 const ACTIVE_TOP = ${ACTIVE_TOP}u;
 const ACTIVE_H = ${ACTIVE_HEIGHT}u;
+// The three sync scalars the flywheel carries across frames, sitting directly
+// above the per-line offsets. Named rather than written as 525/526/527 at the
+// eight sites that touch them: the raster is a constant here, so a literal
+// index is the one thing in this buffer that would not move if LINES did.
+const V_PHASE = ${LINES}u; // vertical oscillator phase, signed fractional lines
+const PLL_STATE = ${LINES + 1}u;
+const AGC_GAIN = ${LINES + 2}u;
 // Persistent servo state in the timing buffer, past the three sync scalars.
 // The two gain servos each carry (gain, velocity): they are second-order loops
 // on purpose, so an under-damped setting genuinely overshoots and hunts.
@@ -450,8 +457,10 @@ fn ntscLineSlot(row: u32, s: u32, n: u32, frame: u32, delta: f32) -> LineSlot {
     slot.value = select(IRE_SYNC, IRE_BLANK, serration);
   } else if (s < SYNC_LEN) {
     slot.value = IRE_SYNC;
-  } else if (s >= BURST_START && s < BURST_START + BURST_LEN && row > VSYNC_LAST + 1u) {
-    // burst at 180 degrees on the U axis: -A*sin
+  } else if (s >= BURST_START && s < BURST_START + BURST_LEN) {
+    // burst at 180 degrees on the U axis: -A*sin. No row guard: everything
+    // below line 12 was already claimed by the two branches above, so the
+    // first line that can carry burst is the first one with a real sync tip.
     slot.value = -BURST_AMP * carrierRot(n, frame, delta).x;
   } else if (s >= ACTIVE_START && s < ACTIVE_START + ACTIVE_W && row >= ACTIVE_TOP && row < ACTIVE_TOP + ACTIVE_H) {
     slot.picture = true;
@@ -510,9 +519,10 @@ fn scrambleAt(v: f32, row: u32, s: u32, depth: f32, mode: f32) -> f32 {
 // hum bar rolls instead of standing still. One definition, because the program
 // bus's ground loop and a feed's have to roll together: they are the same
 // building's mains, and two bars drifting at different rates would say they were
-// not.
-fn humPhase(row: u32, frame: u32) -> f32 {
-  return 2.0 * PI * (f32(row) / f32(NLINES) + f32(frame) * 0.0037);
+// not. A triac dimmer's firing angle is on the same mains, so it asks in
+// fractional lines (where its event landed), which is why the row is f32.
+fn humPhase(row: f32, frame: u32) -> f32 {
+  return 2.0 * PI * (row / f32(NLINES) + f32(frame) * 0.0037);
 }
 
 // A loose plug at the input jack. This takes a mode rather than a depth alone
@@ -553,7 +563,7 @@ fn connectorAt(v: f32, row: u32, n: u32, frame: u32, gen: u32, amt: f32, mode: f
   if (mode > 0.5) {
     let r = rand01(pcg(frame * 1103515245u + band * 26947u + gen * 13u));
     if (r < amt * 0.5) {
-      out = out + 40.0 * amt * sin(humPhase(row, frame));
+      out = out + 40.0 * amt * sin(humPhase(f32(row), frame));
     }
   }
   return out;
@@ -596,6 +606,56 @@ fn gauss(seed: u32) -> f32 {
   let a = max(rand01(seed), 1e-7);
   let b = rand01(seed ^ 0x9E3779B9u);
   return sqrt(-2.0 * log(a)) * cos(2.0 * PI * b);
+}
+
+// What a detector hands back when the signal it was demodulating is not there.
+// The two shapes are not interchangeable and both are used several times over,
+// which is the reason they live here rather than being retyped at each site.
+//
+// rfNull is an RF envelope collapsing: the limiter is still running, so what
+// comes out is the front end's own noise about blanking — zero-mean, and it
+// takes sync and burst with it wherever it lands. This is a mistracked head, a
+// clogged one, a track crossing, a splice crossing the gap.
+//
+// dropoutNull is oxide that is simply not there: no RF at all, so the detector
+// sits at the top of its range and the gap reads as a bright streak rather than
+// as hash. The lift is the whole visual difference between the two.
+fn rfNull(v: f32, amt: f32, seed: u32) -> f32 {
+  return mix(v, 45.0 * gauss(seed), clamp(amt, 0.0, 0.95));
+}
+
+fn dropoutNull(v: f32, amt: f32, seed: u32) -> f32 {
+  return mix(v, 55.0 + 45.0 * gauss(seed), amt);
+}
+
+// Off play speed the spinning head no longer follows a single recorded track:
+// each sweep crosses |speed - 1| of them and the RF envelope nulls at every
+// crossing, so that many noise bars sweep the frame. One definition for the
+// deck (channel) and the loop bin (tape_play) — it is the same drum losing the
+// same signal, and the two reading differently would say it was not.
+fn shuttleNull(v: f32, row: u32, bars: f32, phase: f32, seed: u32) -> f32 {
+  if (bars == 0.0) {
+    return v;
+  }
+  let ab = abs(bars);
+  let fx = fract(f32(row) / f32(NLINES) * ab + phase);
+  let dLines = min(fx, 1.0 - fx) / ab * f32(NLINES);
+  let half = 8.0;
+  if (dLines >= half) {
+    return v;
+  }
+  return rfNull(v, (1.0 - dLines / half) * 1.7, seed);
+}
+
+// One step of the color-under heterodyne phasor, shared by the record side
+// (under_down) and the playback up-conversion (channel). Both walk the same
+// (fsc - f_under) per sample, so the step is one constant and one rotation.
+const HET_STEP = 2.0 * PI * DOWN_PER_SAMPLE;
+
+fn stepPhasor(p: vec2f) -> vec2f {
+  let c = cos(HET_STEP);
+  let s = sin(HET_STEP);
+  return vec2f(p.x * c - p.y * s, p.x * s + p.y * c);
 }
 
 fn luma(c: vec3f) -> f32 {
