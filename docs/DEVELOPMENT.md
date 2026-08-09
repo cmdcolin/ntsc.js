@@ -514,7 +514,10 @@ The layering is worth knowing before changing any of it:
   type both roll, and the two real differences ride on it as fields (`owned` for
   the archive.org blob, `kind` for Commons stills). `OnProgress` reaches
   archive.org only: a Commons transcode streams into the element, so there is no
-  wait to report on.
+  wait to report on. archive.ts also holds what it has downloaded for the
+  session (192 MB, least-recently-played out), keyed by the file url and not the
+  identifier — the caches are Blobs rather than object urls precisely so that
+  `releasePick` revoking one costs the cache nothing.
 - `src/sources/commons.ts`, `archive.ts` — one flat list of tested query pools
   each, plus the readers that vet a response. Neither knows the other exists.
 - `src/sources/pools.ts` — the front door. Everything above the sources imports

@@ -6,6 +6,7 @@ import {
   runtimeSeconds,
   candidateOrder,
   chosenPool,
+  evictionOrder,
   identifiersIn,
   renditionFrom,
   searchUrl,
@@ -509,4 +510,35 @@ describe('runtimeSeconds', () => {
       expect(runtimeSeconds(raw)).toBeNull()
     },
   )
+})
+
+describe('evictionOrder', () => {
+  const held = (...sizes: number[]) =>
+    sizes.map((bytes, i) => ({ url: `u${i}`, bytes }))
+
+  it('keeps everything while there is room', () => {
+    expect(evictionOrder(held(10, 20), 30, 100)).toEqual([])
+  })
+
+  // Least-recently-played first, which is the order the map hands over: the
+  // clip you last reached for is the one you are likeliest to reach for again.
+  it('drops the oldest first, and only as many as it must', () => {
+    expect(evictionOrder(held(10, 20, 30), 50, 100)).toEqual(['u0'])
+    expect(evictionOrder(held(10, 20, 30), 70, 100)).toEqual(['u0', 'u1'])
+  })
+
+  it('empties the shelf rather than go over for one big clip', () => {
+    expect(evictionOrder(held(10, 20, 30), 95, 100)).toEqual(['u0', 'u1', 'u2'])
+  })
+
+  // The per-clip ceiling is well under the budget, so this cannot happen from
+  // the app — but a policy that silently kept an over-budget cache would be one
+  // nobody noticed until the tab was holding a gigabyte.
+  it('gives everything up for an incoming clip larger than the budget', () => {
+    expect(evictionOrder(held(10, 20), 500, 100)).toEqual(['u0', 'u1'])
+  })
+
+  it('has nothing to say about an empty cache', () => {
+    expect(evictionOrder([], 500, 100)).toEqual([])
+  })
 })

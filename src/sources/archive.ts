@@ -456,16 +456,16 @@ export const searchUrl = (
 // seconds of jank telling you how long you were waiting.
 const PROGRESS_STEPS = 50
 
-// Download the whole rendition and hand back a blob url, saying where it has
-// got to as it goes. This is the seek fix described at the top of the file, and
-// it is also why a roll here is slower than a Commons roll: nothing appears
-// until the last byte lands. The caller keeps the old picture up meanwhile — and
-// now has something to put under it.
-const fetchAsBlobUrl = async (
+// Download the whole rendition, saying where it has got to as it goes. This is
+// the seek fix described at the top of the file, and it is also why a roll here
+// is slower than a Commons roll: nothing appears until the last byte lands. The
+// caller keeps the old picture up meanwhile — and now has something to put under
+// it.
+const download = async (
   url: string,
   bytes: number,
   onProgress: OnProgress,
-): Promise<string> => {
+): Promise<Blob> => {
   const r = await timed(url, DOWNLOAD_TIMEOUT_MS, 'the download')
   if (!r.ok) throw new Error(`archive ${r.status}`)
   // `content-length` over the metadata's figure where both are there: it is what
@@ -476,7 +476,7 @@ const fetchAsBlobUrl = async (
   const body = r.body
   // No streams to read means no progress to report, which is a worse experience
   // and not a broken one.
-  if (body === null) return URL.createObjectURL(await r.blob())
+  if (body === null) return r.blob()
 
   const chunks: BlobPart[] = []
   let loaded = 0
@@ -499,7 +499,87 @@ const fetchAsBlobUrl = async (
   // The type has to be carried over by hand. `r.blob()` takes it from the
   // response; a Blob built from chunks has none, and a `blob:` url with no type
   // is one a <video> will refuse to play rather than sniff.
-  return URL.createObjectURL(new Blob(chunks, { type }))
+  return new Blob(chunks, { type })
+}
+
+// --- holding on to what has already been fetched -----------------------------
+
+// How many bytes of already-downloaded clip to keep about.
+//
+// The case this is for is a set: a clip kept on the shelf is played, the deck
+// moves on, and it is played again ten minutes later. Without this that is two
+// full downloads and two waits of up to twenty seconds, which makes "kept" mean
+// remembered rather than ready — and the wait is now visibly announced, so the
+// second one is the one that reads as a fault.
+//
+// 192 MB against a per-clip ceiling of LONG_BYTES: a realistic set of ten
+// short-form clips (0.3-12 MB each) fits several times over, and even two
+// Prelinger reels at the cap leave room. Held as Blobs rather than in a
+// persistent store, so this is a fact about the session and nothing to clean up
+// — a reload starts empty, which is the honest trade for keeping it this simple.
+const CACHE_BYTES = 192_000_000
+
+// Which held downloads have to go for a new one to fit, oldest first. Pure so
+// the policy can be tested without a network: the map that calls it is keyed in
+// least-recently-used order, so "oldest" here means least recently played.
+export function evictionOrder(
+  held: readonly { url: string; bytes: number }[],
+  incoming: number,
+  budget = CACHE_BYTES,
+): string[] {
+  let total = incoming + held.reduce((n, h) => n + h.bytes, 0)
+  const out: string[] = []
+  for (const h of held) {
+    if (total <= budget) break
+    total -= h.bytes
+    out.push(h.url)
+  }
+  return out
+}
+
+// Keyed by the file's own `/cors/` url rather than the item's identifier: a roll
+// and a shelf entry read the same item under different byte caps (a channel's
+// against LONG_BYTES), so the two can legitimately choose different renditions
+// of it, and keying on the item would hand one of them the other's file.
+const held = new Map<string, Blob>()
+
+// Downloads that have gone out and not come back. Two decks can be sent to the
+// same kept clip at once — one per source, which is an ordinary thing to do
+// here — and without this that is the same tens of megabytes twice, in parallel,
+// racing each other into the cache.
+const inflight = new Map<string, Promise<Blob>>()
+
+const blobFor = (
+  url: string,
+  bytes: number,
+  onProgress: OnProgress,
+): Promise<Blob> => {
+  const ready = held.get(url)
+  if (ready !== undefined) {
+    // Re-inserted so the map's iteration order stays least-recently-used first,
+    // which is the order `evictionOrder` reads.
+    held.delete(url)
+    held.set(url, ready)
+    return Promise.resolve(ready)
+  }
+  const already = inflight.get(url)
+  if (already !== undefined) return already
+
+  // Announced here rather than in `fetchPick`, so a clip that is already held
+  // says nothing at all: there is no wait to announce, and a caption that
+  // flashed a size and vanished would be reporting one that never happened.
+  onProgress(0, bytes)
+  const job = download(url, bytes, onProgress).then(blob => {
+    for (const gone of evictionOrder(
+      [...held].map(([key, b]) => ({ url: key, bytes: b.size })),
+      blob.size,
+    ))
+      held.delete(gone)
+    held.set(url, blob)
+    return blob
+  })
+  inflight.set(url, job)
+  return job.finally(() => inflight.delete(url))
 }
 
 // A rendition, downloaded and turned into something showable. Every pick from
@@ -509,16 +589,19 @@ const fetchPick = async (
   rendition: Rendition,
   onProgress: OnProgress,
 ): Promise<PoolPick> => {
-  // Said before the first byte is asked for, which is the point of carrying the
-  // size this far: the wait announces its own length instead of revealing it.
-  onProgress(0, rendition.bytes)
+  const blob = await blobFor(rendition.url, rendition.bytes, onProgress)
   return {
     origin: 'archive',
     title: rendition.title,
     kind: 'video',
     page: rendition.page,
+    // Still owned, and still revoked when the slot lets go of it: an object url
+    // is a handle on a Blob and not the Blob, so revoking one costs the cache
+    // nothing. That is the whole reason this holds Blobs rather than urls —
+    // caching the url instead would have made `releasePick` destroy the very
+    // thing it was meant to save, and only on the *second* play.
     owned: true,
-    url: await fetchAsBlobUrl(rendition.url, rendition.bytes, onProgress),
+    url: URL.createObjectURL(blob),
   }
 }
 

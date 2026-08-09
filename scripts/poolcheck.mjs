@@ -269,8 +269,10 @@ await pickA('ia-random')
 // went past between two looks.
 const captionOnly = () =>
   page.evaluate(() => {
-    const b = [...document.querySelectorAll('button')].find(x =>
-      x.title.includes('roll another'),
+    const b = [...document.querySelectorAll('button')].find(
+      x =>
+        x.title.includes('roll another') ||
+        x.title.includes('the rest of the shelf'),
     )
     return b?.textContent?.trim() ?? null
   })
@@ -305,6 +307,50 @@ check(
   /^fetching… [\d.]+ [kM]B$/.test(sized[0] ?? ''),
   'and names it before the first byte, not after',
   JSON.stringify(sized[0]),
+)
+
+// ── and a clip already fetched is not fetched twice ──────────────────────────
+// Reusing the download the section above just paid for. A kept clip played back
+// comes off the in-session cache (archive.ts), so the readout says nothing at
+// all — there is no wait to report. Without the cache this is a second full
+// download, which is the failure the readout above would make *more* glaring
+// rather than less.
+const rolled = readings.at(-1)
+await page.evaluate(() => {
+  ;[...document.querySelectorAll('button')]
+    .find(b => b.textContent === '☆')
+    ?.click()
+})
+await wait(400)
+await pickA('bars')
+await wait(800)
+await pickA('library')
+await wait(1500)
+// `rolled` crosses into the page as an argument: an evaluate runs in the
+// browser and closes over nothing on this side.
+await page.evaluate(name => {
+  const d = document.querySelector('dialog[open]')
+  ;[...(d?.querySelectorAll('button') ?? [])]
+    .find(b => b.title.startsWith(`play ${name}`))
+    ?.click()
+}, rolled)
+const replay = []
+for (let spent = 0; spent < 40_000; spent += 50) {
+  await wait(50)
+  const seen = await captionOnly()
+  if (seen === null || seen === '' || seen === replay.at(-1)) continue
+  replay.push(seen)
+  if (replay.length > 1 && !/^(rolling|fetching|opening)…/.test(seen)) break
+}
+check(
+  replay.at(-1) === rolled,
+  'a kept archive.org clip plays back off the shelf',
+  JSON.stringify(replay),
+)
+check(
+  !replay.some(r => r.startsWith('fetching…')),
+  'and comes off the cache rather than down the wire again',
+  JSON.stringify(replay),
 )
 
 // ── a late roll is dropped ───────────────────────────────────────────────────

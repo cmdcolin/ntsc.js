@@ -116,6 +116,20 @@ export const EMPTY_LIBRARY: Library = { clips: [], folders: [], seq: 0 }
 // directory picked by mistake would otherwise be tens of thousands of each.
 export const CLIP_LIMIT = 500
 
+// And a separate, smaller bound on the kept rolls, with a different rule: the
+// oldest goes rather than the newest being refused.
+//
+// Separate because the two halves cost different things and are added by
+// different gestures. A file on disk arrives through a picker, deliberately and
+// in a batch, and carries a stored handle and a permission — so a batch that
+// would overrun is refused, and the dialog says how many it turned away. A kept
+// roll is one click on what is on screen, carries a title and nothing else, and
+// refusing it would leave the ★ hollow with no explanation, which reads as a
+// broken button. Dropping the oldest is what the shelf this replaced did
+// (`FAVORITE_LIMIT`, 200) and it is right for the same reason: keeping one is a
+// thing you do to the picture in front of you.
+export const KEPT_LIMIT = 200
+
 // What makes two entries the same clip. Inside a folder a name is unique by
 // construction, so the name is the identity and re-adding the folder recognises
 // what is already there. A loose pick has no such guarantee — two folders can
@@ -222,7 +236,18 @@ export function addPick(
   // Newest first among the remote entries, because a star is a thing you do to
   // what is on screen right now and the one you just kept is the one you are
   // about to want. Disk clips keep their order, which is their folder's.
-  return { lib: { ...lib, clips: [clip, ...lib.clips], seq }, clip }
+  return { lib: { ...lib, clips: capKept([clip, ...lib.clips]), seq }, clip }
+}
+
+// The kept rolls trimmed to KEPT_LIMIT, oldest first out, with the disk clips
+// left exactly where they are. Order is preserved rather than rebuilt: the two
+// halves are interleaved in `clips` and `libraryGroups` is what separates them
+// for the eye, so re-sorting here would quietly reorder somebody's folders.
+const capKept = (clips: readonly Clip[]): Clip[] => {
+  const kept = clips.filter(c => c.at !== 'disk')
+  if (kept.length <= KEPT_LIMIT) return [...clips]
+  const doomed = new Set(kept.slice(KEPT_LIMIT).map(c => c.id))
+  return clips.filter(c => !doomed.has(c.id))
 }
 
 // Whether this file is already on the shelf, which is what the ★ renders from.

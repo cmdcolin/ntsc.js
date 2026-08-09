@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CLIP_LIMIT,
   EMPTY_LIBRARY,
+  KEPT_LIMIT,
   addClips,
   addFolder,
   addPick,
@@ -636,5 +637,60 @@ describe('matchPicked with kept rolls', () => {
     expect(matchPicked(lib, [{ name: 'Agrippa', path: '', size: 10 }])).toEqual(
       [],
     )
+  })
+})
+
+describe('the kept rolls have a bound of their own', () => {
+  const many = (n: number) => {
+    let lib = EMPTY_LIBRARY
+    for (let i = 0; i < n; i += 1)
+      lib = addPick(lib, { ...bust, title: `File:${i}.jpg` }, `pic ${i}`).lib
+    return lib
+  }
+
+  // Refusing would leave the ★ hollow after a click, which reads as a broken
+  // button. The oldest goes instead — keeping one is a thing you do to the
+  // picture in front of you, so the newest is the one that matters.
+  it('drops the oldest rather than refusing the newest', () => {
+    const lib = many(KEPT_LIMIT + 3)
+    expect(lib.clips).toHaveLength(KEPT_LIMIT)
+    expect(lib.clips[0].ref).toBe(`File:${KEPT_LIMIT + 2}.jpg`)
+    expect(lib.clips.map(c => c.ref)).not.toContain('File:0.jpg')
+    // And the one just kept is on the shelf, which is what the ★ renders from.
+    expect(hasPick(lib, { ...bust, title: `File:${KEPT_LIMIT + 2}.jpg` })).toBe(
+      true,
+    )
+  })
+
+  // A shelf of somebody's own footage is not what the kept bound is for, and a
+  // star must never cost them a row of it.
+  it('never trims a file on disk to make room', () => {
+    let lib = shelf([{ name: 'rips', files: ['a.mp4', 'b.mp4'] }])
+    for (let i = 0; i < KEPT_LIMIT + 5; i += 1)
+      lib = addPick(lib, { ...bust, title: `File:${i}.jpg` }, `pic ${i}`).lib
+    expect(lib.clips.filter(c => c.at === 'disk').map(c => c.name)).toEqual([
+      'a.mp4',
+      'b.mp4',
+    ])
+    expect(lib.clips.filter(c => c.at !== 'disk')).toHaveLength(KEPT_LIMIT)
+  })
+
+  // The two halves are interleaved in one list and only the dialog separates
+  // them, so trimming must not become a re-sort of somebody's folders.
+  it('leaves the disk clips in the order they were in', () => {
+    let lib = shelf([
+      { name: 'rips', files: ['a.mp4', 'b.mp4'] },
+      { name: 'more', files: ['c.mp4'] },
+    ])
+    const before = lib.clips.map(c => c.name)
+    for (let i = 0; i < KEPT_LIMIT + 2; i += 1)
+      lib = addPick(lib, { ...bust, title: `File:${i}.jpg` }, `pic ${i}`).lib
+    expect(lib.clips.filter(c => c.at === 'disk').map(c => c.name)).toEqual(
+      before,
+    )
+  })
+
+  it('is well under the shelf-wide bound, which is about files on disk', () => {
+    expect(KEPT_LIMIT).toBeLessThan(CLIP_LIMIT)
   })
 })
