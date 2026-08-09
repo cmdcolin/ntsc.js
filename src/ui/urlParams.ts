@@ -27,8 +27,9 @@ import type { Cue } from './cue'
 import type { ModRouting } from './modSlots'
 
 // Vaporwave playback defaults, shared with the rows that now carry these —
-// speed under each source's own transport in Input, reverb under the audio
-// picker — so each slider's reset point matches the initial state.
+// speed under each source's own transport at the head of its stage, reverb
+// under the audio picker — so each slider's reset point matches the initial
+// state.
 // VAPORWAVE_SPEED is the one-click look, run from the command palette.
 export const SPEED_DEFAULT = 1
 export const REVERB_DEFAULT = 0.3

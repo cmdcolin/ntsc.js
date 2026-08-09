@@ -244,11 +244,13 @@ const LOOP_WHAT: Record<(typeof RETURNS)[number]['loop'], string> = {
 }
 
 // What an inert box says instead of its blurb: which input is missing, and
-// where to pick one.
+// where to pick one. The picker for each is at the head of that stage in the
+// panel, which is what "open its box" means — this card has no pickers of its
+// own, it is the drawing.
 const deadHint = (box: Box) =>
   box.stage === SOUND_STAGE
-    ? 'no audio input — pick a mic or a file in Input'
-    : 'no source B — pick one in Input to mix a second signal in'
+    ? 'no audio input — open the Sound stage in the panel and pick a mic, a track, or the clip’s own audio'
+    : 'no source B — open the Source B stage in the panel and pick one to mix a second signal in'
 
 function returnPath(from: number, to: number, y: number, turn: number) {
   return `M${from} ${TOP}V${y + turn}Q${from} ${y} ${from - turn} ${y}H${to + turn}Q${to} ${y} ${to} ${y + turn}V${TOP}`

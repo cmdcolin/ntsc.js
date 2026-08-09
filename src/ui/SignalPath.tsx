@@ -6,24 +6,34 @@ import { FEEDBACK_STAGE } from './controls'
 import { Accordion, NestedSections } from './Section'
 import styles from './SignalPath.module.css'
 
-import type { ChainBranchStage, ChainStage } from './ChainMap'
+import type { BranchSpec } from './chainLayout'
+import type { ChainStage } from './ChainMap'
 import type { Group, LoopsLive } from './controls'
+import type { ReactNode } from 'react'
 
 // A stage as the panel needs it: what the map draws, plus its groups as data.
 // Only the open stage builds sections — building all six to throw five away
 // cost every control write a rebuild of all 121 rows.
 //
-// `off` (from ChainStage) is the one that opens nothing: a branch with nothing
-// patched into it, and the Mix stage beside input B, whose groups would be a
-// wall of controls that cannot move the picture.
-export interface PathNode extends ChainStage {
+// `off` (from ChainStage) says this stage's controls have nothing to act on.
+// Everything *except* `opens`, which is the map's other question — whether the
+// box is a door at all — and which this file answers for itself below. The two
+// came apart when the pickers moved inside: a source branch with nothing
+// patched in is inert and still worth opening, because the picker is the thing
+// that ends that state.
+export interface PathNode extends Omit<ChainStage, 'opens'> {
   // Opens the stage at its first touched group.
   onJumpTouched: () => void
   groups: Group[]
 }
 
-// The same, for a stage that hangs under the trunk rather than on it.
-export interface BranchNode extends PathNode, ChainBranchStage {}
+// The same, for a stage that hangs under the trunk rather than on it. Off
+// BranchSpec rather than ChainBranchStage for the reason above: `opens` is not
+// the caller's to say.
+export interface BranchNode extends PathNode, BranchSpec {}
+
+// One stage as the map takes it — the panel's node with that answer stamped on.
+type MapNode<T extends PathNode> = T & { opens: boolean }
 
 // A stage's name, its off-stock count and its blurb. The two layouts below
 // render exactly this and differ only in what the two buttons *do*: on the
@@ -148,6 +158,16 @@ export function SignalPath(props: {
   // Which group inside the open stage is unfolded — one at a time.
   openGroup: string | null
   onOpenGroup: (name: string) => void
+  // What heads a stage, above its groups: the picker that decides what feeds it.
+  // Keyed by stage name, and the three keys are three of the boxes the map
+  // already draws — Source A, Source B, Sound — which is the whole reason these
+  // moved here out of a section that named the same three things 60px higher up.
+  //
+  // A record of thunks rather than of nodes, for the reason `groups` arrives as
+  // data rather than as sections: only the stages on screen call theirs, so a
+  // folded map builds no pickers. And keyed rather than a plain function so
+  // `opensOn` below can ask *whether* a stage has one without building it.
+  stageTop: Partial<Record<string, () => ReactNode>>
   // Opens the full diagram, where there is room to draw both feeds and the
   // returns with their names on them.
   onShowDiagram: () => void
@@ -159,24 +179,31 @@ export function SignalPath(props: {
   if (props.nodes.length === 0) {
     return null
   }
-  // Every stage that opens onto something. A branch is a stage like any other
-  // once something is patched into it; without an input it — and, for B, the
-  // Mix stage beside it — is drawn on the map and opens nothing, so neither can
-  // be the thing the panel is showing.
-  const openable = [...props.nodes, ...props.branches].filter(
-    n => n.off !== true,
-  )
+  // Whether a stage's box is a door, stamped on here rather than handed in.
+  // A stage opens if its controls can act on something, or if it has a picker at
+  // its head — and both halves of that read off what actually renders below, so
+  // a box that opens and a stage with something to show cannot come apart. Mix
+  // is what it leaves shut: B unpatched leaves its every control inert, and
+  // there is no picker for "a second signal", only B's.
+  const opensOn = <T extends PathNode>(n: T): MapNode<T> => ({
+    ...n,
+    opens: n.off !== true || n.name in props.stageTop,
+  })
+  const nodes = props.nodes.map(opensOn)
+  const branches = props.branches.map(opensOn)
+  const openable = [...nodes, ...branches].filter(n => n.opens)
   if (props.bench) {
     return (
       <Bench
-        nodes={props.nodes}
+        nodes={nodes}
         openable={openable}
-        branches={props.branches}
+        branches={branches}
         open={props.open}
         live={props.live}
         onOpen={props.onOpen}
         onOpenLoop={props.onOpenLoop}
         onShowDiagram={props.onShowDiagram}
+        stageTop={props.stageTop}
       />
     )
   }
@@ -185,8 +212,8 @@ export function SignalPath(props: {
     <>
       <PathHead onShowDiagram={props.onShowDiagram} />
       <ChainMap
-        stages={props.nodes}
-        branches={props.branches}
+        stages={nodes}
+        branches={branches}
         open={props.open}
         // The map is the fold here — except under a live filter, where a stage
         // is on screen because it matched and clicking its box cannot take it
@@ -220,13 +247,28 @@ export function SignalPath(props: {
                 props.expandAll ? undefined : () => props.onOpen(node.name)
               }
             />
-            <NestedSections>
-              <Accordion openId={props.openGroup} onToggle={props.onOpenGroup}>
-                {node.groups.map(group => (
-                  <ControlGroup key={group.name} group={group} />
-                ))}
-              </Accordion>
-            </NestedSections>
+            {/* The picker first, because it is what the rest of the stage is
+                downstream of — and above the `off` gate below, since an inert
+                stage is exactly the one you came here to patch something into.
+                Out entirely under a live filter, where everything below the box
+                is the result set and a picker is not a result: the same gate the
+                Input section used to sit behind, kept. */}
+            {props.expandAll ? null : props.stageTop[node.name]?.()}
+            {/* An off stage shows its picker and stops there. Its groups are
+                real rows that would draw, drag and reach nothing — the input
+                they act on is the thing you opened the stage to pick. */}
+            {node.off === true ? null : (
+              <NestedSections>
+                <Accordion
+                  openId={props.openGroup}
+                  onToggle={props.onOpenGroup}
+                >
+                  {node.groups.map(group => (
+                    <ControlGroup key={group.name} group={group} />
+                  ))}
+                </Accordion>
+              </NestedSections>
+            )}
           </div>
         ))}
       </div>
@@ -245,16 +287,17 @@ export function SignalPath(props: {
 // also why `expandAll` has no bench equivalent.
 function Bench(props: {
   // The trunk, which is what the map draws.
-  nodes: PathNode[]
-  // The trunk plus whichever branches have an input — every stage the bench
-  // mounts a heading and a set of cards for.
-  openable: PathNode[]
-  branches: BranchNode[]
+  nodes: MapNode<PathNode>[]
+  // The trunk plus whichever branches open — every stage the bench mounts a
+  // heading and a set of cards for.
+  openable: MapNode<PathNode>[]
+  branches: MapNode<BranchNode>[]
   open: string | null
   live: LoopsLive
   onOpen: (name: string) => void
   onOpenLoop: (group: string) => void
   onShowDiagram: () => void
+  stageTop: Partial<Record<string, () => ReactNode>>
 }) {
   // The stage headings, by name, as scroll targets. Element-relative
   // scrollIntoView only: the panel also renders inside the popout's document,
@@ -305,14 +348,20 @@ function Bench(props: {
                 onName={() => props.onOpen(node.name)}
                 onCount={() => jump(node.name)}
               />
+              {/* The picker rides with the heading rather than in a card of its
+                  own: it is what the stage is fed by, not one more module of
+                  it. No filter gate here — the bench does not narrow. */}
+              {props.stageTop[node.name]?.()}
             </div>
-            {node.groups.map(group => (
-              <div key={group.name} className={styles.groupCard}>
-                <NestedSections>
-                  <ControlGroup group={group} />
-                </NestedSections>
-              </div>
-            ))}
+            {node.off === true
+              ? null
+              : node.groups.map(group => (
+                  <div key={group.name} className={styles.groupCard}>
+                    <NestedSections>
+                      <ControlGroup group={group} />
+                    </NestedSections>
+                  </div>
+                ))}
           </Fragment>
         ))}
       </div>

@@ -9,14 +9,19 @@ import { AUDIO_DESC, AUDIO_MODES } from './useAudio'
 
 import type { AudioState } from '../signal/audiostate'
 import type { AudioMode } from './useAudio'
-import type { RefObject } from 'react'
 
 const OPTIONS = AUDIO_MODES.map(m => ({ value: m, label: AUDIO_DESC[m] }))
 
 // Audio in, as a third source alongside A and B: it feeds no picture, it drives
-// the oscillators. Its knobs are the Sound branch on the chain map, under the
-// receiver they are patched into, and its helper line is AudioHint, parked at
-// the foot of the Input section so the three pickers stack unbroken.
+// the oscillators. It heads the Sound branch on the chain map, above the knobs
+// it is patched into — the same arrangement A and B's pickers have at the head
+// of their own stages — and its helper line is AudioHint, under it.
+//
+// Its hidden <input type=file> is *not* here. `useAudio` fires that ref with
+// `.click()` the moment 'file' is picked, and this component unmounts whenever
+// the Sound stage is folded, which would leave the ref null and the pick doing
+// nothing. The app mounts it outside the panel (SourceSlot.tsx's
+// HiddenFilePicker), where A's and B's already were.
 //
 // The clip on screen is one of the things it picks: a video's own sound track
 // runs through the same analyser a mic or a music file does, so a tape can drive
@@ -37,16 +42,9 @@ export function AudioInput(props: {
   // thing it processes.
   reverb: number
   onReverb: (v: number) => void
-  fileInputRef: RefObject<HTMLInputElement | null>
   onSelect: (mode: AudioMode) => void
-  onFile: (file: File | undefined) => void
   onSeek: (time: number) => void
 }) {
-  // Pulled out rather than read as `props.fileInputRef` at the <input>: a ref
-  // read off the props object marks the whole object as ref-ish to the React
-  // Compiler, which then refuses every other `props.x` read as a ref access
-  // during render and drops this component's memoization entirely.
-  const { fileInputRef } = props
   const live = props.mode === 'off' ? null : props.audioState
   return (
     <>
@@ -82,16 +80,6 @@ export function AudioInput(props: {
           onChange={props.onReverb}
         />
       ) : null}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="audio/*,video/*"
-        style={{ display: 'none' }}
-        onChange={e => {
-          props.onFile(e.target.files?.[0])
-          e.target.value = '' // allow re-picking the same file
-        }}
-      />
     </>
   )
 }

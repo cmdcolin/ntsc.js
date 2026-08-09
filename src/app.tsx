@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom'
 import styles from './app.module.css'
 import { DEFAULT_CONTROLS, atRest } from './controls'
 import { commonsCaption } from './sources/commons'
+import { A_OPTIONS, B_OPTIONS } from './sources/modes'
 import { AdvancedDialog } from './ui/AdvancedDialog'
 import { AppMenu, ShowMenuButton } from './ui/AppMenu'
 import { AudioHint, AudioInput } from './ui/AudioInput'
@@ -28,6 +29,7 @@ import {
   SOUND_BLURB,
   SOUND_JOIN,
   SOUND_STAGE,
+  SOURCE_A_STAGE,
   SOURCE_B_BLURB,
   SOURCE_B_STAGE,
   VIEW_BLURB,
@@ -52,7 +54,6 @@ import {
 import { FpsMonitor } from './ui/FpsMonitor'
 import { HelpDialog } from './ui/HelpDialog'
 import { CrosshairIcon } from './ui/icons'
-import { InputSection } from './ui/InputSection'
 import { LookBar } from './ui/LookBar'
 import { LookSection } from './ui/LookSection'
 import { MidiSection } from './ui/MidiSection'
@@ -67,10 +68,12 @@ import { sameList } from './ui/sameList'
 import { SavedProfiles } from './ui/SavedProfiles'
 import { profileAtSlot, suggestProfileName } from './ui/savedProfiles'
 import { Section } from './ui/Section'
+import { SelectRow } from './ui/SelectRow'
 import { SignalPath } from './ui/SignalPath'
 import { SignalPathDialog } from './ui/SignalPathDialog'
 import { SignalTapContext } from './ui/SignalTapContext'
 import { Rack } from './ui/Slider'
+import { HiddenFilePicker, SourceSlot } from './ui/SourceSlot'
 import { Stage } from './ui/Stage'
 import { usePersistedFlag, usePersistedString } from './ui/storage'
 import { TagsPopover } from './ui/TagsPopover'
@@ -108,12 +111,13 @@ import type { PaletteAction } from './ui/CommandPalette'
 import type { Group } from './ui/controls'
 import type { ControlsApi, ControlStore } from './ui/ControlsContext'
 import type { StashSlot } from './ui/fileStash'
-import type { WikiSlot } from './ui/InputSection'
 import type { Lens } from './ui/lens'
 import type { SavedProfile } from './ui/savedProfiles'
 import type { BranchNode, PathNode } from './ui/SignalPath'
 import type { AnySlotView } from './ui/slotView'
+import type { WikiSlot } from './ui/SourceSlot'
 import type { LookContext } from './ui/useLookLabels'
+import type { ReactNode } from 'react'
 
 // Whether the menu over the picture has been dismissed. Persisted across
 // reloads so a collapse sticks — it only ever applies where the masthead is off
@@ -423,7 +427,7 @@ export function App() {
   // Commons pick on it. Assembled here because it takes one fact from the engine
   // (what is on the slot) and one from the favourites list (whether that title is
   // starred), and neither hook can see the other — but it takes the *slot* rather
-  // than the pick already dug out of one, so InputSection can ask it per slot and
+  // than the pick already dug out of one, so a source slot can ask it per slot and
   // the answer cannot arrive under the wrong picker.
   const wikiCaption = (slot: AnySlotView): WikiSlot => {
     const on = slot.wiki
@@ -832,18 +836,32 @@ export function App() {
   // Nothing patched into B leaves two stages with nothing to act on: B itself,
   // and the mixer beside it, whose every control needs a second signal. Both
   // are still drawn — together they are the one thing on screen saying a second
-  // input exists — but neither opens, and neither wears the amber that says
-  // "you changed something in here": nothing in them is reaching the picture.
+  // input exists — and neither wears the amber that says "you changed something
+  // in here": nothing in them is reaching the picture.
+  //
+  // They part company on whether they open, and that is not said here — a stage
+  // opens if it has a picker at its head, which SignalPath reads off `stageTop`
+  // below. Source B does and Mix does not, which is the honest difference: you
+  // press SOURCE B to patch something in, and there is no picker for "a second
+  // signal" to put in the mixer's box.
+  //
+  // It is why they no longer share a hint, though. One is an instruction and
+  // the other an explanation, and only one of them is on a box you can press.
   const bOn = eng.b.mode !== 'none'
-  const B_OFF_HINT = 'no source B — pick one in Input to mix a second signal in'
+  const B_OFF_HINT =
+    'no source B — click to pick one and mix a second signal into the chain'
+  const MIX_OFF_HINT =
+    'nothing to mix — the mixer, the wipe and the inset all need a second signal, so pick a source B'
   const unpatched = (node: PathNode): PathNode =>
     bOn ? node : { ...node, touched: 0, off: true, offHint: B_OFF_HINT }
+  const unmixed = (node: PathNode): PathNode =>
+    bOn ? node : { ...node, touched: 0, off: true, offHint: MIX_OFF_HINT }
   const pathNodes = PHASES.flatMap((phase): PathNode[] => {
     const groups = phase.groups.filter(g => groupMatches(g, query, isRouted))
     const node = pathNode(phase.name, phase.blurb, groups)
     return groups.length === 0
       ? []
-      : [phase.name === MIX_STAGE ? unpatched(node) : node]
+      : [phase.name === MIX_STAGE ? unmixed(node) : node]
   })
   // The sound answers the same question B does, one stage further down: with
   // nothing coming down the wire, every routing in the group is patched to
@@ -867,7 +885,7 @@ export function App() {
     tape: controls.tapeMix > 0,
   }
   const SOUND_OFF_HINT =
-    'no sound reaching it — pick a mic, a track, or the clip’s own audio under Input, and it drives the receiver'
+    'no sound reaching it — click and pick a mic, a track, or the clip’s own audio, and it drives the receiver'
   const unheard = (node: PathNode): PathNode =>
     soundOn ? node : { ...node, touched: 0, off: true, offHint: SOUND_OFF_HINT }
   // The two branches, drawn under the trunk. Unlike a trunk stage each survives
@@ -912,6 +930,90 @@ export function App() {
   // a live filter drops stages from the map, and a caption in "This look" is
   // still a way back to the module it came from.
   const openStages = OPEN_STAGES[bOn ? 1 : 0][soundOn ? 1 : 0]
+
+  // This slot's clip menu. Asked for one slot at a time, so the name on the menu
+  // and the slot the shelf opens for both come off the same object. As a `…A`/
+  // `…B` pair this was two four-line copies whose only difference was three
+  // letters, which is the shape that ends up opening the shelf for A while
+  // captioning it with B's clip.
+  const clipPicker = (slot: AnySlotView): ReactNode => (
+    <ClipPicker
+      slot={slot.key}
+      name={slot.name}
+      lib={clips.lib}
+      access={clips.access}
+      note={clips.note}
+      onPlay={clips.play}
+      onOpenShelf={() => eng.setAskLibrary(slot.key)}
+    />
+  )
+
+  // What heads a stage, above the groups that shape what it brings in: the
+  // picker that decides what feeds it. Exactly three stages have one, and they
+  // are the three the map already draws boxes for — which is the whole reason
+  // these moved here. They used to be a section called "Input" sitting 60px
+  // above a map whose SOURCE A box opened A's *signal* groups rather than the
+  // picker that decides what A is: two surfaces naming the same three things,
+  // and the one carrying the name was the wrong one.
+  //
+  // Thunks rather than nodes, for the reason `groups` is handed over as data:
+  // only the stages on screen call theirs, so a folded map builds no pickers at
+  // all. Which stages are keyed here is also the answer to which boxes on the
+  // map open while nothing is patched into them — SignalPath takes both off this
+  // one record, so a picker cannot end up behind a box that will not open.
+  const stageTop: Partial<Record<string, () => ReactNode>> = {
+    [SOURCE_A_STAGE]: () => (
+      <SourceSlot
+        slot={eng.a}
+        title="main source"
+        options={A_OPTIONS}
+        clipPicker={clipPicker(eng.a)}
+        wiki={wikiCaption(eng.a)}
+      >
+        {eng.a.mode === 'webcam' && eng.videoDevices.length > 1 ? (
+          <SelectRow
+            tag="◉"
+            title="capture device"
+            value={eng.webcamDeviceId}
+            options={eng.videoDevices.map((d, i) => ({
+              value: d.deviceId,
+              label: d.label === '' ? `Device ${i + 1}` : d.label,
+            }))}
+            onChange={eng.startWebcam}
+          />
+        ) : null}
+      </SourceSlot>
+    ),
+    [SOURCE_B_STAGE]: () => (
+      <SourceSlot
+        slot={eng.b}
+        title="second source, mixed in dirty"
+        options={B_OPTIONS}
+        clipPicker={clipPicker(eng.b)}
+        wiki={wikiCaption(eng.b)}
+      />
+    ),
+    [SOUND_STAGE]: () => (
+      <>
+        <AudioInput
+          mode={audio.mode}
+          name={audio.name}
+          audioState={audio.audioState}
+          time={audio.time}
+          duration={audio.duration}
+          reverb={eng.reverb}
+          onReverb={eng.changeReverb}
+          onSelect={audio.select}
+          onSeek={audio.seek}
+        />
+        <AudioHint
+          mode={audio.mode}
+          hasClip={eng.a.live === 'clip' || eng.b.live === 'clip'}
+          error={audio.error}
+        />
+      </>
+    ),
+  }
 
   // Whether the query reached anything at all, across every place a result can
   // land — not the trunk alone. A routed mixer control lives on B's branch and a
@@ -1150,56 +1252,33 @@ export function App() {
         />
       </div>
 
-      {filtering ? null : (
-        <InputSection
-          a={eng.a}
-          b={eng.b}
-          webcamDeviceId={eng.webcamDeviceId}
-          videoDevices={eng.videoDevices}
-          onStartWebcam={eng.startWebcam}
-          fileInputRef={eng.fileInputRef}
-          fileInputBRef={eng.fileInputBRef}
-          // Asked for one slot at a time, so the name on the menu and the slot
-          // the shelf opens for both come off the same object. As a `…A`/`…B`
-          // pair this was two four-line copies whose only difference was three
-          // letters, which is the shape that ends up opening the shelf for A
-          // while captioning it with B's clip.
-          clipPicker={slot => (
-            <ClipPicker
-              slot={slot.key}
-              name={slot.name}
-              lib={clips.lib}
-              access={clips.access}
-              note={clips.note}
-              onPlay={clips.play}
-              onOpenShelf={() => eng.setAskLibrary(slot.key)}
-            />
-          )}
-          wikiCaption={wikiCaption}
-          audioInput={
-            <AudioInput
-              mode={audio.mode}
-              name={audio.name}
-              audioState={audio.audioState}
-              time={audio.time}
-              duration={audio.duration}
-              reverb={eng.reverb}
-              onReverb={eng.changeReverb}
-              fileInputRef={audio.fileInputRef}
-              onSelect={audio.select}
-              onFile={audio.onFile}
-              onSeek={audio.seek}
-            />
-          }
-          audioHint={
-            <AudioHint
-              mode={audio.mode}
-              hasClip={eng.a.live === 'clip' || eng.b.live === 'clip'}
-              error={audio.error}
-            />
-          }
-        />
-      )}
+      {/* The three source pickers used to be a section here, under "This look"
+          and above the map — which drew a box for each of the same three
+          sources. They head their own stages now (see `stageTop`), so the box
+          that carries the name is the one that opens the picker.
+
+          Their hidden <input type=file>s stay out here, outside every fold. All
+          three are fired programmatically — picking 'file' calls .click() on the
+          ref — and a stage folded away has unmounted its subtree, which would
+          leave the ref null and the choice silently doing nothing. A and B's
+          were already parked outside the old section for exactly this; the
+          sound's used to sit inside AudioInput, which was safe only because
+          nothing could reach its picker while it was folded. */}
+      <HiddenFilePicker
+        inputRef={eng.fileInputRef}
+        accept="video/*,image/*"
+        onFile={eng.a.onFile}
+      />
+      <HiddenFilePicker
+        inputRef={eng.fileInputBRef}
+        accept="video/*,image/*"
+        onFile={eng.b.onFile}
+      />
+      <HiddenFilePicker
+        inputRef={audio.fileInputRef}
+        accept="audio/*,video/*"
+        onFile={audio.onFile}
+      />
 
       {/* Pinned controls, gathered from wherever they live in the chain into one
           spot near the front door. Shown only once something is starred, so it
@@ -1252,6 +1331,7 @@ export function App() {
         onOpenLoop={group => nav.openAt(FEEDBACK_STAGE, group)}
         openGroup={nav.openGroup}
         onOpenGroup={nav.toggleGroup}
+        stageTop={stageTop}
       />
       {!filtering || anyResult ? null : (
         <div className={ui.hint}>

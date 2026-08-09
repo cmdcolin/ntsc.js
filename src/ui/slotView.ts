@@ -3,7 +3,7 @@
 // **Not `VideoSlot`** (videoSlot.ts), which points the other way: that is the
 // handful of refs and setters the source-loading paths *write through* to put a
 // picture on a slot. This is what comes back out — what a slot currently is, and
-// the verbs a hand has for it. Nor is it `SourceSlot` (InputSection.tsx), which
+// the verbs a hand has for it. Nor is it `SourceSlot` (SourceSlot.tsx), which
 // is the component that draws one of these.
 //
 // It exists to delete a whole class of mistake rather than to save typing. The

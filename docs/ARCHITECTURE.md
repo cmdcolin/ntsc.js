@@ -317,12 +317,19 @@ fresh device would land on the same one. That one still goes to `FatalScreen`.
 `@rolldown/plugin-babel`). Don't add `useMemo`/`useCallback` — memoization is
 the compiler's job. Two consequences worth knowing:
 
-- **`App`, `Stage`, `InputSection` don't compile** — the ref-during-render
-  pattern above is exactly what the compiler refuses. This is harmless in
-  itself: a bail-out means the compiler leaves that code exactly as written.
+- **The ref-during-render pattern above is exactly what the compiler refuses.**
+  A bail-out is harmless in itself — the compiler leaves that code as written —
+  but it costs that component its memoization, which is why every one of them is
+  recorded rather than tolerated: `KNOWN` in `scripts/compilercheck.mjs` is the
+  live list, with a line per bail-out saying whose fault it is, and
+  `pnpm compiler` fails on any that is not on it. Read that list rather than one
+  written out here, which drifts the moment a component is renamed or fixed.
   `useEngine` itself does compile (it only returns the refs, never reads one for
-  render output within its own body) — the bail-out lives in its callers.
-  oxlint's `react` plugin (`.oxlintrc.json`) has no rule equivalent to
+  render output within its own body) — a bail-out lands on a caller that reads
+  one. Pulling a ref out of props with a destructure is what keeps that from
+  spreading: read as `props.someRef`, the compiler marks the whole props object
+  ref-ish and refuses every other `props.x` read in the component. oxlint's
+  `react` plugin (`.oxlintrc.json`) has no rule equivalent to
   eslint-plugin-react-hooks' `refs` (which used to flag this on principle), so
   there's nothing to suppress; `react/rules-of-hooks` and
   `react/exhaustive-deps` still run and report real bail-outs.

@@ -478,8 +478,9 @@ export function useEngine() {
     }
   }
   // Whether the clips' own sound tracks are the audio input: heard out loud and
-  // analysed, both out of routeAudio above. Driven by the audio picker in Input,
-  // which is the one place that decides where sound comes from. It used to be a
+  // analysed, both out of routeAudio above. Driven by the audio picker at the
+  // head of the map's Sound branch, which is the one place that decides where
+  // sound comes from. It used to be a
   // button of its own inside Vaporwave — two switches onto one wire, which the
   // panel could not then answer "is sound driving this" from, because either one
   // could be the reason and neither knew about the other.

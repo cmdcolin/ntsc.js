@@ -165,7 +165,7 @@ export function ClipLibraryDialog(props: {
   // Pulled off the props object rather than read as `props.filesRef` at the
   // <input>: a ref read during render marks the whole props object as ref-ish
   // to the React Compiler, which then drops this component's memoization
-  // entirely (the same note InputSection carries).
+  // entirely (the same note SourceSlot carries).
   const { filesRef, folderRef } = props
 
   return (

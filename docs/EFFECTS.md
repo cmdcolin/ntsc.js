@@ -650,5 +650,5 @@ and what you see looking at one.
   always the other one; double-click for 1×.
 - **Slow motion** — the whole rig stepped at a fraction of display rate: noise,
   rolls, sweeps, feedback and phosphor all crawl together; 0 freezes the frame.
-  Pairs with a source's own speed control (under its transport in Input) to slow
-  the footage to match.
+  Pairs with a source's own speed control (under its transport at the head of
+  its stage on the chain map) to slow the footage to match.

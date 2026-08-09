@@ -106,7 +106,12 @@ can still hold a colour.
 
 ## Give it something to mangle
 
-![The app window, the Input section boxed in red](img/input.jpg)
+![The app window, the head of the Source A stage boxed in red](img/input.jpg)
+
+Each source is picked at the head of its own stage on the signal path: **A** on
+the SOURCE A box, **B** on SOURCE B, the sound on SOUND. The box names the
+thing, and opening it puts the picker first and that source's own controls under
+it.
 
 **A** is the main source: bars, sweep, snow, the bundled photo, a file of your
 own, or a webcam — which is also how an RCA capture dongle gets real gear in
@@ -133,16 +138,16 @@ disk and comes back at whatever size the app asks for today; the **↗** next to
 it opens the file's own page on Commons, which is where the licence and the
 photographer are. Both verbs are in the command palette too (⌘K —
 `roll another`, `star this`), which is where you want them mid-set with the
-Input section folded. **Video synth** is the one generated source that makes a
-picture instead of a failure to have one: two oscillators, a combiner and a
-colorizer, with no input at all. Its one real knob is frequency, because what a
-video synth draws is where it sits against the raster — put an oscillator on an
-exact multiple of line rate and you get standing bars, a few hertz off and they
-lean and creep, wind it down to field rate and the same ramp is a vertical
-gradient, wind it up to 3.58 MHz and it lands on the colour subcarrier and the
-whole screen comes back as flat colour that turns as you detune. **Screen /
-window…** shares a window, a tab or a whole display straight into the chain, so
-anything on your desktop can be the signal: a video player, a game, a patch in
+stage folded. **Video synth** is the one generated source that makes a picture
+instead of a failure to have one: two oscillators, a combiner and a colorizer,
+with no input at all. Its one real knob is frequency, because what a video synth
+draws is where it sits against the raster — put an oscillator on an exact
+multiple of line rate and you get standing bars, a few hertz off and they lean
+and creep, wind it down to field rate and the same ramp is a vertical gradient,
+wind it up to 3.58 MHz and it lands on the colour subcarrier and the whole
+screen comes back as flat colour that turns as you detune. **Screen / window…**
+shares a window, a tab or a whole display straight into the chain, so anything
+on your desktop can be the signal: a video player, a game, a patch in
 TouchDesigner. Point it at _this_ window and the loop closes — the set is
 re-shooting its own face through the compositor, which is camera feedback
 without the camera. Stop the share from the browser's own bar and the input
@@ -335,9 +340,10 @@ tempo over whenever something is sending it — see [MIDI.md](MIDI.md).
 
 **Sound** — the branch under **Receiver** on the map, because that is where the
 sound is patched in: bass lurches the frame, level tears line hold, the waveform
-draws itself on the screen. Pick something under **♪** in Input first — a mic, a
-track, or the clip on screen playing its own sound — or the box stays dark and
-opens onto nothing, the same answer **Source B** gives with nothing patched in.
+draws itself on the screen. Pick something under **♪** on the map's Sound box
+first — a mic, a track, or the clip on screen playing its own sound — or the box
+stays dark and opens onto nothing, the same answer **Source B** gives with
+nothing patched in.
 
 ![The app window, the Audio routings group under the Sound stage boxed in red](img/audio.jpg)
 

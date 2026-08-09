@@ -182,21 +182,29 @@ await phase('filter', { seed: OLD_BAY }, async page => {
 
   await run(`press(byTitle('clear the filter')); return 0`)
   await settle(400)
+  // Every box on the map that opens. The three feedback runs are pressable too
+  // and are not boxes, so they are dropped by the one thing that separates them:
+  // a run says what pressing it does, a box names a stage and describes it.
   const cleared = await run(`return {
     chain: chain() !== null,
     stages: [...document.querySelectorAll('svg[aria-label="signal chain"] g[role=button]')]
-      .map(g => (g.getAttribute('aria-label') ?? '').split(' — ')[0]),
+      .map(g => g.getAttribute('aria-label') ?? '')
+      .filter(l => !l.endsWith('open its controls'))
+      .map(l => l.split(' — ')[0]),
   }`)
   check(
     cleared.chain,
     'the chain map did not come back when the filter cleared',
   )
-  // Seven openable boxes: the six trunk stages plus input B, which is a stage
-  // of the panel without being a Phase. B is on out of the box, so both it and
-  // the mixer are openable here — with it off the two are drawn dashed and
-  // inert and this count drops to five.
+  // Nine boxes that open: the six trunk stages, plus the three that hang under
+  // them — input B, the sound and the view, none of which is a Phase. B is on
+  // out of the box so the mixer opens too; the sound is *not* picked and its box
+  // still opens, because its picker is the first thing inside it and patching
+  // one in is the whole reason to press it. Mix is the one box that can stop
+  // opening — with B off it holds nothing but controls that cannot act and there
+  // is no picker for "a second signal" — and then this count drops to eight.
   check(
-    cleared.stages.length === 7,
+    cleared.stages.length === 9,
     `the map came back with ${cleared.stages.length} stages: ${cleared.stages}`,
   )
   // The two inputs are peers on the map, and the mixer is a box of its own. All

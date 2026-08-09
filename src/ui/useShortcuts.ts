@@ -28,8 +28,8 @@ interface Handlers {
   onSaveProfile: () => void
   // The cue gestures, per slot. `i` marks/closes/re-arms, `o` stabs back to the
   // cue; shift picks slot B. Bound rather than left to the buttons because both
-  // are beaten in time to something, and a mouse trip to a 22px button in the
-  // Input section is not a gesture you can perform.
+  // are beaten in time to something, and a mouse trip to a 22px button at the
+  // head of a stage is not a gesture you can perform.
   onTapCue: (slot: 'a' | 'b') => void
   onRetrigger: (slot: 'a' | 'b') => void
 }

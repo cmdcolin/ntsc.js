@@ -43,13 +43,24 @@ export interface ChainStage {
   name: string
   blurb: string
   touched: number
-  // Nothing patched into this branch, which leaves the stage with nothing to
-  // act on: drawn dashed and inert, and it opens nothing. True of a branch with
-  // no input picked, and of Mix, whose every control needs a second signal to
-  // have an effect.
+  // Nothing patched into this stage, which leaves its *controls* with nothing to
+  // act on: drawn dashed, and it wears no amber however far off stock those
+  // controls sit. True of a branch with no input picked, and of Mix, whose every
+  // control needs a second signal to have an effect.
   off?: boolean
   // What to say instead of the blurb while it is off.
   offHint?: string
+  // Whether pressing the box opens the stage. Not the negation of `off`: a
+  // source branch with nothing patched in is drawn inert and still opens,
+  // because the picker that ends the off state is the first thing inside it —
+  // it is the whole reason you would press SOURCE B. Mix is the one that is
+  // both: there is no picker for "a second signal", only B's, so its box is a
+  // statement about the chain rather than a door.
+  //
+  // Not a fact the panel hands over. SignalPath works it out from the same
+  // record it renders the pickers out of, so a box that opens and a stage that
+  // has something to show cannot come apart — see `opensOn` there.
+  opens: boolean
 }
 
 // A stage that hangs under the trunk, plus where its wire goes — the two fields
@@ -239,8 +250,16 @@ function Node(props: {
   onOpen: (name: string) => void
 }) {
   const { stage } = props
+  // Drawn inert and opens onto something are two questions now, and a source
+  // branch answers them differently — so every line below picks the one it is
+  // actually about. `off` colours the box; `opens` decides whether it is a
+  // button at all.
   const off = stage.off === true
-  const fold = props.folds && !off
+  const opens = stage.opens
+  const fold = props.folds && opens
+  // An inert box that still opens has to say both things: what is missing, and
+  // that this is where you fix it. The off hints are written to end in that
+  // instruction, so there is nothing to append here.
   const title = off
     ? (stage.offHint ?? stage.blurb)
     : `${stage.name} — ${stage.blurb}${stage.touched > 0 ? ` (${stage.touched} off stock)` : ''}${fold ? (props.open ? ' — click to close' : ' — click to open') : ''}`
@@ -252,15 +271,24 @@ function Node(props: {
         !off && stage.touched > 0 && styles.mapNodeTouched,
         props.open && styles.mapNodeOn,
       )}
-      role={off ? undefined : 'button'}
-      tabIndex={off ? undefined : 0}
+      role={opens ? 'button' : undefined}
+      tabIndex={opens ? 0 : undefined}
       // A box that folds a stage is a disclosure and says so; on the bench it is
       // an index entry, which has no expanded state to claim.
       aria-expanded={fold ? props.open : undefined}
-      aria-label={off ? undefined : `${stage.name} — ${stage.blurb}`}
-      onClick={off ? undefined : () => props.onOpen(stage.name)}
+      // Named first either way — the name is what the box says on its face, and
+      // a label that opened on the hint instead announced the Sound box as "no
+      // sound reaching it". What follows it is the part that differs: an inert
+      // box is announced by what it is *for*, which is picking the input it is
+      // missing, rather than by the blurb of controls that cannot act yet.
+      aria-label={
+        opens
+          ? `${stage.name} — ${off ? (stage.offHint ?? stage.blurb) : stage.blurb}`
+          : undefined
+      }
+      onClick={opens ? () => props.onOpen(stage.name) : undefined}
       onKeyDown={e => {
-        if (!off && (e.key === 'Enter' || e.key === ' ')) {
+        if (opens && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault()
           props.onOpen(stage.name)
         }

@@ -165,3 +165,17 @@ export function sourceOptions<T extends SourceMode | SourceBMode>(
       })),
   )
 }
+
+// The two pickers' option lists, built once. Here rather than beside the
+// component that draws them because they are a fact about the mode lists above
+// — including the one build-time subtraction: the YouTube option is backed by
+// the dev-only yt-dlp bridge, so a production build has no /yt endpoint to
+// offer it against.
+const A_MODES = import.meta.env.DEV
+  ? SOURCE_MODES
+  : SOURCE_MODES.filter(m => m !== 'youtube')
+const B_MODES = import.meta.env.DEV
+  ? SOURCE_B_MODES
+  : SOURCE_B_MODES.filter(m => m !== 'youtube')
+export const A_OPTIONS = sourceOptions(A_MODES)
+export const B_OPTIONS = sourceOptions(B_MODES)

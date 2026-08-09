@@ -2852,7 +2852,7 @@ export const GROUPS: Group[] = [
         max: 1,
         step: 0.01,
         unit: 'x',
-        help: 'Steps the whole simulation at a fraction of display rate, like slowed footage of the rig: noise, rolls, sweeps, feedback loops and phosphor all crawl together, and 0 freezes the frame. Modulation stays live, so an LFO or audio envelope here warps time itself. Pair with a source’s own speed control, under its transport in Input, to slow the footage to match.',
+        help: 'Steps the whole simulation at a fraction of display rate, like slowed footage of the rig: noise, rolls, sweeps, feedback loops and phosphor all crawl together, and 0 freezes the frame. Modulation stays live, so an LFO or audio envelope here warps time itself. Pair with a source’s own speed control, under its transport at the head of its stage, to slow the footage to match.',
       },
       {
         key: 'frameLock',
@@ -3206,6 +3206,11 @@ export const PHASES = PHASE_ORDER.map(name => ({
   blurb: PHASE_BLURBS[name],
   groups: GROUPS.filter(g => g.place === name),
 }))
+
+// The head of the trunk, named here as well as in PHASE_ORDER because it is the
+// one stage something asks for by identity without knowing the chain: it holds
+// A's picker, so it is where a session with nothing patched in yet has to land.
+export const SOURCE_A_STAGE: Phase = 'Source A'
 
 // The mixer's own stage, on the trunk: everything downstream of it carries both
 // signals, so it is something the picture passes through rather than a fork off

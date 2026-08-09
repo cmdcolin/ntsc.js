@@ -151,9 +151,15 @@ export const SPECS = [
       actions: [{ drag: { text: 'vhs' }, by: { x: 72 } }, { steps: 40 }],
     },
   ),
+  // The source picker, which is the head of a stage rather than a section of
+  // its own — so this boxes the open stage's row and the seed says which stage.
   boxed(
-    { section: 'Input' },
-    { name: 'input', params: { ...WILD, srcb: 'sweep' } },
+    { selector: 'div[class*="stageRow_"]' },
+    {
+      name: 'input',
+      params: { ...WILD, srcb: 'sweep' },
+      seed: { video_feedback_open_phase: 'Source A' },
+    },
   ),
   boxed(
     { selector: 'div[class*="stages_"]' },
