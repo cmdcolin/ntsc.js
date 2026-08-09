@@ -29,7 +29,7 @@
 
 import { BROWSE_LIMIT, isRecord, num, randomIndex, rotate, str } from './pool'
 
-import type { BrowseHit, OnProgress, PoolPick, PoolRef } from './pool'
+import type { BrowseHit, OnProgress, PoolPick } from './pool'
 
 const SEARCH = 'https://archive.org/advancedsearch.php'
 const METADATA = 'https://archive.org/metadata/'
@@ -526,7 +526,7 @@ const download = async (
 // The memory tier's budget. Smaller than it was now that disk backs it up: this
 // only has to cover what a set reaches for repeatedly, and anything it drops is
 // a disk read rather than a download.
-const CACHE_BYTES = 96_000_000
+const MEMORY_BYTES = 96_000_000
 
 // The disk tier's, and the reason it is not larger: the origin quota was
 // measured at 1.6 GB on this machine, and it is shared with the file stash,
@@ -603,7 +603,7 @@ const roomFor = async (bytes: number): Promise<boolean> => {
 // rewriting tens of megabytes to record that they were read. For a shelf that
 // is added to over time the two orders mostly agree, and the cost of them
 // disagreeing is one download.
-const toDisk = async (url: string, blob: Blob, type: string): Promise<void> => {
+const toDisk = async (url: string, blob: Blob): Promise<void> => {
   try {
     const cache = await diskCache()
     if (cache === null || !(await roomFor(blob.size))) return
@@ -618,7 +618,10 @@ const toDisk = async (url: string, blob: Blob, type: string): Promise<void> => {
     await cache.put(
       url,
       new Response(blob, {
-        headers: { 'content-type': type, [BYTES_HEADER]: String(blob.size) },
+        headers: {
+          'content-type': blob.type,
+          [BYTES_HEADER]: String(blob.size),
+        },
       }),
     )
   } catch {
@@ -646,7 +649,7 @@ const keep = (url: string, blob: Blob): Blob => {
   for (const gone of evictionOrder(
     [...held].map(([key, b]) => ({ url: key, bytes: b.size })),
     blob.size,
-    CACHE_BYTES,
+    MEMORY_BYTES,
   ))
     held.delete(gone)
   held.set(url, blob)
@@ -668,7 +671,7 @@ const fetchOrRead = async (
   // vanished would be reporting one that never happened.
   onProgress(0, bytes)
   const blob = await download(url, bytes, onProgress)
-  void toDisk(url, blob, blob.type)
+  void toDisk(url, blob)
   return blob
 }
 
@@ -724,16 +727,6 @@ export async function rollArchive(
   onProgress: OnProgress = () => {},
 ): Promise<PoolPick> {
   const pool = chosenPool(ARCHIVE_POOLS, randomIndex(ARCHIVE_POOLS.length))
-  return rollFromPool(pool, avoid, onProgress)
-}
-
-// One roll out of one named pool. What `rollArchive` does after choosing, and
-// what a browser preset calls to stay inside the collection it names.
-export async function rollFromPool(
-  pool: Pool,
-  avoid = '',
-  onProgress: OnProgress = () => {},
-): Promise<PoolPick> {
   const page = 1 + randomIndex(PAGE_SPAN)
   let found = identifiersIn(await request(searchUrl(pool.query, page)))
   // A pool smaller than PAGE_SPAN pages answers a deep page with nothing. That
@@ -832,14 +825,6 @@ export async function browseArchive(query: string): Promise<BrowseHit[]> {
     ]
   })
 }
-
-// The ref an item is stored under. Trivial, and exported so nothing outside this
-// file has to know that an archive.org entry is always a clip.
-export const archiveRef = (identifier: string): PoolRef => ({
-  origin: 'archive',
-  title: identifier,
-  kind: 'video',
-})
 
 // An identifier is a slug rather than a sentence, and the caption has one line.
 // Underscores and hyphens are what archive.org's own uploads use as spaces, and

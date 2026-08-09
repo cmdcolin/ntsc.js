@@ -262,7 +262,6 @@ await wait(400)
 // things have to survive: the size arrives *before* the bytes, off the metadata
 // read, and the readout moves. A revert to `r.blob()` would keep the clip
 // working and quietly take both away, which nothing else here would notice.
-await pickA('ia-random')
 // The caption alone, not `state()`: that one reads the canvas back through an
 // OffscreenCanvas every call, which is far too slow to sample a readout that
 // moves fifty times in a couple of seconds — polled with it, the whole download
@@ -276,21 +275,39 @@ const captionOnly = () =>
     )
     return b?.textContent?.trim() ?? null
   })
-const readings = []
-// Bounded by the clock rather than by a count, because what is being waited on
-// is a search, up to six metadata reads at six seconds each, and then a download
-// — a roll that lands on a bad run of Prelinger items can spend half a minute
-// before the first byte.
-const until = 90_000
-for (let spent = 0; spent < until; spent += 50) {
-  await wait(50)
-  const seen = await captionOnly()
-  if (seen === null || seen === '' || seen === readings.at(-1)) continue
-  readings.push(seen)
-  // The clip's own name is the end of the sequence, and the only reading that
-  // is neither of the two waits. Waiting for it also keeps this roll from
-  // landing in the middle of the check below.
-  if (readings.length > 1 && !/^(rolling|fetching)…/.test(seen)) break
+
+// Every distinct caption a slot shows until it settles on a name, bounded by the
+// clock rather than by a count: what is being waited on is a search, up to six
+// metadata reads at six seconds each, and then a download.
+const captionsUntilSettled = async (ms = 90_000) => {
+  const seenList = []
+  for (let spent = 0; spent < ms; spent += 50) {
+    await wait(50)
+    const seen = await captionOnly()
+    if (seen === null || seen === '' || seen === seenList.at(-1)) continue
+    seenList.push(seen)
+    // A clip's own name is the end of it, and the only reading that is neither
+    // of the two waits. Waiting for it also keeps a roll from landing in the
+    // middle of a later check.
+    if (seenList.length > 1 && !/^(rolling|fetching|opening)…/.test(seen)) break
+  }
+  return seenList
+}
+
+// A roll can legitimately come back with nothing: an archive.org item often
+// holds no rendition this app can use, and six attempts still fail about one
+// time in eight on Prelinger, whose reels sit just under the byte cap
+// (sources/archive.ts, ATTEMPTS). That is the app working as designed and
+// documented, so it is not a failure here — but it does leave nothing to check,
+// so roll again rather than report a red that says nothing about the code.
+let readings = []
+for (let attempt = 0; attempt < 3; attempt += 1) {
+  await pickA('bars')
+  await wait(400)
+  await pickA('ia-random')
+  readings = await captionsUntilSettled()
+  if (readings.some(r => r.startsWith('fetching…'))) break
+  console.log(`     (a roll came back with nothing usable; rolling again)`)
 }
 const sized = readings.filter(r => /^fetching….*\d/.test(r))
 check(
@@ -334,14 +351,7 @@ await page.evaluate(name => {
     .find(b => b.title.startsWith(`play ${name}`))
     ?.click()
 }, rolled)
-const replay = []
-for (let spent = 0; spent < 40_000; spent += 50) {
-  await wait(50)
-  const seen = await captionOnly()
-  if (seen === null || seen === '' || seen === replay.at(-1)) continue
-  replay.push(seen)
-  if (replay.length > 1 && !/^(rolling|fetching|opening)…/.test(seen)) break
-}
+const replay = await captionsUntilSettled(40_000)
 check(
   replay.at(-1) === rolled,
   'a kept archive.org clip plays back off the shelf',
@@ -370,14 +380,7 @@ await page.evaluate(name => {
     .find(b => b.title.startsWith(`play ${name}`))
     ?.click()
 }, rolled)
-const reloaded = []
-for (let spent = 0; spent < 40_000; spent += 50) {
-  await wait(50)
-  const seen = await captionOnly()
-  if (seen === null || seen === '' || seen === reloaded.at(-1)) continue
-  reloaded.push(seen)
-  if (reloaded.length > 1 && !/^(rolling|fetching|opening)…/.test(seen)) break
-}
+const reloaded = await captionsUntilSettled(40_000)
 check(
   reloaded.at(-1) === rolled,
   'the shelf still plays it after a reload',

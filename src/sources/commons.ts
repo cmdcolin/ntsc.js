@@ -360,12 +360,12 @@ export async function rollCommons(avoid = ''): Promise<PoolPick> {
 }
 
 // One roll out of one named pool, or null when that pool answered with nothing
-// this app can use. The retry above is a *different* pool rather than the same
-// query twice, so this stays a single request.
-export async function rollFromPool(
-  pool: Pool,
-  avoid = '',
-): Promise<PoolPick | null> {
+// this app can use. The retry in `rollCommons` is a *different* pool rather
+// than the same query twice, so this stays a single request — which is why it
+// is a function at all and why it is not exported: it is that loop's body and
+// has no caller of its own. A browser preset does not come through here; it
+// runs a ranked *search* over the same query, which is a different request.
+async function rollFromPool(pool: Pool, avoid = ''): Promise<PoolPick | null> {
   const body = await query({
     generator: 'search',
     gsrsearch: pool.query,
