@@ -35,6 +35,24 @@ Drives a headed Firefox Nightly, steps frames deterministically, probes pixels,
 and saves a screenshot. Headless Chrome can't present WebGPU swap chains here,
 which is why it's Firefox.
 
+```
+node scripts/sourcecheck.mjs [http://localhost:5199/]
+```
+
+Drives the two source pickers and the teletype dialog, which is the half of the
+app no other harness can reach: everything else goes in through the query
+string, and a link lands in `restoreSession` rather than on the route a hand
+takes (`useEngine`'s `commitA`/`commitB`). Nine load paths, no unit test that
+can touch them — the hook is a bag of browser objects — and a mistake in any of
+them shows up as a deck sitting on the right mode with the wrong picture.
+
+Which is what it checks. "The canvas is not black" would pass that: peak channel
+saturates at ~242 on every source this app draws. So each step takes a coarse
+tile signature and the run fails if the picture did not move. Against a build
+broken on purpose that reads 0.00 where a healthy one reads 2.58 at its tightest
+— the header records how the two arms were separated, and why the default
+`?srcb=none&set=bGain:1` is load-bearing rather than cosmetic.
+
 ### What every browser harness here has learned the hard way
 
 Every script below shares one browser story, and each of these cost real time to
