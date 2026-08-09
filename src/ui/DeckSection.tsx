@@ -4,6 +4,7 @@ import { ControlRows } from './ControlGroup'
 import { sliderFor } from './controls'
 import { useControlValue, useControlsApi } from './ControlsContext'
 import { cx } from './cx'
+import { wipeEngaged } from './deck'
 import styles from './Deck.module.css'
 import { PipControl } from './PipControl'
 import { Section } from './Section'
@@ -110,6 +111,20 @@ const PATTERN_TRIMS: readonly SliderDef[] = (
   ['wipeSoft', 'wipeRate'] satisfies ControlKey[]
 ).map(k => sliderFor(k))
 
+// Both trims sit behind the same gate — a pattern has to be armed before either
+// has an edge to act on — so the block states it once and the rows go quiet,
+// which is what `muted` is for. Left to themselves they each drew their own
+// copy of "inert — needs a wipe pattern selected · click to set": two identical
+// notes 6px apart, in a block whose whole argument is that nothing here gets a
+// line of its own that could share one. ControlGroup does this for a stage as a
+// banner, but only once three rows are behind one gate (see `banners`); two
+// rows rendered outside a group had nothing.
+//
+// A sentence rather than the note's click-to-fix button. The fix is the row of
+// pattern keys directly above, so a button here would have to pick one of four
+// arbitrarily to be the one the note arms.
+const PATTERN_GATE: ReadonlySet<ControlKey> = new Set<ControlKey>(['wipeMode'])
+
 function Transition() {
   const wipeMode = useControlValue('wipeMode')
   const { writeControl } = useControlsApi()
@@ -132,8 +147,14 @@ function Transition() {
           you leave somewhere, so they keep their help, their MIDI bind and — for
           the sweep — the ♩ that locks it to clock. */}
       <Rack sliders={PATTERN_TRIMS}>
-        <ControlRows sliders={PATTERN_TRIMS} />
+        <ControlRows sliders={PATTERN_TRIMS} muted={PATTERN_GATE} />
       </Rack>
+      {/* Held to one line at the docked width. Two lines here and the block is
+          exactly as tall as the two per-row notes it replaced, which would have
+          been a rewrite that bought only the repetition. */}
+      {wipeEngaged(wipeMode) ? null : (
+        <div className={styles.gate}>inert on “mix” — pick a pattern above</div>
+      )}
     </div>
   )
 }

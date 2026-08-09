@@ -114,6 +114,14 @@
 .fix:hover {
   text-decoration: underline;
 }
+/* A gate stated once for a block rather than once per row behind it. Same
+   colour as .fix, because it is the same fact — a control that cannot reach the
+   picture yet — but not a button: where this is used the thing that opens the
+   gate is already on screen directly above it. */
+.gate {
+  font-size: var(--fs-sm);
+  color: var(--gate);
+}
 
 /* ── keys ──────────────────────────────────────────────────────────────────
    Every button on the deck: the transport glyphs, cut and take. One face, so a
