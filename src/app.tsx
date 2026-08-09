@@ -443,15 +443,26 @@ export function App() {
   // starred), and neither hook can see the other — but it takes the *slot* rather
   // than the pick already dug out of one, so a source slot can ask it per slot and
   // the answer cannot arrive under the wrong picker.
+  //
+  // An archive.org roll comes through the same caption with no ★: there is no
+  // shelf for one (a favourite is resolved by title on Commons, and an
+  // archive.org pick is a downloaded blob rather than something a title can be
+  // turned back into), so it carries the credit link alone.
   const wikiCaption = (slot: AnySlotView): WikiSlot => {
     const on = slot.wiki
-    return on === null
-      ? null
-      : {
-          page: on.pick.page,
+    if (on !== null)
+      return {
+        page: on.pick.page,
+        where: 'Wikimedia Commons',
+        star: {
           starred: wiki.starred(on.pick.title),
           onStar: () => wiki.star(on.pick, on.channel),
-        }
+        },
+      }
+    const ia = slot.archive
+    return ia === null
+      ? null
+      : { page: ia.page, where: 'archive.org', star: null }
   }
 
   // The link still takes its per-slot values flat, because the query string is a

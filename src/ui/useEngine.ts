@@ -10,6 +10,12 @@ import {
 import { Engine } from '../gpu/pipeline'
 import { MAX_SRC_EDGE } from '../gpu/sources'
 import { reportPreviousTrace, trace } from '../gpu/trace'
+import {
+  archiveCaption,
+  isArchiveId,
+  releaseArchivePick,
+  rollArchive,
+} from '../sources/archive'
 import { clipUrl, isClipId } from '../sources/clips'
 import {
   commonsCaption,
@@ -46,6 +52,7 @@ import { playStream, playUrl, stopSlot, stopTyping } from './videoSlot'
 import type { FrameStats } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
 import type { FrozenKind } from '../gpu/renderloop'
+import type { ArchiveId, ArchivePick } from '../sources/archive'
 import type { CommonsId, CommonsPick } from '../sources/commons'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
@@ -336,6 +343,14 @@ export function useEngine() {
   const [wikiA, setWikiA] = useState<WikiOnSlot | null>(null)
   const [wikiB, setWikiB] = useState<WikiOnSlot | null>(null)
   const wikiRef = useRef<{ a: WikiOnSlot | null; b: WikiOnSlot | null }>({
+    a: null,
+    b: null,
+  })
+  // The same three for archive.org: what each slot has off it, mirrored into a
+  // ref because every path that writes it is an async reply.
+  const [archiveA, setArchiveA] = useState<ArchivePick | null>(null)
+  const [archiveB, setArchiveB] = useState<ArchivePick | null>(null)
+  const archiveRef = useRef<{ a: ArchivePick | null; b: ArchivePick | null }>({
     a: null,
     b: null,
   })
@@ -699,6 +714,16 @@ export function useEngine() {
     else setWikiB(on)
   }
 
+  // The archive.org half of the same. Deliberately not a revoke: the url this
+  // clears is still on the element that is still playing, and stopSlot revokes
+  // whatever `blob:` it retires. The only pick that has to be released by hand is
+  // one that never reached a slot — see `rollIA`.
+  const setArchive = (key: StashSlot, on: ArchivePick | null) => {
+    archiveRef.current[key] = on
+    if (key === 'a') setArchiveA(on)
+    else setArchiveB(on)
+  }
+
   // Which load of a slot is the current one. Bumped by every path that gives a
   // slot a new source, and the answer it hands back is the test for "is this
   // reply still wanted".
@@ -718,6 +743,7 @@ export function useEngine() {
   const beginLoad = (key: StashSlot): (() => boolean) => {
     const seq = (loadSeq.current[key] += 1)
     setWiki(key, null)
+    setArchive(key, null)
     return () => loadSeq.current[key] === seq
   }
 
@@ -746,6 +772,7 @@ export function useEngine() {
       )
     else if (isClipId(mode)) playUrl(slot, clipUrl(mode))
     else if (isCommonsId(mode)) rollWiki(slot, mode)
+    else if (isArchiveId(mode)) rollIA(slot, mode)
   }
 
   // A Commons pick onto a slot: the caption, the subject of the ★, and then the
@@ -814,13 +841,55 @@ export function useEngine() {
     )
   }
 
+  // Roll a clip out of an archive.org channel and show it. Shaped like rollWiki
+  // above, and slower for a reason the user is told about in the picker's band
+  // heading: archive.org will not serve byte ranges, so the whole file is
+  // downloaded before anything can play (sources/archive.ts has the measurement).
+  // Seconds, not milliseconds — which is exactly why the old picture is left up
+  // until the clip lands, and why the caption says a roll is out.
+  const rollIA = (slot: VideoSlot, id: ArchiveId) => {
+    // Read before `beginLoad` clears it, same as the Commons roll: a re-roll of
+    // the channel the slot is already on should try not to hand back the clip
+    // that is on it.
+    const showing = archiveRef.current[slot.id]
+    const onSameChannel =
+      slot.id === 'a' ? sourceMode === id : sourceBMode === id
+    const avoid = onSameChannel && showing !== null ? showing.title : ''
+    const fresh = beginLoad(slot.id)
+    slot.setName('rolling…')
+    rollArchive(id, avoid).then(
+      picked => {
+        // A roll that lost its slot has already spent the download, and what it
+        // is holding is a blob url with the whole clip behind it. Dropping the
+        // reference would leak that until the tab goes, so a stale reply is
+        // released rather than merely ignored.
+        if (!fresh()) {
+          releaseArchivePick(picked)
+          return
+        }
+        stopSlot(slot)
+        slot.setName(archiveCaption(picked.title))
+        setArchive(slot.id, picked)
+        playUrl(slot, picked.url)
+      },
+      (e: unknown) => {
+        if (fresh()) {
+          slot.setName('')
+          setError(`archive: ${reason(e)}`)
+        }
+      },
+    )
+  }
+
   // Another file out of whichever deck is on a channel, for hands that are not on
   // the sidebar — the command palette's row, and the keyboard through it. A wins
   // when both are rolling, since A is the picture; a set with Commons on B alone
   // still gets the command.
   const rollAgain = () => {
     if (isCommonsId(sourceMode)) rollWiki(slotA, sourceMode)
+    else if (isArchiveId(sourceMode)) rollIA(slotA, sourceMode)
     else if (isCommonsId(sourceBMode)) rollWiki(slotB, sourceBMode)
+    else if (isArchiveId(sourceBMode)) rollIA(slotB, sourceBMode)
   }
 
   // A starred roll, back onto a slot. Resolved by title rather than replayed from
@@ -1799,6 +1868,7 @@ export function useEngine() {
       speed: speed.a,
       changeSpeed: r => changeSpeed('a', r),
       wiki: wikiA,
+      archive: archiveA,
     } satisfies SlotView<SourceMode>,
     b: {
       key: 'b',
@@ -1826,6 +1896,7 @@ export function useEngine() {
       speed: speed.b,
       changeSpeed: r => changeSpeed('b', r),
       wiki: wikiB,
+      archive: archiveB,
     } satisfies SlotView<SourceBMode>,
     askWebcam,
     setAskWebcam,
@@ -1866,7 +1937,11 @@ export function useEngine() {
     // there being a Commons pick up: a starred roll came off the shelf, and the
     // shelf is a list rather than a pool. The palette row says so rather than
     // going quiet, since a row that does nothing has to admit it.
-    wikiRollable: isCommonsId(sourceMode) || isCommonsId(sourceBMode),
+    wikiRollable:
+      isCommonsId(sourceMode) ||
+      isCommonsId(sourceBMode) ||
+      isArchiveId(sourceMode) ||
+      isArchiveId(sourceBMode),
     reverb,
     setVideoAudio,
     changeReverb,

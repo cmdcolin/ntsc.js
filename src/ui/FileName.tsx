@@ -66,43 +66,52 @@ export function FileName(props: {
   )
 }
 
-// What a Commons pick adds to its caption. Two glyphs, both of them things the
-// picker cannot say: whether this roll has been kept, and where the credit is.
+// What a rolled pick adds to its caption. Up to two glyphs, both of them things
+// the picker cannot say: whether this roll has been kept, and where the credit
+// is.
 //
 // The ★ is the whole answer to what a channel *is* — the caption beside it rolls
 // the next file and this one is gone — so it sits where the picture is named
 // rather than in the dialog that lists the kept ones, which is a place you go
-// after the moment has passed.
+// after the moment has passed. It is optional because only the Commons channels
+// have a shelf to keep a roll on; an archive.org roll carries the credit link
+// alone rather than a ☆ that would do nothing when pressed.
 export function WikiCaption(props: {
   page: string
-  starred: boolean
-  onStar: () => void
+  // Where the link goes, named for the tooltip — "Wikimedia Commons",
+  // "archive.org". The two bands roll from different places and the credit is
+  // the one thing a caption must not be vague about.
+  where: string
+  star: { starred: boolean; onStar: () => void } | null
 }) {
+  const { star } = props
   return (
     <>
-      <button
-        type="button"
-        className={cx(styles.captionBtn, props.starred && styles.captionOn)}
-        title={
-          props.starred
-            ? 'starred — click to drop it from your Commons favorites'
-            : 'keep this one: star it and it is on your Commons favorites shelf, whatever the next roll brings'
-        }
-        aria-label={props.starred ? 'unstar this file' : 'star this file'}
-        aria-pressed={props.starred}
-        onClick={() => props.onStar()}
-      >
-        {props.starred ? '★' : '☆'}
-      </button>
-      {/* Commons files carry a licence and a photographer and this app carries
-          neither, so every pick keeps one link to the page that does. A new tab:
-          a set is never navigated away from. */}
+      {star === null ? null : (
+        <button
+          type="button"
+          className={cx(styles.captionBtn, star.starred && styles.captionOn)}
+          title={
+            star.starred
+              ? 'starred — click to drop it from your Commons favorites'
+              : 'keep this one: star it and it is on your Commons favorites shelf, whatever the next roll brings'
+          }
+          aria-label={star.starred ? 'unstar this file' : 'star this file'}
+          aria-pressed={star.starred}
+          onClick={() => star.onStar()}
+        >
+          {star.starred ? '★' : '☆'}
+        </button>
+      )}
+      {/* These files carry a licence and an author and this app carries neither,
+          so every pick keeps one link to the page that does. A new tab: a set is
+          never navigated away from. */}
       <a
         className={styles.captionBtn}
         href={props.page}
         target="_blank"
         rel="noreferrer"
-        title="open this file on Wikimedia Commons — who shot it, and under which licence"
+        title={`open this file on ${props.where} — who made it, and under which licence`}
       >
         ↗
       </a>

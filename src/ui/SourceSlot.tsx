@@ -1,3 +1,4 @@
+import { isArchiveId } from '../sources/archive'
 import { isCommonsId } from '../sources/commons'
 import { FileName, ReopenFile, WikiCaption } from './FileName'
 import { CueRow, Scrub } from './Scrub'
@@ -38,27 +39,28 @@ const namedMode = (m: SourceMode | SourceBMode): boolean =>
   m === 'wiki-faves' ||
   m === 'youtube' ||
   m === 'screen' ||
-  isCommonsId(m)
+  isCommonsId(m) ||
+  isArchiveId(m)
 
 // What clicking the caption does, which is the one thing the named modes do not
 // share: a channel rolls the next file out of the same pool, the starred list
 // reopens on the row you would change to, and a file or a share goes back out to
 // the browser's own picker.
 const captionAction = (m: SourceMode | SourceBMode): string =>
-  isCommonsId(m)
+  isCommonsId(m) || isArchiveId(m)
     ? 'roll another'
     : m === 'wiki-faves'
       ? 'open your favorites'
       : 'change'
 
-// The ★ and the credit link a Commons pick carries, or null when the slot is on
-// anything else. Built by the caller from the slot's own `wiki`, because it takes
-// one fact from the engine and one from the favourites list and neither of those
-// two can see the other.
+// The credit link a rolled pick carries — and, where there is a shelf to keep it
+// on, the ★ as well — or null when the slot is on anything else. Built by the
+// caller from the slot's own pick, because it takes one fact from the engine and
+// one from the favourites list and neither of those two can see the other.
 export type WikiSlot = {
   page: string
-  starred: boolean
-  onStar: () => void
+  where: string
+  star: { starred: boolean; onStar: () => void } | null
 } | null
 
 // The hidden file picker behind a slot's "file" mode. One component rather than
@@ -165,8 +167,8 @@ export function SourceSlot<T extends SourceMode | SourceBMode>(props: {
             wiki === null ? null : (
               <WikiCaption
                 page={wiki.page}
-                starred={wiki.starred}
-                onStar={wiki.onStar}
+                where={wiki.where}
+                star={wiki.star}
               />
             )
           }

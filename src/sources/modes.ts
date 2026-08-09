@@ -1,3 +1,4 @@
+import { ARCHIVE, ARCHIVE_IDS } from './archive'
 import { CLIP_IDS, CLIPS } from './clips'
 import { COMMONS, COMMONS_IDS } from './commons'
 
@@ -11,6 +12,7 @@ export const SOURCE_MODES = [
   ...CLIP_IDS,
   ...COMMONS_IDS,
   'wiki-faves',
+  ...ARCHIVE_IDS,
   'teletype',
   'file',
   'library',
@@ -29,6 +31,7 @@ export const SOURCE_B_MODES = [
   ...CLIP_IDS,
   ...COMMONS_IDS,
   'wiki-faves',
+  ...ARCHIVE_IDS,
   'teletype',
   'file',
   'library',
@@ -59,6 +62,9 @@ export const SOURCE_DESC: Record<SourceMode | SourceBMode, string> = {
   'wiki-vapor-video': COMMONS['wiki-vapor-video'].label,
   'wiki-nature-video': COMMONS['wiki-nature-video'].label,
   'wiki-faves': 'Favorites… — the Commons rolls you starred',
+  'ia-openings': ARCHIVE['ia-openings'].label,
+  'ia-adverts': ARCHIVE['ia-adverts'].label,
+  'ia-industrial': ARCHIVE['ia-industrial'].label,
   teletype: 'Teletype… — type your own text card',
   file: 'File… — open an image or video',
   library: 'Clips… — your own shelf, kept between sessions',
@@ -83,6 +89,7 @@ export type SourceKind =
   | 'pattern'
   | 'bundled'
   | 'commons'
+  | 'archive'
   | 'yours'
   | 'live'
 
@@ -109,6 +116,9 @@ export const SOURCE_KIND: Record<SourceMode | SourceBMode, SourceKind> = {
   // came out of rather than with 'yours' — what is yours about them is the
   // choosing, and the band above says where the pictures live.
   'wiki-faves': 'commons',
+  'ia-openings': 'archive',
+  'ia-adverts': 'archive',
+  'ia-industrial': 'archive',
   teletype: 'yours',
   file: 'yours',
   library: 'yours',
@@ -134,6 +144,12 @@ export const SOURCE_KIND_LABEL: Record<SourceKind, string | null> = {
   // The last entry in the band is the answer to it: the rolls you starred, which
   // are the only ones that come back the same.
   commons: 'Wikimedia Commons — a channel rolls a new one each pick',
+  // A pool like the Commons band, and banded apart from it for the one thing a
+  // user feels: a roll here downloads the whole clip before it appears, because
+  // archive.org will not serve byte ranges (archive.ts says why). Seconds, not
+  // milliseconds — so the heading warns rather than letting a slow pick read as
+  // a broken one.
+  archive: 'archive.org — rolls a clip, and waits for it to download',
   yours: 'Your own — opens a picker',
   live: 'Live — asks the browser',
 }
@@ -143,6 +159,7 @@ export const SOURCE_KIND_ORDER: readonly SourceKind[] = [
   'pattern',
   'bundled',
   'commons',
+  'archive',
   'yours',
   'live',
 ]

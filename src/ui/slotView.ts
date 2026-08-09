@@ -22,6 +22,7 @@
 // only B can be 'none', only A can be 'webcam' — so neither slot will accept the
 // other's mode even though everything else about them is the same shape.
 
+import type { ArchivePick } from '../sources/archive'
 import type { CommonsId, CommonsPick } from '../sources/commons'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
@@ -96,6 +97,12 @@ export interface SlotView<T extends SourceMode | SourceBMode> {
   changeSpeed: (rate: number) => void
 
   wiki: WikiOnSlot | null
+  // What this slot has off archive.org, if anything. A second field rather than
+  // a widened `wiki` because the two are not the same thing to the UI: a Commons
+  // pick can be starred and this cannot — there is no shelf for it — and its url
+  // is a `blob:` allocation holding the whole clip, which is a fact about its
+  // lifetime that nothing on the Commons side has.
+  archive: ArchivePick | null
 }
 
 // Either slot, whichever mode union it carries. What to write when a caller
