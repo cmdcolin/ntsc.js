@@ -547,7 +547,21 @@ clamp is `VideoPump.wrap`. Three things around it are deliberately not done.
   machine with no tempo set, which is most of them. The free-marked loop works
   everywhere and is the thing worth having first.
 
-A fourth is a real limit rather than a choice: the wrap is a hard cut in the
+- **Telling the user a cue will judder.** This was declined on the grounds that
+  only a pathological encode hitches, and then measuring the real shelf
+  falsified that: `scripts/loopseek.mjs --file=` puts `public/test.mp4` at 541ms
+  a lap and `example-haunted-house` at 172-209ms _anywhere in it_, against a
+  42ms frame interval — two of the four bundled clips. So the case for it is now
+  made rather than hypothetical. The mechanism is cheap: time the wrap's own
+  seek with the `seeked` event, which tracks the visible gap within about 10%,
+  so one lap is enough to know. What is not obvious is what to _do_ with the
+  answer — a warning on the cue row costs panel space for something the user
+  cannot fix in the app, and the honest remedies are "mark it somewhere else" or
+  "re-export the file". `fastSeek()` is the other lever and is not a free win:
+  it lands on a keyframe, which on a 5s-GOP clip can be seconds outside a short
+  loop.
+
+A last one is a real limit rather than a choice: the wrap is a hard cut in the
 clip's audio, audible as a click when playback audio is on. Nothing short of a
 crossfade fixes it, and a crossfade needs two read heads on one element, which a
 `<video>` does not have.

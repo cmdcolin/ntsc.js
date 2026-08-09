@@ -198,14 +198,31 @@ it back — but it does ride along in a shared link, so "this two seconds of thi
 file" is a thing you can send someone. Dragging the seek bar out of a running
 loop lets the loop go and keeps the cue.
 
-One thing worth knowing if a loop ever judders on the wrap rather than running
-clean: the cost of jumping back is set by how far the decoder has to walk to get
-there, which is a property of how the file was encoded rather than of the loop.
-Most footage is fine anywhere in it, and the bundled clips are. A file exported
-with almost no keyframes in it is not — a loop near the start still runs clean,
-one marked deep into a long file can stall about a fifth of a second on every
-lap. Re-exporting that file is the fix. `scripts/loopseek.mjs` is the
-measurement, if you want the numbers for your own footage.
+Whether a loop wraps cleanly is a property of **how the file was encoded**, not
+of the loop, and it is worth knowing about because it is not rare. Jumping back
+costs whatever the decoder has to walk through to get there: from the nearest
+keyframe at or before your in-point, forward, a frame at a time. A file with
+keyframes every half second loops freely anywhere in it. One with four keyframes
+in twenty seconds can stall a fifth of a second on every lap wherever you mark
+it — and how bad that gets depends on the footage as much as on the spacing,
+since a busy frame costs more to decode than a simple one.
+
+The clips on the shelf here differ by a factor of twenty, measured
+(`scripts/loopseek.mjs` takes `--file=` and will say the same about your own
+footage):
+
+| Clip               | Loops                                                    |
+| ------------------ | -------------------------------------------------------- |
+| Minnie the Moocher | cleanly anywhere — a keyframe every 0.4s                 |
+| Popeye             | cleanly anywhere                                         |
+| The Haunted House  | judders every lap — four keyframes in twenty-one seconds |
+| Test pattern       | worst of them — one keyframe in the whole six seconds    |
+
+If a loop judders, two things help: mark it somewhere else in the file, since
+some in-points land near a keyframe and are cheap and there is no way to see
+from here which; or re-export that file with denser keyframes, which is one flag
+to ffmpeg (`-x264-params keyint=30`). Nothing about the loop is wrong when this
+happens and the picture keeps playing — it is the jump back that stalls.
 
 Running locally adds a **YouTube…** source (`yt-dlp` on the dev server); the
 hosted build has no server to do that with.

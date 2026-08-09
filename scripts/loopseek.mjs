@@ -8,15 +8,18 @@
 // encoded**, which the app does not control and cannot see.
 //
 //   node scripts/loopseek.mjs [--laps=12] [--clip=all|single|gop3|intra] [--keep]
+//   node scripts/loopseek.mjs --file=public/test.mp4        # a real file instead
 //
 // The three GOP structures are not hypothetical — they are what this repo
 // already ships and loads:
 //
-//   single  one keyframe, at t=0. `public/test.mp4` exactly: 180 frames, 6s,
-//           one IDR. Every wrap past the start decodes from frame 0.
-//   gop3    a keyframe every ~3s, irregularly placed. The bundled cartoons
-//           (example-popeye.mp4: 22.6s, 7 keyframes at 0, 5.0, 8.1, 10.0, 15.0,
-//           17.9, 20.0). This is what a user who picks off the shelf gets.
+//   single  one keyframe, at t=0 — `public/test.mp4`'s structure. Every wrap past
+//           the start decodes from frame 0. (Use --file for the real thing: its
+//           content is far more expensive to decode than this stand-in.)
+//   gop3    a keyframe every ~3s, irregularly placed — example-popeye.mp4 (22.6s,
+//           7 keyframes at 0, 5.0, 8.1, 10.0, 15.0, 17.9, 20.0). Not "the bundled
+//           cartoons": they differ by more than an order of magnitude, and
+//           haunted-house is at 5.3s spacing. Measure each one.
 //   intra   every frame a keyframe. The best case, and the shape a clip would
 //           have to be re-encoded into if seeking turns out to be the answer.
 //
@@ -46,21 +49,40 @@
 //   intra       any             0      21ms     4ms   free, and faster than the cadence
 //
 // So: **seeking is a sound basis for a loop, and the cost is set by how many
-// frames sit between the in-point and the previous keyframe** — roughly a 17ms
-// floor plus ~0.33ms per frame that has to be decoded to get there. That one
-// model predicts all three encodes: 30 frames back is 21ms, 42 is 23ms, 492 is
-// 176ms. All-intra skips the floor too, at 3-4ms, because there is nothing to
-// decode forward from.
+// frames sit between the in-point and the previous keyframe.** Across those three
+// synthetic arms it came to roughly a 17ms floor plus ~0.33ms a frame — 30 frames
+// back is 21ms, 42 is 23ms, 492 is 176ms — and all-intra skips even the floor at
+// 3-4ms, because there is nothing to decode forward from.
+//
+// **Do not carry that per-frame constant to real footage.** It is a property of
+// the content, not of the browser, and `testsrc` is about as cheap a thing to
+// decode as exists. Measured with `--file=` on what this repo actually ships, the
+// same "frames back" buys an order of magnitude more:
+//
+//   file                in-point  frames back  wrap gap  seeked   verdict
+//   public/test.mp4         0.9s           27      83ms    73ms   visible seam
+//   public/test.mp4         5.1s          153     541ms   513ms   HITCH (12.9x)
+//   example-haunted-house   3.18s          95     172ms   171ms   HITCH (4.1x)
+//   example-haunted-house  17.99s          89     209ms   194ms   HITCH (5.0x)
+//   example-popeye          3.39s           35      96ms    64ms   free (1.5x)
+//   example-popeye         19.23s           63      62ms    39ms   free (1.0x)
+//   example-minnie-moocher any            <12      21ms    14ms   free
+//
+// test.mp4 at 5.1s is ~3.4ms a frame against the synthetic 0.33ms. So the only
+// honest general statement is the *ordering*: denser keyframes are cheaper, and
+// the constant has to be measured per file.
 //
 // Two consequences for anything built on this:
 //
-//   - A normally-encoded clip is free. A clip with no keyframes is not, and this
-//     repo ships one: `public/test.mp4` has a single IDR in 180 frames, so a loop
-//     marked in its second half hitches on every lap. One ffmpeg flag fixes it.
-//   - JS cannot see where the keyframes are. What it CAN do is time one trial
-//     seek back to the in-point at the moment the out-point is marked, via the
-//     `seeked` event — the `seeked` column above tracks the wrap gap closely
-//     enough to be used as a cheap probe for "will this loop be smooth".
+//   - **This is not a rare pathology.** Two of the four clips on this repo's own
+//     shelf hitch: test.mp4 (one IDR in 180 frames) everywhere including near the
+//     start, and haunted-house (four keyframes in 21s) everywhere. The cartoons
+//     are stream-copied excerpts and were never encoded for seeking.
+//   - JS cannot see where the keyframes are. What it CAN do is time the wrap's own
+//     seek via the `seeked` event — the column above tracks the wrap gap within
+//     about 10%, so one lap is enough to know whether a given cue will be smooth.
+//     `fastSeek()` is the other lever and is not a free win: it lands on a
+//     keyframe, which on a 5s-GOP clip can be seconds outside a short loop.
 //
 // Firefox Nightly, per CLAUDE.md — Chrome's Linux backend is not the target and
 // its seek path is not the one users will be on.
@@ -77,7 +99,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
 const flags = process.argv.slice(2)
 const flag = (name, dflt) => {
@@ -104,7 +126,7 @@ const CLIPS = {
     params: `keyint=${DUR * FPS * 2}:min-keyint=${DUR * FPS * 2}:scenecut=0`,
   },
   gop3: {
-    label: '~3s GOP (bundled cartoons)',
+    label: '~3s GOP (example-popeye)',
     params: `keyint=${FPS * 3}:min-keyint=${FPS * 3}:scenecut=0`,
   },
   intra: {
@@ -124,6 +146,12 @@ const RUNS = [
   { inPoint: 16.4, length: 0.3 },
   { inPoint: 16.4, length: 1.0 },
 ]
+
+// A real file instead of the generated matrix — for answering "does THIS clip
+// loop cleanly", which is the question anyone with footage actually has. The
+// in-points are derived from its own duration rather than fixed, so a 6s clip and
+// a 22s one are both probed near the top and near the end.
+const FILE = flag('file', '')
 
 const dir = mkdtempSync(join(tmpdir(), 'loopseek-'))
 
@@ -160,9 +188,13 @@ const encode = (name, params) => {
     ],
     { stdio: ['ignore', 'ignore', 'inherit'] },
   )
-  // Report what was actually produced rather than what was asked for: x264 can
-  // and does place extra IDRs, and an arm that silently has 40 keyframes in it
-  // would read as "seeking is free" for the wrong reason.
+  return { out, keys: keyframeCount(out) }
+}
+
+// Report what a file actually has rather than what was asked for: x264 can and
+// does place extra IDRs, and an arm that silently has 40 keyframes in it would
+// read as "seeking is free" for the wrong reason.
+function keyframeCount(path) {
   const flagsCsv = execFileSync('ffprobe', [
     '-v',
     'error',
@@ -172,14 +204,22 @@ const encode = (name, params) => {
     'packet=flags',
     '-of',
     'csv=p=0',
-    out,
+    path,
   ]).toString()
-  const keys = flagsCsv.split('\n').filter(l => l.includes('K')).length
-  return { out, keys }
+  return flagsCsv.split('\n').filter(l => l.includes('K')).length
 }
 
 const built = {}
-for (const [name, spec] of Object.entries(CLIPS)) {
+if (FILE !== '') {
+  const keys = keyframeCount(FILE)
+  built[basename(FILE)] = {
+    label: `supplied file (${keys} keyframes)`,
+    path: FILE,
+    keys,
+  }
+  console.log(`probing ${FILE} — ${keys} keyframes`)
+}
+for (const [name, spec] of Object.entries(FILE === '' ? CLIPS : {})) {
   if (ONLY !== 'all' && ONLY !== name) continue
   const { out, keys } = encode(name, spec.params)
   built[name] = { ...spec, path: out, keys }
@@ -466,6 +506,16 @@ try {
     console.log(
       `\n${name} — ${spec.label}, ${spec.keys} keyframes, ${dur.toFixed(1)}s`,
     )
+    // Near the top and near the end, as fractions, so the deep probe is actually
+    // deep in whatever was handed over.
+    const runs =
+      FILE === ''
+        ? RUNS
+        : [0.15, 0.85].flatMap(f =>
+            [0.3, 1.0]
+              .map(length => ({ inPoint: +(dur * f).toFixed(2), length }))
+              .filter(r => r.inPoint + r.length < dur),
+          )
     // wrap gap (median/p95/worst) is the picture's account; seeked is the
     // decoder's; steady/rAF/decode are the instrument.
     console.log(
@@ -473,7 +523,7 @@ try {
     )
     // The control first, so the baseline it establishes is on screen above the
     // arms that are compared against it.
-    for (const r of [{ ...RUNS[0], clamp: false, control: true }, ...RUNS]) {
+    for (const r of [{ ...runs[0], clamp: false, control: true }, ...runs]) {
       // Raised to the front before every run, not just once at startup: the
       // window can lose visibility partway through a multi-arm run, and rAF for
       // an occluded window stops, which arrives as an arm with no data in it.

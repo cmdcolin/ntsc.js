@@ -20,12 +20,20 @@
 // into "the loop button sometimes does nothing", which a browser is an expensive
 // place to find out about.
 
-// Shortest loop that still plays. Below about three frames the wrap fires again
-// before the decoder has delivered anything new, and the loop stops being a loop
-// and becomes a still — so a tap closer than this to the in-point is widened to
-// it rather than rejected. That widening is deliberate: a fast double-tap is how
-// you ask for the shortest stutter the clip can do, and a gesture that silently
-// did nothing would read as a broken button.
+// Shortest loop that still plays, in seconds of the clip's own time. A tap closer
+// than this to the in-point is widened to it rather than rejected: a fast
+// double-tap is how you ask for the shortest stutter the clip can do, and a
+// gesture that silently did nothing would read as a broken button.
+//
+// It is a fixed duration and not a frame count, which is the honest limitation
+// here — the element does not report its frame rate, so there is nothing to
+// derive one from without sampling rVFC for a while first. 0.1s is three frames
+// of 30fps footage and six of 60, but only one and a half of the 15fps Popeye
+// clip on the shelf, where the shortest loop therefore shows one or two frames
+// rather than three. That is a fair stutter rather than a fault, so it is left
+// alone; what it must not become is a *hard* still, and it cannot — the wrap only
+// re-seeks once the playhead has passed the end, so at least one frame is always
+// delivered per lap.
 export const MIN_CUE_LOOP = 0.1
 
 export interface Cue {
