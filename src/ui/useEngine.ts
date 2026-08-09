@@ -1251,24 +1251,32 @@ export function useEngine() {
   // No resolution constraint — composite dongles deliver 720x480, so we take
   // whatever the device negotiates rather than forcing 1280x720.
   //
-  // The one source path that does not go through `commitA`, and it is not an
-  // oversight: the slot is given up *before* getUserMedia rather than after,
-  // which is the asymmetry startScreen's own note is about. Folding it into the
-  // commit would move that stop into the success branch, so a denied camera
-  // would leave the picture up — better, probably, but a decision about what a
-  // refused permission should do rather than a place two paths had drifted.
+  // The deck is given up only once a device has actually been handed over —
+  // the same rule startScreen follows, arrived at from the other direction.
+  //
+  // It used to stop the slot before asking, and what that cost is worth writing
+  // down, because it was invisible rather than obviously broken: measured with
+  // getUserMedia forced to reject, deck A on a playing clip came back with the
+  // *identical* frame signature and the picker still reading `clip-popeye`. Not
+  // a black slot — `stopSlot` retires the element and the GPU keeps the last
+  // texture it was given — so a refused camera silently turned a playing clip
+  // into a still of itself, under a picker that went on naming the clip. The
+  // only thing that said otherwise was the banner.
+  //
+  // The banner stays, which is where this parts company with startScreen. There
+  // the browser's picker *is* the confirmation, so cancelling it is a choice
+  // made on the only surface in play; here the app's own dialog asked first,
+  // and the permission prompt is a second gate the user may never connect to
+  // the click — a site already blocked rejects with no prompt at all, and
+  // silence would read as the Continue button doing nothing.
   const startWebcam = (deviceId: string) => {
     const current = engineRef.current
     if (current) {
-      stopVideo()
       const video = deviceId === '' ? true : { deviceId: { exact: deviceId } }
       navigator.mediaDevices.getUserMedia({ video }).then(
         stream => {
-          beginLoad('a')
+          commitA('webcam')
           playStream(slotA, stream)
-          setSourceMode('webcam')
-          setSourceName('')
-          dropFile('a')
           // Capture cards weave interlaced fields, so combing shows on motion;
           // bob-deinterlace on by default for this source (toggle in Signal A).
           current.setControl('deint', 1)
