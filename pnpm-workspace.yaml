@@ -13,5 +13,6 @@
 # install hermetic and quiet.
 allowBuilds:
   esbuild: true
+  re2: true
   '@firebase/util': false
   protobufjs: false
