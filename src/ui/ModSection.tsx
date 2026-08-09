@@ -1,7 +1,8 @@
 import { PASS_THROUGH } from '../signal/modstate'
-import { GROUPS } from './controls'
+import { sliderFor } from './controls'
 import { cx } from './cx'
 import { SYNC_DIVISIONS } from './midi'
+import styles from './ModSection.module.css'
 import {
   DEFAULT_STAB,
   MOD_SOURCES,
@@ -14,23 +15,15 @@ import {
   slotRate,
 } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
+import { groupOf, stageOf } from './placement'
 import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
 import { TempoRow } from './TempoRow'
 import ui from './ui.module.css'
 
+import type { ControlKey } from '../controls'
 import type { Tempo } from './useTempo'
-
-// Every slider is a bend point: flatten the groups into target options. The
-// slider's range doubles as the modulation span, so depth stays meaningful
-// across controls with wildly different units.
-const TARGET_OPTIONS = [
-  { value: '' as const, label: 'off' },
-  ...GROUPS.flatMap(g =>
-    g.sliders.map(s => ({ value: s.key, label: `${s.label} — ${g.name}` })),
-  ),
-]
 
 // The stab gate: the one thing in this section that is not a slot. It drives the
 // whole board rather than one control, so there is nothing to point at a target —
@@ -84,13 +77,96 @@ function StabRows() {
   )
 }
 
-// The whole bay, one row per slot. State, persistence and the push to the
-// render loop all moved to useModSlots when motion stopped being this section's
-// private business — presets carry it, links carry it, and any control row can
-// claim a slot from its own ∿. What is left here is the view that shows all
-// eight at once, which is still the only place to see the bay as a bay.
-export function ModSection(props: { tempo: Tempo }) {
-  const { slots, bpm, setSlot, cycleSlotSync, stab, fire } = useModSlotsApi()
+// The head of a patched slot: its number, what it is driving, and the way to
+// hand it back.
+//
+// This replaced a dropdown of every slider in the app — 273 options in one
+// flat `<select>`, labelled "control — module" because nothing else could tell
+// two `gain`s apart. It was the panel's one surface that flattened the chain
+// into an alphabetical list, and it was a second route to a choice the chain
+// already makes better: a control row's own ∿ claims a free slot, so the target
+// is picked at the control it drives, where you are already looking at it.
+//
+// So the name here is a readout and a way back rather than a picker. It opens
+// the module the control lives in, which is the same jump "This look"'s captions
+// make and for the same reason — a routing you cannot find the row for is a
+// wobble with no way to tune what it is wobbling.
+function SlotHead(props: {
+  // 1-based, as the bay numbers its slots.
+  n: number
+  target: ControlKey
+  // The stages that will actually open right now. A branch with nothing patched
+  // into it opens onto nothing, and a look carried in from a preset or a link
+  // can hold a routing into one — so this is a live question, not a property of
+  // the table. Same guard as LookSection's captions.
+  openStages: ReadonlySet<string>
+  onOpenGroup: (stage: string, group: string) => void
+  onRemove: () => void
+}) {
+  const def = sliderFor(props.target)
+  const group = groupOf(props.target)
+  const stage = group === undefined ? null : stageOf(group)
+  // "control — module", the same pair the dropdown's options carried: the
+  // control name alone is ambiguous across 273 of them, and the module is also
+  // the thing the button opens.
+  const label = group === undefined ? def.label : `${def.label} — ${group.name}`
+  return (
+    <div className={styles.slotHead}>
+      <span className={styles.tag} title={`mod slot ${props.n}`}>
+        {props.n}
+      </span>
+      {group !== undefined && stage !== null && props.openStages.has(stage) ? (
+        <button
+          className={styles.target}
+          title={`open ${group.name} in the ${stage} stage — the row this slot is driving`}
+          onClick={() => props.onOpenGroup(stage, group.name)}
+        >
+          {label}
+        </button>
+      ) : (
+        <span className={styles.target} title={label}>
+          {label}
+        </span>
+      )}
+      <button
+        className={styles.remove}
+        title={`stop modulating ${def.label} and hand slot ${props.n} back`}
+        aria-label={`unpatch slot ${props.n}`}
+        onClick={props.onRemove}
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
+// The whole bay, one entry per patched slot. State, persistence and the push to
+// the render loop all moved to useModSlots when motion stopped being this
+// section's private business — presets carry it, links carry it, and any control
+// row can claim a slot from its own ∿. What is left here is the view that shows
+// the bay as a bay, which is still the only place the eight read as a set: a
+// routing's own row can say what drives that control and cannot say what else
+// is moving, or how much of the bay is left.
+//
+// Empty slots draw nothing. They used to be eight rows reading "off", which was
+// the section's whole resting height spent on the absence of eight things — and
+// each of those rows was a picker, which is why the bay looked like the place
+// motion was set up from. It isn't: it is the place motion is read and taken
+// back. What is left of "there are eight" is the free count under the list.
+export function ModSection(props: {
+  tempo: Tempo
+  openStages: ReadonlySet<string>
+  onOpenGroup: (stage: string, group: string) => void
+}) {
+  const { slots, bpm, setSlot, setSlotForKey, cycleSlotSync, stab, fire } =
+    useModSlotsApi()
+  // Slot number and slot in one, because the number is the slot's identity —
+  // the engine's phase is keyed by position, so filtering the empties out must
+  // not renumber the ones that are left.
+  const patchedSlots = slots.flatMap((slot, i) =>
+    slot.target === '' ? [] : [{ slot, target: slot.target, n: i + 1, i }],
+  )
+  const free = slots.length - patchedSlots.length
   // Whether anything in the bay is playable, which is what decides if the
   // fire-everything button is worth a row.
   const anyTrig = slots.some(s => s.target !== '' && s.source === 'trig')
@@ -104,12 +180,25 @@ export function ModSection(props: { tempo: Tempo }) {
   // effect with nothing anywhere pointing at where it lives.
   const patched = slots.some(s => s.target !== '' && s.depth > 0) || stab.hz > 0
   return (
-    <Section title="Modulation" defaultOpen={false} dot={patched}>
+    <Section
+      title="Modulation"
+      defaultOpen={false}
+      dot={patched}
+      // The bay's whole state in three words, so folding it stays free: the
+      // question this section is folded over is "is anything patched, and is
+      // there room", and both are this number.
+      summary={
+        patchedSlots.length === 0
+          ? 'nothing patched'
+          : `${patchedSlots.length} of ${slots.length} patched`
+      }
+    >
       <div className={ui.hint}>
         LFOs, drift and the audio envelope wiggling any control around its
-        slider setting — or press ∿ on any control row. The stabs below are the
-        one that drives the whole board: it cuts the look out and pokes it back
-        in on the beat.
+        slider setting. A slot is patched at the control it drives — press ∿ on
+        any control row — and this is where the {slots.length} of them read as a
+        bay. The stabs below are the one that drives the whole board: it cuts
+        the look out and pokes it back in on the beat.
       </div>
       {/* The beat every ♩ in the panel reads, at the top of the section whose
           rates are the ones most often locked to it. Here rather than in MIDI:
@@ -130,104 +219,108 @@ export function ModSection(props: { tempo: Tempo }) {
         </button>
       ) : null}
       <StabRows />
-      {slots.map((s, i) => (
+      {patchedSlots.map(({ slot: s, target, n, i }) => (
         // Slots are positional identities (slot 1..8), so the index IS the key.
         // oxlint-disable-next-line react/no-array-index-key
         <div key={i}>
-          <SelectRow
-            tag={String(i + 1)}
-            title={`mod slot ${i + 1}`}
-            value={s.target}
-            options={TARGET_OPTIONS}
-            // Switching a slot off restores its run switch too: the switch
-            // belongs to a routing, and left thrown on an empty slot it would
-            // park whatever got patched there next, with nothing on the row
-            // that claimed it to say why it isn't moving.
-            onChange={target =>
-              setSlot(i, target === '' ? { target, on: true } : { target })
-            }
+          <SlotHead
+            n={n}
+            target={target}
+            openStages={props.openStages}
+            onOpenGroup={props.onOpenGroup}
+            // The same call the row's own "remove" makes, rather than a second
+            // way to blank a slot: it hands the slot back with its run switch
+            // restored, which matters because the switch belongs to a routing —
+            // left thrown on an empty slot it would park whatever got patched
+            // there next, with nothing on the row that claimed it to say why it
+            // isn't moving.
+            onRemove={() => setSlotForKey(target, null)}
           />
-          {s.target === '' ? null : (
-            <>
-              <SelectRow
-                tag="∿"
-                title="modulation source"
-                value={s.source}
-                options={MOD_SOURCES}
-                onChange={source => setSlot(i, { source })}
-              />
-              {PASS_THROUGH.has(s.source) ? null : (
-                <Slider
-                  label="rate"
-                  unit="Hz"
-                  min={RATE_MIN}
-                  max={RATE_MAX}
-                  step={0.02}
-                  // Tempo's business while ♩ is set; the dialed Hz stays put
-                  // underneath and comes back when the lock cycles off.
-                  value={slotRate(s, bpm)}
-                  defaultValue={EMPTY_SLOT.rateHz}
-                  help="How fast this slot's LFO cycles, in Hz. Slow rates drift the target control the way a warming-up circuit does; fast ones buzz it per-frame. Lock it to the beat with ♩ in the ⋮ menu."
-                  sync={{
-                    label:
-                      s.syncDiv === undefined
-                        ? null
-                        : SYNC_DIVISIONS[s.syncDiv].label,
-                    live: bpm !== null,
-                    onCycle: () => cycleSlotSync(i),
-                  }}
-                  onChange={v => setSlot(i, { rateHz: v })}
-                />
-              )}
-              {/* The only control in the bay you play rather than set. It has
-                  to be next to the rate, because the rate is this envelope's
-                  decay and the two are read together — press, watch it fall,
-                  adjust, press again.
-
-                  Gone while the slot is parked, because ❚❚ means it: a parked
-                  routing is not on the engine's list, so the strike would land
-                  on nothing. The button going with the switch says that, where
-                  a live button that quietly does nothing would read as the
-                  envelope being broken. */}
-              {s.source === 'trig' && s.on ? (
-                <button
-                  className={ui.btn}
-                  title={`strike slot ${i + 1}'s envelope`}
-                  onClick={() => fire(i)}
-                >
-                  ⚡ fire
-                </button>
-              ) : null}
-              <Slider
-                label="depth (of slider range)"
-                unit=""
-                min={0}
-                max={1}
-                step={0.01}
-                value={s.depth}
-                defaultValue={EMPTY_SLOT.depth}
-                help="How far the modulation swings the target, as a fraction of that control's own slider range. The resting slider position stays the centre, so presets and saved looks still hold the look."
-                onChange={v => setSlot(i, { depth: v })}
-              />
-              {/* Per slot, because the master amount above is all of them at
-                  once and "off, except that one" is the shape a set actually
-                  wants. Everything the slot is patched with survives it — the
-                  same switch the control row's ∿ throws. */}
-              <button
-                className={cx(ui.btn, !s.on && ui.slotEmpty)}
-                title={
-                  s.on
-                    ? `hold slot ${i + 1} still, keeping what it is patched with`
-                    : `start slot ${i + 1} again, as it is set`
-                }
-                onClick={() => setSlot(i, { on: !s.on })}
-              >
-                {s.on ? '❚❚ hold still' : '▶ start again'}
-              </button>
-            </>
+          <SelectRow
+            tag="∿"
+            title="modulation source"
+            value={s.source}
+            options={MOD_SOURCES}
+            onChange={source => setSlot(i, { source })}
+          />
+          {PASS_THROUGH.has(s.source) ? null : (
+            <Slider
+              label="rate"
+              unit="Hz"
+              min={RATE_MIN}
+              max={RATE_MAX}
+              step={0.02}
+              // Tempo's business while ♩ is set; the dialed Hz stays put
+              // underneath and comes back when the lock cycles off.
+              value={slotRate(s, bpm)}
+              defaultValue={EMPTY_SLOT.rateHz}
+              help="How fast this slot's LFO cycles, in Hz. Slow rates drift the target control the way a warming-up circuit does; fast ones buzz it per-frame. Lock it to the beat with ♩ in the ⋮ menu."
+              sync={{
+                label:
+                  s.syncDiv === undefined
+                    ? null
+                    : SYNC_DIVISIONS[s.syncDiv].label,
+                live: bpm !== null,
+                onCycle: () => cycleSlotSync(i),
+              }}
+              onChange={v => setSlot(i, { rateHz: v })}
+            />
           )}
+          {/* The only control in the bay you play rather than set. It has to be
+              next to the rate, because the rate is this envelope's decay and the
+              two are read together — press, watch it fall, adjust, press again.
+
+              Gone while the slot is parked, because ❚❚ means it: a parked
+              routing is not on the engine's list, so the strike would land on
+              nothing. The button going with the switch says that, where a live
+              button that quietly does nothing would read as the envelope being
+              broken. */}
+          {s.source === 'trig' && s.on ? (
+            <button
+              className={ui.btn}
+              title={`strike slot ${n}'s envelope`}
+              onClick={() => fire(i)}
+            >
+              ⚡ fire
+            </button>
+          ) : null}
+          <Slider
+            label="depth (of slider range)"
+            unit=""
+            min={0}
+            max={1}
+            step={0.01}
+            value={s.depth}
+            defaultValue={EMPTY_SLOT.depth}
+            help="How far the modulation swings the target, as a fraction of that control's own slider range. The resting slider position stays the centre, so presets and saved looks still hold the look."
+            onChange={v => setSlot(i, { depth: v })}
+          />
+          {/* Per slot, because the master amount above is all of them at once
+              and "off, except that one" is the shape a set actually wants.
+              Everything the slot is patched with survives it — the same switch
+              the control row's ∿ throws. */}
+          <button
+            className={cx(ui.btn, !s.on && ui.slotEmpty)}
+            title={
+              s.on
+                ? `hold slot ${n} still, keeping what it is patched with`
+                : `start slot ${n} again, as it is set`
+            }
+            onClick={() => setSlot(i, { on: !s.on })}
+          >
+            {s.on ? '❚❚ hold still' : '▶ start again'}
+          </button>
         </div>
       ))}
+      {/* What is left of the eight empty rows: the count, and the one gesture
+          that fills one. Both states are worth a line — with the bay full, a ∿
+          press has nowhere to go, and the row that gets pressed says so from
+          inside its own editor but only after you have pressed it. */}
+      <div className={ui.hint}>
+        {free === 0
+          ? `all ${slots.length} slots are patched — hand one back with its × to free it.`
+          : `${free} of ${slots.length} slots free — press ∿ on any control row to patch one.`}
+      </div>
     </Section>
   )
 }

@@ -1,14 +1,13 @@
 import { useState } from 'react'
 
 import { ControlSlider } from './ControlGroup'
-import { GROUPS, SOUND_STAGE, SOURCE_B_STAGE, VIEW_STAGE } from './controls'
 import { sliderMatches, useFilterQuery } from './filter'
 import styles from './LookSection.module.css'
 import { useModSlotsApi } from './ModSlotsContext'
+import { groupOf, stageOf } from './placement'
 import { Section } from './Section'
 import { Rack } from './Slider'
 
-import type { ControlKey } from '../controls'
 import type { Group, SliderDef } from './controls'
 
 // How many of the off-stock rows stand in the open before the rest go behind a
@@ -17,22 +16,6 @@ import type { Group, SliderDef } from './controls'
 // unfolded that is 700px of sidebar above the chain map — the exact reserve the
 // last two passes went to the trouble of taking out.
 const CAP = 6
-
-// Where each control lives, so a row gathered out of its stage can still say
-// which one it came from. Built once at module load off the same table the
-// panel's own headers are built from.
-const GROUP_OF = new Map<ControlKey, Group>()
-for (const g of GROUPS) for (const s of g.sliders) GROUP_OF.set(s.key, g)
-
-// The placements that are not a stage name. Every other `place` is a Phase and
-// is already the name of the stage that opens it, so this is the whole
-// translation — a table rather than a chain of ternaries, because there are
-// three of them now and a fourth would have kept extending the chain.
-const OFF_SPINE_STAGE: Partial<Record<Group['place'], string>> = {
-  b: SOURCE_B_STAGE,
-  audio: SOUND_STAGE,
-  view: VIEW_STAGE,
-}
 
 // What the look on screen is actually made of: every control sitting off stock,
 // in signal-path order, as live rows under the group each came from.
@@ -126,11 +109,11 @@ export function LookSection(props: {
           `matched` so unfolding the tail doesn't shift the rows above it. */}
       <Rack sliders={matched}>
         {shown.map((s, i) => {
-          const group = GROUP_OF.get(s.key)
+          const group = groupOf(s.key)
           // One caption per run of rows from the same group, not one per row:
           // signal order keeps a group's controls together, so this comes out
           // as a heading over each module the look reaches into.
-          const prev = i === 0 ? undefined : GROUP_OF.get(shown[i - 1].key)
+          const prev = i === 0 ? undefined : groupOf(shown[i - 1].key)
           return (
             <div key={s.key}>
               {group === prev ? null : (
@@ -171,10 +154,7 @@ function GroupCaption(props: {
 }) {
   const group = props.group
   if (group === undefined) return null
-  // The off-spine placements are named for what they hold; the stage each opens
-  // is named for what it is. Every other placement is already the stage's own
-  // name.
-  const stage = OFF_SPINE_STAGE[group.place] ?? group.place
+  const stage = stageOf(group)
   return props.openStages.has(stage) ? (
     <button
       className={styles.from}

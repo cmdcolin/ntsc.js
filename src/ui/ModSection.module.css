@@ -1,0 +1,64 @@
+/* The head of a patched slot: the slot number, what it is driving, and the way
+   to hand the slot back. It stands where the target dropdown used to, and keeps
+   that row's metrics — the 13px tag and the 6px gap — so the rows under it (the
+   ∿ source picker, still a SelectRow) line up with the head above them. */
+.slotHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 3px;
+}
+.tag {
+  width: 13px;
+  flex-shrink: 0;
+  color: var(--midi);
+  font-family: var(--mono);
+  font-size: var(--fs);
+  font-weight: 700;
+}
+
+/* What the slot drives, as "control — module". The name is the whole of the
+   answer to "what is slot 3 doing", so it takes the width and the × beside it
+   keeps its own: a long pair like "head switch noise — Tape heads" has to
+   ellipsise rather than push the button off the row. */
+.target {
+  composes: bare from './ui.module.css';
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  color: var(--fg2);
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+button.target {
+  cursor: pointer;
+}
+button.target:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* Hand the slot back. Quiet until pointed at, like every other destructive
+   glyph in the panel — eight of these lit at once would read as the bay being
+   mostly a row of delete buttons. */
+.remove {
+  composes: bare from './ui.module.css';
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 0 2px;
+  color: var(--fg4);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+.remove:hover {
+  color: var(--bad);
+}
+
+@media (pointer: coarse) {
+  .remove {
+    min-width: 30px;
+    padding: 6px 2px;
+  }
+}

@@ -1263,7 +1263,17 @@ export function App() {
 
       {/* An occasional tool holding no filterable control — while a filter is
           live the panel below the box is the result set. */}
-      {filtering ? null : <ModSection tempo={tempo} />}
+      {filtering ? null : (
+        <ModSection
+          tempo={tempo}
+          // A patched slot names the control it drives and opens the module
+          // that control lives in — the same jump "This look"'s captions make,
+          // and the reason the bay no longer needs a picker listing every
+          // slider in the app.
+          openStages={openStages}
+          onOpenGroup={nav.openAt}
+        />
+      )}
 
       {/* MIDI only appears once enabled (from Advanced) — 99% of users never
           wire up a controller, so it stays out of the default panel. */}
