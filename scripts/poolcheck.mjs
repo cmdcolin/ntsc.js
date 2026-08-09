@@ -353,6 +353,42 @@ check(
   JSON.stringify(replay),
 )
 
+// ── and survives the page going away ─────────────────────────────────────────
+// The memory tier cannot answer this one: a reload empties it, and what is left
+// is the disk tier, which is the whole reason "kept" means ready rather than
+// remembered. A browser with no `caches`, a private window or a full quota all
+// degrade to a download, so this failing is a real regression and not a flake —
+// the harness runs in an ordinary profile on localhost, which is a secure
+// context.
+await page.goto(base, { waitUntil: 'networkidle0' })
+await wait(5000)
+await pickA('library')
+await wait(1500)
+await page.evaluate(name => {
+  const d = document.querySelector('dialog[open]')
+  ;[...(d?.querySelectorAll('button') ?? [])]
+    .find(b => b.title.startsWith(`play ${name}`))
+    ?.click()
+}, rolled)
+const reloaded = []
+for (let spent = 0; spent < 40_000; spent += 50) {
+  await wait(50)
+  const seen = await captionOnly()
+  if (seen === null || seen === '' || seen === reloaded.at(-1)) continue
+  reloaded.push(seen)
+  if (reloaded.length > 1 && !/^(rolling|fetching|opening)…/.test(seen)) break
+}
+check(
+  reloaded.at(-1) === rolled,
+  'the shelf still plays it after a reload',
+  JSON.stringify(reloaded),
+)
+check(
+  !reloaded.some(r => r.startsWith('fetching…')),
+  'and off the disk cache, without downloading it a second time',
+  JSON.stringify(reloaded),
+)
+
 // ── a late roll is dropped ───────────────────────────────────────────────────
 // The one failure a screenshot cannot show: the request is out for a second or
 // two, the user is free to leave, and the reply must not land on what they went

@@ -520,6 +520,16 @@ describe('evictionOrder', () => {
     expect(evictionOrder(held(10, 20), 30, 100)).toEqual([])
   })
 
+  // Shared by the memory tier and the disk one, which differ only in what
+  // "oldest" means — least recently played against least recently downloaded.
+  // The policy reads the order it is handed and imposes none of its own, which
+  // is why the same three sizes in the other order free a different amount and
+  // cost a different number of entries.
+  it('reads the order it was given and imposes none of its own', () => {
+    expect(evictionOrder(held(30, 20, 10), 50, 90)).toEqual(['u0'])
+    expect(evictionOrder(held(10, 20, 30), 50, 90)).toEqual(['u0', 'u1'])
+  })
+
   // Least-recently-played first, which is the order the map hands over: the
   // clip you last reached for is the one you are likeliest to reach for again.
   it('drops the oldest first, and only as many as it must', () => {

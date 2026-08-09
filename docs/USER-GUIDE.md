@@ -133,8 +133,10 @@ marble busts, dead malls, reefs and time-lapse; archive.org brings tape idents,
 is slower — that site will not serve byte ranges, so a pick downloads the whole
 clip before it appears, usually a few seconds and sometimes twenty. The caption
 names the size before the first byte and counts it out, so the wait tells you
-how long it will be rather than letting you find out — and it is paid once a
-session: a clip you keep and come back to plays straight away the second time. Rolling is
+how long it will be rather than letting you find out — and it is paid once: a clip
+you keep and come back to plays straight away the second time, and still does
+after a reload, because the app holds what it has downloaded (a quarter of a
+gigabyte of it, oldest out) in the browser's own store. Rolling is
 the whole of it: the caption is the only thing on screen that says which file
 came back, and the roll before it is gone. So keep the ones worth keeping — the
 **★** beside the caption puts the picture that is up on your clip shelf,

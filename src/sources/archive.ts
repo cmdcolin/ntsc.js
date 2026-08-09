@@ -504,28 +504,54 @@ const download = async (
 
 // --- holding on to what has already been fetched -----------------------------
 
-// How many bytes of already-downloaded clip to keep about.
+// Two tiers over the network, because a wait of tens of seconds is worth
+// avoiding twice over and the two ways of avoiding it cost different things.
+// Measured in Firefox Nightly on this machine, per read:
 //
-// The case this is for is a set: a clip kept on the shelf is played, the deck
-// moves on, and it is played again ten minutes later. Without this that is two
-// full downloads and two waits of up to twenty seconds, which makes "kept" mean
-// remembered rather than ready — and the wait is now visibly announced, so the
-// second one is the one that reads as a fault.
+//   memory  a Blob already in hand                          0ms
+//   disk    caches.match 1ms, then .blob() at ~2.8ms/MB —   27ms at 3 MB,
+//           111ms at 40, 176ms at 64
+//   network the whole rendition off /cors/ at 0.9-9.4 MB/s  3-20s
 //
-// 192 MB against a per-clip ceiling of LONG_BYTES: a realistic set of ten
-// short-form clips (0.3-12 MB each) fits several times over, and even two
-// Prelinger reels at the cap leave room. Held as Blobs rather than in a
-// persistent store, so this is a fact about the session and nothing to clean up
-// — a reload starts empty, which is the honest trade for keeping it this simple.
-const CACHE_BYTES = 192_000_000
+// The disk tier is what makes "kept" mean ready rather than remembered: it
+// survives the reload, so a clip starred last week plays at once today. The
+// memory tier stays on top of it because the disk figures are per *play* and
+// this is an instrument — 176ms of nothing after a key press is felt, and the
+// long clips are exactly the ones that cost it.
+//
+// Neither is load-bearing. Every cache operation below degrades to the tier
+// under it on any failure, so a browser with no `caches`, a private window, a
+// full quota or a corrupt entry all end at the same place: it downloads.
+
+// The memory tier's budget. Smaller than it was now that disk backs it up: this
+// only has to cover what a set reaches for repeatedly, and anything it drops is
+// a disk read rather than a download.
+const CACHE_BYTES = 96_000_000
+
+// The disk tier's, and the reason it is not larger: the origin quota was
+// measured at 1.6 GB on this machine, and it is shared with the file stash,
+// which copies the user's own last-session clip into OPFS and needs room for it
+// (ui/fileStash.ts `fits`). Their footage is worth more than a re-downloadable
+// advert, so this takes a slice and leaves the rest.
+const DISK_BYTES = 256_000_000
+
+// Bumped when what is written changes shape, so a stale entry is never read
+// back under new rules — the old cache is simply never opened again.
+const DISK_CACHE = 'ntsc.js.archive.v1'
+
+// The size of an entry, recorded on the way in. `cache.keys()` hands back
+// requests and nothing else, so without this, totting up what is stored would
+// mean reading every body — the one operation here that is not cheap.
+const BYTES_HEADER = 'x-ntsc-bytes'
 
 // Which held downloads have to go for a new one to fit, oldest first. Pure so
-// the policy can be tested without a network: the map that calls it is keyed in
-// least-recently-used order, so "oldest" here means least recently played.
+// the policy can be tested without a network or a browser, and shared by both
+// tiers — they differ only in what "oldest" means, which is the caller's to
+// know: least recently *played* in memory, least recently *downloaded* on disk.
 export function evictionOrder(
   held: readonly { url: string; bytes: number }[],
   incoming: number,
-  budget = CACHE_BYTES,
+  budget: number,
 ): string[] {
   let total = incoming + held.reduce((n, h) => n + h.bytes, 0)
   const out: string[] = []
@@ -537,10 +563,77 @@ export function evictionOrder(
   return out
 }
 
+// --- the disk tier -----------------------------------------------------------
+
+// Absent in a non-secure context, and in the test runner. Everything below
+// treats that as "no disk tier" rather than as an error.
+const diskCache = (): Promise<Cache> | null =>
+  typeof caches === 'undefined' ? null : caches.open(DISK_CACHE)
+
+// Never throws. A cache read that fails is a cache miss, and the only thing a
+// caller could do about it is what it was going to do anyway.
+const fromDisk = async (url: string): Promise<Blob | null> => {
+  try {
+    const cache = await diskCache()
+    const hit = await cache?.match(url)
+    return hit === undefined ? null : await hit.blob()
+  } catch {
+    return null
+  }
+}
+
+// Whether the origin has room to spare for this, on top of trimming our own
+// entries to DISK_BYTES. The same shape ui/fileStash.ts uses before it copies a
+// file: twice the size has to be free, so caching an advert can never be the
+// reason somebody's own clip failed to stash.
+const roomFor = async (bytes: number): Promise<boolean> => {
+  const { quota, usage } = await navigator.storage.estimate()
+  return quota === undefined || usage === undefined
+    ? true
+    : bytes * 2 < quota - usage
+}
+
+// Put it on disk, evicting oldest-first to stay inside the budget. Fire and
+// forget from the caller's point of view: the clip is already playing by the
+// time this matters, and a failure costs a re-download next session and nothing
+// today.
+//
+// Oldest here is oldest *downloaded*, not oldest played: `cache.keys()` answers
+// in insertion order, and moving an entry to the end on every play would mean
+// rewriting tens of megabytes to record that they were read. For a shelf that
+// is added to over time the two orders mostly agree, and the cost of them
+// disagreeing is one download.
+const toDisk = async (url: string, blob: Blob, type: string): Promise<void> => {
+  try {
+    const cache = await diskCache()
+    if (cache === null || !(await roomFor(blob.size))) return
+    const stored = await Promise.all(
+      (await cache.keys()).map(async req => ({
+        url: req.url,
+        bytes: num((await cache.match(req))?.headers.get(BYTES_HEADER)) ?? 0,
+      })),
+    )
+    for (const gone of evictionOrder(stored, blob.size, DISK_BYTES))
+      await cache.delete(gone)
+    await cache.put(
+      url,
+      new Response(blob, {
+        headers: { 'content-type': type, [BYTES_HEADER]: String(blob.size) },
+      }),
+    )
+  } catch {
+    // A quota error, a cache evicted mid-write, a browser that declines to
+    // store this much. All of them mean the same thing: next time, download it.
+  }
+}
+
+// --- the memory tier ---------------------------------------------------------
+
 // Keyed by the file's own `/cors/` url rather than the item's identifier: a roll
 // and a shelf entry read the same item under different byte caps (a channel's
 // against LONG_BYTES), so the two can legitimately choose different renditions
-// of it, and keying on the item would hand one of them the other's file.
+// of it, and keying on the item would hand one of them the other's file. The
+// disk tier is keyed the same way, and has to be.
 const held = new Map<string, Blob>()
 
 // Downloads that have gone out and not come back. Two decks can be sent to the
@@ -549,6 +642,36 @@ const held = new Map<string, Blob>()
 // racing each other into the cache.
 const inflight = new Map<string, Promise<Blob>>()
 
+const keep = (url: string, blob: Blob): Blob => {
+  for (const gone of evictionOrder(
+    [...held].map(([key, b]) => ({ url: key, bytes: b.size })),
+    blob.size,
+    CACHE_BYTES,
+  ))
+    held.delete(gone)
+  held.set(url, blob)
+  return blob
+}
+
+// Disk, then the network. Only reached when memory missed and nothing else is
+// already fetching this, so it is the slow half of `blobFor` and the only half
+// that can take time.
+const fetchOrRead = async (
+  url: string,
+  bytes: number,
+  onProgress: OnProgress,
+): Promise<Blob> => {
+  const stored = await fromDisk(url)
+  if (stored !== null) return stored
+  // Announced here and not before, so a clip that is already held says nothing
+  // at all: there is no wait to announce, and a caption that flashed a size and
+  // vanished would be reporting one that never happened.
+  onProgress(0, bytes)
+  const blob = await download(url, bytes, onProgress)
+  void toDisk(url, blob, blob.type)
+  return blob
+}
+
 const blobFor = (
   url: string,
   bytes: number,
@@ -556,8 +679,8 @@ const blobFor = (
 ): Promise<Blob> => {
   const ready = held.get(url)
   if (ready !== undefined) {
-    // Re-inserted so the map's iteration order stays least-recently-used first,
-    // which is the order `evictionOrder` reads.
+    // Re-inserted so the map's iteration order stays least-recently-played
+    // first, which is the order `evictionOrder` reads.
     held.delete(url)
     held.set(url, ready)
     return Promise.resolve(ready)
@@ -565,19 +688,7 @@ const blobFor = (
   const already = inflight.get(url)
   if (already !== undefined) return already
 
-  // Announced here rather than in `fetchPick`, so a clip that is already held
-  // says nothing at all: there is no wait to announce, and a caption that
-  // flashed a size and vanished would be reporting one that never happened.
-  onProgress(0, bytes)
-  const job = download(url, bytes, onProgress).then(blob => {
-    for (const gone of evictionOrder(
-      [...held].map(([key, b]) => ({ url: key, bytes: b.size })),
-      blob.size,
-    ))
-      held.delete(gone)
-    held.set(url, blob)
-    return blob
-  })
+  const job = fetchOrRead(url, bytes, onProgress).then(blob => keep(url, blob))
   inflight.set(url, job)
   return job.finally(() => inflight.delete(url))
 }

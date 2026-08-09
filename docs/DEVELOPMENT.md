@@ -514,10 +514,23 @@ The layering is worth knowing before changing any of it:
   type both roll, and the two real differences ride on it as fields (`owned` for
   the archive.org blob, `kind` for Commons stills). `OnProgress` reaches
   archive.org only: a Commons transcode streams into the element, so there is no
-  wait to report on. archive.ts also holds what it has downloaded for the
-  session (192 MB, least-recently-played out), keyed by the file url and not the
-  identifier — the caches are Blobs rather than object urls precisely so that
-  `releasePick` revoking one costs the cache nothing.
+  wait to report on. archive.ts also holds what it has
+  downloaded, in two tiers over the network — 96 MB in memory,
+  least-recently-played out, over 256 MB in a Cache API store,
+  least-recently-downloaded out. Measured per read: memory 0ms, disk 1ms to
+  match then ~2.8ms/MB to materialise (27ms at 3 MB, 176ms at 64), network
+  3-20s. Keyed by the file url and not the identifier, since a roll and a shelf
+  entry read one item under different byte caps and can land on different
+  renditions of it. The tiers hold Blobs rather than object urls precisely so
+  that `releasePick` revoking one costs them nothing.
+
+  Nothing there is load-bearing: no `caches`, a private window, a full quota or
+  a corrupt entry all fall through to the tier below and end at a download. The
+  disk budget is deliberately a slice rather than the lot, because the origin
+  quota was measured at 1.6 GB here and is shared with the file stash, which
+  copies the user's own clip into OPFS — their footage outranks a
+  re-downloadable advert, so `toDisk` applies the same headroom test `fits`
+  does. Bump `DISK_CACHE` when what is stored changes shape.
 - `src/sources/commons.ts`, `archive.ts` — one flat list of tested query pools
   each, plus the readers that vet a response. Neither knows the other exists.
 - `src/sources/pools.ts` — the front door. Everything above the sources imports
