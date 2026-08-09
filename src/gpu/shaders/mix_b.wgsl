@@ -179,6 +179,14 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     if (inActive) {
       var g = gate;
       var fill = bComp[n];
+      // What sits behind B. Program A unless the keyer is actually cutting, and
+      // that condition is the point: the fill is a connector on the *keyer*, so
+      // with the key at zero the mixer is a plain A/B crossfade and the box in
+      // front of it is out of circuit. Substituting unconditionally made the
+      // fader and the wipe reveal the matte generator — or the loop bus — in
+      // place of program A, which is not a look anyone patched, and left an
+      // unloaded keyer able to take A off the bus entirely.
+      var behind = a;
       if (P.bKey != 0.0) {
         // Genlocked, B sits on the house raster, so the keyer reads its chroma
         // at the output sample and B's carrier carries only the proc-amp hue
@@ -189,8 +197,9 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
         if (P.bKeySpill > 0.0) {
           fill = fill - suppress(k.along, n, P.bHue);
         }
+        behind = keyFill(a, n);
       }
-      comp[n] = mix(keyFill(a, n), fill, clamp(g * P.bGain, 0.0, 1.0));
+      comp[n] = mix(behind, fill, clamp(g * P.bGain, 0.0, 1.0));
     }
   } else {
     // Dirty sum: B free-runs. Its raster position for this output sample is the
