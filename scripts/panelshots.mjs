@@ -95,7 +95,11 @@ const STATES = [
     // prototype setter is what makes it see a real change — a plain
     // `select.value = x` fires the event and changes nothing.
     reach: () => {
-      const s = document.querySelector('select')
+      // Not the first select on the page: the masthead's morph-duration
+      // picker is one too, and sits earlier in the DOM.
+      const s = [...document.querySelectorAll('select')].find(sel =>
+        [...sel.options].some(o => /teletype/i.test(o.textContent)),
+      )
       const opt = [...s.options].find(o => /teletype/i.test(o.textContent))
       const set = Object.getOwnPropertyDescriptor(
         HTMLSelectElement.prototype,
