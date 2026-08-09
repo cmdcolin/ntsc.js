@@ -2,6 +2,29 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.25.0](https://github.com/cmdcolin/ntsc.js/compare/v0.24.0...v0.25.0) - 2026-08-09
+
+### Features
+- *(ui)* [`8213da3`](https://github.com/cmdcolin/ntsc.js/commit/8213da3fee76d5bb6f3ac0b76b26333cf00f3151) keep a downloaded archive.org clip across the reload
+
+### Fixes
+- *(ui)* [`1469d64`](https://github.com/cmdcolin/ntsc.js/commit/1469d64a6a59088f28b1209e5c1bab9f61bd997e) pay for an archive.org clip once, and bound the kept shelf
+- *(ui)* [`f9dc701`](https://github.com/cmdcolin/ntsc.js/commit/f9dc70128f75c8b231f20c682cfff0868b88b8be) drop a YouTube download the deck has moved on from
+- *(ui)* [`6e94c71`](https://github.com/cmdcolin/ntsc.js/commit/6e94c71586670d851705e8b1461b07603d79ac7c) say how many clips a folder rescan turned away
+- *(ui)* [`0f25ff5`](https://github.com/cmdcolin/ntsc.js/commit/0f25ff52db27b3d4b6ed2f96792c60df67752e6e) tell every waiting deck how the download is going
+- *(gpu)* [`b7d1e7f`](https://github.com/cmdcolin/ntsc.js/commit/b7d1e7f90884e2d51b0baa82e20a90c002f2b49c) stop a link freezing the picture on frame 0
+- *(ui)* [`88acd51`](https://github.com/cmdcolin/ntsc.js/commit/88acd51019dc8b8396646df97d31ff76cfa9a970) keep the picture when a camera is refused
+
+### Refactor
+- *(ui)* [`c7a552f`](https://github.com/cmdcolin/ntsc.js/commit/c7a552f94ff2195e56bec6cf1e693ea2f9e3f050) tidy what the two cache tiers left behind
+- *(ui)* [`6c3d5b7`](https://github.com/cmdcolin/ntsc.js/commit/6c3d5b7b007709775888b8ba9d8a14af2f15032e) say once what committing a source to a deck does
+
+### Tests
+- *(ui)* [`5a582a5`](https://github.com/cmdcolin/ntsc.js/commit/5a582a5e87e432ff9ad4d0551fa9c7a968123e2e) drive the source pickers, which no link can reach
+
+### Other Changes
+- [`e8fcb97`](https://github.com/cmdcolin/ntsc.js/commit/e8fcb9731d76d80eb5a340bcb310e9d51c75293c) Format markdown
+
 ## [0.24.0](https://github.com/cmdcolin/ntsc.js/compare/v0.23.0...v0.24.0) - 2026-08-09
 
 ### Features
