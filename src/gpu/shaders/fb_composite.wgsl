@@ -52,22 +52,61 @@ fn keyLuma(pos: f32) -> f32 {
 // standing bars and mesh over live video out of whatever content excites it.
 // Windowed-cosine bandpass, normalized to unity at center so the boost knob
 // reads directly as added in-band loop gain.
+//
+// The network is a network — one set of component values, not a different one
+// per sample. Its 33 taps and its normalizer are functions of the two loop
+// controls alone, so building them inside the tap loop cost 33 cos and 33 exp
+// at every one of the raster's 477750 samples to arrive at the same 34 numbers
+// each time. Staged per workgroup instead, the same way crt_face hoisted its
+// disk taps: one thread designs the filter, everyone else reads it as plain
+// coefficients — 66 transcendentals per workgroup rather than per sample.
+//
+// The summation order is untouched, so this is not an approximation: pixdiff
+// reads max 0 against a floor of 0 over 200 frames of a live sub-unity loop,
+// which is the strictest available check on this pass because a one-bit error
+// would compound every lap. Worth 3.22 -> 3.06 ms/frame best-of (two dev
+// servers off their own worktrees, four alternating rounds, on a look with
+// this resonance and a 96-line chroma AGC lag both up). Read best-of and not
+// the median: another agent's WebGPU session was on the box, and it disturbed
+// whichever arm it landed on — rounds 1-2 the new one, rounds 3-4 the old —
+// and the new arm won all four regardless, which is the control that makes
+// the direction safe even though the magnitude is a quiet-box number.
+const RES_M = 16;
+const RES_TAPS = 2 * RES_M + 1;
+var<workgroup> resK: array<f32, RES_TAPS>;
+var<workgroup> resNorm: f32;
+
 fn loopResonance(pos: f32) -> f32 {
-  let sigma = mix(1.2, 8.0, clamp(P.cfbFilterQ, 0.0, 1.0));
   let c0 = i32(round(pos));
   var acc = 0.0;
-  var g = 0.0;
-  for (var k = -16; k <= 16; k = k + 1) {
-    let cs = cos(2.0 * PI * P.cfbFilterFc * f32(k));
-    let h = exp(-f32(k * k) / (2.0 * sigma * sigma)) * cs;
-    acc = acc + h * prev[clampIdx(c0 + k)];
-    g = g + h * cs;
+  for (var i = 0; i < RES_TAPS; i = i + 1) {
+    acc = acc + resK[i] * prev[clampIdx(c0 + i - RES_M)];
   }
-  return acc / max(g, 0.05);
+  return acc / resNorm;
 }
 
 @compute @workgroup_size(64, 1, 1)
-fn main(@builtin(global_invocation_id) gid: vec3u) {
+fn main(
+  @builtin(global_invocation_id) gid: vec3u,
+  @builtin(local_invocation_id) lid: vec3u,
+) {
+  // Ahead of the bounds return below, because the barrier has to be reached by
+  // every invocation in the workgroup and 910 samples do not divide by 64.
+  let resonating = P.cfbFilterFc > 0.0 && P.cfbFilterBoost != 0.0;
+  if (resonating && lid.x == 0u) {
+    let sigma = mix(1.2, 8.0, clamp(P.cfbFilterQ, 0.0, 1.0));
+    var g = 0.0;
+    for (var i = 0; i < RES_TAPS; i = i + 1) {
+      let k = i - RES_M;
+      let cs = cos(2.0 * PI * P.cfbFilterFc * f32(k));
+      let h = exp(-f32(k * k) / (2.0 * sigma * sigma)) * cs;
+      resK[i] = h;
+      g = g + h * cs;
+    }
+    resNorm = max(g, 0.05);
+  }
+  workgroupBarrier();
+
   let s = gid.x;
   let row = gid.y;
   if (s >= SPL || row >= NLINES) {
@@ -97,7 +136,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   }
   let i0 = i32(floor(pos));
   var fb = catmull(prev[clampIdx(i0 - 1)], prev[clampIdx(i0)], prev[clampIdx(i0 + 1)], prev[clampIdx(i0 + 2)], fract(pos));
-  if (P.cfbFilterFc > 0.0 && P.cfbFilterBoost != 0.0) {
+  if (resonating) {
     fb = fb + P.cfbFilterBoost * loopResonance(pos);
   }
   if (P.cfbRing != 0.0) {

@@ -31,8 +31,49 @@ fn burstUV(row: u32) -> vec2f {
   return vec2f(2.0 * su / cnt, 2.0 * sv / cnt);
 }
 
-@compute @workgroup_size(64, 1, 1)
-fn main(@builtin(global_invocation_id) gid: vec3u) {
+const WG = 64u;
+const LAG_MAX = 96u; // deepest RC window, in lines
+
+// The RC window each row walks is up to 97 lines deep, and consecutive rows
+// walk almost the same one — so measuring per consumer re-gated the same burst
+// up to 97 times over, on a dispatch narrow enough (525 threads, 9 workgroups)
+// that the redundancy is latency on an idle GPU rather than throughput. A
+// workgroup of 64 rows needs 64 + span measurements between them, so staging
+// them is two or three gates per thread instead of ninety-seven.
+//
+// The gate itself is unchanged and so is the summation order, so the lag is
+// the same number: pixdiff reads max 0 against a floor of 0 at accLagLines 60.
+// Sized alongside the fb_composite hoist rather than alone — see the note
+// there for the protocol and why best-of is the only number to read off it.
+//
+// Indexed backwards from the workgroup's last row: tile slot i is the burst
+// amplitude of row (wid*64 + 63 - i), so the slots a thread needs run from
+// 63-lid upward and the staged count follows the span rather than the ceiling.
+// The RC weights are staged the same way and for the same reason — they are a
+// function of k and the time constant, identical for every row in the frame.
+var<workgroup> ampTile: array<f32, WG + LAG_MAX>;
+var<workgroup> lagW: array<f32, LAG_MAX + 1u>;
+
+@compute @workgroup_size(WG, 1, 1)
+fn main(
+  @builtin(global_invocation_id) gid: vec3u,
+  @builtin(local_invocation_id) lid: vec3u,
+  @builtin(workgroup_id) wid: vec3u,
+) {
+  let tau = P.accLines;
+  let lagging = tau >= 1.0;
+  let span = min(u32(ceil(3.0 * tau)), LAG_MAX);
+  if (lagging) {
+    let top = i32(wid.x * WG + WG - 1u);
+    for (var i = lid.x; i < WG + span; i = i + WG) {
+      ampTile[i] = length(burstUV(wrapRow(top - i32(i))));
+    }
+    for (var k = lid.x; k <= span; k = k + WG) {
+      lagW[k] = exp(-f32(k) / tau);
+    }
+  }
+  workgroupBarrier();
+
   let row = gid.x;
   if (row >= NLINES) {
     return;
@@ -43,17 +84,16 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // carried serially — the bounded-FIR shape ARCHITECTURE.md asks recurrences
   // to take instead of another single-thread loop in sync.wgsl.
   var lag = amp;
-  if (P.accLines >= 1.0) {
-    let tau = P.accLines;
-    let span = min(u32(ceil(3.0 * tau)), 96u);
+  if (lagging) {
+    let ti = WG - 1u - lid.x;
     var asum = 0.0;
     var wsum = 0.0;
     for (var k = 0u; k <= span; k = k + 1u) {
       let r = wrapRow(i32(row) - i32(k));
       // only lines that carry burst charge the RC; through the VBI it holds
       if (r > VSYNC_LAST + 1u) {
-        let w = exp(-f32(k) / tau);
-        asum = asum + w * length(burstUV(r));
+        let w = lagW[k];
+        asum = asum + w * ampTile[ti + k];
         wsum = wsum + w;
       }
     }
