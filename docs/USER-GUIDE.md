@@ -325,9 +325,13 @@ box asks the same question, and so does **show what is moving** in the palette.
 
 ![The app window, boxed in red: the motion strip above the filter box, and the wobble editor open under the horizontal hold row](img/motion.jpg)
 
-The **Modulation** section shows all eight slots at once if you would rather
-patch them there — and it is the one place to see the bay as a bay, which is
-what tells you why the ninth ∿ has nowhere to go.
+The **Modulation** section is where the bay reads as a bay: every routing you
+have patched, in one list, with a count of the slots still free — which is what
+tells you why the ninth ∿ has nowhere to go. Each entry names the control it is
+driving and opens the module that control lives in, so a wobble you patched
+eight stages down is one click from the row that tunes it, and the **×** beside
+it hands the slot back. There is no target picker here on purpose: a slot is
+patched at the control it drives, by that row's own ∿.
 
 At the top of it is the **tempo**: type a BPM in, or hit **tap** four times on
 the beat. Any wobble's rate can then be locked to it — **♩** in the rate
@@ -336,7 +340,7 @@ row shows a **♩1/4** badge while it is locked. The Hz you had dialed in waits
 underneath and comes back when you cycle the lock off. MIDI clock takes the
 tempo over whenever something is sending it — see [MIDI.md](MIDI.md).
 
-![The app window, the Modulation section with two of its eight slots routed, boxed in red](img/modulation.jpg)
+![The app window, the Modulation section with two routings patched and six slots free, boxed in red](img/modulation.jpg)
 
 **Sound** — the branch under **Receiver** on the map, because that is where the
 sound is patched in: bass lurches the frame, level tears line hold, the waveform

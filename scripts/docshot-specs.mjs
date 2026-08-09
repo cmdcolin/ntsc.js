@@ -217,13 +217,16 @@ export const SPECS = [
     { section: 'Modulation' },
     {
       name: 'modulation',
-      // Tall enough for eight slots and no taller: the panel ends at "Sound
-      // into the picture", and the rest would be a band of empty stage.
-      height: 980,
+      // Tall enough for the two patched routings and the free count under them,
+      // and no taller: the empty slots stopped being rows when the target
+      // picker went, so the section is about half what it was and the rest
+      // would be a band of empty stage.
+      height: 720,
       seed: {
-        // Eight slots is a tall section: with the front door folded it lands in
-        // frame whole, and without it the shot opens partway down a scrolled
-        // panel with the masthead cut off.
+        // Still folds the front door: the section is shorter than it was, but
+        // the tempo row, the stabs and two routings still land below the fold
+        // otherwise, and the shot would open partway down a scrolled panel with
+        // the masthead cut off.
         video_feedback_sections: sections({
           Modulation: true,
           Presets: false,
