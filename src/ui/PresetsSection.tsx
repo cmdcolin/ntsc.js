@@ -126,74 +126,93 @@ function PresetButton(props: {
   const touches = Object.keys(props.def.patch).length
   // "clean" is the reset (an empty patch): blendPresets can never mix it in at
   // any weight, so the drag-to-mix gesture is dead for it — plain click only,
-  // hence no resize cursor advertising a gesture that does nothing.
+  // hence no resize cursor advertising a gesture that does nothing, and no fill
+  // to show an amount that can never be anything but nothing.
   const mixable = touches > 0
-  return mixable ? (
+  const apply = () => props.onApply(props.def.name, props.def.patch)
+  // One chip, with the drag hung off it where there is a drag to hang. It was
+  // two whole buttons for one thing — same label, same hover, same
+  // active/edited classes, all written out twice — and everything the two
+  // genuinely differ in is what is now conditional: the fill, the resize
+  // cursor, the sentence about dragging, and the pointer path itself.
+  return (
     <button
-      title={`sets ${touches} controls at once — ${props.def.blurb} Drag sideways to mix it in partially.`}
-      style={fill}
+      title={
+        mixable
+          ? `sets ${touches} controls at once — ${props.def.blurb} Drag sideways to mix it in partially.`
+          : props.def.blurb
+      }
+      style={mixable ? fill : undefined}
       className={cx(
         ui.btn,
-        ui.presetBtn,
+        mixable && ui.presetBtn,
         props.active && ui.active,
         props.edited && ui.edited,
       )}
       onPointerEnter={() => props.onHover(props.def.name)}
       onPointerLeave={() => props.onHover(null)}
-      onPointerDown={e => {
-        e.currentTarget.setPointerCapture(e.pointerId)
-        // onMixStart rebaselines the mix onto whatever is live, which zeroes the
-        // weights when the look has drifted — and props.weight already reads 0 in
-        // exactly that case, so this stays the right starting point either way.
-        dragRef.current = { pressX: e.clientX, lastX: null, w: props.weight }
-        props.onMixStart()
-      }}
-      onPointerMove={e => {
-        const d = dragRef.current
-        if (d !== null) {
-          // The slop is spent getting here, so the sweep starts from this point
-          // rather than jumping by however far the press had already drifted.
-          const from =
-            d.lastX === null && Math.abs(e.clientX - d.pressX) > DRAG_SLOP
-              ? e.clientX
-              : d.lastX
-          if (from !== null) {
-            d.w = clamp01(d.w + (e.clientX - from) / DRAG_FULL)
-            d.lastX = e.clientX
-            props.onMix(props.def.name, d.w)
-          }
-        }
-      }}
-      onPointerUp={() => {
-        const d = dragRef.current
-        dragRef.current = null
-        if (d !== null && d.lastX === null)
-          props.onApply(props.def.name, props.def.patch)
-      }}
-      // Keyboard activation fires a bare click with no pointer events, so the
-      // press path above never sees it. detail === 0 is what separates it from
-      // the click that trails a mouse release, which pointerup already applied.
+      onPointerDown={
+        !mixable
+          ? undefined
+          : e => {
+              e.currentTarget.setPointerCapture(e.pointerId)
+              // onMixStart rebaselines the mix onto whatever is live, which
+              // zeroes the weights when the look has drifted — and props.weight
+              // already reads 0 in exactly that case, so this stays the right
+              // starting point either way.
+              dragRef.current = {
+                pressX: e.clientX,
+                lastX: null,
+                w: props.weight,
+              }
+              props.onMixStart()
+            }
+      }
+      onPointerMove={
+        !mixable
+          ? undefined
+          : e => {
+              const d = dragRef.current
+              if (d !== null) {
+                // The slop is spent getting here, so the sweep starts from this
+                // point rather than jumping by however far the press had
+                // already drifted.
+                const from =
+                  d.lastX === null && Math.abs(e.clientX - d.pressX) > DRAG_SLOP
+                    ? e.clientX
+                    : d.lastX
+                if (from !== null) {
+                  d.w = clamp01(d.w + (e.clientX - from) / DRAG_FULL)
+                  d.lastX = e.clientX
+                  props.onMix(props.def.name, d.w)
+                }
+              }
+            }
+      }
+      onPointerUp={
+        !mixable
+          ? undefined
+          : () => {
+              const d = dragRef.current
+              dragRef.current = null
+              if (d !== null && d.lastX === null) apply()
+            }
+      }
+      onPointerCancel={
+        !mixable
+          ? undefined
+          : () => {
+              dragRef.current = null
+            }
+      }
+      // On a mixable chip, pointerup is what applies a press, so the click that
+      // trails a mouse release must not apply it a second time. Keyboard
+      // activation fires a bare click with no pointer events at all, and
+      // detail === 0 is what tells the two apart. A chip with no drag has no
+      // pointer path, so every press arrives here.
       onClick={e => {
-        if (e.detail === 0) props.onApply(props.def.name, props.def.patch)
+        if (!mixable || e.detail === 0) apply()
       }}
-      onPointerCancel={() => {
-        dragRef.current = null
-      }}
-    >
-      {presetLabel(props.def)}
-      {props.edited ? ' •' : ''}
-    </button>
-  ) : (
-    <button
-      title={props.def.blurb}
-      className={cx(
-        ui.btn,
-        props.active && ui.active,
-        props.edited && ui.edited,
-      )}
-      onPointerEnter={() => props.onHover(props.def.name)}
-      onPointerLeave={() => props.onHover(null)}
-      onClick={() => props.onApply(props.def.name, props.def.patch)}
     >
       {presetLabel(props.def)}
       {props.edited ? ' •' : ''}
