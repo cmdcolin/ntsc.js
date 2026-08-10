@@ -11,6 +11,8 @@
 // Both directions are exact inverses, so a value round-trips through the track
 // without creeping.
 
+import { clamp01 } from '../math'
+
 export const travelToValue = (min: number, max: number, t: number) =>
   1 / ((1 - t) / min + t / max)
 
@@ -139,7 +141,6 @@ const curveK = (span: FineSpan): number => {
   return k
 }
 
-const clamp01 = (x: number) => Math.max(0, Math.min(1, x))
 // 0..1 along one side of stock → 0..1 of that side's value range, and back.
 const expand = (k: number, a: number) =>
   k === 0 ? a : Math.expm1(k * a) / Math.expm1(k)

@@ -3,8 +3,8 @@
 // mappings stacked: the 4:3 letterbox puts canvas pixels onto the picture, then
 // the lens puts the picture onto the glass.
 
+import { clamp01 } from '../math'
 import { travelToValue, valueToTravel } from './curve'
-import { clamp01 } from './miniFrame'
 
 // Below 1x the camera pulls back off the set until the tube is a small object in
 // a dark room (present.wgsl draws the cabinet down there). No travel control —

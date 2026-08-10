@@ -8,6 +8,7 @@
 // so wander in the capstan moves the delay *time*; and the loop having two ends
 // joined means one point on it is a splice, which passes the head once per lap.
 
+import { clamp, wrap } from '../math'
 import {
   LINES,
   SAMPLES_PER_LINE,
@@ -19,10 +20,6 @@ import { Wow } from './noise'
 
 const N = SAMPLES_PER_LINE * LINES
 const FPS = 60
-
-const wrap = (x: number, m: number) => ((x % m) + m) % m
-const clamp = (x: number, lo: number, hi: number) =>
-  Math.min(Math.max(x, lo), hi)
 
 export interface TapeControls {
   tapeLoopMm: number // record head to play head, millimetres of tape

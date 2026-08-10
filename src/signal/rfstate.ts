@@ -7,13 +7,12 @@
 // it crosses zero, which is where the wiper bars hang, flatten, and reverse.
 // Everything is a function of the frame count, so harness runs reproduce.
 
+import { wrap } from '../math'
 import { LINES, SAMPLES_PER_LINE } from './constants'
 import { valueNoise } from './noise'
 
 const N = SAMPLES_PER_LINE * LINES
 const TAU = 2 * Math.PI
-
-const wrap = (x: number, m: number) => ((x % m) + m) % m
 
 export interface RfUniforms {
   rfAdjEps: number

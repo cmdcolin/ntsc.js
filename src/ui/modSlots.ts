@@ -7,6 +7,7 @@
 // any control row can claim a slot. All of those need the same rules, and none
 // of them should have to mount a section to get at them.
 
+import { clamp } from '../math'
 import { SLIDER_BY_KEY } from './controls'
 import { SYNC_DIVISIONS } from './midi'
 
@@ -234,9 +235,6 @@ export function readStab(raw: unknown): Stab {
     ...syncDivision(field(raw, 'syncDiv')),
   }
 }
-
-const clamp = (v: number, lo: number, hi: number) =>
-  Math.min(hi, Math.max(lo, v))
 
 // The schema lookups, written to hand back the typed value rather than to
 // assert one: a link and a localStorage entry are both untrusted strings, and

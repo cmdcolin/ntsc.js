@@ -1,4 +1,5 @@
 import { CONTROL_KEYS } from '../controls'
+import { clamp } from '../math'
 import { AUTOMAP_KEYS, SLIDER_BY_KEY, sliderFor, snapToStep } from './controls'
 import { PRESETS, presetLabel } from './presets'
 import { readRecord, removeStored, writeJSON, writeString } from './storage'
@@ -149,10 +150,6 @@ function loadBindings(): BindingMap {
 
 function bindingId(b: MidiBinding): string {
   return `${b.channel}:${b.controller}`
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, v))
 }
 
 // Copy of a partial map without one key. Generic over the key type as well as

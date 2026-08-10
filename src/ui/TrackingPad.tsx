@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
+import { clamp01 } from '../math'
 import { useControls, useControlsApi } from './ControlsContext'
 import { cx } from './cx'
 import styles from './Deck.module.css'
-import { clamp01, uvInRect } from './miniFrame'
+import { uvInRect } from './miniFrame'
 import mini from './MiniFrame.module.css'
 
 import type { KeyboardEvent, PointerEvent } from 'react'

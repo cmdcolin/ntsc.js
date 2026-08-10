@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 
+import { clamp01 } from '../math'
 import { cx } from './cx'
 import { Dialog } from './Dialog'
 import { BulbIcon } from './icons'
-import { clamp01 } from './miniFrame'
 import { PRESETS, matchPreset, presetLabel } from './presets'
 import styles from './PresetsSection.module.css'
 import { Section } from './Section'

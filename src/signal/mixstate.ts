@@ -15,12 +15,11 @@
 // never interleaved, so B's hue flickers at frame rate; that phase machinery
 // stays B's own, baked into its carrier by encode_composite_b.
 
+import { wrap } from '../math'
 import { F_H, LINES, SAMPLES_PER_LINE } from './constants'
 import { Wow, valueNoise } from './noise'
 
 const LINE_S = 1 / F_H
-
-const wrap = (x: number, m: number) => ((x % m) + m) % m
 
 // One paused deck's servo state, as the feed pass consumes it. feed.wgsl reads
 // whichever deck's state its instance was handed off the shared bPause* uniform

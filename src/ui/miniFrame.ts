@@ -1,6 +1,6 @@
-import type { CSSProperties } from 'react'
+import { clamp01 } from '../math'
 
-export const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+import type { CSSProperties } from 'react'
 
 export const MIN_SIZE = 0.1
 export const clampSize = (v: number) => Math.min(1, Math.max(MIN_SIZE, v))

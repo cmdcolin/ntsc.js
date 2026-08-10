@@ -7,9 +7,9 @@
 // decisions about the *signal path*, so they are testable statements rather
 // than something buried in a pointer handler.
 
-import type { Controls } from '../controls'
+import { clamp01 } from '../math'
 
-const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+import type { Controls } from '../controls'
 
 // A wipe pattern is selected, so the mixer's transition is a wipe rather than a
 // dissolve. Rounded because wipeMode is an enum riding on a float uniform, and
