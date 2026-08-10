@@ -1151,7 +1151,13 @@ export function App() {
         <div className={ui.hint}>
           {isMovingQuery(query)
             ? 'nothing is moving — press ∿ on any control row to set it wobbling'
-            : `nothing matches “${filter.trim()}” — try an artifact: rainbow, ghost, tear`}
+            : // A query can land on controls that exist and cannot act, which is
+              // not the same answer as no match at all: "bass" is seven routings
+              // in Sound, and what is missing is the input, not the control.
+              // Saying so is the difference between a dead end and one press.
+              chain.blocked.length > 0
+              ? `“${filter.trim()}” is in ${chain.blocked.join(' and ')}, with nothing patched in — clear the filter and press that box on the map`
+              : `nothing matches “${filter.trim()}” — try an artifact: rainbow, ghost, tear`}
         </div>
       )}
 

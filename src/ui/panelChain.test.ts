@@ -138,12 +138,16 @@ describe('a query that reaches nothing on the trunk', () => {
     const c = chain({ query: 'bass', soundOn: false })
     expect(names(c.branches)).toEqual([SOUND_STAGE])
     expect(c.anyStage).toBe(false)
+    // And says which box to press, rather than "nothing matches" over seven
+    // controls that exist.
+    expect(c.blocked).toEqual([SOUND_STAGE])
   })
 
   it('reports nothing when the only trunk stage it found is inert', () => {
     const c = chain({ query: 'blended border along the wipe edge', bOn: false })
     expect(names(c.nodes)).toEqual([MIX_STAGE])
     expect(c.anyStage).toBe(false)
+    expect(c.blocked).toEqual([MIX_STAGE])
   })
 
   it('reports nothing for a query that reaches no stage at all', () => {
@@ -152,5 +156,15 @@ describe('a query that reaches nothing on the trunk', () => {
     expect(c.loops).toEqual([])
     expect(c.branches).toEqual([])
     expect(c.anyStage).toBe(false)
+    expect(c.blocked).toEqual([])
+  })
+
+  it('says nothing about a dead box while something else did match', () => {
+    // A result on screen answers first: the query found live rows, and a note
+    // about a stage that also matched and cannot act would be second-guessing
+    // them.
+    const c = chain({ query: 'hue', bOn: false })
+    expect(c.anyStage).toBe(true)
+    expect(c.blocked).toEqual([])
   })
 })

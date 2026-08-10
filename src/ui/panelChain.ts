@@ -65,6 +65,12 @@ export interface PanelChain {
   // suppressed (stageBody.ts) — which is exactly the case the "nothing matches"
   // line has to keep quiet for, and the case it has to speak up for.
   anyStage: boolean
+  // The stages the query *did* reach that cannot act on anything, in the order
+  // the map draws them. The other half of `anyStage`: the panel used to answer
+  // "bass" with "nothing matches", which is false — there are seven controls
+  // called that, and what is missing is the input they act on, not the control.
+  // Empty whenever `anyStage` is true, since a result on screen answers first.
+  blocked: string[]
 }
 
 // A stage with nothing patched into it: no amber however far off stock its
@@ -234,10 +240,15 @@ export function panelChain(o: {
       : []),
   ]
 
+  // Trunk, then loops, then branches — the order the panel lists them in, and
+  // the order the drawing reads in from the top.
+  const all = [...nodes, ...loops, ...branches]
+  const anyStage = all.some(draws)
   return {
     nodes,
     branches,
     loops,
-    anyStage: [...nodes, ...loops, ...branches].some(draws),
+    anyStage,
+    blocked: anyStage ? [] : all.filter(n => n.off === true).map(n => n.name),
   }
 }
