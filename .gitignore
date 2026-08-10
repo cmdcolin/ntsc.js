@@ -10,3 +10,9 @@ docs/contact/
 .firebase/
 firebase-debug.log
 firestore-debug.log
+
+# what scripts/panelshots.mjs writes beside a baseline when a shot drifts, so
+# the two can be opened side by side. A failure artifact, rewritten by the next
+# failing run and stale the moment the baseline is regenerated — six of them
+# were committed once and outlived the drift they were evidence of.
+scripts/panelshots/*.actual.png
