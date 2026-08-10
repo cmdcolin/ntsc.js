@@ -2,6 +2,19 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.25.7](https://github.com/cmdcolin/ntsc.js/compare/v0.25.6...v0.25.7) - 2026-08-10
+
+### Fixes
+- *(gpu)* [`42b4a8e`](https://github.com/cmdcolin/ntsc.js/commit/42b4a8e67b3f47c138be707c13499b39e8587cbe) reset the presented count when the render loop restarts
+
+### Refactor
+- *(midi)* [`96c4428`](https://github.com/cmdcolin/ntsc.js/commit/96c4428e8af951829028ab46ef8e27466a6476ff) drop takeover state in clearAll, like its two siblings
+- *(signal)* [`0adead2`](https://github.com/cmdcolin/ntsc.js/commit/0adead2a6aa7d339a1d42add9a5d7bd9ca8b8d0d) give the two decks one head-crossing precession
+- [`ae48cc7`](https://github.com/cmdcolin/ntsc.js/commit/ae48cc72cf677d979046e3fd6a6a695afffafd52) one definition each for clamp, clamp01 and wrap
+
+### Documentation
+- *(ui)* [`9b84627`](https://github.com/cmdcolin/ntsc.js/commit/9b8462714a51a0cfc6ad0ba88ce9952ff517528d) design the clip strip as a rundown, and seed its rolls
+
 ## [0.25.6](https://github.com/cmdcolin/ntsc.js/compare/v0.25.5...v0.25.6) - 2026-08-10
 
 ### Features
