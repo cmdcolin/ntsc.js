@@ -8,6 +8,14 @@ pnpm lint --fix # oxlint
 pnpm test       # vitest
 ```
 
+Most of this file is a runbook for the browser harnesses in `scripts/`, and most
+of it is here because something cost a day to work out. If you are about to
+drive a browser at this app, read
+[what every browser harness has learned the hard way](#what-every-browser-harness-here-has-learned-the-hard-way)
+first — it is the highest-value section, and every bullet in it is a real
+afternoon. If you are about to measure a performance change, read
+[Measuring performance](#measuring-performance) before believing a number.
+
 `pnpm test` runs the FIR design unit tests (DC gain, passband/stopband response,
 linear-phase symmetry, filter-bank packing), statically validates every WGSL
 shader through naga, and holds both hand-drawn views of the pass list to the
@@ -436,9 +444,9 @@ Every figure in [`GETTING-STARTED.md`](GETTING-STARTED.md) and
 quietly drift from the UI:
 
 ```
-pnpm docshots                 # all of them, into docs/img/
-pnpm docshots presets filter  # just these
-pnpm docshots --force         # rewrite even unchanged shots
+pnpm docshots                    # all of them, into docs/img/
+pnpm docshots chain look-loop    # just these
+pnpm docshots --force            # rewrite even unchanged shots
 ```
 
 It runs against `localhost:5199` and starts a dev server itself if nothing is
@@ -448,12 +456,19 @@ Shots are declared in
 [`../scripts/docshot-specs.mjs`](../scripts/docshot-specs.mjs) — a URL, the
 actions that put the app in the state being documented, and the red callouts
 drawn over the result. Callouts and crops resolve against live elements at
-capture time, so nothing is a hand-measured pixel offset. A UI figure is the
-whole window with a red box round the part being described (the `boxed` helper),
-not a crop of that part: a cropped panel section loses where it sits and what it
-is doing to the picture. Captures run at 2x, as JPEG. The runner refuses to save
-a dead-black frame or one with the stage's error banner up, and leaves a shot
-alone when its pixels didn't change.
+capture time, so nothing is a hand-measured pixel offset. Captures run at 2x, as
+JPEG. The runner refuses to save a dead-black frame or one with the stage's
+error banner up, and leaves a shot alone when its pixels didn't change.
+
+**The bar for adding a figure is high, and it used to be lower.** There were
+twelve UI shots, each a full window with a red box round a 300px strip (the
+`boxed` helper), and stacked down a page they were 15,000 pixels of screenshot
+saying what the prose already said. Three remain, and each carries something a
+sentence cannot: `overview` names five regions at once, `chain` shows a map you
+would not guess the shape of, and `slider-help` is the guide's own argument for
+why there is no per-control reference in it. A new figure has to clear that bar,
+and a tight crop of the panel region is the shape to reach for rather than
+another boxed window.
 
 A spec with `video` records the canvas to mp4 instead, with a poster still
 beside it. Clips are too big to commit, so they go to a gitignored `clips/` and
@@ -470,15 +485,18 @@ back from the live session rather than rebuilt from the spec, so it holds even
 for a shot whose look the app rolled itself.
 
 The `look-*` gallery shots are one named mechanism each, started from the preset
-that names it and pushed past where that preset stops. Pushing further is mostly
-how you lose them — a subcarrier detuned far enough decodes to grey, a feedback
-loop left running long enough eats the picture — so each one sits just short of
-its own cliff, and a change wants looking at rather than assuming.
+that names it and pushed well past where that preset stops — past the point the
+picture survives it. A tile that reads as a photo with an effect on it
+undersells the thing; what a tile has to have is structure the chain made, not a
+subject that came through. The three failure modes are full white, full black
+and undifferentiated hash, and every patch here sits one control away from all
+three, so a change wants looking at rather than assuming. (The `loop` patch
+reached each of them while it was being tuned.)
 
 A look pushed further by hand in the app can be captured back out of it:
 
 ```
-pnpm docshots --freeze look-tunnel   # capture, then record the look it landed on
+pnpm docshots --freeze look-loop   # capture, then record the look it landed on
 ```
 
 `--freeze` writes what the address bar said into `scripts/docshot-frozen.json`,
@@ -713,4 +731,6 @@ the other GPU" wants answering without a rebuild.
   shaders
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — pass graph, buffer layouts, adding a
   control end to end
-- [`EFFECTS.md`](EFFECTS.md) — every effect and the fault it models
+- [`EFFECTS.md`](EFFECTS.md) — the map of what it can break, stage by stage
+- [`adr/`](adr/) — the decisions where the obvious thing is wrong for a
+  non-obvious reason

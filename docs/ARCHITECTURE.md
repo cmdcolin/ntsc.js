@@ -30,10 +30,11 @@ Everything hangs off `src/signal/constants.ts`:
 | line structure   | 67-sample sync tip, burst at 78 |
 
 The composite signal lives in flat `array<f32>` buffers of 910 × 525 samples in
-IRE units (sync −40, blank 0, black 7.5, white 100). Sample index `n = row * 910
+IRE units (sync −40, blank 0, black 7.5, white 100), indexed
+`n = row * 910 + s`.
 
-- s`. Parameters are authored in **physical units** (µs, Hz, IRE) and converted
-  to samples at the uniform-packing boundary — keep it that way.
+Parameters are authored in **physical units** (µs, Hz, IRE) and converted to
+samples at the uniform-packing boundary. Keep it that way.
 
 The model is 525 lines per frame at 60 fps, i.e. progressive. Real NTSC is
 interlaced at _field_ rate with a half-line offset, which is why vertical roll
@@ -290,7 +291,13 @@ loop lives in `useEngine` and writes to the canvas directly, so live per-frame
 state (fps stats, resolution) reaches the overlays as **mutable refs read during
 render**, rather than re-rendering React at 60 fps.
 
-**A lost device is rebuilt in place, not reloaded.** Sleep/wake and driver
+Three things share one frame and run in a fixed order: `glide` (morph) walks the
+resting values, then `applyMod` drives routings and restores, then `applyStab`
+replaces the board and restores. Each subsection below says why that order.
+
+### A lost device is rebuilt in place, not reloaded
+
+Sleep/wake and driver
 resets fire `device.lost`, and they are the losses a session should survive:
 `onDeviceLost` builds a replacement engine and hands it back the controls, the
 debug tap, B's enable flag and both slots' sources, so the only thing the user
@@ -318,9 +325,11 @@ store and the tape loop all restart empty. `onHang` is deliberately **not**
 rebuilt: a wedged GPU process is shared across tabs and outlives the page, so a
 fresh device would land on the same one. That one still goes to `FatalScreen`.
 
-**React Compiler is on** (`vite.config.ts`, via `reactCompilerPreset` and
-`@rolldown/plugin-babel`). Don't add `useMemo`/`useCallback` — memoization is
-the compiler's job. Two consequences worth knowing:
+### React Compiler is on
+
+Via `reactCompilerPreset` and `@rolldown/plugin-babel` in `vite.config.ts`.
+Don't add `useMemo`/`useCallback` — memoization is the compiler's job. Two
+consequences worth knowing:
 
 - **The ref-during-render pattern above is exactly what the compiler refuses.**
   A bail-out is harmless in itself — the compiler leaves that code as written —
@@ -348,12 +357,15 @@ the compiler's job. Two consequences worth knowing:
   instead of inferred from build output. Note the consumer's own status is
   irrelevant: a compiled consumer still re-fires on a changed identity.
 
-**Two panel contexts, deliberately.** `ControlsContext` carries the controls and
-the verbs a row needs; `ModSlotsContext` carries the modulation bay. They are
-separate because they change on completely different clocks — a slider drag
-rewrites controls on every pointer move, while the bay changes only when someone
-patches it — and one shared context would rebuild every consumer of both on each
-drag frame.
+### Two panel contexts, deliberately
+
+`ControlsContext` carries the controls and the verbs a row needs;
+`ModSlotsContext` carries the modulation bay. They are separate because they
+change on completely different clocks — a slider drag rewrites controls on every
+pointer move, while the bay changes only when someone patches it — and one
+shared context would rebuild every consumer of both on each drag frame.
+
+### The modulation bay
 
 The bay lives in React (`useModSlots`), never in the engine. `setModSlots` is
 write-only by design: the engine applies routings by mutating `controls` for the
@@ -371,7 +383,8 @@ consequences worth knowing before touching it:
   as a deliberate patch, which is why the UI allows it; not fine hanging off an
   authored preset, which is why `presets.test.ts` forbids it there.
 
-**Morphing is the opposite of modulating**, and the two share the frame.
+### Morphing is the opposite of modulating
+
 `signal/glide.ts` walks the _resting_ values from where they were to a
 destination over a span of seconds — a preset, a roll or a scene arriving slowly
 instead of cutting — so unlike `applyMod` it does not restore afterwards: a
@@ -398,8 +411,10 @@ in, because it needs the slider schema: modes (`choices`) cut at the half-way
 point since there is no value between two phosphors, and `VIEW_KEYS` never
 morphs at all.
 
-**The stab gate is the third thing sharing that frame** (`signal/stab.ts`,
-`applyStab`). It replaces the _whole board_ with `DEFAULT_CONTROLS` for a few
+### The stab gate
+
+`signal/stab.ts`, `applyStab`. It replaces the _whole board_ with
+`DEFAULT_CONTROLS` for a few
 tens of milliseconds several times a second — a clean picture with the look
 poked into it, rather than the look running continuously. Like `applyMod` it
 restores at the end of the frame, so the sliders never move; unlike it, there is
@@ -443,27 +458,20 @@ grep -n "import_compiler_runtime.c)(" dist/assets/*.js   # one per compiled fn
 
 ## Testing
 
-- `pnpm test` — `src/gpu/shaders.test.ts` prepends the real prelude to every
-  `.wgsl` and validates it with **naga**. WGSL is otherwise only compiled inside
-  the browser, so a typo would survive until runtime. Naga is optional locally,
-  enforced under CI. Plus unit tests for the pure DSP/envelope helpers.
-- **Visual verification needs Firefox Nightly on Linux**, not Chrome — see
-  `CLAUDE.md`. Chrome's ANGLE/Vulkan backend reports spurious texture-allocation
-  errors that are driver artifacts. `scripts/shot.mjs` launches it with the
-  right prefs; model new harnesses on it.
-- The app exposes the engine as `window.vf`, and `?iurl=`, `?iurlb=`, `?preset=`
-  and `?set=` configure a session entirely from the URL — so a harness never has
-  to click the UI. `?dbg=` selects debug views (2 waveform, 3 luma, 4 chroma, 5
-  burst state, 6 scope) which are the fastest way to isolate a stage.
-- Occluded windows throttle `rAF`; call `window.vf.step()` to advance frames
-  deterministically. Note that stepping in a tight loop makes the on-screen fps
-  readout meaningless — measure perf with `rAF` running normally.
+Two things here are architecture rather than procedure; the harnesses, the
+traps they have hit and the performance protocol are all in
+[`DEVELOPMENT.md`](DEVELOPMENT.md).
+
+- **WGSL is validated statically.** `src/gpu/shaders.test.ts` prepends the real
+  prelude to every `.wgsl` and runs it through naga, because WGSL is otherwise
+  only compiled inside the browser and a typo would survive until runtime.
+  Optional locally, enforced under CI.
+- **A session is configurable entirely from the URL.** The engine is exposed as
+  `window.vf`, and `?iurl=`, `?iurlb=`, `?preset=`, `?set=` and `?dbg=` mean a
+  harness never has to click the UI. That is why the harnesses are as short as
+  they are, and it is worth preserving when adding UI.
 
 ## Conventions
 
-`CLAUDE.md` has the full set; the ones that bite hardest here:
-
-- Never `git stash` — multiple agents share this worktree.
-- Don't create feature branches unless asked.
-- Debug by adding logging and proving a hypothesis, not by patching symptoms.
-- Comments explain _why_ — the physical mechanism being modelled — not _what_.
+`CLAUDE.md` is the source; the one that shapes this codebase most is that
+comments explain _why_ — the physical mechanism being modelled — not _what_.
