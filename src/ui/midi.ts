@@ -539,6 +539,16 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
     },
     clearAll: () => {
       bindings = {}
+      // The takeover bookkeeping goes with the bindings, the same way autoMap
+      // and learnSequence drop it when they wipe the map. Nothing can read a
+      // stale entry today — every route back to a drivable binding runs through
+      // `bind`, whose `release` clears the target it is about to hand over — so
+      // this is the three wipes agreeing rather than a fault being fixed. It is
+      // worth agreeing about: leaving it rests on a property of a function three
+      // calls away, and the failure it would buy is a knob that snaps a control
+      // to its position instead of having to sweep up to it.
+      engaged.clear()
+      lastCc.clear()
       clearPickups()
       reindex()
       persist()
