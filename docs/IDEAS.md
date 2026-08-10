@@ -603,6 +603,40 @@ What was deliberately left from the original pass:
   motion in the app, but the boot path layers controls before the bay exists.
   Accepted asymmetry, not a bug worth plumbing around.
 
+### The stab gate — what the freeze fix left open
+
+Shipped: the gate no longer goes dead under the freeze. The "stabs" row reads
+what the gate is _running_ at, so `❚❚` pinned that at 0 however far the slider
+was dragged, with nothing on the row saying why — dialing the gate on now lifts
+the freeze, the same rule a claim and a restart in the bay already follow, and
+`panelcheck.mjs` drives every state the row can be in.
+
+Two things it is still missing, both surfaced by pulling on "the stabs slider
+does not work":
+
+- **It does not travel with the look.** The gate lives in `localStorage` and
+  nowhere else — not in `?mod=`, not in a preset's routings, not in a saved
+  look. A link, a preset or a saved profile therefore drops the most visible
+  thing the bay does, and whoever opens it sees a still picture where the board
+  had been cutting four times a second. `useModSlots.ts` already carries the
+  reasoning for why it belongs in both — a stab train is part of the look in a
+  way a freeze is not — so what is owed is the schema change to `?mod=` and to
+  the preset routings, with readers that tolerate its absence the way
+  `readStab` already tolerates a junk entry.
+- **No knob can reach it.** The row passes `sync` but no `midi`, so the one
+  lever here described as "the kill switch a bender keeps a thumb on"
+  (`signal/stab.ts`) is mouse-only, while the motion fader an inch away is a
+  `BindTarget` sitting at the front of the auto-map spine. It wants a `'stab'`
+  target beside `'motion'` in `ui/midi.ts` — its span is the row's own
+  0..`STAB_HZ_MAX` in tenths rather than the `UNIT_SPAN` the other two
+  non-control targets share, and since the layering puts `midi.ts` under
+  `modSlots.ts` that number has to be written twice and pinned with a test, the
+  way `STOCK_HOLD` and `VIEW_KEYS` are pinned — plus a sink in `app.tsx` beside
+  `setMotion`. The open question is `AUTOMAP_TARGETS`: inserting it after
+  `MOTION` shifts every knob for anyone who re-runs the auto-map, which is a
+  real cost to weigh against a gate that is arguably the most performable thing
+  in the bay.
+
 ## Loop bin follow-ons (after the tape-delay pass)
 
 The loop shipped with the play head's own damage model — band loss, medium
