@@ -39,6 +39,7 @@ const BARE: [string, string][] = [
   ['s', 'still'],
   ['i', 'tapCue'],
   ['o', 'retrigger'],
+  ['t', 'fire'],
   ['1', 'recallSlot'],
   ['9', 'recallSlot'],
 ]
@@ -122,7 +123,7 @@ describe('auto-repeat', () => {
   // A held key repeats at the OS rate. Which gestures may hear that is a real
   // distinction, not an oversight — see the resolver's own notes.
   it('drops the one-shots, which a held key would otherwise fire in a stream', () => {
-    for (const key of ['c', 'r', 's', 'o', '1']) {
+    for (const key of ['c', 'r', 's', 'o', 't', '1']) {
       expect(resolveShortcut(press(key, { repeat: true }))).toBeNull()
     }
   })

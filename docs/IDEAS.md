@@ -432,9 +432,15 @@ like a patchable module rather than a coincidence.
 - **Bidirectional state.** Same channel in reverse — emit control changes so a
   Max patch's UI tracks the app (and so presets/scenes can be recalled from
   outside). Needs a loop guard on the write path.
-- **MIDI note / program-change → scene recall.** Scenes and presets exist
-  (`useScenes.ts`, `presets.ts`) but are mouse-only; note-on or PC is the
-  natural performance trigger and reuses the MIDI input already open.
+- **A saved look on a pad.** The note-binding family shipped (`ActionTarget` in
+  `ui/midi.ts`), so the wire exists — what it carries is the thirteen gestures
+  that need nothing but a velocity. A saved look is the obvious next one and is
+  a different shape: its name comes from a list that changes under the binding,
+  which is the problem `preset:` already solves for knobs by binding the name
+  and dropping the entry when the name goes. `savedProfiles.ts` would need the
+  same treatment. Program change is the other half — one message per look, which
+  is what a PC number _is_ — and would want its own family again, since a PC
+  carries a number rather than a velocity.
 - **MIDI transport, not just clock.** `midi.ts` handles `0xF8`/`0xFC`; honouring
   `0xFA` start / `0xFB` continue would let clock-locked rates reset phase on
   downbeat instead of free-running from whenever the tick stream began.
@@ -575,10 +581,14 @@ have to be cleared by whoever set it. And a press lands _between_ two frames, so
 the trigger is held in a set until a frame picks it up; sampling an edge at 60
 Hz loses roughly one press in every few otherwise.
 
-What is still open on it: **MIDI note-on** should fire a slot (`IDEAS.md`'s
-"MIDI note / program-change → scene recall" is the same wire), and there is no
-keyboard binding for `fire all` — both buttons are mouse-only, which is the
-wrong input for a gesture whose whole point is timing.
+Both halves of what was open on it have shipped: a pad fires the whole bay or
+any one slot (the note-binding family, below), and `t` fires the bay from the
+keyboard. What that pass learned, for whoever extends the family: the rule worth
+naming was what an _unbound_ note does, and it is `noteAction` in `ui/midi.ts` —
+with nothing bound every note fires the bay, which is what shipped and the right
+reading of an unmapped keyboard, and binding one pad lifts the blanket. Written
+the other way round (bound pads plus a blanket that never lifts) a pad would
+strike its slot and knock every other envelope over on the way.
 
 What was deliberately left from the original pass:
 
@@ -680,12 +690,11 @@ clamp is `VideoPump.wrap`. Three things around it are deliberately not done.
   new pattern rather than a placement. The command palette carries the two verbs
   in the meantime, which is where the roll-and-keep verbs went for the same
   reason.
-- **MIDI on the cue.** This is the one that would matter most for playing it,
-  and it is blocked behind the same gap the mod bay's triggers are: `midi.ts`
-  takes any Note On as "fire the whole bay", so there is no way to bind one note
-  to one action. A per-note binding family is the prerequisite (already noted
-  above), and the cue tap and the retrigger are two of the best arguments for
-  building it — the retrigger in particular is a drum pad, not a knob.
+- ~~**MIDI on the cue.**~~ Shipped with the note-binding family: `cue:a/b` and
+  `jump:a/b` are four of its thirteen actions, and both go through the same
+  `slotFor` lookup the keyboard's `i` and `o` use, so a pad and a key cannot
+  disagree about which deck they are on. The retrigger was the argument for
+  building the family — it is a drum pad, not a knob.
 - **Beat-snapped loops.** `useTempo` already has a beat, from MIDI clock or
   tapped in, and ½/1/2/4-bar buttons from the cue would give exact musical
   loops. Left out on purpose for now: it doubles the row, and it is inert on a
@@ -865,10 +874,13 @@ mechanism.
 
 ### What blocks the live half
 
-- **Per-note MIDI bindings.** `ui/midi.ts` fires the whole bay on any Note On
-  and its own comment says per-slot notes "want a binding family of their own".
-  Triggering rows from a controller needs that family, and the strip is one of
-  the best arguments for building it — firing rows is a drum pad, not a knob.
+- ~~**Per-note MIDI bindings.**~~ Shipped: `ActionTarget` in `ui/midi.ts` is a
+  second binding family beside `BindTarget`, because an action is an edge
+  carrying a velocity and a target is a value with a span and a resting
+  position. A row is one more action id and a sink in `useMidi`; what a strip
+  would want beyond the thirteen there is an action that names something out of
+  a list that changes under the binding, which is the shape the saved-look entry
+  above describes.
 - **The recorder is variable-framerate.** `useCapture.ts` is `captureStream()`
   plus `MediaRecorder`, timestamped by wall clock. Fine for a screen grab, wrong
   for anything cut to music, and the reason the `VideoEncoder` swap above is

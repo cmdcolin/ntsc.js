@@ -151,6 +151,7 @@ anything you care about, point OBS at the picture window.
 | `f`                     | fullscreen                                          |
 | `i`                     | cue a clip · press again to loop from there         |
 | `o`                     | stab back to the cue · `+shift` for source B        |
+| `t`                     | strike every one-shot envelope in the bay           |
 | `1`–`9` / `shift+1`–`9` | recall / overwrite one of your first nine saves     |
 | `ctrl/⌘+z`              | step back a look · `+shift` steps forward again     |
 | `esc`                   | close a dialog, cancel a MIDI arm, clear the filter |
@@ -158,5 +159,5 @@ anything you care about, point OBS at the picture window.
 ---
 
 [Effects & features](EFFECTS.md) — everything it can break ·
-[How it works](HOW-IT-WORKS.md) — the code ·
-[MIDI](MIDI.md) — setting up a controller
+[How it works](HOW-IT-WORKS.md) — the code · [MIDI](MIDI.md) — setting up a
+controller

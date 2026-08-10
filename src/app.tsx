@@ -624,6 +624,10 @@ export function App() {
     onGrabStill: capture.grabStill,
     onTapCue: key => slotFor(key).tapCue(),
     onRetrigger: key => slotFor(key).retrigger(),
+    // No velocity, exactly as the ⚡ button strikes it: a key is on or off, and
+    // inventing a level for it would make the same gesture mean two things
+    // depending on which surface it came from. A pad has one and passes it.
+    onFire: () => modApi.fire(),
     onSaveSlot: saveSlot,
     onRecallSlot: recallSlot,
     // ctrl+S keeps the board under the name the menu would have offered. The

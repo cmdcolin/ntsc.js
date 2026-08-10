@@ -201,7 +201,7 @@ export function ModBay(props: {
       {anyTrig ? (
         <button
           className={ui.btn}
-          title="strike every one-shot envelope in the bay at once"
+          title="strike every one-shot envelope in the bay at once — or press t"
           onClick={() => fire()}
         >
           ⚡ fire all

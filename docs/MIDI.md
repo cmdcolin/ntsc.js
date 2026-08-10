@@ -50,9 +50,34 @@ Neither does soft takeover — they grab on the first message, because neither h
 a track to draw a waiting mark on. A weight also resets once anything else moves
 the board: the next turn starts a fresh mix from what is on screen.
 
+## Pads, for the things you hit rather than set
+
+A knob holds a value. Some of what you do during a set isn't a value at all —
+striking the modulation bay's one-shot envelopes, marking a cue, stabbing back
+to one — and those go on **pads or keys**, bound at the bottom of the MIDI
+panel: pick the gesture, click **⚟ pad**, hit the pad.
+
+What can go on one:
+
+- **⚡ fire all**, and **⚡ fire slot 1–8** — the buttons in the MODULATION box.
+  Velocity carries, so a soft hit is a small envelope.
+- **cue source A/B** and **back to the cue · A/B** — the same two gestures `i`
+  and `o` are on the keyboard. The stab back is the one worth a pad; it is a
+  drum hit, not a knob.
+
+**With nothing bound, any note fires the whole bay.** That is what the app has
+always done with a note, and it is the right answer for a keyboard you haven't
+mapped. Bind one pad and that stops: from then on notes fire only what is listed
+in the panel, and everything else is ignored.
+
+Nothing here does soft takeover — there is no value to catch up to. `Esc`
+cancels an arm, the same as for a knob.
+
 ## Mapping the whole device
 
-Both buttons **wipe every binding** first, with no confirmation.
+Both buttons **wipe every knob binding** first, with no confirmation. Pads are
+left alone — a device profile is a list of CC numbers and has nothing to say
+about notes. **clear all bindings** takes both.
 
 - **auto-map** is for a MIDI Fighter Twister: it assigns the first 64 controls —
   motion amount first, then look-makers in signal-path order — to CC 0–63 on
@@ -101,10 +126,10 @@ BPM. The app only listens for clock; it never sends it.
 
 ## What sticks around
 
-Bindings, the hand-set tempo and the clock locks on **sweep** and **line
-offset** are saved in this browser. They are **not** in presets, saved looks or
-the URL — a link carries the look, not your knob layout, and there is no way to
-export a mapping.
+Bindings — knobs and pads alike, in two separate stores — the hand-set tempo and
+the clock locks on **sweep** and **line offset** are saved in this browser. They
+are **not** in presets, saved looks or the URL — a link carries the look, not
+your knob layout, and there is no way to export a mapping.
 
 A modulation slot's lock is the exception: it rides along on the link, because
 "this wobbles on eighth notes" is part of the patch.
@@ -114,8 +139,9 @@ one binding on the next load.
 
 ## What isn't supported
 
-- **CC only** — notes, pads, pitch bend, program change and aftertouch do
-  nothing.
+- **CC and notes only** — pitch bend, program change and aftertouch do nothing.
+  A note is an on/off with a velocity; there is no note-off handling, because
+  every gesture a pad can fire is a one-shot that decays on its own.
 - **Absolute knobs only** — endless encoders in relative mode will jump around.
 - **No LED feedback** — nothing is sent back to the device.
 - **No device picker** — everything plugged in drives the app at once.
@@ -130,5 +156,6 @@ one binding on the next load.
 | Everything went dead after a preset | Same thing; a preset load drops every knob's catch                            |
 | Two controls move together          | Both bound to the same CC — unbind one with **×** and re-learn it             |
 | Value jumps in steps                | Coarse-stepped slider; 128 knob positions land on fewer distinct values       |
-| Bindings vanished                   | **auto-map** or **learn in order** clears them all before it starts           |
+| Bindings vanished                   | **auto-map** or **learn in order** clears every knob binding before it starts |
 | Tempo says "no signal"              | Nothing is sending clock; ticks are what it counts, start/continue is ignored |
+| A pad stopped firing the bay        | Binding any pad ends the blanket: only what the panel lists fires now         |

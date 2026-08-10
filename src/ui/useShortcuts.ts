@@ -29,6 +29,7 @@ export type Shortcut =
   | { do: 'still' }
   | { do: 'tapCue'; slot: 'a' | 'b' }
   | { do: 'retrigger'; slot: 'a' | 'b' }
+  | { do: 'fire' }
   | { do: 'saveSlot'; n: number }
   | { do: 'recallSlot'; n: number }
 
@@ -90,6 +91,12 @@ export function resolveShortcut(e: Keystroke): Shortcut | null {
   if (key === 'o') {
     return e.repeat ? null : { do: 'retrigger', slot: e.shiftKey ? 'b' : 'a' }
   }
+  // `t` for trigger, and guarded like the stab above for the same reason: a
+  // one-shot envelope struck at the OS repeat rate never gets to decay, so a
+  // held key would pin the bay at full instead of hitting it. The gesture the
+  // ⚡ buttons are, which were mouse-only — the wrong input for something whose
+  // whole point is when it lands.
+  if (key === 't') return e.repeat ? null : { do: 'fire' }
   // The saved library's first nine, by position in the list. Read from `code`
   // rather than `key` so shift+1 is still slot 1 and not `!`.
   const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code)
@@ -121,6 +128,10 @@ interface Handlers {
   // head of a stage is not a gesture you can perform.
   onTapCue: (slot: 'a' | 'b') => void
   onRetrigger: (slot: 'a' | 'b') => void
+  // Strike every one-shot in the modulation bay. Bound for the same reason the
+  // cue gestures are, and it is the one the argument fits best: the whole bay
+  // fired together is a gesture you land on a beat.
+  onFire: () => void
 }
 
 // Global keyboard shortcuts, bound wherever the panel lives (main window and the
@@ -185,6 +196,9 @@ export function useShortcuts(popout: Window | null, handlers: Handlers) {
           break
         case 'retrigger':
           h.onRetrigger(hit.slot)
+          break
+        case 'fire':
+          h.onFire()
           break
         case 'saveSlot':
           h.onSaveSlot(hit.n)
