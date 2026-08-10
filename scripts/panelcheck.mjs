@@ -27,6 +27,9 @@
 //    was full, having just freed a slot in it
 //  - a routing could be removed but not held, so there was no way to hear the
 //    picture without one wobble and then have it back
+//  - the stabs row reads what the gate is running at, and the freeze pins that
+//    at 0 — so with ❚❚ down the slider snapped back to 0 wherever it was
+//    dragged, wrote nothing to the engine, and said nothing about why
 //  - the popout window portaled into the app shell and so inherited its phone
 //    rule, which stacks the halves into a column; in a column the cross axis is
 //    width, where the panel's `margin-inline: auto` cancels the stretch it took
@@ -99,6 +102,26 @@ const HELPERS = `
   const chain = () => document.querySelector('svg[aria-label="signal chain"]')
   const strip = () => [...document.querySelectorAll('button')]
     .find(b => /^\\d+∿$/.test(b.textContent ?? ''))
+  // The same button as strip(), however it reads: with the stab gate running it
+  // carries a rate too ("0∿ 4/s"), which the count-only pattern above misses.
+  const stripText = () => [...document.querySelectorAll('button')]
+    .map(b => b.textContent ?? '').find(t => t.includes('∿')) ?? null
+  // A box on the chain map, by the name it opens.
+  const stage = name => [...document.querySelectorAll('svg[aria-label="signal chain"] g[role=button]')]
+    .find(g => (g.getAttribute('aria-label') ?? '').startsWith(name))
+  // A slider row by its visible label — the row's own <label for>, which is the
+  // one handle on it that isn't a hashed class name.
+  const rowFor = name => [...document.querySelectorAll('input[type=range]')]
+    .find(i => [...document.querySelectorAll('label[for="' + CSS.escape(i.id) + '"]')]
+      .map(l => l.textContent).join('').trim() === name)
+  // React listens for input events on its own value setter, so the native one
+  // has to be called through the prototype or the change never reaches state.
+  const setRange = (input, v) => {
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value')
+      .set.call(input, String(v))
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+  }
 `
 const runner = page => ({
   run: body => page.evaluate(`(() => {${HELPERS}\n${body}})()`),
@@ -377,6 +400,84 @@ await phase('fps stat', {}, async page => {
 })
 
 // --- the popout window, which is a shell of its own -------------------------
+// --- the stab gate answers its own row --------------------------------------
+//
+// The one row in the bay whose reading is not the thing you dragged: it shows
+// what the gate is *running* at, which the freeze and a beat lock both have a
+// say in. That is worth having, and it is also how the row came to sit at 0
+// however far it was dragged — so what this pins is that every state the row can
+// be in is one the panel can get back out of.
+//
+// Panel-only on purpose, like everything else here: whether the picture actually
+// cuts in and out at the dialed rate is a question for a harness with a canvas
+// probe in it, not for the one that checks what the panel renders.
+await phase('stab', {}, async page => {
+  const { run, settle } = runner(page)
+  await run(`press(stage('Modulation')); return 0`)
+  await settle(700)
+
+  const gate = () =>
+    run(`
+      const row = rowFor('stabs')
+      return {
+        reads: row?.value ?? null,
+        disabled: row?.disabled ?? null,
+        engine: window.vf?.stab?.hz ?? null,
+        strip: stripText(),
+        frozen: byTitle('let the motion run again') !== undefined,
+      }`)
+
+  const missing = await run(`return rowFor('stabs') === undefined`)
+  check(!missing, 'the Modulation box opened without a stabs row in it')
+  if (missing) return
+
+  await run(`setRange(rowFor('stabs'), 4); return 0`)
+  await settle(400)
+  const on = await gate()
+  check(on.reads === '4', `the stabs row read ${on.reads} after being set to 4`)
+  check(on.engine === 4, `the engine's gate is at ${on.engine}, not 4`)
+  check(
+    on.strip === '0∿ 4/s',
+    `the motion strip read "${on.strip}" with the gate at 4/s`,
+  )
+
+  // ❚❚ stops the gate outright rather than scaling it — half a stab is just a
+  // shorter stab, and the length is already a knob.
+  await run(`press(byTitle('hold everything still')); return 0`)
+  await settle(400)
+  const held = await gate()
+  check(held.frozen, 'the freeze did not take')
+  check(
+    held.engine === 0,
+    `a frozen bay left the gate running at ${held.engine}`,
+  )
+  check(
+    held.strip === '0∿',
+    `the strip claimed "${held.strip}" while the freeze held the gate at 0`,
+  )
+
+  // The regression: the row reads the resolved rate, so while the freeze pinned
+  // that at 0 the slider snapped back to 0 wherever it was dragged and the
+  // engine never heard about it — a dead control with nothing on it saying why.
+  // Dialing the gate on is an unambiguous ask, so it lifts the freeze, the same
+  // rule a claim and a restart in the bay already follow.
+  await run(`setRange(rowFor('stabs'), 8); return 0`)
+  await settle(400)
+  const again = await gate()
+  check(
+    again.reads === '8',
+    `dragging the stabs row while frozen left it reading ${again.reads}`,
+  )
+  check(
+    again.engine === 8,
+    `the engine's gate is at ${again.engine} after the row was dragged to 8`,
+  )
+  check(
+    !again.frozen,
+    'dialing the gate on left the freeze down, so the row it just answered does nothing',
+  )
+})
+
 // The panel renders in two documents, and only one of them has a picture in it.
 // Everything responsive in app.module.css describes the *shell* — a sidebar
 // beside or under a stage — and the popout is the panel alone in a window
