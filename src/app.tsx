@@ -250,7 +250,9 @@ export function App() {
   const {
     status: midiStatus,
     bindings: midiBindings,
+    notes: midiNotes,
     armed,
+    armedNote,
     bpm,
     pickups,
     writeControl,
@@ -258,12 +260,14 @@ export function App() {
     setSinks,
     enable: enableMidi,
     toggleArm,
+    toggleArmNote,
     disarm,
     autoMap,
     learn,
     learnSequence,
     stopLearn,
     clearBinding,
+    clearNote,
     clearAll,
   } = useMidi(engineRef)
   // The engine IS the store: React reads controls straight from it via
@@ -376,19 +380,36 @@ export function App() {
     mod: modApi,
   })
 
-  // The three bindable things the engine doesn't own. Registered from an effect
-  // rather than passed into useMidi, which is built before any of them
+  // Either slot, by the key something outside handed over. Five surfaces are
+  // told which slot to act on rather than choosing — the keyboard, a bound MIDI
+  // pad, and the three dialogs, each of which was opened *for* a slot — and
+  // every one of them used to spell out its own `key === 'a' ? …A : …B`, once
+  // per verb. One lookup, and what follows it is the verb on a slot.
+  //
+  // Declared here rather than beside the dialogs it also serves, because the
+  // sink registration below closes over it: read from an effect it would be
+  // fine at runtime, but the React Compiler declines to memoize a component
+  // that reads a binding declared later in the body, and it drops *all* of this
+  // component's memoization when it does (scripts/compilercheck.mjs).
+  const slotFor = (key: StashSlot): AnySlotView => (key === 'a' ? eng.a : eng.b)
+
+  // Everything MIDI drives that the engine doesn't own. Registered from an
+  // effect rather than passed into useMidi, which is built before any of it
   // exists — useMix needs the write path that hook owns. No dep array: all
   // close over this render's state, and re-registering is one assignment.
   useEffect(() => {
     setSinks({
       setMotion: modApi.setMaster,
       setPresetWeight: mix.midiPresetWeight,
-      // Any note fires the bay's one-shots, at the velocity it was struck with.
       // The bay is React's, so this is the only route a note has to it.
-      fire: v => {
-        modApi.fire(undefined, v)
+      fire: (slot, v) => {
+        modApi.fire(slot, v)
       },
+      // The same two verbs `i` and `o` reach from the keyboard, through the same
+      // slot lookup — a pad and a key striking one deck's cue must not be able
+      // to disagree about which deck that is.
+      tapCue: deck => slotFor(deck).tapCue(),
+      retrigger: deck => slotFor(deck).retrigger(),
     })
   })
 
@@ -429,13 +450,6 @@ export function App() {
     eng.loadClip,
     (slot, ref) => eng.showRef(slot, ref, 'library'),
   )
-
-  // Either slot, by the key something outside handed over. Four surfaces are
-  // told which slot to act on rather than choosing — the keyboard, and the three
-  // dialogs, each of which was opened *for* a slot — and every one of them used
-  // to spell out its own `key === 'a' ? …A : …B`, once per verb. One lookup, and
-  // what follows it is the verb on a slot.
-  const slotFor = (key: StashSlot): AnySlotView => (key === 'a' ? eng.a : eng.b)
 
   // The slot each of the two editing dialogs was opened for, resolved once here
   // rather than re-derived inside every callback. Those callbacks used to branch
@@ -587,7 +601,11 @@ export function App() {
     // on the map rather than a thing on screen to back out of.
     onEscape: () => {
       const mode =
-        filter !== '' || searchOpen || armed !== null || learn !== null
+        filter !== '' ||
+        searchOpen ||
+        armed !== null ||
+        armedNote !== null ||
+        learn !== null
       setFilter('')
       setSearchOpen(false)
       disarm()
@@ -1505,14 +1523,18 @@ export function App() {
       {filtering || midiStatus !== 'ready' ? null : (
         <MidiSection
           armed={armed}
+          armedNote={armedNote}
           learn={learn}
           midiBindings={midiBindings}
+          midiNotes={midiNotes}
           bpm={bpm}
           onAutoMap={autoMap}
           onLearnSequence={learnSequence}
           onStopLearn={stopLearn}
           onArm={toggleArm}
+          onArmNote={toggleArmNote}
           onClearBinding={clearBinding}
+          onClearNote={clearNote}
           onClearAll={clearAll}
         />
       )}

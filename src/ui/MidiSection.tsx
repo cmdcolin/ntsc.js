@@ -3,9 +3,12 @@ import { useState } from 'react'
 import { ALL_SLIDERS } from './controls'
 import { cx } from './cx'
 import {
+  ACTIONS,
   AUTOMAP_TARGETS,
   DEVICE_PROFILES,
   MOTION,
+  actionLabel,
+  parseAction,
   presetTarget,
   targetLabel,
 } from './midi'
@@ -14,7 +17,14 @@ import { PRESETS, presetLabel } from './presets'
 import { Section } from './Section'
 import ui from './ui.module.css'
 
-import type { BindingMap, BindTarget, DeviceProfile, LearnState } from './midi'
+import type {
+  ActionTarget,
+  BindingMap,
+  BindTarget,
+  DeviceProfile,
+  LearnState,
+  NoteMap,
+} from './midi'
 
 // Presets that can be dialed in partially. "clean" is the reset — an empty patch
 // blendPresets can never mix in — so a knob on its weight would do nothing.
@@ -22,14 +32,18 @@ const MIXABLE = PRESETS.filter(p => Object.keys(p.patch).length > 0)
 
 export function MidiSection(props: {
   armed: BindTarget | null
+  armedNote: ActionTarget | null
   learn: LearnState | null
   midiBindings: BindingMap
+  midiNotes: NoteMap
   bpm: number | null
   onAutoMap: (profile: DeviceProfile) => void
   onLearnSequence: () => void
   onStopLearn: () => void
   onArm: (target: BindTarget) => void
+  onArmNote: (target: ActionTarget) => void
   onClearBinding: (target: BindTarget) => void
+  onClearNote: (target: ActionTarget) => void
   onClearAll: () => void
 }) {
   const [deviceName, setDeviceName] = useState(DEVICE_PROFILES[0].name)
@@ -39,6 +53,11 @@ export function MidiSection(props: {
   // carry the affordance itself, and putting it here keeps the drag gesture on
   // the chip unambiguous — a press there is always a mix, never a bind.
   const [presetName, setPresetName] = useState(MIXABLE[0].name)
+  // Which verb the ⚟ beside the second picker will put on a pad. Same
+  // arrangement as the preset picker above it, and for a stronger reason: the
+  // buttons these stand in for are scattered across the bay and two stage heads,
+  // and several of them are not on screen at all until something is patched.
+  const [action, setAction] = useState<ActionTarget>(ACTIONS[0].target)
   // Walked in a fixed order rather than bind order, so a row doesn't move under
   // the pointer as bindings come and go: the levers a set is played on first —
   // motion, then preset weights in table order — and the controls down the
@@ -51,15 +70,22 @@ export function MidiSection(props: {
   const boundControls = ALL_SLIDERS.filter(
     s => props.midiBindings[s.key] !== undefined,
   ).length
-  const { learn, armed } = props
+  const { learn, armed, armedNote } = props
   const presetArm = presetTarget(presetName)
+  // Walked in the table's order, so pads sit in the order they were offered
+  // rather than in the order they were bound.
+  const boundActions = ACTIONS.filter(
+    a => props.midiNotes[a.target] !== undefined,
+  )
 
   const hint =
     learn !== null
       ? `turn a knob${learn.nextTarget === null ? '' : ` for: ${targetLabel(learn.nextTarget)}`} — ${learn.done}/${learn.total} bound (Esc to stop)`
-      : armed === null
-        ? 'click ⚟ on any slider, then move a knob to bind.'
-        : `learning ${targetLabel(armed)}… move a knob (Esc to cancel)`
+      : armedNote !== null
+        ? `learning ${actionLabel(armedNote)}… strike a pad or a key (Esc to cancel)`
+        : armed === null
+          ? 'click ⚟ on any slider, then move a knob to bind.'
+          : `learning ${targetLabel(armed)}… move a knob (Esc to cancel)`
 
   return (
     <Section title="MIDI">
@@ -119,6 +145,41 @@ export function MidiSection(props: {
               {armed === presetArm ? 'learn…' : '⚟ preset mix'}
             </button>
           </div>
+
+          {/* The other family: a pad, not a knob. Everything above is a value
+              you hold, and each of these is an edge you cause — which is why
+              they are bound here rather than by a ⚟ on the button that fires
+              them, and why nothing about takeover applies. */}
+          <div className={styles.midiRow}>
+            <select
+              className={ui.select}
+              value={action}
+              // Back through the parser rather than asserted: the same
+              // narrowing a stored key gets, so the one place a loose string
+              // becomes an ActionTarget is the one place that range-checks it.
+              onChange={e =>
+                setAction(parseAction(e.target.value) ?? ACTIONS[0].target)
+              }
+            >
+              {ACTIONS.map(a => (
+                <option key={a.target} value={a.target}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+            <button
+              className={cx(ui.btn, armedNote === action && ui.active)}
+              title="put this gesture on a pad or a key"
+              onClick={() => props.onArmNote(action)}
+            >
+              {armedNote === action ? 'learn…' : '⚟ pad'}
+            </button>
+          </div>
+          <div className={cx(ui.dim, styles.midiNote)}>
+            {boundActions.length === 0
+              ? 'with no pad bound, any note fires the whole bay. Bind one and notes become deliberate — only what is listed below fires.'
+              : 'notes fire only what is bound below; everything else is ignored.'}
+          </div>
         </>
       ) : (
         <button
@@ -149,7 +210,26 @@ export function MidiSection(props: {
           </div>
         )
       })}
-      {bound.length === 0 ? null : (
+      {boundActions.map(a => {
+        const b = props.midiNotes[a.target]
+        return b === undefined ? null : (
+          <div key={a.target} className={styles.midiRow}>
+            <span>
+              {a.label} <span className={ui.blue}>· note {b.note}</span>
+              {b.channel === 0 ? null : (
+                <span className={ui.dim}> ch{b.channel + 1}</span>
+              )}
+            </span>
+            <button
+              className={styles.iconX}
+              onClick={() => props.onClearNote(a.target)}
+            >
+              ×
+            </button>
+          </div>
+        )
+      })}
+      {bound.length === 0 && boundActions.length === 0 ? null : (
         <button
           className={cx(ui.btn, ui.danger)}
           onClick={() => props.onClearAll()}

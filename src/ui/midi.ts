@@ -52,6 +52,119 @@ export function parseTarget(s: string): BindTarget | null {
 
 export type BindingMap = Partial<Record<BindTarget, MidiBinding>>
 
+// One note source = a (channel, note) pair. Its own interface rather than
+// MidiBinding with the field renamed: a note number and a controller number
+// index different message spaces, and sharing the type is how a map keyed by one
+// comes to be looked up with the other.
+export interface NoteBinding {
+  channel: number
+  note: number
+}
+
+// Which deck a cue verb is aimed at, spelled the way the keyboard spells it
+// (`useShortcuts`) so one word means one thing across both inputs.
+export type DeckTag = 'a' | 'b'
+
+// What a note fires. Deliberately **not** a BindTarget: a target is a value you
+// set and hold — it has a span, a resting position, and soft takeover to catch
+// it. An action has none of those. It is an edge, and the only thing it carries
+// is how hard it was struck, which is why the two families never share a map, an
+// arm, or a knob.
+//
+// The set is fixed and small on purpose. A pad can only fire something the app
+// can do at any moment given nothing but a velocity, which rules out most of the
+// command palette — a verb that needs a name typed, or a pick that may not exist
+// yet — and leaves the gestures that are beaten in time to something.
+export type ActionTarget =
+  | 'fire'
+  | `fire:${number}`
+  | `cue:${DeckTag}`
+  | `jump:${DeckTag}`
+
+const FIRE_PREFIX = 'fire:'
+const CUE_PREFIX = 'cue:'
+const JUMP_PREFIX = 'jump:'
+
+// The bay's slot count, written here rather than imported: `modSlots.ts` sits
+// *above* this module — it reads SYNC_DIVISIONS out of it — so the number is
+// duplicated and pinned against N_SLOTS by a test, the same arrangement
+// STOCK_HOLD and VIEW_KEYS have.
+const BAY_SLOTS = 8
+
+export const fireTarget = (n: number): ActionTarget => `${FIRE_PREFIX}${n}`
+
+// Taking an action apart again, the way controlOf/presetOf take a knob target
+// apart. Each answers for its own kind and null for every other, so a caller
+// that forgets one gets nothing rather than the wrong verb.
+//
+// The bay slot a target strikes, numbered 1..8 as the panel numbers them — null
+// for everything else, *including* bare `fire`, which is all of them at once.
+export function fireSlotOf(t: ActionTarget): number | null {
+  if (!t.startsWith(FIRE_PREFIX)) return null
+  const n = Number(t.slice(FIRE_PREFIX.length))
+  return Number.isInteger(n) && n >= 1 && n <= BAY_SLOTS ? n : null
+}
+
+const deckAfter = (t: string, prefix: string): DeckTag | null => {
+  if (!t.startsWith(prefix)) return null
+  const deck = t.slice(prefix.length)
+  return deck === 'a' || deck === 'b' ? deck : null
+}
+
+export const cueDeckOf = (t: ActionTarget): DeckTag | null =>
+  deckAfter(t, CUE_PREFIX)
+
+export const jumpDeckOf = (t: ActionTarget): DeckTag | null =>
+  deckAfter(t, JUMP_PREFIX)
+
+// Every action a pad can be given, in the order the picker lists them: the bay
+// first (the whole bay, then its slots in position order), then the two cue
+// verbs per deck. Labels are the panel's own words for the buttons these stand
+// in for, so a bound pad reads as the thing it replaces.
+export const ACTIONS: { target: ActionTarget; label: string }[] = [
+  { target: 'fire', label: '⚡ fire all' },
+  ...Array.from({ length: BAY_SLOTS }, (_, i) => ({
+    target: fireTarget(i + 1),
+    label: `⚡ fire slot ${i + 1}`,
+  })),
+  { target: 'cue:a', label: 'cue source A' },
+  { target: 'jump:a', label: 'back to the cue · A' },
+  { target: 'cue:b', label: 'cue source B' },
+  { target: 'jump:b', label: 'back to the cue · B' },
+]
+
+export const actionLabel = (t: ActionTarget): string =>
+  ACTIONS.find(a => a.target === t)?.label ?? t
+
+// A stored key read back, for the same reason parseTarget exists: anything that
+// no longer names an action — a bay that shrank, a hand-edited storage entry —
+// comes back null and is discarded, rather than sitting in the map holding a pad
+// hostage to a verb the panel has no row for. The set is fixed and short, so the
+// lookup is both the parse and the range check.
+export const parseAction = (s: string): ActionTarget | null =>
+  ACTIONS.find(a => a.target === s)?.target ?? null
+
+export type NoteMap = Partial<Record<ActionTarget, NoteBinding>>
+
+// What a struck note fires, given whatever is bound to that note and whether
+// anything at all is bound. Split out of the dispatch the way `resolveShortcut`
+// is split out of the keyboard's, because it is one line that decides what every
+// pad on the device does:
+//
+// **With nothing bound, every note fires the whole bay.** That is the gesture
+// that shipped, and the right reading of a keyboard nobody has mapped. Bind one
+// pad and the blanket lifts, because the keyboard has just become deliberate — a
+// pad that struck slot 3 *and* knocked every other envelope over on the way
+// would be unplayable. The panel lists what each bound note does, so once the
+// blanket is off there is somewhere to read the rule off; while it is on there
+// is nothing to read and nothing to be surprised by.
+export function noteAction(
+  bound: ActionTarget | undefined,
+  anyBound: boolean,
+): ActionTarget | null {
+  return bound ?? (anyBound ? null : 'fire')
+}
+
 // Knob positions for controls waiting to be caught, in control units. Keyed by
 // control, not target: soft takeover applies to controls alone (see `drive`).
 export type PickupMap = Partial<Record<ControlKey, number>>
@@ -128,6 +241,10 @@ export type MidiStatus =
   | 'denied'
 
 const STORE_KEY = 'video_feedback_midi'
+// Its own key rather than a second field under the one above: the two maps are
+// written on different gestures and read back through different parsers, and a
+// combined value would make a bad note entry able to throw away a knob layout.
+const NOTE_STORE_KEY = 'video_feedback_midi_notes'
 // Set once a grant succeeds, so a reload reconnects without another trip
 // through the Advanced dialog. Cleared on denial, so a revoked permission
 // doesn't leave every load reporting an error the user didn't ask for.
@@ -148,8 +265,29 @@ function loadBindings(): BindingMap {
   return out
 }
 
+// The same read, through parseAction. A map written by a version with a bigger
+// bay keeps every pad it still has a verb for and quietly drops the rest.
+function loadNotes(): NoteMap {
+  const stored = readRecord<Partial<Record<string, NoteBinding>>>(
+    NOTE_STORE_KEY,
+    {},
+  )
+  const out: NoteMap = {}
+  for (const [k, b] of Object.entries(stored)) {
+    const target = parseAction(k)
+    if (target !== null && b !== undefined) out[target] = b
+  }
+  return out
+}
+
 function bindingId(b: MidiBinding): string {
   return `${b.channel}:${b.controller}`
+}
+
+// Same shape, its own index. A pad sending note 7 and a knob sending CC 7 on one
+// channel are different sources, and the two maps never meet.
+function noteId(b: NoteBinding): string {
+  return `${b.channel}:${b.note}`
 }
 
 // Copy of a partial map without one key. Generic over the key type as well as
@@ -227,6 +365,11 @@ export function syncedValue(
 export interface MidiManager {
   enable: () => void
   arm: (target: BindTarget | null) => void
+  // The other arm. Its own call and its own state, so arming a pad while a knob
+  // is armed cannot leave the next message binding whichever arrived first — the
+  // two families listen for different messages and never race.
+  armNote: (target: ActionTarget | null) => void
+  clearNote: (target: ActionTarget) => void
   // Replace all bindings with a device's factory layout: each knob CC takes the
   // next target along the auto-map spine. Returns how many got a knob.
   autoMap: (profile: DeviceProfile) => AutoMapResult
@@ -253,13 +396,13 @@ export interface MidiCallbacks {
   // units. Soft takeover makes those knobs inert, and without this the panel
   // gives no sign of it — the control just looks broken.
   onPickup: (pickups: PickupMap) => void
-  // A note struck, with its velocity as 0..1. Deliberately not a BindTarget:
-  // every other thing MIDI drives here is a value you set, and this is the one
-  // that is an event you cause — there is nothing for soft takeover to catch
-  // and nothing to hold between messages. Any note fires the whole bay, which
-  // is the gesture the ⚡ button is; per-slot notes want a binding family of
-  // their own and are noted in IDEAS.
-  onFire: (velocity: number) => void
+  // A note struck, with its velocity as 0..1, and the action it fires. There is
+  // nothing here for soft takeover to catch and nothing to hold between
+  // messages, which is the whole reason actions are their own family — see
+  // ActionTarget.
+  onAction: (target: ActionTarget, velocity: number) => void
+  onNotes: (notes: NoteMap) => void
+  onArmedNote: (target: ActionTarget | null) => void
   // Progress of a learn-in-order sweep, or null when none is running.
   onLearn: (state: LearnState | null) => void
   // Detected clock tempo, or null when no clock is running.
@@ -268,7 +411,9 @@ export interface MidiCallbacks {
 
 export function createMidi(cb: MidiCallbacks): MidiManager {
   let bindings = loadBindings()
+  let notes = loadNotes()
   let armed: BindTarget | null = null
+  let armedNote: ActionTarget | null = null
   let access: MIDIAccess | null = null
   let onStateChange: (() => void) | null = null
   // Active learn-in-order sweep: the spine of targets to fill, how far along we
@@ -280,6 +425,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
     seen: Set<string>
   } | null = null
   const targetByBinding = new Map<string, BindTarget>()
+  const actionByNote = new Map<string, ActionTarget>()
 
   // Soft-takeover bookkeeping, keyed by control.
   const current = new Map<ControlKey, number>()
@@ -349,9 +495,24 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
   }
   reindex()
 
+  const reindexNotes = () => {
+    actionByNote.clear()
+    for (const [k, b] of Object.entries(notes)) {
+      const target = parseAction(k)
+      if (target !== null && b !== undefined)
+        actionByNote.set(noteId(b), target)
+    }
+  }
+  reindexNotes()
+
   const persist = () => {
     writeJSON(STORE_KEY, bindings)
     cb.onBindings({ ...bindings })
+  }
+
+  const persistNotes = () => {
+    writeJSON(NOTE_STORE_KEY, notes)
+    cb.onNotes({ ...notes })
   }
 
   const reportLearn = () => {
@@ -387,6 +548,18 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
     if (prev !== undefined) release(prev)
     reindex()
     persist()
+  }
+
+  // No `release` beside this one, unlike `bind` above: an action has no takeover
+  // state to forget, because there is nothing for a pad to catch up to.
+  const bindNote = (t: ActionTarget, b: NoteBinding) => {
+    // A pad fires one action at a time: drop whoever held this note before.
+    const prev = actionByNote.get(noteId(b))
+    const next: NoteMap = prev === undefined ? { ...notes } : omit(notes, prev)
+    next[t] = b
+    notes = next
+    reindexNotes()
+    persistNotes()
   }
 
   const drive = (t: BindTarget, cc: number) => {
@@ -429,7 +602,19 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
     // on its own clock, so a key lift has nothing to say to it. That is also
     // why nothing here tracks which notes are held.
     if (data?.length === 3 && (data[0] & 0xf0) === 0x90 && data[2] > 0) {
-      cb.onFire(data[2] / 127)
+      const b = { channel: data[0] & 0x0f, note: data[1] }
+      const velocity = data[2] / 127
+      if (armedNote !== null) {
+        bindNote(armedNote, b)
+        armedNote = null
+        cb.onArmedNote(null)
+      } else {
+        const target = noteAction(
+          actionByNote.get(noteId(b)),
+          actionByNote.size > 0,
+        )
+        if (target !== null) cb.onAction(target, velocity)
+      }
     }
     // Control Change is status 0xB0..0xBF; three bytes: status, controller, value.
     if (data?.length === 3 && (data[0] & 0xf0) === 0xb0) {
@@ -472,6 +657,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
             writeString(ENABLED_KEY, '1')
             cb.onStatus('ready')
             cb.onBindings({ ...bindings })
+            cb.onNotes({ ...notes })
             listen(m)
             // New devices plugged in after grant still get wired up.
             onStateChange = () => listen(m)
@@ -494,6 +680,19 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
       armed = target
       cb.onArmed(target)
     },
+    armNote: target => {
+      armedNote = target
+      cb.onArmedNote(target)
+    },
+    clearNote: target => {
+      notes = omit(notes, target)
+      reindexNotes()
+      persistNotes()
+    },
+    // Both of the bulk gestures below wipe the knob map and leave the pads
+    // alone. A device profile lists CCs and has nothing to say about notes, and
+    // losing a pad layout to a re-run of auto-map — which is the button you
+    // press when the knobs are wrong — would be a surprise nothing warned about.
     autoMap: profile => {
       const n = Math.min(profile.ccs.length, AUTOMAP_TARGETS.length)
       const next: BindingMap = {}
@@ -549,6 +748,12 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
       clearPickups()
       reindex()
       persist()
+      // The pads go too, unlike the two bulk gestures above: this is the button
+      // that says "clear all bindings", and a note left behind would be a
+      // binding the user just asked to be rid of still firing.
+      notes = {}
+      reindexNotes()
+      persistNotes()
     },
     setExternal: (key, value) => {
       current.set(key, value)

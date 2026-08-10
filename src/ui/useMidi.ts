@@ -1,38 +1,56 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { CONTROL_KEYS } from '../controls'
-import { controlOf, createMidi, presetOf } from './midi'
+import {
+  controlOf,
+  createMidi,
+  cueDeckOf,
+  fireSlotOf,
+  jumpDeckOf,
+  presetOf,
+} from './midi'
 
 import type { ControlKey, Controls } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
 import type {
+  ActionTarget,
   BindingMap,
   BindTarget,
+  DeckTag,
   DeviceProfile,
   LearnState,
   MidiManager,
   MidiStatus,
+  NoteMap,
   PickupMap,
 } from './midi'
 import type { RefObject } from 'react'
 
-// The two bindable things that aren't controls, and so aren't the engine's to
-// write. Both live in hooks built *after* this one — useMix needs the write path
-// this hook owns — so they are registered rather than passed in, and a knob that
-// arrives before they are is dropped rather than queued.
+// Everything MIDI drives that isn't a control, and so isn't the engine's to
+// write. All of it lives in hooks built *after* this one — useMix needs the
+// write path this hook owns — so they are registered rather than passed in, and
+// a knob or a pad that arrives before they are is dropped rather than queued.
 export interface MidiSinks {
   setMotion: (v: number) => void
   setPresetWeight: (name: string, w: number) => void
-  // A note struck: fire the bay's one-shot envelopes, at that note's velocity.
-  // A sink rather than a control write because it is an event with no resting
-  // value — see the note on MidiCallbacks.onFire.
-  fire: (velocity: number) => void
+  // The three verbs a pad can fire, split by verb rather than handed over as an
+  // action id: this hook owns the decoding, the same way it decodes a knob
+  // target into setMotion or setPresetWeight, so the App registers what it can
+  // do and never has to know how a binding spells it.
+  //
+  // `slot` is the bay index, or undefined for the whole bay — the argument
+  // `ModSlotsApi.fire` already takes.
+  fire: (slot: number | undefined, velocity: number) => void
+  tapCue: (deck: DeckTag) => void
+  retrigger: (deck: DeckTag) => void
 }
 
 const NO_SINKS: MidiSinks = {
   setMotion: () => {},
   setPresetWeight: () => {},
   fire: () => {},
+  tapCue: () => {},
+  retrigger: () => {},
 }
 
 // Owns the MIDI manager (an imperative Web MIDI subsystem living outside React)
@@ -45,6 +63,8 @@ export function useMidi(engineRef: RefObject<EngineApi | null>) {
   const [status, setStatus] = useState<MidiStatus>('idle')
   const [bindings, setBindings] = useState<BindingMap>({})
   const [armed, setArmed] = useState<BindTarget | null>(null)
+  const [notes, setNotes] = useState<NoteMap>({})
+  const [armedNote, setArmedNote] = useState<ActionTarget | null>(null)
   const [learn, setLearn] = useState<LearnState | null>(null)
   const [bpm, setBpm] = useState<number | null>(null)
   const [pickups, setPickups] = useState<PickupMap>({})
@@ -63,12 +83,33 @@ export function useMidi(engineRef: RefObject<EngineApi | null>) {
         if (preset === null) sinksRef.current.setMotion(v)
         else sinksRef.current.setPresetWeight(preset, v)
       },
-      onFire: v => {
-        sinksRef.current.fire(v)
+      // The action families in the order they narrow. A bay slot arrives
+      // 1-based, as the panel numbers it, and goes to the sink 0-based, as the
+      // engine indexes it — the one conversion, in the one place that knows
+      // both spellings.
+      onAction: (target, velocity) => {
+        const sinks = sinksRef.current
+        const slot = fireSlotOf(target)
+        if (slot !== null) {
+          sinks.fire(slot - 1, velocity)
+          return
+        }
+        const cue = cueDeckOf(target)
+        if (cue !== null) {
+          sinks.tapCue(cue)
+          return
+        }
+        const jump = jumpDeckOf(target)
+        if (jump !== null) sinks.retrigger(jump)
+        // Everything left is the whole bay: `fire` is the only action that
+        // narrows to none of the three, and it is what an unbound note sends.
+        else sinks.fire(undefined, velocity)
       },
       onStatus: setStatus,
       onBindings: setBindings,
       onArmed: setArmed,
+      onNotes: setNotes,
+      onArmedNote: setArmedNote,
       onLearn: setLearn,
       onTempo: setBpm,
       onPickup: setPickups,
@@ -109,6 +150,8 @@ export function useMidi(engineRef: RefObject<EngineApi | null>) {
     status,
     bindings,
     armed,
+    notes,
+    armedNote,
     learn,
     bpm,
     pickups,
@@ -124,11 +167,19 @@ export function useMidi(engineRef: RefObject<EngineApi | null>) {
     // Toggle: arming the already-armed target disarms it.
     toggleArm: (target: BindTarget) =>
       midiRef.current?.arm(armed === target ? null : target),
-    disarm: () => midiRef.current?.arm(null),
+    toggleArmNote: (target: ActionTarget) =>
+      midiRef.current?.armNote(armedNote === target ? null : target),
+    // Escape means both: whichever arm is up is the one the user is backing out
+    // of, and calling the arm that was already null costs one callback.
+    disarm: () => {
+      midiRef.current?.arm(null)
+      midiRef.current?.armNote(null)
+    },
     autoMap: (profile: DeviceProfile) => midiRef.current?.autoMap(profile),
     learnSequence: () => midiRef.current?.learnSequence(),
     stopLearn: () => midiRef.current?.stopLearn(),
     clearBinding: (target: BindTarget) => midiRef.current?.clearBinding(target),
+    clearNote: (target: ActionTarget) => midiRef.current?.clearNote(target),
     clearAll: () => midiRef.current?.clearAll(),
   }
 }
