@@ -6,6 +6,8 @@
 // once. What is genuinely per-slot — the mode enum, the name label, B's enable
 // flag — stays with the caller rather than being smuggled in here as options.
 
+import { debugLog } from '../gpu/env'
+
 import type { TeletypeCard } from '../sources/teletype'
 
 // What a slot is holding, for the panel sections that can only offer something
@@ -108,14 +110,20 @@ export function makeSlotVideo(
   // cross-origin source (the bundled clips on S3) without tainting; a no-op
   // for same-origin and blob: sources, so it's safe to set unconditionally.
   v.crossOrigin = 'anonymous'
+  // The error already reaches the user through the banner; the log is the extra
+  // detail (the numeric code) that a bug report wants, so it is gated like every
+  // other DEBUG line rather than printed at everyone. `playing` is pure
+  // telemetry and fires on every roll, loop and resume — ungated it was the
+  // noisiest line in the app, on the same console a frozen tab is diagnosed
+  // from.
   v.addEventListener('error', () => {
     slot.onError(
       `video error: ${v.error?.message ?? 'unknown'} (code ${v.error?.code ?? '?'})`,
     )
-    console.log('DEBUG video error', v.error?.code, v.error?.message)
+    debugLog('DEBUG video error', v.error?.code, v.error?.message)
   })
   v.addEventListener('playing', () =>
-    console.log('DEBUG video playing', v.videoWidth, v.videoHeight),
+    debugLog('DEBUG video playing', v.videoWidth, v.videoHeight),
   )
   // preservesPitch off means slowing the rate drops the pitch — the whole
   // point. defaultPlaybackRate too, or loading the src resets playbackRate to

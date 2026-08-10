@@ -7,6 +7,7 @@ import {
   gpuReleases,
   outOfGpuBudget,
 } from '../gpu/context'
+import { debugLog } from '../gpu/env'
 import { Engine } from '../gpu/pipeline'
 import { MAX_SRC_EDGE } from '../gpu/sources'
 import { reportPreviousTrace, trace } from '../gpu/trace'
@@ -237,9 +238,9 @@ const keepFile = (
 ) => {
   stashFile(key, file, handle).then(
     kept => {
-      if (!kept) console.log('DEBUG stash skipped, too large', file.name)
+      if (!kept) debugLog('DEBUG stash skipped, too large', file.name)
     },
-    (e: unknown) => console.log('DEBUG stash failed', reason(e)),
+    (e: unknown) => debugLog('DEBUG stash failed', reason(e)),
   )
 }
 
@@ -658,70 +659,93 @@ export function useEngine() {
   // Every source that reaches a slot passes through the three setters below, so
   // that is where the "what is on this slot" record is kept — one write per
   // source change, and no path can set a source without leaving one behind.
-  const slotA: VideoSlot = {
-    id: 'a',
-    ref: videoRef,
-    typer: typerARef,
-    rate: () => vaporRef.current.speed.a,
-    attach: el => {
-      lastSrc.current.a = el === null ? { kind: 'none' } : { kind: 'video' }
-      engineRef.current?.setVideoSource(el)
-      if (el !== null) takePendingCue('a')
+  //
+  // That record is also why the two slots are built from one factory rather than
+  // written out twice. The pattern in each setter is the same two steps in the
+  // same order — remember what this slot now holds, then tell the engine — and
+  // the failure mode of a second copy is not a crash but a slot that plays the
+  // right picture and restores the wrong one after a device rebuild, because a
+  // new source kind got added to A's `attach` and not to B's. Written once, the
+  // two cannot drift; what genuinely differs between them is the argument.
+  const makeSlot = (
+    id: StashSlot,
+    wiring: {
+      ref: VideoSlot['ref']
+      typer: VideoSlot['typer']
+      // The three engine entry points for this slot. They are separate methods
+      // per slot on EngineApi (`setVideoSource` / `setVideoSourceB`), so the
+      // choice of which to call is the one thing that cannot be indexed by `id`.
+      toVideo: (el: HTMLVideoElement | null) => void
+      toImage: (source: OffscreenCanvas | ImageBitmap, aspect?: number) => void
+      toNoise: (kind: number) => void
+      setLive: (kind: SlotKind) => void
+      setYtUrl: (url: string) => void
+      setName: (name: string) => void
+      setCard: (card: TeletypeCard) => void
+      // Only A keeps its own aspect — B is staged to the raster with a 4:3 crop,
+      // so its shader needs no aspect at all (see gpu/sources.ts). Passing it
+      // for B would not be harmless: it would be recorded in `lastSrc` and
+      // handed back on the next restore, describing a staging that never
+      // happened.
+      keepsAspect: boolean
     },
-    // Only A keeps its own aspect — B is staged to the raster with a 4:3 crop,
-    // so its shader needs no aspect at all (see gpu/sources.ts).
+  ): VideoSlot => ({
+    id,
+    ref: wiring.ref,
+    typer: wiring.typer,
+    rate: () => vaporRef.current.speed[id],
+    attach: el => {
+      lastSrc.current[id] = el === null ? { kind: 'none' } : { kind: 'video' }
+      wiring.toVideo(el)
+      if (el !== null) takePendingCue(id)
+    },
     setImage: (source, aspect) => {
-      lastSrc.current.a = { kind: 'still', source, aspect }
-      engineRef.current?.setImageSource(source, aspect)
+      const kept = wiring.keepsAspect ? aspect : undefined
+      lastSrc.current[id] = { kind: 'still', source, aspect: kept }
+      wiring.toImage(source, kept)
     },
     setNoise: kind => {
-      lastSrc.current.a = { kind: 'noise', noise: kind }
-      engineRef.current?.setNoiseSource(kind)
+      lastSrc.current[id] = { kind: 'noise', noise: kind }
+      wiring.toNoise(kind)
     },
+    setLive: wiring.setLive,
+    setYtUrl: wiring.setYtUrl,
+    setName: wiring.setName,
+    clearCue: () => clearCueOn(id),
+    card: () => cardRef.current[id],
+    setCard: card => {
+      cardRef.current[id] = card
+      wiring.setCard(card)
+    },
+    onError: setError,
+    release: el => engineRef.current?.audioState.releaseMedia(el),
+    adopt,
+  })
+  const slotA = makeSlot('a', {
+    ref: videoRef,
+    typer: typerARef,
+    toVideo: el => engineRef.current?.setVideoSource(el),
+    toImage: (source, aspect) =>
+      engineRef.current?.setImageSource(source, aspect),
+    toNoise: kind => engineRef.current?.setNoiseSource(kind),
     setLive: setVideoA,
     setYtUrl: setYtUrlA,
     setName: setSourceName,
-    clearCue: () => clearCueOn('a'),
-    card: () => cardRef.current.a,
-    setCard: card => {
-      cardRef.current.a = card
-      setCardA(card)
-    },
-    onError: setError,
-    release: el => engineRef.current?.audioState.releaseMedia(el),
-    adopt,
-  }
-  const slotB: VideoSlot = {
-    id: 'b',
+    setCard: setCardA,
+    keepsAspect: true,
+  })
+  const slotB = makeSlot('b', {
     ref: videoBRef,
     typer: typerBRef,
-    rate: () => vaporRef.current.speed.b,
-    attach: el => {
-      lastSrc.current.b = el === null ? { kind: 'none' } : { kind: 'video' }
-      engineRef.current?.setVideoSourceB(el)
-      if (el !== null) takePendingCue('b')
-    },
-    setImage: source => {
-      lastSrc.current.b = { kind: 'still', source }
-      engineRef.current?.setImageSourceB(source)
-    },
-    setNoise: kind => {
-      lastSrc.current.b = { kind: 'noise', noise: kind }
-      engineRef.current?.setNoiseSourceB(kind)
-    },
+    toVideo: el => engineRef.current?.setVideoSourceB(el),
+    toImage: source => engineRef.current?.setImageSourceB(source),
+    toNoise: kind => engineRef.current?.setNoiseSourceB(kind),
     setLive: setVideoB,
     setYtUrl: setYtUrlB,
     setName: setSourceBName,
-    clearCue: () => clearCueOn('b'),
-    card: () => cardRef.current.b,
-    setCard: card => {
-      cardRef.current.b = card
-      setCardB(card)
-    },
-    onError: setError,
-    release: el => engineRef.current?.audioState.releaseMedia(el),
-    adopt,
-  }
+    setCard: setCardB,
+    keepsAspect: false,
+  })
   const stopVideo = () => stopSlot(slotA)
   const stopVideoB = () => stopSlot(slotB)
 
@@ -1027,7 +1051,7 @@ export function useEngine() {
     setError('')
     adoptInto(key, file, 'library')
     stashClip(key, clip).catch((e: unknown) =>
-      console.log('DEBUG stash failed', reason(e)),
+      debugLog('DEBUG stash failed', reason(e)),
     )
   }
 
@@ -1035,7 +1059,7 @@ export function useEngine() {
     if (key === 'a') setPendingA(null)
     else setPendingB(null)
     clearStash(key).catch((e: unknown) =>
-      console.log('DEBUG unstash failed', reason(e)),
+      debugLog('DEBUG unstash failed', reason(e)),
     )
   }
 
@@ -1053,12 +1077,12 @@ export function useEngine() {
           stashed.open().then(
             file => adoptInto(key, file, stashed.mode),
             (e: unknown) => {
-              console.log('DEBUG stash reopen failed', reason(e))
+              debugLog('DEBUG stash reopen failed', reason(e))
               dropFile(key)
             },
           )
       },
-      (e: unknown) => console.log('DEBUG stash read failed', reason(e)),
+      (e: unknown) => debugLog('DEBUG stash read failed', reason(e)),
     )
   }
 
@@ -1482,7 +1506,7 @@ export function useEngine() {
     else reopenStashed('a', setPendingA)
     if (linkNamesB) dropFile('b')
     else reopenStashed('b', setPendingB)
-    if (params.debug) console.log('DEBUG engine ready')
+    debugLog('DEBUG engine ready')
   }
 
   // The device this tab cannot afford, declined out loud instead of spent.
@@ -1861,6 +1885,10 @@ export function useEngine() {
     // devices" is a reason to move tabs, "at risk" is a mood.
     budget,
     error,
+    // The banner is the one place an async failure surfaces (see format.ts), so
+    // the setter goes out with it: the paths that can fail outside the engine —
+    // a refused clipboard write, for one — have nowhere else to say so.
+    setError,
     statsStore,
     res,
     renderScale,
