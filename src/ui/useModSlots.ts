@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 
 import {
   EMPTY_SLOT,
+  gateRate,
   normalizeSlots,
   readStab,
   routingsToSlots,
-  stabRate,
   toEngineSlots,
   withNextStabSync,
   withNextSync,
@@ -77,12 +77,9 @@ export function useModSlots(
   // list to the engine whenever anything in it changes — so a clock speeding up
   // carries every locked wobble with it without a single write to storage.
   const active = toEngineSlots(slots, master, tempo.bpm)
-  // The freeze has to mean it. `❚❚` says "hold everything still", and a gate
-  // still cutting the whole board in and out four times a second while the
-  // wobbles are stopped would make that a lie — so the motion amount gates the
-  // stabs as an on/off rather than scaling them, since half a stab is just a
-  // shorter stab and the length is already a knob.
-  const stabHz = master === 0 ? 0 : stabRate(stab, tempo.bpm)
+  // The tempo lock and the freeze, both applied — see gateRate for which beats
+  // which and why the freeze is an on/off rather than a scale.
+  const stabHz = gateRate(stab, master, tempo.bpm)
 
   // Pushed from an effect rather than from each setter: the engine arrives
   // asynchronously, so a bay patched (or a link parsed) before it exists still

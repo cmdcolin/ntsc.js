@@ -182,6 +182,29 @@ export function stabRate(stab: Stab, bpm: number | null): number {
     : clamp(bpm / 60 / SYNC_DIVISIONS[div].beats, 0, STAB_HZ_MAX)
 }
 
+// What the gate is running at once the freeze has had its say — which is the
+// number the "stabs" row reads, and the whole board's cutting rate.
+//
+// The freeze has to mean it. `❚❚` says "hold everything still", and a gate still
+// cutting the whole board in and out four times a second while the wobbles are
+// stopped would make that a lie — so the motion amount gates the stabs as an
+// on/off rather than scaling them, since half a stab is just a shorter stab and
+// the length is already a knob.
+//
+// Its own function rather than an expression inside the hook because this is the
+// rule the row reads *back*: while it answered 0, the slider sat at 0 however far
+// it was dragged, and there was nothing here for a test to hold. The fix for that
+// lives at the write end (useModSlots lifts the freeze when the gate is dialed
+// on), so what this owes the tests is the reading: frozen is 0, and a lock still
+// beats the dial.
+export function gateRate(
+  stab: Stab,
+  master: number,
+  bpm: number | null,
+): number {
+  return master === 0 ? 0 : stabRate(stab, bpm)
+}
+
 // Off → each division → off, the same cycle a slot's rate and a rate control row
 // walk. `hz` rides along untouched, so the dialed rate comes back at the end.
 export function withNextStabSync(stab: Stab): Stab {

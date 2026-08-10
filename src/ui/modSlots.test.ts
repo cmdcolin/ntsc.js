@@ -10,6 +10,7 @@ import {
   STAB_HZ_MAX,
   STAB_MS_MAX,
   bayLoad,
+  gateRate,
   normalizeSlots,
   readStab,
   routingsToSlots,
@@ -310,7 +311,7 @@ describe('the stab gate', () => {
 
   it('runs a locked gate at the tempo, and an unlocked one at its own rate', () => {
     const locked = { hz: 2, ms: 60, syncDiv: 0 }
-    // Division 0 is 1/1: one stab a beat, so 120bpm is 2 a second.
+    // Division 0 is 1/1: one stab a whole note, which is a bar of four.
     expect(stabRate(locked, 120)).toBeCloseTo(
       120 / 60 / SYNC_DIVISIONS[0].beats,
     )
@@ -339,5 +340,50 @@ describe('the stab gate', () => {
       expect(stab.hz).toBe(2.5)
     }
     expect('syncDiv' in withNextStabSync(stab)).toBe(false)
+  })
+})
+
+describe('gateRate', () => {
+  const running = { hz: 4, ms: 60 }
+
+  it('runs at the dialed rate while the motion amount is up', () => {
+    expect(gateRate(running, 1, null)).toBe(4)
+    // Anything above zero is "not frozen": the freeze is the only thing that
+    // gates the stabs, and a half-open motion fader must not half-open them.
+    expect(gateRate(running, 0.01, null)).toBe(4)
+  })
+
+  it('stops the gate dead while the motion is frozen', () => {
+    // ❚❚ means "hold everything still". A gate still cutting the whole board in
+    // and out four times a second would make that a lie.
+    expect(gateRate(running, 0, null)).toBe(0)
+    // Including a locked one: a tempo cannot outvote the freeze.
+    expect(gateRate({ ...running, syncDiv: 0 }, 0, 120)).toBe(0)
+  })
+
+  it('reads the tempo rather than the dial while it is locked', () => {
+    // Division 2 is 1/4 — one stab a quarter note, so 120bpm is 2 a second,
+    // rather than the 4 sitting under it on the slider.
+    expect(gateRate({ ...running, syncDiv: 2 }, 1, 120)).toBe(2)
+    // And 1/1 is a whole note, which is a bar of four: 0.5 a second at the same
+    // tempo. Spelled out because "1/1" reads as "every beat" until it doesn't,
+    // and this is the end that decides how fast the whole board cuts.
+    expect(gateRate({ ...running, syncDiv: 0 }, 1, 120)).toBe(0.5)
+  })
+
+  it('leaves an off gate off however the freeze and the clock are set', () => {
+    for (const master of [0, 0.5, 1])
+      for (const bpm of [null, 174])
+        expect(gateRate({ hz: 0, ms: 60, syncDiv: 0 }, master, bpm)).toBe(0)
+  })
+
+  it('is what the freeze hands back when it lets go', () => {
+    // The dial survives the freeze untouched — the row goes to 0 and comes back
+    // to where it was, rather than being zeroed on the way through. This is the
+    // half that made the slider look dead: the value was never lost, only the
+    // reading of it.
+    const dialed = { hz: 7.5, ms: 60 }
+    expect(gateRate(dialed, 0, null)).toBe(0)
+    expect(gateRate(dialed, 1, null)).toBe(7.5)
   })
 })
