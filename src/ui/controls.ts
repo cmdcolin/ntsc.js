@@ -3354,6 +3354,33 @@ export const VIEW_STAGE = 'View'
 export const VIEW_BLURB =
   'not the rig — where the picture is watched from: the magnifier and where it is pointed, how fast the whole simulation is stepped, and the frame-rate lock. Nothing in here changes the signal, and a mutate is forbidden to touch any of it'
 
+// The modulation bay, which is a stage of the panel and not a piece of the rig
+// at all. Everything else on the map is somewhere the signal goes; this is a
+// hand on the knobs — LFOs, drift and the audio envelope wiggling controls that
+// are scattered down every one of the other stages.
+//
+// So it is drawn floating, wired to nothing. The honest drawing is a dotted line
+// to all two hundred controls, which is a drawing of nothing; the honest
+// simplification is a box that visibly does not touch the chain. That is also
+// exactly what it is: a routing leaves the resting value where it is and moves
+// the picture by moving the control, so no wire on this map is the one it takes.
+//
+// It was a section at the foot of the sidebar, under the map and above MIDI —
+// permanently on screen, and folded shut for the session it wasn't wanted in.
+// A box on the map costs the panel nothing while it is closed, which is the
+// whole reason it moved: the map is where you go looking for a thing to open.
+export const MOD_STAGE = 'Modulation'
+// Which trunk box it is parked under, which is *not* a join — nothing is drawn
+// between the two, and Tape has no more to do with the bay than any other
+// stage. It is where the room is: input B's wire runs along the lower row to the
+// mixer and rises there, and the sound arrives on a lead of its own under the
+// receiver, so the middle of the row is the one span with neither a box nor a
+// wire in it. Parked over the mixer instead — the obvious place, being the next
+// gap along — the box sat on B's run and read as B being patched through it.
+export const MOD_UNDER: Phase = 'Tape'
+export const MOD_BLURB =
+  'not the rig — the hand on the knobs: LFOs, drift, sample-and-hold and the audio envelope wiggling any control around wherever you left its slider, the beat they lock to, and the stab gate that cuts the whole look in and out. A slot is patched at the control it drives (press ∿ on any row); this is where the eight read as a bay'
+
 // The stages headed by a picker — the three things that can be patched in, and
 // so the three that decide what everything downstream of them is working on.
 // Named as a set because two separate questions are answered off it and would

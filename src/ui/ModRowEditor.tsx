@@ -52,8 +52,8 @@ export function ModRowEditor(props: {
     return (
       <div className={styles.editor}>
         <div className={ui.hint}>
-          all {slots.length} modulation slots are busy — free one in Modulation
-          below, or press ∿ on{' '}
+          all {slots.length} modulation slots are busy — free one in the
+          MODULATION box on the map, or press ∿ on{' '}
           {slots
             .flatMap(s => (s.target === '' ? [] : [sliderFor(s.target).label]))
             .join(', ')}{' '}
@@ -114,14 +114,14 @@ export function ModRowEditor(props: {
       )}
       {/* Where the beat is coming from, said once, at the only place a lock can
           be thrown from without the tempo being on screen: the ♩ in this editor
-          is three folds away from the Modulation section that holds the number
-          it reads, so a rate locked from here would otherwise show a division
-          and a Hz with nothing to say what put them together. */}
+          is a stage away from the modulation bay that holds the number it reads,
+          so a rate locked from here would otherwise show a division and a Hz
+          with nothing to say what put them together. */}
       {slot.syncDiv === undefined ? null : (
         <div className={ui.hint}>
           ♩{SYNC_DIVISIONS[slot.syncDiv].label} of{' '}
           {bpm === null ? 'a tempo not set yet' : `${bpm.toFixed(1)} BPM`} — the
-          tempo is at the top of Modulation, below.
+          tempo is at the top of the MODULATION box on the map.
         </div>
       )}
       <Slider

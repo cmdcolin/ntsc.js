@@ -126,6 +126,51 @@ export const STAB_HZ_MAX = 12
 export const STAB_MS_MIN = 8
 export const STAB_MS_MAX = 400
 
+// What the bay is holding: the number the map's MODULATION box wears its amber
+// for, and the clause that says what the number counts.
+//
+// Both, from one function, because the number alone is the mark a *stage of the
+// rig* wears — "3 controls off stock" — and that is the wrong sentence about a
+// bay. Nothing here is a control moved off its resting value: they are slots
+// with something patched into them, and the count is what the section header's
+// dot used to say while the bay was a fold in the sidebar.
+//
+// The gate counts, and it is the reason this is a function rather than a
+// `.length`: it is the one thing in the bay that moves the picture without
+// occupying a slot, so a box drawn idle while the whole board is being cut in
+// and out four times a second would leave the panel's most visible effect with
+// nothing anywhere pointing at where it lives. It is also why the clause is
+// built here rather than at the two drawings — "2 slots patched" is a lie when
+// one of the two is the gate, and that is exactly the kind of thing two callers
+// phrase differently.
+//
+// A parked routing (`on: false`) still counts, on the same rule: it is patched,
+// it is holding a slot, and the switch that restarts it is inside the bay.
+export interface BayLoad {
+  n: number
+  // Reads as a clause on its own — "2 slots patched" — because both drawings
+  // drop it into a sentence of theirs: the box's hover puts it in brackets after
+  // the blurb, the stage heading puts it in front of what a click would do.
+  // Empty when the bay is holding nothing, which is also when neither draws it.
+  say: string
+}
+
+export function bayLoad(slots: readonly UiSlot[], stab: Stab): BayLoad {
+  const patched = slots.filter(s => s.target !== '').length
+  const gate = stab.hz > 0
+  const slotsSay = `${patched} slot${patched === 1 ? '' : 's'} patched`
+  return {
+    n: patched + (gate ? 1 : 0),
+    say: !gate
+      ? patched === 0
+        ? ''
+        : slotsSay
+      : patched === 0
+        ? 'the stab gate running'
+        : `${slotsSay}, and the stab gate running`,
+  }
+}
+
 // What the gate runs at: the tempo-derived rate while it is locked and something
 // is providing a tempo, the dialed Hz otherwise. Same rule (and the same reason)
 // as slotRate above, except that 0 stays 0 — an off gate that a tempo lock could

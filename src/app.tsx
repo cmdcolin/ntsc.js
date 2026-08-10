@@ -27,6 +27,9 @@ import {
   LOOP_STAGES,
   loopGroups,
   MIX_STAGE,
+  MOD_BLURB,
+  MOD_STAGE,
+  MOD_UNDER,
   OFF_HINT,
   PHASES,
   SOUND_BLURB,
@@ -61,8 +64,8 @@ import { LookBar } from './ui/LookBar'
 import { LookSection } from './ui/LookSection'
 import { MediaBrowserDialog } from './ui/MediaBrowserDialog'
 import { MidiSection } from './ui/MidiSection'
-import { ModSection } from './ui/ModSection'
-import { slotsToRoutings } from './ui/modSlots'
+import { ModBay } from './ui/ModBay'
+import { bayLoad, slotsToRoutings } from './ui/modSlots'
 import { ModSlotsContext } from './ui/ModSlotsContext'
 import { parseMorph } from './ui/morph'
 import { MotionStrip } from './ui/MotionStrip'
@@ -790,6 +793,26 @@ export function App() {
         'the whole chain as a diagram — both inputs, the mixer, both loops',
       run: () => setShowDiagram(true),
     },
+    // The one part of the app the palette and the filter box cannot otherwise
+    // reach. Both index GROUPS, and nothing in the bay is in GROUPS: a routing
+    // describes a slot rather than a knob on the rig, and the stab gate is
+    // deliberately not a control (see modSlots.ts for why making it one would
+    // put a slider for the whole board inside one stage of it). So the panel's
+    // most visible single effect — the entire look cut in and out on the beat —
+    // answered to no search at all, and now it is a box on the map you have to
+    // know to press. The blurb is where "stabs" is findable from.
+    {
+      name: 'modulation bay',
+      blurb:
+        'the stab gate that cuts the whole look in and out on the beat, the tempo every ♩ locks to, and every LFO, drift and envelope you have patched',
+      run: () => {
+        // A live query takes the bay off the map — it holds nothing the filter
+        // can match — so a jump into it from the palette has to clear the box
+        // first, or it opens a stage that is not being drawn.
+        setFilter('')
+        nav.jumpPhase(MOD_STAGE)
+      },
+    },
     {
       name: 'advanced settings',
       blurb: 'render scale and MIDI setup',
@@ -913,6 +936,10 @@ export function App() {
   // Which control is a loop's mix is the loop table's to say, not this file's:
   // three keys written out here were a fourth copy of a list that already
   // decides what the run is named and what its stage holds.
+  // What the modulation bay is holding, for the two drawings that mark it: the
+  // map's floating box and the full diagram's. Read once, so the miniature and
+  // the card cannot disagree about a bay neither of them can count for itself.
+  const bay = bayLoad(modApi.slots, modApi.stab)
   const loopsLive = {
     camera: controls.fbMix > 0,
     mixer: controls.cfbMix > 0,
@@ -945,6 +972,48 @@ export function App() {
             ...unpatched(pathNode(SOURCE_B_STAGE, SOURCE_B_BLURB, bGroups)),
             join: MIX_STAGE,
             under: 'head' as const,
+          },
+        ]),
+    // The modulation bay, which is on this row for the room rather than because
+    // it hangs off anything: nothing is drawn to it (BranchSpec.free), because
+    // what it is patched into is the *controls* — every one of them, in every
+    // other stage — and a line to two hundred sliders is a line to nothing. It
+    // floats in the empty middle of the row, and the gap is the statement.
+    //
+    // Out while a filter is live, exactly as it was while it was a section of
+    // the sidebar: everything below the filter box is the result set, and the
+    // bay holds no control the filter can reach — its rows describe slots, so
+    // none of them is in GROUPS to be matched.
+    ...(filtering
+      ? []
+      : [
+          {
+            ...pathNode(MOD_STAGE, MOD_BLURB, []),
+            // What the box wears its amber for, and what that number counts —
+            // "controls off stock" being the wrong noun for a bay. The bay has
+            // no groups, so `pathNode` counts nothing and this is the whole of
+            // it.
+            touched: bay.n,
+            touchedSay: bay.say,
+            // No `onJumpTouched`: there is no group under this stage to jump
+            // to — opening it *is* arriving.
+            onJumpTouched: undefined,
+            body: () => (
+              <ModBay
+                tempo={tempo}
+                // A patched slot names the control it drives and opens the
+                // module that control lives in — the same jump "This look"'s
+                // captions make, and the reason the bay no longer needs a
+                // picker listing every slider in the app.
+                openStages={openStages}
+                onOpenGroup={nav.openAt}
+              />
+            ),
+            // Parked under Tape rather than joined to it — see MOD_UNDER for
+            // why the middle of the row is the only place it can sit.
+            join: MOD_UNDER,
+            under: 'join' as const,
+            free: true as const,
           },
         ]),
     ...(filtering && audioGroups.length === 0
@@ -1360,11 +1429,12 @@ export function App() {
 
       {/* The signal-path map is the panel's trunk, so it sits high — right under
           the source and preset front door — and the filter that acts on it heads
-          it. Mod and midi are occasional tools and drop below it. The audio
-          routings used to be down there with them, in a section of their own,
-          because the map had no vocabulary for a second thing joining the trunk
-          — they are the Sound branch now, under the receiver they feed. */}
-      {/* Outside the filter gate, unlike the Modulation section it belongs to:
+          it. MIDI is an occasional tool and drops below it. The audio routings
+          used to be down there with it, in a section of their own, because the
+          map had no vocabulary for a second thing joining the trunk — they are
+          the Sound branch now, under the receiver they feed, and modulation is
+          a box on the same map for the same kind of reason. */}
+      {/* Outside the filter gate, unlike the modulation bay it belongs to:
           while a query is live everything below the box is the result set, and
           this fader is a live-set control (it has a MIDI bind of its own) that
           has to stay reachable from anywhere. It stays here for that reason and
@@ -1396,19 +1466,12 @@ export function App() {
         </div>
       )}
 
-      {/* An occasional tool holding no filterable control — while a filter is
-          live the panel below the box is the result set. */}
-      {filtering ? null : (
-        <ModSection
-          tempo={tempo}
-          // A patched slot names the control it drives and opens the module
-          // that control lives in — the same jump "This look"'s captions make,
-          // and the reason the bay no longer needs a picker listing every
-          // slider in the app.
-          openStages={openStages}
-          onOpenGroup={nav.openAt}
-        />
-      )}
+      {/* Modulation used to be a section here, between the map and MIDI: on
+          screen in every session, folded shut in most of them, and found by
+          scrolling past the map rather than by looking at it. It is a box on
+          the map now — floating, wired to nothing, because what it is patched
+          into is the controls — so it costs the resting panel nothing and is
+          where you go looking for something to open. See MOD_STAGE. */}
 
       {/* MIDI only appears once enabled (from Advanced) — 99% of users never
           wire up a controller, so it stays out of the default panel. */}
@@ -1572,6 +1635,7 @@ export function App() {
           live={loopsLive}
           bOn={bOn}
           soundOn={soundOn}
+          mod={bay}
           onOpen={nav.openAt}
           onClose={() => setShowDiagram(false)}
         />

@@ -46,6 +46,9 @@ export interface ChainStage {
   name: string
   blurb: string
   touched: number
+  // What the count counts, where "controls off stock" is the wrong noun for it —
+  // see MapBox.touchedSay. Only the modulation bay sets it.
+  touchedSay?: string
   // Nothing patched into this stage, which leaves its *controls* with nothing to
   // act on: drawn dashed, and it wears no amber however far off stock those
   // controls sit. True of a branch with no input picked, and of Mix, whose every
@@ -209,25 +212,34 @@ export function ChainMap(props: {
            is wired to. The wire takes the node's colour, so a patched-in branch
            lights its whole run rather than just the box on it. The arrowhead is
            the only thing that differs between an input and the view, and it is
-           the whole statement: one is fed into the chain, the other out of it. */
+           the whole statement: one is fed into the chain, the other out of it.
+
+           A free box draws none of that, because none of it is true of it: it
+           sits on this row for the room, not because anything is patched
+           anywhere. See BranchSpec.free — the gap around it is the drawing. */
         <g
           key={branch.name}
           className={cx(props.branches[i].off === true && styles.mapBranchOff)}
         >
-          <line
-            className={styles.mapWire}
-            x1={branch.stub}
-            y1={BRANCH_Y}
-            x2={branch.x - branch.w / 2}
-            y2={BRANCH_Y}
-          />
-          <path className={styles.mapWire} d={branchPath(branch)} />
-          <Arrow at={branchArrow(branch)} />
+          {props.branches[i].free === true ? null : (
+            <>
+              <line
+                className={styles.mapWire}
+                x1={branch.stub}
+                y1={BRANCH_Y}
+                x2={branch.x - branch.w / 2}
+                y2={BRANCH_Y}
+              />
+              <path className={styles.mapWire} d={branchPath(branch)} />
+              <Arrow at={branchArrow(branch)} />
+            </>
+          )}
           <Node
             stage={props.branches[i]}
             x={branch.x}
             y={BRANCH_Y}
             boxW={branch.w}
+            free={props.branches[i].free === true}
             open={props.open === branch.name}
             folds={props.folds}
             onOpen={props.onOpen}
@@ -279,6 +291,11 @@ function Node(props: {
   y: number
   boxW: number
   open: boolean
+  // Nothing is wired to this box (see BranchSpec.free). Drawn on a dotted
+  // outline so the gap around it reads as deliberate rather than as a wire the
+  // drawing forgot — and still a filled chip, because unlike the dashed inert
+  // boxes it is very much something to press.
+  free?: boolean
   // See ChainMap's `folds`: only where a click can close a stage is this box a
   // disclosure, and only there does it have an expanded state to report or a
   // second thing to say in its tooltip.
@@ -297,6 +314,7 @@ function Node(props: {
       off={off}
       opens={stage.opens}
       touched={stage.touched}
+      touchedSay={stage.touchedSay}
       // The miniature's own addition to the hover text, and the only part of it
       // the card has no equivalent for: whether pressing again folds the stage
       // back up.
@@ -309,6 +327,7 @@ function Node(props: {
       }
       className={cx(
         styles.mapNode,
+        props.free === true && styles.mapNodeFree,
         off && styles.mapNodeOff,
         !off && stage.touched > 0 && styles.mapNodeTouched,
         props.open && styles.mapNodeOn,

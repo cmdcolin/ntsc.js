@@ -38,6 +38,12 @@ export function MapBox(props: {
   // and both wrote it out, which is one more thing that had no reason to be
   // said twice.
   touched: number
+  // What that number counts, where "off stock" is the wrong noun for it. One
+  // box needs this — the modulation bay, which counts patched slots and a gate
+  // rather than controls moved off their resting value — and it arrives as a
+  // finished clause because only the caller knows whether the gate is in the
+  // count (see bayLoad). Absent, both drawings say "N off stock" as before.
+  touchedSay?: string
   // What the miniature adds on the end when a press will fold the stage back up
   // again. The only part of the hover text the two drawings genuinely differ on,
   // and the card passes nothing because it has no fold to describe.
@@ -63,9 +69,11 @@ export function MapBox(props: {
   // The hover text is that same sentence with the counts on it, and an inert box
   // has no counts worth reading — nothing in it is reaching the picture, which
   // is the whole of what its hint says.
-  const title = off
-    ? said
-    : `${said}${props.touched > 0 ? ` (${props.touched} off stock)` : ''}${props.foldHint ?? ''}`
+  const count =
+    props.touched === 0
+      ? ''
+      : ` (${props.touchedSay ?? `${props.touched} off stock`})`
+  const title = off ? said : `${said}${count}${props.foldHint ?? ''}`
   return (
     <g
       className={props.className}

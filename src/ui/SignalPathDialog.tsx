@@ -4,6 +4,8 @@ import {
   FEED_B_GROUP,
   LOOP_STAGES,
   MIX_STAGE,
+  MOD_BLURB,
+  MOD_STAGE,
   OFF_HINT,
   PHASES,
   PICKER_STAGES,
@@ -24,6 +26,7 @@ import ui from './ui.module.css'
 
 import type { Controls } from '../controls'
 import type { LoopsLive } from './controls'
+import type { BayLoad } from './modSlots'
 
 // The path drawn at a size that can carry it. The sidebar's miniature has room
 // for the trunk, its branches and the three runs over the top, and nothing
@@ -78,6 +81,11 @@ interface Box {
   col: number
   row: 'a' | 'b' | 'trunk'
   what: string
+  // Nothing is drawn to this box, because it is not in the path: the modulation
+  // bay acts on the controls rather than on the signal. The lower row is where
+  // there is room for it, and the space around it is the whole of what says so —
+  // same decision as the miniature's (chainLayout.ts, BranchSpec.free).
+  free?: true
 }
 
 const phaseBlurb = (name: string) =>
@@ -161,6 +169,21 @@ const BOXES: Box[] = [
     col: 5,
     row: 'b',
     what: VIEW_BLURB,
+  },
+  // And the one box wired to nothing at all. It sits in the empty middle of the
+  // lower row because that is where the room is — under Tape means nothing here,
+  // and is meant to: what this is patched into is every control in every other
+  // box, which is a line to two hundred sliders and therefore no line at all.
+  // The same column the miniature parks it in (MOD_UNDER), and for the same
+  // reason: B's run to the mixer crosses this row on one side of it and the
+  // sound's lead-in arrives on the other.
+  {
+    label: 'Modulation',
+    stage: MOD_STAGE,
+    col: 3,
+    row: 'b',
+    what: MOD_BLURB,
+    free: true,
   },
 ]
 
@@ -269,6 +292,11 @@ export function SignalPathDialog(props: {
   // Nothing patched into input B: its feed and the mixer are drawn and inert,
   // the same answer the miniature gives.
   bOn: boolean
+  // How much the modulation bay is holding, and what that number counts. Handed
+  // in rather than worked out here like every other box's, because a routing is
+  // not a control: there is no group of sliders behind this box for `touchedIn`
+  // to walk, and "off stock" is not what its count means.
+  mod: BayLoad
   // The same question for the other branch: no audio input picked, so the box
   // is drawn and inert rather than absent.
   soundOn: boolean
@@ -278,7 +306,8 @@ export function SignalPathDialog(props: {
   const { controls, onOpen, onClose } = props
   // How much of each box is off stock. A box that narrows to one group counts
   // that group; a stage counts all of its own.
-  const touchedIn = (box: Box) => {
+  const touchedIn = (box: Box): number => {
+    if (box.stage === MOD_STAGE) return props.mod.n
     const groups = stageGroups(box.stage).filter(
       g => box.group === undefined || g.name === box.group,
     )
@@ -325,7 +354,9 @@ export function SignalPathDialog(props: {
         box is a piece of hardware misbehaving, and the artifacts come out of
         how they interfere. Click one to open its controls — and the three loops
         over the top are pressable too, each one its own way back into the
-        chain.
+        chain. The one box with no wire on it is the modulation bay: it is
+        patched into the controls rather than into the signal, which is why it
+        floats.
       </p>
       <svg
         className={styles.diagram}
@@ -469,10 +500,12 @@ export function SignalPathDialog(props: {
               off={off}
               opens={opens(box)}
               touched={n}
+              touchedSay={box.stage === MOD_STAGE ? props.mod.say : undefined}
               // No `foldHint`: this card marks and opens, it never closes a
               // stage, so the hover text stops at the off-stock count.
               className={cx(
                 styles.node,
+                box.free === true && styles.nodeFree,
                 off && styles.nodeOff,
                 !off && n > 0 && styles.nodeTouched,
               )}

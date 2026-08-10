@@ -14,7 +14,6 @@ const sections = open =>
   JSON.stringify({
     Presets: true,
     Input: true,
-    Modulation: false,
     ...open,
   })
 
@@ -213,36 +212,18 @@ export const SPECS = [
   // The map is a 304x34 row in a 360px panel, so the box is most of what tells
   // you where to look for it.
   boxed(MAP, { name: 'chain' }),
-  boxed(
-    { section: 'Modulation' },
-    {
-      name: 'modulation',
-      // Tall enough for the two patched routings and the free count under them,
-      // and no taller: the empty slots stopped being rows when the target
-      // picker went, so the section is about half what it was and the rest
-      // would be a band of empty stage.
-      height: 720,
-      seed: {
-        // Still folds the front door: the section is shorter than it was, but
-        // the tempo row, the stabs and two routings still land below the fold
-        // otherwise, and the shot would open partway down a scrolled panel with
-        // the masthead cut off.
-        video_feedback_sections: sections({
-          Modulation: true,
-          Presets: false,
-          Input: false,
-        }),
-        video_feedback_mod: JSON.stringify([
-          { target: 'hHold', source: 'sine', rateHz: 0.35, depth: 0.4 },
-          { target: 'chromaGain', source: 'lorenz', rateHz: 0.12, depth: 0.25 },
-        ]),
-      },
-    },
-  ),
+  // There was a `modulation` shot here: the bay's own section, boxed, with two
+  // routings in it. It went when the bay became a box on the map, and it is not
+  // worth re-shooting — it was a picture of a section that no longer exists,
+  // and what replaced it is one more box on `chain` above, which the guide's
+  // prose now points at by name. A figure per stage is not a scheme this guide
+  // can afford: every stage opens the same way, so one shot of an open stage
+  // (`signal-path`) teaches all of them.
+  //
   // Motion as it is actually reached: the ∿ on a control row, the editor it
   // opens under that row, and the strip that scales every routing at once. Two
-  // boxes rather than one, because the point is the pair — the section below is
-  // where the bay can be seen whole, but nobody goes there first any more.
+  // boxes rather than one, because the point is the pair — the bay is where the
+  // set can be seen whole, but nobody goes there first any more.
   //
   // Presets and Input are folded so both boxes fit one window without the panel
   // being scrolled halfway down; the figure is about the panel's spine, and a

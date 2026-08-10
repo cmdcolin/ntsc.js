@@ -9,6 +9,7 @@ import {
   RATE_MAX,
   STAB_HZ_MAX,
   STAB_MS_MAX,
+  bayLoad,
   normalizeSlots,
   readStab,
   routingsToSlots,
@@ -233,6 +234,44 @@ describe('routings', () => {
         { target: 'fbMix', source: 'sine', rateHz: 1, depth: 0.3 },
       ])[0].on,
     ).toBe(true)
+  })
+})
+
+// The amber on the map's MODULATION box, and the clause under it. It is the
+// only thing the box can say about the bay while it is shut, so what counts is
+// worth pinning: everything holding a slot, plus the gate, which holds none and
+// is the most visible thing in here.
+describe('what the bay is holding', () => {
+  const bay = (...some: UiSlot[]) => normalizeSlots(some)
+  const GATE = { hz: 4, ms: 60 }
+
+  it('counts a patched slot however it is set', () => {
+    // Parked, and at zero depth: both are patched — they hold a slot, and the
+    // switch that starts them again is inside the bay. A box drawn idle over a
+    // full bay would be the panel saying there is nothing here to open.
+    expect(bayLoad(bay(slot(), slot({ on: false })), DEFAULT_STAB).n).toBe(2)
+    expect(bayLoad(bay(slot({ depth: 0 })), DEFAULT_STAB).n).toBe(1)
+  })
+
+  it('counts the gate, which holds no slot at all', () => {
+    expect(bayLoad(bay(), DEFAULT_STAB).n).toBe(0)
+    expect(bayLoad(bay(), GATE).n).toBe(1)
+    expect(bayLoad(bay(slot()), GATE).n).toBe(2)
+  })
+
+  // The reason the clause is built here and not at the drawings: the gate is in
+  // the number without being a slot, so "2 slots patched" is a lie in exactly
+  // the case a caller would write it — and both drawings would write it.
+  it('says what it counted, gate and slots apart', () => {
+    expect(bayLoad(bay(), DEFAULT_STAB).say).toBe('')
+    expect(bayLoad(bay(slot()), DEFAULT_STAB).say).toBe('1 slot patched')
+    expect(bayLoad(bay(slot(), slot()), DEFAULT_STAB).say).toBe(
+      '2 slots patched',
+    )
+    expect(bayLoad(bay(), GATE).say).toBe('the stab gate running')
+    expect(bayLoad(bay(slot()), GATE).say).toBe(
+      '1 slot patched, and the stab gate running',
+    )
   })
 })
 

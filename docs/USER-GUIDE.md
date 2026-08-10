@@ -102,6 +102,10 @@ face and comes back in ahead of the encoder. **mixer** is the composite bus
 patched into itself. **tape** is a loop bin straddling the mix. **diagram ⤢**
 draws the same path with room for what the miniature leaves out.
 
+**MODULATION** is the one box with no wire on it, floating below the chain. It
+opens the same way the rest do, and it is drawn apart because it is patched into
+the controls rather than into the signal: nothing goes through it.
+
 ![The app window with the Tape stage opened at VHS Tracking, the stage list boxed in red](img/signal-path.jpg)
 
 - **• 10** counts what you've moved in that stage. Click it to jump there.
@@ -155,13 +159,11 @@ one amount over every routing and a freeze. The **3∿** at the end counts what'
 being driven and filters the panel down to those rows, which is the only way to
 spot a moving control from outside its own row.
 
-![The app window, the Modulation section with two routings patched and six slots free, boxed in red](img/modulation.jpg)
-
-The **Modulation** section lists every routing you've patched with a count of
-the slots still free, and each entry opens the module its control lives in. At
-the top is the tempo: type a BPM or tap it in four beats, then lock any rate to
-it with the **♩** in that row's **⋮**, from 1/1 down to 1/16. MIDI clock takes
-the tempo over whenever something is sending it. See [MIDI.md](MIDI.md).
+The **MODULATION** box on the map lists every routing you've patched with a
+count of the slots still free, and each entry opens the module its control lives
+in. At the top is the tempo: type a BPM or tap it in four beats, then lock any
+rate to it with the **♩** in that row's **⋮**, from 1/1 down to 1/16. MIDI clock
+takes the tempo over whenever something is sending it. See [MIDI.md](MIDI.md).
 
 **stabs** and **stab length**, below the tempo, flip the whole board back to
 clean for a few tens of milliseconds at a time. The look ends up poked into a

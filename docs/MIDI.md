@@ -82,9 +82,9 @@ marks after a preset load.
 ## Locking a rate to the beat
 
 The tempo comes from **MIDI clock** if anything is sending it (the panel shows
-**clock ♩ = 128.0 BPM**), otherwise from the top of the **Modulation** section —
-type it or **tap** four times. Clock wins while it runs; the hand-set number
-waits underneath.
+**clock ♩ = 128.0 BPM**), otherwise from the top of the **MODULATION** box on
+the signal-path map — type it or **tap** four times. Clock wins while it runs;
+the hand-set number waits underneath.
 
 Three things can follow the beat, each through the **♩** in its own **⋮** menu,
 cycling 1/1 → 1/16 → off:

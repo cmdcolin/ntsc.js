@@ -157,6 +157,14 @@
 .mapNodeOn .mapBox {
   fill: color-mix(in srgb, var(--accent) 14%, var(--ctl-face));
 }
+/* A box with nothing wired to it: the modulation bay, which is a stage of the
+   panel without being a piece of the rig. The dotted outline is what stops the
+   gap around it reading as a missing wire — dotted rather than the dashed
+   `2 2` an inert box wears, and keeping its fill, because those two are drawn
+   absent and this one is very much pressable. */
+.mapNodeFree .mapBox {
+  stroke-dasharray: 1 1.5;
+}
 /* A stage that cannot be opened: Mix and input B with nothing patched into B.
    Drawn rather than dropped — together they are the one thing on screen saying
    a second input exists — so they have to read as absent rather than merely

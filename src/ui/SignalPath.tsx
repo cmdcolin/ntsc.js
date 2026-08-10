@@ -22,9 +22,14 @@ import type { ReactNode } from 'react'
 // patched in is inert and still worth opening, because the picker is the thing
 // that ends that state.
 export interface PathNode extends Omit<ChainStage, 'opens'> {
-  // Opens the stage at its first touched group.
-  onJumpTouched: () => void
+  // Opens the stage at its first touched group. Absent on a stage that has no
+  // groups to open — see StageHead, where the count is then a readout rather
+  // than a button that would do nothing.
+  onJumpTouched?: () => void
   groups: Group[]
+  // Contents that are not control groups (stageBody.ts). The modulation bay is
+  // the one stage built this way.
+  body?: () => ReactNode
 }
 
 // The same, for a stage that hangs under the trunk rather than on it. Off
@@ -49,12 +54,23 @@ type MapNode<T extends PathNode> = T & { opens: boolean }
 // spine the name folds the stage and the count opens its first touched group,
 // while on the bench nothing folds, so the name marks the stage on the map and
 // the count scrolls to it. Kept as one component so the pair can't drift.
+// What the count on a stage's heading counts. "Controls off stock" is right for
+// every stage of the rig and wrong for the modulation bay, which counts patched
+// slots and a gate — so the bay hands over its own clause (PathNode.touchedSay,
+// built by bayLoad) and the map's boxes read the same one.
+const counted = (node: PathNode): string =>
+  node.touchedSay ??
+  `${node.touched} control${node.touched === 1 ? '' : 's'} in this stage off stock`
+
 function StageHead(props: {
   node: PathNode
   nameHint: string
   countHint: string
   onName: () => void
-  onCount: () => void
+  // Where the count goes, when there is anywhere for it to go. A stage whose
+  // contents are not groups has nothing to jump to on the spine — it is already
+  // the thing on screen — so its count is a mark rather than a link.
+  onCount?: () => void
   // The way back to the map alone, when there is one. The fold is already on
   // the stage name and on the map box the click came from, but neither *looks*
   // like a way out — a name reads as a label and the box you pressed to open a
@@ -79,10 +95,14 @@ function StageHead(props: {
         >
           {node.name}
         </button>
-        {node.touched === 0 ? null : (
+        {node.touched === 0 ? null : props.onCount === undefined ? (
+          <span className={styles.phaseCount} title={counted(node)}>
+            • {node.touched}
+          </span>
+        ) : (
           <button
             className={styles.phaseDot}
-            title={`${node.touched} control${node.touched === 1 ? '' : 's'} in this stage off stock — ${props.countHint}`}
+            title={`${counted(node)} — ${props.countHint}`}
             onClick={props.onCount}
           >
             • {node.touched}
@@ -263,7 +283,7 @@ export function SignalPath(props: {
               nameHint="click to fold this stage"
               countHint="click to see"
               onName={() => props.onOpen(node.name)}
-              onCount={() => node.onJumpTouched()}
+              onCount={node.onJumpTouched}
               // onOpen toggles, so closing is opening the stage that is
               // already open. Not offered under a live filter: there the row
               // is shown because it matches, and an × that left it on screen
@@ -275,6 +295,8 @@ export function SignalPath(props: {
             {/* The picker first, because it is what the rest of the stage is
                 downstream of. */}
             {body.picker?.()}
+            {/* And a stage that is not made of groups, handed over whole. */}
+            {body.body?.()}
             {body.groups.length === 0 ? null : (
               <NestedSections>
                 <Accordion
@@ -368,8 +390,10 @@ function Bench(props: {
                 />
                 {/* The picker rides with the heading rather than in a card of
                   its own: it is what the stage is fed by, not one more module
-                  of it. */}
+                  of it. A groupless stage's body rides there too, for want of
+                  a group card to be — it is one module either way. */}
                 {body.picker?.()}
+                {body.body?.()}
               </div>
               {body.groups.map(group => (
                 <div key={group.name} className={styles.groupCard}>

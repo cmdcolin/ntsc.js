@@ -126,6 +126,14 @@
 .nodeTouched {
   color: var(--edit);
 }
+/* The one box with nothing drawn to it — the modulation bay, which is patched
+   into the controls rather than into the chain. Dotted so the space around it
+   reads as deliberate rather than as a wire nobody drew, and distinct from the
+   `3 3` dash an inert box wears: that one is drawn absent, and this one is the
+   most pressable thing on the row. */
+.nodeFree .box {
+  stroke-dasharray: 1.5 2;
+}
 /* nothing patched into input B: drawn, so the second input is visible before it
    is switched on, but there is nothing to open */
 .nodeOff {

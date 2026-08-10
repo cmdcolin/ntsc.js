@@ -86,6 +86,13 @@
   letter-spacing: normal;
   color: var(--edit);
 }
+/* The same count on a stage with no groups under it to jump to — the modulation
+   bay, whose contents are already on screen the moment it is open. Same mark,
+   without the pointer and the hover that would promise a press. */
+.phaseCount {
+  padding: 0 0 0 4px;
+  color: var(--edit);
+}
 .phaseDot:hover {
   color: var(--edit-hi);
 }

@@ -30,12 +30,22 @@ export interface StageLike {
   groups: Group[]
   // Nothing patched in, so this stage's controls have nothing to act on.
   off?: boolean
+  // A stage whose contents are not control groups at all, handed over whole.
+  // One stage is like this — the modulation bay, whose rows describe slots
+  // rather than knobs on the rig — and it has no `Group` to be filed under
+  // because there is no control in `GROUPS` for a routing to be.
+  //
+  // A thunk for the same reason the picker is one: the stage that is closed
+  // builds nothing.
+  body?: () => ReactNode
 }
 
 export interface StageBody {
   // A thunk, not a node: only the stages on screen build their picker, which is
   // the same reason `groups` travels as data rather than as rendered sections.
   picker: (() => ReactNode) | undefined
+  // The stage's own contents, where it has some that are not groups.
+  body: (() => ReactNode) | undefined
   groups: Group[]
 }
 
@@ -45,8 +55,9 @@ export const stageBody = (
   showPicker: boolean,
 ): StageBody => ({
   picker: showPicker ? stageTop[node.name] : undefined,
+  body: node.body,
   groups: node.off === true ? [] : node.groups,
 })
 
 export const hasBody = (body: StageBody): boolean =>
-  body.picker !== undefined || body.groups.length > 0
+  body.picker !== undefined || body.body !== undefined || body.groups.length > 0

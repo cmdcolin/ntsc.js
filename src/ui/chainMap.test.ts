@@ -4,6 +4,8 @@ import { boxWidth, branchArrow, chainLayout, LEAD, OUT, W } from './chainLayout'
 import {
   LOOP_STAGES,
   MIX_STAGE,
+  MOD_STAGE,
+  MOD_UNDER,
   PHASE_ORDER,
   SOUND_JOIN,
   SOUND_STAGE,
@@ -39,8 +41,17 @@ const VIEW: BranchSpec = {
   under: 'join',
   dir: 'out',
 }
+// The modulation bay, which is on this row for the room and nothing else: no
+// lead, no riser, no arrowhead. The layout still has to place it, because the
+// only thing keeping the row's boxes off each other is the cursor that walks it.
+const MOD: BranchSpec = {
+  name: MOD_STAGE,
+  join: MOD_UNDER,
+  under: 'join',
+  free: true,
+}
 const BOTH = [B, SOUND]
-const ALL = [B, SOUND, VIEW]
+const ALL = [B, MOD, SOUND, VIEW]
 
 // Every non-empty subset of the five stages, in chain order — which is exactly
 // the set of shapes `groupMatches` can hand the map.
@@ -185,6 +196,29 @@ describe('chain map geometry', () => {
           branches[i - 1].x + branches[i - 1].w / 2,
         )
     }
+  })
+
+  // A box with no wire on it still has to be somewhere, and the row is the only
+  // place with room. It is laid out exactly like a branch — the cursor is what
+  // keeps the four of them apart — so what makes it float is that the drawing
+  // skips its wires, not that the layout treats it differently.
+  //
+  // Which leaves the one thing the cursor does not know about, and the one that
+  // shipped in the first drawing of this: the *wires* on the row. Parked over
+  // the mixer, the box cleared every other box on the row by the rule above and
+  // still came down squarely on input B's run to the mixer and on the riser out
+  // of it — a floating box with a wire arriving at it and an arrow leaving it,
+  // which reads as the one thing it is not. So it clears B's riser on the left
+  // and the sound's lead-in on the right, and there is nothing under it at all.
+  it('parks the free box clear of the wires on the row, not just the boxes', () => {
+    const { branches } = chainLayout(FULL, ALL)
+    const [b, mod, sound] = branches
+    expect(mod.name).toBe(MOD_STAGE)
+    expect(mod.x - mod.w / 2).toBeGreaterThan(b.x + b.w / 2)
+    // B's run leaves its box, crosses the row and rises at `join`.
+    expect(mod.x - mod.w / 2).toBeGreaterThan(b.join)
+    // The sound arrives on a lead of its own, which starts at `stub`.
+    expect(mod.x + mod.w / 2).toBeLessThan(sound.stub)
   })
 
   it('draws no branch when there is none to draw', () => {

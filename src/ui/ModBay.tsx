@@ -2,7 +2,7 @@ import { PASS_THROUGH } from '../signal/modstate'
 import { sliderFor } from './controls'
 import { cx } from './cx'
 import { SYNC_DIVISIONS } from './midi'
-import styles from './ModSection.module.css'
+import styles from './ModBay.module.css'
 import {
   DEFAULT_STAB,
   MOD_SOURCES,
@@ -16,7 +16,6 @@ import {
 } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
 import { groupOf, stageOf } from './placement'
-import { Section } from './Section'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
 import { TempoRow } from './TempoRow'
@@ -153,12 +152,19 @@ function SlotHead(props: {
 // each of those rows was a picker, which is why the bay looked like the place
 // motion was set up from. It isn't: it is the place motion is read and taken
 // back. What is left of "there are eight" is the free count under the list.
-export function ModSection(props: {
+//
+// No `Section` around any of it any more, and that is the point of the file
+// being a bay rather than a section: this is the body of the Modulation stage,
+// which is a box floating off the chain map (controls.ts, MOD_STAGE). The stage
+// head carries the name, the blurb and the patched count that the fold used to
+// — and while the stage is shut, none of this is built at all, which a folded
+// section could not say.
+export function ModBay(props: {
   tempo: Tempo
   openStages: ReadonlySet<string>
   onOpenGroup: (stage: string, group: string) => void
 }) {
-  const { slots, bpm, setSlot, setSlotForKey, cycleSlotSync, stab, fire } =
+  const { slots, bpm, setSlot, setSlotForKey, cycleSlotSync, fire } =
     useModSlotsApi()
   // Slot number and slot in one, because the number is the slot's identity —
   // the engine's phase is keyed by position, so filtering the empties out must
@@ -170,35 +176,18 @@ export function ModSection(props: {
   // Whether anything in the bay is playable, which is what decides if the
   // fire-everything button is worth a row.
   const anyTrig = slots.some(s => s.target !== '' && s.source === 'trig')
-  // Read off the bay itself, not off `active`: that list is scaled by the motion
-  // amount, so freezing (amount 0) emptied it and the dot went out on a section
-  // still holding eight routings. The dot says what is patched — the strip's own
-  // ❚❚ says what is running — and it is the same rule the strip counts by.
-  // The gate counts as patched: it is the one thing in here that moves the
-  // picture without a slot, so a section showing no dot while the whole board is
-  // being cut in and out four times a second would be the panel's most visible
-  // effect with nothing anywhere pointing at where it lives.
-  const patched = slots.some(s => s.target !== '' && s.depth > 0) || stab.hz > 0
   return (
-    <Section
-      title="Modulation"
-      defaultOpen={false}
-      dot={patched}
-      // The bay's whole state in three words, so folding it stays free: the
-      // question this section is folded over is "is anything patched, and is
-      // there room", and both are this number.
-      summary={
-        patchedSlots.length === 0
-          ? 'nothing patched'
-          : `${patchedSlots.length} of ${slots.length} patched`
-      }
-    >
+    <>
+      {/* What the stage's own heading does not already say. It used to open on
+          "LFOs, drift and the audio envelope wiggling any control", which is
+          now the blurb one line above it, and to explain the ∿, which the free
+          count at the foot of the bay explains again — three sentences of the
+          same instruction on a bay holding nothing. What is left is the one
+          thing in here that is not a routing. */}
       <div className={ui.hint}>
-        LFOs, drift and the audio envelope wiggling any control around its
-        slider setting. A slot is patched at the control it drives — press ∿ on
-        any control row — and this is where the {slots.length} of them read as a
-        bay. The stabs below are the one that drives the whole board: it cuts
-        the look out and pokes it back in on the beat.
+        The stabs below are the one thing in the bay that drives the whole board
+        rather than one control: it cuts the look out and pokes it back in on
+        the beat, so the picture between stabs is the clean signal.
       </div>
       {/* The beat every ♩ in the panel reads, at the top of the section whose
           rates are the ones most often locked to it. Here rather than in MIDI:
@@ -321,6 +310,6 @@ export function ModSection(props: {
           ? `all ${slots.length} slots are patched — hand one back with its × to free it.`
           : `${free} of ${slots.length} slots free — press ∿ on any control row to patch one.`}
       </div>
-    </Section>
+    </>
   )
 }

@@ -219,6 +219,16 @@ export interface BranchSpec {
   // *by* it. Without it the View box reads as a third source, which is the one
   // thing it is not. Defaults to 'in'.
   dir?: 'in' | 'out'
+  // Nothing is drawn to this box: no lead in, no run up into the trunk, no
+  // arrowhead. It is a stage of the panel that is not part of the chain at all —
+  // the modulation bay, which acts on the controls rather than on the signal —
+  // and the row is simply where there is room to put it. Left where the wires
+  // are, it would read as a third input.
+  //
+  // The layout still places it like a branch, so the cursor below keeps it from
+  // landing on one; `join` therefore only decides where on the row it sits, and
+  // is not somewhere it connects to.
+  free?: true
 }
 
 // A branch's box and the run out of it. Same routing vocabulary as the returns —

@@ -464,8 +464,10 @@ That's the signal path. The rest is the rig built around it.
   sample-and-hold, a Lorenz attractor, the audio level or its transients, or a
   one-shot envelope you fire from a key or a MIDI note. Depth is a fraction of
   the control's range, so the slider stays the centre of the motion.
-- A Modulation panel lists every routing and how many slots are left, and a
-  motion strip gives you one amount over all of them plus a freeze.
+- A Modulation bay — a box floating off the signal-path map, wired to nothing,
+  because it acts on the controls rather than the signal — lists every routing
+  and how many slots are left, and a motion strip gives you one amount over all
+  of them plus a freeze.
 - Type or tap a BPM and lock any rate to it, from 1/1 to 1/16. MIDI clock takes
   over when something is sending it.
 - Stabs flip the whole board to clean for a few tens of milliseconds, several

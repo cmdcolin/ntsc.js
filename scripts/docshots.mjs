@@ -82,7 +82,6 @@ const SEED = {
     Presets: true,
     Input: true,
     Scenes: false,
-    Modulation: false,
     'Sound into the picture': false,
   }),
 }

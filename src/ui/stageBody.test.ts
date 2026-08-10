@@ -62,6 +62,16 @@ describe('what a stage has to show', () => {
     expect(hasBody(stageBody(stage({ groups: [] }), {}, true))).toBe(false)
   })
 
+  // The modulation bay: a stage whose contents are not control groups at all,
+  // so `groups` is empty and the whole of it arrives as one thunk. Without this
+  // it is the blank heading above, by the other route.
+  it('shows a stage that is made of something other than groups', () => {
+    const body = () => null
+    const stand = stageBody(stage({ groups: [], body }), {}, true)
+    expect(stand.body).toBe(body)
+    expect(hasBody(stand)).toBe(true)
+  })
+
   it('offers no picker to a stage that has none', () => {
     const body = stageBody(stage({ name: 'Tape' }), TOP, true)
     expect(body.picker).toBeUndefined()

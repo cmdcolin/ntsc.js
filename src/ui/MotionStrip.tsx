@@ -81,16 +81,16 @@ export function MotionStrip(props: {
       >
         {frozen ? '▶' : '❚❚'}
       </button>
-      {/* Named after the section that creates it, not after what it does. "motion"
+      {/* Named after the stage that creates it, not after what it does. "motion"
           was a word this panel uses nowhere else, on the loudest row above the
           fold, appearing unannounced the first time anything got patched — so it
           read as a setting that had arrived from somewhere with no way to find
-          out where. "modulation" is the section three folds down that put it
-          there, and the title says so in one line. */}
+          out where. "modulation" is the box on the map below that put it there,
+          and the title says so in one line. */}
       <label
         className={styles.label}
         htmlFor="motion-amount"
-        title="one fader over every routing in the Modulation section below — set up there, scaled from here"
+        title="one fader over every routing in the bay — set up in the MODULATION box on the map below, scaled from here"
       >
         modulation
       </label>
