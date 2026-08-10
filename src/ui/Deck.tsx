@@ -1,5 +1,3 @@
-import { useState } from 'react'
-
 import { ControlRows } from './ControlGroup'
 import { sliderFor } from './controls'
 import { useControlValue, useControlsApi } from './ControlsContext'
@@ -12,6 +10,7 @@ import { TBar } from './TBar'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
 import { TrackingPad } from './TrackingPad'
 import { LoopTransport, TapeTransport } from './Transport'
+import { useHold } from './useHold'
 
 import type { ControlKey } from '../controls'
 import type { SliderDef } from './controls'
@@ -177,11 +176,9 @@ const TIME_ROW: readonly SliderDef[] = (
 function Hold() {
   const timeScale = useControlValue('timeScale')
   const { writeControl } = useControlsApi()
-  // What to come back to when the hold lets go — local, like the motion strip's,
-  // and for the same reason: a freeze is a gesture inside a session, and
-  // reloading into a stopped clock with no memory of why would read as a hang.
-  const [held, setHeld] = useState(1)
-  const frozen = timeScale === 0
+  // The park and the memory of the rate it was at — see useHold, which the
+  // motion strip's own ❚❚ shares.
+  const hold = useHold(timeScale, v => writeControl('timeScale', v))
   return (
     <div className={styles.block}>
       <div className={styles.holdRow}>
@@ -192,22 +189,15 @@ function Hold() {
           hold
         </span>
         <button
-          className={cx(styles.holdBtn, frozen && styles.holdOn)}
+          className={cx(styles.holdBtn, hold.frozen && styles.holdOn)}
           title={
-            frozen
+            hold.frozen
               ? 'let the picture run again, at the rate it was on'
               : 'stop the frame dead — every mechanism together, not a still image of one'
           }
-          onClick={() => {
-            if (frozen) {
-              writeControl('timeScale', held === 0 ? 1 : held)
-            } else {
-              setHeld(timeScale)
-              writeControl('timeScale', 0)
-            }
-          }}
+          onClick={hold.toggle}
         >
-          {frozen ? '▶ run' : '❚❚ hold'}
+          {hold.frozen ? '▶ run' : '❚❚ hold'}
         </button>
       </div>
       <Rack sliders={TIME_ROW}>

@@ -1,11 +1,10 @@
-import { useState } from 'react'
-
 import { sliderFor } from './controls'
 import { useControlsApi } from './ControlsContext'
 import { cx } from './cx'
 import { MOTION } from './midi'
 import { useModSlotsApi } from './ModSlotsContext'
 import styles from './MotionStrip.module.css'
+import { useHold } from './useHold'
 
 // One scale over everything that is moving, plus a freeze.
 //
@@ -30,10 +29,11 @@ export function MotionStrip(props: {
 }) {
   const { slots, master, setMaster, stab, stabHz } = useModSlotsApi()
   const api = useControlsApi()
-  // What to come back to when the freeze lets go. Local, not persisted: a
-  // freeze is a gesture within a session, and reloading into a frozen board
-  // with no memory of why would just look broken.
-  const [held, setHeld] = useState(1)
+  // The park, and the memory of where the fader was — see useHold, which the
+  // deck's own ❚❚ shares. What each holds is deliberately different: this one
+  // keeps every wave's phase, so letting go picks the drift back up mid-stride
+  // instead of snapping everything to the top of its cycle.
+  const hold = useHold(master, setMaster)
 
   // Everything the bay holds, split by whether it is running. The strip stands
   // as long as anything is *patched* — park every routing and the master fader
@@ -63,7 +63,6 @@ export function MotionStrip(props: {
   // (174bpm at 1/4 is 11.6/s), where the slider alone only ever left tenths.
   const rate = stabHz.toFixed(1).replace(/\.0$/, '')
 
-  const frozen = master === 0
   // The same ⚟ every control row carries, on the one fader that is not a
   // control. Deliberately last in the strip rather than beside the freeze: it is
   // set-up, not performance, and it only exists once a device is wired up.
@@ -72,22 +71,15 @@ export function MotionStrip(props: {
   return (
     <div className={styles.strip}>
       <button
-        className={cx(styles.freeze, frozen && styles.frozen)}
+        className={cx(styles.freeze, hold.frozen && styles.frozen)}
         title={
-          frozen
+          hold.frozen
             ? 'let the motion run again, from where it stopped'
             : 'hold everything still — the waves keep their place, so this picks up where it left off'
         }
-        onClick={() => {
-          if (frozen) {
-            setMaster(held === 0 ? 1 : held)
-          } else {
-            setHeld(master)
-            setMaster(0)
-          }
-        }}
+        onClick={hold.toggle}
       >
-        {frozen ? '▶' : '❚❚'}
+        {hold.frozen ? '▶' : '❚❚'}
       </button>
       {/* Named after the stage that creates it, not after what it does. "motion"
           was a word this panel uses nowhere else, on the loudest row above the
