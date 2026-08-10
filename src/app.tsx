@@ -60,6 +60,7 @@ import { bayLoad, slotsToRoutings } from './ui/modSlots'
 import { ModSlotsContext } from './ui/ModSlotsContext'
 import { parseMorph } from './ui/morph'
 import { MotionStrip } from './ui/MotionStrip'
+import { paletteActions } from './ui/paletteActions'
 import { panelChain } from './ui/panelChain'
 import { matchPreset, presetControls } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
@@ -104,7 +105,6 @@ import { gitSha, versionLabel } from './version'
 
 import type { ControlKey, Controls } from './controls'
 import type { GlidePlan } from './signal/glide'
-import type { PaletteAction } from './ui/CommandPalette'
 import type { PickerStage } from './ui/controls'
 import type { ControlsApi, ControlStore } from './ui/ControlsContext'
 import type { StashSlot } from './ui/fileStash'
@@ -151,52 +151,6 @@ const OPEN_STAGES = [
   [stageSet(false, false), stageSet(false, true)],
   [stageSet(true, false), stageSet(true, true)],
 ]
-
-// The cue verbs for one slot. Both are already on the row under that slot's seek
-// bar and both have a key, and they are in the palette as well for the reason the
-// Commons verbs in the same list are: that row lives inside a section which starts
-// folded, and these are pressed while looking at the picture rather than at the
-// panel.
-//
-// The name tracks the state, the way the star's does. A press means something
-// different depending on what is marked, and a row that read "cue" while the next
-// press would close a loop would be lying about what it does.
-//
-// One argument, and it is the slot: the tag, the duration, the cue and both verbs
-// all come out of it together. Handed over as five loose values — which is what
-// this took before ui/slotView.ts existed — it was possible to label B's row with
-// A's tag, or to wire the tag and the cue to one slot and `run` to the other, and
-// nothing but reading would have caught it.
-const cueVerbs = (slot: AnySlotView): PaletteAction[] => {
-  const { tag, cue } = slot
-  const noClip = slot.duration === 0
-  const cueArmed = cue !== null && cue.out === null
-  return [
-    {
-      name: cueArmed
-        ? `close the loop on source ${tag}`
-        : cue !== null
-          ? `re-cue source ${tag}`
-          : `cue source ${tag}`,
-      blurb: noClip
-        ? `nothing with a timeline on source ${tag} — a clip or a file first`
-        : cueArmed
-          ? 'the stretch since the cue starts repeating at once'
-          : cue !== null
-            ? 'drop this loop and mark a fresh cue at the playhead'
-            : 'mark the playhead — press again to loop from there',
-      run: slot.tapCue,
-    },
-    {
-      name: `back to the cue on source ${tag}`,
-      blurb:
-        cue === null
-          ? `nothing cued on source ${tag} yet`
-          : 'jump back and keep playing — stab it in time for a stutter',
-      run: slot.retrigger,
-    },
-  ]
-}
 
 const toggleFullscreen = () => {
   if (document.fullscreenElement) {
@@ -645,201 +599,45 @@ export function App() {
   // which the engine is the one that can route, so it hands the switch over.
   const audio = useAudio(engine, eng.setVideoAudio)
 
-  // Everything the palette can run that isn't a preset or a control. Hold-to-
-  // compare is deliberately absent: it's a gesture, not a command.
-  const paletteActions: PaletteAction[] = [
-    // Named as the bar names them, with the words they used to carry kept in
-    // the blurbs: the palette matches on both, so anyone who learnt "surprise"
-    // or "mutate" still types it and still lands on the right row.
-    {
-      name: 'random look',
-      blurb: 'a surprise — stack a few random presets',
-      run: mix.surprise,
+  // Everything ⌘K can run that is not a preset or a control, assembled in
+  // paletteActions.ts — the list is a list, and what App is the authority on is
+  // which handler each row is wired to.
+  const palette = paletteActions({
+    onSurprise: mix.surprise,
+    onMutate: mix.mutateLook,
+    onUndo: mix.undo,
+    onRedo: mix.redo,
+    slots: [eng.a, eng.b],
+    onVaporwave: () => {
+      eng.applyVaporwave()
+      audio.select('video')
     },
-    {
-      name: 'random nudge',
-      blurb: 'mutate: jitter every control around the current look',
-      run: () => mix.mutateLook('normal'),
-    },
-    {
-      name: 'random nudge, gentle',
-      blurb:
-        'a small mutation, for creeping around a look that is nearly right',
-      run: () => mix.mutateLook('gentle'),
-    },
-    {
-      name: 'random nudge, wild',
-      blurb: 'a big mutation, for getting out of a corner',
-      run: () => mix.mutateLook('wild'),
-    },
-    // The heavy one. It has always been on the button under ctrl (or cmd), and
-    // nothing said so anywhere you could read without hovering — a wreck you
-    // can only reach by holding a key you were never told about may as well not
-    // ship. Named for what it does rather than for its amount: nobody searches
-    // the palette for "turbo".
-    {
-      name: 'randomize everything, hard',
-      blurb:
-        'turbo: throw most controls past anything a real set would do — the wreck, not a variation',
-      run: () => mix.mutateLook('turbo'),
-    },
-    {
-      // The last of the Vaporwave section: three settings applied at once, which
-      // is a command and not a surface. Its parts each went to the thing they
-      // belong to — the rate to each deck's own transport, the tail to the audio
-      // picker — and a button that only sets all three at their preset values is
-      // exactly what the palette is for. It reaches across two hooks, which is
-      // why it is assembled here: the engine cannot move the picker's state.
-      name: 'vaporwave',
-      blurb: 'slow both clips, dial in the tail, and let their sound drive it',
-      run: () => {
-        eng.applyVaporwave()
-        audio.select('video')
-      },
-    },
-    // The two verbs a random archive needs from the keys rather than from the
-    // sidebar. Both are in the caption row already, and the caption row is inside
-    // a section that starts folded and is 141px of the panel when it is not —
-    // which is exactly the wrong place for the one control in this app you press
-    // repeatedly while looking at the picture rather than at the panel.
-    {
-      name: 'roll another file',
-      blurb: !eng.rollable
-        ? 'put one of the random archives on a source first'
-        : shown === null
-          ? 'another out of the same archive'
-          : `another out of the same archive — ${poolCaption(shown)} is up now`,
-      run: eng.rollAgain,
-    },
-    {
-      // Deliberately not gated on there being a pick: a row that vanishes is a
-      // row nobody learns is there, and its blurb says what it would do.
-      name: shownKept ? 'unkeep this file' : 'keep this file',
-      blurb:
-        shown === null
-          ? 'keeps the rolled file that is on screen — nothing is up now'
-          : shownKept
-            ? 'take it off your clip shelf'
-            : 'keep it on your clip shelf: the next roll replaces the picture, the shelf keeps it',
-      run: () => {
+    roll: {
+      can: eng.rollable,
+      up: shown === null ? null : poolCaption(shown),
+      kept: shownKept,
+      again: eng.rollAgain,
+      keep: () => {
         if (shown !== null) clips.keep(shown, poolCaption(shown))
       },
     },
-    ...cueVerbs(eng.a),
-    ...cueVerbs(eng.b),
-    {
-      name: 'undo',
-      blurb: 'step back through the looks you have been through',
-      run: mix.undo,
-    },
-    {
-      name: 'redo',
-      blurb: 'step forward again after an undo',
-      run: mix.redo,
-    },
-    {
-      // The palette indexes controls by their static definition, so it can no
-      // more see a routing than the filter could. This is the one entry that
-      // knows, and it answers by handing the question to the filter.
-      name: 'show what is moving',
-      blurb: 'filter the panel down to the controls the bay is driving',
-      run: () => setFilter(MOVING_QUERY),
-    },
-    {
-      name: 'copy link',
-      blurb: 'put this look on the clipboard as a URL',
-      run: copyLink,
-    },
-    {
-      // The one way in that needs no name typed: it takes the same suggestion
-      // the save box offers as a placeholder. A palette row cannot prompt for
-      // text, and refusing to save from here over that would be the wrong half
-      // of the feature to withhold — the row is for hands already on the keys,
-      // and a look saved as "vhs 3" is one × in the menu away from gone if that
-      // was not the name you wanted.
-      name: 'save this look',
-      blurb: profiles.canSave
-        ? `keep the board as “${suggestedProfileName}” under saved`
-        : 'sign in first — saved looks live on your account',
+    save: {
+      can: profiles.canSave,
+      as: suggestedProfileName,
       run: () => profiles.saveProfile(suggestedProfileName, profileQuery()),
     },
-    {
-      name: 'record clip',
-      blurb: 'start or stop recording the stage',
-      run: capture.toggleRecord,
-    },
-    {
-      name: 'save still',
-      blurb: 'download the current frame as a png',
-      run: capture.grabStill,
-    },
-    {
-      name: 'fullscreen',
-      blurb: 'give the picture the whole screen',
-      run: toggleFullscreen,
-    },
-    {
-      name: 'wide bench',
-      blurb: 'spread the controls over two columns',
-      run: toggleBench,
-    },
-    {
-      name: 'pop out controls',
-      blurb: 'move this panel into its own window',
-      run: () => openPopout(benchOn),
-    },
-    {
-      name: 'signal path',
-      blurb:
-        'the whole chain as a diagram — both inputs, the mixer, both loops',
-      run: () => setShowDiagram(true),
-    },
-    // The one part of the app the palette and the filter box cannot otherwise
-    // reach. Both index GROUPS, and nothing in the bay is in GROUPS: a routing
-    // describes a slot rather than a knob on the rig, and the stab gate is
-    // deliberately not a control (see modSlots.ts for why making it one would
-    // put a slider for the whole board inside one stage of it). So the panel's
-    // most visible single effect — the entire look cut in and out on the beat —
-    // answered to no search at all, and now it is a box on the map you have to
-    // know to press. The blurb is where "stabs" is findable from.
-    {
-      name: 'modulation bay',
-      blurb:
-        'the stab gate that cuts the whole look in and out on the beat, the tempo every ♩ locks to, and every LFO, drift and envelope you have patched',
-      run: () => {
-        // A live query takes the bay off the map — it holds nothing the filter
-        // can match — so a jump into it from the palette has to clear the box
-        // first, or it opens a stage that is not being drawn.
-        setFilter('')
-        nav.jumpPhase(MOD_STAGE)
-      },
-    },
-    // The deck is reachable by search only in the same roundabout way: every row
-    // it draws is a real control row, so a query finds each of them — in the four
-    // separate stages that own them, which is the arrangement the deck exists to
-    // offer an alternative to. Nothing answers to "deck" itself.
-    {
-      name: 'deck',
-      blurb:
-        'the transition lever and its wipe patterns, the inset, both tape transports, tracking and the hold — the controls a hand moves during a take, gathered under one',
-      run: () => {
-        // Same as the bay: a live query takes the box off the map, so a jump has
-        // to clear the filter or it opens a stage that is not being drawn.
-        setFilter('')
-        nav.jumpPhase(DECK_STAGE)
-      },
-    },
-    {
-      name: 'advanced settings',
-      blurb: 'render scale and MIDI setup',
-      run: () => setShowAdvanced(true),
-    },
-    {
-      name: 'help',
-      blurb: 'what this is, and the keys',
-      run: () => setShowHelp(true),
-    },
-  ]
+    onCopyLink: copyLink,
+    onRecord: capture.toggleRecord,
+    onStill: capture.grabStill,
+    onFullscreen: toggleFullscreen,
+    onBench: toggleBench,
+    onPopout: () => openPopout(benchOn),
+    onFilter: setFilter,
+    onOpenStage: nav.jumpPhase,
+    onDiagram: () => setShowDiagram(true),
+    onAdvanced: () => setShowAdvanced(true),
+    onHelp: () => setShowHelp(true),
+  })
 
   const query = filter.trim().toLowerCase()
   const filtering = query !== ''
@@ -1540,7 +1338,7 @@ export function App() {
       {showPalette ? (
         <CommandPalette
           controls={controls}
-          actions={paletteActions}
+          actions={palette}
           onApplyPreset={mix.applyPreset}
           onMixStart={mix.startMix}
           onWriteControl={writeControl}
