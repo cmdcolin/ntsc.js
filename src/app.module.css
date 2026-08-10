@@ -44,31 +44,26 @@
   padding: 10px 14px;
   flex-shrink: 0;
 }
-/* The panel portaled into the popout window fills it — but only up to a
-   measure: that window is resizable, and a slider stretched across 1000px puts
-   its label and its value a screen apart with the prose running just as wide. */
-.panelPop {
-  width: auto;
-  flex: 1;
-  max-width: 520px;
-  margin-inline: auto;
-}
-/* The bench in the popout: wide enough for two columns of modules, still capped
-   so a maximised window doesn't run the prose across a whole screen. */
-.panelPopWide {
-  max-width: 780px;
-}
+/* Every rule from here to the popout block is written `.app .panel`, not
+   `.panel`. The descendant is load-bearing, not tidiness: these describe a
+   *shell* — a picture with a sidebar beside or under it, on a device held one
+   way or the other — and the panel also renders alone in the popout window,
+   under `.appPop`, where there is no picture to sit beside and the viewport
+   being measured is a window somebody dragged to a size. Unscoped, the portrait
+   rule below matched any tall controls window and collapsed it; the header on
+   `.appPop` has the measurements. Scoping is what makes that structurally
+   impossible rather than overridden afterwards.
 
-/* A phone held upright can't give a third of its width to a sidebar, so the
-   two halves stack: picture at the top (Stage.module.css sizes it), panel as
-   the scrolling remainder under it. The breakpoint is orientation-and-width so
-   a narrow desktop window in portrait gets the same treatment — nothing here
+   A phone held upright can't give a third of its width to a sidebar, so the two
+   halves stack: picture at the top (Stage.module.css sizes it), panel as the
+   scrolling remainder under it. The breakpoint is orientation-and-width so a
+   narrow desktop window in portrait gets the same treatment — nothing here
    depends on the device being a phone. */
 @media (orientation: portrait) and (max-width: 900px) {
   .app {
     flex-direction: column;
   }
-  .panel {
+  .app .panel {
     width: auto;
     flex: 1;
     min-height: 0;
@@ -80,7 +75,7 @@
 /* On its side the sidebar still reads, but 332px out of 844 is a third of the
    picture — narrow it and pad the right edge clear of a landscape notch. */
 @media (orientation: landscape) and (max-height: 560px) {
-  .panel {
+  .app .panel {
     width: min(300px, 40vw);
     padding: 8px max(10px, env(safe-area-inset-right)) 8px 10px;
   }
@@ -89,12 +84,43 @@
 /* The bench: two columns of controls, opt-in from the masthead. Gated on the
    viewport as well as the flag — 664px only leaves the picture a fair share from
    1280px up — and placed after the landscape rule so it wins the width there
-   too. Below the gate app.tsx ignores the flag by construction, so nothing here
-   has to undo it. */
+   too. That last part is why this one is `.app .panelWide` rather than the
+   `.panelWide` it could be: a 1400x500 window matches both queries, and the two
+   selectors have to stay the same weight for source order to keep deciding
+   between them. Below the gate app.tsx ignores the flag by construction, so
+   nothing here has to undo it. */
 @media (min-width: 1280px) {
-  .panelWide {
+  .app .panelWide {
     width: 664px;
   }
+}
+
+/* ── The popout window ─────────────────────────────────────────────────────
+   The panel is the whole window here, so it takes the whole window: one rule,
+   no measure of its own. Width is the user's, by the window edge they dragged,
+   and the panel's container query does the rest — under 540px one column, over
+   it the bench pairs off into two, exactly as the docked panel does.
+
+   Its own root rather than `.app`, which is the whole reason the shell rules
+   above can be scoped away from it. This window used to portal into `.app` and
+   so inherited the phone rule (portrait, ≤900px — which any tall controls
+   window matches); that turned the flex container into a column, and in a
+   column the cross axis is width, where `margin-inline: auto` cancels the
+   stretch the panel was taking its width from. Measured: a 340px popout laid
+   the panel out 0px wide with 156px of auto margin either side. */
+.appPop {
+  display: flex;
+  width: 100%;
+  height: 100dvh;
+  background: #000;
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: var(--fs);
+}
+.panelPop {
+  width: auto;
+  flex: 1;
+  min-width: 0;
 }
 
 .titleRow {

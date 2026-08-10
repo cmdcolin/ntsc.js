@@ -27,6 +27,10 @@
 //    was full, having just freed a slot in it
 //  - a routing could be removed but not held, so there was no way to hear the
 //    picture without one wobble and then have it back
+//  - the popout window portaled into the app shell and so inherited its phone
+//    rule, which stacks the halves into a column; in a column the cross axis is
+//    width, where the panel's `margin-inline: auto` cancels the stretch it took
+//    its width from, and a 340px popout laid the panel out 0px wide
 
 import puppeteer from 'puppeteer-core'
 
@@ -362,6 +366,95 @@ await phase('fps stat', {}, async page => {
   check(
     (await readout()) === null,
     'dismissing the readout left it mounted, so it is still subscribed',
+  )
+})
+
+// --- the popout window, which is a shell of its own -------------------------
+// The panel renders in two documents, and only one of them has a picture in it.
+// Everything responsive in app.module.css describes the *shell* — a sidebar
+// beside or under a stage — and the popout is the panel alone in a window
+// somebody dragged to a size, so none of it may reach there. Both halves are
+// checked, because scoping a rule too far is as wrong as not scoping it: the
+// docked panel still has to stack under the picture in portrait.
+await phase('popout', {}, async page => {
+  const { run, settle } = runner(page)
+
+  const shell = target =>
+    target.evaluate(() => {
+      const panel = document.querySelector('[class*=panel_]')
+      const bench = document.querySelector('[class*=bench_]')
+      return {
+        win: window.innerWidth,
+        panelW: Math.round(panel?.getBoundingClientRect().width ?? -1),
+        dir: getComputedStyle(panel?.parentElement ?? document.body)
+          .flexDirection,
+        cols: bench
+          ? getComputedStyle(bench).gridTemplateColumns.split(' ').length
+          : 0,
+      }
+    })
+
+  // The docked panel first, and it has to be first: popping out unmounts it, so
+  // there is no second chance at this from the far side of the check. Scoping a
+  // rule too far is as wrong as not scoping it, and this is the half that says
+  // the shell rules still reach the shell.
+  await page.setViewport({ width: 420, height: 900 })
+  await settle(900)
+  const docked = await shell(page)
+  check(
+    docked.dir === 'column',
+    'the docked panel did not stack under the picture in portrait — the shell rules are scoped past it',
+  )
+  check(
+    docked.panelW === docked.win,
+    `the stacked panel is ${docked.panelW}px in a ${docked.win}px window`,
+  )
+  await page.setViewport({ width: 1352, height: 900 })
+  await settle(700)
+
+  // A fresh Firefox profile per phase means an empty localStorage, so the bench
+  // flag starts off and the popout opens at one column — which is the width the
+  // bug appeared at.
+  await run(`press(byTitle('menu (s: still')); return 0`)
+  await settle(400)
+  await run(`press(byPart('pop out controls')); return 0`)
+  await settle(2500)
+
+  const pages = await page.browser().pages()
+  const pop = pages.at(-1)
+  await new Promise(r => setTimeout(r, 1200))
+
+  // No canvas in this document, so no second WebGPU session is spent on it.
+  const one = await shell(pop)
+  check(
+    one.panelW === one.win,
+    `the popout panel does not fill its window: ${one.panelW}px of ${one.win}px — a shell media query has reached it`,
+  )
+  check(
+    one.dir === 'row',
+    `the popout laid out as a ${one.dir}, which is the portrait rule: in a column the cross axis is width, and there margin-inline collapses the panel to 0`,
+  )
+
+  // Switching the bench on from inside asks the window for the room two columns
+  // need. Without that the toggle reads as doing nothing: the container query
+  // folds them straight back at one-column width.
+  await pop.evaluate(`(() => {${HELPERS}
+    press(byTitle('menu (s: still'))
+  })()`)
+  await settle(400)
+  await pop.evaluate(`(() => {${HELPERS}
+    press(byPart('wide bench'))
+  })()`)
+  await settle(1600)
+
+  const two = await shell(pop)
+  check(
+    two.win > one.win,
+    `the bench went on but the popout stayed ${two.win}px wide, so the columns fold straight back`,
+  )
+  check(
+    two.cols === 2,
+    `the bench in the popout came out in ${two.cols} column(s) at ${two.panelW}px`,
   )
 })
 

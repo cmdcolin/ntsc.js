@@ -290,7 +290,7 @@ export function App() {
     ensureTempo: tempo.ensure,
     writeControl,
   })
-  const { popout, openPopout } = usePopout()
+  const { popout, openPopout, widenPopout } = usePopout()
   // The bench: every stage of the chain at once, two columns wide. Persisted,
   // but inert unless there is room for it — the docked panel needs a wide
   // screen, while the popout is the user's own window to size, so there the
@@ -298,6 +298,12 @@ export function App() {
   const [benchOn, setBenchOn] = usePersistedFlag('ntsc.js_panel_bench')
   const roomy = useMediaQuery('(min-width: 1280px)')
   const bench = benchOn && (popout !== null || roomy)
+  // Switching it on asks the popout for the room the two columns need; the
+  // docked panel widens itself in CSS and has nothing to ask for.
+  const toggleBench = () => {
+    if (!benchOn) widenPopout()
+    setBenchOn(!benchOn)
+  }
   const [fullscreen, setFullscreen] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showDiagram, setShowDiagram] = useState(false)
@@ -771,7 +777,7 @@ export function App() {
     {
       name: 'wide bench',
       blurb: 'spread the controls over two columns',
-      run: () => setBenchOn(!benchOn),
+      run: toggleBench,
     },
     {
       name: 'pop out controls',
@@ -1112,7 +1118,7 @@ export function App() {
     onToggleFullscreen: toggleFullscreen,
     bench: benchOn,
     canBench: popout !== null || roomy,
-    onToggleBench: () => setBenchOn(!benchOn),
+    onToggleBench: toggleBench,
     onPopout: () => openPopout(benchOn),
     showFps,
     onToggleFps: () => setShowFps(!showFps),
@@ -1487,16 +1493,8 @@ export function App() {
       {popout === null
         ? null
         : createPortal(
-            <div className={styles.app}>
-              <div
-                className={cx(
-                  styles.panel,
-                  styles.panelPop,
-                  benchOn && styles.panelPopWide,
-                )}
-              >
-                {panel}
-              </div>
+            <div className={styles.appPop}>
+              <div className={cx(styles.panel, styles.panelPop)}>{panel}</div>
             </div>,
             popout.document.body,
           )}

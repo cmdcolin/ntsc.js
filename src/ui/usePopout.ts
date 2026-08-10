@@ -4,12 +4,17 @@ import { useEffect, useState } from 'react'
 // setups: stage fullscreen on a projector, controls on the laptop. The popout
 // shares the JS heap, so the same React tree, engine store, and MIDI wiring
 // keep working with no message plumbing.
+// One column, and two. The panel fills whatever width the window has and its
+// container query splits the bench at 540px, so these are only ever opening
+// sizes — the edge the user drags afterwards is the real setting.
+const NARROW = 340
+const WIDE = 780
+
 export function usePopout() {
   const [popout, setPopout] = useState<Window | null>(null)
 
-  // `wide` opens it at bench width: the panel's container query splits into two
-  // columns from 540px up, so a 340px window would show the bench folded back
-  // into one column until the user dragged it out.
+  // `wide` opens it at bench width: a 340px window would show the bench folded
+  // back into one column until the user dragged it out.
   const openPopout = (wide: boolean) => {
     // `closed` too: if the window went away without firing pagehide, the stale
     // handle sticks around and focus() is a no-op, leaving no way to reopen.
@@ -19,7 +24,7 @@ export function usePopout() {
       const w = window.open(
         '',
         'ntsc.js_controls',
-        wide ? 'width=780,height=900' : 'width=340,height=900',
+        `width=${wide ? WIDE : NARROW},height=900`,
       )
       if (w !== null) {
         w.document.title = 'ntsc.js — controls'
@@ -42,6 +47,16 @@ export function usePopout() {
     }
   }
 
+  // Switching the bench on inside the popout is a request for two columns, and
+  // a one-column window cannot hold them — the container query folds them
+  // straight back, so the toggle would read as doing nothing. Only ever grows:
+  // a window already wide enough is one the user sized, and stays as it is.
+  const widenPopout = () => {
+    if (popout !== null && !popout.closed && popout.outerWidth < WIDE) {
+      popout.resizeTo(WIDE, popout.outerHeight)
+    }
+  }
+
   // Dependent window: it goes away with the app (reload, close, unmount).
   useEffect(() => {
     const close = () => popout?.close()
@@ -52,5 +67,5 @@ export function usePopout() {
     }
   }, [popout])
 
-  return { popout, openPopout }
+  return { popout, openPopout, widenPopout }
 }
