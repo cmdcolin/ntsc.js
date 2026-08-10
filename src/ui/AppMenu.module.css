@@ -78,6 +78,16 @@ button.recording {
     opacity: 0.55;
   }
 }
+/* The colour is what says "recording"; the pulse only makes it catch the eye
+   across a room. So this is the rare animation that can simply stop for a reader
+   who asked for less motion — the state stays legible without it. Note the
+   picture itself is exempt from that reading: motion is the instrument, not
+   decoration around it. */
+@media (prefers-reduced-motion: reduce) {
+  button.recording {
+    animation: none;
+  }
+}
 
 /* magnifier: readout and lever at the top of the menu, so the drag/scroll
    gestures on the picture are discoverable and reversible without hunting for

@@ -159,15 +159,30 @@ export function Stage(props: {
       {marquee === null ? null : (
         <div className={styles.marquee} style={marquee} />
       )}
-      {props.error !== '' && <div className={styles.error}>{props.error}</div>}
+      {/* `alert`, not a bare div: every async failure in the app ends at this
+          one banner — a video that would not decode, a pool that returned
+          nothing, a stash that could not be reopened — and it appears over a
+          canvas whose whole content is invisible to a screen reader. Without a
+          live region the failure is simply not announced, and the picture not
+          changing is the only other evidence there was one. */}
+      {props.error !== '' && (
+        <div className={styles.error} role="alert">
+          {props.error}
+        </div>
+      )}
       {/* The GPU handed the device back — a driver reset, a sleep/wake. The
           session rebuilds itself, so this says what the gap is rather than
           offering a button; it clears itself when the picture returns. Ahead of
           the frozen notice and exclusive with it: a loss can land on a tab that
           was already stalled, and two centred boxes would sit on top of each
           other — this one is the newer news and the one that resolves itself. */}
+      {/* `status` rather than `alert` for both notices below: they are the app
+          reporting on itself, and one of them resolves on its own. An assertive
+          region would cut off whatever was being read at the moment the GPU
+          blinked, which is the wrong trade for news that is still true a second
+          later. */}
       {props.rebuilding !== null ? (
-        <div className={cx(styles.frozen, styles.rebuilding)}>
+        <div className={cx(styles.frozen, styles.rebuilding)} role="status">
           {/* Two faults, one recovery. A device that announced it was going
               away and a device that just stopped answering want the same
               sentence about what survives and different ones about what
@@ -186,7 +201,7 @@ export function Stage(props: {
           </span>
         </div>
       ) : props.frozen !== null ? (
-        <div className={styles.frozen}>
+        <div className={styles.frozen} role="status">
           {/* Both say the app is fine and the frames aren't arriving. They
               differ on the only thing the reader can act on. A stall came back
               in recorded sessions and a reload is reasonable; a cold tab has

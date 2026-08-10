@@ -493,6 +493,12 @@ export function Slider(props: {
         max={curved ? 1 : props.max}
         step={curved ? TRAVEL_STEP : props.step}
         value={curved ? toTravel(props, props.value) : props.value}
+        // What the number *means*, which on a curved control the input cannot
+        // say for itself: min/max/value there are a 0..1 travel, so the raw
+        // announcement is "0.42" for a row reading 3.2 µs. The visible reading
+        // is the honest one either way — it carries the unit, and a mode switch
+        // rendered as a range announces its option name rather than its index.
+        aria-valuetext={reading(props.value)}
         disabled={locked}
         // The plugin idiom, for free: the track is the biggest target on the
         // row and a double-click on it means "put this back" everywhere else a
