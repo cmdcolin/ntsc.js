@@ -11,6 +11,95 @@ function isTextEntry(t: EventTarget | null): boolean {
   return t.tagName === 'INPUT' && 'type' in t && t.type !== 'range'
 }
 
+// What a keystroke means, decided before anything is called. Split out from the
+// dispatch below so the rule that says which modifiers reach which gesture is a
+// pure function with a test, rather than a condition repeated down an if-chain
+// where a missing copy is invisible — which is exactly how ⌘F, ⌘C and ⌘1 each
+// came to answer a bare-letter gesture. `takes` marks the ones that must beat
+// the browser's own reading of the chord.
+export type Shortcut =
+  | { do: 'escape' }
+  | { do: 'palette' }
+  | { do: 'saveProfile' }
+  | { do: 'undo' }
+  | { do: 'redo' }
+  | { do: 'fullscreen' }
+  | { do: 'compare' }
+  | { do: 'record' }
+  | { do: 'still' }
+  | { do: 'tapCue'; slot: 'a' | 'b' }
+  | { do: 'retrigger'; slot: 'a' | 'b' }
+  | { do: 'saveSlot'; n: number }
+  | { do: 'recallSlot'; n: number }
+
+// The half of a KeyboardEvent this decision reads, plus the one thing it cannot
+// read off the event alone: whether the target is somewhere text is being typed.
+export interface Keystroke {
+  key: string
+  code: string
+  ctrlKey: boolean
+  metaKey: boolean
+  shiftKey: boolean
+  repeat: boolean
+  typing: boolean
+}
+
+// Which gestures the browser will also act on, so the dispatch knows to call
+// preventDefault. Undo and redo are absent on purpose: they are suppressed only
+// when there is actually a step to take, so an exhausted walk still lets the
+// browser have the chord.
+export const TAKES_KEY: ReadonlySet<Shortcut['do']> = new Set<Shortcut['do']>([
+  'palette',
+  'saveProfile',
+])
+
+export function resolveShortcut(e: Keystroke): Shortcut | null {
+  const key = e.key.toLowerCase()
+  const mod = e.ctrlKey || e.metaKey
+  if (e.key === 'Escape') return { do: 'escape' }
+  // Reachable while typing: the filter box is the most likely place to be when
+  // you decide you wanted the palette instead, and the name box is the likeliest
+  // place to be when you decide to save.
+  //
+  // ⌘S also takes the chord away from two worse readings. The browser's
+  // save-page dialog was one; the other was the bare-`s` still grab below, which
+  // used not to check for a modifier — so ⌘S downloaded a png *and* opened that
+  // dialog.
+  if (mod && key === 'k') return { do: 'palette' }
+  if (mod && key === 's') return { do: 'saveProfile' }
+  // Both spellings of redo, since which one is muscle memory depends on where
+  // you learned it.
+  if (mod && key === 'z' && e.shiftKey) return { do: 'redo' }
+  if (mod && key === 'y') return { do: 'redo' }
+  if (mod && key === 'z') return { do: 'undo' }
+  // Ctrl/Cmd is the browser's half of the keyboard, so past this line no gesture
+  // may answer to it: ⌘F is find, ⌘C is copy, ⌘1 picks a tab. One guard for all
+  // of them — the per-branch copies this replaced were each missed somewhere.
+  if (e.typing || mod) return null
+  if (key === 'f') return { do: 'fullscreen' }
+  if (key === 'c') return e.repeat ? null : { do: 'compare' }
+  if (key === 'r') return e.repeat ? null : { do: 'record' }
+  if (key === 's') return e.repeat ? null : { do: 'still' }
+  // Not guarded against repeat, unlike the one-shots above: held down, `i`
+  // marking a cue then closing a loop on it is harmless, and a performer leaning
+  // on the key gets a run of short loops rather than a stuck one.
+  if (key === 'i') return { do: 'tapCue', slot: e.shiftKey ? 'b' : 'a' }
+  // This one IS guarded: one press is one stab. Auto-repeat would turn a held
+  // key into a seek fired every few milliseconds, which is a loop the decoder
+  // never gets ahead of and a picture that stops moving.
+  if (key === 'o') {
+    return e.repeat ? null : { do: 'retrigger', slot: e.shiftKey ? 'b' : 'a' }
+  }
+  // The saved library's first nine, by position in the list. Read from `code`
+  // rather than `key` so shift+1 is still slot 1 and not `!`.
+  const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code)
+  if (m !== null && !e.repeat) {
+    const n = Number(m[1])
+    return e.shiftKey ? { do: 'saveSlot', n } : { do: 'recallSlot', n }
+  }
+  return null
+}
+
 interface Handlers {
   onEscape: () => void
   onPalette: () => void
@@ -46,80 +135,76 @@ export function useShortcuts(popout: Window | null, handlers: Handlers) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const h = ref.current
-      const typing = isTextEntry(e.target)
-      const key = e.key.toLowerCase()
-      if (e.key === 'Escape') {
-        h.onEscape()
-      } else if ((e.ctrlKey || e.metaKey) && key === 'k') {
-        // Reachable while typing too: the filter box is the most likely place
-        // to be when you decide you wanted the palette instead.
+      const hit = resolveShortcut({
+        key: e.key,
+        code: e.code,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        shiftKey: e.shiftKey,
+        repeat: e.repeat,
+        typing: isTextEntry(e.target),
+      })
+      if (hit === null) return
+      // The walk's two verbs are the only ones whose chord is conditionally
+      // ours: with nothing to step to, the browser keeps it.
+      if (hit.do === 'undo' && !h.canUndo) return
+      if (hit.do === 'redo' && !h.canRedo) return
+      if (TAKES_KEY.has(hit.do) || hit.do === 'undo' || hit.do === 'redo') {
         e.preventDefault()
-        h.onPalette()
-      } else if ((e.ctrlKey || e.metaKey) && key === 's') {
-        // The keystroke everything else on a computer uses for "keep this", aimed
-        // at the thing this app makes. Reachable while typing, like ⌘K: the name
-        // box is the likeliest place to be when you decide to save.
-        //
-        // It also takes ctrl+S away from two worse readings. The browser's
-        // save-page dialog was one; the other was the bare-`s` still grab below,
-        // which did not check for a modifier — so ctrl+S used to download a png
-        // *and* open that dialog.
-        e.preventDefault()
-        h.onSaveProfile()
-      } else if ((e.ctrlKey || e.metaKey) && key === 'z' && e.shiftKey) {
-        // Both spellings of redo, since which one is muscle memory depends on
-        // where you learned it.
-        if (h.canRedo) {
-          e.preventDefault()
-          h.onRedo()
-        }
-      } else if ((e.ctrlKey || e.metaKey) && key === 'y') {
-        if (h.canRedo) {
-          e.preventDefault()
-          h.onRedo()
-        }
-      } else if ((e.ctrlKey || e.metaKey) && key === 'z') {
-        if (h.canUndo) {
-          e.preventDefault()
+      }
+      switch (hit.do) {
+        case 'escape':
+          h.onEscape()
+          break
+        case 'palette':
+          h.onPalette()
+          break
+        case 'saveProfile':
+          h.onSaveProfile()
+          break
+        case 'undo':
           h.onUndo()
-        }
-      } else if (!typing && key === 'f') {
-        h.onToggleFullscreen()
-      } else if (!typing && key === 'c' && !e.repeat) {
-        h.onStartCompare()
-      } else if (
-        !typing &&
-        key === 'r' &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.repeat
-      ) {
-        h.onToggleRecord()
-      } else if (!typing && key === 's' && !e.repeat) {
-        h.onGrabStill()
-      } else if (!typing && key === 'i' && !e.ctrlKey && !e.metaKey) {
-        // Not guarded against repeat, unlike the one-shots above: held down, `i`
-        // marking a cue then closing a loop on it is harmless, and a performer
-        // leaning on the key gets a run of short loops rather than a stuck one.
-        h.onTapCue(e.shiftKey ? 'b' : 'a')
-      } else if (!typing && key === 'o' && !e.ctrlKey && !e.metaKey) {
-        // This one IS guarded: one press is one stab. Auto-repeat would turn a
-        // held key into a seek fired every few milliseconds, which is a loop the
-        // decoder never gets ahead of and a picture that stops moving.
-        if (!e.repeat) h.onRetrigger(e.shiftKey ? 'b' : 'a')
-      } else if (!typing) {
-        // The saved library's first nine, by position in the list. Read from
-        // `e.code` rather than `e.key` so shift+1 is still slot 1 and not `!`.
-        const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code)
-        if (m !== null && !e.repeat) {
-          if (e.shiftKey) h.onSaveSlot(Number(m[1]))
-          else h.onRecallSlot(Number(m[1]))
-        }
+          break
+        case 'redo':
+          h.onRedo()
+          break
+        case 'fullscreen':
+          h.onToggleFullscreen()
+          break
+        case 'compare':
+          h.onStartCompare()
+          break
+        case 'record':
+          h.onToggleRecord()
+          break
+        case 'still':
+          h.onGrabStill()
+          break
+        case 'tapCue':
+          h.onTapCue(hit.slot)
+          break
+        case 'retrigger':
+          h.onRetrigger(hit.slot)
+          break
+        case 'saveSlot':
+          h.onSaveSlot(hit.n)
+          break
+        case 'recallSlot':
+          h.onRecallSlot(hit.n)
+          break
       }
     }
     // Same text-entry guard as the keydown side: without it, typing a "c" in the
     // filter box ends a compare that was never started, and each keystroke costs
     // a full filter-bank rebuild on the next frame.
+    //
+    // Deliberately *not* given the keydown's Ctrl/Cmd guard as well, though the
+    // asymmetry looks like an oversight: press `c`, then tap Ctrl, then release,
+    // and the keyup carries a modifier the keydown did not. Guarding here would
+    // drop that release and leave the stage previewing stock with every slider
+    // showing the real value — the exact stuck hold the blur handler below
+    // exists to clean up. Ending a compare that never started is harmless, so
+    // the release is always taken.
     const onKeyUp = (e: KeyboardEvent) => {
       if (!isTextEntry(e.target) && e.key.toLowerCase() === 'c')
         ref.current.onEndCompare()
