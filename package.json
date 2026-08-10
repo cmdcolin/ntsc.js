@@ -41,6 +41,7 @@
     "logo": "node scripts/logo.mjs",
     "docshots": "node scripts/docshots.mjs",
     "guide": "node scripts/build-guide.mjs",
+    "guide:check": "node scripts/build-guide.mjs && node scripts/guidecheck.mjs",
     "firebase-deploy": "firebase deploy --only firestore:rules",
     "test:rules": "firebase emulators:exec --only firestore --project ntscjs-rules-test \"vitest run firestoreRules\"",
     "docs": "node scripts/diagrams.mjs",

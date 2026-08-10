@@ -495,9 +495,37 @@ source of truth and stays readable on GitHub; the builder only adds the nav, the
 live links, and styling. To add a page, add it to `PAGES` in
 [`../scripts/build-guide.mjs`](../scripts/build-guide.mjs).
 
+Everything else the site chrome shows is **derived from the markdown, never
+authored twice** — so a heading, a page or a first paragraph is edited in one
+place and the site follows:
+
+- the **"on this page" nav**, from the h2/h3 outline the heading rule collects
+  into `env.headings`. Pages with fewer than five sections don't get one.
+- the **previous/next pager**, from the order of `PAGES`.
+- the **meta description and `og:` tags**, from each page's first paragraph, cut
+  at a sentence.
+
 The site has one theme and it is dark, so the builder also collapses each
 diagram's `<picture>` down to the dark SVG. Left alone, `prefers-color-scheme`
 would hand a light-mode visitor pale pastel diagrams on a near-black page.
+
+Two things the CSS can't reach are done by a small inline script: opening the
+section nav only at the width where it is a sidebar rather than a disclosure,
+and marking the section being read. Both are enhancements — with the script gone
+the nav is a closed `<details>` and everything still works.
+
+### Checking the layout
+
+`pnpm guide:check` builds the site, then loads every page at 1352px and at 390px
+and fails on anything wider than the viewport that isn't a deliberate scroll
+container ([`../scripts/guidecheck.mjs`](../scripts/guidecheck.mjs)). It leaves
+screenshots in `/tmp/guidecheck` — the fastest way to see all twelve renders at
+once.
+
+The phone arm is the one that earns its keep. The desktop layout has slack in
+it; 390px does not, and both faults the redesign fixed were invisible on a
+laptop: a nav row that wrapped three deep and stuck there, and a two-column
+table crushed to two words a line.
 
 ## YouTube source (dev server only)
 
