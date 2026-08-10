@@ -2,6 +2,13 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.25.4](https://github.com/cmdcolin/ntsc.js/compare/v0.25.3...v0.25.4) - 2026-08-10
+
+### Documentation
+- [`0e71458`](https://github.com/cmdcolin/ntsc.js/commit/0e714587391d55c63bdf3685d255efa930c4f722) tighten README and cut duplicated content
+- [`0d2a853`](https://github.com/cmdcolin/ntsc.js/commit/0d2a853bca21ead611290ce20b4deaf182a92c15) add FEATURES.md, wire it into the guide site, slim the README
+- [`c1f771c`](https://github.com/cmdcolin/ntsc.js/commit/c1f771c9abe6549a2870e8f401d8df066db4c97f) cut the site in half, and merge features into effects
+
 ## [0.25.3](https://github.com/cmdcolin/ntsc.js/compare/v0.25.2...v0.25.3) - 2026-08-09
 
 ### Other Changes
