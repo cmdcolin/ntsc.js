@@ -3351,6 +3351,10 @@ export const SOUND_BLURB =
 // a fault. Nothing here is in the path, and that is the whole point of drawing
 // it apart from the path.
 export const VIEW_STAGE = 'View'
+// The one stage it hangs off, named like SOUND_JOIN above rather than spelled
+// out at the drawing: the arrow points *out* of the chain into it, because the
+// picture the glass makes is what feeds it.
+export const VIEW_JOIN: Phase = 'Screen'
 export const VIEW_BLURB =
   'not the rig — where the picture is watched from: the magnifier and where it is pointed, how fast the whole simulation is stepped, and the frame-rate lock. Nothing in here changes the signal, and a mutate is forbidden to touch any of it'
 

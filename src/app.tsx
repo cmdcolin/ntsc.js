@@ -21,26 +21,16 @@ import { CommandPalette } from './ui/CommandPalette'
 import { ControlRows } from './ui/ControlGroup'
 import {
   ALL_SLIDERS,
-  AUDIO_GROUPS,
-  B_GROUPS,
   DECK_BLURB,
   DECK_STAGE,
   LOOP_STAGE_NAMES,
-  LOOP_STAGES,
-  loopGroups,
   MIX_STAGE,
   MOD_BLURB,
   MOD_STAGE,
-  OFF_HINT,
   PHASES,
-  SOUND_BLURB,
-  SOUND_JOIN,
   SOUND_STAGE,
   SOURCE_A_STAGE,
-  SOURCE_B_BLURB,
   SOURCE_B_STAGE,
-  VIEW_BLURB,
-  VIEW_GROUPS,
   VIEW_STAGE,
 } from './ui/controls'
 import {
@@ -55,7 +45,6 @@ import { FatalScreen } from './ui/FatalScreen'
 import {
   FilterContext,
   MOVING_QUERY,
-  groupMatches,
   isMovingQuery,
   sliderMatches,
 } from './ui/filter'
@@ -71,6 +60,7 @@ import { bayLoad, slotsToRoutings } from './ui/modSlots'
 import { ModSlotsContext } from './ui/ModSlotsContext'
 import { parseMorph } from './ui/morph'
 import { MotionStrip } from './ui/MotionStrip'
+import { panelChain } from './ui/panelChain'
 import { matchPreset, presetControls } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
 import { sameList } from './ui/sameList'
@@ -115,13 +105,11 @@ import { gitSha, versionLabel } from './version'
 import type { ControlKey, Controls } from './controls'
 import type { GlidePlan } from './signal/glide'
 import type { PaletteAction } from './ui/CommandPalette'
-import type { Group } from './ui/controls'
 import type { PickerStage } from './ui/controls'
 import type { ControlsApi, ControlStore } from './ui/ControlsContext'
 import type { StashSlot } from './ui/fileStash'
 import type { Lens } from './ui/lens'
 import type { SavedProfile } from './ui/savedProfiles'
-import type { BranchNode, LoopNode, PathNode } from './ui/SignalPath'
 import type { AnySlotView } from './ui/slotView'
 import type { PickSlot } from './ui/SourceSlot'
 import type { LookContext } from './ui/useLookLabels'
@@ -209,18 +197,6 @@ const cueVerbs = (slot: AnySlotView): PaletteAction[] => {
     },
   ]
 }
-
-// A stage with nothing patched into it: no amber however far off stock its
-// controls sit, because none of them is reaching the picture, and the hint in
-// place of the blurb. Whether the box still *opens* is not decided here — a
-// source branch does, on the strength of the picker at its head, and SignalPath
-// works that out from the pickers themselves.
-const inert = (node: PathNode, hint: string): PathNode => ({
-  ...node,
-  touched: 0,
-  off: true,
-  offHint: hint,
-})
 
 const toggleFullscreen = () => {
   if (document.fullscreenElement) {
@@ -899,204 +875,73 @@ export function App() {
   // anchor would then compensate 9px short of what actually grew.
   const lookRef = useRef<HTMLDivElement>(null)
   useScrollAnchor(lookRef)
-  // The contextual groups, dropped when the filter leaves them nothing: a
-  // section header over an empty body is a dead end in a result list.
-  const bGroups = B_GROUPS.filter(g => groupMatches(g, query, isRouted))
-  const audioGroups = AUDIO_GROUPS.filter(g => groupMatches(g, query, isRouted))
-  const viewGroups = VIEW_GROUPS.filter(g => groupMatches(g, query, isRouted))
-
-  // Roll the per-group touched state up to the stage, so the chain reads as a
-  // status map — you see which stages you're in without opening any. The count
-  // is a button: it jumps into the first touched group, which is the path from
-  // "this preset looks cool" to the knobs that made it. Data only: the open
-  // stage builds its own sections.
-  const pathNode = (name: string, blurb: string, groups: Group[]): PathNode => {
-    // What the stage can do to the picture, group by group — the counts the
-    // map colours a stage by, and the jump target behind its count.
-    const parts = groups.map(group => ({
-      touched: group.sliders.filter(s => !atRest(controls[s.key], s.key))
-        .length,
-      onOpen: () => nav.openAt(name, group.name),
-    }))
-    return {
-      name,
-      blurb,
-      groups,
-      touched: parts.reduce((n, p) => n + p.touched, 0),
-      onJumpTouched: () => {
-        const first = parts.find(p => p.touched > 0)
-        if (first !== undefined) first.onOpen()
-      },
-    }
-  }
   // Nothing patched into B leaves two stages with nothing to act on: B itself,
   // and the mixer beside it, whose every control needs a second signal. Both
   // are still drawn — together they are the one thing on screen saying a second
   // input exists — and neither wears the amber that says "you changed something
   // in here": nothing in them is reaching the picture.
-  //
-  // They part company on whether they open, and that is not said here — a stage
-  // opens if it has a picker at its head, which SignalPath reads off `stageTop`
-  // below. Source B does and Mix does not, which is the honest difference: you
-  // press SOURCE B to patch something in, and there is no picker for "a second
-  // signal" to put in the mixer's box.
-  //
-  // It is why they no longer share a hint, and why the hints are not written
-  // here: `OFF_HINT` is the one table, because the full diagram draws these same
-  // dead boxes and the two copies had already drifted.
   const bOn = eng.b.mode !== 'none'
-  const unpatched = (node: PathNode): PathNode =>
-    bOn ? node : inert(node, OFF_HINT[SOURCE_B_STAGE])
-  const unmixed = (node: PathNode): PathNode =>
-    bOn ? node : inert(node, OFF_HINT[MIX_STAGE])
-  const pathNodes = PHASES.flatMap((phase): PathNode[] => {
-    const groups = phase.groups.filter(g => groupMatches(g, query, isRouted))
-    const node = pathNode(phase.name, phase.blurb, groups)
-    return groups.length === 0
-      ? []
-      : [phase.name === MIX_STAGE ? unmixed(node) : node]
-  })
-  // The sound answers the same question B does, one stage further down: with
-  // nothing coming down the wire, every routing in the group is patched to
-  // silence. Same treatment, so the map has one answer for "this branch has no
-  // input" rather than two.
+  // The sound answers the same question one stage further down: with nothing
+  // coming down the wire, every routing in the group is patched to silence.
   //
-  // One switch decides this, which is the point of the ♪ picker owning the
-  // clips' sound tracks too: while Vaporwave had a "play audio out loud" button
-  // of its own, a clip could be driving the receiver with the picker on 'off',
-  // and this branch would have called itself dead while it was working.
+  // One switch decides it, which is the point of the ♪ picker owning the clips'
+  // sound tracks too: while Vaporwave had a "play audio out loud" button of its
+  // own, a clip could be driving the receiver with the picker on 'off', and this
+  // branch would have called itself dead while it was working.
   const soundOn = audio.active
-  // Which of the three returns is actually carrying signal. Read off each
-  // loop's own mix rather than the whole stage: a loop with its mix at zero is
-  // patched but silent, and both drawings are answering "is it running". The
-  // same three predicates gate the passes that close them (compose, fbComposite
-  // and tapePlay in gpu/pipeline.ts), so a lit run and a dispatched pass mean
-  // the same thing.
-  //
-  // Which control is a loop's mix is the loop table's to say, not this file's:
-  // three keys written out here were a fourth copy of a list that already
-  // decides what the run is named and what its stage holds.
   // What the modulation bay is holding, for the two drawings that mark it: the
   // map's floating box and the full diagram's. Read once, so the miniature and
   // the card cannot disagree about a bay neither of them can count for itself.
   const bay = bayLoad(modApi.slots, modApi.stab)
   // And what the deck is holding, for the same two drawings and the same reason.
   const deck = deckLoad(controls)
+  // Which of the three returns is actually carrying signal. Read off each
+  // loop's own mix rather than the whole stage: a loop with its mix at zero is
+  // patched but silent, and both drawings are answering "is it running". The
+  // same three predicates gate the passes that close them (compose, fbComposite
+  // and tapePlay in gpu/pipeline.ts), so a lit run and a dispatched pass mean
+  // the same thing.
   const loopsLive = {
     camera: controls.fbMix > 0,
     mixer: controls.cfbMix > 0,
     tape: controls.tapeMix > 0,
   }
-  // The three loops, drawn over the trunk. Never inert: there is nothing to
-  // patch into a loop and the chain under it is always carrying A, so unlike a
-  // branch a loop has no off state to draw. One drops out only when a live
-  // filter has left it nothing — and then its run goes too, because for a loop
-  // the run is the whole door.
-  const loops: LoopNode[] = LOOP_STAGES.flatMap((l): LoopNode[] => {
-    const groups = loopGroups(l.loop).filter(g =>
-      groupMatches(g, query, isRouted),
-    )
-    return groups.length === 0
-      ? []
-      : [{ ...pathNode(l.name, l.blurb, groups), loop: l.loop }]
-  })
-  const unheard = (node: PathNode): PathNode =>
-    soundOn ? node : inert(node, OFF_HINT[SOUND_STAGE])
-  // The two branches, drawn under the trunk. Unlike a trunk stage each survives
-  // having nothing patched into it — a drawn, inert box is the one thing on
-  // screen saying that input exists at all — so one is dropped only when a live
-  // filter has left it nothing.
-  const branches: BranchNode[] = [
-    ...(filtering && bGroups.length === 0
-      ? []
-      : [
-          {
-            ...unpatched(pathNode(SOURCE_B_STAGE, SOURCE_B_BLURB, bGroups)),
-            join: MIX_STAGE,
-            under: 'head' as const,
-          },
-        ]),
-    // The two free boxes, on a row of their own below the branches: nothing is
-    // drawn to either (see FreeBox), because what each is patched into is the
-    // *controls* — every one of them, in every other stage — and a line to two
-    // hundred sliders is a line to nothing. The empty row is the statement.
-    //
-    // They are a pair, which is why they are laid out as one: the bay is the
-    // hand you set running and walk away from, the deck is the hand that is on
-    // it now. Neither is the rig.
-    //
-    // Both out while a filter is live, exactly as they were while they were
-    // sections of the sidebar: everything below the filter box is the result
-    // set, and neither holds a control the filter can reach — the bay's rows
-    // describe slots, and every row the deck draws is borrowed from a stage that
-    // is already in the results under its own name.
-    ...(filtering
-      ? []
-      : [
-          {
-            ...pathNode(MOD_STAGE, MOD_BLURB, []),
-            // What the box wears its amber for, and what that number counts —
-            // "controls off stock" being the wrong noun for a bay. The bay has
-            // no groups, so `pathNode` counts nothing and this is the whole of
-            // it.
-            touched: bay.n,
-            touchedSay: bay.say,
-            // No `onJumpTouched`: there is no group under this stage to jump
-            // to — opening it *is* arriving.
-            onJumpTouched: undefined,
-            body: () => (
-              <ModBay
-                tempo={tempo}
-                // A patched slot names the control it drives and opens the
-                // module that control lives in — the same jump "This look"'s
-                // captions make, and the reason the bay no longer needs a
-                // picker listing every slider in the app.
-                openStages={openStages}
-                onOpenGroup={nav.openAt}
-              />
-            ),
-            free: true as const,
-          },
-          {
-            ...pathNode(DECK_STAGE, DECK_BLURB, []),
-            // Which gestures are live, rather than how many controls are off
-            // stock: every control the deck touches is counted already, on the
-            // box of the stage that owns it. See deckLoad.
-            touched: deck.n,
-            touchedSay: deck.say,
-            onJumpTouched: undefined,
-            body: () => <Deck />,
-            free: true as const,
-          },
-        ]),
-    ...(filtering && audioGroups.length === 0
-      ? []
-      : [
-          {
-            ...unheard(pathNode(SOUND_STAGE, SOUND_BLURB, audioGroups)),
-            join: SOUND_JOIN,
-            under: 'join' as const,
-          },
-        ]),
-    // The view, which is the one box on the map that is not the rig. It hangs
-    // off Screen rather than joining it — the arrow points out of the chain
-    // into it, because the picture is what feeds it. Never `off`: unlike the
-    // two inputs there is nothing to patch in, you are always watching.
-    ...(viewGroups.length === 0
-      ? []
-      : [
-          {
-            ...pathNode(VIEW_STAGE, VIEW_BLURB, viewGroups),
-            join: 'Screen',
-            under: 'join' as const,
-            dir: 'out' as const,
-          },
-        ]),
-  ]
-  // Which stages something outside the map can jump to. Not read off pathNodes:
-  // a live filter drops stages from the map, and a caption in "This look" is
-  // still a way back to the module it came from.
+  // Which stages something outside the map can jump to. Not read off the chain
+  // below: a live filter drops stages from the map, and a caption in "This look"
+  // is still a way back to the module it came from.
   const openStages = OPEN_STAGES[bOn ? 1 : 0][soundOn ? 1 : 0]
+  // Every box on the map, and whether the query reached one that will draw
+  // anything — the whole of the sidebar's structure, worked out in one place
+  // over the control tables (panelChain.ts). The two free boxes are the only
+  // part App has to supply, because their bodies are components rather than
+  // control groups.
+  const chain = panelChain({
+    controls,
+    query,
+    isRouted,
+    bOn,
+    soundOn,
+    onOpenGroup: nav.openAt,
+    free: [
+      {
+        name: MOD_STAGE,
+        blurb: MOD_BLURB,
+        load: bay,
+        body: () => (
+          <ModBay
+            tempo={tempo}
+            // A patched slot names the control it drives and opens the module
+            // that control lives in — the same jump "This look"'s captions
+            // make, and the reason the bay no longer needs a picker listing
+            // every slider in the app.
+            openStages={openStages}
+            onOpenGroup={nav.openAt}
+          />
+        ),
+      },
+      { name: DECK_STAGE, blurb: DECK_BLURB, load: deck, body: () => <Deck /> },
+    ],
+  })
 
   // This slot's clip menu. Asked for one slot at a time, so the name on the menu
   // and the slot the shelf opens for both come off the same object. As a `…A`/
@@ -1193,19 +1038,16 @@ export function App() {
   }
 
   // Whether the query reached anything at all, across every place a result can
-  // land — not the trunk alone. A routed mixer control lives on B's branch and a
-  // routed pin lives in Favorites, so keying "nothing matches" off the trunk
-  // would deny a result the panel is showing right above the message. Mirrors
-  // each section's own render condition rather than restating it.
+  // land — not the trunk alone. A routed mixer control lives on B's branch, a
+  // routed pin lives in Favorites and 37 of the app's controls live in a loop,
+  // so keying "nothing matches" off the trunk denied results the panel was
+  // showing right above the message. `anyStage` is the map's own answer, off the
+  // same nodes it draws, rather than a second list of render conditions kept
+  // agreeing with them by hand.
   const anyResult =
-    pathNodes.length > 0 ||
+    chain.anyStage ||
     pinned.length > 0 ||
-    edited.some(s => sliderMatches(s, query, isRouted(s.key))) ||
-    (soundOn && audioGroups.length > 0) ||
-    (bOn && bGroups.length > 0) ||
-    // No gate on this one: the view has no input to be missing, so a query that
-    // reaches "magnifier" always has a live box to land on.
-    viewGroups.length > 0
+    edited.some(s => sliderMatches(s, query, isRouted(s.key)))
 
   // The magnifier, as the stage's gestures and the menu's zoom row both see it.
   // One write for all three, so a gesture notifies the engine once.
@@ -1492,9 +1334,9 @@ export function App() {
           the green card that outranked the whole spine below it. */}
       <MotionStrip onReveal={() => setFilter(MOVING_QUERY)} />
       <SignalPath
-        nodes={pathNodes}
-        branches={branches}
-        loops={loops}
+        nodes={chain.nodes}
+        branches={chain.branches}
+        loops={chain.loops}
         open={nav.openPhase}
         expandAll={filtering}
         bench={bench}

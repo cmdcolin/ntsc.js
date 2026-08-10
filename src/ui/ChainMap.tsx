@@ -110,6 +110,12 @@ export function ChainMap(props: {
   // Opens a stage by name — a box or a run, because both are stages now.
   onOpen: (name: string) => void
 }) {
+  // Nothing to draw without a trunk: every wire, every branch and every return
+  // is placed off a trunk box, so a filter that leaves only a loop or a branch
+  // standing leaves this an empty 304×98 hole. The stages themselves still
+  // list — SignalPath draws them under a header with no map, which is why this
+  // is a hole here rather than a bail-out there.
+  if (props.stages.length === 0) return null
   const { boxes, wires, returns, branches } = chainLayout(
     props.stages.map(s => s.name),
     props.branches,

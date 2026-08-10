@@ -144,11 +144,17 @@ function StageHead(props: {
 // and each stage need a card, so they get one. It draws all three loops and
 // names them; what it still cannot carry is what any of them *do*, which is a
 // sentence per run and three sentences the band has no room for.
-function PathHead(props: { onShowDiagram: () => void }) {
+function PathHead(props: { mapped: boolean; onShowDiagram: () => void }) {
   return (
     <div className={styles.pathHead}>
       <span className={styles.pathTitle}>Signal path</span>
-      <span className={styles.pathHint}>click a stage</span>
+      {/* Only where there is a map to click. A query can narrow the panel down
+          to a loop or a branch, and the map needs the trunk — every wire and
+          every box under it is placed off a trunk box — so it drops out and the
+          standing instruction would be pointing at nothing. */}
+      {props.mapped ? (
+        <span className={styles.pathHint}>click a stage</span>
+      ) : null}
       <button
         className={styles.pathDiagram}
         title="the whole path drawn large — both inputs, their feeds, the mixer, all three loops and where the sound joins, each one a way into its controls"
@@ -202,13 +208,6 @@ export function SignalPath(props: {
   // returns with their names on them.
   onShowDiagram: () => void
 }) {
-  // A filter can leave no stage standing, and there is no chain to draw then:
-  // an empty spine came out as wires between boxes that aren't there, under a
-  // "0 controls, in the order the picture travels" door sitting right above
-  // app.tsx's own "nothing matches" line.
-  if (props.nodes.length === 0) {
-    return null
-  }
   // Whether a stage's box is a door, stamped on here rather than handed in.
   // A stage opens if its controls can act on something, or if it has a picker at
   // its head — and both halves of that read off what actually renders below, so
@@ -254,9 +253,19 @@ export function SignalPath(props: {
       body: stageBody(node, props.stageTop, !props.expandAll),
     }))
     .filter(({ body }) => hasBody(body))
+  // A filter can leave the panel nothing at all, and then there is no door to
+  // put a header on — an empty spine used to come out as wires between boxes
+  // that aren't there, under a "0 controls, in the order the picture travels"
+  // heading sitting right above app.tsx's own "nothing matches" line.
+  //
+  // The trunk being empty is not that case, and used to be treated as it: 37 of
+  // the app's controls live in a loop and 26 on a branch, so a query for
+  // "vignette" or "bass" matched a stage the panel then declined to draw. The
+  // map is what needs the trunk, and it is what drops out (ChainMap).
+  if (nodes.length === 0 && shown.length === 0) return null
   return (
     <>
-      <PathHead onShowDiagram={props.onShowDiagram} />
+      <PathHead mapped={nodes.length > 0} onShowDiagram={props.onShowDiagram} />
       <ChainMap
         stages={nodes}
         branches={branches}
@@ -354,7 +363,10 @@ function Bench(props: {
   }
   return (
     <>
-      <PathHead onShowDiagram={props.onShowDiagram} />
+      <PathHead
+        mapped={props.nodes.length > 0}
+        onShowDiagram={props.onShowDiagram}
+      />
       <ChainMap
         stages={props.nodes}
         branches={props.branches}
