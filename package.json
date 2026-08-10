@@ -1,7 +1,7 @@
 {
   "name": "ntsc.js",
   "private": true,
-  "version": "0.25.4",
+  "version": "0.25.5",
   "description": "Real-time NTSC / VHS / composite-video glitch simulator in WebGPU compute shaders.",
   "license": "MIT",
   "homepage": "https://cmdcolin.github.io/ntsc.js/",

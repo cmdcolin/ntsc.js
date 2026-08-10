@@ -2,6 +2,41 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.25.5](https://github.com/cmdcolin/ntsc.js/compare/v0.25.4...v0.25.5) - 2026-08-10
+
+### Features
+- *(ui)* [`fa2dbb2`](https://github.com/cmdcolin/ntsc.js/commit/fa2dbb2f604f54e7ace419ab000945cfddb85a63) log slider travel around a control's stock setting
+- *(ui)* [`a476e12`](https://github.com/cmdcolin/ntsc.js/commit/a476e125467da97de7623157280e3108bddd7ecb) make modulation a floating box on the signal-path map
+- *(ui)* [`bffaf08`](https://github.com/cmdcolin/ntsc.js/commit/bffaf08569e40f37843200db2152bdb5c5717af8) make the deck a box on the signal-path map
+- *(docs)* [`4d5c8d4`](https://github.com/cmdcolin/ntsc.js/commit/4d5c8d4f645bd0b4d1a5466a7cc26af2a3855296) rebuild the guide site around navigating it
+
+### Fixes
+- *(ui)* [`d6e91f6`](https://github.com/cmdcolin/ntsc.js/commit/d6e91f6015e41e56f4008a503533afb47805b0b2) stop Ctrl/Cmd chords from firing bare-key shortcuts
+- *(ui)* [`f844961`](https://github.com/cmdcolin/ntsc.js/commit/f8449615bcaeb3f6a658277b71ec13d1226053a2) keep a localStorage failure from taking down the app
+- *(gpu)* [`1d3e2cf`](https://github.com/cmdcolin/ntsc.js/commit/1d3e2cf548a6ec97e75d9a0dfefe20811ee6d939) one ?debug predicate, and store getters that cannot throw
+- *(ui)* [`d4bb389`](https://github.com/cmdcolin/ntsc.js/commit/d4bb38925f815fde5355065a35adf514bfb02bdf) announce failures, and say what a curved slider reads
+- *(ui)* [`fd0833c`](https://github.com/cmdcolin/ntsc.js/commit/fd0833c93c1d629d83376df10087947d71416240) let the popped-out controls fill their window
+- *(ui)* [`e602237`](https://github.com/cmdcolin/ntsc.js/commit/e60223781a31e7366bcdd99e4220cbb217dfb1ea) let the stabs slider answer while the motion is frozen
+- *(ui)* [`48ce706`](https://github.com/cmdcolin/ntsc.js/commit/48ce706f4acbba40f301d5ecc68d85926f9b6488) say so when the clipboard refuses a link
+
+### Refactor
+- *(ui)* [`4062df0`](https://github.com/cmdcolin/ntsc.js/commit/4062df0538ab4a0c78b3df0824e8c33b849fe11c) build both source slots from one factory
+- *(ui)* [`e979f6b`](https://github.com/cmdcolin/ntsc.js/commit/e979f6b839a3a053037ab40298c5956c4556bf5f) pair every A/B state in useEngine, and stop paying for it
+
+### Documentation
+- [`485e07e`](https://github.com/cmdcolin/ntsc.js/commit/485e07ee2d8dbea213be072eeb72cd37c2733d0a) hand off the A/B state pairs left inside useEngine
+- *(docs)* [`185cb49`](https://github.com/cmdcolin/ntsc.js/commit/185cb491a65eb5a1b32d8d634016bdba080f5e99) note what the stab gate still owes
+- *(docs)* [`886a560`](https://github.com/cmdcolin/ntsc.js/commit/886a560ec3cb28da5ede1dc6eb183028ff469ba2) close the A/B pairing handoff, and record what it turned up
+
+### Tests
+- *(ui)* [`b881d1e`](https://github.com/cmdcolin/ntsc.js/commit/b881d1e29cb3ffaf21bd4d143175368b6a091388) pin what the stab gate is running at
+- *(ui)* [`7589750`](https://github.com/cmdcolin/ntsc.js/commit/7589750e77f30d92fc28b1ee6b554ff44ab076d0) drive the stab gate in panelcheck
+
+### Chores
+- *(ui)* [`39439a1`](https://github.com/cmdcolin/ntsc.js/commit/39439a17a9c2029177eb3fbb10e099f9f36ff723) regen the panel baselines for the deck's move to the map
+- *(docs)* [`df75f45`](https://github.com/cmdcolin/ntsc.js/commit/df75f45e3de3753cf91b128f00621cd842d3bad7) re-wrap a paragraph oxfmt had left drifted
+- [`e264c12`](https://github.com/cmdcolin/ntsc.js/commit/e264c12d9c14e52fd651d06fc597aaf604acb4f1) move the actions off the Node 20 runtime
+
 ## [0.25.4](https://github.com/cmdcolin/ntsc.js/compare/v0.25.3...v0.25.4) - 2026-08-10
 
 ### Documentation
