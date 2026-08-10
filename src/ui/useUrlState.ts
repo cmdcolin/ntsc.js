@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react'
 
+import { reason } from './format'
 import { writeProfileParams, writeSessionParams } from './urlParams'
 
 import type { Controls } from '../controls'
@@ -33,6 +34,9 @@ interface UrlStateArgs {
   // marked on it as well as the clip itself.
   cueA: Cue | null
   cueB: Cue | null
+  // Where a refused copy is reported. The clipboard is the one thing in here
+  // the page does not control: it can be denied outright.
+  onError: (message: string) => void
 }
 
 // Where a query string points. Split out from the writers because a saved look
@@ -61,6 +65,7 @@ export function useUrlState({
   reverb,
   cueA,
   cueB,
+  onError,
 }: UrlStateArgs) {
   // The whole query-string rule lives in urlParams beside the parser that has
   // to read it back; what is left here is the browser half — which params are
@@ -123,9 +128,30 @@ export function useUrlState({
     }
   }, [engineReady, stateUrl])
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(stateUrl()).catch(() => {})
+  // Whether the text actually reached the clipboard. `writeText` rejects for
+  // reasons that have nothing to do with the link and everything to do with
+  // where the page is running: an insecure origin (plain http on a LAN, which is
+  // exactly how this gets shown on a projector), a denied permission, a browser
+  // that wanted a fresher user gesture than the one that arrived here. Swallowed
+  // — which it was — the saved-look row still ticked, and the palette's copy was
+  // silent whether it worked or not, so the failure looked identical to success
+  // right up until the paste.
+  // Written with await rather than a rejection handler because the failure
+  // arrives in two shapes: on an insecure origin the clipboard API is not
+  // refusing but *absent*, so reading `.writeText` off it throws synchronously
+  // where a permission denial rejects. Inside an async function both are the
+  // same catch.
+  const writeClip = async (text: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch (e) {
+      onError(`could not copy to the clipboard: ${reason(e)}`)
+      return false
+    }
   }
+
+  const copyLink = () => writeClip(stateUrl())
 
   // What a saved look records — the same serialization, minus the params that
   // only make sense for the session that is running (see writeProfileParams).
@@ -135,9 +161,7 @@ export function useUrlState({
       session(),
     ).toString()
 
-  const copyQuery = (query: string) => {
-    navigator.clipboard.writeText(linkFor(query)).catch(() => {})
-  }
+  const copyQuery = (query: string) => writeClip(linkFor(query))
 
   return { copyLink, profileQuery, copyQuery }
 }

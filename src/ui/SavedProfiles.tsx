@@ -51,7 +51,9 @@ export function SavedProfiles(props: {
   onSave: (name: string) => void
   onRecall: (profile: SavedProfile) => void
   onDelete: (name: string) => void
-  onCopyLink: (profile: SavedProfile) => void
+  // Resolves false when the clipboard refused the write, so the ✓ below stands
+  // for something that happened rather than for something that was attempted.
+  onCopyLink: (profile: SavedProfile) => Promise<boolean>
   // What just happened to a save, for a beat. Shown on the button, because two of
   // the three ways to save leave this menu shut — so this is the only surface
   // that can answer them.
@@ -81,9 +83,13 @@ export function SavedProfiles(props: {
     setName('')
   }
   const copy = (profile: SavedProfile) => {
-    props.onCopyLink(profile)
-    setCopied(profile.name)
-    setTimeout(() => setCopied(null), 1200)
+    void props.onCopyLink(profile).then(ok => {
+      // A refusal has already put itself on the stage banner; what matters here
+      // is that the row does not also claim success.
+      if (!ok) return
+      setCopied(profile.name)
+      setTimeout(() => setCopied(null), 1200)
+    })
   }
 
   return (
