@@ -12,6 +12,7 @@ import {
 } from './renderloop'
 import { framelessStarts } from './trace'
 
+import type { FrameStats } from '../controls'
 import type { FrozenKind } from './renderloop'
 
 // The loop only does interesting work when the browser misbehaves, so the
@@ -49,6 +50,11 @@ function harness({
   let hangs = 0
   let recoveries = 0
   const frozenEdges: (FrozenKind | null)[] = []
+  // Whether a rendered refresh reaches the glass. False is what the frame lock
+  // does on the refreshes it skips, and it is the only way to tell the fps
+  // readout apart from the loop's own cadence.
+  let presenting = true
+  const stats: FrameStats[] = []
 
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
     rafSeq += 1
@@ -165,9 +171,11 @@ function harness({
     },
     render: () => {
       frames += 1
-      return true
+      return presenting
     },
-    onStats: () => {},
+    onStats: s => {
+      stats.push(s)
+    },
     lockDiv: () => 1,
     onHang: () => {
       hangs += 1
@@ -187,6 +195,11 @@ function harness({
     frames: () => frames,
     recoveries: () => recoveries,
     frozenEdges: () => frozenEdges,
+    // Stats windows the loop has closed, in order.
+    stats: () => stats,
+    setPresenting: (v: boolean) => {
+      presenting = v
+    },
     // rAF callbacks the loop currently has in flight, across both its chains.
     outstanding: () => rafCbs.size,
     // Completion promises the loop is waiting on. The gate keeps exactly one,
@@ -687,6 +700,30 @@ describe('RenderLoop', () => {
     h.completeGpu()
     await vi.advanceTimersByTimeAsync(0)
     expect(h.outstandingWork()).toBe(1)
+  })
+
+  it('does not carry presented frames across a restart', () => {
+    const h = harness()
+    h.loop.start()
+    // Ten presenting refreshes, which is short of a window — so no stats are
+    // reported and the count sits there, part way through one.
+    for (let i = 1; i <= 10; i++) h.deliverRaf(i * 16)
+    expect(h.stats()).toHaveLength(0)
+
+    h.loop.stop()
+    h.loop.start()
+
+    // A fresh run where nothing reaches the glass, which is what a frame lock
+    // skipping every refresh looks like. One window's worth: the first refresh
+    // only sets the baseline, so 15 more close it.
+    h.setPresenting(false)
+    for (let i = 1; i <= 16; i++) h.deliverRaf(1000 + i * 16)
+
+    // Nothing presented in this run, so the readout is 0. Inheriting the
+    // previous run's ten made it report 41.7 — a rate the user never saw, in
+    // the one readout that says the signal path has outgrown the device.
+    expect(h.stats()).toHaveLength(1)
+    expect(h.stats()[0].fps).toBe(0)
   })
 
   it('keeps driving frames where there is no document at all', async () => {

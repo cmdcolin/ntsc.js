@@ -137,7 +137,12 @@ export class RenderLoop {
   private lastTime = 0
   private frameAcc = 0
   private frameCount = 0
-  // Refreshes in the current stats window whose render presented a frame.
+  // Refreshes in the current stats window whose render presented a frame. Reset
+  // by `start` as well as at each window boundary, and the pairing is the whole
+  // of it: a run that stops part way through a window leaves this holding that
+  // window's count, and the next run's first readout divides those frames by its
+  // own elapsed time. The readout is what says the signal path has outgrown the
+  // device, so a restart must not be able to invent frames it never presented.
   private presented = 0
   private gens = { render: 0, probe: 0 }
   private renderErrors = 0
@@ -240,6 +245,7 @@ export class RenderLoop {
     this.lastTime = 0
     this.frameAcc = 0
     this.frameCount = 0
+    this.presented = 0
     this.hangStrikes = 0
     this.drainProbe = false
     this.probeArmedAt = 0
