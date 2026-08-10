@@ -14,6 +14,7 @@ import {
   TAPE_FRAMES,
   TAPE_MM_PER_S,
 } from './constants'
+import { advanceCrossings } from './crossings'
 import { Wow } from './noise'
 
 const N = SAMPLES_PER_LINE * LINES
@@ -175,16 +176,13 @@ export class TapeState {
     }
     this.wasRecording = recording
 
-    // Off play speed the head stops following one track. Each sweep crosses
-    // |speed - 1| of them and the RF nulls at every crossing, which is one bar
-    // standing still at a pause and four sweeping at five times play — the same
-    // count the deck uses. It falls out of the arithmetic that a loop running
-    // backwards crosses two per sweep, so reverse is not clean either, and
-    // never was on a two-head machine.
+    // Off play speed the head stops following one track — the same mechanism
+    // the program deck's shuttle runs on, and the same arithmetic, which is why
+    // it lives in signal/crossings.ts rather than here. What is the loop's own
+    // is where `bars` comes from: a transport that can be pulled backwards, so
+    // reverse crosses two per sweep and is not clean either.
     const bars = transport - 1
-    if (bars !== 0) {
-      this.shuttlePhase = (this.shuttlePhase + bars * 0.0035 + 0.0008) % 1024
-    }
+    this.shuttlePhase = advanceCrossings(this.shuttlePhase, bars)
 
     const tapeDelayFrames = Math.floor(delay / N)
     const tapeSpliceFrames = Math.floor(past / N)

@@ -10,6 +10,7 @@ import {
   SAMPLE_RATE,
   TAPE_FRAMES,
 } from '../signal/constants'
+import { advanceCrossings } from '../signal/crossings'
 import {
   FILTER_STRIDE,
   NUM_SECTIONS,
@@ -1887,14 +1888,12 @@ export class Engine implements EngineApi {
       (this.scPhase + loRadPerSample(detuneKHz) * N) % (2 * Math.PI)
   }
 
-  // Crossing-pattern precession: a transport servo never sits on an exact
-  // multiple of play speed, so the bars sweep rather than hold still. Wrapped
-  // far out (not at 1) so strip identities don't all reroll at once; the one
-  // reroll per wrap is invisible under the bar noise.
+  // Crossing-pattern precession for the program deck. The mechanism and its
+  // constants are shared with the loop bin's own transport — see
+  // signal/crossings.ts — and what is this deck's own is only that its speed
+  // arrives as a multiple of play, so the crossing count is one less.
   private advanceShuttle(shuttleX: number): void {
-    if (shuttleX !== 1)
-      this.shuttlePhase =
-        (this.shuttlePhase + (shuttleX - 1) * 0.0035 + 0.0008) % 1024
+    this.shuttlePhase = advanceCrossings(this.shuttlePhase, shuttleX - 1)
   }
 
   // Ignition train phase: events every SAMPLE_RATE/f samples, continuous
