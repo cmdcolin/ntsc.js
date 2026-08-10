@@ -1,4 +1,4 @@
-import { CAMERA_LOOP_STAGE, SOURCE_A_STAGE, stageGroups } from './controls'
+import { CAMERA_LOOP_STAGE, stageGroups } from './controls'
 import { usePersistedString } from './storage'
 
 // Which stage, and which group inside it, are unfolded — one of each, so the
@@ -8,40 +8,38 @@ import { usePersistedString } from './storage'
 const OPEN_GROUP_STORE = 'video_feedback_open_group'
 const OPEN_PHASE_STORE = 'video_feedback_open_phase'
 
-// Which stage is open, read out of what was stored, and what to store for it.
+// Which stage is open, read out of what was stored.
 //
-// Nothing stored is a first session, and it opens on the head of the chain,
-// because that is where source A's picker is now. The map alone was the right
-// resting state while the pickers had a section of their own; with them inside
-// the stages it is a first run that draws a diagram of a rig and offers no way
-// to put a picture into it.
+// Nothing stored is a first session, and it rests on the map alone. A first run
+// did open on the head of the chain, on the argument that source A's picker
+// lives there and a diagram of a rig with no way to put a picture into it is a
+// dead end — but the map's SOURCE A box is pressable with nothing patched in
+// (see `stageTop` in app.tsx, which is what decides that), so the picker is one
+// click from the resting state and does not need a panel unfolded over it to be
+// reachable. A sidebar that opens itself is the more expensive default: every
+// new session, and every browser without the key — a fresh profile, a private
+// window, another port in dev — starts with a stage in the way.
 //
-// Which is why "never chosen" and "closed on purpose" have to be two different
-// stored values, and the empty string is the second one. Let them both come back
-// as null and closing the stage re-opens it on the next load, forever — the
-// round trip below is the whole point of the pair, and the pair is the whole
-// reason these are functions worth naming.
-// A stage that no longer exists is the third case, and it is stored state from
-// before the split: 'Feedback' was one stage over three loops, and it is now
-// three. Left alone it comes back as a name nothing renders and no box on the
-// map opens — a session that returns to a panel showing nothing, with no way to
-// tell that from having closed it. The camera loop is where it lands because it
-// held the group 'Feedback' opened at first.
+// This is why the empty string, which used to mean "closed on purpose" as
+// distinct from "never chosen", is now just another way of spelling closed: both
+// answers are the same, and the pair exists only to keep reading what older
+// sessions wrote.
+//
+// A stage that no longer exists is the case that still needs translating, and it
+// is stored state from before the split: 'Feedback' was one stage over three
+// loops, and it is now three. Left alone it comes back as a name nothing renders
+// and no box on the map opens — a session that returns to a panel showing
+// nothing, with no way to tell that from having closed it. The camera loop is
+// where it lands because it held the group 'Feedback' opened at first.
 const GONE: Readonly<Record<string, string>> = { Feedback: CAMERA_LOOP_STAGE }
 
 export const openStageFrom = (stored: string | null): string | null =>
-  stored === null
-    ? SOURCE_A_STAGE
-    : stored === ''
-      ? null
-      : (GONE[stored] ?? stored)
-export const storeOpenStage = (name: string | null): string => name ?? ''
+  stored === null || stored === '' ? null : (GONE[stored] ?? stored)
 
 export function usePanelNav() {
   const [openGroup, setOpenGroup] = usePersistedString(OPEN_GROUP_STORE)
-  const [stored, setStored] = usePersistedString(OPEN_PHASE_STORE)
+  const [stored, setOpenPhase] = usePersistedString(OPEN_PHASE_STORE)
   const openPhase = openStageFrom(stored)
-  const setOpenPhase = (name: string | null) => setStored(storeOpenStage(name))
 
   const openAt = (phase: string, group: string) => {
     setOpenPhase(phase)

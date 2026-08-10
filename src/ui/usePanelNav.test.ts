@@ -1,44 +1,41 @@
 // The open stage survives a reload through one string, and that string has to
-// carry three states out of two obvious values.
+// answer for three kinds of stored value.
 //
-// Before the source pickers moved into the stages, it carried two: a stage name,
-// or nothing at all for the map on its own — which was where a session started
-// and where the × put you back. A first run now opens on Source A instead,
-// because that stage is where A's picker is and the alternative is a first load
-// that draws a rig and offers no way to put a picture into it.
+// A first session rests on the map alone: nothing unfolds itself, because a
+// sidebar that opens a stage on every browser that has never stored the key — a
+// fresh profile, a private window, another port in dev — puts a panel in front
+// of the map for no reason the session asked for. The map's SOURCE A box is
+// pressable with nothing patched in, so the picker is still one click away.
 //
-// That leaves "never chosen" and "closed on purpose" needing different answers
-// from the same slot, and the failure if they share one is not visible in a
-// single session: you close the stage, it closes, and the next *load* re-opens
-// it. Forever, on every load, with nothing in the panel to say why.
+// The empty string is what an older build wrote for "closed on purpose", back
+// when that had to be told apart from "never chosen" so that closing the stage
+// did not re-open it on the next load. Both now mean closed, and the empty
+// string is kept readable rather than kept meaningful.
+//
+// The third is a stage name that no longer renders, which is remapped rather
+// than left to open a panel showing nothing.
 
 import { describe, expect, it } from 'vitest'
 
-import { SOURCE_A_STAGE } from './controls'
-import { openStageFrom, storeOpenStage } from './usePanelNav'
+import { CAMERA_LOOP_STAGE, SOURCE_A_STAGE } from './controls'
+import { openStageFrom } from './usePanelNav'
 
 describe('the open stage, across a reload', () => {
-  it('opens a first session on the stage holding A’s picker', () => {
-    expect(openStageFrom(null)).toBe(SOURCE_A_STAGE)
+  it('rests a first session on the map alone', () => {
+    expect(openStageFrom(null)).toBeNull()
   })
 
-  it('keeps a closed panel closed', () => {
-    // The round trip that the two-state version got wrong: close, reload, and
-    // the map is still on its own.
-    expect(openStageFrom(storeOpenStage(null))).toBeNull()
+  it('reads an older build’s "closed" the same way', () => {
+    expect(openStageFrom('')).toBeNull()
   })
 
   it('reopens whatever stage was left open', () => {
     for (const name of [SOURCE_A_STAGE, 'Tape', 'Source B', 'Sound']) {
-      expect(openStageFrom(storeOpenStage(name))).toBe(name)
+      expect(openStageFrom(name)).toBe(name)
     }
   })
 
-  it('never stores null, which is the value that means "never chosen"', () => {
-    // usePersistedString deletes the key when handed null, so a null reaching
-    // storage is indistinguishable from a fresh browser — which is exactly the
-    // collision the empty string exists to avoid.
-    expect(storeOpenStage(null)).not.toBeNull()
-    expect(storeOpenStage('Tape')).not.toBeNull()
+  it('lands a stage that no longer exists somewhere that renders', () => {
+    expect(openStageFrom('Feedback')).toBe(CAMERA_LOOP_STAGE)
   })
 })
