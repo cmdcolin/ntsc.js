@@ -69,9 +69,11 @@ export interface ChainStage {
   opens: boolean
 }
 
-// A stage that hangs under the trunk, plus where its wire goes — the two fields
-// the layout needs and a trunk stage has no use for.
-export interface ChainBranchStage extends ChainStage, BranchSpec {}
+// A stage that hangs under the trunk, plus where its wire goes — the fields the
+// layout needs and a trunk stage has no use for. An intersection rather than an
+// `extends` because BranchSpec is a union now: a box either joins a stage or is
+// wired to nothing, and there is no interface that is both.
+export type ChainBranchStage = ChainStage & BranchSpec
 
 // A stage that hangs *over* the trunk, on its own return. Where it leaves and
 // re-enters is not the caller's to say — that is the pass graph's, and it is
@@ -214,14 +216,14 @@ export function ChainMap(props: {
            the only thing that differs between an input and the view, and it is
            the whole statement: one is fed into the chain, the other out of it.
 
-           A free box draws none of that, because none of it is true of it: it
-           sits on this row for the room, not because anything is patched
-           anywhere. See BranchSpec.free — the gap around it is the drawing. */
+           A free box draws none of that, because none of it is true of it — see
+           FreeBox. It is on a row of its own below this one, where the empty
+           space around it is the whole drawing. */
         <g
           key={branch.name}
           className={cx(props.branches[i].off === true && styles.mapBranchOff)}
         >
-          {props.branches[i].free === true ? null : (
+          {branch.free ? null : (
             <>
               <line
                 className={styles.mapWire}
@@ -237,9 +239,9 @@ export function ChainMap(props: {
           <Node
             stage={props.branches[i]}
             x={branch.x}
-            y={BRANCH_Y}
+            y={branch.y}
             boxW={branch.w}
-            free={props.branches[i].free === true}
+            free={branch.free}
             open={props.open === branch.name}
             folds={props.folds}
             onOpen={props.onOpen}

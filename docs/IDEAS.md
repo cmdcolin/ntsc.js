@@ -621,8 +621,8 @@ does not work":
   had been cutting four times a second. `useModSlots.ts` already carries the
   reasoning for why it belongs in both — a stab train is part of the look in a
   way a freeze is not — so what is owed is the schema change to `?mod=` and to
-  the preset routings, with readers that tolerate its absence the way
-  `readStab` already tolerates a junk entry.
+  the preset routings, with readers that tolerate its absence the way `readStab`
+  already tolerates a junk entry.
 - **No knob can reach it.** The row passes `sync` but no `midi`, so the one
   lever here described as "the kill switch a bender keeps a thumb on"
   (`signal/stab.ts`) is mouse-only, while the motion fader an inch away is a
@@ -672,7 +672,7 @@ main one, which is the case the current model cannot express.
 clamp is `VideoPump.wrap`. Three things around it are deliberately not done.
 
 - **A cue row in the Deck.** The Deck is the panel's second index for controls a
-  hand moves during a take (`DeckSection.tsx` argues the case), and a cue is
+  hand moves during a take (`Deck.tsx` argues the case), and a cue is
   exactly that. It is not there because every row the Deck renders is backed by
   a control read through `ControlsContext`, and a cue is deliberately _not_ a
   control — two timestamps into one clip cannot be recalled by a preset or moved

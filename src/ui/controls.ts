@@ -3370,16 +3370,30 @@ export const VIEW_BLURB =
 // A box on the map costs the panel nothing while it is closed, which is the
 // whole reason it moved: the map is where you go looking for a thing to open.
 export const MOD_STAGE = 'Modulation'
-// Which trunk box it is parked under, which is *not* a join — nothing is drawn
-// between the two, and Tape has no more to do with the bay than any other
-// stage. It is where the room is: input B's wire runs along the lower row to the
-// mixer and rises there, and the sound arrives on a lead of its own under the
-// receiver, so the middle of the row is the one span with neither a box nor a
-// wire in it. Parked over the mixer instead — the obvious place, being the next
-// gap along — the box sat on B's run and read as B being patched through it.
-export const MOD_UNDER: Phase = 'Tape'
 export const MOD_BLURB =
   'not the rig — the hand on the knobs: LFOs, drift, sample-and-hold and the audio envelope wiggling any control around wherever you left its slider, the beat they lock to, and the stab gate that cuts the whole look in and out. A slot is patched at the control it drives (press ∿ on any row); this is where the eight read as a bay'
+
+// The deck: the panel's second organization of controls it already has, filed by
+// the gesture that moves them instead of by the mechanism that breaks. See
+// Deck.tsx for the case — the short version is that the signal path is the right
+// axis for almost everything and the wrong one for the twenty controls a hand
+// moves *during* a take, which are scattered across four stages (Mix, Tape, the
+// loop bin and the view) and want to be under one hand.
+//
+// So it is the second free box on the map, beside the bay, and for a reason that
+// rhymes with the bay's: both are the hand rather than the rig. The bay is the
+// hand you set running and leave; the deck is the hand that is on it now. Wiring
+// either into the chain would be a lie of the same kind — what the deck is
+// patched into is Mix, Tape, the loop and the view at once, which is four wires
+// saying less than none.
+//
+// It was a section immediately above the map, folded shut by default, which put
+// the performance surface behind a fold in the one part of the panel a
+// performance never scrolls to. On the map it costs the resting sidebar nothing
+// and sits where you already look for something to open.
+export const DECK_STAGE = 'Deck'
+export const DECK_BLURB =
+  'not the rig — the hand on it now: the transition lever and its wipe patterns, the DVE inset, both tape transports, the tracking knob and the hold that stops the frame dead. Every row here is the real row from the stage that owns it, with its MIDI bind and its help — gathered by the gesture that moves it rather than by where the fault happens'
 
 // The stages headed by a picker — the three things that can be patched in, and
 // so the three that decide what everything downstream of them is working on.

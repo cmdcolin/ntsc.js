@@ -5,6 +5,7 @@ import {
   barInert,
   barPosition,
   barThrow,
+  deckLoad,
   shuttleToTravel,
   takeAt,
   travelToShuttle,
@@ -107,5 +108,46 @@ describe('the auto-take', () => {
 
   it('is a cut at zero duration', () => {
     expect(takeAt(0, 1, 0, 0)).toBe(1)
+  })
+})
+
+// What the box on the map wears while the deck is shut. Not a count of controls
+// off stock — every control the deck draws is already counted on the stage that
+// owns it, so the number would be the same edits marked twice on one drawing.
+// What it counts is which of the deck's gestures are engaged, which is a fact
+// about the take that has no other box to be shown on.
+describe('what the deck is holding', () => {
+  it('is holding nothing at rest, and says nothing', () => {
+    expect(deckLoad(at({}))).toEqual({ n: 0, say: '' })
+  })
+
+  // A resting deck is not the same as a resting rig: shuttleX rests at 1 and
+  // timeScale at 1, so "off stock" for these two is a value either side of one
+  // rather than anything above zero.
+  it('counts a gesture off its own rest, not off zero', () => {
+    expect(deckLoad(at({ shuttleX: 1 })).n).toBe(0)
+    expect(deckLoad(at({ shuttleX: 0 })).say).toBe('the tape off play')
+    expect(deckLoad(at({ timeScale: 1 })).n).toBe(0)
+    expect(deckLoad(at({ timeScale: 0 })).say).toBe('the picture held')
+    // Slowed is a different statement from stopped, and the deck's hold button
+    // only makes the second one.
+    expect(deckLoad(at({ timeScale: 0.25 })).say).toBe('the picture slowed')
+  })
+
+  // A wipe is armed by a *pattern*, not by the lever: wipeMode 0 is a dissolve,
+  // which is the transition doing what it does with nothing selected.
+  it('is a wipe only once a pattern is picked', () => {
+    expect(deckLoad(at({ wipeMode: 0, wipePos: 0.5 })).n).toBe(0)
+    expect(deckLoad(at({ wipeMode: 2 })).say).toBe('a wipe armed')
+  })
+
+  it('reads as a sentence when more than one is live', () => {
+    expect(deckLoad(at({ tapeMix: 0.5, trackAmt: 0.3 }))).toEqual({
+      n: 2,
+      say: 'the loop threaded and the head off track',
+    })
+    expect(deckLoad(at({ pipMix: 1, tapeMix: 0.5, timeScale: 0 })).say).toBe(
+      'the inset up, the loop threaded and the picture held',
+    )
   })
 })

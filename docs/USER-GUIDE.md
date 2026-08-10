@@ -102,9 +102,18 @@ face and comes back in ahead of the encoder. **mixer** is the composite bus
 patched into itself. **tape** is a loop bin straddling the mix. **diagram ⤢**
 draws the same path with room for what the miniature leaves out.
 
-**MODULATION** is the one box with no wire on it, floating below the chain. It
-opens the same way the rest do, and it is drawn apart because it is patched into
-the controls rather than into the signal: nothing goes through it.
+**DECK** and **MODULATION** are the two boxes with no wire on them, on a row of
+their own below the chain. They open the same way the rest do, and they are
+drawn apart because they are patched into the controls rather than into the
+signal: nothing goes through either.
+
+**MODULATION** is the hand you set running and leave — LFOs, drift, the audio
+envelope and the stab gate. **DECK** is the hand that is on it now: the
+transition lever and its wipe patterns, the inset, both tape transports, the
+tracking knob and the hold that stops the frame dead. Every row in the deck is
+the real row from the stage that owns it, gathered by the gesture that moves it
+rather than by where the fault happens — so a take is one surface instead of
+four stages. Its dot counts what is engaged, not what is off stock.
 
 ![The app window with the Tape stage opened at VHS Tracking, the stage list boxed in red](img/signal-path.jpg)
 

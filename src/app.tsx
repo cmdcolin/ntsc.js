@@ -23,13 +23,14 @@ import {
   ALL_SLIDERS,
   AUDIO_GROUPS,
   B_GROUPS,
+  DECK_BLURB,
+  DECK_STAGE,
   LOOP_STAGE_NAMES,
   LOOP_STAGES,
   loopGroups,
   MIX_STAGE,
   MOD_BLURB,
   MOD_STAGE,
-  MOD_UNDER,
   OFF_HINT,
   PHASES,
   SOUND_BLURB,
@@ -48,7 +49,8 @@ import {
   NO_CONTROL_STORE,
 } from './ui/ControlsContext'
 import { cx } from './ui/cx'
-import { DeckSection } from './ui/DeckSection'
+import { Deck } from './ui/Deck'
+import { deckLoad } from './ui/deck'
 import { FatalScreen } from './ui/FatalScreen'
 import {
   FilterContext,
@@ -495,6 +497,7 @@ export function App() {
     reverb: eng.reverb,
     cueA: eng.a.cue,
     cueB: eng.b.cue,
+    onError: eng.setError,
   })
 
   // The saved-profile library, which is the query string above kept under a name.
@@ -813,6 +816,21 @@ export function App() {
         nav.jumpPhase(MOD_STAGE)
       },
     },
+    // The deck is reachable by search only in the same roundabout way: every row
+    // it draws is a real control row, so a query finds each of them — in the four
+    // separate stages that own them, which is the arrangement the deck exists to
+    // offer an alternative to. Nothing answers to "deck" itself.
+    {
+      name: 'deck',
+      blurb:
+        'the transition lever and its wipe patterns, the inset, both tape transports, tracking and the hold — the controls a hand moves during a take, gathered under one',
+      run: () => {
+        // Same as the bay: a live query takes the box off the map, so a jump has
+        // to clear the filter or it opens a stage that is not being drawn.
+        setFilter('')
+        nav.jumpPhase(DECK_STAGE)
+      },
+    },
     {
       name: 'advanced settings',
       blurb: 'render scale and MIDI setup',
@@ -940,6 +958,8 @@ export function App() {
   // map's floating box and the full diagram's. Read once, so the miniature and
   // the card cannot disagree about a bay neither of them can count for itself.
   const bay = bayLoad(modApi.slots, modApi.stab)
+  // And what the deck is holding, for the same two drawings and the same reason.
+  const deck = deckLoad(controls)
   const loopsLive = {
     camera: controls.fbMix > 0,
     mixer: controls.cfbMix > 0,
@@ -974,16 +994,20 @@ export function App() {
             under: 'head' as const,
           },
         ]),
-    // The modulation bay, which is on this row for the room rather than because
-    // it hangs off anything: nothing is drawn to it (BranchSpec.free), because
-    // what it is patched into is the *controls* — every one of them, in every
-    // other stage — and a line to two hundred sliders is a line to nothing. It
-    // floats in the empty middle of the row, and the gap is the statement.
+    // The two free boxes, on a row of their own below the branches: nothing is
+    // drawn to either (see FreeBox), because what each is patched into is the
+    // *controls* — every one of them, in every other stage — and a line to two
+    // hundred sliders is a line to nothing. The empty row is the statement.
     //
-    // Out while a filter is live, exactly as it was while it was a section of
-    // the sidebar: everything below the filter box is the result set, and the
-    // bay holds no control the filter can reach — its rows describe slots, so
-    // none of them is in GROUPS to be matched.
+    // They are a pair, which is why they are laid out as one: the bay is the
+    // hand you set running and walk away from, the deck is the hand that is on
+    // it now. Neither is the rig.
+    //
+    // Both out while a filter is live, exactly as they were while they were
+    // sections of the sidebar: everything below the filter box is the result
+    // set, and neither holds a control the filter can reach — the bay's rows
+    // describe slots, and every row the deck draws is borrowed from a stage that
+    // is already in the results under its own name.
     ...(filtering
       ? []
       : [
@@ -1009,10 +1033,17 @@ export function App() {
                 onOpenGroup={nav.openAt}
               />
             ),
-            // Parked under Tape rather than joined to it — see MOD_UNDER for
-            // why the middle of the row is the only place it can sit.
-            join: MOD_UNDER,
-            under: 'join' as const,
+            free: true as const,
+          },
+          {
+            ...pathNode(DECK_STAGE, DECK_BLURB, []),
+            // Which gestures are live, rather than how many controls are off
+            // stock: every control the deck touches is counted already, on the
+            // box of the stage that owns it. See deckLoad.
+            touched: deck.n,
+            touchedSay: deck.say,
+            onJumpTouched: undefined,
+            body: () => <Deck />,
             free: true as const,
           },
         ]),
@@ -1416,16 +1447,12 @@ export function App() {
         </Section>
       )}
 
-      {/* The other index into the same controls: the map below files them by
-          where a fault happens in the signal path, the deck by the gesture that
-          moves them. It sits immediately above the map because the two are a
-          pair, and it is folded by default because most sessions are one person
-          dialling a look in rather than performing one.
-
-          Out under a filter, like Modulation: it holds three real
-          control rows, but it is a fixed surface rather than a result set, and
-          the rows it borrows are reachable in their own stages. */}
-      {filtering ? null : <DeckSection />}
+      {/* The deck used to be a section here, immediately above the map: the
+          other index into the same controls, folded shut by default, which put
+          the performance surface behind a fold in the one part of the panel a
+          performance never scrolls to. It is a box on the map now, beside the
+          modulation bay on the row of things nothing is wired to — see
+          DECK_STAGE for why those two belong together. */}
 
       {/* The signal-path map is the panel's trunk, so it sits high — right under
           the source and preset front door — and the filter that acts on it heads
@@ -1636,6 +1663,7 @@ export function App() {
           bOn={bOn}
           soundOn={soundOn}
           mod={bay}
+          deck={deck}
           onOpen={nav.openAt}
           onClose={() => setShowDiagram(false)}
         />

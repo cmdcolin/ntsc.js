@@ -1,5 +1,7 @@
 import { atRest } from '../controls'
 import {
+  DECK_BLURB,
+  DECK_STAGE,
   FEED_A_GROUP,
   FEED_B_GROUP,
   LOOP_STAGES,
@@ -26,6 +28,7 @@ import ui from './ui.module.css'
 
 import type { Controls } from '../controls'
 import type { LoopsLive } from './controls'
+import type { DeckLoad } from './deck'
 import type { BayLoad } from './modSlots'
 
 // The path drawn at a size that can carry it. The sidebar's miniature has room
@@ -45,11 +48,17 @@ const W = 660
 // their room vertically, where there was nothing but wire, rather than
 // horizontally, where there is none — and dropping the box they used to share
 // gave a column back.
-const H = 148
+const H = 180
 const GUTTER = 14
 const GAP = 14
 const MID_Y = 92
 const BRANCH_Y = 128
+// The free row, under the branches: the boxes nothing is wired to. Same
+// arrangement as the miniature's (chainLayout.ts, FREE_Y) and for the same
+// reason — parked among the wired boxes, a box with no wire has to be read as
+// deliberate against a row full of wires, and there is only ever one gap wide
+// enough to be that convincing. On a row of their own the emptiness is the row.
+const FREE_Y = 164
 const BOX_H = 22
 const HEAD = 3
 const TURN = 5
@@ -79,12 +88,13 @@ interface Box {
   stage: string
   group?: string
   col: number
-  row: 'a' | 'b' | 'trunk'
+  row: 'a' | 'b' | 'trunk' | 'free'
   what: string
   // Nothing is drawn to this box, because it is not in the path: the modulation
-  // bay acts on the controls rather than on the signal. The lower row is where
-  // there is room for it, and the space around it is the whole of what says so —
-  // same decision as the miniature's (chainLayout.ts, BranchSpec.free).
+  // bay acts on the controls rather than on the signal, and the deck is those
+  // same controls gathered by the gesture that moves them. Both sit on the free
+  // row, and the space around them is the whole of what says so — same decision
+  // as the miniature's (chainLayout.ts, FreeBox).
   free?: true
 }
 
@@ -170,18 +180,24 @@ const BOXES: Box[] = [
     row: 'b',
     what: VIEW_BLURB,
   },
-  // And the one box wired to nothing at all. It sits in the empty middle of the
-  // lower row because that is where the room is — under Tape means nothing here,
-  // and is meant to: what this is patched into is every control in every other
-  // box, which is a line to two hundred sliders and therefore no line at all.
-  // The same column the miniature parks it in (MOD_UNDER), and for the same
-  // reason: B's run to the mixer crosses this row on one side of it and the
-  // sound's lead-in arrives on the other.
+  // And the two boxes wired to nothing at all, on the middle two columns of a
+  // row of their own: what either is patched into is every control in every
+  // other box, which is a line to two hundred sliders and therefore no line at
+  // all. The pair is centred rather than anchored, because there is nothing here
+  // for a column to mean.
+  {
+    label: 'Deck',
+    stage: DECK_STAGE,
+    col: 2,
+    row: 'free',
+    what: DECK_BLURB,
+    free: true,
+  },
   {
     label: 'Modulation',
     stage: MOD_STAGE,
     col: 3,
-    row: 'b',
+    row: 'free',
     what: MOD_BLURB,
     free: true,
   },
@@ -297,6 +313,10 @@ export function SignalPathDialog(props: {
   // not a control: there is no group of sliders behind this box for `touchedIn`
   // to walk, and "off stock" is not what its count means.
   mod: BayLoad
+  // And for the deck, for the same reason again: what its box counts is which
+  // gestures are engaged, not controls off stock — every control it draws is
+  // already counted on the box of the stage that owns it.
+  deck: DeckLoad
   // The same question for the other branch: no audio input picked, so the box
   // is drawn and inert rather than absent.
   soundOn: boolean
@@ -308,6 +328,7 @@ export function SignalPathDialog(props: {
   // that group; a stage counts all of its own.
   const touchedIn = (box: Box): number => {
     if (box.stage === MOD_STAGE) return props.mod.n
+    if (box.stage === DECK_STAGE) return props.deck.n
     const groups = stageGroups(box.stage).filter(
       g => box.group === undefined || g.name === box.group,
     )
@@ -327,7 +348,8 @@ export function SignalPathDialog(props: {
     onClose()
   }
   const open = (box: Box) => openStage(box.stage, box.group)
-  const rowY = (row: Box['row']) => (row === 'b' ? BRANCH_Y : MID_Y)
+  const rowY = (row: Box['row']) =>
+    row === 'b' ? BRANCH_Y : row === 'free' ? FREE_Y : MID_Y
   // B's feed joins the run between Feed A and the mixer, which is where mixB
   // sits in the pass order.
   const join = (colX(1) + colX(2)) / 2
@@ -354,9 +376,10 @@ export function SignalPathDialog(props: {
         box is a piece of hardware misbehaving, and the artifacts come out of
         how they interfere. Click one to open its controls — and the three loops
         over the top are pressable too, each one its own way back into the
-        chain. The one box with no wire on it is the modulation bay: it is
-        patched into the controls rather than into the signal, which is why it
-        floats.
+        chain. The two boxes on the bottom row have no wire on them: the
+        modulation bay and the deck are patched into the controls rather than
+        into the signal — one setting them moving on its own, the other
+        gathering the ones a hand moves during a take — which is why they float.
       </p>
       <svg
         className={styles.diagram}
@@ -500,7 +523,13 @@ export function SignalPathDialog(props: {
               off={off}
               opens={opens(box)}
               touched={n}
-              touchedSay={box.stage === MOD_STAGE ? props.mod.say : undefined}
+              touchedSay={
+                box.stage === MOD_STAGE
+                  ? props.mod.say
+                  : box.stage === DECK_STAGE
+                    ? props.deck.say
+                    : undefined
+              }
               // No `foldHint`: this card marks and opens, it never closes a
               // stage, so the hover text stops at the off-stock count.
               className={cx(

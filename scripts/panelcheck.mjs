@@ -223,22 +223,22 @@ await phase('filter', { seed: OLD_BAY }, async page => {
     cleared.chain,
     'the chain map did not come back when the filter cleared',
   )
-  // Nine boxes that open: the five trunk stages, the three that hang under them
-  // — input B, the sound and the view, none of which is a Phase — and the
-  // modulation bay, which hangs off nothing at all and is drawn floating on the
-  // same row. B is on out of the box so the mixer opens too; the sound is *not*
-  // picked and its box still opens, because its picker is the first thing inside
-  // it and patching one in is the whole reason to press it. Mix is the one box
-  // that can stop opening — with B off it holds nothing but controls that cannot
-  // act and there is no picker for "a second signal" — and then this count drops
-  // to eight.
+  // Ten boxes that open: the five trunk stages, the three that hang under them
+  // — input B, the sound and the view, none of which is a Phase — and the two
+  // that hang off nothing at all, drawn on a free row below the branches: the
+  // modulation bay and the deck. B is on out of the box so the mixer opens too;
+  // the sound is *not* picked and its box still opens, because its picker is the
+  // first thing inside it and patching one in is the whole reason to press it.
+  // Mix is the one box that can stop opening — with B off it holds nothing but
+  // controls that cannot act and there is no picker for "a second signal" — and
+  // then this count drops to nine.
   //
   // It said six trunk stages and nine boxes while there were five and eight,
   // which is the shape of a count that has been wrong since the FEEDBACK box
   // came off the trunk: the number was right, the reason was not, and the two
   // came back into agreement by accident when the bay arrived on the map.
   check(
-    cleared.stages.length === 9,
+    cleared.stages.length === 10,
     `the map came back with ${cleared.stages.length} stages: ${cleared.stages}`,
   )
   // The two inputs are peers on the map, and the mixer is a box of its own. All

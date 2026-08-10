@@ -7,7 +7,6 @@ import { cx } from './cx'
 import { wipeEngaged } from './deck'
 import styles from './Deck.module.css'
 import { PipControl } from './PipControl'
-import { Section } from './Section'
 import { Rack } from './Slider'
 import { TBar } from './TBar'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
@@ -39,36 +38,36 @@ import type { ReactNode } from 'react'
 // (a wipe's softness, its sweep rate, the slow-motion depth) are those very
 // rows, rendered here.
 //
-// Folded by default: most sessions are one person dialling in a look, and the
-// deck is for the sessions that are not.
-export function DeckSection() {
+// It was a `<Section>` of the sidebar, folded shut by default, sitting directly
+// above the map. It is a box on that map now (DECK_STAGE) — the second of the
+// two that are wired to nothing, beside the modulation bay, which is the same
+// statement made about the same kind of thing: the bay is the hand you set
+// running, this is the hand that is on it now, and neither is the rig. Which
+// also settles what "folded by default" was for. It is not folded; it is not
+// there until it is pressed, and it costs the resting panel nothing.
+export function Deck() {
   return (
-    <Section title="Deck" defaultOpen={false}>
-      <div className={styles.deck}>
-        <Transition />
-        <Block
-          label="inset"
-          hint="the DVE window — drag to place, grips to size"
-        >
-          <div className={styles.pad}>
-            <PipControl />
-          </div>
-        </Block>
-        <Block
-          label="transport"
-          hint="two machines, and the tape in each was written by a different head"
-        >
-          <TapeTransport />
-          <LoopTransport />
-        </Block>
-        <Block label="tracking" hint="the knob on the front of the VCR">
-          <div className={styles.pad}>
-            <TrackingPad />
-          </div>
-        </Block>
-        <Hold />
-      </div>
-    </Section>
+    <div className={styles.deck}>
+      <Transition />
+      <Block label="inset" hint="the DVE window — drag to place, grips to size">
+        <div className={styles.pad}>
+          <PipControl />
+        </div>
+      </Block>
+      <Block
+        label="transport"
+        hint="two machines, and the tape in each was written by a different head"
+      >
+        <TapeTransport />
+        <LoopTransport />
+      </Block>
+      <Block label="tracking" hint="the knob on the front of the VCR">
+        <div className={styles.pad}>
+          <TrackingPad />
+        </div>
+      </Block>
+      <Hold />
+    </div>
   )
 }
 

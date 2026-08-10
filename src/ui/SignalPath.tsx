@@ -34,8 +34,9 @@ export interface PathNode extends Omit<ChainStage, 'opens'> {
 
 // The same, for a stage that hangs under the trunk rather than on it. Off
 // BranchSpec rather than ChainBranchStage for the reason above: `opens` is not
-// the caller's to say.
-export interface BranchNode extends PathNode, BranchSpec {}
+// the caller's to say. An intersection because BranchSpec is a union — a box
+// either joins a stage or is wired to nothing (see FreeBox).
+export type BranchNode = PathNode & BranchSpec
 
 // And for one that hangs over it: a loop, which is a machine patched across the
 // chain rather than a stage of it. Three of them, and each is reached by its own
