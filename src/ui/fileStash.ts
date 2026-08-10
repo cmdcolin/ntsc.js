@@ -27,7 +27,7 @@
 import { openClipById } from './clipLibrary'
 import { grantRead, isPickedFile } from './fsAccess'
 import { idbDelete, idbGet, idbPut } from './idb'
-import { readRecord, writeJSON } from './storage'
+import { readRecord, removeStored, writeJSON } from './storage'
 
 import type { PoolRef } from '../sources/pools'
 import type { PickedFileHandle } from './fsAccess'
@@ -138,7 +138,7 @@ export async function stashClip(
 // leave a copy's bytes charged against the origin's quota forever.
 export async function clearStash(slot: StashSlot): Promise<void> {
   const meta = readRecord<Meta>(metaKey(slot), NONE)
-  localStorage.removeItem(metaKey(slot))
+  removeStored(metaKey(slot))
   if (meta.kind === 'copy' && meta.name !== '') {
     const root = await opfsRoot()
     await root.removeEntry(copyName(slot))

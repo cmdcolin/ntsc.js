@@ -1,8 +1,22 @@
 import { useState } from 'react'
 
+// The raw string under a key, or null for absent — and for "there is no store
+// here to read". `getItem` is not only a lookup: where the browser has storage
+// switched off, touching `localStorage` at all throws SecurityError from the
+// global's getter. That lands in `useState(() => …)` at mount, which is the
+// precise crash the doc comment below is about, so the guard belongs under
+// every read and not only the parsed ones.
+export function readStored(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
 // Parsed contents of a key, or undefined when absent or unparseable.
 function parseStored(key: string): unknown {
-  const raw = localStorage.getItem(key)
+  const raw = readStored(key)
   if (raw === null) return undefined
   try {
     return JSON.parse(raw) as unknown
@@ -43,8 +57,50 @@ export function readRecord<T extends object>(key: string, fallback: T): T {
     : fallback
 }
 
+// Whether the "storage is gone" line has been said. Once per session, not once
+// per write: on a browser with storage blocked *every* write fails, and this
+// app writes on drags, so the honest report is one line and not a flood.
+let warnedUnavailable = false
+
+// Every write goes through here. `localStorage.setItem` throws two ways that
+// have nothing to do with this app's data — QuotaExceededError when the origin
+// is full, and SecurityError where the browser has storage switched off
+// (Safari's private mode, "block all cookies", a partitioned third-party frame)
+// — and both take down the call site, which is a click handler, a pointer move,
+// or the pagehide flush.
+//
+// The reads above already refuse to throw for the same reason; a write has even
+// less claim to. All that is lost when one fails is durability, which was
+// best-effort to begin with: the state itself is in React and the session
+// carries on intact, one refresh away from stock.
+function tryWrite(run: () => void): void {
+  try {
+    run()
+  } catch (e) {
+    if (!warnedUnavailable) {
+      warnedUnavailable = true
+      console.warn(
+        'localStorage unavailable — this session will not persist',
+        e,
+      )
+    }
+  }
+}
+
 export function writeJSON(key: string, value: unknown) {
-  localStorage.setItem(key, JSON.stringify(value))
+  tryWrite(() => localStorage.setItem(key, JSON.stringify(value)))
+}
+
+// Forget a key. Guarded like the writes, and exported so no caller has to reach
+// for `localStorage` directly and rediscover that removeItem throws too.
+export function removeStored(key: string) {
+  tryWrite(() => localStorage.removeItem(key))
+}
+
+// Write a bare string — for the flags and hints that were never JSON. Same
+// guard; the point of having it here is that the try/catch is written once.
+export function writeString(key: string, value: string) {
+  tryWrite(() => localStorage.setItem(key, value))
 }
 
 // The same write, coalesced — for state a *drag* changes, where the setter runs
@@ -87,10 +143,10 @@ export function writeJSONSoon(key: string, value: unknown, ms = 300) {
 // A boolean flag persisted across reloads (stored as '1'/'0'). The setter writes
 // through, so a toggle survives a refresh without any extra effect wiring.
 export function usePersistedFlag(key: string) {
-  const [on, setOn] = useState(() => localStorage.getItem(key) === '1')
+  const [on, setOn] = useState(() => readStored(key) === '1')
   const set = (next: boolean) => {
     setOn(next)
-    localStorage.setItem(key, next ? '1' : '0')
+    writeString(key, next ? '1' : '0')
   }
   return [on, set] as const
 }
@@ -98,11 +154,11 @@ export function usePersistedFlag(key: string) {
 // A nullable string persisted across reloads — null clears the key, so absent
 // and "nothing selected" are the same state rather than two.
 export function usePersistedString(key: string) {
-  const [value, setValue] = useState(() => localStorage.getItem(key))
+  const [value, setValue] = useState(() => readStored(key))
   const set = (next: string | null) => {
     setValue(next)
-    if (next === null) localStorage.removeItem(key)
-    else localStorage.setItem(key, next)
+    if (next === null) removeStored(key)
+    else writeString(key, next)
   }
   return [value, set] as const
 }

@@ -1,7 +1,7 @@
 import { CONTROL_KEYS } from '../controls'
 import { AUTOMAP_KEYS, SLIDER_BY_KEY, sliderFor, snapToStep } from './controls'
 import { PRESETS, presetLabel } from './presets'
-import { readRecord } from './storage'
+import { readRecord, removeStored, writeJSON, writeString } from './storage'
 import { fromTravel } from './travel'
 
 import type { ControlKey } from '../controls'
@@ -353,7 +353,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
   reindex()
 
   const persist = () => {
-    localStorage.setItem(STORE_KEY, JSON.stringify(bindings))
+    writeJSON(STORE_KEY, bindings)
     cb.onBindings({ ...bindings })
   }
 
@@ -472,7 +472,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
         navigator.requestMIDIAccess().then(
           m => {
             access = m
-            localStorage.setItem(ENABLED_KEY, '1')
+            writeString(ENABLED_KEY, '1')
             cb.onStatus('ready')
             cb.onBindings({ ...bindings })
             listen(m)
@@ -487,7 +487,7 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
             }, 500)
           },
           () => {
-            localStorage.removeItem(ENABLED_KEY)
+            removeStored(ENABLED_KEY)
             cb.onStatus('denied')
           },
         )

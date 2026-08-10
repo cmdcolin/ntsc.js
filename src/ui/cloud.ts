@@ -1,4 +1,5 @@
 import { readProfiles } from './savedProfiles'
+import { removeStored, writeString } from './storage'
 
 import type { RatingRecord } from '../labels'
 import type { CandidateRecord, VoteRecord } from '../vote/votes'
@@ -108,8 +109,8 @@ export async function watchAuth(
 ): Promise<() => void> {
   const { auth, authMod } = await loadSdk()
   return authMod.onAuthStateChanged(auth, user => {
-    if (user === null) localStorage.removeItem(SIGNED_IN_HINT)
-    else localStorage.setItem(SIGNED_IN_HINT, '1')
+    if (user === null) removeStored(SIGNED_IN_HINT)
+    else writeString(SIGNED_IN_HINT, '1')
     onUser(user === null ? null : asCloudUser(user))
   })
 }
@@ -122,13 +123,13 @@ export async function signIn(): Promise<CloudUser> {
   const { auth, authMod } = await loadSdk()
   const provider = new authMod.GoogleAuthProvider()
   const result = await authMod.signInWithPopup(auth, provider)
-  localStorage.setItem(SIGNED_IN_HINT, '1')
+  writeString(SIGNED_IN_HINT, '1')
   return asCloudUser(result.user)
 }
 
 export async function signOut(): Promise<void> {
   const { auth } = await loadSdk()
-  localStorage.removeItem(SIGNED_IN_HINT)
+  removeStored(SIGNED_IN_HINT)
   await auth.signOut()
 }
 
