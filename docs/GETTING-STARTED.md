@@ -44,12 +44,15 @@ the sidebar is that path, and every box on it is a button.
 
 ## Three looks to try
 
-|                                                           |                                                                                 |                                                       |
-| :--------------------------------------------------------: | :-----------------------------------------------------------------------------: | :----------------------------------------------------: |
-| ![Hue banding rolling down the frame](img/look-rainbow.jpg) | ![Suppressed sync: every line landing at its own offset](img/look-scramble.jpg) | ![Noise bars sweeping a cued tape](img/look-tape.jpg) |
+|                                                                                     |                                                                                    |                                                                              |
+| :---------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------: | :---------------------------------------------------------------------------: |
+| ![Reversed polarity: every hue complementary, the raster sheared](img/look-negative.jpg) | ![The video synth keyed against itself: hard bands of saturated colour](img/look-key.jpg) | ![A mixer loop past unity, breeding coloured structure](img/look-loop.jpg) |
 
-**rainbow storm** pulls the colour crystal off frequency · **scrambled channel**
-suppresses sync · **picture search** drags the head across four tracks a sweep.
+**negative** reverses polarity on the composite line, which takes sync with it,
+so the set shears looking for a tip up in peak white · **key sweep** puts the
+video synth through the chroma keyer, with no camera anywhere in it · **mixer
+loop** patches the composite back into itself past unity, where it stops
+returning your picture and starts breeding its own.
 
 ## Where next
 

@@ -67,8 +67,16 @@ const boxed = (target, spec) => ({
 // A gallery frame: one named mechanism pushed past where its preset leaves it,
 // so each tile in the guide's gallery is a different fault rather than a
 // different roll of the same dice. `?surprise` (the app's own dice) mostly
-// lands on stacks that read as generic mush at thumbnail size — a good gallery
-// needs the cat still legible under the damage, and the damage nameable.
+// lands on stacks that read as generic mush at thumbnail size.
+//
+// These used to stop where the cat was still legible under the damage. They no
+// longer do: a tile that reads as a photo with an effect on it undersells the
+// thing, and the point of a signal simulator is the state where the picture has
+// stopped being a picture and the structure on screen is the chain's own. The
+// bar a tile clears is now that it has structure — hue that goes somewhere,
+// geometry that came from somewhere — rather than that the subject survives.
+// Full white, full black and undifferentiated hash all still fail it, and all
+// three are one control away from every patch below.
 //
 // `docshots --freeze` still pins whatever a shot's address bar said, so a look
 // pushed further by hand in the app can be captured back into
@@ -158,35 +166,52 @@ export const SPECS = [
   // region is the shape to reach for rather than another boxed window.
 
   // The showcase gallery: three mechanisms, one per tile, each starting from
-  // the preset that names it and pushed past where that preset stops — but
-  // stopping short of where the mechanism destroys its own evidence. Detune the
-  // subcarrier far enough and the decoder gives up on colour entirely; suppress
-  // sync hard enough and there is no picture left to shear. The preset is the
-  // safe end and these sit just short of the cliff, so a change to one wants
-  // looking at rather than assuming.
+  // the preset that names it and pushed well past where that preset stops.
+  // Each is a different kind of destruction rather than three strengths of one
+  // — a receiver decoding a signal whose polarity is upside down, a keyer with
+  // no camera anywhere in it, and a feedback loop breeding its own structure —
+  // and the three read apart at thumbnail size, which is the only size the
+  // gallery is ever seen at.
   //
-  // `tunnel`, `ladder` and `tube` went: a camera loop photographed as a still
-  // is a soft haze, a keyed mixer loop reads as noise on the subject, and a
-  // driven tube reads as a contrasty photo. All three failed the gallery's own
-  // rule below — the damage was not nameable from the tile. The two feedback
-  // loops are motion effects and belong in the clips, which is where they are.
-  look('rainbow', {
-    preset: 'rainbow storm',
-    // A far-detuned subcarrier is a motion effect: the hue spins fast enough
-    // that a still averages back to grey with coloured fringes. Pulled back to
-    // half a kilohertz it barber-poles slowly enough to photograph.
-    set: 'scDetuneKHz:0.5,burstLock:0.2,chromaGain:2.2,svideoBleed:0.6,hHold:0.25',
+  // Six tiles stood here: rainbow, scramble, tape, tunnel, ladder, tube. Half
+  // were a legible photo with an effect on it, and half (the two camera loops
+  // and the driven tube) photographed as haze, noise and a contrasty snapshot.
+  // The presets they named are all still one click away in the app; a gallery
+  // is not the place to enumerate them.
+  // The mixer loop past unity, with the loop bus ring-modulated against the
+  // live program and a big offset per generation. What survives is structure
+  // the loop is breeding rather than the picture that seeded it: the delay is
+  // also a hue rotation, so each generation lands a step further round the
+  // wheel and the stack is coloured rather than grey.
+  look(
+    'loop',
+    {
+      preset: 'mixer loop',
+      set: 'cfbMix:0.8,cfbGain:1.01,cfbLines:-9,cfbDelayUs:1.4,cfbServoUs:1.6,cfbRing:0.45,cfbTrail:0.6,chromaGain:2.6,crtSat:1.6,crtGamma:1.3,phosphor:0.45,noiseIre:2',
+    },
+    { warm: 100 },
+  ),
+  // Polarity reversed on the composite line, which takes sync with it — so
+  // this is not a negative filter over a photo: the set is hunting for a sync
+  // tip up in peak white, and what it finds shears the raster while every hue
+  // reads complementary. Scrambling and a loose PLL on top, so the lines land
+  // where the separator guesses.
+  look('negative', {
+    preset: 'negative',
+    set: 'invert:1,scramble:0.45,agc:0.3,hHold:0.5,hDetuneHz:34,bendUs:16,bendShape:2,chromaGain:2.4,svideoBleed:0.7,noiseIre:5,phosphor:0.55,crtGamma:2.4,crtBloom:0.7',
   }),
-  look('scramble', {
-    preset: 'scrambled channel',
-    // Sync suppression and AGC compound: the amplifier chases a tip that is not
-    // there and takes the whole picture to white with it, so the gain control
-    // comes down as the suppression goes up.
-    set: 'scramble:0.62,hHold:0.45,agc:0.22,noiseIre:3',
-  }),
-  look('tape', {
-    preset: 'picture search',
-    set: 'trackAmt:0.75,trackPos:0.35,headSwitchNoise:0.9,dropoutRate:30,tbWowNs:1100',
+  // No camera anywhere in this one: the video synth into the chroma keyer,
+  // which is what key sweep is built for. The colorizer turns level into hue,
+  // so the synth is a ramp *through* the wheel and the key cuts a band out of
+  // it — the acceptance angle is the width of the hole and the key hue is
+  // where it sits. Nothing here is drawing a stripe, and the oscillator is
+  // parked just off a line-rate multiple so the bars lean and beat instead of
+  // standing still.
+  look('key', {
+    src: 'synth',
+    srcb: 'bars',
+    preset: 'key sweep',
+    set: 'synthAHz:15797,synthBHz:47,synthShape:3,synthMix:2,synthColor:1,synthLevel:1.7,bKeyHueDeg:196,bKeyAcceptDeg:52,bKeySoft:0.06,bKeySpill:0.4,chromaGain:3,chromaCoarse:3,scDetuneKHz:0.4,burstLock:0.3,demodMHz:0.9,svideoBleed:0.8,crtSat:1.6,crtGamma:1.9,phosphor:0.35',
   }),
 
   // Clips: the four things a still cannot show — a feedback loop developing,

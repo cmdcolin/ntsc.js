@@ -18,22 +18,22 @@
     "live": "https://cmdcolin.github.io/ntsc.js//?src=cat&set=demodMHz%3A0.5%2ChvSagUs%3A2.7%2ChvRing%3A0.61%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A4%2Cagc%3A0.19%2CghostDelayUs%3A1.15%2CghostGain%3A0.08%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A6%2CheadSwitchNoise%3A0.4%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A190%2CtbWowNs%3A300%2Cphosphor%3A0.19&mod="
   },
   {
-    "name": "look-rainbow",
-    "file": "look-rainbow.jpg",
+    "name": "look-loop",
+    "file": "look-loop.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=rainbow+storm&set=chromaGain%3A2.2%2CburstLock%3A0.2%2CscDetuneKHz%3A0.5%2CsvideoBleed%3A0.6%2ChHold%3A0.25%2CnoiseIre%3A2&mod=scDetuneKHz%3Asmooth%3A0.05%3A0.02"
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=mixer+loop&set=chromaGain%3A2.6%2CnoiseIre%3A2%2CcrtGamma%3A1.3%2CcrtSat%3A1.6%2CcfbMix%3A0.8%2CcfbGain%3A1.01%2CcfbDelayUs%3A1.4%2CcfbLines%3A-9%2CcfbTrail%3A0.6%2CcfbServoUs%3A1.6%2CcfbRing%3A0.45%2Cphosphor%3A0.45&mod="
   },
   {
-    "name": "look-scramble",
-    "file": "look-scramble.jpg",
+    "name": "look-negative",
+    "file": "look-negative.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=scrambled+channel&set=hHold%3A0.45%2ChDetuneHz%3A18%2Cscramble%3A0.62%2CnoiseIre%3A3%2Cagc%3A0.22&mod="
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=negative&set=invert%3A1%2CchromaGain%3A2.4%2CsvideoBleed%3A0.7%2ChHold%3A0.5%2CbendUs%3A16%2CbendShape%3A2%2ChDetuneHz%3A34%2Cscramble%3A0.45%2CnoiseIre%3A5%2Cagc%3A0.3%2CcrtGamma%3A2.4%2CcrtBloom%3A0.7%2Cphosphor%3A0.55&mod="
   },
   {
-    "name": "look-tape",
-    "file": "look-tape.jpg",
+    "name": "look-key",
+    "file": "look-key.jpg",
     "mp4": null,
-    "live": "https://cmdcolin.github.io/ntsc.js/?src=cat&preset=picture+search&set=demodMHz%3A0.5%2ChHold%3A0.3%2ClumaMHz%3A2.8%2ClumaPeak%3A0.8%2CnoiseIre%3A3%2CcolorUnderMix%3A1%2CunderJitterDeg%3A4%2CdropoutRate%3A30%2CheadSwitchNoise%3A0.9%2CheadSwitchShiftUs%3A0.8%2CtbJitterNs%3A200%2CtbWowNs%3A1100%2CtrackAmt%3A0.75%2CtrackPos%3A0.35%2CshuttleX%3A5&mod="
+    "live": "https://cmdcolin.github.io/ntsc.js/?src=synth&preset=key+sweep&set=synthAHz%3A15797%2CsynthBHz%3A47%2CsynthShape%3A3%2CsynthMix%3A2%2CsynthLevel%3A1.7%2CsynthColor%3A1%2CdemodMHz%3A0.9%2CchromaCoarse%3A3%2CchromaGain%3A3%2CburstLock%3A0.3%2CscDetuneKHz%3A0.4%2CsvideoBleed%3A0.8%2CcrtGamma%3A1.9%2CcrtSat%3A1.6%2CbKeyHueDeg%3A196%2CbKeyAcceptDeg%3A52%2CbKeySoft%3A0.06%2CbKeySpill%3A0.4%2Cphosphor%3A0.35&mod="
   },
   {
     "name": "clip-feedback",
