@@ -23,15 +23,15 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
           mix it in partially, stacking its faults onto what’s already there.
         </li>
         <li>
-          Pick an <b>Input</b> (A is the main source; B mixes a second in).
-        </li>
-        <li>
-          Below that is the path itself — <b>source</b>, <b>feedback</b>,{' '}
-          <b>tape</b>, <b>receiver</b>, <b>screen</b>, wired in the order the
-          signal travels, with B joining from below at <b>mix</b>. Open a stage
-          to reach its controls; the dot beside one counts what you’ve moved
-          there. <b>diagram ⤢</b> draws the whole thing large, feeds and loops
-          included.
+          Below that is the path itself — <b>source A</b>, <b>tape</b>,{' '}
+          <b>receiver</b>, <b>screen</b>, wired in the order the signal travels,
+          with <b>source B</b> joining from below at <b>mix</b>. Every box on
+          the map is a button: opening a stage reaches its controls, and the dot
+          beside one counts what you’ve moved there. The picker that decides
+          what a source <i>is</i> — a file, a webcam, a screen share, a random
+          clip — heads its own stage, so <b>source A</b> is both where you put a
+          picture in and where you shape it. <b>diagram ⤢</b> draws the whole
+          thing large, feeds and loops included.
         </li>
         <li>
           Every slider has a <b>?</b> explaining the hardware fault it models.

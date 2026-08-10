@@ -72,6 +72,11 @@ const DIFF_GATE = 0.01
 // whether they were open, the preset shortlist remembers what you last used, and
 // hints remember being dismissed — so without a seed, every shot would show
 // whichever state the last one happened to leave behind.
+//
+// No open stage is seeded here, which is deliberate: that is the app's own
+// resting state, the map with nothing unfolded over it. A shot that wants a
+// stage open says which one (`video_feedback_open_phase`) in its own spec,
+// rather than every shot inheriting whichever one a default happened to pick.
 const SEED = {
   'ntsc.js_overlay_bar_hidden': '0',
   'ntsc.js_fps_hidden': '0',
@@ -80,7 +85,6 @@ const SEED = {
   video_feedback_recent_presets: '[]',
   video_feedback_sections: JSON.stringify({
     Presets: true,
-    Input: true,
     Scenes: false,
     'Sound into the picture': false,
   }),

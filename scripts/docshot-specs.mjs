@@ -128,14 +128,16 @@ export const SPECS = [
     format: 'jpeg',
     width: 1360,
     height: 860,
-    // Numbered to a legend in the guide: five labels would crowd a 360px panel,
-    // and the numbers survive the prose being rewritten around them.
+    // Numbered to a legend in the guide: spelled-out labels would crowd a 360px
+    // panel, and the numbers survive the prose being rewritten around them.
     annotations: [
       { target: 'canvas', n: 1, at: 'tl', dx: 40, dy: 40 },
       { target: { title: 'menu (' }, n: 2, at: 'tl', dx: -22, dy: 16 },
       { target: { section: 'Presets' }, n: 3, at: 'tl', dx: -22, dy: 14 },
-      { target: { section: 'Input' }, n: 4, at: 'tl', dx: -22, dy: 14 },
-      { target: MAP, n: 5, at: 'tl', dx: -22, dy: 16 },
+      // Four, not five: "Input" was its own section until the pickers moved
+      // into the stages they feed, and the map now numbers for both — a source
+      // is reached by opening its box like any other stage.
+      { target: MAP, n: 4, at: 'tl', dx: -22, dy: 16 },
     ],
   },
   boxed('dialog', {

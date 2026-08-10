@@ -37,7 +37,7 @@ lives in the URL, so a link is a patch.
 
 **1** the picture, where a drag boxes a region to magnify and a double-click
 pulls back · **2** the ☰ menu, for stills, recording, fullscreen and settings ·
-**3** presets · **4** input, A and B · **5** the way into every control.
+**3** presets · **4** the way into every control, sources included.
 
 Controls sit where they belong on the signal path. The chain map at the top of
 the sidebar is that path, and every box on it is a button.
