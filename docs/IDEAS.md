@@ -711,6 +711,185 @@ clip's audio, audible as a click when playback audio is on. Nothing short of a
 crossfade fixes it, and a crossfade needs two read heads on one element, which a
 `<video>` does not have.
 
+## The clip strip — a rundown, not a timeline
+
+Playing one source at a time is the whole app today. The ask behind this is
+music videos: a series of clips, set up in advance, played back to back. This
+section is the design, written before the code because one decision in it
+(seeding, below) is cheap now and expensive to retrofit.
+
+**The shape is a rundown, not an NLE timeline.** Tracks, a playhead and trim
+handles are built for material that gets rendered once and never touched again.
+What this wants is the shape VJ tools use — an ordered list of cued states, each
+of which can also fire on its own — because the same list then serves setting a
+piece up _and_ playing it live, which are the same activity here at different
+speeds.
+
+### A row is a thing that already exists
+
+`ui/urlParams.ts` calls itself "the share-link contract: everything a session
+can be configured with from the query string". It round-trips the source
+(`?src`, `?vurl`, `?iurl`, `?yt`), the look (`?preset`, `?set`), the modulation
+bay (`?mod`) and the cue points (`?cuea`, `?cueb`, via `formatCue`/`parseCue`).
+`scripts/clips.mjs` already drives whole shots off nothing else — "fully
+declarative: the URL alone specifies the source image(s), preset, and param
+overrides, so nothing here uploads files or clicks the UI."
+
+So the row model is mostly done, and a row is that snapshot plus two fields: how
+long it holds, and how it arrives. Everything the strip needs to serialise,
+share and re-render is already serialisable, and it stays that way only if new
+row state is added to `urlParams` rather than beside it.
+
+### Three kinds of row, one shape
+
+The strip must not be limited to naming files, because a strip of fixed clips at
+fixed bar counts is a storyboard — you get the same video every time, and this
+app is built around not knowing exactly what you are going to get.
+
+- **A clip.** This source, these in/out points. `ui/cue.ts` is already exactly
+  this pair.
+- **A roll.** A pool rather than a file, resolved _when the row fires_.
+  `POOL_MODES` (`wiki-random`, `ia-random`) is already this: "a channel is a
+  search rather than a file, picking one rolls something out of it". You know
+  the shape of what is coming and not which one.
+- **A mutate.** Same source, jittered look, through the existing
+  `MUTATE_AMOUNTS` in `ui/mutate.ts`; `presets.ts` has `rollControls` and
+  `randomPresetMix` for the look side of the same idea.
+
+One shape, three fillings — so the player walks one list and the strip renders
+one kind of row.
+
+### Loose holds by default
+
+A row's hold is **"≈N bars" with a drift amount**, not a quantiser. Exact
+beat-lock stays available per row, for the cut that has to land on a hit, but it
+is opt-in.
+
+This is a taste call and worth naming as one: defaults are where taste lives,
+and the default here is serendipity. A strip whose rows roll and whose holds
+drift is a _pattern_ rather than an edit — play it twice, get two different
+videos — which is the behaviour worth having on a tool whose sources include two
+random-access archives. The exact-lock option costs almost nothing once loose
+holds exist, so nothing is lost by making the accident the default.
+
+`ui/useTempo.ts` already supplies the beat, from MIDI clock when there is one
+and a tapped `DEFAULT_BPM` underneath when there is not, so bar-relative holds
+work on a machine with no gear attached.
+
+### Interaction: follow the drags this app already has
+
+**Pointer events, not HTML5 drag-and-drop.** There is no `dataTransfer`,
+`onDrop` or `draggable` anywhere in `src/` — the single `draggable` hit is a
+comment in `PipFrame.tsx`. Every drag here is `setPointerCapture`: `PipFrame`,
+`TBar`, `TrackingPad`, `WipeFrame`, `MagnifierFrame`, `LookBar`,
+`PresetsSection`, `Transport`. Matching that is not only consistency — HTML5 DnD
+has no touch support and a drag image that fights styling.
+
+The bin dragged _from_ is built: `ui/clipLibrary.ts` (the shelf, which already
+holds both files on disk and kept pool rolls) and `MediaBrowserDialog`.
+
+**Right-click opens the per-row menu, and is never the only way to reach
+anything.** `ui/Popover.tsx` already has `MenuItem` on the native popover API,
+so the menu is layout over existing parts; what does not exist yet is the
+trigger — the only `onContextMenu` in the app is a `preventDefault` in
+`TeletypePaint.tsx`. Right-click is unreachable on touch and this app otherwise
+routes verbs through the command palette, so the field touched most (the hold)
+belongs **visible on the row**, with the menu carrying the rest.
+
+### Performance: the boundary is the only cost
+
+Steady-state playback does not care how long the strip is. `VideoPump.due()`
+gates on `el.currentTime !== slot.lastTime` and yields one `createImageBitmap`
+per newly decoded source frame (or hands the element over directly in `direct`
+mode), so one clip and forty clips cost the same per frame. All of the cost is
+at the cut: `stopSlot`, a new element, the network, the first frame.
+
+So the performance work is exactly one thing — **preroll depth 1**. A slot holds
+the live element and the next one, already loaded and seeked to its in-point,
+and swaps at the boundary. `VideoPump.retarget()` already handles a mid-run swap
+correctly: it bumps `gen` so the outgoing decode cannot write into the new slot,
+clears `inFlight`, and sets `lastTime = -1` so the next frame is requested even
+though the element may sit paused at an unchanged `currentTime`.
+
+Two constraints on that:
+
+- **Depth 1, not the whole list.** Each prerolled element is a live decoder, and
+  an archive.org pick is a `blob:` holding the entire file (`sources/pool.ts`
+  says why it downloads whole). A deep preroll is a memory bug waiting to
+  happen.
+- **It lives inside a slot, not on deck B.** B is the mix source and a take will
+  want it. `videoSlot.ts` currently assumes one element per slot; that
+  assumption is the change.
+
+Free consequence worth taking: two elements is what an audio crossfade needs.
+The hard-cut click above is filed as "a real limit rather than a choice" because
+a `<video>` has one read head — a preroll element is the second one.
+
+### Seeding: the decision that is expensive later
+
+**Every roll goes through a seeded RNG, and a take records the seed plus the
+resolved picks.** This is the one thing in here that must be right from the
+first commit.
+
+If rows roll, a take is unreproducible by construction — and the whole point of
+the fixed-framerate export above is to re-render a take at quality after
+performing it. Record four good minutes with unseeded rolls and there is no way
+back to them. Storing the resolved picks means storing **identity, not urls**,
+for the reason `sources/pool.ts` already gives: a url is a rendering, and the
+one that worked today 404s when a transcode ladder is rebuilt. `PoolRef` — its
+origin, title and kind — is the thing to keep.
+
+This is also the natural carrier for the automation recording described under
+fixed-framerate export — control writes with frame stamps, replayed offline. A
+seed plus a resolved pick list plus stamped control writes _is_ a take.
+
+### One walk, two clocks
+
+Playing the strip is: walk the rows, apply each through the existing
+`writeControls` / `startGlide` funnel, preroll the next row's source. That walk
+is the same live and offline; only what advances it differs.
+
+- **Live** — wall clock, preroll depth 1, manual override (jump to any row,
+  hold, retrigger).
+- **Offline** — the virtual clock from _Fixed-framerate export_ above, where
+  frame N is a function of N.
+
+Which is why the live path is worth building first: it is a hard prerequisite
+for the offline one, since a CFR render of a rolling strip means nothing until
+the rolls are reproducible.
+
+Transitions are largely built too. `ui/morph.ts` gives a `morphTo` over
+`MORPH_SECONDS` (0/1/4/8/30), `presets.ts` has `blendPresets`, and `TBar.tsx` is
+the A/B throw. A row's arrival is a choice among those rather than a new
+mechanism.
+
+### What blocks the live half
+
+- **Per-note MIDI bindings.** `ui/midi.ts` fires the whole bay on any Note On
+  and its own comment says per-slot notes "want a binding family of their own".
+  Triggering rows from a controller needs that family, and the strip is one of
+  the best arguments for building it — firing rows is a drum pad, not a knob.
+- **The recorder is variable-framerate.** `useCapture.ts` is `captureStream()`
+  plus `MediaRecorder`, timestamped by wall clock. Fine for a screen grab, wrong
+  for anything cut to music, and the reason the `VideoEncoder` swap above is
+  worth doing early — it fixes what already ships, not only what is planned.
+
+### Deliberately not this
+
+- **Tracks, a scrubbable playhead, trim handles.** A large amount of UI for a
+  storyboard, and the argument in _Clip cues_ above applies — the panel is built
+  around what a hand moves during a take.
+- **ffmpeg.wasm anywhere in the live path.** It is a transcoder, not a player.
+  Concatenating clips with it means re-encoding ahead of time (stream-copy needs
+  every clip to match codec, resolution and timebase), losing live cut points,
+  and stacking codec damage _upstream_ of the signal path — backwards for a
+  project whose premise is modelling the mechanism. `scripts/clips.mjs` already
+  shells out to native ffmpeg offline, which is where it belongs.
+
+When the code lands, the seeding rule above is the part that should become an
+ADR — it is the one a later reader would otherwise be within their rights to
+simplify into `Math.random()`.
+
 ## In flight — preset screening, round 2
 
 Ten retuned candidates sit schema-checked in `scripts/candidates.example.mjs`;
