@@ -22,7 +22,7 @@ import {
 } from './controls'
 import { cx } from './cx'
 import { Dialog } from './Dialog'
-import { MapBox } from './MapBox'
+import { MapBox, MapRun } from './MapBox'
 import styles from './SignalPathDialog.module.css'
 import ui from './ui.module.css'
 
@@ -462,13 +462,21 @@ export function SignalPathDialog(props: {
           const d = returnPath(r.from, r.to, r.y, r.turn)
           const n = touchedInLoop(r.name)
           const live = props.live[r.loop]
-          // The stage name rather than a sentence about the loop. It is the
-          // heading you land on, and the sentence is two inches below in the
-          // legend — where it can be read rather than fitted.
-          const said = `${r.name} — ${r.blurb}${live ? ' — running' : ''}${n > 0 ? ` (${n} off stock)` : ''}`
           return (
-            <g
+            // Same press, same sentence and same keys as the miniature's runs —
+            // see MapRun, which is where both drawings' copy of that rule lives
+            // for the reason MapBox exists at all. What the card carries on its
+            // face is the stage name: it is the heading you land on, and the
+            // sentence about the loop is two inches below in the legend, where
+            // it can be read rather than fitted.
+            <MapRun
               key={r.loop}
+              name={r.name}
+              blurb={r.blurb}
+              live={live}
+              touched={n}
+              // No fold on this card: a press marks and opens, never closes.
+              pressHint=" — click for its controls"
               className={cx(
                 styles.return,
                 styles.loopBtn,
@@ -476,18 +484,8 @@ export function SignalPathDialog(props: {
                 live && styles.live,
                 n > 0 && styles.loopTouched,
               )}
-              role="button"
-              tabIndex={0}
-              aria-label={`${said} — open its controls`}
-              onClick={() => openStage(r.name)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  openStage(r.name)
-                }
-              }}
+              onOpen={() => openStage(r.name)}
             >
-              <title>{`${said} — click for its controls`}</title>
               {/* The wire is 1.25 units of stroke and the thing you are meant to
                   press, so it carries a transparent one wide enough to hit. At
                   14 it stays inside the 22 units between one run and the next,
@@ -503,7 +501,7 @@ export function SignalPathDialog(props: {
                 {live ? ' — running' : ''}
                 {n > 0 ? ` • ${n}` : ''}
               </text>
-            </g>
+            </MapRun>
           )
         })}
         {/* The two inputs used to be named by an 'A' and a 'B' parked on the

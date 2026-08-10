@@ -12,7 +12,7 @@ import {
 } from './chainLayout'
 import styles from './ChainMap.module.css'
 import { cx } from './cx'
-import { MapBox } from './MapBox'
+import { MapBox, MapRun } from './MapBox'
 
 import type { BranchSpec } from './chainLayout'
 import type { LoopPlace, LoopsLive } from './controls'
@@ -160,36 +160,35 @@ export function ChainMap(props: {
             : node.touched > 0
               ? styles.mapReturnTouched
               : undefined
-        const say = `${node.name} — ${node.blurb}`
-        const said = `${say}${live ? ' — running' : ''}${node.touched > 0 ? ` (${node.touched} off stock)` : ''}`
-        const press = () => props.onOpen(node.name)
         return (
           /* A run is a button, and for a loop it is the whole of the door: none
              of the three has a box on the trunk, because none of them is a stage
-             the picture passes through. */
-          <g
+             the picture passes through. What being that button *is* — the role,
+             the tab stop, Enter and Space, the sentence it announces — lives in
+             MapRun, with the box's copy of the same rule and for the same
+             reason: the card draws these three runs too. */
+          <MapRun
             key={r.loop}
+            name={node.name}
+            blurb={node.blurb}
+            live={live}
+            touched={node.touched}
+            pressHint={
+              !props.folds
+                ? ' — click for its controls'
+                : open
+                  ? ' — click to close'
+                  : ' — click to open'
+            }
             className={cx(
               styles.mapReturn,
               styles.mapLoopBtn,
               r.optical && styles.mapReturnOptical,
               state,
             )}
-            role="button"
-            tabIndex={0}
-            aria-expanded={props.folds ? open : undefined}
-            aria-label={`${said} — open its controls`}
-            onClick={press}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                press()
-              }
-            }}
+            expanded={props.folds ? open : undefined}
+            onOpen={() => props.onOpen(node.name)}
           >
-            <title>
-              {`${said}${props.folds ? (open ? ' — click to close' : ' — click to open') : ' — click for its controls'}`}
-            </title>
             {/* The run is a 1px hairline and the target. 8 units of transparent
                 stroke is what makes it pressable without moving it, and it
                 stays inside the 10 between one run and the next. */}
@@ -212,7 +211,7 @@ export function ChainMap(props: {
             >
               {r.name}
             </text>
-          </g>
+          </MapRun>
         )
       })}
       {branches.map((branch, i) => (
