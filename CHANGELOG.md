@@ -2,6 +2,26 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.25.6](https://github.com/cmdcolin/ntsc.js/compare/v0.25.5...v0.25.6) - 2026-08-10
+
+### Features
+- *(ui)* [`d91eefa`](https://github.com/cmdcolin/ntsc.js/commit/d91eefaedc2c225f3b8413ee64eeff6ee4d4d1cc) rest a first session on the map alone
+
+### Fixes
+- *(docs)* [`bb0c0bb`](https://github.com/cmdcolin/ntsc.js/commit/bb0c0bb3454148b28f327cd3d29432acb2fe11c4) stop pointing at the Input section, which is gone
+
+### Documentation
+- [`440320f`](https://github.com/cmdcolin/ntsc.js/commit/440320f4c1acfbda201bfaacd81e0baf6c70e1b6) cut how-it-works down to how the code works
+- [`84387f3`](https://github.com/cmdcolin/ntsc.js/commit/84387f383d93d716cf99881d632514b818ac9497) cut the effects and user guide pages down to what reads
+- *(ui)* [`d2b1a8f`](https://github.com/cmdcolin/ntsc.js/commit/d2b1a8ff0e61bd68bd794dac863cc007a647f625) reshoot the gallery past the point the picture survives
+- [`590c061`](https://github.com/cmdcolin/ntsc.js/commit/590c0614d23da7cc0eaa2105808d114df9468735) another pass for minimum
+- *(docs)* [`3db8939`](https://github.com/cmdcolin/ntsc.js/commit/3db8939186e8432fc2971242b52bac99979bedf0) record what was measured about the two public archives
+- [`27e5300`](https://github.com/cmdcolin/ntsc.js/commit/27e530054ed72203e77b9cb556dce429fa0ac769) rewrite the README opening to say what this is
+- [`60dbe69`](https://github.com/cmdcolin/ntsc.js/commit/60dbe697039395848f7e3796c83231144a8b9bd1) make the contributor docs navigable, and fix what the doc rewrite broke
+
+### Other Changes
+- [`c9db28e`](https://github.com/cmdcolin/ntsc.js/commit/c9db28ec45b27afc51e6947b784bec5bcb09a9fa) Bump pnpm-lock.yaml
+
 ## [0.25.5](https://github.com/cmdcolin/ntsc.js/compare/v0.25.4...v0.25.5) - 2026-08-10
 
 ### Features
