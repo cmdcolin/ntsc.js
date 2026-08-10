@@ -134,6 +134,13 @@ export function useModSlots(
   const writeStab = (next: Stab) => {
     writeJSONSoon(STAB_STORE, next)
     setStabState(next)
+    // The same rule a claim and a restart follow below, and this row needed it
+    // most: the freeze switches the gate off outright, so the rate row — which
+    // reads what the gate is *running* at — sat at 0 however far it was dragged,
+    // with nothing on it saying why. That is the one shape of "this slider does
+    // nothing" the panel must not have. Asking for the gate is unambiguous, and
+    // a freeze is a gesture within a set rather than a setting, so the ask wins.
+    if (next.hz > 0 && master === 0) writeMaster(1)
   }
 
   return {

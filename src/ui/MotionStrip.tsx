@@ -28,7 +28,7 @@ export function MotionStrip(props: {
   // from outside the row.
   onReveal: () => void
 }) {
-  const { slots, master, setMaster, stab } = useModSlotsApi()
+  const { slots, master, setMaster, stab, stabHz } = useModSlotsApi()
   const api = useControlsApi()
   // What to come back to when the freeze lets go. Local, not persisted: a
   // freeze is a gesture within a session, and reloading into a frozen board
@@ -52,8 +52,16 @@ export function MotionStrip(props: {
   // freeze switches it off outright — but ❚❚ is the only thing that stops it,
   // and a strip that appeared only once a *slot* was patched would leave the
   // whole board cutting in and out with no way to hold it still.
+  //
+  // Dialed rather than resolved, and that is the whole reason the two are read
+  // separately here: the strip has to stand while the freeze is holding the gate
+  // at 0, or ❚❚ would take away the ▶ that undoes it. What it *says* is the
+  // resolved rate below, because that is the number that is running.
   const gated = stab.hz > 0
   if (driven.length === 0 && stilled.length === 0 && !gated) return null
+  // One decimal, and no trailing zero: a beat lock puts a tempo division in here
+  // (174bpm at 1/4 is 11.6/s), where the slider alone only ever left tenths.
+  const rate = stabHz.toFixed(1).replace(/\.0$/, '')
 
   const frozen = master === 0
   // The same ⚟ every control row carries, on the one fader that is not a
@@ -113,7 +121,11 @@ export function MotionStrip(props: {
         className={styles.count}
         title={[
           driven.length === 0 ? 'nothing is moving' : driven.join(', '),
-          gated ? `the whole look, stabbed in ${stab.hz}× a second` : '',
+          !gated
+            ? ''
+            : stabHz === 0
+              ? 'the stab gate is dialed on and held still'
+              : `the whole look, stabbed in ${rate}× a second`,
           stilled.length === 0 ? '' : `held still: ${stilled.join(', ')}`,
           'click to filter the panel down to them',
         ]
@@ -125,7 +137,9 @@ export function MotionStrip(props: {
             because ∿ is the mark every routed row wears, and there is no second
             glyph in this panel that would say "the whole board, cut in and out"
             to someone who had not already been told. "2/s" needs no key. */}
-        {gated ? `${driven.length}∿ ${stab.hz}/s` : `${driven.length}∿`}
+        {gated && stabHz > 0
+          ? `${driven.length}∿ ${rate}/s`
+          : `${driven.length}∿`}
       </button>
       {api.midiReady ? (
         <button
