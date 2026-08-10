@@ -20,7 +20,7 @@
 // stay on the main thread, and the reason the split exists.
 
 import { ACTIVE_HEIGHT, ACTIVE_WIDTH } from '../signal/constants'
-import { pageSearch } from './env'
+import { debugOn } from './env'
 
 import type { PumpedFrame } from './videopump'
 
@@ -91,7 +91,7 @@ export class Sources {
 
   // The centre staged pixel, kept for the ?debug readout only — see debugInfo.
   // Sampling it costs a getImageData, so it is only taken when asked for.
-  private readonly debug = pageSearch().includes('debug')
+  private readonly debug = debugOn()
   private probe1: OffscreenCanvas | null = null
   private lastPixelA: number[] | null = null
 

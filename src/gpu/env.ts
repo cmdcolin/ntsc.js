@@ -25,6 +25,29 @@
 export const pageSearch = (): string =>
   typeof document === 'undefined' ? '' : location.search
 
+// Whether this session asked for the per-frame logging. One predicate, because
+// the alternative is what was here before: `pageSearch().includes('debug')`
+// written out at each site that wanted it, which is both a duplicate and a
+// looser test than it looks — it matches `?nodebug=1`, and any parameter whose
+// *value* happens to contain the word. Reads the parameter instead, agreeing
+// with the app half's `q.has('debug')` in urlParams.
+//
+// Every DEBUG line in the codebase is gated on this. An ungated one is a bug:
+// the shipped console is where a frozen tab's diagnosis is read from, and a
+// per-frame log buries it.
+export const debugOn = (): boolean =>
+  new URLSearchParams(pageSearch()).has('debug')
+
+// A DEBUG line, printed only if this session asked for one. Prefer this to
+// `if (debugOn()) console.log(...)` at the call site: with the gate on the
+// outside it is a thing to remember, and the two lines in `videoSlot` that got
+// forgotten printed at every user on every roll. The engine's own per-frame
+// logs stay hand-gated, because there the point is to skip building the
+// argument object at all.
+export const debugLog = (...args: unknown[]): void => {
+  if (debugOn()) console.log(...args)
+}
+
 // Whether the tab is on screen, and whether it has focus. The render loop uses
 // both to decide if a missing rAF callback is a stall worth bridging. With no
 // document there is no refresh driver to describe, so both report the state in
@@ -60,12 +83,28 @@ export const timelineNow = (): number | null => {
 // Note the mismatch between the name and the API: this is `localStorage`, which
 // is per *origin* and outlives the tab. That is what the recorder wants — a
 // freeze is read back from a later session, often a later day.
-export const sessionStore = (): Storage | null =>
-  typeof localStorage === 'undefined' ? null : localStorage
+// The `try` is not decoration and not the same guard as the `typeof`: with
+// storage switched off at the browser level (Firefox's `dom.storage.enabled`,
+// a partitioned third-party frame) the global is not *undefined* — reading it
+// throws SecurityError from the getter, so `typeof` throws too. Both spellings
+// of "there is no store here" have to answer null, or the recorder takes down
+// the frame it was supposed to be describing.
+export const sessionStore = (): Storage | null => {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage
+  } catch {
+    return null
+  }
+}
 
 // Per *tab*, and the distinction is the whole point of having both. This is
 // `sessionStorage`: it survives a reload of this tab, is not shared with any
 // other tab on the same origin, and dies when the tab does — which is precisely
 // the lifetime of the thing counted against it. See `gpuSessions` in context.ts.
-export const tabStore = (): Storage | null =>
-  typeof sessionStorage === 'undefined' ? null : sessionStorage
+export const tabStore = (): Storage | null => {
+  try {
+    return typeof sessionStorage === 'undefined' ? null : sessionStorage
+  } catch {
+    return null
+  }
+}

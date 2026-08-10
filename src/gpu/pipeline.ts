@@ -37,7 +37,7 @@ import { StrobeGate } from '../signal/strobe'
 import { SynthState } from '../signal/synthstate'
 import { TapeState, tapeRecording } from '../signal/tapeloop'
 import { gpuPowerFromSearch, initGpu, releaseGpu } from './context'
-import { pageSearch } from './env'
+import { debugOn, pageSearch } from './env'
 import { aFeedOn, bFeedOn, bOn, bWaveOn, FEEDS } from './feedgates'
 import { AutoLock } from './framelock'
 import {
@@ -222,7 +222,7 @@ export class Engine implements EngineApi {
   // Initialized from ?dbg=; also switchable live via setDbgView (panel, Advanced).
   private dbgView = Number(new URLSearchParams(pageSearch()).get('dbg') ?? 0)
   // ?debug: dev-only per-frame logging and the first-frame readback.
-  private readonly debug = pageSearch().includes('debug')
+  private readonly debug = debugOn()
 
   private gpu: Gpu
   private canvas: RenderTarget
