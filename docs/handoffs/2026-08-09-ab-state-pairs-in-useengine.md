@@ -1,5 +1,27 @@
 # The A/B state pairs still inside useEngine
 
+> **Done, 2026-08-09.** All seven pairs are `{a, b}` records, written through
+> one `onDeck` updater that only takes the functional form — which is trap 1
+> made unrepresentable rather than remembered. The modes stayed two types in one
+> record (`{a: SourceMode; b: SourceBMode}`), trap 2's setter parameter turned
+> out to be deletable rather than adaptable (`reopenStashed` was already being
+> passed the key), and the `downloadYouTube` `label` parameter went first, as
+> suggested. `commitA`/`commitB` stayed two functions: this document proposes
+> one `commit(key, mode, …)`, but that signature can only take the mode by
+> widening to the union trap 3 forbids, and the file's own comment already said
+> so.
+>
+> Trap 1 was checked in the browser rather than argued about: a scratch harness
+> loaded `?src=…&srcb=…` links and read both pickers back. It passes here, and
+> reintroducing the direct-object update on purpose makes it fail with A on
+> `bars` — so the check has teeth and the trap is real. `sourcecheck.mjs` and
+> `poolcheck.mjs` both pass in full. `cuecheck.mjs` fails intermittently on
+> different arms **at baseline too** (measured on a detached worktree at
+> `e602237`), so it does not distinguish anything here.
+>
+> One thing this document did not know: `pnpm compiler` was already red before
+> any of this, and in this same file. See the note at the end.
+
 **2026-08-09.** Starting question: `useEngine` holds seven pairs of React state
 that differ only in which deck they describe — `pendingA`/`pendingB`,
 `cardA`/`cardB`, and so on — while three other pieces of the same file already
@@ -171,3 +193,33 @@ consistent. This is prophylactic work, and it should be done when `useEngine.ts`
 and `app.tsx` are not both being edited by someone else — the change is
 mechanical but it touches several dozen sites in one file, and it will conflict
 with anything else in flight there.
+
+## What was actually broken, which was something else
+
+Found while establishing a baseline for the above, and worth more than the
+refactor was: **`pnpm compiler` was failing, on this file, and had been since
+`4062df0`** — the commit that built both slots from one factory. Bisected:
+
+    4062df0~1  ok   useEngine
+    4062df0    FAIL Cannot access refs during render  (x2)
+
+The two errors point at the `makeSlot('a', {…})` / `makeSlot('b', {…})` call
+sites, not at anything inside, and the detail names the cause exactly: _"Passing
+a ref to a function may read its value during render."_ The `wiring` descriptor
+carried the slot's two refs outright and three closures over `engineRef`, and
+either is enough — a ref only _captured_ by a closure in the object passed
+counts. `useEngine` was therefore unmemoized, which is `App`'s ~200 control rows
+reconciling on every write that touched none of them. Nothing else in the build
+reports this; that is what `scripts/compilercheck.mjs` exists for, and its
+`KNOWN` list never had `useEngine.ts` on it, so this was a red gate rather than
+a recorded bailout.
+
+The fix keeps the factory and deletes its argument: `makeSlot(id)` reaches the
+refs and the four React mirrors by `id`, and the three EngineApi entry points —
+genuinely per-slot methods — branch on `id` inside the shared body. Nothing
+ref-ish crosses the call, and `useEngine` optimizes again (131 optimized, 7
+known bailouts, none here). This is the same finding `slotView.ts` records for
+`makeSlotView`, in a second position, so the rule is worth stating plainly: **in
+this hook, a helper called during render must not be handed anything that holds
+or closes over a ref.** Re-check with `pnpm compiler` if `makeSlot` ever grows a
+parameter again.
