@@ -8,15 +8,6 @@
 
 import frozen from './docshot-frozen.json' with { type: 'json' }
 
-// The panel's collapsible sections, as a shot wants them. The app persists
-// these, so a shot that needs one open says so rather than clicking it.
-const sections = open =>
-  JSON.stringify({
-    Presets: true,
-    Input: true,
-    ...open,
-  })
-
 // The bundled photo, which every shot uses so they read as one session.
 const CAT = { src: 'cat' }
 
@@ -139,38 +130,6 @@ export const SPECS = [
       { target: MAP, n: 5, at: 'tl', dx: -22, dy: 16 },
     ],
   },
-  boxed({ section: 'Presets' }, { name: 'presets' }),
-  boxed(
-    { section: 'Presets' },
-    {
-      name: 'preset-mix',
-      // Past the drag slop and on to ~60%: the fill behind the chip is the
-      // whole point of the shot, and a click would apply the preset outright
-      // instead.
-      actions: [{ drag: { text: 'vhs' }, by: { x: 72 } }, { steps: 40 }],
-    },
-  ),
-  // The source picker, which is the head of a stage rather than a section of
-  // its own — so this boxes the open stage's row and the seed says which stage.
-  boxed(
-    { selector: 'div[class*="stageRow_"]' },
-    {
-      name: 'input',
-      params: { ...WILD, srcb: 'sweep' },
-      seed: { video_feedback_open_phase: 'Source A' },
-    },
-  ),
-  boxed(
-    { selector: 'div[class*="stages_"]' },
-    {
-      name: 'signal-path',
-      height: 1150,
-      seed: {
-        video_feedback_open_phase: 'Tape',
-        video_feedback_open_group: 'VHS Tracking',
-      },
-    },
-  ),
   boxed('dialog', {
     name: 'slider-help',
     seed: {
@@ -180,140 +139,37 @@ export const SPECS = [
     // The first ? in the panel belongs to the one group left open above.
     actions: [{ click: { selector: 'button[title="what does this do?"]' } }],
   }),
-  boxed(
-    {
-      union: [
-        { selector: 'input[type="search"]' },
-        { selector: 'div[class*="stages_"]' },
-      ],
-    },
-    {
-      name: 'filter',
-      height: 1150,
-      // The box is mounted by the ⌕ rather than sitting in the masthead all
-      // session — it takes the wordmark's width, so it only appears once asked
-      // for. Without this click the shot had nothing to set and nothing to
-      // frame, and had been failing silently.
-      actions: [
-        { click: { title: 'filter the controls' } },
-        { set: { selector: 'input[type="search"]' }, value: 'rainbow' },
-        { wait: 400 },
-      ],
-    },
-  ),
-  boxed('dialog', {
-    name: 'palette',
-    actions: [
-      { press: 'Control+KeyK' },
-      { set: { selector: 'input[data-autofocus]' }, value: 'ghost' },
-      { wait: 400 },
-    ],
-  }),
   // The map is a 304x34 row in a 360px panel, so the box is most of what tells
   // you where to look for it.
   boxed(MAP, { name: 'chain' }),
-  // There was a `modulation` shot here: the bay's own section, boxed, with two
-  // routings in it. It went when the bay became a box on the map, and it is not
-  // worth re-shooting — it was a picture of a section that no longer exists,
-  // and what replaced it is one more box on `chain` above, which the guide's
-  // prose now points at by name. A figure per stage is not a scheme this guide
-  // can afford: every stage opens the same way, so one shot of an open stage
-  // (`signal-path`) teaches all of them.
+  // Ten boxed-UI shots stood here: presets, preset-mix, input, signal-path,
+  // filter, palette, motion, audio, menu, magnifier, scope, advanced. They went
+  // together, and for one reason rather than twelve — a full 1320x900 window
+  // with a red box on a 300px strip of it is a poor figure. The strip is small
+  // enough to be unreadable at the guide's measure, the other 90% of the frame
+  // is the same app window every time, and stacked twelve deep they took the
+  // user guide to 15,000 pixels of screenshots the prose was already saying.
   //
-  // Motion as it is actually reached: the ∿ on a control row, the editor it
-  // opens under that row, and the strip that scales every routing at once. Two
-  // boxes rather than one, because the point is the pair — the bay is where the
-  // set can be seen whole, but nobody goes there first any more.
-  //
-  // Presets and Input are folded so both boxes fit one window without the panel
-  // being scrolled halfway down; the figure is about the panel's spine, and a
-  // scrolled panel reads as a crop of some other program.
-  {
-    ...WINDOW,
-    height: 1000,
-    name: 'motion',
-    params: WILD,
-    seed: {
-      video_feedback_sections: sections({ Presets: false, Input: false }),
-      video_feedback_open_phase: 'Receiver',
-      video_feedback_open_group: 'Sync',
-      video_feedback_mod: JSON.stringify([
-        { target: 'hHold', source: 'sine', rateHz: 0.35, depth: 0.4 },
-        { target: 'chromaGain', source: 'lorenz', rateHz: 0.12, depth: 0.25 },
-      ]),
-    },
-    // Horizontal hold's editor, which is now two clicks rather than one: the
-    // row's ∿ used to open it, and the hold switch took that button over (it
-    // stops the wobble instead), so the editor moved into the ⋮ menu beside it.
-    // The shot had been failing silently on a title nothing carries any more.
-    // The ⋮ is matched per row, so this reaches the one routed row in the open
-    // group and no other.
-    actions: [
-      { click: { title: 'more for “horizontal hold”' } },
-      { wait: 200 },
-      { click: { text: 'change what is driving it' } },
-      { wait: 400 },
-    ],
-    annotations: [
-      { target: { selector: 'div[class*="strip_"]' }, box: true },
-      { target: { selector: 'div[class*="editor_"]' }, box: true },
-    ],
-  },
-  // The audio routings are a branch on the chain map now, not a section at the
-  // foot of the panel, so this opens the Sound stage and boxes the one group
-  // behind it — the same shape as the Tape and Receiver shots above.
-  //
-  // The mic has to be picked first: with no audio input the branch is inert and
-  // opens onto nothing, which is the honest answer on screen and would be an
-  // empty shot here. Firefox is launched with fake streams and permissions off
-  // (see the prefs below), so this is a synthetic tone, not the room.
-  boxed(
-    { section: 'Audio routings' },
-    {
-      name: 'audio',
-      height: 1150,
-      seed: {
-        video_feedback_sections: sections({ Presets: false, Input: false }),
-        video_feedback_open_phase: 'Sound',
-        video_feedback_open_group: 'Audio routings',
-      },
-      actions: [{ set: { title: 'audio in, driving sync' }, value: 'mic' }],
-    },
-  ),
-  boxed('menu', {
-    name: 'menu',
-    actions: [{ click: { title: 'menu (' } }],
-  }),
-  {
-    // No box: the magnified picture is the whole frame, and the panel beside it
-    // is what says this is the app's own display rather than a cropped image.
-    ...WINDOW,
-    name: 'magnifier',
-    params: wildWith('crtZoom:3.4,crtZoomX:0.44,crtZoomY:0.42'),
-  },
-  {
-    ...PICTURE,
-    name: 'scope',
-    params: { ...WILD, dbg: '2' },
-    maxWidth: 1200,
-    width: 1000,
-    height: 760,
-  },
-  boxed('dialog', {
-    name: 'advanced',
-    actions: [
-      { click: { title: 'menu (' } },
-      { click: { text: 'advanced settings' } },
-    ],
-  }),
+  // Three survive, and the test each passes is that the picture carries
+  // something the sentence cannot: `overview` names the five regions at once,
+  // `chain` shows a map you would not guess the shape of, and `slider-help` is
+  // the doc's own argument for why there is no per-control reference here.
+  // Anything re-added should clear the same bar, and a tight crop of the panel
+  // region is the shape to reach for rather than another boxed window.
 
-  // The showcase gallery: six mechanisms, one per tile, each starting from the
-  // preset that names it and pushed past where that preset stops — but stopping
-  // short of where the mechanism destroys its own evidence. Detune the
+  // The showcase gallery: three mechanisms, one per tile, each starting from
+  // the preset that names it and pushed past where that preset stops — but
+  // stopping short of where the mechanism destroys its own evidence. Detune the
   // subcarrier far enough and the decoder gives up on colour entirely; suppress
   // sync hard enough and there is no picture left to shear. The preset is the
   // safe end and these sit just short of the cliff, so a change to one wants
   // looking at rather than assuming.
+  //
+  // `tunnel`, `ladder` and `tube` went: a camera loop photographed as a still
+  // is a soft haze, a keyed mixer loop reads as noise on the subject, and a
+  // driven tube reads as a contrasty photo. All three failed the gallery's own
+  // rule below — the damage was not nameable from the tile. The two feedback
+  // loops are motion effects and belong in the clips, which is where they are.
   look('rainbow', {
     preset: 'rainbow storm',
     // A far-detuned subcarrier is a motion effect: the hue spins fast enough
@@ -331,29 +187,6 @@ export const SPECS = [
   look('tape', {
     preset: 'picture search',
     set: 'trackAmt:0.75,trackPos:0.35,headSwitchNoise:0.9,dropoutRate:30,tbWowNs:1100',
-  }),
-  look(
-    'tunnel',
-    {
-      preset: 'fb bloom',
-      set: 'fbMix:0.72,fbZoom:1.07,fbRotateDeg:8,fbGain:1.05,fbFocus:0.9,fbVign:0.5,fbBlack:0.08,fbKnee:0.8,phosphor:0.3',
-    },
-    // A camera loop is a picture of its own history: it needs the frames to
-    // actually go round before there is a tunnel to photograph. Past a couple
-    // of hundred it has eaten the picture and the tile is a white haze.
-    { warm: 140 },
-  ),
-  look(
-    'ladder',
-    {
-      preset: 'key loop',
-      set: 'cfbMix:0.9,cfbGain:1,cfbLines:5,cfbDelayUs:0.6,cfbTrail:0.7,cfbKeyLevel:60,crtSat:1.2',
-    },
-    { warm: 180 },
-  ),
-  look('tube', {
-    preset: 'neon tube',
-    set: 'crtGamma:2.7,crtSat:1.7,crtBloom:0.9,crtHalation:0.8,chromaGain:2,phosphor:0.5,scanBloom:0.8,noiseIre:3',
   }),
 
   // Clips: the four things a still cannot show — a feedback loop developing,

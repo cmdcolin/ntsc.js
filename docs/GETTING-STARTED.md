@@ -42,25 +42,19 @@ pulls back · **2** the ☰ menu, for stills, recording, fullscreen and settings
 Controls sit where they belong on the signal path. The chain map at the top of
 the sidebar is that path, and every box on it is a button.
 
-![The app window, the chain map at the head of the sidebar boxed in red](img/chain.jpg)
+## Three looks to try
 
-## Six looks to try
-
-|                                                                       |                                                                                 |                                                             |
-| :-------------------------------------------------------------------: | :-----------------------------------------------------------------------------: | :---------------------------------------------------------: |
-|      ![Hue banding rolling down the frame](img/look-rainbow.jpg)      | ![Suppressed sync: every line landing at its own offset](img/look-scramble.jpg) |    ![Noise bars sweeping a cued tape](img/look-tape.jpg)    |
-| ![Camera feedback spiralling around the subject](img/look-tunnel.jpg) |       ![Keyed mixer feedback rippling up the frame](img/look-ladder.jpg)        | ![A tube driven past its clipping point](img/look-tube.jpg) |
+|                                                           |                                                                                 |                                                       |
+| :--------------------------------------------------------: | :-----------------------------------------------------------------------------: | :----------------------------------------------------: |
+| ![Hue banding rolling down the frame](img/look-rainbow.jpg) | ![Suppressed sync: every line landing at its own offset](img/look-scramble.jpg) | ![Noise bars sweeping a cued tape](img/look-tape.jpg) |
 
 **rainbow storm** pulls the colour crystal off frequency · **scrambled channel**
-suppresses sync · **picture search** drags the head across four tracks a sweep ·
-**fb bloom** points a camera at the monitor · **key loop** patches the composite
-back into itself through a luma key · **neon tube** drives the gun past where it
-can hold a colour.
+suppresses sync · **picture search** drags the head across four tracks a sweep.
 
 ## Where next
 
 - [User guide](USER-GUIDE.md) — sources, feedback, modulation, saving, scopes
-- [Effects & features](EFFECTS.md) — everything it does, control by control
+- [Effects & features](EFFECTS.md) — everything it can break
 - [How it works](HOW-IT-WORKS.md) — the code: one array and a chain of GPU
   shaders
 - [MIDI](MIDI.md) — setting up a controller

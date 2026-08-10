@@ -54,7 +54,12 @@ present      render pass to the swap chain
 That block is not decoration: `src/gpu/pipeline-graph.test.ts` parses the three
 arrays out of `pipeline.ts` and fails if this order, or which names are
 bracketed, no longer matches. `docs/graphviz/pipeline.dot` draws the same order
-with the buffers on the arrows and is held to the same list.
+with the buffers on the arrows and is held to the same list:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/pipeline-dark.svg">
+  <img alt="Signal path pass by pass. Source A and B feed the encoder (compose, encodeYuv, encodeComposite, composeB, encodeYuvB, mixB), then fbComposite, then the channel block (chromaExtract, underDown, channel, timebase) which repeats once per tape dub, then the outboard enhancer, then the receiver (syncMeasure, sync, lineAnalyze, decode), then crtFace and present. storePrev feeds the composite loop back into fbComposite one frame later; crtFace feeds the camera loop back into compose." src="img/pipeline-light.svg">
+</picture>
 
 Bracketed passes are gated by a `when()` predicate on the controls, so an idle
 feature costs nothing. `loopPasses` runs once per tape-dub generation, with
