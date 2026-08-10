@@ -672,9 +672,9 @@ main one, which is the case the current model cannot express.
 clamp is `VideoPump.wrap`. Three things around it are deliberately not done.
 
 - **A cue row in the Deck.** The Deck is the panel's second index for controls a
-  hand moves during a take (`Deck.tsx` argues the case), and a cue is
-  exactly that. It is not there because every row the Deck renders is backed by
-  a control read through `ControlsContext`, and a cue is deliberately _not_ a
+  hand moves during a take (`Deck.tsx` argues the case), and a cue is exactly
+  that. It is not there because every row the Deck renders is backed by a
+  control read through `ControlsContext`, and a cue is deliberately _not_ a
   control — two timestamps into one clip cannot be recalled by a preset or moved
   by mutate. So the Deck would need a way to take per-source state, which is a
   new pattern rather than a placement. The command palette carries the two verbs
