@@ -611,6 +611,63 @@ for), and `archive.org/services/img/` going away — that last one is what lets
 the browser show a clip without downloading it, and its loss would turn the grid
 into a page of empty boxes with nothing else complaining.
 
+**Why archive.org picks are downloaded whole rather than streamed.** Measured
+2026-08-08/09, curl and then Firefox Nightly against the real upload path.
+`/metadata/` and `advancedsearch.php` both send `access-control-allow-origin: *`,
+but `/download/` and `/serve/` 302 to a `dn######.us.archive.org` storage node
+that sends no `access-control-*` header at all — so with `crossOrigin='anonymous'`,
+which `ui/videoSlot.ts` sets unconditionally, the element does not merely taint,
+it **refuses to load** (`MEDIA_ERR_SRC_NOT_SUPPORTED`). `/cors/<id>/<file>` is the
+route that works: 200, ACAO echoing the Origin, no redirect off-host, no size cap.
+
+The catch is that **`/cors/` ignores `Range`** — it answers `bytes=0-1000` with
+200 and the whole file, and sends no `accept-ranges`. So `video.seekable` only
+ever covers what has downloaded, Firefox caps readahead at ~64 s, and a far seek
+is **silently clamped**: no error, no `seeking` event, playback just carries on.
+On a 628 s clip, `seekable [[0, 4.3]]` and `currentTime = 502.4` read back as
+`4.3`; a Commons transcode under the same test gives `seekable [[0, 596.5]]` and
+lands exactly. That breaks cue in/out loops (`gpu/videopump.ts`) and scrub
+(`ui/useEngine.ts`), not playback — which is why it is easy to miss. Fetching to
+a Blob and handing over an object URL fixes it: same-origin, so fully seekable
+*and* untainted (`seekable [[0, 628]]`, a 502.4 s seek landing in 50 ms). The
+cost is the whole file up front at ~5 MB/s, which is what the size cap is for.
+
+Two more archive.org failures that look like nothing:
+
+- **Theora is gone from browsers, and it is usually the smallest file in the
+  ladder**, so any "prefer small" rule reaches straight for it. Firefox Nightly
+  `canPlayType('video/ogg')` is now `''`, and the element does not error — it
+  fires `loadeddata` and reports `videoWidth`/`videoHeight` of **0**.
+- **`archive.org/metadata/<id>` intermittently takes 33 s** and then returns no
+  `files` at all (2 of 3 Prelinger reads hit one). Without a per-request deadline
+  these stack and a roll looks like a hang.
+
+**Picking a rendition:** `h.264 IA` (the newer `.ia.mp4`) is the derivative most
+items carry and is usually the small one — 3 MB against an 89 MB master of the
+same commercial. Filtering on `h.264` alone, the obvious guess, matched 1 item in
+5; adding `h.264 IA` took the same pools to 3–4 in 5. Every numeric field arrives
+as a *string* and `length` is sometimes a timestamp (`"1:04:12"`), so `Number()`
+gives NaN.
+
+**Pool yields, both sources, measured by rolling the live APIs.** archive.org,
+usable items per random sample at a 24 MB cap: `vhsopenings` 7/11,
+`vhscommercials` 7/11, `classic_tv_commercials` 9/13 — all 15–30 s idents, logos
+and ads. `prelinger` needs a 64 MB cap to reach its h.264 reels (48–57 MB) and
+still lands only ~3/11. Empty or useless: `vhskids`, `vhsmovies`, `machinima`,
+`computerchronicles` (whole tapes and 28-minute episodes), `educationalfilms`
+(2/11 at *any* cap), and free-text `collection:vhsvault` searches for
+mall/muzak/test-pattern/infomercial.
+
+Commons, counting pages whose `videoinfo.derivatives` hold a `transcodekey`:
+`deepcat:"Time-lapse videos"`, `"Videos of fountains"`, `"Videos of clouds"`,
+`"Videos of fire"` and `"Videos of trains"` all 12/12, `"Videos of animals"`
+11/12, `"Underwater videos"` 9/12. **`"Videos of cities at night"`, `"Videos of
+waves"` and `"Videos of aurorae"` return zero pages** — don't add them back;
+their absence is why the video channels carry none of the neon the photo
+channels lean on. Video pools being this much thinner than photo pools is the
+whole argument for archive.org as the video source. The Commons API 429s after
+roughly ten quick probes, so space out any further survey.
+
 Two fields the browser leans on are optional, and neither failing would look
 like a failure. Commons returns a clip's `duration` alongside the thumbnail for
 free; archive.org's search returns `runtime` on roughly one item in three, and
