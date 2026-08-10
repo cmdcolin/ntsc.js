@@ -269,6 +269,23 @@ const downloading =
     )
   }
 
+// One deck's half of a paired `{a, b}` state, written without disturbing the
+// other's. An updater rather than a value, and that is the whole point of it
+// existing: the boot path sets both decks in one synchronous body (`?src=` then
+// `?srcb=`), where two direct-object updates would each read the same
+// render-time record and the second would silently drop the first — a two-source
+// link booting with A's source lost. Nothing catches that; `tsc` least of all.
+// So the shape that reads the previous record is the only one on offer here, and
+// every paired write in this file goes through it.
+//
+// Not usable for the source *modes*, which are the one pair whose two halves
+// have genuinely different types (only B can be 'none', only A can be 'webcam' —
+// see slotView.ts). Those are written out long-hand, in the same functional form.
+const onDeck =
+  <T>(key: StashSlot, value: T) =>
+  (rec: { a: T; b: T }): { a: T; b: T } =>
+    key === 'a' ? { ...rec, a: value } : { ...rec, b: value }
+
 // Owns the singleton Engine (a GPUDevice + rAF loop), its lifecycle, and every
 // video/image source path (patterns, files, webcam/USB capture, source B).
 export function useEngine() {
@@ -341,14 +358,29 @@ export function useEngine() {
     subscribe: engine === null ? subscribeNever : engine.subscribeStats,
     get: engine === null ? getNoStats : engine.getStats,
   }
-  const [sourceMode, setSourceMode] = useState<SourceMode>('bars')
+  // Which picker entry each deck is on. One record rather than a state each, for
+  // the reason `speed`, `transport` and `cue` below already are: a flat
+  // `…A`/`…B` pair is two chances to write the wrong letter at every site that
+  // touches it, and the mistake typechecks and draws a plausible panel
+  // (slotView.ts). Written through the functional form only — see `onDeck`.
+  //
+  // Typed as one record with two *different* modes rather than
+  // `Record<StashSlot, …>`: only B can be 'none' and only A can be 'webcam', and
+  // a shared union would let each deck be given the other's mode — which is
+  // precisely the mistake the pairing exists to stop the compiler from allowing.
+  const [sourceMode, setSourceMode] = useState<{
+    a: SourceMode
+    b: SourceBMode
+  }>({ a: 'bars', b: 'bars' })
   // Picked/loaded filename, shown while the source is 'file'; '' otherwise.
-  const [sourceName, setSourceName] = useState('')
+  const [sourceName, setSourceName] = useState({ a: '', b: '' })
   // Last session's file, remembered as a disk handle whose read permission the
   // reload dropped: it cannot be reopened without a gesture, so the slot holds
   // it here and the panel offers the click (see fileStash.ts).
-  const [pendingA, setPendingA] = useState<Stashed | null>(null)
-  const [pendingB, setPendingB] = useState<Stashed | null>(null)
+  const [pending, setPending] = useState<{
+    a: Stashed | null
+    b: Stashed | null
+  }>({ a: null, b: null })
   // The five picker entries that ask a question before they change anything —
   // the shelf, the browser, the YouTube box, the teletype card and the webcam
   // permission — as one state (useSourcePrompt.ts). Backing out of any of them
@@ -368,18 +400,22 @@ export function useEngine() {
   // halves were separate types (slotView.ts says why they no longer are), and
   // the cost showed up here as six state slots, two setters and two clears for
   // one fact about a deck.
-  const [pickA, setPickA] = useState<PoolPick | null>(null)
-  const [pickB, setPickB] = useState<PoolPick | null>(null)
+  const [pick, setPickState] = useState<{
+    a: PoolPick | null
+    b: PoolPick | null
+  }>({ a: null, b: null })
   const pickRef = useRef<{ a: PoolPick | null; b: PoolPick | null }>({
     a: null,
     b: null,
   })
-  const [cardA, setCardA] = useState(TELETYPE_DEFAULT)
-  const [cardB, setCardB] = useState(TELETYPE_DEFAULT)
+  const [card, setCardState] = useState({
+    a: TELETYPE_DEFAULT,
+    b: TELETYPE_DEFAULT,
+  })
   const cardRef = useRef({ a: TELETYPE_DEFAULT, b: TELETYPE_DEFAULT })
   // Vaporwave playback: per-slot rate (pitch drops with it) and the reverb wet
-  // mix on the tail the clips are heard through. videoA/videoB track what kind
-  // of <video> each slot currently holds — only a clip has a rate to change
+  // mix on the tail the clips are heard through. `live` tracks what kind of
+  // <video> each slot currently holds — only a clip has a rate to change
   // (see SlotKind).
   // One record rather than a useState each, so the rate can be changed by key.
   const [speed, setSpeed] = useState({ a: SPEED_DEFAULT, b: SPEED_DEFAULT })
@@ -388,12 +424,13 @@ export function useEngine() {
   // re-routing on a source change reads, and it is a ref for the same reason the
   // rest of the vapor config is.
   const [reverb, setReverb] = useState(REVERB_DEFAULT)
-  const [videoA, setVideoA] = useState<SlotKind>('none')
-  const [videoB, setVideoB] = useState<SlotKind>('none')
+  const [live, setLiveState] = useState<{ a: SlotKind; b: SlotKind }>({
+    a: 'none',
+    b: 'none',
+  })
   // The loaded YouTube URL per slot, kept so the source round-trips through the
   // query string (a refresh or shared link restores the clip).
-  const [ytUrlA, setYtUrlA] = useState('')
-  const [ytUrlB, setYtUrlB] = useState('')
+  const [ytUrl, setYtUrlState] = useState({ a: '', b: '' })
   // Where each slot's playhead is, for the seek bars. Polled rather than driven
   // off `timeupdate` for the same reason the audio file's is: the readout ticks
   // in tenths, and a slot slowed to 0.25× fires timeupdate on its own schedule
@@ -439,8 +476,6 @@ export function useEngine() {
   })
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
   const [webcamDeviceId, setWebcamDeviceId] = useState('')
-  const [sourceBMode, setSourceBMode] = useState<SourceBMode>('bars')
-  const [sourceBName, setSourceBName] = useState('')
   const [renderScale, setRenderScale] = useState(1)
   const renderScaleRef = useRef(1)
   const [res, setRes] = useState('')
@@ -545,8 +580,8 @@ export function useEngine() {
   // file's transport and for the same reason: a clock reading in tenths does
   // not need a re-render per frame. The tick writes state only when a number
   // actually moved, so a slot paused on the deck costs nothing.
-  const clipA = videoA === 'clip'
-  const clipB = videoB === 'clip'
+  const clipA = live.a === 'clip'
+  const clipB = live.b === 'clip'
   useEffect(() => {
     // A fresh gate is a fresh source: clear the old reading rather than let the
     // previous clip's bar sit there for the first tenth of a second.
@@ -653,7 +688,7 @@ export function useEngine() {
 
   // The two slots, as data. Everything below that touches a <video> goes
   // through one of these, so the A and B paths are the same code reading a
-  // different descriptor rather than two near-copies drifting apart.
+  // different letter rather than two near-copies drifting apart.
   const adopt = () =>
     routeAudio(vaporRef.current.playAudio, vaporRef.current.reverb)
   // Every source that reaches a slot passes through the three setters below, so
@@ -666,86 +701,81 @@ export function useEngine() {
   // the failure mode of a second copy is not a crash but a slot that plays the
   // right picture and restores the wrong one after a device rebuild, because a
   // new source kind got added to A's `attach` and not to B's. Written once, the
-  // two cannot drift; what genuinely differs between them is the argument.
-  const makeSlot = (
-    id: StashSlot,
-    wiring: {
-      ref: VideoSlot['ref']
-      typer: VideoSlot['typer']
-      // The three engine entry points for this slot. They are separate methods
-      // per slot on EngineApi (`setVideoSource` / `setVideoSourceB`), so the
-      // choice of which to call is the one thing that cannot be indexed by `id`.
-      toVideo: (el: HTMLVideoElement | null) => void
-      toImage: (source: OffscreenCanvas | ImageBitmap, aspect?: number) => void
-      toNoise: (kind: number) => void
-      setLive: (kind: SlotKind) => void
-      setYtUrl: (url: string) => void
-      setName: (name: string) => void
-      setCard: (card: TeletypeCard) => void
+  // two cannot drift.
+  //
+  // The factory takes the deck's letter and nothing else, and that is load-
+  // bearing rather than tidy. It used to take a `wiring` descriptor holding the
+  // slot's two refs and three closures over `engineRef`, and **passing that
+  // object cost `useEngine` its memoization entirely**:
+  //
+  //     React Compiler could not optimize 2:
+  //       src/ui/useEngine.ts  Cannot access refs during render   (x2)
+  //         at makeSlot('a', …) — "Passing a ref to a function may read its
+  //         value during render"
+  //
+  // Bisected with `pnpm compiler`: the parent of the commit that introduced the
+  // factory optimizes, the factory commit does not, and both errors point at the
+  // two call sites rather than at anything inside. A ref reaching a call during
+  // render is enough — including one only *captured* by a closure in the object
+  // passed, which is what `el => engineRef.current?.setVideoSource(el)` is. It is
+  // the same fault slotView.ts records for `makeSlotView`, and the same cost:
+  // `App` builds ~200 control rows off this hook, so an unmemoized `useEngine` is
+  // all of them reconciling on writes that touched none of them.
+  //
+  // Taking the letter alone is what fixes it — nothing ref-ish crosses the call —
+  // and it happens to be the better factoring anyway: there is no descriptor left
+  // to pair with the wrong deck. Re-check with `pnpm compiler` if this grows a
+  // parameter.
+  const makeSlot = (id: StashSlot): VideoSlot => ({
+    id,
+    ref: id === 'a' ? videoRef : videoBRef,
+    typer: id === 'a' ? typerARef : typerBRef,
+    rate: () => vaporRef.current.speed[id],
+    // The three engine entry points below are separate methods per slot on
+    // EngineApi (`setVideoSource` / `setVideoSourceB`), so which one to call is
+    // the one thing about a deck that cannot be reached by indexing with `id`.
+    // Everything else here — the refs, the four React mirrors, the cue, the
+    // card — is now keyed, so this branch is the whole of the difference.
+    attach: el => {
+      lastSrc.current[id] = el === null ? { kind: 'none' } : { kind: 'video' }
+      const eng = engineRef.current
+      if (id === 'a') eng?.setVideoSource(el)
+      else eng?.setVideoSourceB(el)
+      if (el !== null) takePendingCue(id)
+    },
+    setImage: (source, aspect) => {
       // Only A keeps its own aspect — B is staged to the raster with a 4:3 crop,
       // so its shader needs no aspect at all (see gpu/sources.ts). Passing it
       // for B would not be harmless: it would be recorded in `lastSrc` and
       // handed back on the next restore, describing a staging that never
       // happened.
-      keepsAspect: boolean
-    },
-  ): VideoSlot => ({
-    id,
-    ref: wiring.ref,
-    typer: wiring.typer,
-    rate: () => vaporRef.current.speed[id],
-    attach: el => {
-      lastSrc.current[id] = el === null ? { kind: 'none' } : { kind: 'video' }
-      wiring.toVideo(el)
-      if (el !== null) takePendingCue(id)
-    },
-    setImage: (source, aspect) => {
-      const kept = wiring.keepsAspect ? aspect : undefined
+      const kept = id === 'a' ? aspect : undefined
       lastSrc.current[id] = { kind: 'still', source, aspect: kept }
-      wiring.toImage(source, kept)
+      const eng = engineRef.current
+      if (id === 'a') eng?.setImageSource(source, kept)
+      else eng?.setImageSourceB(source)
     },
     setNoise: kind => {
       lastSrc.current[id] = { kind: 'noise', noise: kind }
-      wiring.toNoise(kind)
+      const eng = engineRef.current
+      if (id === 'a') eng?.setNoiseSource(kind)
+      else eng?.setNoiseSourceB(kind)
     },
-    setLive: wiring.setLive,
-    setYtUrl: wiring.setYtUrl,
-    setName: wiring.setName,
+    setLive: kind => setLiveState(onDeck(id, kind)),
+    setYtUrl: url => setYtUrlState(onDeck(id, url)),
+    setName: name => setSourceName(onDeck(id, name)),
     clearCue: () => clearCueOn(id),
     card: () => cardRef.current[id],
-    setCard: card => {
-      cardRef.current[id] = card
-      wiring.setCard(card)
+    setCard: next => {
+      cardRef.current[id] = next
+      setCardState(onDeck(id, next))
     },
     onError: setError,
     release: el => engineRef.current?.audioState.releaseMedia(el),
     adopt,
   })
-  const slotA = makeSlot('a', {
-    ref: videoRef,
-    typer: typerARef,
-    toVideo: el => engineRef.current?.setVideoSource(el),
-    toImage: (source, aspect) =>
-      engineRef.current?.setImageSource(source, aspect),
-    toNoise: kind => engineRef.current?.setNoiseSource(kind),
-    setLive: setVideoA,
-    setYtUrl: setYtUrlA,
-    setName: setSourceName,
-    setCard: setCardA,
-    keepsAspect: true,
-  })
-  const slotB = makeSlot('b', {
-    ref: videoBRef,
-    typer: typerBRef,
-    toVideo: el => engineRef.current?.setVideoSourceB(el),
-    toImage: source => engineRef.current?.setImageSourceB(source),
-    toNoise: kind => engineRef.current?.setNoiseSourceB(kind),
-    setLive: setVideoB,
-    setYtUrl: setYtUrlB,
-    setName: setSourceBName,
-    setCard: setCardB,
-    keepsAspect: false,
-  })
+  const slotA = makeSlot('a')
+  const slotB = makeSlot('b')
   const stopVideo = () => stopSlot(slotA)
   const stopVideoB = () => stopSlot(slotB)
 
@@ -757,8 +787,7 @@ export function useEngine() {
   // that never reached a slot — see `rollFrom`.
   const setPick = (key: StashSlot, on: PoolPick | null) => {
     pickRef.current[key] = on
-    if (key === 'a') setPickA(on)
-    else setPickB(on)
+    setPickState(onDeck(key, on))
   }
 
   // Which load of a slot is the current one. Bumped by every path that gives a
@@ -820,8 +849,7 @@ export function useEngine() {
     // offer still happens either way, since a deck that has been given a source
     // must not go on offering to replace it.
     if (stash === 'drop') dropFile(key)
-    else if (key === 'a') setPendingA(null)
-    else setPendingB(null)
+    else setPending(onDeck<Stashed | null>(key, null))
     return fresh
   }
 
@@ -831,8 +859,8 @@ export function useEngine() {
     stash: 'drop' | 'keep' = 'drop',
   ): (() => boolean) => {
     const fresh = commitDeck('a', stash)
-    setSourceMode(mode)
-    setSourceName(name)
+    setSourceMode(m => ({ ...m, a: mode }))
+    setSourceName(onDeck('a', name))
     return fresh
   }
 
@@ -842,8 +870,8 @@ export function useEngine() {
     stash: 'drop' | 'keep' = 'drop',
   ): (() => boolean) => {
     const fresh = commitDeck('b', stash)
-    setSourceBMode(mode)
-    setSourceBName(name)
+    setSourceMode(m => ({ ...m, b: mode }))
+    setSourceName(onDeck('b', name))
     // Off is a mode like any other here, so the enable follows the mode rather
     // than being a flag each caller sets: every source but 'none' means B is
     // summing, and 'none' is the one that means it is not.
@@ -973,8 +1001,8 @@ export function useEngine() {
   // when both are rolling, since A is the picture; a set with a channel on B
   // alone still gets the command.
   const rollAgain = () => {
-    if (isPoolMode(sourceMode)) rollFrom(slotA, sourceMode)
-    else if (isPoolMode(sourceBMode)) rollFrom(slotB, sourceBMode)
+    if (isPoolMode(sourceMode.a)) rollFrom(slotA, sourceMode.a)
+    else if (isPoolMode(sourceMode.b)) rollFrom(slotB, sourceMode.b)
   }
 
   // One named file onto a slot, off the shelf or out of the browser. Resolved
@@ -1056,8 +1084,7 @@ export function useEngine() {
   }
 
   const dropFile = (key: StashSlot) => {
-    if (key === 'a') setPendingA(null)
-    else setPendingB(null)
+    setPending(onDeck<Stashed | null>(key, null))
     clearStash(key).catch((e: unknown) =>
       debugLog('DEBUG unstash failed', reason(e)),
     )
@@ -1066,13 +1093,17 @@ export function useEngine() {
   // What the slot held last session, put back. A kept roll off the shelf is a
   // request and comes straight back; a copied stash opens straight away too; a
   // disk handle whose read permission died with the page needs a click, so it is
-  // parked in `pending` for the caption to offer instead.
-  const reopenStashed = (key: StashSlot, park: (stashed: Stashed) => void) => {
+  // parked in `pending` for the caption to offer instead. The parking used to be
+  // a setter handed in by the caller, because there was one per deck; with
+  // `pending` keyed there is nothing left for a caller to choose, and `key` was
+  // already being passed.
+  const reopenStashed = (key: StashSlot) => {
     readStash(key).then(
       stashed => {
         if (stashed === null) return
         if (stashed.at === 'pool') showRef(key, stashed.ref, 'library')
-        else if (stashed.needsGesture) park(stashed)
+        else if (stashed.needsGesture)
+          setPending(onDeck<Stashed | null>(key, stashed))
         else
           stashed.open().then(
             file => adoptInto(key, file, stashed.mode),
@@ -1090,13 +1121,14 @@ export function useEngine() {
   // gesture's transient activation, which is why `open` is called with nothing
   // awaited in front of it. Only a disk stash is ever parked — a kept roll needs
   // no gesture and has already been put back above.
-  const reopenPending = (key: StashSlot, pending: Stashed | null) => {
-    if (pending !== null && pending.at === 'file')
-      pending.open().then(
+  const reopenPending = (key: StashSlot) => {
+    const stashed = pending[key]
+    if (stashed !== null && stashed.at === 'file')
+      stashed.open().then(
         // `adoptInto` is what clears the park, since every way out of it ends
         // there — the grant landing, or another source arriving first.
-        file => adoptInto(key, file, pending.mode),
-        (e: unknown) => setError(`reopen ${pending.name}: ${reason(e)}`),
+        file => adoptInto(key, file, stashed.mode),
+        (e: unknown) => setError(`reopen ${stashed.name}: ${reason(e)}`),
       )
   }
 
@@ -1124,6 +1156,10 @@ export function useEngine() {
   // Download a clip and hand it to the slot. What differs between A and B —
   // the mode enum, B's enable flag — stays with the callers below.
   //
+  // The caption goes through `slot.setName` rather than a setter passed in: the
+  // slot handed over already carries its own, and reaching through it for the
+  // sibling (`slot.setYtUrl`) on the very next line is what this always did.
+  //
   // `fresh` is the deck's load token, and this is the path that needs it most:
   // yt-dlp fetches the whole clip through the dev bridge, which is the longest
   // wait in the app by some way, and it is the one anybody is most likely to
@@ -1135,11 +1171,10 @@ export function useEngine() {
     slot: VideoSlot,
     url: string,
     fresh: () => boolean,
-    label: (text: string) => void,
     onFail: () => void,
   ) => {
     slot.setYtUrl(url)
-    label(`youtube: ${ytId(url)} — downloading…`)
+    slot.setName(`youtube: ${ytId(url)} — downloading…`)
     fetchYouTube(url).then(
       blob => {
         // Nothing is allocated for a stale reply: the object url is made here
@@ -1147,12 +1182,12 @@ export function useEngine() {
         // dropped whole, and the blob goes with the reference.
         if (!fresh()) return
         playUrl(slot, URL.createObjectURL(blob))
-        label(`youtube: ${ytId(url)}`)
+        slot.setName(`youtube: ${ytId(url)}`)
       },
       (e: unknown) => {
         if (!fresh()) return
         setError(`youtube: ${reason(e)}`)
-        label('')
+        slot.setName('')
         onFail()
       },
     )
@@ -1183,7 +1218,7 @@ export function useEngine() {
   // something is actually sent — typing a letter into a box should not pull the
   // camera out from under the picture.
   const retypeOn = (key: StashSlot, patch: Partial<TeletypeCard>) => {
-    const mode = key === 'a' ? sourceMode : sourceBMode
+    const mode = sourceMode[key]
     if (engineRef.current && mode === 'teletype')
       printOn(slotOf(key), patch, true)
   }
@@ -1335,8 +1370,8 @@ export function useEngine() {
     }
   }
 
-  const reopenFileA = () => reopenPending('a', pendingA)
-  const reopenFileB = () => reopenPending('b', pendingB)
+  const reopenFileA = () => reopenPending('a')
+  const reopenFileB = () => reopenPending('b')
 
   // Both slots feed the clip through the same blob-backed <video> path as a
   // picked file; only the mode bookkeeping differs, and B's enable flag.
@@ -1345,7 +1380,7 @@ export function useEngine() {
     if (engineRef.current && trimmed !== '') {
       setError('')
       const fresh = commitA('youtube')
-      downloadYouTube(slotA, trimmed, fresh, setSourceName, () => {})
+      downloadYouTube(slotA, trimmed, fresh, () => {})
     }
   }
 
@@ -1355,8 +1390,8 @@ export function useEngine() {
     if (current && trimmed !== '') {
       setError('')
       const fresh = commitB('youtube')
-      downloadYouTube(slotB, trimmed, fresh, setSourceBName, () => {
-        setSourceBMode('none')
+      downloadYouTube(slotB, trimmed, fresh, () => {
+        setSourceMode(m => ({ ...m, b: 'none' }))
         current.setSourceBEnabled(false)
       })
     }
@@ -1421,20 +1456,28 @@ export function useEngine() {
     // slot's own text, so the link's text has to be on the slot by then.
     if (params.card !== null) slotA.setCard(params.card)
     if (params.cardb !== null) slotB.setCard(params.cardb)
-    if (params.src === 'webcam') {
+    // Both decks are set here, in one synchronous body, which is the one place
+    // in this file where the paired records could be got wrong in a way nothing
+    // would report: `setSourceMode({ ...sourceMode, a: … })` twice reads the same
+    // render-time record both times and the second write drops the first, so
+    // `?src=…&srcb=…` would boot with A's source lost. The functional form below
+    // is what makes the two writes independent, and it is not optional here.
+    const src = params.src
+    if (src === 'webcam') {
       selectSource('webcam')
-    } else if (params.src !== null) {
+    } else if (src !== null) {
       // `beginLoad` rather than the `commit` pair the picker uses: what the link
       // says about the stash is decided below, once every param has been read
       // (`linkNamesA`), and committing here would answer that question early —
       // for `?src=` alone, and before `?vurl=` had been looked at.
-      showGenerated(slotA, params.src, beginLoad('a'))
-      setSourceMode(params.src)
+      showGenerated(slotA, src, beginLoad('a'))
+      setSourceMode(m => ({ ...m, a: src }))
     }
-    if (params.srcb !== null) {
-      eng.setSourceBEnabled(params.srcb !== 'none')
-      showGenerated(slotB, params.srcb, beginLoad('b'))
-      setSourceBMode(params.srcb)
+    const srcb = params.srcb
+    if (srcb !== null) {
+      eng.setSourceBEnabled(srcb !== 'none')
+      showGenerated(slotB, srcb, beginLoad('b'))
+      setSourceMode(m => ({ ...m, b: srcb }))
     }
     const imageError = (e: unknown) => setError(`image: ${reason(e)}`)
     // `beginLoad` in each of the three below is what makes "the link named an
@@ -1451,8 +1494,8 @@ export function useEngine() {
         // the reveal or it goes on typing over the picture that just landed.
         stopTyping(slotA)
         slotA.setImage(bmp, bmp.width / bmp.height)
-        setSourceMode('file')
-        setSourceName(urlName(url))
+        setSourceMode(m => ({ ...m, a: 'file' }))
+        setSourceName(onDeck('a', urlName(url)))
       }, imageError)
     }
     if (params.iurlb !== null) {
@@ -1463,16 +1506,16 @@ export function useEngine() {
         stopTyping(slotB)
         slotB.setImage(bmp)
         eng.setSourceBEnabled(true)
-        setSourceBMode('file')
-        setSourceBName(urlName(url))
+        setSourceMode(m => ({ ...m, b: 'file' }))
+        setSourceName(onDeck('b', urlName(url)))
       }, imageError)
     }
     if (params.vurl !== null) {
       beginLoad('a')
       stopTyping(slotA)
       playUrl(slotA, params.vurl)
-      setSourceMode('file')
-      setSourceName(urlName(params.vurl))
+      setSourceMode(m => ({ ...m, a: 'file' }))
+      setSourceName(onDeck('a', urlName(params.vurl)))
     }
     // Audio is left off however the link arrived: browsers block unmuted
     // autoplay without a gesture, so a restored clip must load muted and the
@@ -1503,9 +1546,9 @@ export function useEngine() {
     const linkNamesB =
       params.srcb !== null || params.iurlb !== null || params.ytb !== null
     if (linkNamesA) dropFile('a')
-    else reopenStashed('a', setPendingA)
+    else reopenStashed('a')
     if (linkNamesB) dropFile('b')
-    else reopenStashed('b', setPendingB)
+    else reopenStashed('b')
     debugLog('DEBUG engine ready')
   }
 
@@ -1909,21 +1952,21 @@ export function useEngine() {
       retrigger: () => retriggerOn('a'),
       clearCue: () => clearCueOn('a'),
       wrapCost: stall.a,
-      mode: sourceMode,
-      name: sourceName,
+      mode: sourceMode.a,
+      name: sourceName.a,
       select: selectSource,
-      live: videoA,
-      teletype: cardA,
+      live: live.a,
+      teletype: card.a,
       retype: p => retypeOn('a', p),
       loadTeletype,
-      ytUrl: ytUrlA,
+      ytUrl: ytUrl.a,
       loadYouTube,
-      pendingFile: pendingA === null ? '' : pendingA.name,
+      pendingFile: pending.a === null ? '' : pending.a.name,
       reopenFile: reopenFileA,
       onFile,
       speed: speed.a,
       changeSpeed: r => changeSpeed('a', r),
-      pick: pickA,
+      pick: pick.a,
     } satisfies SlotView<SourceMode>,
     b: {
       key: 'b',
@@ -1936,21 +1979,21 @@ export function useEngine() {
       retrigger: () => retriggerOn('b'),
       clearCue: () => clearCueOn('b'),
       wrapCost: stall.b,
-      mode: sourceBMode,
-      name: sourceBName,
+      mode: sourceMode.b,
+      name: sourceName.b,
       select: selectSourceB,
-      live: videoB,
-      teletype: cardB,
+      live: live.b,
+      teletype: card.b,
       retype: p => retypeOn('b', p),
       loadTeletype: loadTeletypeB,
-      ytUrl: ytUrlB,
+      ytUrl: ytUrl.b,
       loadYouTube: loadYouTubeB,
-      pendingFile: pendingB === null ? '' : pendingB.name,
+      pendingFile: pending.b === null ? '' : pending.b.name,
       reopenFile: reopenFileB,
       onFile: onFileB,
       speed: speed.b,
       changeSpeed: r => changeSpeed('b', r),
-      pick: pickB,
+      pick: pick.b,
     } satisfies SlotView<SourceBMode>,
     // Which source dialog is open, for which deck, and the two verbs that move
     // it (useSourcePrompt.ts). One object rather than five ask/setAsk pairs, and
@@ -1982,7 +2025,7 @@ export function useEngine() {
     // there being a pick up: a file taken off the shelf came out of a list, and a
     // list is not a pool. The palette row says so rather than going quiet, since
     // a row that does nothing has to admit it.
-    rollable: isPoolMode(sourceMode) || isPoolMode(sourceBMode),
+    rollable: isPoolMode(sourceMode.a) || isPoolMode(sourceMode.b),
     reverb,
     setVideoAudio,
     changeReverb,
