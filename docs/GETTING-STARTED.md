@@ -61,5 +61,6 @@ can hold a colour.
 
 - [User guide](USER-GUIDE.md) — sources, feedback, modulation, saving, scopes
 - [Effects & features](EFFECTS.md) — everything it does, control by control
-- [How it works](HOW-IT-WORKS.md) — the signal path, pass by pass
+- [How it works](HOW-IT-WORKS.md) — the code: one array and a chain of GPU
+  shaders
 - [MIDI](MIDI.md) — setting up a controller

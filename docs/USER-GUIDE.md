@@ -251,7 +251,8 @@ follows the magnifier at full resolution.
 ## Where next
 
 - [EFFECTS.md](EFFECTS.md) — everything it does, control by control
-- [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — the signal path, pass by pass
+- [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — the code: one array and a chain of GPU
+  shaders
 - [MIDI.md](MIDI.md) — setting up a controller
 - [DEVELOPMENT.md](DEVELOPMENT.md) — running it locally, URL params, this page's
   screenshot harness
