@@ -1,4 +1,4 @@
-// Every image and clip docs/USER-GUIDE.md embeds, declared rather than taken by
+// Every image and clip the guide pages embed, declared rather than taken by
 // hand. `node scripts/docshots.mjs [name...]` renders them; see that file for
 // the vocabulary (targets, actions, callouts).
 //

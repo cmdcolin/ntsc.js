@@ -1,13 +1,10 @@
 # Choosing an analog-video tool
 
-There are several good tools for making video look like it went through
-composite, tape and a CRT, and they are not really competing — they resolve the
-same premise for different jobs. This page is here so you can find the right one
-quickly, including when that is not this one.
+Several good tools make video look like it went through composite, tape and a
+CRT. They mostly solve the same premise for different jobs — this page is for
+finding the right one quickly, including when that is not this one.
 
-Everything below is free and open source unless noted.
-
-## Start here
+All free and open source unless noted.
 
 | If you want to…                                              | Use                                            |
 | ------------------------------------------------------------ | ---------------------------------------------- |
@@ -24,98 +21,57 @@ Everything below is free and open source unless noted.
 
 ## The tools
 
-### [ntsc-rs](https://github.com/ntsc-rs/ntsc-rs)
-
-The closest relative to this project and the most capable of the file-based
-tools. It shares the core premise — simulate the NTSC/VHS signal path rather
-than draw the look — and it is the one to reach for when the work lives in a
-timeline.
-
-It ships as a standalone application, a browser version, and plugins for After
-Effects, Premiere and OpenFX, which means it works in DaVinci Resolve (free and
-Studio), Vegas, HitFilm and Natron. The processing is CPU-side Rust,
-multithreaded with rayon and SIMD-accelerated, and it runs at resolutions well
-above the 480i that real NTSC footage was captured at.
-
-Two of those are advantages this project does not have and is not trying to
-have: **it integrates with editing software**, and **it is not locked to the
-NTSC raster**, so modern high-resolution footage keeps its resolution.
-
-### ntscQT
-
-The Python-based predecessor in the same line, and one of the sources ntsc-rs
-draws its algorithms from. Still around and still works; slower, and not
-real-time at higher resolutions. Mostly of interest now as history.
-
-### [composite-video-simulator](https://github.com/joncampbell123/composite-video-simulator)
-
-The C reference NTSC codec much of this lineage traces back to, including this
-project's. Not an application you'd hand to an artist — it is the thing to read
-when you want to know how the encode and decode actually work.
-
-### Blargg's NTSC filters (`nes_ntsc`, `snes_ntsc`) and RetroArch CRT shaders
-
-A related but distinct problem. Blargg's filters model composite artifacts for a
-specific console's video output, very fast and very accurate for that narrow
-case — this is what makes NES dithering blend into extra colours the way it did
-on a real TV. The RetroArch CRT shaders (`crt-royale`, `crt-guest-advanced`)
-mostly model the **display**: shadow mask, scanlines, phosphor, geometry, glow.
-If your source is a game and you want it to look right on a period television,
-that pairing is the mature answer.
-
-### Hardware
-
-LZX Industries and the surrounding Eurorack video-synthesis scene make the real
-thing: analog video hardware you patch. Nothing in software is a substitute for
-it, and this project is best understood as reaching in its direction from the
-opposite side. It is priced like hardware.
+- **[ntsc-rs](https://github.com/ntsc-rs/ntsc-rs)** — the closest relative, and
+  the one to reach for when the work lives in a timeline. Same premise (simulate
+  the signal path, don't draw the look), shipped as a standalone app, a browser
+  version, and AE/Premiere/OpenFX plugins, so it works in Resolve, Vegas,
+  HitFilm and Natron. CPU-side Rust, multithreaded and SIMD, and **not locked to
+  the NTSC raster** — two advantages this project does not have.
+- **ntscQT** — the Python predecessor in the same line, and one of ntsc-rs's
+  sources. Still works, slower, not real-time. Mostly of historical interest.
+- **[composite-video-simulator](https://github.com/joncampbell123/composite-video-simulator)**
+  — the C reference codec much of this lineage traces back to, including this
+  project's. Something to read rather than an app to use.
+- **Blargg's `nes_ntsc` / `snes_ntsc` and RetroArch CRT shaders** — a related
+  but distinct problem. Blargg's filters model composite artifacts for one
+  console's output, fast and accurate for that narrow case; the RetroArch
+  shaders (`crt-royale`, `crt-guest-advanced`) model the **display**: mask,
+  scanlines, phosphor, geometry, glow. For games on a period TV, that pairing is
+  the mature answer.
+- **Hardware** — LZX Industries and the Eurorack video scene make the real
+  thing. Nothing in software substitutes for it; this project reaches in its
+  direction from the opposite side. Priced like hardware.
 
 ## Where ntsc.js fits
 
-This project is a **live instrument** rather than a file processor, and that is
-a consequence of how it is built rather than a marketing position.
+It is a **live instrument** rather than a file processor, and that follows from
+how it is built: the whole signal path stays resident on the GPU as compute
+shaders, so changing a control is a uniform-buffer write rather than a
+re-render. What that budget buys:
 
-The entire signal path runs as WebGPU compute shaders — encode to composite,
-damage it through tape and RF, then decode it with a receiver model that has to
-find sync in whatever it is handed. Because those passes stay resident on the
-GPU, changing a control is a uniform-buffer write rather than a re-render. That
-budget is what the rest of the app is built on:
-
-- **230+ controls** across wiring, tape, RF, the receiver and the screen
-- **Two feedback loops** — a camera aimed at its own monitor, and a mixer
-  patched back into itself at the signal level
+- **A control for every stage** of the path — wiring, tape, RF, the receiver and
+  the screen
+- **Three feedback loops** — a camera at its own monitor, a mixer patched into
+  itself at signal level, and a tape loop with up to four heads
 - **Modulation on any slider** — LFO, random walk, sample-and-hold, Lorenz
-  attractor, or the level of whatever audio is playing
-- **MIDI** with per-device automap, pickup, and rate controls locked to incoming
-  clock
+  attractor, or live audio
+- **MIDI** with automap, soft takeover, and rates locked to incoming clock
 - **Audio into the signal** — bass into the field oscillator, level into line
   hold, the waveform into the deflection coils
 - **Live input** — webcam (so an RCA capture dongle works), or a shared window,
-  tab or display, so a game or a TouchDesigner patch can be the source
-- **No install, and a link carries the look** — the whole state fits in a URL
+  tab or display
+- **No install, and a link carries the look**
 
 ### What it does not do
 
-Stated plainly, because these are the cases where another tool is the right
-answer:
+- **No NLE integration.** Capture the window with OBS, or record webm in-app.
+- **The raster is fixed** at 910×525 samples, 754×480 active, so a 4K source is
+  sampled down to NTSC resolution.
+- **Recording is real-time**, not a deterministic offline render.
+- **It needs a WebGPU browser** — on Linux, Firefox Nightly or Chrome.
+- **The model is progressive** 525/60 rather than interlaced at field rate, the
+  largest remaining authenticity gap ([ARCHITECTURE.md](ARCHITECTURE.md)).
 
-- **No NLE integration.** There is no plugin. Capture the window with OBS, or
-  record to webm in-app.
-- **The raster is fixed** at 910×525 samples with a 754×480 active picture, so a
-  4K source is sampled down to NTSC resolution. That is faithful, and it is also
-  a real limitation if you want your delivery resolution back.
-- **Recording is real-time**, not a deterministic offline render, so a capture
-  is subject to whatever the machine was doing at the time.
-- **It needs a WebGPU browser**, and on Linux that currently means Firefox
-  Nightly or Chrome.
-- **The model is progressive** 525/60 rather than interlaced at field rate — the
-  largest remaining authenticity gap, noted in
-  [ARCHITECTURE.md](ARCHITECTURE.md).
-
-## A note on this page
-
-Comparisons written by one project about another go stale, and this one is
-written from the outside — from the other projects' own documentation, not from
-benchmarks run here. Nothing on this page is a performance claim about anyone
-else's code. If something is out of date or unfair, please open an issue; being
-wrong about a neighbouring project is worth fixing quickly.
+<sub>Written from the other projects' own documentation, not from benchmarks run
+here — nothing above is a performance claim about anyone else's code. If
+something is out of date or unfair, please open an issue.</sub>

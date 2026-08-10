@@ -1,5 +1,5 @@
 // Documentation screenshots: drive the real app in Firefox Nightly and render
-// every image docs/USER-GUIDE.md embeds, so the guide cannot drift from the UI.
+// every image the guide pages embed, so they cannot drift from the UI.
 // Each shot is declarative (scripts/docshot-specs.mjs): a URL, a list of
 // actions, optional callouts, and what to crop to. Nothing is hand-measured —
 // crops and callouts resolve against live elements at capture time.

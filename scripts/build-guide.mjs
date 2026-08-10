@@ -24,39 +24,44 @@ const outArg = process.argv.find(a => a.startsWith('--out='))
 const outDir = outArg === undefined ? 'dist/guide' : outArg.slice(6)
 
 const PAGES = [
-  { file: 'docs/USER-GUIDE.md', out: 'index.html', nav: 'User guide' },
+  // The landing page is the short one: what this is, four steps, a picture of
+  // the panel. Everything that used to be on it lives in the user guide.
+  {
+    file: 'docs/GETTING-STARTED.md',
+    out: 'index.html',
+    nav: 'Getting started',
+  },
+  { file: 'docs/USER-GUIDE.md', out: 'guide.html', nav: 'User guide' },
   {
     file: 'docs/HOW-IT-WORKS.md',
     out: 'how-it-works.html',
     nav: 'How it works',
   },
-  { file: 'docs/FEATURES.md', out: 'features.html', nav: 'Features' },
-  { file: 'docs/EFFECTS.md', out: 'effects.html', nav: 'Effects' },
+  { file: 'docs/EFFECTS.md', out: 'effects.html', nav: 'Effects & features' },
   { file: 'docs/MIDI.md', out: 'midi.html', nav: 'MIDI' },
   // Where this sits among the other analog-video tools, including the cases
   // where one of them is the better answer. Reader-facing: it is the page
   // someone arriving from a search wants before any of the others.
   { file: 'docs/COMPARISON.md', out: 'comparison.html', nav: 'Comparison' },
-  // Contributor-facing, but it holds the diagrams for the three domains and for
-  // adding a control, which are the two things hardest to pick up from the code.
-  {
-    file: 'docs/ARCHITECTURE.md',
-    out: 'architecture.html',
-    nav: 'Architecture',
-  },
+  // ARCHITECTURE.md is deliberately not here. It is contributor material, and
+  // a reader's nav is the wrong place for it; the part of it a reader wants —
+  // the signal path and the three domains — is in HOW-IT-WORKS.md, and links to
+  // it fall through to the repo like any other contributor doc.
 ]
 
 // Markdown link -> where it goes on the site. Anything else that ends in .md is
 // a contributor doc with no page here, so it goes to the repo.
 const REPO = 'https://github.com/cmdcolin/ntsc.js/blob/main/'
 const LINKS = new Map([
-  ['USER-GUIDE.md', 'index.html'],
+  ['GETTING-STARTED.md', 'index.html'],
+  ['USER-GUIDE.md', 'guide.html'],
   ['HOW-IT-WORKS.md', 'how-it-works.html'],
-  ['FEATURES.md', 'features.html'],
+  // Merged into the effects page: what the app can do and what it can break
+  // were two lists of the same things.
+  ['FEATURES.md', 'effects.html'],
   ['EFFECTS.md', 'effects.html'],
   ['MIDI.md', 'midi.html'],
   ['COMPARISON.md', 'comparison.html'],
-  ['ARCHITECTURE.md', 'architecture.html'],
 ])
 
 const slug = text =>
@@ -160,7 +165,7 @@ header .brand { font-weight: 700; letter-spacing: 0.02em; margin-right: 8px; }
 header a { color: var(--fg3); text-decoration: none; font-size: 14px; }
 header a:hover { color: var(--fg); }
 header a.on { color: var(--accent); }
-header .app { margin-left: auto; color: var(--accent); }
+header .app { color: var(--accent); }
 main { max-width: 900px; margin: 0 auto; padding: 8px 24px 96px; }
 h1 { font-size: 34px; line-height: 1.2; margin: 32px 0 8px; }
 h2 {
@@ -203,8 +208,8 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 40px 0; }
 <body>
 <header>
   <span class="brand">ntsc.js</span>
+  <a class="app" href="../">live demo ↗</a>
   ${PAGES.map(p => `<a class="${p.out === current ? 'on' : ''}" href="${p.out}">${p.nav}</a>`).join('\n  ')}
-  <a class="app" href="../">open the app ↗</a>
 </header>
 <main>
 ${body}

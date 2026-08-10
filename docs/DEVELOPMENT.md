@@ -431,8 +431,9 @@ dies partway through resumes with `--missing` rather than starting over.
 
 ## Documentation screenshots
 
-Every figure in [`USER-GUIDE.md`](USER-GUIDE.md) is captured from the running
-app, so the guide can't quietly drift from the UI:
+Every figure in [`GETTING-STARTED.md`](GETTING-STARTED.md) and
+[`USER-GUIDE.md`](USER-GUIDE.md) is captured from the running app, so they can't
+quietly drift from the UI:
 
 ```
 pnpm docshots                 # all of them, into docs/img/
