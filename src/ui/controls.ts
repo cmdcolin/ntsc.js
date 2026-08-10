@@ -23,6 +23,16 @@ export interface SliderDef {
   // 1x; 'persistence' is logarithmic in what the phosphor keeps back, because
   // trail length is geometric in it and a linear track spends its whole lower
   // half on holds too short to see.
+  //
+  // 'zero' and 'unity' are the general ones, and most of a control's tuning is
+  // deciding whether it wants one: they expand the travel around the stock
+  // setting (0, or ×1) and coarsen away from it, so a pixel near stock is worth
+  // one `step` and the far end of the span is still reachable. Take one on any
+  // control where the whole mechanism lives in the first percent — a detune, a
+  // loop's geometry, a bend — and leave it off where the span reads evenly (a
+  // gain, a hue, a key level): the curve is not a general improvement, it is
+  // travel taken from one end and given to the other. `step` is the fine end's
+  // resolution once curved, so it is worth lowering at the same time.
   curve?: CurveName
   // Present on a control whose travel now runs past the range it was tuned to:
   // the old [min, max], drawn as a notch on the track at whichever end grew.
@@ -562,7 +572,8 @@ export const GROUPS: Group[] = [
         label: 'zoom',
         min: 0.2,
         max: 4,
-        step: 0.005,
+        step: 0.001,
+        curve: 'unity',
         redline: [0.7, 1.6],
         unit: 'x',
         help: 'How much bigger or smaller the camera frames the screen each time around. Above 1 detail flows outward and tunnels form; below 1 it collapses inward. The distance from 1 sets how fast the loop marches, and tiny offsets are usually the most interesting.',
@@ -572,10 +583,11 @@ export const GROUPS: Group[] = [
         label: 'rotate',
         min: -180,
         max: 180,
-        step: 0.1,
+        step: 0.01,
+        curve: 'zero',
         redline: [-30, 30],
         unit: 'deg',
-        help: 'Camera tilt on the loop. Each pass rotates the image again, so structures spiral instead of expanding straight out. Combines with zoom into the classic logarithmic-spiral feedback.',
+        help: 'Camera tilt on the loop. Each pass rotates the image again, so structures spiral instead of expanding straight out. Combines with zoom into the classic logarithmic-spiral feedback. A hundredth of a degree is a visible difference in how fast the spiral winds, which is why the track is fine around zero and coarse out at the ends.',
       },
       {
         key: 'fbShiftX',
@@ -583,6 +595,7 @@ export const GROUPS: Group[] = [
         min: -1,
         max: 1,
         step: 0.001,
+        curve: 'zero',
         redline: [-0.3, 0.3],
         unit: '',
         fine: true,
@@ -594,6 +607,7 @@ export const GROUPS: Group[] = [
         min: -1,
         max: 1,
         step: 0.001,
+        curve: 'zero',
         redline: [-0.3, 0.3],
         unit: '',
         fine: true,
@@ -604,7 +618,8 @@ export const GROUPS: Group[] = [
         label: 'gain',
         min: 0,
         max: 3,
-        step: 0.005,
+        step: 0.001,
+        curve: 'unity',
         redline: [0.5, 1.5],
         unit: 'x',
         fine: true,
@@ -786,7 +801,8 @@ export const GROUPS: Group[] = [
         label: 'loop timebase pull',
         min: -60,
         max: 60,
-        step: 0.05,
+        step: 0.01,
+        curve: 'zero',
         redline: [-8, 8],
         unit: 'us',
         help: "The loop's delay trimmer replaced by a varactor hanging off the video bus, so the fed-back waveform tunes the delay it is riding through. Bright content and sync tips pull opposite ways from mid-video, and every 70 ns of pull is another 90° of hue — so each lap the picture rewrites its own timing and colour, and that rewritten picture does the pulling on the next lap. Structures shear apart by brightness, sync walks into neighbouring lines and tears, and none of it can repeat, because the displacement field is the picture itself one generation late. Sign chooses which way brightness pulls.",
@@ -1136,6 +1152,7 @@ export const GROUPS: Group[] = [
         min: -60,
         max: 60,
         step: 0.01,
+        curve: 'zero',
         redline: [-8, 8],
         unit: 'Hz',
         help: "How far B's line rate sits from A's. B slides sideways continuously, skewing a little more on each successive line, because the two horizontal oscillators are not locked. At zero it stops but stays where it drifted to.",
@@ -1145,7 +1162,8 @@ export const GROUPS: Group[] = [
         label: 'sc detune',
         min: -3000,
         max: 3000,
-        step: 0.5,
+        step: 0.01,
+        curve: 'zero',
         redline: [-400, 400],
         unit: 'Hz',
         help: "How far B's colour subcarrier sits from A's 3.579545 MHz. The decoder locks to A's burst, so B's colour beats against it and its hue cycles continuously — the rainbow crawl of a non-genlocked source.",
@@ -1156,6 +1174,7 @@ export const GROUPS: Group[] = [
         min: -30,
         max: 30,
         step: 0.01,
+        curve: 'zero',
         redline: [-3, 3],
         unit: 'l/f',
         help: "B's vertical drift in lines per frame, from its field rate not matching A's. B creeps up or down through the frame independently of the picture A is painting.",
@@ -2290,6 +2309,7 @@ export const GROUPS: Group[] = [
         min: -3000,
         max: 3000,
         step: 1,
+        curve: 'zero',
         redline: [-500, 500],
         unit: 'Hz',
         help: "Free-run drift of the receiver's horizontal oscillator away from 15.734 kHz. The PLL has to keep dragging it back, so the picture leans into a diagonal skew — and past the pull-in range it gives up and shears into diagonal bars.",
@@ -2319,6 +2339,7 @@ export const GROUPS: Group[] = [
         min: -3000,
         max: 3000,
         step: 1,
+        curve: 'zero',
         redline: [-400, 400],
         unit: 'Hz',
         help: 'Overall audio level pulls the horizontal oscillator off frequency, so loud passages skew and tear the picture sideways and it re-locks in the gaps. Negative leans the tear the other way.',
@@ -2340,6 +2361,7 @@ export const GROUPS: Group[] = [
         min: -80,
         max: 80,
         step: 0.1,
+        curve: 'zero',
         redline: [-20, 20],
         unit: 'us',
         help: 'The audio waveform itself is patched into the horizontal deflection, one sample per scan line — literally drawing the oscilloscope trace of the sound into the geometry of the picture. Deflection-domain, so hue stays put while the glass bends.',
@@ -2397,6 +2419,7 @@ export const GROUPS: Group[] = [
         min: -120,
         max: 120,
         step: 0.1,
+        curve: 'zero',
         redline: [-30, 30],
         unit: 'us',
         help: "How far the tube's own scan is displaced sideways, in microseconds of line time. This is deflection-domain damage: the beam is bent after the picture has been decoded, so geometry warps but hue stays exactly where it was, and a rolling picture slides through a bend that stays put on the glass.",
@@ -2437,6 +2460,7 @@ export const GROUPS: Group[] = [
         min: -100,
         max: 100,
         step: 0.1,
+        curve: 'zero',
         redline: [-25, 25],
         unit: 'us',
         help: 'A bright picture draws beam current, which loads the high-voltage supply and lets the scan widen — so bright content stretches the geometry around it. It is why a white box on a tired tube bulges the image outward, and because it follows the content it moves with the picture.',
@@ -2565,7 +2589,8 @@ export const GROUPS: Group[] = [
         label: 'subcarrier detune',
         min: -200,
         max: 200,
-        step: 0.05,
+        step: 0.001,
+        curve: 'zero',
         redline: [-20, 20],
         unit: 'kHz',
         help: "The decoder's reference crystal pulled off 3.579545 MHz — the classic circuit-bend. The demodulation axis rotates continuously against the incoming colour, so hue sweeps the whole wheel at a rate set by how far off you are. Turn burst lock down to let it run.",

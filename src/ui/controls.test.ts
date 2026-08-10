@@ -30,6 +30,8 @@ import {
   VIEW_KEYS,
   VIEW_STAGE,
 } from './controls'
+import { formatValue } from './format'
+import { TRAVEL_STEP } from './travel'
 
 import type { ControlKey } from '../controls'
 
@@ -215,6 +217,49 @@ describe('control tables', () => {
     for (const l of LOOP_STAGES) {
       const keys = stageGroups(l.name).flatMap(g => g.sliders.map(s => s.key))
       expect(keys, l.mix).toContain(l.mix)
+    }
+  })
+})
+
+describe('travel curves', () => {
+  // 'zero' and 'unity' expand the travel around a fine point the curve names
+  // rather than reads off the control, so the control has to actually contain
+  // it — and, for the bipolar ones, sit symmetrically about it, or one side of
+  // the track is compressing a span the other side is not.
+  it('keeps every fine curve’s point inside the control it is on', () => {
+    for (const s of ALL_SLIDERS) {
+      if (s.curve === 'zero') {
+        expect([s.key, s.min, s.max], s.key).toEqual([s.key, -s.max, s.max])
+      } else if (s.curve === 'unity') {
+        expect(s.min, s.key).toBeLessThan(1)
+        expect(s.max, s.key).toBeGreaterThan(1)
+      }
+    }
+  })
+
+  // A curve is not free: it takes travel off one end of the control to give it
+  // to the other, and it only pays when a notch of the linear track was jumping
+  // several of the control's own steps. Under that it is a straight track
+  // dressed up as a curve — see solveK, which quietly returns a straight one.
+  it('only curves controls whose linear track was too coarse to steer', () => {
+    for (const s of ALL_SLIDERS) {
+      if (s.curve !== 'zero' && s.curve !== 'unity') continue
+      const notchesPerTravel = ((s.max - s.min) * TRAVEL_STEP) / s.step
+      expect(notchesPerTravel, s.key).toBeGreaterThan(2)
+    }
+  })
+
+  // A fine curve makes `step` the resolution at the fine point — a notch of
+  // travel there is one step — so a step the readout cannot print would be a
+  // stretch of track that moves the picture while the number stands still.
+  // (`phosphor` prints coarser than it steps on purpose, and says why; it is a
+  // curve about the far end of its span rather than the near one.)
+  it('keeps a fine-curved control’s step printable', () => {
+    for (const s of ALL_SLIDERS) {
+      if (s.curve !== 'zero' && s.curve !== 'unity') continue
+      expect(formatValue(s.step, s.step), s.key).not.toBe(
+        formatValue(0, s.step),
+      )
     }
   })
 })

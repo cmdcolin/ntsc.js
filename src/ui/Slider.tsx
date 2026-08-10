@@ -9,7 +9,7 @@ import popoverStyles from './Popover.module.css'
 import styles from './Slider.module.css'
 import { SliderHelpDialog } from './SliderHelpDialog'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
-import { fromTravel, toTravel } from './travel'
+import { fromTravel, toTravel, TRAVEL_STEP } from './travel'
 
 import type { SliderDef } from './controls'
 import type { CurveName } from './travel'
@@ -491,7 +491,7 @@ export function Slider(props: {
         style={fill}
         min={curved ? 0 : props.min}
         max={curved ? 1 : props.max}
-        step={curved ? 0.002 : props.step}
+        step={curved ? TRAVEL_STEP : props.step}
         value={curved ? toTravel(props, props.value) : props.value}
         disabled={locked}
         // The plugin idiom, for free: the track is the biggest target on the

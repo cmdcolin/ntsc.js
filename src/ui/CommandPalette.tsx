@@ -1,11 +1,12 @@
 import { useState } from 'react'
 
 import styles from './CommandPalette.module.css'
-import { GROUPS } from './controls'
+import { GROUPS, snapToStep } from './controls'
 import { cx } from './cx'
 import dlg from './dialog.module.css'
 import { formatValue } from './format'
 import { PRESETS, presetLabel } from './presets'
+import { fromTravel, toTravel } from './travel'
 import { useModalDialog } from './useModalDialog'
 
 import type { ControlKey, Controls } from '../controls'
@@ -60,11 +61,24 @@ const itemProse = (it: Item) =>
 
 // A control's coarse nudge: 1% of its span for continuous knobs, one mode for
 // discrete ones, snapped back onto the control's own step grid.
+//
+// 1% of *travel* on a curved control, which is the same gesture read off the
+// track the panel draws rather than off the raw span — and has to be, or a nudge
+// on a fine-at-zero control jumps straight past everything it was curved for
+// (1% of rotate's span is 3.6°, where the whole spiral lives inside the first
+// half degree) and a nudge on the synth oscillator moves it 80 kHz.
 function nudge(s: SliderDef, value: number, dir: number): number {
-  const delta =
-    s.choices === undefined
-      ? Math.max(s.step, Math.round((s.max - s.min) / 100 / s.step) * s.step)
-      : 1
+  if (s.choices !== undefined)
+    return Math.max(s.min, Math.min(s.max, Math.round(value + dir)))
+  if (s.curve !== undefined)
+    return snapToStep(
+      s,
+      fromTravel(s, Math.max(0, Math.min(1, toTravel(s, value) + dir * 0.01))),
+    )
+  const delta = Math.max(
+    s.step,
+    Math.round((s.max - s.min) / 100 / s.step) * s.step,
+  )
   const next = Math.round((value + dir * delta) / s.step) * s.step
   return Math.max(s.min, Math.min(s.max, next))
 }
