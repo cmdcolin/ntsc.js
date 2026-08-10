@@ -48,11 +48,10 @@ the sidebar is that path, and every box on it is a button.
 | :---------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------: | :---------------------------------------------------------------------------: |
 | ![Reversed polarity: every hue complementary, the raster sheared](img/look-negative.jpg) | ![The video synth keyed against itself: hard bands of saturated colour](img/look-key.jpg) | ![A mixer loop past unity, breeding coloured structure](img/look-loop.jpg) |
 
-**negative** reverses polarity on the composite line, which takes sync with it,
-so the set shears looking for a tip up in peak white · **key sweep** puts the
-video synth through the chroma keyer, with no camera anywhere in it · **mixer
-loop** patches the composite back into itself past unity, where it stops
-returning your picture and starts breeding its own.
+**negative** reverses polarity on the composite line, and sync goes with it ·
+**key sweep** runs the video synth through the chroma keyer, with no camera
+anywhere in it · **mixer loop** patches the composite into itself past unity,
+where it stops returning your picture and starts breeding its own.
 
 ## Where next
 
