@@ -31,6 +31,14 @@
 //
 // One exclusion stands: a take is reproducible *within a browser build*. The
 // H.264 encoder is Firefox's, and nothing here asserts across versions of it.
+//
+// It grew arms as the halves of a take arrived, and they follow the same shape
+// as the headline: render it twice for the same file, and render it *without*
+// for the control that says the thing under test is what made the file what it
+// is. The rundown's walk is one (_One walk, two clocks_); the automation tape
+// is another (_Live input has no offline meaning_), plus one arm on the
+// recorder itself, which is the only piece here that has to work against a
+// frame counter the window manager is moving.
 
 import puppeteer from 'puppeteer-core'
 
@@ -255,6 +263,65 @@ const renderStrip = walkOn =>
     FRAMES,
   )
 
+// A recorded take rendered offline: an automation tape replayed through the
+// render's `onFrame` (`ui/automation.playTape`), against the same sink the app
+// hands it (`ui/useAutomation.engineAutoSink`).
+//
+// Imported rather than re-stated, and that is the whole reason the sink is an
+// exported function: a harness that builds its own writes measures the engine
+// correctly and the app's wiring not at all, which is how a transition's stale
+// cut once survived a browser check that was passing.
+//
+// The tape is written out by hand rather than performed, deliberately. What the
+// recorder does with a live counter is the arm below; what this one is about is
+// whether a stamped write reaches the file, and a literal tape is the only way
+// to ask that without the answer depending on when a `setTimeout` fired.
+const renderAuto = tapeOn =>
+  page.evaluate(
+    async (on, fps, frames) => {
+      const mod = await import('/src/ui/render.ts')
+      const { playTape } = await import('/src/ui/automation.ts')
+      const { engineAutoSink } = await import('/src/ui/useAutomation.ts')
+      const vf = window.vf
+      const cv = document.querySelector('canvas')
+      // Every key the tape touches, explicitly at stock, for the reason the
+      // rundown arm gives: a second render starting from where the first one
+      // left the board could not be compared with the first.
+      vf.stopGlide()
+      vf.applyControls({ ...vf.getControls(), vSize: 1, trackAmt: 0 })
+      const tape = {
+        events: [
+          { kind: 'set', at: 10, key: 'trackAmt', value: 0.8 },
+          { kind: 'set', at: 30, key: 'vSize', value: 0.7 },
+          { kind: 'set', at: 45, key: 'trackAmt', value: 0.2 },
+        ],
+        frames,
+      }
+      const play = playTape(
+        tape,
+        engineAutoSink(() => vf),
+      )
+      const blob = await mod.renderTake(vf, cv, {
+        frames,
+        fps,
+        seed: 9,
+        onFrame: on ? play : undefined,
+      })
+      const buf = new Uint8Array(await blob.arrayBuffer())
+      const digest = [
+        ...new Uint8Array(await crypto.subtle.digest('SHA-256', buf)),
+      ]
+        .map(x => x.toString(16).padStart(2, '0'))
+        .join('')
+      // Read after the render, so it says the last event actually landed rather
+      // than that the first one did.
+      return { digest, size: buf.length, ended: vf.getControls().trackAmt }
+    },
+    tapeOn,
+    FPS,
+    FRAMES,
+  )
+
 // --- two renders of one take are one file -------------------------------------
 //
 // The headline, and everything else here is the reason it can be asserted. The
@@ -382,6 +449,71 @@ check(
   'and the rundown is what made it that file',
   s1.digest !== bare.digest,
   `${s1.size}B walked vs ${bare.size}B not`,
+)
+
+// --- a recorded take is a take you can ask for twice --------------------------
+//
+// docs/EDITOR.md › _Live input has no offline meaning_, measured: what a hand
+// did while the take rolled, replayed onto the frames it did it on.
+const t1 = await renderAuto(true)
+const t2 = await renderAuto(true)
+const untaped = await renderAuto(false)
+check(
+  'two renders of one automation tape are the same file',
+  t1.digest === t2.digest,
+  `${t1.digest.slice(0, 16)} vs ${t2.digest.slice(0, 16)}`,
+)
+// The control arm, and the check above is worth nothing without it: a tape that
+// never reached the engine would render two identical files too.
+check(
+  'and the tape is what made it that file',
+  t1.digest !== untaped.digest,
+  `${t1.size}B replayed vs ${untaped.size}B not`,
+)
+// The last event rather than the first, because the failure a digest cannot
+// distinguish is a replay that lands one write and then stops — a cursor that
+// forgot to advance, or a walk rebuilt per frame.
+check(
+  'every event on the tape lands, not only the first',
+  Math.abs(t1.ended - 0.2) < 1e-6,
+  `trackAmt ended at ${t1.ended}, for a tape ending on 0.2`,
+)
+
+// The recorder against a real frame counter. Not an exact stamp — the live loop
+// is running and the window manager has a say in how fast — but an exact
+// *bound*: the write happened between two readings of the counter, so its stamp
+// has to sit between the same two, and a recorder measuring from the wrong
+// origin fails that however slow the machine is.
+const recorded = await page.evaluate(async () => {
+  const { makeAutomationRunner } = await import('/src/ui/useAutomation.ts')
+  const vf = window.vf
+  const runner = makeAutomationRunner()
+  runner.setFrameNo(() => vf.frameNo())
+  const origin = vf.frameNo()
+  runner.start()
+  await new Promise(r => setTimeout(r, 250))
+  const before = vf.frameNo() - origin
+  runner.tap.set('vSize', 0.42)
+  const after = vf.frameNo() - origin
+  await new Promise(r => setTimeout(r, 250))
+  runner.stop()
+  // And nothing after the seal: a tape that went on recording would make every
+  // take a recording of whatever happened next.
+  runner.tap.set('vSize', 0.99)
+  const tape = runner.getTape()
+  return { events: tape.events, frames: tape.frames, before, after }
+})
+check(
+  'the recorder stamps a write against the frame it started on',
+  recorded.events.length === 1 &&
+    recorded.events[0].at >= recorded.before &&
+    recorded.events[0].at <= recorded.after,
+  `stamped ${recorded.events[0]?.at} for a write between frames ${recorded.before} and ${recorded.after}`,
+)
+check(
+  'and seals a length that covers the whole take',
+  recorded.frames > recorded.after,
+  `${recorded.frames} frames sealed, last write at ${recorded.after}`,
 )
 
 // --- the engine is left as it was found --------------------------------------

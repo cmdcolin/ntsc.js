@@ -61,6 +61,13 @@ const errors = []
 page.on('pageerror', e => errors.push(String(e).slice(0, 200)))
 await page.goto(url, { waitUntil: 'domcontentloaded' })
 await appUp(page, 6000)
+// Before the frame watchdog, not after: a headed window that opens behind the
+// terminal it was launched from is never drawn, and everything below then
+// reports the stall this file's own message describes — which is true, and
+// about the window manager rather than the app. `rendercheck.mjs` has always
+// asked for the front for the same reason; this had not, and was unrunnable on
+// a box where new windows do not take focus.
+await page.bringToFront()
 await watchFrames(page, { label: 'traycheck' })
 
 const wait = ms => new Promise(r => setTimeout(r, ms))
@@ -473,6 +480,71 @@ check('and leaves it playing', restarted?.paused === false)
 await click('■ stop')
 const paused = await until(head, h => h?.paused === true)
 check('stop pauses it', paused?.paused === true, JSON.stringify(paused))
+
+// --- ●, and what it writes down ---------------------------------------------
+//
+// The wiring rather than the arithmetic: `automation.test.ts` owns which frame
+// an event belongs to, and what a browser is needed for is that a hand on a
+// slider ends up on the tape at all — which crosses `useMidi`'s write path,
+// App's tap and the recorder, none of which a unit test sees together.
+//
+// The whole point of tapping `useMidi` is that a *controller* is recorded too,
+// and that is the one thing this cannot reach: there is no MIDI device here.
+// What it can say is that the store-origin half arrives, and that the two
+// halves are the same three lines in the same file.
+const bar = () =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('button')].map(b => ({
+      text: b.textContent?.trim() ?? '',
+      on: b.className.includes('active'),
+    })),
+  )
+await click('● rec')
+const rolling = (await bar()).find(b => b.text === '● rec')
+check('● lights up and the walk goes with it', rolling?.on === true)
+check(
+  'and the transport says the rundown is running',
+  (await bar()).some(b => b.text === '■ stop'),
+)
+// A write through the panel while the tape rolls — the ordinary path, not a
+// poke at the engine: `writeControl` is what a slider calls and what the tap
+// hangs off, so reaching past it would test nothing this arm is about.
+await page.evaluate(async () => {
+  await new Promise(r => setTimeout(r, 200))
+  const hit = [...document.querySelectorAll('input[type="range"]')][0]
+  const set = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    'value',
+  )?.set
+  set?.call(hit, String(Number(hit.max) / 2))
+  hit.dispatchEvent(new Event('input', { bubbles: true }))
+})
+await click('● rec')
+const readout = (await bar()).find(b => b.text.startsWith('⏺'))
+// A non-zero number, deliberately: this arm rolls the tape for a fraction of a
+// second, and a readout that rounds to nearest called that `0s` — a take that
+// renders perfectly well, described as nothing, next to a `⎙ render 0s` that
+// reads as a button with nothing to do. Found here, and the reason the tray
+// rounds durations up.
+check(
+  'stopping seals a take whose length is the time it rolled',
+  readout !== undefined && /^⏺\s*[1-9]\d*s\s*✕$/.test(readout.text),
+  readout?.text ?? 'no readout',
+)
+// The render offers the take rather than the song, which is what says the two
+// are wired to each other and not merely both present.
+check(
+  'and ⎙ offers to render the take that was just performed',
+  (await bar()).some(b => /^⎙ render [1-9]\d*s$/.test(b.text)),
+  (await bar()).find(b => b.text.startsWith('⎙'))?.text ?? '',
+)
+// The readout is a discard as well as a fact — the only way to throw a bad take
+// away without recording over it.
+await click('⏺')
+check(
+  'and the readout throws the take away when it is asked to',
+  !(await bar()).some(b => b.text.startsWith('⏺')),
+)
 
 // --- persistence -----------------------------------------------------------
 const stored = await page.evaluate(() =>

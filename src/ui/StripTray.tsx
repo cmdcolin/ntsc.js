@@ -41,6 +41,14 @@ interface Drag {
 // register a plain tap.
 const DRAG_SLOP = 5
 
+// A duration as the tray says it. Rounded *up*, which is the whole reason this
+// is a function rather than `Math.round` twice: a take of four hundred
+// milliseconds reads `0s` when rounded to nearest, which reads as no take at
+// all — and `⎙ render 0s` beside it reads as a button that does nothing, on a
+// take that renders perfectly well. Overstating a second is the harmless
+// direction; understating a whole take to nothing is not.
+const secs = (n: number): string => `${Math.ceil(n)}s`
+
 export function StripTray(props: {
   // Takes the jitter amount for a shake row, or nothing for an ordinary
   // capture. The tray cannot build a session string itself — that needs the
@@ -197,11 +205,11 @@ export function StripTray(props: {
               <button
                 className={cx(ui.bare, styles.tape)}
                 onClick={props.record.clear}
-                title={`${Math.round(props.record.seconds)}s of recorded control moves — click to throw it away`}
+                title={`${secs(props.record.seconds)} of recorded control moves — click to throw it away`}
               >
                 ⏺
                 <span className={styles.tapeLen}>
-                  {Math.round(props.record.seconds)}s
+                  {secs(props.record.seconds)}
                 </span>
                 ✕
               </button>
@@ -242,7 +250,7 @@ export function StripTray(props: {
               <button
                 className={cx(ui.btn, styles.readout)}
                 onClick={props.render.start}
-                title={`render ${Math.round(props.render.seconds)}s to a constant-framerate MP4${
+                title={`render ${secs(props.render.seconds)} to a constant-framerate MP4${
                   props.render.automated
                     ? ' — the recorded take, hands and all'
                     : props.track.name === ''
@@ -250,7 +258,7 @@ export function StripTray(props: {
                       : ` — the length of ${props.track.name}`
                 }`}
               >
-                ⎙ render {Math.round(props.render.seconds)}s
+                ⎙ render {secs(props.render.seconds)}
               </button>
             ) : (
               <button

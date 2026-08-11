@@ -171,6 +171,28 @@ export function makeAutomationRunner(): AutomationRunner {
   }
 }
 
+// Where a replay writes: straight at the engine, past the tap — see the header
+// for why the two never meet.
+//
+// Its own exported function rather than three lines inside the hook, for a
+// reason that is about harnesses and not about tidiness. `scripts/rendercheck.
+// mjs` drives a take from outside React, and a harness that re-implements the
+// app's wiring inside itself measures the engine correctly and the app not at
+// all — which is exactly how a transition's stale-cut bug survived a browser
+// check that was passing (docs/EDITOR.md › _Landed: between rows_). This is the
+// seam that keeps the two the same code.
+//
+// Takes a getter rather than an engine so the app can read through its ref at
+// call time, where a device-loss rebuild has put a different object.
+export const engineAutoSink = (engine: () => EngineApi | null): AutoSink => ({
+  set: (key, value) => engine()?.setControl(key, value),
+  apply: controls => engine()?.applyControls(controls),
+  // Rebuilt through `morphTo`, which is where the two key sets a plan needs
+  // come from — so a replayed morph moves exactly the keys the recorded one
+  // did, including the rule that leaves the magnifier where it is.
+  glide: (to, seconds) => engine()?.startGlide(morphTo(to, seconds)),
+})
+
 export interface AutomationApi {
   rolling: boolean
   // The sealed take's length in seconds, 0 when there is nothing on the tape.
@@ -202,21 +224,14 @@ export function useAutomation(
   }, [runner, frameNo])
   const state = useSyncExternalStore(runner.subscribe, runner.getState)
 
-  const replay = useCallback(() => {
-    // Straight to the engine, past the tap — see the header. Read through the
-    // ref at call time for the same reason every other engine verb here is: the
-    // object is a different one after a rebuild.
-    const sink: AutoSink = {
-      set: (key, value) => engineRef.current?.setControl(key, value),
-      apply: controls => engineRef.current?.applyControls(controls),
-      // Rebuilt through `morphTo`, which is where the two key sets a plan needs
-      // come from — so a replayed morph moves exactly the keys the recorded one
-      // did, including the rule that leaves the magnifier where it is.
-      glide: (to, seconds) =>
-        engineRef.current?.startGlide(morphTo(to, seconds)),
-    }
-    return playTape(runner.getTape(), sink)
-  }, [runner, engineRef])
+  const replay = useCallback(
+    () =>
+      playTape(
+        runner.getTape(),
+        engineAutoSink(() => engineRef.current),
+      ),
+    [runner, engineRef],
+  )
 
   return {
     rolling: state.rolling,
