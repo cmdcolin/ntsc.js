@@ -17,11 +17,20 @@
 // the thing this file used to explain it could not check is now the headline
 // check (docs/EDITOR.md › _Take state_).
 //
-// Two things it still cannot claim. A take over a `<video>` is not reproducible
-// — the pump pulls at wall rate, which is EDITOR.md's frame-exact video pull —
-// so this renders the default bars. And a take is reproducible *within a
-// browser build*: the H.264 encoder is Firefox's, and nothing here asserts
-// across versions of it.
+// **The clip exclusion is gone**, and it was the older of two. This file used
+// to say a take over a `<video>` could not be reproducible because the pump
+// pulled at wall rate, and so rendered the default bars. Frame-exact pull is
+// what removed it: the last arm below loads `public/test.mp4` through the app's
+// own `?vurl` path and renders it twice, and the two files match byte for byte.
+//
+// That arm asks the pump whether the deck actually had a decoder on it, which
+// is not paranoia: two renders of a *frozen* deck are also identical, so
+// "identical" on its own cannot tell a working pull from a fallback that never
+// moved. It is also last on purpose — everything before it renders bars, so a
+// failure there is the render and a failure only there is the video path.
+//
+// One exclusion stands: a take is reproducible *within a browser build*. The
+// H.264 encoder is Firefox's, and nothing here asserts across versions of it.
 
 import puppeteer from 'puppeteer-core'
 

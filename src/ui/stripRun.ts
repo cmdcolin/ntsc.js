@@ -24,6 +24,16 @@
 // still not reproducible. The awaiting sink is worth building the day the thing
 // on the other side of it is (EDITOR.md's frame-exact video pull), and not one
 // commit before.
+//
+// **That day has come, and this file has not moved yet.** Frame-exact pull
+// landed — `ui/framePull.ts`, and `VideoPump`'s take mode over it — so a deck
+// with a clip on it now renders as a function of the frame number, and
+// `renderTake` awaits the decoder before every step. What is still fired and
+// forgotten is the *row's own load*: `session` hands the browser a fetch and
+// returns, so a row naming a clip arrives whenever the network answers and is
+// frame exact only from then on. Making this sink await is what closes the gap,
+// and the condition above is finally met — the machinery for waiting is built,
+// and only the load is outside it.
 
 import { rngFor } from '../rng'
 import { STOPPED, advance, start } from './strip'

@@ -545,10 +545,19 @@ sensitive: one unseeded `Math.random` in a per-frame modulator, or one buffer
 left out of the reset, and it fails. It is the guard
 [`adr/0006`](adr/0006-a-take-is-a-seed-and-its-picks.md) names.
 
-Two things it deliberately does not claim, and both are properties of the world
-rather than gaps in the harness. **It renders bars, not a clip:** `VideoPump`
-pulls at wall rate, so a take over a `<video>` is not reproducible until
-frame-exact pull lands. And **byte-identity is within one browser build** — the
+**It renders a clip too, and that arm is the newest thing in it.** The harness
+spent months explaining that a take over a `<video>` could not be reproducible,
+because the pump pulled at wall rate; frame-exact pull removed the reason, and
+the last arm loads `public/test.mp4` through the app's own `?vurl` and renders
+it twice to the same bytes. Two things about how it is written are worth
+copying. It asks the pump whether the deck actually had a decoder on it, because
+two renders of a _frozen_ deck are also identical — "the same twice" cannot tell
+a working pull from a fallback that never moved. And it runs last, so a failure
+in an earlier arm is the render and a failure only in that one is the video
+path.
+
+One thing it still deliberately does not claim, and it is a property of the
+world rather than a gap: **byte-identity is within one browser build.** The
 H.264 encoder is Firefox's, and nothing here asserts across versions of it.
 
 ### Frame-exact pull, and the four harnesses that decided it

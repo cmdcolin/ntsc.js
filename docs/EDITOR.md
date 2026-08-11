@@ -936,9 +936,56 @@ So "render frame N" is nearly a pure function already. Four things are not.
     waited for, a cache emptied by handing a frame out, and a feed loop awaiting
     a microtask where a decoder's output is a task.
 
-  **What is left is the wiring**, and it is the smaller half: `VideoPump` asking
-  the puller instead of the element while a take is running, and `renderTake`
-  awaiting that before it steps. See _What to do next_.
+  **And the wiring has landed too.** `VideoPump` has a take mode — frames from
+  the puller, and a playhead that is arithmetic on the frame counter rather than
+  something read back off a `<video>` — `startTake` is the switch that turns it
+  on, and `renderTake` awaits it before each step.
+
+  **That `await` is half of the awaiting sink
+  [`stripRun.ts`](../src/ui/stripRun.ts)'s header describes, and it is worth
+  saying which half.** What a render now waits for is its own decoder opening,
+  so a deck with a clip already on it is frame exact from the take's first
+  frame. What it still does not wait for is a **row's load**: `applySession`
+  fires the fetch and returns, so a row naming a clip arrives when it arrives
+  and is frame exact only once its element is on the deck. The remaining half is
+  buildable for the first time — the thing on the other side of it is frame
+  exact now, which is the condition that header names — and it is a smaller job
+  than it was, because the waiting machinery exists and only the row's own load
+  sits outside it.
+
+  `scripts/rendercheck.mjs` has lost the exclusion it carried since it was
+  written. **Two renders of a take with a clip in it are the same file, byte for
+  byte** — real time injected into the second, the live loop running between
+  them to move the tape ring, the phosphor and the element's own playhead on.
+
+  Four things worth knowing about the shape it landed in.
+
+  - **The pull is where the take's clock finally reaches the picture**, and it
+    belongs in `startTake` for the reason that switch exists at all: three of
+    four leaves a take that looks deterministic and is not. The clock, the dice
+    and the signal path were already in it, and the pictures were still
+    advancing at whatever rate the browser played them at.
+  - **A clip that arrives mid-take starts at its own beginning.** The position
+    is `(frame - whenThisClipArrived) / fps`, so a row firing at frame 300 shows
+    the top of its clip rather than five seconds in. Computed from the frame
+    rather than accumulated, so asking twice gives the same answer — which is
+    the property, stated as arithmetic instead of promised.
+  - **A looped region wraps by modulo, and lands exactly on the in-point.** The
+    live clamp overshoots by up to a frame because it can only fire once the
+    playhead has crossed the out-point; arithmetic has no such lag. A difference
+    from the live picture, and the right way round — the render is the one that
+    can afford to be exact.
+  - **A source that cannot be pulled from stays on its element**, which is every
+    webcam, every generated mode, a YouTube embed, and any file the demuxer
+    declines. That deck is then exactly as reproducible as it was before any of
+    this, which is what makes the whole thing safe to switch on unconditionally.
+
+  The bug worth keeping is not about video at all. Factoring the bitmap and
+  direct delivery paths together dropped the sink's receiver — `Sources` is a
+  class and `pushA` wants its own — so passing the method bare broke **every**
+  video frame, live included, and surfaced as `this is undefined` inside the
+  sink with a stack naming neither the pump nor the change. The unit tests
+  passed throughout, because a test sink is an object literal of arrows.
 
 - ~~**Four wall-clock reads, three of which move pixels.**~~ **Landed**, and
   there were five, not four: `startGlide` stamps the walk's origin as well as
@@ -1061,9 +1108,17 @@ engine where this one is inside it.
   follows. What that does _not_ yet fix is the live walk ticking on rAF straight
   through a render; see _What to do next_.
 
-**What a take still cannot reproduce is a clip.** `VideoPump` pulls at wall
-rate, so everything below the video is deterministic and the video is not —
-which is build-order step 6, and the reason the harness renders bars.
+~~**What a take still cannot reproduce is a clip.**~~ **It can now.** That was
+true for as long as `VideoPump` pulled at wall rate: everything below the video
+was deterministic and the video was not, which was build-order step 6 and the
+reason the harness rendered bars. Step 6 has landed — see _The video source_
+above for the two routes and why the measurements chose between them — and
+`rendercheck.mjs` now asserts a clip take byte for byte alongside the bars one.
+
+What a take still cannot reproduce is a source with no file behind it: a webcam,
+a screen share, a YouTube embed. Those are live input, and _Live input has no
+offline meaning_ above is the same argument about a different wire — the answer
+there is automation recording, not a puller.
 
 ### The Firefox constraint that shapes the choice
 
@@ -1187,15 +1242,18 @@ arrives.
    commit. Everything that was filed as waiting on preroll has since landed on
    top of it — transitions between rows, and the loop's second read head — so
    what is left of this step is takes, which want the export first.
-6. **Frame-exact video pull.** The real project, and the one with the Firefox
-   constraint sitting on it. **The pull itself has landed** — `ui/mp4demux.ts`,
-   `ui/framePull.ts`, and four harnesses that between them closed the seek
-   route, re-measured the constraint, checked the sample table against ffprobe
-   and read each decoded frame's own index back out of the picture. What is left
-   is the wiring: the pump asking the puller while a take is running, and the
-   render awaiting it. The Firefox constraint turned out to cost 1 ms a frame,
-   which is not the thing that shapes the choice — the seek route's 38-600 ms
-   was.
+6. ~~**Frame-exact video pull.**~~ **Landed** — `ui/mp4demux.ts`,
+   `ui/framePull.ts`, `VideoPump`'s take mode, and the `await` in front of
+   `renderTake`'s step. Four harnesses decided it and one proves it: between
+   them they closed the seek route, re-measured the Firefox constraint, checked
+   the sample table against ffprobe, read each decoded frame's own index back
+   out of the picture, and finally rendered a clip twice to the same bytes.
+
+   **The constraint this step was named after was not the hard part.** It costs
+   1 ms a frame, measured; what decided the design was the seek route's 38-600
+   ms, which nothing in this document predicted because nobody had asked what a
+   _forward one-frame_ seek costs.
+
 7. **Automation recording.** Control writes with frame stamps, replayed offline;
    the thing that makes performing and rendering the same take.
 
@@ -1252,35 +1310,30 @@ list above in two places.
    median while doing it. Nothing short of listening would have caught that, and
    the shipped version gives the head back rather than keeping it.
 
-5. ~~**Frame-exact video pull**~~ — **the pull has landed; the wiring has not.**
-   `ui/framePull.ts` answers "the frame shown at time t" off a `VideoDecoder` at
-   0.85 ms a frame, and `scripts/pullcheck.mjs` proves the frames are the right
-   ones rather than merely prompt. Nothing in the app calls it yet, which is
-   deliberate: the measurement work is what decided the route, and it is worth
-   landing on its own before anything is wired to it.
+5. ~~**Frame-exact video pull.**~~ **Landed, both halves.** `ui/framePull.ts`
+   answers "the frame shown at time t" off a `VideoDecoder` at 0.85 ms a frame;
+   `VideoPump`'s take mode asks it instead of the element and owns the playhead
+   while a take runs; and `renderTake` awaits it before each step.
+   `scripts/rendercheck.mjs` renders `public/test.mp4` twice to the same bytes,
+   which is the claim the whole of step 6 was for.
 
-   What the wiring is, in the order it wants doing:
+   Three predictions this list made, and how they came out.
 
-   - **A puller per slot, opened when a take starts and closed when it ends.**
-     It belongs beside the elements, in `ui/videoSlot.ts`, because that is what
-     already owns "which url is this slot playing" — and it is the same seam the
-     second read head used rather than a new one.
-   - **`VideoPump` asks the puller instead of the element, under a take.** The
-     pump's own playhead, advanced by `1/fps` a frame and wrapped by the region,
-     rather than `el.currentTime` read back — which is the whole of what makes a
-     loop exact as well as a walk. `startTake` is the switch, on the argument
-     _Take state_ already makes for having one switch rather than three.
-   - **`renderTake` awaits the pull before it steps**, which is the one place
-     the synchronous `step()` has to gain an `await` in front of it. It is also
-     where the awaiting sink `stripRun.ts`'s header describes becomes worth
-     building: the thing on the other side of it is frame exact now, which is
-     the condition that header names.
-   - **The fallback stays**, and it is not a lesser path. A puller that declines
-     — a codec it cannot name, an edit list it cannot express as a shift, a
-     source with no file behind it at all, which is every generated mode and
-     every webcam — leaves the slot exactly as reproducible as it is today. A
-     take over a clip that cannot be pulled is a take with wall-rate video in
-     it, which is what every take has now.
+   - **"A puller per slot, in `ui/videoSlot.ts`."** Wrong place. The url is all
+     a puller needs, so the opener is one callback on the engine rather than a
+     thing each slot holds — the same shape `setVideoRelay` has, minus the part
+     that has to know _which_ slot's elements it is swapping. What does live per
+     slot is the decoder the pump opened and the frame the clip arrived on.
+   - **"The pump's own playhead, advanced by `1/fps` a frame."** Advanced was
+     the wrong verb: it is _computed_ from the frame number, so asking twice
+     gives the same answer and nothing drifts. An accumulated head makes the
+     picture depend on how many times it was asked rather than on which frame it
+     was asked for, which is the one property a take cannot do without.
+   - **"The fallback stays, and it is not a lesser path."** Right, and it earns
+     its keep more often than that made it sound: a webcam, a screen share, a
+     generated mode and a YouTube embed are all sources with no file to open, so
+     the fallback is not an error path but the ordinary answer for half of what
+     a deck can hold.
 
    Then **automation recording**, as before.
 
