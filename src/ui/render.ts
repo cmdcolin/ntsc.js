@@ -56,7 +56,14 @@ export interface RenderSpec {
   // renders, and a row applied after the step would be a cut that lands one
   // frame late — every time, in the same direction, which is the kind of error
   // no assertion about frame rate would ever catch.
-  onFrame?: (frame: number) => void
+  //
+  // **Awaited when it hands back a promise**, which the strip's offline walk
+  // does on the frames a row actually fires on: what it is waiting for is the
+  // clip that row named to be on the deck. Live nothing waits, because a set
+  // that stalls is worse than a picture that is late; offline the render's
+  // clock is its own, so waiting costs wall time and costs the file nothing.
+  // See `StripSink.settle`.
+  onFrame?: (frame: number) => void | Promise<void>
   // Called after each yield, never per frame — a progress bar has no use for
   // sixty updates a second and React has no time for them mid-render.
   onProgress?: (done: number, total: number) => void
@@ -135,8 +142,13 @@ export async function renderTake(
   })
   try {
     for (let i = 0; i < frames; i++) {
-      spec.onFrame?.(i)
-      // **The awaited sink, finally worth building.** `stripRun.ts`'s header
+      // **Awaited, and `scripts/rendercheck.mjs` checks that it is** — against
+      // a control arm of the same take with nothing to wait for, because a
+      // render of this length takes two seconds on its own and "it took longer
+      // than the waits" passes whether or not anything was awaited. With the
+      // `await` removed on purpose, four 120ms waits add 13ms instead of 670.
+      await spec.onFrame?.(i)
+      // **The other half of the awaited sink.** `stripRun.ts`'s header
       // says why it was not before: a render waiting for a source buys nothing
       // while what it is waiting for plays at wall rate. This is the other side
       // of that seam — each deck's picture for frame `i`, decoded and staged

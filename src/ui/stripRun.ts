@@ -83,6 +83,21 @@ export interface StripSink {
   // on it, and a preroll that does not finish in time is a cut that pays the
   // price it paid before this existed.
   preroll: (url: string, start: number) => void
+  // Wait for whatever the verbs above asked the browser for to actually be on
+  // the deck. **Optional, and the live sink deliberately does not have one.**
+  //
+  // The asymmetry is the point rather than an omission. Live, a row that names
+  // a clip has to put it up when the network answers, because the alternative
+  // is a set that stalls — there is nothing to be gained by holding the picture
+  // back and a performance to be lost. Offline there is no such thing as late:
+  // a render's clock is its own, so waiting costs wall time and costs the file
+  // nothing, and the row lands on the frame the rundown named instead of on
+  // whichever frame the fetch finished by.
+  //
+  // Which is why it is on the sink and not in `advance` or `runStep`: what a
+  // walk decides is identical in both, and *how long the browser is given to
+  // catch up* is the only thing that differs. `offlineWalk` is the one caller.
+  settle?: () => Promise<void>
 }
 
 // One effect. A switch with no default: the union is closed, so adding a
@@ -151,15 +166,24 @@ export function offlineWalk(
   strip: Strip,
   sink: StripSink,
   tempo: { bpm: number; fps: number },
-): (frame: number) => void {
+): (frame: number) => void | Promise<void> {
   let walk = STOPPED
   return frame => {
     const clock = { frame, bpm: tempo.bpm, fps: tempo.fps }
     // Frame zero starts the walk; every frame after it asks whether a boundary
     // has been crossed, which on nearly all of them it has not.
     const step = frame === 0 ? start(strip, clock) : advance(strip, walk, clock)
-    if (step === null) return
+    // Explicitly, because the other way out of here hands back a promise: a
+    // bare `return` and a `return sink.settle?.()` in one function is the shape
+    // a caller misreads as "always await this".
+    if (step === null) return undefined
     walk = step.walk
     runStep(step, sink)
+    // **Only on a frame that had a step**, which is the whole reason this
+    // returns a promise sometimes and nothing the rest of the time. A rundown
+    // crosses a boundary a few times a minute and is asked about sixty times a
+    // second; handing back a promise on every frame would put a microtask hop
+    // between the render and its own loop for no reason on 99% of them.
+    return sink.settle?.()
   }
 }

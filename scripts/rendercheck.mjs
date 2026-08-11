@@ -289,6 +289,76 @@ check(
   `${a.first}..${a.last} and ${b.first}..${b.last} for ${FRAMES} asked`,
 )
 
+// --- the render waits for a row that is not ready yet -------------------------
+//
+// The other half of the awaiting sink (docs/EDITOR.md › _Frame-exact video
+// pull_): `offlineWalk` hands back a promise on the frames a row fires on, and
+// `renderTake` awaits it before it steps. What that buys is a row landing on
+// the frame the rundown named rather than on whichever frame its fetch happened
+// to finish by.
+//
+// Asserted on the *render*, which is the part this file owns. The barrier
+// behind it — `useEngine.settleSources`, fed by `beginLoad` and the slot's
+// three arrival verbs — is not reachable from here: the strip's sink lives in
+// the React tree and only `window.vf` crosses into the page. So this proves the
+// waiting, and the thing waited on is covered by `stripRun.test.ts` and by
+// being one matched pair through one funnel each.
+// **Against a measured floor, never against zero.** A render of this length
+// takes about two seconds on its own, so "it took longer than 240ms" passes
+// whether or not anything was awaited. The same take with no wait in it is the
+// control, and the delta is the reading.
+const waitArm = (delayMs, marks) =>
+  page.evaluate(
+    async (n, fps, delay, on) => {
+      const mod = await import('/src/ui/render.ts')
+      const vf = window.vf
+      const cv = document.querySelector('canvas')
+      const at = []
+      const t0 = performance.now()
+      await mod.renderTake(vf, cv, {
+        frames: n,
+        fps,
+        seed: 9,
+        onFrame: i => {
+          if (!on.includes(i)) return undefined
+          at.push(i)
+          // `undefined` on the control arm rather than a resolved promise: what
+          // is under test is that a promise is awaited, and a zero-delay
+          // promise still costs a microtask hop the control should not pay.
+          return delay === 0
+            ? undefined
+            : new Promise(r => setTimeout(r, delay))
+        },
+      })
+      return { ms: performance.now() - t0, at }
+    },
+    FRAMES,
+    FPS,
+    delayMs,
+    marks,
+  )
+
+const MARKS = [10, 20, 30, 40]
+// **400ms and not 120, because the floor moves.** A render of this length takes
+// about two seconds and varies by ~250ms run to run on a shared box, so four
+// 120ms waits (480ms of signal) sit inside the noise — measured at 670ms added
+// on one run and 425ms on the next, against a threshold of 240. Four 400ms
+// waits put 1600ms of signal against the same noise, which is a reading rather
+// than a coin toss. It costs the harness 1.6s.
+const DELAY = 400
+const noWait = await waitArm(0, MARKS)
+const withWait = await waitArm(DELAY, MARKS)
+const added = withWait.ms - noWait.ms
+check(
+  'a render waits for a row whose source has not landed',
+  // Four waits of 120ms is 480ms of extra wall time. Half of it is enough to
+  // separate "awaited" from "sailed past", and the slack is what a render's own
+  // run-to-run spread on a shared box needs.
+  added >= (MARKS.length * DELAY) / 2 && withWait.at.length === MARKS.length,
+  `${added.toFixed(0)}ms added by ${MARKS.length} waits of ${DELAY}ms ` +
+    `(${noWait.ms.toFixed(0)}ms floor)`,
+)
+
 // --- a rundown is a take you can ask for twice --------------------------------
 //
 // _One walk, two clocks_, measured: the same `advance` and the same `runStep`

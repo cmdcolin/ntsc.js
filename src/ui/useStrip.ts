@@ -91,6 +91,10 @@ export interface StripDeps {
   rollOn: (origin: PoolOrigin, rand: Rand) => void
   // The next row's clip, loaded during this one — see `useEngine.prerollOn`.
   prerollOn: (url: string, start: number) => void
+  // Wait for the row that just fired to actually be on the deck. Used by the
+  // offline walk and by nothing else — see `StripSink.settle` for why the live
+  // one must not wait.
+  settleSources: () => Promise<void>
   getControls: () => Controls
   writeControls: (controls: Controls) => void
   // Every slider a jitter may touch: the panel's own list, passed in rather
@@ -158,7 +162,9 @@ export interface StripRunner {
   // A second walk over the rundown as it stands, driven a frame at a time by
   // whoever asked — the offline half of _One walk, two clocks_. See the
   // implementation for why it keeps its own place and shares the sink.
-  offlineWalk: () => (frame: number) => void
+  // A promise on the frames a row fires on, nothing on the rest — see
+  // `stripRun.offlineWalk`, and `RenderSpec.onFrame` for who awaits it.
+  offlineWalk: () => (frame: number) => void | Promise<void>
 }
 
 // Subscribe/unsubscribe, and fan-out. At module scope because they capture
@@ -250,6 +256,11 @@ export function makeStripRunner(): StripRunner {
       })
     },
     roll: (origin, rand) => deps?.rollOn(origin, rand),
+    // Safe to put on the shared sink because only `offlineWalk` calls it:
+    // `runStep` — which is what the live `land` below goes through — has no
+    // idea it exists. One sink, two walks, and the one that can afford to wait
+    // is the only one that does.
+    settle: () => deps?.settleSources() ?? Promise.resolve(),
     // `at` rather than `start`, which is the walk's own verb imported above.
     preroll: (url, at) => deps?.prerollOn(url, at),
     jitter: (amount, rand) => {

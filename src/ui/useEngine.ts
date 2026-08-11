@@ -788,7 +788,13 @@ export function useEngine() {
       const eng = engineRef.current
       if (id === 'a') eng?.setVideoSource(el)
       else eng?.setVideoSourceB(el)
-      if (el !== null) takePendingCue(id)
+      // `null` is a retire rather than an arrival, and the difference matters
+      // to the barrier below: every load path opens by stopping the slot, so a
+      // retire that counted as arriving would settle the wait it just started.
+      if (el !== null) {
+        takePendingCue(id)
+        arrived(id)
+      }
     },
     setImage: (source, aspect) => {
       // Only A keeps its own aspect — B is staged to the raster with a 4:3 crop,
@@ -801,12 +807,14 @@ export function useEngine() {
       const eng = engineRef.current
       if (id === 'a') eng?.setImageSource(source, kept)
       else eng?.setImageSourceB(source)
+      arrived(id)
     },
     setNoise: kind => {
       lastSrc.current[id] = { kind: 'noise', noise: kind }
       const eng = engineRef.current
       if (id === 'a') eng?.setNoiseSource(kind)
       else eng?.setNoiseSourceB(kind)
+      arrived(id)
     },
     setLive: kind => setLiveState(onDeck(id, kind)),
     setYtUrl: url => setYtUrlState(onDeck(id, url)),
@@ -863,8 +871,66 @@ export function useEngine() {
     const seq = (loadSeq.current[key] += 1)
     setPick(key, null)
     prompt.dismiss()
+    waiting.current[key] = seq
     return () => loadSeq.current[key] === seq
   }
+
+  // --- waiting for a source to land --------------------------------------
+  //
+  // **Only an offline render waits, and it is the half of the awaiting sink
+  // that frame-exact pull made worth building** (docs/EDITOR.md ›
+  // _Frame-exact video pull_). Live, a row that names a clip puts it up when
+  // the network answers and nobody could want otherwise — the alternative is a
+  // set that stalls. Offline there is no such thing as late: the render's clock
+  // is its own, so waiting costs wall time and costs the file nothing, and the
+  // row lands on the frame the rundown said rather than on whichever frame the
+  // fetch happened to finish by.
+  //
+  // The pair is `beginLoad` above and the three arrival verbs on the slot —
+  // which is the same funnel in and the same funnel out, so nothing new has to
+  // be remembered at a call site. What is stored is the *sequence number* that
+  // began the wait rather than a flag, so a second load starting while the
+  // first is outstanding replaces it rather than double-counting, and a reply
+  // that lands for a load the deck has moved on from settles nothing.
+  const waiting = useRef<{ a: number | null; b: number | null }>({
+    a: null,
+    b: null,
+  })
+  const arrived = (key: StashSlot) => {
+    if (waiting.current[key] === loadSeq.current[key])
+      waiting.current[key] = null
+  }
+
+  // How long a render will wait for one. Generous, because a pool pick is a
+  // whole file off archive.org and a bundled clip is a network away; bounded,
+  // because **a render that hangs is worse than a row that is late**. Past it
+  // the take carries on with whatever is on the deck, which is exactly what
+  // every take did before this existed.
+  const SETTLE_MS = 15_000
+
+  // Resolves once neither deck has a load outstanding, or the deadline passes.
+  // Polled rather than pushed: a load lands on one of three verbs across nine
+  // paths, and a promise per path is nine chances to leak one — where a poll
+  // cannot be forgotten and cannot be left dangling. Cheap, too, because
+  // nothing calls this except a render between two frames.
+  const settleSources = (): Promise<void> =>
+    new Promise(resolve => {
+      const idle = () =>
+        waiting.current.a === null && waiting.current.b === null
+      if (idle()) {
+        resolve()
+        return
+      }
+      const until = Date.now() + SETTLE_MS
+      const tick = () => {
+        if (idle() || Date.now() > until) {
+          resolve()
+          return
+        }
+        setTimeout(tick, 8)
+      }
+      setTimeout(tick, 8)
+    })
 
   // Everything that is true of *every* source change on a deck, said once: the
   // load is opened, whatever the slot held is retired, the picker lands on the
@@ -2207,6 +2273,10 @@ export function useEngine() {
     faultTo,
     rollOn,
     prerollOn,
+    // And the one the *offline* walk uses and the live one never does: wait for
+    // whatever the row above just asked for to actually be on the deck. See
+    // `settleSources`.
+    settleSources,
     // Whether there is a pool to roll out of at all, which is not the same as
     // there being a pick up: a file taken off the shelf came out of a list, and a
     // list is not a pool. The palette row says so rather than going quiet, since

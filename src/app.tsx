@@ -505,6 +505,7 @@ export function App() {
     faultTo: eng.faultTo,
     rollOn: eng.rollOn,
     prerollOn: eng.prerollOn,
+    settleSources: eng.settleSources,
     getControls: controlStore.get,
     writeControls,
     mutateSliders: MUTATE_SLIDERS,

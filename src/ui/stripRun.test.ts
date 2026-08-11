@@ -26,6 +26,7 @@ function fakeSink() {
   // the row fired", and that difference is the entire feature.
   const faults: { transition: TransitionName; cut: () => void }[] = []
   const order: string[] = []
+  const settles = { count: 0 }
   const sink: StripSink = {
     session: (params, seconds) => {
       sessions.push({ params, seconds })
@@ -47,8 +48,16 @@ function fakeSink() {
       prerolls.push({ url, start })
       order.push('preroll')
     },
+    // Counted apart from `order`, which is the *effect* sequence: a settle is
+    // not something a row asked for, it is the driver deciding to wait, and
+    // folding it in would make every assertion about effect order read as
+    // though a rundown had grown a verb.
+    settle: () => {
+      settles.count += 1
+      return Promise.resolve()
+    },
   }
-  return { sink, sessions, rolls, jitters, prerolls, faults, order }
+  return { sink, sessions, rolls, jitters, prerolls, faults, order, settles }
 }
 
 describe('runEffect', () => {
@@ -133,6 +142,9 @@ describe('makeStripRunner', () => {
     const faultTo = vi.fn()
     const rollOn = vi.fn()
     const prerollOn = vi.fn()
+    // Resolved, and counted: what the offline walk waits on. A live walk must
+    // never reach it, which is one of the assertions below.
+    const settleSources = vi.fn(() => Promise.resolve())
     const writeControls = vi.fn()
     const ensureTempo = vi.fn()
     const track = { loaded: true, restart: vi.fn(), pause: vi.fn() }
@@ -141,6 +153,7 @@ describe('makeStripRunner', () => {
       faultTo,
       rollOn,
       prerollOn,
+      settleSources,
       getControls: () => DEFAULT_CONTROLS,
       writeControls,
       mutateSliders: [],
@@ -570,8 +583,8 @@ describe('makeStripRunner', () => {
     const live = h.runner.getWalk()
     const f = fakeSink()
     const step = offlineWalk(h.runner.getStrip(), f.sink, { bpm: 120, fps: 60 })
-    step(0)
-    step(120)
+    void step(0)
+    void step(120)
     expect(f.order).toHaveLength(2)
     expect(h.runner.getWalk()).toEqual(live)
   })
@@ -609,7 +622,7 @@ describe('offlineWalk', () => {
     const at: number[] = []
     for (let i = 0; i < n; i++) {
       const before = f.order.length
-      step(i)
+      void step(i)
       if (f.order.length > before) at.push(i)
     }
     return { ...f, at }
@@ -619,6 +632,46 @@ describe('offlineWalk', () => {
     const w = walkFrames(stripOf([row(), row({ id: 'r2' })]), 5)
     expect(w.at).toEqual([0])
     expect(w.sessions).toHaveLength(1)
+  })
+
+  // The half of the awaiting sink that frame-exact pull made worth building.
+  // Offline a render's clock is its own, so waiting for the clip a row named
+  // costs wall time and costs the file nothing — and the row then lands on the
+  // frame the rundown said rather than on whichever frame the fetch finished by.
+  it('waits for the row it just fired, and only on the frames a row fires', () => {
+    const f = fakeSink()
+    const step = offlineWalk(
+      stripOf([
+        row({ hold: { bars: 1, drift: 0 } }),
+        row({ id: 'r2', hold: { bars: 1, drift: 0 } }),
+      ]),
+      f.sink,
+      TEMPO,
+    )
+    for (let i = 0; i < 130; i++) void step(i)
+    // Frame 0 and frame 120 — two boundaries in 130 frames, and 128 frames that
+    // hand back nothing to await. A driver that settled on every frame would
+    // put a microtask hop between the render and its own loop for no reason on
+    // 99% of them.
+    expect(f.settles.count).toBe(2)
+  })
+
+  it('hands back a promise only when it waited', () => {
+    const f = fakeSink()
+    const step = offlineWalk(stripOf([row()]), f.sink, TEMPO)
+    expect(step(0)).toBeInstanceOf(Promise)
+    expect(step(1)).toBeUndefined()
+  })
+
+  it('runs without a settle at all, which is what the live sink does', () => {
+    // The asymmetry stated as a test: a sink with no `settle` is not a
+    // degraded offline walk, it is the live one, and the driver must not
+    // require the verb it is the only caller of.
+    const f = fakeSink()
+    const bare = { ...f.sink, settle: undefined }
+    const step = offlineWalk(stripOf([row()]), bare, TEMPO)
+    expect(() => step(0)).not.toThrow()
+    expect(f.sessions).toHaveLength(1)
   })
 
   it('cuts on the frame the hold is up, not a frame either side', () => {
