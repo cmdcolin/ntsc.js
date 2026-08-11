@@ -20,6 +20,8 @@
 
 import puppeteer from 'puppeteer-core'
 
+// A headed window that gets covered stops being drawn — see frames.mjs.
+import { watchFrames } from './frames.mjs'
 // Waiting on the archives rather than on a duration — see until.mjs.
 import { appUp, until } from './until.mjs'
 
@@ -196,6 +198,7 @@ check(
   await ensureSourceA(),
   "source A's stage opens, so its picker is on screen",
 )
+await watchFrames(page, { label: 'poolcheck' })
 await until(caption, settled, { budget: ROLL_MS, every: 250 })
 let now = await state()
 check(now.mode === 'wiki-random', 'the picker stays on the source', now.mode)

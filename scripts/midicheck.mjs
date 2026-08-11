@@ -19,6 +19,8 @@
 
 import puppeteer from 'puppeteer-core'
 
+// A headed window that gets covered stops being drawn — see frames.mjs.
+import { watchFrames } from './frames.mjs'
 // Boot waited for rather than slept through — see until.mjs.
 import { appUp } from './until.mjs'
 
@@ -56,6 +58,7 @@ page.on('pageerror', e => {
 // and anything it builds there is walled off from the page by Xray vision.
 await page.goto(`${url}?mod=hHold:sine:0.35:0.4`, { waitUntil: 'networkidle0' })
 await appUp(page, 6000)
+await watchFrames(page, { label: 'midicheck' })
 
 // A device that is never plugged in: enough of Web MIDI for createMidi to bind
 // its listener, plus a hook to push CC messages at it. Installed from the page's

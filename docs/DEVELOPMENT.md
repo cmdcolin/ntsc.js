@@ -40,10 +40,13 @@ pnpm harnesses 5199                    # every browser check, one line each
 pnpm harnesses 5199 --skip poolcheck   # …without the live one
 ```
 
-**Thirteen harnesses, 5m49s**, measured on this box — which is the number that
-decides whether anyone actually runs it, so it is worth keeping honest here as
-it moves. Most of that is two: `cuecheck` at 92s launches a fresh browser per
-arm on purpose, and `panelcheck` at 49s walks the whole panel.
+**Thirteen harnesses, six to nine minutes** — 5m49s and 8m10s on two runs of the
+same commit — which is the number that decides whether anyone actually runs it,
+so it is worth a range rather than a figure. The spread is other work on the
+box: the GPU-heavy arms are what stretch (`faultcheck` 19s to 54s between those
+two runs, `rendercheck` 19s to 53s), while the ones that mostly click and wait
+barely move. `cuecheck` is the longest single entry either way, launching a
+fresh browser per arm on purpose.
 
 Start here, because **none of the harnesses below runs in CI**. The workflow
 does lint, format, the compiler gate, typecheck, the unit suite and the build;
@@ -59,8 +62,12 @@ The first full run after fixing those two came back **13/13 green**, which is
 the useful thing to know about it: those two were the only dead ones, so this is
 a gate to keep rather than a pile of work to do.
 
-It runs each check against one dev server and reports its exit code. What it
-leaves out is deliberate and the file says why: the device-torture harnesses
+It runs each check against one dev server and reports its exit code, in three
+outcomes rather than two — `ok`, `FAIL`, and `STALL` for a run whose window
+stopped being drawn (see the rAF note below). A stall is not a failure and not a
+pass: it measured nothing, so put the window in front and run it again.
+
+What it leaves out is deliberate and the file says why: the device-torture harnesses
 (they break a GPU device on purpose), the generators (they write files rather
 than judge), the two checks that need no server and already run in CI, and the
 measurements, which report numbers rather than a verdict. `poolcheck` runs last
@@ -142,6 +149,22 @@ find:
 - **An occluded window throttles rAF to about 1Hz.** Frames are stepped
   (`window.vf.step()`) rather than waited for; a clip, which samples the canvas
   as it paints, has to own the only window on screen.
+
+  The harnesses that *cannot* step — the interaction ones, which wait on wall
+  clock time — carry `watchFrames` from `scripts/frames.mjs` instead, and it is
+  worth knowing what it does and does not detect. **A visibility event is not
+  the signal.** A window merely covered by another goes on reporting
+  `visibilityState: 'visible'`, so `visibilitychange` catches a minimise or a
+  tab switch and misses the common case; counting rAF delivery catches all of
+  it, because ~1 Hz against an expected 60 is unmistakable. And **`pagehide` is
+  deliberately not listened for**: it fires on a navigation the harness asked
+  for, so a watchdog on it would kill `poolcheck` at the reload it does on
+  purpose.
+
+  A stall exits `STALL_EXIT` (75), which `sweep.mjs` reports as its own outcome
+  next to pass and fail. That distinction is the point: **a window that was
+  clicked away measured nothing**, and calling it a failure sends the next
+  person hunting a bug in a feature that never ran.
 - **`setTimeout` is clamped in a backgrounded tab too**, so stepping from an
   in-page loop does not escape the trap above — it hits the same wall by the
   other door. An in-page sampler of either kind returns three frames for two

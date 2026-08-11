@@ -82,6 +82,10 @@ page.on('console', m => {
 
 await page.goto(base, { waitUntil: 'networkidle0' })
 await appUp(page, 4000)
+// No frame watchdog here on purpose. This harness steps the engine from Node
+// precisely so an occluded window cannot affect it (see the note below), which
+// makes it the one check that is *already* immune to the fault frames.mjs
+// catches — and a watchdog would only take that away.
 
 // Frames are stepped from Node rather than waited for: an occluded window
 // throttles rAF, which would read as the app not rendering.

@@ -33,6 +33,8 @@
 
 import puppeteer from 'puppeteer-core'
 
+// A headed window that gets covered stops being drawn — see frames.mjs.
+import { watchFrames } from './frames.mjs'
 // Waiting on the clip's own playhead rather than on a duration — see until.mjs.
 import { until } from './until.mjs'
 
@@ -85,6 +87,11 @@ const arm = async (label, query, during) => {
       waitUntil: 'domcontentloaded',
     })
     await page.bringToFront()
+    // This is the harness with the most to lose from a window being clicked
+    // away — it reads a per-frame log, so no frames means no samples, and the
+    // `armTwice` retry below was written for exactly that and can only guess at
+    // it after the fact. The watchdog says so while it is happening.
+    await watchFrames(page, { label: `cuecheck ${label}` })
     // Rolling before anything is pressed: a cue is taken from the element's own
     // playhead, so there has to be one.
     //

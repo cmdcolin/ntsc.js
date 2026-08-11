@@ -29,6 +29,8 @@
 
 import puppeteer from 'puppeteer-core'
 
+// A headed window that gets covered stops being drawn — see frames.mjs.
+import { watchFrames } from './frames.mjs'
 // Waiting for an answer rather than for a duration — `until.mjs` says which of
 // the two a given line wants, and `until.test.mjs` covers the loop itself
 // without a browser.
@@ -59,6 +61,7 @@ const errors = []
 page.on('pageerror', e => errors.push(String(e).slice(0, 200)))
 await page.goto(url, { waitUntil: 'domcontentloaded' })
 await appUp(page, 6000)
+await watchFrames(page, { label: 'traycheck' })
 
 const wait = ms => new Promise(r => setTimeout(r, ms))
 

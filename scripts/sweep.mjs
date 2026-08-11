@@ -34,6 +34,8 @@
 //   - `perf`, `loopseek`, `pixdiff` and `affinity` are measurements. They
 //     report numbers a human reads; there is no pass to report.
 
+import { STALL_EXIT } from './frames.mjs'
+
 import { spawn } from 'node:child_process'
 import process from 'node:process'
 
@@ -111,13 +113,23 @@ for (const h of wanted) {
       .split('\n')
       .filter(l => l.trim() !== '')
       .at(-1) ?? ''
-  console.log(
-    `${r.code === 0 ? 'ok  ' : 'FAIL'} ${String(r.secs).padStart(3)}s  ${last.slice(0, 68)}`,
-  )
+  const mark = r.code === 0 ? 'ok  ' : r.code === STALL_EXIT ? 'STALL' : 'FAIL'
+  console.log(`${mark} ${String(r.secs).padStart(3)}s  ${last.slice(0, 68)}`)
 }
 
-const bad = results.filter(r => r.code !== 0)
-console.log(`\n${results.length - bad.length}/${results.length} green`)
+// Three outcomes, not two. A harness whose window was covered or clicked away
+// measured nothing, and calling that a failure sends the next person looking
+// for a bug in a feature that never ran — see frames.mjs. It is not a pass
+// either, so the sweep still exits non-zero and says what to do about it.
+const stalled = results.filter(r => r.code === STALL_EXIT)
+const bad = results.filter(r => r.code !== 0 && r.code !== STALL_EXIT)
+console.log(
+  `\n${results.length - bad.length - stalled.length}/${results.length} green` +
+    (stalled.length === 0
+      ? ''
+      : `, ${stalled.length} stalled (${stalled.map(r => r.name).join(', ')}) —` +
+        ` those measured nothing. Leave the window in front and run them again.`),
+)
 for (const r of bad) {
   console.log(
     `\n--- ${r.name} (exit ${r.code})${r.live ? ' — live network' : ''}`,
@@ -130,4 +142,4 @@ for (const r of bad) {
     .slice(0, 12)
   console.log(lines.length === 0 ? r.out.slice(-600) : lines.join('\n'))
 }
-process.exit(bad.length === 0 ? 0 : 1)
+process.exit(bad.length === 0 && stalled.length === 0 ? 0 : 1)

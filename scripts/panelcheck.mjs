@@ -37,6 +37,8 @@
 
 import puppeteer from 'puppeteer-core'
 
+// A headed window that gets covered stops being drawn — see frames.mjs.
+import { watchFrames } from './frames.mjs'
 // Boot waited for rather than slept through — see until.mjs.
 import { appUp } from './until.mjs'
 
@@ -83,6 +85,7 @@ const phase = async (name, { seed = null, query = '' } = {}, body) => {
     // measures a different app than the one the check names.
     await page.mouse.move(400, 500)
     await appUp(page, 5000)
+    await watchFrames(page, { label: 'panelcheck' })
     await page.mouse.move(400, 500)
     await body(page)
   } catch (e) {
