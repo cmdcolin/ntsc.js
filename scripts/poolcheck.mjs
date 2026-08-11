@@ -21,7 +21,7 @@
 import puppeteer from 'puppeteer-core'
 
 // Waiting on the archives rather than on a duration — see until.mjs.
-import { until } from './until.mjs'
+import { appUp, until } from './until.mjs'
 
 const base = (process.argv[2] ?? 'http://localhost:5199').replace(/\/$/, '')
 const wait = ms => new Promise(r => setTimeout(r, ms))
@@ -48,6 +48,44 @@ page.on('pageerror', e => {
   console.log(`[pageerror] ${text}`)
   failures.push(`pageerror: ${text}`)
 })
+
+// **The panel mounts one stage at a time, and Source A's is shut on arrival.**
+// Everything this file reads — the picker, the caption under it, the ★, the
+// credit link — is inside that stage, so with it shut `state()` answers null to
+// all of them and every check below fails at once, which is what this harness
+// did until it learned to open it. The chain map's boxes are `<g role=button>`;
+// clicking the element rather than a coordinate keeps this independent of the
+// diagram's layout. Same approach as `sourcecheck.ensureDeck`.
+//
+// Idempotent, and asks before it clicks, because the box *toggles*: calling it
+// when the stage is already open would shut it.
+const ensureSourceA = async () => {
+  for (let i = 0; i < 3; i++) {
+    const there = await page.evaluate(() =>
+      [...document.querySelectorAll('select')].some(s =>
+        [...s.options].some(o => o.value === 'wiki-random'),
+      ),
+    )
+    if (there) return true
+    const clicked = await page.evaluate(() => {
+      const g = [...document.querySelectorAll('g[role=button]')].find(e =>
+        (e.textContent ?? '').trim().toLowerCase().startsWith('source a'),
+      )
+      if (!g) return false
+      g.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+        }),
+      )
+      return true
+    })
+    if (!clicked) return false
+    await wait(600)
+  }
+  return false
+}
 
 // A's picker, found by what it offers rather than by position: the panel holds
 // several <select>s and which one comes first is a layout detail.
@@ -154,6 +192,10 @@ const caption = () => state().then(s => s.caption)
 
 // ── a random source rolls, and says what it rolled ───────────────────────────
 await page.goto(`${base}/?src=wiki-random`, { waitUntil: 'networkidle0' })
+check(
+  await ensureSourceA(),
+  "source A's stage opens, so its picker is on screen",
+)
 await until(caption, settled, { budget: ROLL_MS, every: 250 })
 let now = await state()
 check(now.mode === 'wiki-random', 'the picker stays on the source', now.mode)
@@ -405,7 +447,9 @@ check(
 // the harness runs in an ordinary profile on localhost, which is a secure
 // context.
 await page.goto(base, { waitUntil: 'networkidle0' })
-await wait(5000)
+await appUp(page, 5000)
+// A fresh document, so the stage is shut again.
+check(await ensureSourceA(), "source A's stage opens after the reload")
 await pickA('library')
 await wait(1500)
 await page.evaluate(name => {

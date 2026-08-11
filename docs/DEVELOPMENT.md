@@ -192,6 +192,23 @@ find:
   buttons by their text, so a chip that is missing — off a shortlist, behind a
   fold, renamed — makes the click a silent no-op and the *next* few assertions
   fail instead, in features nothing has touched. Check the hit at the press.
+- **The panel mounts one stage at a time, and none of them is open on arrival.**
+  A deck's picker, its caption, its ★, and every control row with a slider or a
+  `⋮` menu exist only while their stage is open — so a harness that goes
+  straight to `document.querySelector` after boot finds nothing, or worse finds
+  something else. It cost two harnesses, both silently: `poolcheck` read `null`
+  for the picker and failed all twenty-six checks at once, and `composecheck`
+  fell through to the chain map's own zoom slider — a plain `input[type=range]`
+  that composes nothing — and reported the CSS layer as having lost when it had
+  never been consulted. The app was correct in both cases.
+
+  Open it first, the way `sourcecheck.ensureDeck` does: the boxes are
+  `<g role=button>`, so dispatch the click on the element rather than aiming at
+  a coordinate and the diagram's layout stops mattering. They **toggle**, so ask
+  whether what you want is already there before clicking, or you will shut it.
+  And prefer opening by *what a stage contains* over opening by name where the
+  check allows it — stages get renamed, and a harness that fails on a rename
+  fails somewhere unrelated to the rename.
 
 ## Measuring performance
 
