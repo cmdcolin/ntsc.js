@@ -617,10 +617,49 @@ clamp is `VideoPump.wrap`. Three things around it are deliberately not done.
   re-mark against turned out to be more useful than a label anyway.
 
 A last one is a real limit rather than a choice: the wrap is a hard cut in the
-clip's audio, audible as a click when playback audio is on. Nothing short of a
-crossfade fixes it, and a crossfade needs two read heads on one element, which a
-`<video>` does not have. [`EDITOR.md`](EDITOR.md) › _Performance_ is where that
-stops being a limit: the strip's preroll element is the second read head.
+clip's audio when playback audio is on. Nothing short of a crossfade fixes it,
+and a crossfade needs two read heads on one element, which a `<video>` does not
+have. [`EDITOR.md`](EDITOR.md) › _Performance_ is where that stops being a
+limit: the strip's preroll element is the second read head.
+
+**This used to say "audible as a click", and that undersold it by two orders of
+magnitude.** The app's own readout is the evidence, and it was shipping the
+whole time: `loopHealth().medianMs` is the median time from issuing the wrap's
+`currentTime = start` to its `seeked`, and `cuecheck` prints it every run —
+**199 ms on a densely-keyframed clip and 524 ms on a sparse one**. A seeking
+element is not playing, so what a loop actually does to the sound is drop out
+for a fifth to half a second, every lap. A click is what is left at the edges
+of that.
+
+Three things follow, and they are why this is worth more than its place in the
+build order suggests.
+
+- **A de-click envelope is not the cheap version of this.** Fading the gain to
+  zero across the join and back is the standard fix for a seek discontinuity,
+  and here it tidies the edges of a half-second hole. Worth almost nothing on
+  its own.
+- **The two-element fix has no sync cost**, which is the objection that would
+  otherwise sink it. The instinct is to crossfade the audio while the picture
+  stays on the outgoing element, and that trades a click for lip-sync error. But
+  the second element can carry *both*: `playUrl` already promotes a parked
+  element for picture and sound together, so the loop's double-buffer is a swap
+  and not a blend, and nothing leads anything.
+- **The machinery is nearly all built, and `strip.ts` says so in passing.**
+  `land`'s comment already notices that a one-row looping rundown prerolls the
+  clip it is playing and calls it "an odd-looking case that happens to be the
+  loop's best behaviour" — which is exactly this feature, arrived at sideways. A
+  loop's second read head *is* a preroll of the same clip at its in-point. Two
+  gaps: a parked element is paused, and it would have to be rolling before the
+  outgoing one reaches `r.end`; and there is one `next` field per slot, so a
+  looping clip and a rundown's lookahead contend for it. That contention is a
+  policy decision and is the reason this is not simply a small job.
+
+**Measure before building.** "Audio is silent for the seek window" is an
+inference from `medianMs`, sound reasoning about an element that is seeking, and
+still not the same thing as having listened. The analyser is already in the
+graph; an arm that watches its level across a wrap and reports how long it sits
+at floor turns 199 ms of seek into N ms of silence, which is the number that
+says whether this is a papercut or the worst thing about looping a clip.
 
 ## In flight — preset screening, round 2
 

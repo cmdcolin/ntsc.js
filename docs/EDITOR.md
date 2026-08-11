@@ -1118,6 +1118,16 @@ list above in two places.
    cost_, and _Landed: between rows_ under _Transitions_. What is left of the
    three things filed under preroll is **the audio crossfade** (IDEAS.md ›
    _Clip cues_): the second read head exists now, and nothing uses it.
+
+   Worth more than its place in this list implies, and IDEAS.md now carries the
+   reason: the wrap is not the click it was filed as. `loopHealth().medianMs`
+   reports **199–524 ms** between issuing a wrap's seek and its `seeked`, and a
+   seeking element is not playing — so a looping clip drops its sound for up to
+   half a second every lap. The two-element fix costs no sync, because
+   `playUrl` promotes picture and sound together rather than blending one
+   against the other. What it does cost is an answer to the contention over the
+   one `next` field per slot, which a looping clip and a rundown's lookahead
+   both want.
 5. **Frame-exact video pull**, then **automation recording**, as before. The
    first is now the only thing between a take and reproducing with a clip in
    it: everything below the video is deterministic, and the video is not. It
