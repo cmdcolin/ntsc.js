@@ -286,6 +286,81 @@ check(
   'bGain moved',
 )
 
+// --- a row arriving behind one -----------------------------------------------
+//
+// The shelf's other cut. Off the deck a transition throws the T-bar; off a row
+// it puts the row's session up — the same fault, a different `onCut`, which is
+// why `faultPlan` takes it from its caller. What is asserted is the *timing*,
+// because that is the whole claim: the session lands in the middle of the
+// fault, not when the row fires.
+const arrived = await page.evaluate(async () => {
+  const { offlineWalk } = await import('/src/ui/stripRun.ts')
+  const { transitionOf, faultPlan } = await import('/src/ui/transitions.ts')
+  const vf = window.vf
+  // A sink standing in for the app's, with the one verb under test wired the
+  // way `useEngine.faultTo` wires it: a plan off the shelf whose cut applies
+  // the session. `vSize` stands in for a whole session — what is being timed is
+  // when the write lands, not what it writes.
+  const at = []
+  const sink = {
+    session: () => at.push({ kind: 'session', frame: vf.frameNo() }),
+    fault: (name, params, seconds) => {
+      at.push({ kind: 'fired', frame: vf.frameNo() })
+      const t = transitionOf(name)
+      vf.startFault(
+        faultPlan(t, () => at.push({ kind: 'cut', frame: vf.frameNo() })),
+      )
+    },
+    roll: () => {},
+    jitter: () => {},
+    preroll: () => {},
+  }
+  const hold = { bars: 0.25, drift: 0 }
+  const rows = [
+    {
+      id: 'r1',
+      name: '',
+      session: 'set=vSize:0.6',
+      fill: { kind: 'clip' },
+      hold,
+      arrive: { seconds: 0, transition: 'collapse' },
+    },
+  ]
+  vf.pauseLoop()
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+  vf.startTake({ fps: 60, seed: 1 })
+  const step = offlineWalk({ rows, seed: 1, loop: false }, sink, {
+    bpm: 120,
+    fps: 60,
+  })
+  // `collapse` is a one-second entry cutting at 0.5, so its cut is ~30 frames
+  // after the row fires. Ninety frames is comfortably past it.
+  for (let i = 0; i < 90; i++) {
+    step(i)
+    vf.step()
+  }
+  vf.endTake()
+  vf.resumeLoop()
+  return at
+})
+const fired = arrived.find(a => a.kind === 'fired')
+const cut = arrived.find(a => a.kind === 'cut')
+check(
+  'a row with a transition fires a fault instead of a bare session',
+  fired !== undefined && !arrived.some(a => a.kind === 'session'),
+  arrived.map(a => `${a.kind}@${a.frame}`).join(' '),
+)
+// The point of the whole feature. A plain row applies its session on the frame
+// it fires; this one applies it half a transition later, which is the frame the
+// picture is least legible and therefore the frame that hides the edit.
+check(
+  'and its cut lands in the middle of the fault, not when the row fired',
+  cut !== undefined && fired !== undefined && cut.frame - fired.frame > 20,
+  cut === undefined
+    ? 'no cut'
+    : `${cut.frame - fired.frame} frames after firing, for a 60-frame fault cutting at 0.5`,
+)
+
 check('no page errors', errors.length === 0, errors.join(' | '))
 await browser.close()
 console.log(fail.length === 0 ? '\nfault ok' : `\n${fail.length} failed`)

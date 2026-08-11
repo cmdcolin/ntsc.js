@@ -3,9 +3,16 @@ import { useState, useSyncExternalStore } from 'react'
 import { cx } from './cx'
 import { MORPH_LABELS } from './morph'
 import { PROFILE_NAME_MAX } from './savedProfiles'
-import { derivedLabel, holdLabel, named, rowLabel } from './strip'
+import {
+  derivedLabel,
+  holdLabel,
+  named,
+  rowLabel,
+  transitionLabel,
+} from './strip'
 import { useStripApi } from './StripContext'
 import styles from './StripRow.module.css'
+import { transitionOf } from './transitions'
 import ui from './ui.module.css'
 
 import type { Row } from './strip'
@@ -133,20 +140,50 @@ export function StripRow(props: {
             the menu — the design's one placement rule for the row. */}
         <button
           className={cx(ui.bare, styles.chip)}
+          data-act="hold"
           onClick={() => api.cycleHold(props.index)}
           title="how long this row holds — click to step"
         >
           {holdLabel(row.hold)}
         </button>
+        {/* Two chips, because "how it arrives" is two different things: the
+            look glides over `seconds`, and the *source* arrives behind a fault
+            off the shelf. They compose — the board walks while the fault does
+            the cutting — which is why neither is a mode of the other. */}
         <button
           className={cx(ui.bare, styles.chip, styles.arrive)}
+          data-act="arrive"
           onClick={() => api.cycleArrive(props.index)}
-          title="how this row arrives — click to step"
+          title="how this row's look arrives — click to step"
         >
           {MORPH_LABELS[row.arrive.seconds]}
         </button>
         <button
+          className={cx(
+            ui.bare,
+            styles.chip,
+            styles.arrive,
+            row.arrive.transition !== null && styles.chipOn,
+          )}
+          data-act="transition"
+          onClick={() => api.cycleTransition(props.index)}
+          title={
+            row.arrive.transition === null
+              ? 'this row cuts straight in — click for a transition off the shelf'
+              : `${transitionOf(row.arrive.transition)?.title ?? ''} — click to step`
+          }
+        >
+          {transitionLabel(row.arrive.transition)}
+        </button>
+        {/* `data-act` on the three verbs, the way the card already carries
+            `data-index` and `data-drag`. They were reached positionally by
+            `scripts/traycheck.mjs`, and adding the transition chip above
+            silently moved all three — a harness that then deleted a row where
+            it meant to rename one, and reported it as five unrelated failures.
+            A name is what makes a chip added here cost nothing there. */}
+        <button
           className={cx(ui.bare, styles.chip, styles.rename)}
+          data-act="rename"
           onClick={() => setEditing(true)}
           title="name this row"
         >
@@ -157,6 +194,7 @@ export function StripRow(props: {
             means finding that board again. */}
         <button
           className={cx(ui.bare, styles.chip, styles.rename)}
+          data-act="dup"
           onClick={() => api.duplicateRow(props.index)}
           title="the same row again, next to this one"
         >
@@ -164,6 +202,7 @@ export function StripRow(props: {
         </button>
         <button
           className={cx(ui.bare, styles.drop)}
+          data-act="drop"
           onClick={() => api.removeRow(props.index)}
           title="take this row out"
         >

@@ -50,6 +50,7 @@ import {
   saveStrip,
   start,
   stepArrive,
+  stepTransition,
   stepHold,
   walking,
 } from './strip'
@@ -63,6 +64,7 @@ import type { History } from './history'
 import type { MutateAmount } from './mutate'
 import type { Clock, Step, Strip, Walk } from './strip'
 import type { StripSink } from './stripRun'
+import type { TransitionName } from './transitions'
 import type { SessionParams } from './urlParams'
 
 // The simulation's own rate. `signal/modstate.ts` is `const DT = 1 / 60` and
@@ -83,6 +85,12 @@ export interface StripDeps {
   // `useEngine.showSession`. What makes "a row is a query string" true rather
   // than nearly true.
   showSession: (params: SessionParams, arrive: number) => void
+  // The same session landing inside a named fault — see `useEngine.faultTo`.
+  faultTo: (
+    transition: TransitionName,
+    params: SessionParams,
+    arrive: number,
+  ) => void
   rollOn: (origin: PoolOrigin, rand: Rand) => void
   // The next row's clip, loaded during this one — see `useEngine.prerollOn`.
   prerollOn: (url: string, start: number) => void
@@ -208,6 +216,8 @@ export function makeStripRunner(): StripRunner {
   // engine handed in is a different object after a device-loss rebuild.
   const sink: StripSink = {
     session: (params, seconds) => deps?.showSession(params, seconds),
+    fault: (transition, params, seconds) =>
+      deps?.faultTo(transition, params, seconds),
     roll: (origin, rand) => deps?.rollOn(origin, rand),
     // `at` rather than `start`, which is the walk's own verb imported above.
     preroll: (url, at) => deps?.prerollOn(url, at),
@@ -363,6 +373,9 @@ export interface StripApi {
   moveRow: (from: number, to: number) => void
   cycleHold: (index: number) => void
   cycleArrive: (index: number) => void
+  // Step this row through the shelf and back to a plain cut — the other half of
+  // "how it arrives", and the one that breaks the picture rather than the look.
+  cycleTransition: (index: number) => void
   setLoop: (on: boolean) => void
   // A new seed: the same rundown, different rolls and different drifts. The one
   // gesture that says "give me another take of this".
@@ -433,6 +446,7 @@ export function useStrip(deps: StripDeps): StripApi {
       moveRow: (from: number, to: number) => edit(s => moveRow(s, from, to)),
       cycleHold: (index: number) => edit(s => stepHold(s, index)),
       cycleArrive: (index: number) => edit(s => stepArrive(s, index)),
+      cycleTransition: (index: number) => edit(s => stepTransition(s, index)),
       setLoop: (on: boolean) => edit(s => ({ ...s, loop: on })),
       reseed: () => edit(s => ({ ...s, seed: randomSeed() })),
     }),

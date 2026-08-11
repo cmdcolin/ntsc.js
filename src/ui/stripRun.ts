@@ -33,6 +33,7 @@ import type { Rand } from '../rng'
 import type { PoolOrigin } from '../sources/pools'
 import type { MutateAmount } from './mutate'
 import type { Effect, Step, Strip } from './strip'
+import type { TransitionName } from './transitions'
 import type { SessionParams } from './urlParams'
 
 // What a row needs the browser to do. Three verbs, matching the three effects.
@@ -47,6 +48,18 @@ export interface StripSink {
   // and belongs on this side of the boundary: a sink should not have to know
   // that a row is a query string.
   session: (params: SessionParams, seconds: number) => void
+  // The same, arriving behind a named fault: break the picture, put the session
+  // up on the frame the engine says it is least legible, and heal onto it.
+  //
+  // One verb rather than "start a fault" and "put a session up" as two, because
+  // the whole point is that the second happens *inside* the first — on a frame
+  // the engine picks and nothing here can see. What a sink does with it is hand
+  // the engine a plan; what it must not do is try to time the swap itself.
+  fault: (
+    transition: TransitionName,
+    params: SessionParams,
+    seconds: number,
+  ) => void
   // Roll a pool onto the deck, drawing from this generator rather than from
   // `Math.random` — the whole of `rng.ts`'s reason for existing.
   roll: (origin: PoolOrigin, rand: Rand) => void
@@ -71,6 +84,13 @@ export function runEffect(effect: Effect, sink: StripSink): void {
       // for the same reason `writeProfileParams` hands back a bare
       // URLSearchParams.
       sink.session(parseSessionParams(`?${effect.session}`), effect.seconds)
+      break
+    case 'fault':
+      sink.fault(
+        effect.transition,
+        parseSessionParams(`?${effect.session}`),
+        effect.seconds,
+      )
       break
     case 'roll':
       sink.roll(effect.origin, rngFor(effect.seed))

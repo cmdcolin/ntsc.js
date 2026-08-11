@@ -76,8 +76,12 @@ const cards = () =>
   page.evaluate(() =>
     [...document.querySelectorAll('[data-index]')].map(c => ({
       name: c.querySelector('button[data-drag] > span:last-child')?.textContent,
-      hold: c.querySelectorAll('button')[1]?.textContent,
-      arrive: c.querySelectorAll('button')[2]?.textContent,
+      // By name rather than by position — see `data-act` in StripRow.tsx. The
+      // two arrivals are separate chips because they are separate things: the
+      // look glides over `arrive`, and the source arrives behind `transition`.
+      hold: c.querySelector('[data-act="hold"]')?.textContent,
+      arrive: c.querySelector('[data-act="arrive"]')?.textContent,
+      transition: c.querySelector('[data-act="transition"]')?.textContent,
       live: /live/.test(c.className),
     })),
   )
@@ -134,7 +138,7 @@ check(
 )
 await page.evaluate(() => {
   const card = document.querySelectorAll('[data-index]')[3]
-  card?.querySelectorAll('button')[5]?.click() // the ✕
+  card?.querySelector('[data-act="drop"]')?.click()
 })
 await wait(300)
 check('and taken out again', (await cards()).length === 3)
@@ -154,7 +158,7 @@ check('and redo takes it out again', (await cards()).length === 3)
 // --- duplicate ---------------------------------------------------------------
 await page.evaluate(() => {
   const card = document.querySelectorAll('[data-index]')[0]
-  card?.querySelectorAll('button')[4]?.click() // the ⧉
+  card?.querySelector('[data-act="dup"]')?.click()
 })
 await wait(300)
 rows = await cards()
@@ -172,8 +176,7 @@ const rename = (i, value) =>
   page.evaluate(
     async (index, text) => {
       const card = document.querySelectorAll('[data-index]')[index]
-      // The ✎ is the third chip in the feet.
-      card?.querySelectorAll('button')[3]?.click()
+      card?.querySelector('[data-act="rename"]')?.click()
       await new Promise(r => setTimeout(r, 60))
       const field = card?.querySelector('input')
       if (field === null || field === undefined) return 'no field'
@@ -213,19 +216,19 @@ await rename(0, 'the drop')
 await wait(300)
 
 // --- the chips -------------------------------------------------------------
-const stepNth = (i, button, times) =>
+const stepNth = (i, act, times) =>
   page.evaluate(
     (index, which, n) => {
       const card = document.querySelectorAll('[data-index]')[index]
       for (let k = 0; k < n; k++)
-        card?.querySelectorAll('button')[which]?.click()
+        card?.querySelector(`[data-act="${which}"]`)?.click()
     },
     i,
-    button,
+    act,
     times,
   )
-await stepNth(0, 1, 2)
-await stepNth(0, 2, 1)
+await stepNth(0, 'hold', 2)
+await stepNth(0, 'arrive', 1)
 await wait(300)
 rows = await cards()
 check(
@@ -239,6 +242,39 @@ check(
   rows[1].hold,
 )
 check('the arrival chip steps too', rows[0].arrive === '4s', rows[0].arrive)
+
+// The other half of "how it arrives", and the two are separate chips because
+// they are separate things — the look glides while the fault does the cutting,
+// so stepping one must not disturb the other.
+await stepNth(0, 'transition', 1)
+await wait(300)
+rows = await cards()
+check(
+  'the transition chip arms a row off the shelf',
+  rows[0].transition === 'track',
+  rows[0].transition,
+)
+check(
+  'and does not disturb how the look arrives',
+  rows[0].arrive === '4s',
+  rows[0].arrive,
+)
+check(
+  'while the rows beside it still cut straight in',
+  rows[1].transition === '↷',
+  rows[1].transition,
+)
+// All the way round the ring and back to the plain cut, which is where it has
+// to end up: a hand that stepped past the one it wanted needs a way back that
+// is not undo.
+await stepNth(0, 'transition', 5)
+await wait(300)
+rows = await cards()
+check(
+  'and steps round the shelf back to a plain cut',
+  rows[0].transition === '↷',
+  rows[0].transition,
+)
 
 // --- the walk --------------------------------------------------------------
 await click('▶ play')

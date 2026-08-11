@@ -151,6 +151,16 @@
   color: var(--fg4);
 }
 
+/* A row with a transition armed. The dimmest chip on the card when it is a
+   plain cut — which is nearly always, and is what a rundown should read as
+   quietly — and the panel's own accent the moment one is set, because a fault
+   between two rows is the single loudest thing a rundown can do and reading the
+   list should tell you where they are. */
+.chipOn,
+.chipOn:hover {
+  color: var(--accent);
+}
+
 .drop {
   margin-left: auto;
   color: var(--fg4);

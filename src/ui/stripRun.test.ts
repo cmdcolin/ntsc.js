@@ -9,6 +9,7 @@ import type { PoolOrigin } from '../sources/pools'
 import type { MutateAmount } from './mutate'
 import type { Row, Strip } from './strip'
 import type { StripSink } from './stripRun'
+import type { TransitionName } from './transitions'
 import type { SessionParams } from './urlParams'
 
 // A sink that writes down what it was asked for. The whole reason `advance`
@@ -20,11 +21,20 @@ function fakeSink() {
   const rolls: { origin: PoolOrigin; rand: Rand }[] = []
   const jitters: { amount: MutateAmount; rand: Rand }[] = []
   const prerolls: { url: string; start: number }[] = []
+  const faults: {
+    transition: TransitionName
+    params: SessionParams
+    seconds: number
+  }[] = []
   const order: string[] = []
   const sink: StripSink = {
     session: (params, seconds) => {
       sessions.push({ params, seconds })
       order.push('session')
+    },
+    fault: (transition, params, seconds) => {
+      faults.push({ transition, params, seconds })
+      order.push('fault')
     },
     roll: (origin, rand) => {
       rolls.push({ origin, rand })
@@ -39,7 +49,7 @@ function fakeSink() {
       order.push('preroll')
     },
   }
-  return { sink, sessions, rolls, jitters, prerolls, order }
+  return { sink, sessions, rolls, jitters, prerolls, faults, order }
 }
 
 describe('runEffect', () => {
@@ -112,7 +122,7 @@ describe('makeStripRunner', () => {
     session: 'set=&mod=',
     fill: { kind: 'clip' },
     hold: { bars: 4, drift: 0 },
-    arrive: { seconds: 1 },
+    arrive: { seconds: 1, transition: null },
     ...over,
   })
 
@@ -121,6 +131,7 @@ describe('makeStripRunner', () => {
     const runner = makeStripRunner()
     let frame = 0
     const showSession = vi.fn()
+    const faultTo = vi.fn()
     const rollOn = vi.fn()
     const prerollOn = vi.fn()
     const writeControls = vi.fn()
@@ -128,6 +139,7 @@ describe('makeStripRunner', () => {
     const track = { loaded: true, restart: vi.fn(), pause: vi.fn() }
     runner.setDeps({
       showSession,
+      faultTo,
       rollOn,
       prerollOn,
       getControls: () => DEFAULT_CONTROLS,
@@ -143,6 +155,7 @@ describe('makeStripRunner', () => {
     return {
       runner,
       showSession,
+      faultTo,
       rollOn,
       prerollOn,
       writeControls,
@@ -394,6 +407,28 @@ describe('makeStripRunner', () => {
     expect(onProgress).not.toHaveBeenCalled()
   })
 
+  // A transition row, through the driver: the session does not go up now, it
+  // goes to `faultTo` — which hands the engine a plan whose cut applies it. The
+  // difference between the two is *when the source swaps*, and this is the line
+  // where that is decided.
+  it('sends a transition row through the fault rather than straight up', () => {
+    const h = harness([
+      row({ session: 'src=sweep', arrive: { seconds: 4, transition: 'roll' } }),
+    ])
+    h.runner.start()
+    expect(h.showSession).not.toHaveBeenCalled()
+    expect(h.faultTo).toHaveBeenCalledTimes(1)
+    expect(h.faultTo.mock.calls[0][0]).toBe('roll')
+    expect(h.faultTo.mock.calls[0][2]).toBe(4)
+  })
+
+  it('and a plain row still goes straight up', () => {
+    const h = harness([row()])
+    h.runner.start()
+    expect(h.showSession).toHaveBeenCalledTimes(1)
+    expect(h.faultTo).not.toHaveBeenCalled()
+  })
+
   // The lookahead, through the driver rather than as a returned effect: what
   // `strip.test.ts` pins is that the walk *asks*, and this is that ask reaching
   // the browser. The two together are the whole path bar `prerollOn` itself,
@@ -442,7 +477,7 @@ describe('offlineWalk', () => {
     session: 'set=&mod=',
     fill: { kind: 'clip' },
     hold: { bars: 4, drift: 0 },
-    arrive: { seconds: 1 },
+    arrive: { seconds: 1, transition: null },
     ...over,
   })
 

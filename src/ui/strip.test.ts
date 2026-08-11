@@ -10,10 +10,12 @@ import {
   renameRow,
   MAX_DRIFT,
   STOPPED,
+  TRANSITION_RING,
   addRow,
   advance,
   cycleArrive,
   cycleHold,
+  cycleTransition,
   duplicateRow,
   fire,
   fireEffects,
@@ -31,6 +33,8 @@ import {
   start,
   stepArrive,
   stepHold,
+  stepTransition,
+  transitionLabel,
   walking,
 } from './strip'
 
@@ -47,7 +51,7 @@ const row = (over: Partial<Row> = {}): Row => ({
   session: 'set=&mod=',
   fill: { kind: 'clip' },
   hold: { bars: 4, drift: 0 },
-  arrive: { seconds: 1 },
+  arrive: { seconds: 1, transition: null },
   ...over,
 })
 
@@ -168,8 +172,93 @@ describe('fireEffects', () => {
   })
 
   it('carries the arrival, so a cut and a morph stay distinguishable', () => {
-    const out = fireEffects(row({ arrive: { seconds: 0 } }), 1)
+    const out = fireEffects(
+      row({ arrive: { seconds: 0, transition: null } }),
+      1,
+    )
     expect(out[0]).toMatchObject({ kind: 'session', seconds: 0 })
+  })
+
+  // A transition row arrives as a *fault* rather than a session, and the
+  // difference is when the session lands: plainly it is applied now, and behind
+  // a fault it is applied on the frame the engine says the picture is least
+  // legible. Two verbs rather than one with a mode — see the `Effect` union.
+  it('arrives behind a fault when the row names a transition', () => {
+    const out = fireEffects(
+      row({
+        session: 'src=sweep',
+        arrive: { seconds: 4, transition: 'collapse' },
+      }),
+      1,
+    )
+    expect(out).toHaveLength(1)
+    expect(out[0]).toEqual({
+      kind: 'fault',
+      transition: 'collapse',
+      session: 'src=sweep',
+      seconds: 4,
+    })
+  })
+
+  // The look still glides while the fault does the cutting — the pairing
+  // _Transitions_ asks for — so the morph rides along rather than being
+  // replaced by the transition.
+  it('carries the look’s own arrival through a transition', () => {
+    const out = fireEffects(
+      row({ arrive: { seconds: 8, transition: 'roll' } }),
+      1,
+    )
+    expect(out[0]).toMatchObject({ kind: 'fault', seconds: 8 })
+  })
+
+  it('still departs from the session afterwards, fault or not', () => {
+    const out = fireEffects(
+      row({
+        fill: { kind: 'roll', origin: 'commons' },
+        arrive: { seconds: 1, transition: 'dub' },
+      }),
+      9,
+    )
+    expect(out.map(e => e.kind)).toEqual(['fault', 'roll'])
+  })
+})
+
+describe('the transition ring', () => {
+  it('steps through the shelf and back to a plain cut', () => {
+    const seen: (string | null)[] = []
+    let at: ReturnType<typeof cycleTransition> = null
+    for (let i = 0; i < TRANSITION_RING.length; i++) {
+      at = cycleTransition(at)
+      seen.push(at)
+    }
+    expect(seen.at(-1)).toBeNull()
+    expect(seen).toContain('collapse')
+    expect(new Set(seen).size).toBe(TRANSITION_RING.length)
+  })
+
+  // A name off the ring — a hand-edited file, an older build's shelf — steps to
+  // the head rather than sticking, which is the head being the plain cut.
+  it('steps an unrecognised name to the plain cut', () => {
+    expect(cycleTransition('dissolve' as never)).toBeNull()
+  })
+
+  it('reads as an arrow when there is no transition, and as the shelf’s own word when there is', () => {
+    expect(transitionLabel(null)).toBe('↷')
+    expect(transitionLabel('collapse')).toBe('collapse')
+  })
+
+  it('steps one row only, and leaves the look’s arrival alone', () => {
+    const s = strip([row({ id: 'a' }), row({ id: 'b' })])
+    const out = stepTransition(s, 0)
+    expect(out.rows[0].arrive.transition).toBe(TRANSITION_RING[1])
+    expect(out.rows[0].arrive.seconds).toBe(s.rows[0].arrive.seconds)
+    expect(out.rows[1].arrive.transition).toBeNull()
+  })
+
+  it('and the look’s arrival steps without disturbing the transition', () => {
+    const s = stepTransition(strip([row()]), 0)
+    const out = stepArrive(s, 0)
+    expect(out.rows[0].arrive.transition).toBe(s.rows[0].arrive.transition)
   })
 })
 
@@ -357,7 +446,7 @@ describe('readStrip', () => {
           session: 'set=',
           fill: { kind: 'roll', origin: 'nowhere' },
           hold: { bars: 'soon', drift: 99 },
-          arrive: { seconds: 7 },
+          arrive: { seconds: 7, transition: 'dissolve' },
         },
       ],
       seed: 3,
@@ -368,6 +457,9 @@ describe('readStrip', () => {
     // Not a member of MORPH_SECONDS, so it lands on the same 1s a stored morph
     // duration falls back to.
     expect(got.rows[0].arrive.seconds).toBe(1)
+    // And a transition this build's shelf does not have arrives plainly rather
+    // than handing an unknown name to the engine.
+    expect(got.rows[0].arrive.transition).toBeNull()
   })
 
   // The one field that must never be a shared constant: every browser falling

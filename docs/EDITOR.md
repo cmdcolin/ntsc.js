@@ -301,11 +301,10 @@ Four things worth knowing about how it landed.
   element would destroy it a line before the cut it was loaded for. What bounds
   it is the one-field rule above rather than that call.
 
-The two things filed as waiting on this are now unblocked and neither is built:
-**transitions between rows** (the shelf exists and cuts the deck's T-bar; a row
-needs both clips live, which is what this makes true) and **the audio
-crossfade** — the second read head now exists, which is the whole of what
-IDEAS.md › _Clip cues_ said was missing.
+Of the two things filed as waiting on this, **transitions between rows** landed
+next and is written up below. **The audio crossfade** is still open, and the
+second read head it needed now exists — which is the whole of what IDEAS.md ›
+_Clip cues_ said was missing.
 
 ### Seeding: the decision that is expensive later
 
@@ -620,6 +619,39 @@ frames, and the PLL is still walking its lock back. So a transition ends as a
 receiver recovering rather than as an effect switching off, which is the half of
 "a fault that resolves" that no recipe writes down and no NLE can composite.
 
+#### Landed: between rows
+
+A row carries `arrive.transition` now — the field this section's `Row` type
+predicted — and the whole of the difference is **when the session lands**. A
+plain row applies it when the row fires; a transition row hands the engine a
+fault whose `onCut` applies it, so the source swaps on the frame the picture is
+least legible and the fault heals onto the new clip.
+
+`scripts/faultcheck.mjs` measures exactly that: `fired@0 cut@30`, which is a
+one-second `collapse` cutting at 0.5 with the session arriving thirty frames
+after the row did.
+
+- **One `onCut`, two cuts.** Off the deck a transition throws the T-bar; off a
+  row it puts the row's session up. Same fault, same plan, same `faultPlan` —
+  which takes its `onCut` from the caller precisely so the shelf never had to
+  learn what a rundown is.
+- **The two arrivals are separate chips because they are separate things.** The
+  look glides over `seconds` while the fault does the cutting, which is the
+  pairing this section asks for, so neither is a mode of the other. `null` is
+  the plain cut and the head of the ring: it is the ordinary arrival, and the
+  one a hand steps back to when a fault is too much for the moment.
+- **Preroll is what makes it land.** The row before loaded the clip and parked
+  it, so the cut promotes an element rather than starting a load — the swap is a
+  swap, which is what "a transition needs both clips live at once" meant.
+
+And one thing worth keeping that is about the harness rather than the feature.
+The card's chips and verbs were reached *positionally* by `traycheck.mjs`, so
+adding one chip silently shifted three unrelated buttons — a run that deleted a
+row where it meant to rename one and reported it as five failures in features
+nothing had touched. They carry `data-act` names now. A harness that indexes a
+layout will fail the day the layout is edited, and it will not fail where the
+edit was.
+
 #### The envelope belongs in the engine, not in React
 
 A transition is two curves and a cut point, and the obvious way to draw curves
@@ -671,12 +703,13 @@ useless, and the common case. **Undo on the rundown**, its own walk over
 you spent five minutes dialling in was otherwise gone for good. **Duplicate**,
 which is the cheapest thing an editor gives you and was three lines.
 
-**Out, and in this order afterwards:** preroll depth 1, where `videoSlot.ts`'s
-one-element-per-slot assumption is the change; then transitions between rows,
-which need it, because a fault that hides a cut needs both clips live; then the
-audio crossfade the second element makes possible (IDEAS.md › _Clip cues_ files
-that as a real limit, and this is what lifts it); then takes, which want the
-export to exist before they are worth recording.
+**Out, and in this order afterwards** — the first two are in, in that order:
+~~preroll depth 1~~, where `videoSlot.ts`'s one-element-per-slot assumption was
+the change; ~~then transitions between rows~~, which needed it, because a fault
+that hides a cut needs both clips live; then the audio crossfade the second
+element makes possible (IDEAS.md › _Clip cues_ files that as a real limit, and
+this is what lifts it); then takes, which want the export to exist before they
+are worth recording.
 
 The transition shelf is deliberately not in either list, because it does not
 belong to the strip. A and B are both live today, so the first faults run off
@@ -1020,11 +1053,11 @@ list above in two places.
    _One walk, two clocks_ now records, and ⎙ renders the rundown rather than
    just the board. It stops the live walk rather than running beside it, which
    is what the note here said to do.
-4. ~~**Preroll depth 1.**~~ **Landed** — the write-up is _Landed_ under
-   _Performance: the boundary is the only cost_, and the measurement is 9ms
-   against 58ms. The three things filed under it are what is left: transitions
-   between rows, the audio crossfade (IDEAS.md › _Clip cues_), and any cut that
-   is not a hard one. All three are now unblocked and none is built.
+4. ~~**Preroll depth 1**~~, and ~~**transitions between rows**~~ on top of it.
+   **Both landed** — _Landed_ under _Performance: the boundary is the only
+   cost_, and _Landed: between rows_ under _Transitions_. What is left of the
+   three things filed under preroll is **the audio crossfade** (IDEAS.md ›
+   _Clip cues_): the second read head exists now, and nothing uses it.
 5. **Frame-exact video pull**, then **automation recording**, as before. The
    first is now the only thing between a take and reproducing with a clip in
    it: everything below the video is deterministic, and the video is not. It

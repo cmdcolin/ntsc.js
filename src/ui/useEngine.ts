@@ -40,6 +40,7 @@ import { morphTo } from './morph'
 import { randomPresetMix, rollControls } from './presets'
 import { RebuildPolicy } from './rebuildPolicy'
 import { printCard } from './teletypeSlot'
+import { faultPlan, transitionOf } from './transitions'
 import {
   REVERB_DEFAULT,
   SPEED_DEFAULT,
@@ -74,6 +75,7 @@ import type { Fatal } from './FatalScreen'
 import type { StashSlot, Stashed } from './fileStash'
 import type { PickedFileHandle } from './fsAccess'
 import type { SlotView } from './slotView'
+import type { TransitionName } from './transitions'
 import type { SessionParams } from './urlParams'
 import type { Preroll, SlotKind, VideoSlot } from './videoSlot'
 import type { RefObject } from 'react'
@@ -1658,6 +1660,34 @@ export function useEngine() {
     if (eng !== null) applySession(eng, params, { boot: false, arrive })
   }
 
+  // The same, arriving behind a named fault off the shelf (ui/transitions.ts):
+  // the picture breaks, the session lands on the frame the engine says it is
+  // least legible, and the fault heals onto it.
+  //
+  // **The swap is the engine's callback and not a timer here**, which is the
+  // whole reason `startFault` takes an `onCut`: the cut has to land on one
+  // particular frame and nothing in React runs that often. What this composes
+  // is two things that already existed — `faultPlan` off the shelf and
+  // `showSession` above — so a row's transition and the deck's shelf button run
+  // the same fault and differ only in what their cut does.
+  //
+  // Both clips being live at that instant is preroll's doing: the row before
+  // this one loaded the clip and parked it, so `showSession` promotes an
+  // element rather than starting a load, and the swap is a swap.
+  const faultTo = (
+    name: TransitionName,
+    params: SessionParams,
+    arrive: number,
+  ) => {
+    const t = transitionOf(name)
+    const eng = engineRef.current
+    // An unknown name is a rundown from a build with a shelf entry this one
+    // does not have. The row still arrives — it simply arrives plainly, which
+    // is what it would have done before the shelf existed.
+    if (t === undefined || eng === null) showSession(params, arrive)
+    else eng.startFault(faultPlan(t, () => showSession(params, arrive)))
+  }
+
   // The device this tab cannot afford, declined out loud instead of spent.
   //
   // A tab that has destroyed a presenting device stops being given animation
@@ -2131,8 +2161,10 @@ export function useEngine() {
     // same apply a link gets, which is what makes "a row is a query string"
     // true rather than nearly true; `rollOn` is a roll that names its pool and
     // draws from the take's generator instead of `Math.random`; `prerollOn` is
-    // the row after next's clip, loaded during this one.
+    // the row after next's clip, loaded during this one; `faultTo` is
+    // `showSession` again, landing inside a transition off the shelf.
     showSession,
+    faultTo,
     rollOn,
     prerollOn,
     // Whether there is a pool to roll out of at all, which is not the same as

@@ -21,11 +21,13 @@ import { MORPH_SECONDS } from './morph'
 import { parseMutateAmount } from './mutate'
 import { cleanProfileName } from './savedProfiles'
 import { readRecord, writeJSON } from './storage'
+import { TRANSITION_NAMES, transitionOf } from './transitions'
 import { urlName } from './urlParams'
 
 import type { PoolOrigin } from '../sources/pools'
 import type { MorphSeconds } from './morph'
 import type { MutateAmount } from './mutate'
+import type { TransitionName } from './transitions'
 
 // --- the row ----------------------------------------------------------------
 
@@ -96,10 +98,20 @@ export interface Row {
   session: string
   fill: RowFill
   hold: Hold
-  // How the row arrives. An object holding one field on purpose: the shelf of
-  // named transitions (EDITOR.md › _Transitions_) is a second field here, and a
-  // bare number now would make that a codec migration later.
-  arrive: { seconds: MorphSeconds }
+  // How the row arrives, in the two senses that are genuinely different things.
+  //
+  // `seconds` is how the *look* arrives: a morph over the resting board, or 0
+  // to cut. `transition` is how the *source* arrives: a named fault off the
+  // shelf (EDITOR.md › _Transitions_) that breaks the picture, swaps the row in
+  // on the frame it is least legible, and heals onto it — or null for the plain
+  // cut, which is what every row had before the shelf was reachable from one
+  // and is still the default.
+  //
+  // The two compose rather than competing, which is the pairing _Transitions_
+  // asks for: the look glides while the fault does the cutting. That is also
+  // why this stayed an object when it held one field — a bare number would have
+  // made today a codec migration.
+  arrive: { seconds: MorphSeconds; transition: TransitionName | null }
 }
 
 // A whole rundown.
@@ -157,16 +169,28 @@ export interface Clock {
 // --- what a fire asks for ---------------------------------------------------
 
 // One thing the driver has to do, in the order returned.
-//
-// One variant named in the design is still deliberately absent: `fault` waits
-// on the transition shelf being reachable from a row, which needs the preroll
-// below to have both clips live at once. Adding it is a variant here and an arm
-// in the driver's switch; declaring it now would only put an unreachable arm in
-// it.
 export type Effect =
   // Put this session up: the source it names, the cue on it, and the look,
   // arriving over `seconds` (0 cuts).
   | { kind: 'session'; session: string; seconds: MorphSeconds }
+  // The same session, arriving behind a named fault: break the picture, put the
+  // session up on the frame it is least legible, and heal onto it
+  // (EDITOR.md › _Transitions_).
+  //
+  // It carries the session rather than the driver remembering one, because the
+  // swap has to land on a frame the engine picks and nothing in React runs that
+  // often — so what the sink hands over is a plan *including what to do at the
+  // cut*, which is the shape `startFault` already takes.
+  //
+  // A separate variant rather than a field on `session`, so the driver's switch
+  // is where the difference lives: a plain arrival applies immediately and this
+  // one applies later, and those are two verbs rather than one with a mode.
+  | {
+      kind: 'fault'
+      transition: TransitionName
+      session: string
+      seconds: MorphSeconds
+    }
   // Roll this pool and put what comes back on the deck. The seed is the row's,
   // so re-walking the same strip asks the same questions — though not
   // necessarily of the same file, which is `rng.ts`'s note and EDITOR.md's.
@@ -229,8 +253,11 @@ export function holdFrames(
 // the jitter lands on it, because both are departures *from* what the session
 // named.
 export function fireEffects(row: Row, seed: number): Effect[] {
+  const { seconds, transition } = row.arrive
   const out: Effect[] = [
-    { kind: 'session', session: row.session, seconds: row.arrive.seconds },
+    transition === null
+      ? { kind: 'session', session: row.session, seconds }
+      : { kind: 'fault', transition, session: row.session, seconds },
   ]
   if (row.fill.kind === 'roll') {
     out.push({ kind: 'roll', origin: row.fill.origin, seed })
@@ -494,7 +521,7 @@ export function addRow(
     session,
     fill: rowFill(session, opts.jitter),
     hold: DEFAULT_HOLD,
-    arrive: { seconds: 1 },
+    arrive: NO_ARRIVE,
   }
   return { ...strip, rows: [...strip.rows, row] }
 }
@@ -589,9 +616,45 @@ export const stepArrive = (strip: Strip, index: number): Strip => {
   return row === undefined
     ? strip
     : patchRow(strip, index, {
-        arrive: { seconds: cycleArrive(row.arrive.seconds) },
+        arrive: { ...row.arrive, seconds: cycleArrive(row.arrive.seconds) },
       })
 }
+
+// The shelf, plus the plain cut at the head of the ring — which is where it
+// belongs rather than at the end: a cut is the ordinary arrival and the one a
+// hand steps *back* to when a fault turns out to be too much for the moment.
+export const TRANSITION_RING: readonly (TransitionName | null)[] = [
+  null,
+  ...TRANSITION_NAMES,
+]
+
+export const cycleTransition = (
+  at: TransitionName | null,
+): TransitionName | null => {
+  // `indexOf` answers -1 for a name off the ring — a hand-edited file, an older
+  // build's shelf — and -1 + 1 is 0, which is the plain cut. Nothing to guard.
+  const i = TRANSITION_RING.indexOf(at)
+  return TRANSITION_RING[(i + 1) % TRANSITION_RING.length]
+}
+
+export const stepTransition = (strip: Strip, index: number): Strip => {
+  const row = strip.rows[index]
+  return row === undefined
+    ? strip
+    : patchRow(strip, index, {
+        arrive: {
+          ...row.arrive,
+          transition: cycleTransition(row.arrive.transition),
+        },
+      })
+}
+
+// What the transition chip says. The plain cut draws as the arrow the chip is
+// about rather than as the word "cut", which the arrival chip beside it already
+// uses for a look that does not glide — two chips reading "cut" and meaning
+// different things is the one confusion this row cannot afford.
+export const transitionLabel = (at: TransitionName | null): string =>
+  at === null ? '↷' : (transitionOf(at)?.label ?? at)
 
 // --- the codec --------------------------------------------------------------
 
@@ -639,11 +702,21 @@ function readFill(raw: unknown): RowFill {
   return { kind: 'clip' }
 }
 
-const readArrive = (raw: unknown): { seconds: MorphSeconds } => {
-  if (typeof raw !== 'object' || raw === null) return { seconds: 1 }
+const NO_ARRIVE: Row['arrive'] = { seconds: 1, transition: null }
+
+// A stored arrival. The transition is narrowed through `TRANSITION_NAMES`
+// rather than cast, on the rule every other stored name here follows: a rundown
+// written by a build with an entry this one does not have should arrive by a
+// plain cut rather than hand an unknown name to the shelf. A row from before
+// the field existed reads as null, which is exactly what it did.
+const readArrive = (raw: unknown): Row['arrive'] => {
+  if (typeof raw !== 'object' || raw === null) return NO_ARRIVE
   const seconds = 'seconds' in raw ? raw.seconds : undefined
-  const found = MORPH_SECONDS.find(s => s === seconds)
-  return { seconds: found ?? 1 }
+  const name = 'transition' in raw ? raw.transition : undefined
+  return {
+    seconds: MORPH_SECONDS.find(s => s === seconds) ?? 1,
+    transition: TRANSITION_NAMES.find(t => t === name) ?? null,
+  }
 }
 
 // One stored row, or undefined when it is not one. Same contract as the shelf's
