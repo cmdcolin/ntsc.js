@@ -479,40 +479,52 @@ check(
   `trackAmt ended at ${t1.ended}, for a tape ending on 0.2`,
 )
 
-// The recorder against a real frame counter. Not an exact stamp — the live loop
-// is running and the window manager has a say in how fast — but an exact
-// *bound*: the write happened between two readings of the counter, so its stamp
-// has to sit between the same two, and a recorder measuring from the wrong
-// origin fails that however slow the machine is.
-const recorded = await page.evaluate(async () => {
+// The recorder against a real frame counter.
+//
+// **Stepped by hand rather than slept through**, which is the trap this file
+// and `traycheck.mjs` both already record from the other side: under puppeteer
+// the window is nearly always occluded, rAF stops, and the counter does not
+// move. The first cut of this arm waited 250ms twice and passed with `stamped 0
+// for a write between frames 0 and 0` — an assertion whose bounds had collapsed
+// onto each other and which a recorder with no origin subtraction at all would
+// also have passed. `step()` advances the counter whatever the compositor is
+// doing, so the bounds have a gap in them and the check has teeth.
+//
+// Still a bound and not an exact stamp: the live loop may land a frame of its
+// own in between, and that is fine. What cannot survive is a recorder measuring
+// from the wrong origin — a raw `frameNo()` is thousands of frames in by now,
+// nowhere near the window below.
+const STEPS = 20
+const recorded = await page.evaluate(async n => {
   const { makeAutomationRunner } = await import('/src/ui/useAutomation.ts')
   const vf = window.vf
   const runner = makeAutomationRunner()
   runner.setFrameNo(() => vf.frameNo())
   const origin = vf.frameNo()
   runner.start()
-  await new Promise(r => setTimeout(r, 250))
+  for (let i = 0; i < n; i++) vf.step()
   const before = vf.frameNo() - origin
   runner.tap.set('vSize', 0.42)
   const after = vf.frameNo() - origin
-  await new Promise(r => setTimeout(r, 250))
+  for (let i = 0; i < n; i++) vf.step()
   runner.stop()
   // And nothing after the seal: a tape that went on recording would make every
   // take a recording of whatever happened next.
   runner.tap.set('vSize', 0.99)
   const tape = runner.getTape()
   return { events: tape.events, frames: tape.frames, before, after }
-})
+}, STEPS)
 check(
   'the recorder stamps a write against the frame it started on',
   recorded.events.length === 1 &&
+    recorded.before >= STEPS &&
     recorded.events[0].at >= recorded.before &&
     recorded.events[0].at <= recorded.after,
   `stamped ${recorded.events[0]?.at} for a write between frames ${recorded.before} and ${recorded.after}`,
 )
 check(
   'and seals a length that covers the whole take',
-  recorded.frames > recorded.after,
+  recorded.frames > recorded.after + STEPS,
   `${recorded.frames} frames sealed, last write at ${recorded.after}`,
 )
 
