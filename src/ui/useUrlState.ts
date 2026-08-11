@@ -34,6 +34,16 @@ interface UrlStateArgs {
   // marked on it as well as the clip itself.
   cueA: Cue | null
   cueB: Cue | null
+  // Where a morph in flight is heading, or null when none is — the same
+  // question `useMix.banked()` asks, and asked here for the same reason.
+  //
+  // It changes what a *capture* records and deliberately not what the address
+  // bar says. The live URL is a mirror of the picture, so following the tween
+  // is right there. A capture is a look being banked to come back to — a saved
+  // profile, a strip row — and "a tween is a frame, not a look": bank the frame
+  // and what comes back is a place on the way to somewhere, which nobody chose
+  // and which the board cannot be returned to by any other means.
+  getGlideTarget: () => Controls | null
   // Where a refused copy is reported. The clipboard is the one thing in here
   // the page does not control: it can be denied outright.
   onError: (message: string) => void
@@ -65,6 +75,7 @@ export function useUrlState({
   reverb,
   cueA,
   cueB,
+  getGlideTarget,
   onError,
 }: UrlStateArgs) {
   // The whole query-string rule lives in urlParams beside the parser that has
@@ -156,10 +167,11 @@ export function useUrlState({
   // What a saved look records — the same serialization, minus the params that
   // only make sense for the session that is running (see writeProfileParams).
   const profileQuery = () =>
-    writeProfileParams(
-      new URLSearchParams(location.search),
-      session(),
-    ).toString()
+    writeProfileParams(new URLSearchParams(location.search), {
+      ...session(),
+      // The destination when a morph is running, per `getGlideTarget` above.
+      controls: getGlideTarget() ?? controls,
+    }).toString()
 
   const copyQuery = (query: string) => writeClip(linkFor(query))
 

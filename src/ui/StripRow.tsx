@@ -152,6 +152,16 @@ export function StripRow(props: {
         >
           ✎
         </button>
+        {/* The cheapest thing an editor gives you: a row you have dialled in is
+            worth several with different holds, and building the second by hand
+            means finding that board again. */}
+        <button
+          className={cx(ui.bare, styles.chip, styles.rename)}
+          onClick={() => api.duplicateRow(props.index)}
+          title="the same row again, next to this one"
+        >
+          ⧉
+        </button>
         <button
           className={cx(ui.bare, styles.drop)}
           onClick={() => api.removeRow(props.index)}

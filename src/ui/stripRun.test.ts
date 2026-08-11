@@ -250,6 +250,79 @@ describe('makeStripRunner', () => {
     expect(h.runner.getStrip().loop).toBe(false)
   })
 
+  // Undo is what makes an editor safe to poke at: a mis-clicked ✕ on a row you
+  // spent five minutes dialling in is otherwise unrecoverable.
+  describe('the rundown walk', () => {
+    it('has nothing to step back into on a fresh rundown', () => {
+      const runner = makeStripRunner()
+      expect(runner.getDepth().undo).toBe(false)
+      expect(runner.getDepth().redo).toBe(false)
+    })
+
+    // `harness` seeds its rundown through `setStrip`, which is the same funnel
+    // every edit goes through — so the seed is itself one step back, and these
+    // measure from it rather than from an empty walk. That is the funnel doing
+    // its job: there is no way to change the rundown that undo does not see.
+    it('takes back an edit, and puts it back again', () => {
+      const h = harness([row({ id: 'a' }), row({ id: 'b' })])
+      const base = h.runner.getStrip()
+      h.runner.setStrip({ ...base, rows: [row({ id: 'a' })] })
+      expect(h.runner.getStrip().rows).toHaveLength(1)
+
+      expect(h.runner.getDepth().undo).toBe(true)
+      h.runner.undo()
+      expect(h.runner.getStrip()).toEqual(base)
+
+      expect(h.runner.getDepth().redo).toBe(true)
+      h.runner.redo()
+      expect(h.runner.getStrip().rows).toHaveLength(1)
+    })
+
+    // One press has to come back in one press. Banking inside undo as well as
+    // inside the edit is how that turns into two.
+    it('does not bank the step it is undoing', () => {
+      const h = harness([row({ id: 'a' })])
+      const base = h.runner.getStrip()
+      h.runner.setStrip({ ...base, loop: false })
+      h.runner.undo()
+      expect(h.runner.getStrip()).toEqual(base)
+    })
+
+    it('walks back through several edits in order', () => {
+      const h = harness([row({ id: 'a' })])
+      for (const name of ['one', 'two', 'three']) {
+        const s = h.runner.getStrip()
+        h.runner.setStrip({ ...s, rows: [{ ...s.rows[0], name }] })
+      }
+      const seen: string[] = []
+      for (let i = 0; i < 3; i++) {
+        h.runner.undo()
+        seen.push(h.runner.getStrip().rows[0].name)
+      }
+      expect(seen).toEqual(['two', 'one', ''])
+    })
+
+    it('tells the readers, so the cards come back with it', () => {
+      const h = harness([row({ id: 'a' })])
+      const onStrip = vi.fn()
+      h.runner.setStrip({ ...h.runner.getStrip(), loop: false })
+      h.runner.subscribeStrip(onStrip)
+      h.runner.undo()
+      expect(onStrip).toHaveBeenCalled()
+    })
+
+    // A new edit after stepping back is a new branch: the redo tail belonged to
+    // a walk that edit leaves.
+    it('drops the redo tail when a step back is followed by an edit', () => {
+      const h = harness([row({ id: 'a' })])
+      h.runner.setStrip({ ...h.runner.getStrip(), loop: false })
+      h.runner.undo()
+      expect(h.runner.getDepth().redo).toBe(true)
+      h.runner.setStrip({ ...h.runner.getStrip(), seed: 7 })
+      expect(h.runner.getDepth().redo).toBe(false)
+    })
+  })
+
   it('drops a subscriber that unsubscribes', () => {
     const h = harness([row()])
     const onProgress = vi.fn()

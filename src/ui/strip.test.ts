@@ -14,6 +14,7 @@ import {
   advance,
   cycleArrive,
   cycleHold,
+  duplicateRow,
   fire,
   fireEffects,
   holdFrames,
@@ -433,6 +434,41 @@ describe('editing the rundown', () => {
     ]) {
       expect(moveRow(three, from, to)).toBe(three)
     }
+  })
+
+  // Next to itself, not appended: a copy that landed at the end of a forty-row
+  // strip would be a scroll away from the thing it is a copy of.
+  it('duplicates a row next to itself, not at the end', () => {
+    const got = duplicateRow(three, 0)
+    expect(got.rows).toHaveLength(4)
+    expect(ids(got).filter(id => id !== got.rows[1].id)).toEqual([
+      'a',
+      'b',
+      'c',
+    ])
+    expect(new Set(ids(got)).size).toBe(4)
+  })
+
+  it('gives the copy everything but the identity', () => {
+    const s = strip([row({ id: 'a', hold: { bars: 8, drift: 0 } })])
+    const got = duplicateRow(s, 0)
+    expect(got.rows[1].hold).toEqual({ bars: 8, drift: 0 })
+    expect(got.rows[1].id).not.toBe('a')
+  })
+
+  it('numbers the copy off the original rather than repeating its name', () => {
+    const s = addRow(strip([]), 'set=', { name: 'the drop' })
+    const got = duplicateRow(s, 0)
+    expect(got.rows.map(r => r.name)).toEqual(['the drop', 'the drop 2'])
+  })
+
+  it('leaves an unnamed copy unnamed', () => {
+    const got = duplicateRow(three, 0)
+    expect(got.rows[1].name).toBe('')
+  })
+
+  it('leaves the strip alone for a row that is not there', () => {
+    expect(duplicateRow(three, 9)).toBe(three)
   })
 
   it('steps the hold around its ring and back', () => {

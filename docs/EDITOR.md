@@ -541,10 +541,19 @@ in the panel.
 Everything above is the strip finished. What is worth building first is smaller,
 and the line to cut along is the preroll.
 
-**In:** the row type and its codec, `advance` and its tests, the tray with rows
-that hold and fire, drag-to-reorder, the hold chip visible on the row, roll and
-mutate rows, the seeded RNG from the first commit, and arrival by look-morph —
-`morphTo` needs nothing new. One rundown in `storage.ts`, not a library of them.
+**In, and landed:** the row type and its codec, `advance` and its tests, the
+tray with rows that hold and fire, drag-to-reorder, the hold chip visible on the
+row, roll and shake rows, the seeded RNG from the first commit, and arrival by
+look-morph — `morphTo` needed nothing new. One rundown in `storage.ts`, not a
+library of them.
+
+Three things went in that this list did not ask for, and each earned it by being
+what the thing was unusable without. **Names on rows**, because a rundown of
+look changes over one clip is four cards all reading "look only" — accurate and
+useless, and the common case. **Undo on the rundown**, its own walk over
+`history.ts` rather than a share of the look's, because a mis-clicked ✕ on a row
+you spent five minutes dialling in was otherwise gone for good. **Duplicate**,
+which is the cheapest thing an editor gives you and was three lines.
 
 **Out, and in this order afterwards:** preroll depth 1, where `videoSlot.ts`'s
 one-element-per-slot assumption is the change; then transitions between rows,
@@ -557,6 +566,35 @@ The transition shelf is deliberately not in either list, because it does not
 belong to the strip. A and B are both live today, so the first faults run off
 the T-bar and a MIDI pad with no rundown anywhere near them — build order, step
 3. By the time the strip can preroll, the shelf is a table it picks from.
+
+### What a first user will reach for and not find
+
+Worth writing down against the shipped thing rather than the planned one,
+because two of these are bigger than anything left on the build order and
+neither was obvious from the design.
+
+- **The music.** The document opens with "the ask behind this document is music
+  videos", and there is no way to cut to a song. The app _can_ play one —
+  `useAudio`'s `file` mode loads a track and feeds the bay's envelope — but the
+  strip's clock and that track have no relationship at all: the tempo is tapped
+  in by hand or arrives over MIDI clock, and pressing ▶ on the rundown does not
+  start the music or take its phase from it. The smallest honest version is one
+  transport: ▶ starts the track from the top and the walk with it, so the two
+  are locked at the top and a known BPM keeps them together for the length of a
+  piece. That is the single highest-value thing left, and it is not on the build
+  order at all — the order was written about export and transitions, which are
+  what a *finished* piece needs rather than what making one needs.
+- **A file at the end.** Build order step 1 (`VideoEncoder` CFR) is still the
+  answer, and it is now the only thing between a rundown that plays and a
+  rundown somebody else can watch. `useCapture` still records wall-clock VFR.
+- **Seeing the shape.** Every card is the same width, so a strip cannot be read
+  for its rhythm — sixteen bars and one look the same size. Cards sized by hold
+  would say more than any chip does. Cheap, and deliberately not done yet:
+  proportional widths and a horizontal scroll fight, and that wants a decision
+  about what the tray is when the piece is four minutes long.
+
+None of these change the design above; they are what an hour of using it says
+about the order to build the rest in.
 
 What that leaves is an editor whose rows land on hard cuts, and that is the
 honest first version. A rundown that plays is worth having on its own, and the

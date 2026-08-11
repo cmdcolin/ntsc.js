@@ -90,12 +90,13 @@ await click('strip')
 await wait(400)
 for (const preset of ['vhs', 'broadcast', 'neon tube']) {
   await click(preset, true)
-  // Past the look bar's default 1s morph, on purpose. A capture taken while a
-  // preset is still arriving records the tween — which is what "add the board
-  // as it is now" honestly means, and is also not what this check is about.
-  await wait(1300)
+  // Deliberately *inside* the look bar's default 1s morph. A capture taken
+  // mid-morph must bank where the look is going, not the frame it has reached —
+  // "a tween is a frame, not a look", the rule useMix.banked() already follows.
+  // Before that fix this arm was flaky and recorded half-way boards.
+  await wait(350)
   await click('+ row')
-  await wait(400)
+  await wait(1200)
 }
 let rows = await cards()
 check(
@@ -116,6 +117,50 @@ check(
     JSON.stringify(['vhs', 'broadcast', 'neon tube']),
   JSON.stringify(rows.map(r => r.name)),
 )
+
+// --- the third filling ------------------------------------------------------
+await click('+ shake')
+await wait(400)
+rows = await cards()
+check(
+  'a shake row can be made, and says what it does',
+  rows.length === 4 && rows[3].name === 'shake · normal',
+  `${rows.length} / ${rows[3]?.name}`,
+)
+await page.evaluate(() => {
+  const card = document.querySelectorAll('[data-index]')[3]
+  card?.querySelectorAll('button')[5]?.click() // the ✕
+})
+await wait(300)
+check('and taken out again', (await cards()).length === 3)
+
+// --- undo -------------------------------------------------------------------
+await click('↶')
+await wait(300)
+check(
+  'undo puts a removed row back',
+  (await cards()).length === 4,
+  `${(await cards()).length}`,
+)
+await click('↷')
+await wait(300)
+check('and redo takes it out again', (await cards()).length === 3)
+
+// --- duplicate ---------------------------------------------------------------
+await page.evaluate(() => {
+  const card = document.querySelectorAll('[data-index]')[0]
+  card?.querySelectorAll('button')[4]?.click() // the ⧉
+})
+await wait(300)
+rows = await cards()
+check(
+  'a duplicate lands next to its original, numbered off it',
+  rows.length === 4 && rows[1].name === 'vhs 2',
+  `${rows.length} / ${JSON.stringify(rows.map(r => r.name))}`,
+)
+await click('↶')
+await wait(300)
+check('and undo takes the duplicate back out', (await cards()).length === 3)
 
 // --- renaming --------------------------------------------------------------
 const rename = (i, value) =>

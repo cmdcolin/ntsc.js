@@ -471,6 +471,28 @@ export const removeRow = (strip: Strip, index: number): Strip => ({
   rows: strip.rows.filter((_, i) => i !== index),
 })
 
+// The same row again, next to itself. The cheapest thing an editor gives you —
+// a row you have dialled in is worth several with different holds, and building
+// the second one by hand means finding that board again.
+//
+// Inserted after the original rather than appended, because "again" means here:
+// a duplicate that landed at the end of a forty-row strip would be a scroll away
+// from the thing it was a copy of.
+export function duplicateRow(strip: Strip, index: number): Strip {
+  const row = strip.rows[index]
+  if (row === undefined) return strip
+  const copy: Row = {
+    ...row,
+    id: nextId(strip.rows),
+    // Numbered off the original, so a rundown reads "drop, drop 2" rather than
+    // two rows claiming the same name. Blank stays blank.
+    name: uniqueName(strip.rows, row.name),
+  }
+  const rows = [...strip.rows]
+  rows.splice(index + 1, 0, copy)
+  return { ...strip, rows }
+}
+
 // Reorder. Out-of-range at either end is a no-op rather than a clamp: a drag
 // that ended outside the tray should put the row back, not park it at an end
 // the hand never went to.

@@ -450,6 +450,7 @@ export function App() {
     reverb: eng.reverb,
     cueA: eng.a.cue,
     cueB: eng.b.cue,
+    getGlideTarget,
     onError: eng.setError,
   })
 
@@ -1287,8 +1288,15 @@ export function App() {
                 "vhs" is a rundown you can read. It is a suggestion — the moment
                 someone edits it, it is theirs. */}
             <StripTray
-              onCapture={() =>
-                strip.addRow(profileQuery(), { name: lookLabel })
+              onCapture={jitter =>
+                strip.addRow(profileQuery(), {
+                  jitter,
+                  // A shake row departs from whatever is live rather than
+                  // landing on the board it was captured from, so the look's
+                  // name would be a lie on it. `derivedLabel` says "shake ·
+                  // normal", which is what it does.
+                  name: jitter === undefined ? lookLabel : '',
+                })
               }
             />
           </StripContext>

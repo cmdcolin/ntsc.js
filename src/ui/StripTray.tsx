@@ -6,6 +6,8 @@ import { StripRow } from './StripRow'
 import styles from './StripTray.module.css'
 import ui from './ui.module.css'
 
+import type { MutateAmount } from './mutate'
+
 // The rundown, under the picture.
 //
 // Under it rather than in the panel because a strip is what a hand works during
@@ -39,7 +41,12 @@ interface Drag {
 // register a plain tap.
 const DRAG_SLOP = 5
 
-export function StripTray(props: { onCapture: () => void }) {
+export function StripTray(props: {
+  // Takes the jitter amount for a shake row, or nothing for an ordinary
+  // capture. The tray cannot build a session string itself — that needs the
+  // whole app's state — so both go out through one callback.
+  onCapture: (jitter?: MutateAmount) => void
+}) {
   const api = useStripApi()
   const [open, setOpen] = useState(false)
   const [over, setOver] = useState<number | null>(null)
@@ -105,10 +112,22 @@ export function StripTray(props: { onCapture: () => void }) {
             </button>
             <button
               className={ui.btn}
-              onClick={props.onCapture}
+              onClick={() => props.onCapture()}
               title="add what is on the board now as a row"
             >
               + row
+            </button>
+            {/* The third filling, which had a model and a card and no way to
+                make one. A shake row keeps whatever is up and jitters the look
+                when it fires — so a rundown can wander without naming where it
+                is going, which is the whole reason the roll and the shake are
+                row kinds rather than buttons. */}
+            <button
+              className={ui.btn}
+              onClick={() => props.onCapture('normal')}
+              title="add a row that shakes the look rather than setting one"
+            >
+              + shake
             </button>
             <button
               className={cx(ui.btn, api.strip.loop && ui.active)}
@@ -117,6 +136,29 @@ export function StripTray(props: { onCapture: () => void }) {
             >
               ↻ loop
             </button>
+            {/* The rundown's own walk back, and a button rather than ctrl+z on
+                purpose. ctrl+z already means "put that knob back" and is used
+                constantly; making it mean "put that row back" when the pointer
+                happens to be down here is the version of undo people stop
+                trusting. Two stacks, two reaches. */}
+            <span className={styles.walk}>
+              <button
+                className={cx(ui.bare, styles.step)}
+                onClick={() => api.undo()}
+                disabled={!api.canUndo}
+                title="undo the last change to the rundown"
+              >
+                ↶
+              </button>
+              <button
+                className={cx(ui.bare, styles.step)}
+                onClick={() => api.redo()}
+                disabled={!api.canRedo}
+                title="redo"
+              >
+                ↷
+              </button>
+            </span>
             {/* Shown rather than hidden, because it is the one number that makes
                 a take findable again — a rundown whose rows roll is a different
                 video every play, so "which take was that" needs an answer. */}

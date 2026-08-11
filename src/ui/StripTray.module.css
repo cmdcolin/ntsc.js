@@ -51,11 +51,33 @@
   font-family: var(--mono);
 }
 
-/* Quiet, and to the right of the verbs: the seed is a thing to read off and
-   write down rather than a control, right up until the moment it is the one
-   button that matters. */
-.seed {
+/* The undo pair, pushed right with the seed: both are things you reach for
+   rather than things you are looking at. */
+.walk {
   margin-left: auto;
+  display: flex;
+  gap: 1px;
+}
+
+.step {
+  color: var(--fg3);
+  font-size: var(--fs);
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: var(--ctl-radius);
+}
+.step:hover:not(:disabled) {
+  color: var(--fg);
+  background: var(--ctl-bg-hover);
+}
+.step:disabled {
+  color: var(--border);
+  cursor: default;
+}
+
+/* Quiet, and last: the seed is a thing to read off and write down rather than a
+   control, right up until the moment it is the one button that matters. */
+.seed {
   font-family: var(--mono);
   font-size: var(--fs-xs);
   color: var(--fg4);
