@@ -2,6 +2,35 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.26.1](https://github.com/cmdcolin/ntsc.js/compare/v0.26.0...v0.26.1) - 2026-08-11
+
+### Features
+- *(ui)* [`76ae450`](https://github.com/cmdcolin/ntsc.js/commit/76ae45090b1ea5c3bcfd4c4d6e5b5b5a40618b1b) an MP4 demuxer, so frames can come off a decoder instead of a seek
+- *(ui)* [`5872e67`](https://github.com/cmdcolin/ntsc.js/commit/5872e67bd68f0775fb52c546c85a4d3aa17a1fc1) pull a clip's frame N as a function of N, off the decoder
+- *(gpu)* [`bed7898`](https://github.com/cmdcolin/ntsc.js/commit/bed78986c0c59e9cc5317720632a89a3150cae1e) the take's clock reaches the video, so a clip renders as a function of N
+- *(ui)* [`9b93725`](https://github.com/cmdcolin/ntsc.js/commit/9b937253630a7a546b72dbbda80eacc35c253aa0) an offline render waits for the row it just fired
+- *(ui)* [`2573c64`](https://github.com/cmdcolin/ntsc.js/commit/2573c6478c6f890af494e0b44abaac858b24499e) a take records the hands, and the render plays them back
+- *(ui)* [`e03c877`](https://github.com/cmdcolin/ntsc.js/commit/e03c877468e1de29823db4ca0f5e009bc9c03be3) a row names its clip, so a rundown can be a sequence of clips
+- *(ui)* [`c04feb3`](https://github.com/cmdcolin/ntsc.js/commit/c04feb304a0d90355b4fe0c239085719b8f94b06) the shelf can put a clip straight into the rundown
+- *(ui)* [`0a237ce`](https://github.com/cmdcolin/ntsc.js/commit/0a237ceabc17be300ac93a1d0fae97b6ccf1eb4c) a row can hold for as long as its clip runs
+
+### Fixes
+- *(ui)* [`abe3336`](https://github.com/cmdcolin/ntsc.js/commit/abe3336f7865072ab226f7be187c4b920aac8dd0) the strip stops moving when its own text changes
+- [`e99c9ac`](https://github.com/cmdcolin/ntsc.js/commit/e99c9accfcc4d3605b45be5b935ca1b638d188f3) pnpm test stops running other worktrees' suites, and a puller is bounded
+
+### Documentation
+- *(ui)* [`ae7d570`](https://github.com/cmdcolin/ntsc.js/commit/ae7d5705e38757dd0c4f34cc99dd9c891b910211) the demuxer's header describes what it does with an edit list
+- [`6787c72`](https://github.com/cmdcolin/ntsc.js/commit/6787c7233cf4eec456a13934690c0ad1c51bfc17) what the two routes to frame-exact pull actually cost
+- [`f801d6c`](https://github.com/cmdcolin/ntsc.js/commit/f801d6c18985735bf8ab263057deeffc7332c79e) frame-exact pull is wired, and which half of the awaiting sink it is
+- *(editor)* [`7bbd27a`](https://github.com/cmdcolin/ntsc.js/commit/7bbd27ab0aeb80f4888f2ce0fb83829bdeb232af) automation recording is landed, and the funnel it named was wrong
+- *(editor)* [`3a8f6dd`](https://github.com/cmdcolin/ntsc.js/commit/3a8f6dd5440437f5129c78a6f43e141200fc8d73) the row's clip landed, and it was the gap that mattered
+- *(editor)* [`8e30abf`](https://github.com/cmdcolin/ntsc.js/commit/8e30abfd67a51fbd065ed62437788854e01e4ddd) the strip is a rundown that reads like a filmstrip
+
+### Tests
+- [`00ee370`](https://github.com/cmdcolin/ntsc.js/commit/00ee370a937a734093d564ab42275705a432c51b) measure both routes to frame-exact video pull, and close one
+- *(ui)* [`4a6df7b`](https://github.com/cmdcolin/ntsc.js/commit/4a6df7b1c6048102068724dd29dfa23ecbc37a8b) the harnesses ask whether a tape reaches the file, and the tray
+- *(render)* [`a7731f3`](https://github.com/cmdcolin/ntsc.js/commit/a7731f3007272a733aee2d82109d86112a2e7b58) the recorder arm steps the engine instead of sleeping
+
 ## [0.26.0](https://github.com/cmdcolin/ntsc.js/compare/v0.25.7...v0.26.0) - 2026-08-11
 
 ### Features
