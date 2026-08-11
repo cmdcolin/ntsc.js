@@ -85,6 +85,7 @@ import { faultPlan, transitionOf } from './ui/transitions'
 import ui from './ui/ui.module.css'
 import { parseSessionParams } from './ui/urlParams'
 import { useAudio } from './ui/useAudio'
+import { useAutomation } from './ui/useAutomation'
 import { useCapture } from './ui/useCapture'
 import { useClipLibrary } from './ui/useClipLibrary'
 import { useClockSync } from './ui/useClockSync'
@@ -184,6 +185,14 @@ export function App() {
   // render" — one error, and the compiler drops *all* memoization for this
   // component, which is the one that builds the entire panel.
   const { engine, engineRef } = eng
+  // The automation tape, built before the write path because the write path
+  // taps it (docs/EDITOR.md › _Live input has no offline meaning_). It is inert
+  // until ● is pressed: every verb on the tap checks whether anything is
+  // rolling first, so the app's ordinary write path costs one null test.
+  const auto = useAutomation(engineRef)
+  // Pulled off once, because it is the half of `auto` that keeps its identity
+  // and the half that ends up in dependency arrays.
+  const autoTap = auto.tap
   const {
     status: midiStatus,
     bindings: midiBindings,
@@ -206,7 +215,7 @@ export function App() {
     clearBinding,
     clearNote,
     clearAll,
-  } = useMidi(engineRef)
+  } = useMidi(engineRef, auto.tap)
   // The engine IS the store: React reads controls straight from it via
   // useSyncExternalStore, so there's no separate `values` copy to keep in sync.
   const controls = useSyncExternalStore(
@@ -281,11 +290,22 @@ export function App() {
   // the identity is stable: it ends up inside the verbs useMix hands to every
   // control row, and a fresh one per render would put all 202 rows back on the
   // write path.
+  //
+  // Tapped, and this is the one write the tape takes that is not a value: a
+  // morph is a gesture with a duration, and recording the frames it passes
+  // through would be sixty events a second saying what the destination and the
+  // span already say. A row's own arrival does *not* come through here — it
+  // reaches the engine from `useEngine.showSession` — which is what keeps the
+  // walk's morphs off a tape the walk is going to replay beside.
   const startGlide = useCallback(
     (plan: GlidePlan) => {
       engineRef.current?.startGlide(plan)
+      autoTap.glide(plan.to, plan.seconds)
     },
-    [engineRef],
+    // `autoTap` rather than `auto`: the hook's return is a fresh object each
+    // render and the tap inside it is not, and this callback's identity is the
+    // thing every control row's write path hangs off (see above).
+    [engineRef, autoTap],
   )
   // Where a morph in flight is heading, for the undo walk — the engine is asked
   // because it is the only one that knows a morph was cancelled.
@@ -499,6 +519,22 @@ export function App() {
     lookLabel || 'take',
     eng.setError,
   )
+
+  // How long ⎙ renders for, in priority order and each entry for its own
+  // reason.
+  //
+  // A recorded take wins outright: it is a performance that happened, of a
+  // length somebody chose by pressing ● and then ■, and replaying thirty
+  // seconds of it into a three-minute render would be two and a half minutes of
+  // a board nobody is touching. Then the song, because a piece cut to one is as
+  // long as it. Then ten seconds — long enough to be a take, short enough to be
+  // a try.
+  const takeLength =
+    auto.seconds > 0
+      ? auto.seconds
+      : audio.track.loaded && audio.duration > 0
+        ? audio.duration
+        : 10
 
   const strip = useStrip({
     showSession: eng.showSession,
@@ -1343,15 +1379,30 @@ export function App() {
                 name: audio.track.loaded ? audio.name : '',
                 onPick: () => audio.select('file'),
               }}
+              record={{
+                rolling: auto.rolling,
+                seconds: auto.seconds,
+                // ● is ▶ with the tape rolling, which is why it starts the walk
+                // rather than sitting beside it: the tape stamps from the frame
+                // recording began and the offline walk counts from its own zero,
+                // so the two agree about what frame 300 is only if they started
+                // together. The same one-sentence rule the music already
+                // follows, with a third thing on the end of it — the track, the
+                // walk and the tape all run while the walk runs.
+                start: () => {
+                  auto.start()
+                  strip.start()
+                },
+                stop: () => {
+                  auto.stop()
+                  strip.stop()
+                },
+                clear: auto.clear,
+              }}
               render={{
                 progress: render.progress,
-                // A piece cut to a song is as long as the song; with no track
-                // loaded there is nothing to take a length from, so ten
-                // seconds — long enough to be a take, short enough to be a try.
-                seconds:
-                  audio.track.loaded && audio.duration > 0
-                    ? audio.duration
-                    : 10,
+                seconds: takeLength,
+                automated: auto.seconds > 0,
                 start: () => {
                   // **A render is not a performance**, so it takes the walk
                   // away from the tray rather than running beside it. The live
@@ -1360,19 +1411,38 @@ export function App() {
                   // two walks over one rundown disagreeing about where the
                   // piece is, and stopping it is also what a hand would do.
                   strip.stop()
+                  // And the tape with it, for a sharper reason than symmetry: a
+                  // recording still rolling would write down the replay's own
+                  // writes and hand back a take with everything on it twice.
+                  // The tap declines them anyway — a replay goes straight to the
+                  // engine — and this is the half of that guard a reader can see.
+                  auto.stop()
+                  const walk = strip.offlineWalk()
+                  const play = auto.replay()
                   render.render(
-                    audio.track.loaded && audio.duration > 0
-                      ? audio.duration
-                      : 10,
+                    takeLength,
                     // The rundown's seed, so ⟳ reseed gives a different take of
                     // the same piece and rendering twice without it gives the
                     // same one.
                     strip.strip.seed,
-                    // And the rundown itself, a frame at a time. An empty tray
-                    // hands over a walk that finds nothing to start and the
+                    // The rundown a frame at a time, and then the tape. An empty
+                    // tray hands over a walk that finds nothing to start and the
                     // render is a take of whatever is on the board, which is
-                    // what ⎙ meant before there was a rundown to render.
-                    strip.offlineWalk(),
+                    // what ⎙ meant before there was a rundown to render; an
+                    // empty tape is the same, one line down.
+                    //
+                    // **The walk first, the hand second**, and the order is the
+                    // rule rather than a detail: a row puts a look up and a hand
+                    // moves a knob on top of it, so replaying them the other way
+                    // round would have the row overwrite the gesture that was
+                    // made against it. It is also what makes the overlap
+                    // harmless where the two do touch the same frame — the
+                    // tape's copy is the later word, and it is the word that
+                    // was performed.
+                    frame => {
+                      walk(frame)
+                      play(frame)
+                    },
                   )
                 },
                 cancel: render.cancel,

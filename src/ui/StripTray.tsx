@@ -51,14 +51,28 @@ export function StripTray(props: {
   // where you decide you want a track, and the panel's own picker is four
   // sections down behind a fold.
   track: { name: string; onPick: () => void }
-  // The offline render. `seconds` is how long a take would be — the loaded
-  // track's length when there is one, since a piece cut to a song is as long as
-  // the song, and a default otherwise.
+  // The offline render. `seconds` is how long a take would be — a recorded
+  // performance's length first, then the loaded track's, since a piece cut to a
+  // song is as long as the song, and a default under both. `automated` says
+  // which of those it came from, and is the only thing that tells a hand its
+  // gestures are going to be in the file.
   render: {
     progress: number | null
     seconds: number
+    automated: boolean
     start: () => void
     cancel: () => void
+  }
+  // The automation tape (docs/EDITOR.md › _Live input has no offline meaning_).
+  // ● starts the walk with the tape rolling, ■ seals it, and ⎙ replays it into
+  // the render — so a performance made at whatever rate the tab managed comes
+  // back as a file at 60.
+  record: {
+    rolling: boolean
+    seconds: number
+    start: () => void
+    stop: () => void
+    clear: () => void
   }
 }) {
   const api = useStripApi()
@@ -118,12 +132,80 @@ export function StripTray(props: {
           <>
             <button
               className={cx(ui.btn, styles.transport, api.running && ui.active)}
-              onClick={() => (api.running ? api.stop() : api.start())}
+              onClick={() => {
+                if (!api.running) {
+                  api.start()
+                  return
+                }
+                api.stop()
+                // Whatever started the walk, this is the one button that ends
+                // it, so it is the one that has to seal the tape — a ● take
+                // stopped from here and left rolling would go on recording the
+                // knobs somebody turned after the piece was over and call them
+                // part of it. A no-op when nothing is rolling.
+                props.record.stop()
+              }}
               disabled={rows.length === 0}
               title={api.running ? 'stop the walk' : 'play from the top'}
             >
               {api.running ? '■ stop' : '▶ play'}
             </button>
+            {/* ● is ▶ with the tape rolling. Everything a hand does to the board
+                while it runs — a slider, a preset, a knob on a controller, a
+                morph — is written down against the frame it happened on, and ⎙
+                replays it into the render. That is what makes performing and
+                rendering the same take rather than two: the picture you played
+                at whatever rate the tab managed comes back as a file at 60.
+
+                Its own button rather than a mode on ▶ because they answer
+                different questions. ▶ is "show me the piece"; ● is "this one
+                counts", which is a thing you decide about one run out of ten.
+
+                And not disabled on an empty tray, which is the one place it
+                parts company with ▶: a hand performing over a clip with no
+                rundown at all is a take, and it is the take ⎙ rendered before
+                there was a rundown to render. `start` on an empty strip stays
+                stopped rather than pretending to run, so what ● does there is
+                exactly the recording and nothing else. */}
+            <button
+              className={cx(ui.btn, props.record.rolling && ui.active)}
+              onClick={() =>
+                props.record.rolling
+                  ? props.record.stop()
+                  : props.record.start()
+              }
+              title={
+                props.record.rolling
+                  ? 'stop, and keep what the hands did'
+                  : 'record every control move — with the rundown, if there is one'
+              }
+            >
+              ● rec
+            </button>
+            {/* The tape, once there is one: what ⎙ is going to replay, and the
+                only way to throw it away without recording over it. A bare
+                readout rather than a button-looking thing, because for most of
+                its life it is a fact rather than a control — the same register
+                the seed and the track name are in.
+
+                The digits are held at a fixed width. A take crossing ten
+                seconds, or a hundred, would otherwise widen this and slide + row
+                and + shake out from under the pointer — the rule the row cards
+                already follow one layer in (docs/EDITOR.md › _Nothing in the
+                tray moves_). */}
+            {props.record.rolling || props.record.seconds <= 0 ? null : (
+              <button
+                className={cx(ui.bare, styles.tape)}
+                onClick={props.record.clear}
+                title={`${Math.round(props.record.seconds)}s of recorded control moves — click to throw it away`}
+              >
+                ⏺
+                <span className={styles.tapeLen}>
+                  {Math.round(props.record.seconds)}s
+                </span>
+                ✕
+              </button>
+            )}
             <button
               className={ui.btn}
               onClick={() => props.onCapture()}
@@ -161,9 +243,11 @@ export function StripTray(props: {
                 className={cx(ui.btn, styles.readout)}
                 onClick={props.render.start}
                 title={`render ${Math.round(props.render.seconds)}s to a constant-framerate MP4${
-                  props.track.name === ''
-                    ? ' — pick a track and it renders the length of the song'
-                    : ` — the length of ${props.track.name}`
+                  props.render.automated
+                    ? ' — the recorded take, hands and all'
+                    : props.track.name === ''
+                      ? ' — pick a track and it renders the length of the song'
+                      : ` — the length of ${props.track.name}`
                 }`}
               >
                 ⎙ render {Math.round(props.render.seconds)}s

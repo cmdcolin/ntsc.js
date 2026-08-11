@@ -122,6 +122,38 @@
   cursor: default;
 }
 
+/* The recorded take. A readout for most of its life and a discard when you mean
+   it, so it wears the prose grey the track name does and lifts under the
+   pointer — the accent is reserved for the ● that is actually rolling. */
+.tape {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-xs);
+  color: var(--fg3);
+  padding: 3px 6px;
+  border-radius: var(--ctl-radius);
+}
+.tape:hover {
+  color: var(--fg);
+  background: var(--ctl-bg-hover);
+}
+
+/* The digits, at a width that does not depend on them.
+
+   A take crossing 10s or 100s widens this chip otherwise, and everything to its
+   right along the bar — + row, + shake, ⎙ — steps sideways under whatever the
+   pointer was resting on. Same rule as the row cards' chips one layer in, and
+   the same reason a slider's readout has had it all along. On the span rather
+   than on the button, because a `<button>` is border-box in every UA stylesheet
+   and a width in `ch` there would be reserving room for the padding too. */
+.tapeLen {
+  display: inline-block;
+  min-width: 3.2ch;
+  text-align: right;
+  font-family: var(--mono);
+}
+
 /* Quiet, and last: the seed is a thing to read off and write down rather than a
    control, right up until the moment it is the one button that matters. */
 .seed {

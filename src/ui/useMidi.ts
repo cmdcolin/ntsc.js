@@ -26,6 +26,7 @@ import type {
   PickupMap,
 } from './midi'
 import type { TransitionName } from './transitions'
+import type { AutomationTap } from './useAutomation'
 import type { RefObject } from 'react'
 
 // Everything MIDI drives that isn't a control, and so isn't the engine's to
@@ -62,10 +63,23 @@ const NO_SINKS: MidiSinks = {
 }
 
 // Owns the MIDI manager (an imperative Web MIDI subsystem living outside React)
-// and the single control-write path. Every store-origin change must reach two
-// sinks — the render engine and MIDI's soft-takeover bookkeeping — so callers
-// go through writeControl/writeControls rather than poking each by hand.
-export function useMidi(engineRef: RefObject<EngineApi | null>) {
+// and the single control-write path. Every store-origin change must reach three
+// sinks — the render engine, MIDI's soft-takeover bookkeeping, and the
+// automation tape — so callers go through writeControl/writeControls rather
+// than poking each by hand.
+//
+// **The tape is why the MIDI-origin path is tapped separately below**, and it
+// is the whole reason the tap lives in this file rather than beside the panel.
+// A knob's turn deliberately does *not* come through `writeControl` — the
+// physical move is its own takeover, so routing it here would reset the soft
+// takeover it just satisfied — which makes this hook the only place that sees
+// both a slider and a controller. Recording only the store-origin half would
+// lose exactly the input that docs/EDITOR.md › _Live input has no offline
+// meaning_ says has no offline meaning, which is the input worth recording.
+export function useMidi(
+  engineRef: RefObject<EngineApi | null>,
+  tap: AutomationTap,
+) {
   const midiRef = useRef<MidiManager | null>(null)
   const sinksRef = useRef<MidiSinks>(NO_SINKS)
   const [status, setStatus] = useState<MidiStatus>('idle')
@@ -85,6 +99,7 @@ export function useMidi(engineRef: RefObject<EngineApi | null>) {
         const key = controlOf(target)
         if (key !== null) {
           engineRef.current?.setControl(key, v)
+          tap.set(key, v)
           return
         }
         const preset = presetOf(target)
@@ -132,7 +147,10 @@ export function useMidi(engineRef: RefObject<EngineApi | null>) {
       midi.destroy()
       midiRef.current = null
     }
-  }, [engineRef])
+    // `tap` is a stable object from `makeAutomationRunner`, so naming it here
+    // does not rebuild the manager — which it must not, since rebuilding drops
+    // every binding and every soft takeover on the floor.
+  }, [engineRef, tap])
 
   // The one write path for store-origin changes (slider, preset, clock sync):
   // engine renders it, MIDI drops takeover so the knob must re-catch the value.
@@ -146,8 +164,9 @@ export function useMidi(engineRef: RefObject<EngineApi | null>) {
     (key: ControlKey, v: number) => {
       engineRef.current?.setControl(key, v)
       midiRef.current?.setExternal(key, v)
+      tap.set(key, v)
     },
-    [engineRef],
+    [engineRef, tap],
   )
 
   const writeControls = useCallback(
@@ -155,8 +174,9 @@ export function useMidi(engineRef: RefObject<EngineApi | null>) {
       engineRef.current?.applyControls(next)
       const midi = midiRef.current
       if (midi) for (const k of CONTROL_KEYS) midi.setExternal(k, next[k])
+      tap.apply(next)
     },
-    [engineRef],
+    [engineRef, tap],
   )
 
   return {
