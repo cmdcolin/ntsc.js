@@ -70,6 +70,11 @@ const cut = warm =>
       id: 'a',
       ref,
       next,
+      // Never armed here — this harness times the cut, not the loop — but the
+      // field has to exist, because `stopSlot` retires a second read head on the
+      // way past. A double that is missing one of the slot's refs fails inside
+      // videoSlot.ts, where it reads as a bug in the thing under test.
+      head: { current: null },
       typer: { current: null },
       rate: () => 1,
       attach: () => {},
