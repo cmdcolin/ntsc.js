@@ -103,6 +103,7 @@ describe('runStep', () => {
 describe('makeStripRunner', () => {
   const row = (over: Partial<Row> = {}): Row => ({
     id: 'r1',
+    name: '',
     session: 'set=&mod=',
     fill: { kind: 'clip' },
     hold: { bars: 4, drift: 0 },

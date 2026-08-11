@@ -44,6 +44,7 @@ import {
   loadStrip,
   moveRow,
   removeRow,
+  renameRow,
   saveStrip,
   start,
   stepArrive,
@@ -228,10 +229,15 @@ export interface StripApi {
   start: () => void
   stop: () => void
   fireRow: (index: number) => void
-  // Capture what is on the board now. The caller supplies the session string
-  // because building one needs the whole app's state (`useUrlState`'s
-  // `profileQuery`), which a strip has no business reaching into.
-  addRow: (session: string, jitter?: MutateAmount) => void
+  // Capture what is on the board now. The caller supplies both the session
+  // string and the suggested name because building either needs the whole app's
+  // state — `useUrlState`'s `profileQuery`, and whichever preset the controls
+  // still match — which a strip has no business reaching into.
+  addRow: (
+    session: string,
+    opts?: { jitter?: MutateAmount; name?: string },
+  ) => void
+  renameRow: (index: number, name: string) => void
   removeRow: (index: number) => void
   moveRow: (from: number, to: number) => void
   cycleHold: (index: number) => void
@@ -287,8 +293,12 @@ export function useStrip(deps: StripDeps): StripApi {
 
   const verbs = useMemo(
     () => ({
-      addRow: (session: string, jitter?: MutateAmount) =>
-        edit(s => addRow(s, session, jitter)),
+      addRow: (
+        session: string,
+        opts?: { jitter?: MutateAmount; name?: string },
+      ) => edit(s => addRow(s, session, opts)),
+      renameRow: (index: number, name: string) =>
+        edit(s => renameRow(s, index, name)),
       removeRow: (index: number) => edit(s => removeRow(s, index)),
       moveRow: (from: number, to: number) => edit(s => moveRow(s, from, to)),
       cycleHold: (index: number) => edit(s => stepHold(s, index)),

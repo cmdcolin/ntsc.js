@@ -4,7 +4,7 @@ import { clamp01 } from '../math'
 import { cx } from './cx'
 import { Dialog } from './Dialog'
 import { BulbIcon } from './icons'
-import { PRESETS, matchPreset, presetLabel } from './presets'
+import { PRESETS, matchPreset, presetLabel, presetLabelFor } from './presets'
 import styles from './PresetsSection.module.css'
 import { Section } from './Section'
 import { usePersistedFlag } from './storage'
@@ -255,7 +255,7 @@ export function PresetsSection(props: {
           // Short enough to hold one line at the panel's docked width, which is
           // the whole point of the rewrite: at two lines it saved nothing.
           'a bundle of controls, not one switch — click one'
-        : `modified from "${PRESETS.find(p => p.name === props.lastPreset)?.displayName ?? props.lastPreset}"`
+        : `modified from "${presetLabelFor(props.lastPreset)}"`
   // The count rides the caption whenever the caption is describing a particular
   // preset, so browsing the chips teaches the thing the chips cannot say: this
   // is not a switch, it is N controls moving together. "clean" has an empty

@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import { MORPH_SECONDS } from './morph'
+import { PROFILE_NAME_MAX } from './savedProfiles'
 import {
   DEFAULT_HOLD,
   HOLD_BARS,
+  derivedLabel,
+  named,
+  renameRow,
   MAX_DRIFT,
   STOPPED,
   addRow,
@@ -36,6 +40,7 @@ const CLOCK = (frame: number): Clock => ({ frame, bpm: 120, fps: 60 })
 
 const row = (over: Partial<Row> = {}): Row => ({
   id: 'r1',
+  name: '',
   session: 'set=&mod=',
   fill: { kind: 'clip' },
   hold: { bars: 4, drift: 0 },
@@ -390,7 +395,7 @@ describe('editing the rundown', () => {
   })
 
   it('takes a jitter over what the session names', () => {
-    const got = addRow(strip([]), 'src=wiki-random', 'wild')
+    const got = addRow(strip([]), 'src=wiki-random', { jitter: 'wild' })
     expect(got.rows[0].fill).toEqual({ kind: 'jitter', amount: 'wild' })
   })
 
@@ -465,6 +470,83 @@ describe('editing the rundown', () => {
   it('leaves the strip alone when the row is not there', () => {
     expect(stepHold(three, 9)).toBe(three)
     expect(stepArrive(three, -1)).toBe(three)
+  })
+})
+
+describe('a row that carries a name', () => {
+  it('says its name instead of what the session reads as', () => {
+    const r = row({ name: 'the drop', session: 'src=sweep' })
+    expect(rowLabel(r)).toBe('the drop')
+    expect(named(r)).toBe(true)
+    // The derivation is still there underneath, for the placeholder the rename
+    // field shows and for the card that has no name.
+    expect(derivedLabel(r)).toBe('Sweep')
+  })
+
+  it('falls back to the session when nobody has said', () => {
+    const r = row({ session: 'src=sweep' })
+    expect(rowLabel(r)).toBe('Sweep')
+    expect(named(r)).toBe(false)
+  })
+
+  it('takes the suggestion a capture offers', () => {
+    const got = addRow(strip([]), 'set=', { name: 'vhs' })
+    expect(got.rows[0].name).toBe('vhs')
+  })
+
+  // Two rows called "vhs" in one rundown is the case a name exists to prevent,
+  // and capturing the same board twice is the ordinary way to get there.
+  it('deduplicates a suggested name against the rows already there', () => {
+    let s = addRow(strip([]), 'set=', { name: 'vhs' })
+    s = addRow(s, 'set=', { name: 'vhs' })
+    s = addRow(s, 'set=', { name: 'vhs' })
+    expect(s.rows.map(r => r.name)).toEqual(['vhs', 'vhs 2', 'vhs 3'])
+  })
+
+  // Unnamed is not a name, so three unnamed rows are not a collision.
+  it('leaves a blank suggestion blank rather than numbering it', () => {
+    let s = addRow(strip([]), 'set=')
+    s = addRow(s, 'set=')
+    expect(s.rows.map(r => r.name)).toEqual(['', ''])
+  })
+
+  it('renames, and clears back to the derived label', () => {
+    const s = addRow(strip([]), 'src=sweep', { name: 'first' })
+    expect(rowLabel(renameRow(s, 0, 'second').rows[0])).toBe('second')
+    expect(rowLabel(renameRow(s, 0, '').rows[0])).toBe('Sweep')
+  })
+
+  // A hand typing the same name onto two rows has said what it meant; appending
+  // a "2" to something someone just typed reads as a bug.
+  it('does not deduplicate a rename the way it does a capture', () => {
+    let s = addRow(strip([]), 'set=', { name: 'vhs' })
+    s = addRow(s, 'set=', { name: 'other' })
+    expect(renameRow(s, 1, 'vhs').rows[1].name).toBe('vhs')
+  })
+
+  it('collapses the whitespace a paste brings, and caps the length', () => {
+    const s = addRow(strip([]), 'set=')
+    expect(renameRow(s, 0, '  the   drop \n').rows[0].name).toBe('the drop')
+    expect(renameRow(s, 0, 'x'.repeat(200)).rows[0].name.length).toBe(
+      PROFILE_NAME_MAX,
+    )
+  })
+
+  it('leaves the strip alone for a row that is not there', () => {
+    const s = addRow(strip([]), 'set=')
+    expect(renameRow(s, 9, 'nope').rows[0].name).toBe('')
+  })
+
+  it('reads a stored name back, and anything else as unnamed', () => {
+    const got = readStrip({
+      rows: [
+        { session: 'set=', name: 'the drop' },
+        { session: 'set=', name: 42 },
+        { session: 'set=' },
+      ],
+      seed: 3,
+    })
+    expect(got.rows.map(r => r.name)).toEqual(['the drop', '', ''])
   })
 })
 

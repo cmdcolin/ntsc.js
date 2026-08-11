@@ -90,6 +90,40 @@
   text-overflow: ellipsis;
 }
 
+/* The app's reading of the session, rather than what somebody called this row.
+   Dimmed and italic so a rundown can be scanned for what was actually decided:
+   with both drawn the same, "the drop" and "look only" carry equal weight, and
+   only one of them is a statement. */
+.guessed {
+  color: var(--fg4);
+  font-style: italic;
+}
+
+/* The rename field, sized and coloured to sit exactly where the name was, so
+   the card does not resize under the pointer that opened it. */
+.field {
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--fg);
+  background: var(--ctl-face);
+  border: 1px solid var(--edit);
+  border-radius: 2px;
+  padding: 4px 5px;
+  margin: 5px 6px 4px;
+  min-width: 0;
+  width: calc(100% - 12px);
+}
+.field:focus {
+  outline: none;
+}
+
+.rename {
+  color: var(--fg4);
+}
+.rename:hover {
+  color: var(--edit);
+}
+
 .feet {
   display: flex;
   align-items: center;

@@ -63,7 +63,7 @@ import { parseMorph } from './ui/morph'
 import { MotionStrip } from './ui/MotionStrip'
 import { paletteActions } from './ui/paletteActions'
 import { panelChain } from './ui/panelChain'
-import { matchPreset, presetControls } from './ui/presets'
+import { matchPreset, presetControls, presetLabelFor } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
 import { sameList } from './ui/sameList'
 import { SavedProfiles } from './ui/SavedProfiles'
@@ -366,6 +366,11 @@ export function App() {
   const activePreset = matchPreset(controls)
   const lookName = activePreset ? activePreset.name : mix.lastPreset
   const capture = useCapture(eng.canvasRef, lookName ?? 'edit')
+  // The same look, spelled for a human rather than for a query string. `?preset=`
+  // and MIDI keys want the identifier `lookName` carries; anything a person
+  // reads wants the words — a strip row called "neonTube" beside a chip that
+  // says "neon tube" is the app disagreeing with itself in public.
+  const lookLabel = lookName === null ? '' : presetLabelFor(lookName)
 
   // The clip shelf. It hangs off the app rather than off useEngine because the
   // engine's only stake in it is the File a clicked row hands back — everything
@@ -1276,7 +1281,16 @@ export function App() {
             appear. */}
         {fullscreen ? null : (
           <StripContext value={strip}>
-            <StripTray onCapture={() => strip.addRow(profileQuery())} />
+            {/* The same name the save box offers, for the same reason: the
+                preset the controls still match is the best short answer to
+                "what is this board", and a row that arrives already called
+                "vhs" is a rundown you can read. It is a suggestion — the moment
+                someone edits it, it is theirs. */}
+            <StripTray
+              onCapture={() =>
+                strip.addRow(profileQuery(), { name: lookLabel })
+              }
+            />
           </StripContext>
         )}
       </div>

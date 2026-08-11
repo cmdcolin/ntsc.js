@@ -1,8 +1,9 @@
-import { useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 
 import { cx } from './cx'
 import { MORPH_LABELS } from './morph'
-import { holdLabel, rowLabel } from './strip'
+import { PROFILE_NAME_MAX } from './savedProfiles'
+import { derivedLabel, holdLabel, named, rowLabel } from './strip'
 import { useStripApi } from './StripContext'
 import styles from './StripRow.module.css'
 import ui from './ui.module.css'
@@ -45,6 +46,17 @@ export function StripRow(props: {
 }) {
   const api = useStripApi()
   const { row } = props
+  // Whether this card is being renamed. Local to the card and not in the strip:
+  // it is a state of the *pointer*, not of the rundown, so it must not be
+  // persisted and must not survive the row being dragged elsewhere.
+  const [editing, setEditing] = useState(false)
+  const commit = (value: string) => {
+    setEditing(false)
+    // Compared before writing, so a field opened and closed without a change
+    // does not bank a rundown edit — which would persist, and which undo (when
+    // it arrives) would have to step back through.
+    if (value !== row.name) api.renameRow(props.index, value)
+  }
   return (
     <div
       className={cx(
@@ -55,31 +67,67 @@ export function StripRow(props: {
       role="listitem"
       data-index={props.index}
     >
-      {/* `data-drag` marks this as the reorder handle: the tray starts a drag
-          from a press here and from nowhere else on the card, so the chips and
-          the ✕ below stay pressable. */}
-      <button
-        className={styles.fire}
-        data-drag=""
-        onClick={() => api.fireRow(props.index)}
-        title={`fire row ${props.index + 1}`}
-      >
-        <span className={styles.head}>
-          <span className={styles.num}>{props.index + 1}</span>
-          {/* The kind rides on a data attribute rather than on three classes
+      {editing ? (
+        // The whole face, swapped for the field. An input *inside* the fire
+        // button would be interactive content inside a button — invalid, and
+        // Firefox resolves it by dropping the input — so the two take turns
+        // rather than nest. Losing the drag handle for the moment somebody is
+        // typing a name is not a loss.
+        <input
+          className={styles.field}
+          defaultValue={row.name}
+          // What the card would say anyway, so the field shows what clearing it
+          // gets you rather than an empty box.
+          placeholder={derivedLabel(row)}
+          maxLength={PROFILE_NAME_MAX}
+          autoFocus
+          onKeyDown={e => {
+            if (e.key === 'Enter') commit(e.currentTarget.value)
+            if (e.key === 'Escape') {
+              // Escape is the panel's own "back out of whatever mode this is",
+              // and it would otherwise close something behind the card as well.
+              e.stopPropagation()
+              setEditing(false)
+            }
+          }}
+          // Commits rather than cancels: clicking away from a name you have
+          // typed means the name, and a field that threw it away on the way out
+          // would be the more surprising of the two.
+          onBlur={e => commit(e.currentTarget.value)}
+        />
+      ) : (
+        /* `data-drag` marks this as the reorder handle: the tray starts a drag
+           from a press here and from nowhere else on the card, so the chips and
+           the ✕ below stay pressable. */
+        <button
+          className={styles.fire}
+          data-drag=""
+          onClick={() => api.fireRow(props.index)}
+          title={`fire row ${props.index + 1}`}
+        >
+          <span className={styles.head}>
+            <span className={styles.num}>{props.index + 1}</span>
+            {/* The kind rides on a data attribute rather than on three classes
               picked by `styles[fill.kind]`. Dynamic indexing is invisible to
               cssModules.test.ts's scan, which would read all three as dead
               rules and delete them at the next tidy-up. */}
-          <span className={styles.kind} data-kind={row.fill.kind}>
-            {row.fill.kind === 'roll'
-              ? '⟳'
-              : row.fill.kind === 'jitter'
-                ? '⚄'
-                : '▤'}
+            <span className={styles.kind} data-kind={row.fill.kind}>
+              {row.fill.kind === 'roll'
+                ? '⟳'
+                : row.fill.kind === 'jitter'
+                  ? '⚄'
+                  : '▤'}
+            </span>
           </span>
-        </span>
-        <span className={styles.name}>{rowLabel(row)}</span>
-      </button>
+          {/* A given name and a derived one are the same kind of string, so they
+            are drawn differently: the author's words in the panel's own colour,
+            the app's guess dimmed and in the prose grey. Otherwise there is no
+            reading a rundown for what somebody actually decided. */}
+          <span className={cx(styles.name, !named(row) && styles.guessed)}>
+            {rowLabel(row)}
+          </span>
+        </button>
+      )}
       <div className={styles.feet}>
         {/* The field a hand touches most, so it is on the card rather than in
             the menu — the design's one placement rule for the row. */}
@@ -96,6 +144,13 @@ export function StripRow(props: {
           title="how this row arrives — click to step"
         >
           {MORPH_LABELS[row.arrive.seconds]}
+        </button>
+        <button
+          className={cx(ui.bare, styles.chip, styles.rename)}
+          onClick={() => setEditing(true)}
+          title="name this row"
+        >
+          ✎
         </button>
         <button
           className={cx(ui.bare, styles.drop)}

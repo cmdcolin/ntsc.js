@@ -30,6 +30,20 @@ export interface PresetDef {
 // identifier when a preset has words that didn't fit in it.
 export const presetLabel = (p: PresetDef): string => p.displayName ?? p.name
 
+// The same, from a name rather than the preset itself — for the callers that
+// hold only what `?preset=` or `mix.lastPreset` carries, which is the
+// identifier. Falls back to the name it was given, so a stored look naming a
+// preset that has since been retired reads as itself rather than as nothing.
+//
+// Worth having as a function: `PRESETS.find(...)?.displayName ?? name` was
+// written out at two call sites and about to be at a third (a strip row's
+// suggested name), and the failure it produces is silent — a row called
+// "neonTube" where the chip beside it says "neon tube".
+export const presetLabelFor = (name: string): string => {
+  const found = PRESETS.find(p => p.name === name)
+  return found === undefined ? name : presetLabel(found)
+}
+
 // Built-in presets are absolute: defaults + patch. Ordered by group so the UI
 // can render them under labeled headers.
 export const PRESETS: PresetDef[] = [

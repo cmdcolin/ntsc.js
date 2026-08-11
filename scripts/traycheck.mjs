@@ -90,7 +90,10 @@ await click('strip')
 await wait(400)
 for (const preset of ['vhs', 'broadcast', 'neon tube']) {
   await click(preset, true)
-  await wait(600)
+  // Past the look bar's default 1s morph, on purpose. A capture taken while a
+  // preset is still arriving records the tween — which is what "add the board
+  // as it is now" honestly means, and is also not what this check is about.
+  await wait(1300)
   await click('+ row')
   await wait(400)
 }
@@ -105,6 +108,59 @@ check(
   rows.every(r => r.hold === '≈4 bars'),
   JSON.stringify(rows.map(r => r.hold)),
 )
+// The whole reason rows carry a name: three look changes over one source all
+// derive as "look only", which is accurate and useless.
+check(
+  'a capture takes the name of the look it was captured from',
+  JSON.stringify(rows.map(r => r.name)) ===
+    JSON.stringify(['vhs', 'broadcast', 'neon tube']),
+  JSON.stringify(rows.map(r => r.name)),
+)
+
+// --- renaming --------------------------------------------------------------
+const rename = (i, value) =>
+  page.evaluate(
+    async (index, text) => {
+      const card = document.querySelectorAll('[data-index]')[index]
+      // The ✎ is the third chip in the feet.
+      card?.querySelectorAll('button')[3]?.click()
+      await new Promise(r => setTimeout(r, 60))
+      const field = card?.querySelector('input')
+      if (field === null || field === undefined) return 'no field'
+      const setter = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )?.set
+      setter?.call(field, text)
+      field.dispatchEvent(new Event('input', { bubbles: true }))
+      field.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+      )
+      return 'ok'
+    },
+    i,
+    value,
+  )
+check('the rename field opens', (await rename(0, 'the drop')) === 'ok')
+await wait(300)
+rows = await cards()
+check(
+  'and the name lands on its own row',
+  rows[0].name === 'the drop',
+  rows[0].name,
+)
+check('leaving the others alone', rows[1].name === 'broadcast', rows[1].name)
+
+await rename(0, '')
+await wait(300)
+rows = await cards()
+check(
+  'clearing a name falls back to what the session reads as',
+  rows[0].name === 'look only',
+  rows[0].name,
+)
+await rename(0, 'the drop')
+await wait(300)
 
 // --- the chips -------------------------------------------------------------
 const stepNth = (i, button, times) =>

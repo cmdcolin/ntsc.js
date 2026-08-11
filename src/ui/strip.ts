@@ -17,6 +17,7 @@ import { SOURCE_DESC, SOURCE_MODES } from '../sources/modes'
 import { MODE_ORIGIN, isPoolMode } from '../sources/pools'
 import { MORPH_SECONDS } from './morph'
 import { parseMutateAmount } from './mutate'
+import { cleanProfileName } from './savedProfiles'
 import { readRecord, writeJSON } from './storage'
 import { urlName } from './urlParams'
 
@@ -68,6 +69,21 @@ export const MAX_DRIFT = 0.5
 
 export interface Row {
   id: string
+  // What this row is called, or '' for "read it off the session".
+  //
+  // A name rather than only a derived label because the derivation cannot tell
+  // two rows apart when it matters most: a rundown of look changes over one
+  // clip is all "look only", which is accurate and useless. It is also the
+  // field that makes a strip legible to someone who did not build it — the
+  // rundown a broadcast gallery works from is a list of names, not of sources.
+  //
+  // Empty rather than optional, and derived on read rather than filled in at
+  // capture: a row named after the preset it was captured from would go on
+  // claiming that name after its controls had been dragged somewhere else, and
+  // a stale name is worse than no name. What is offered at capture is a
+  // *suggestion* the caller passes in; the moment someone edits it, it is
+  // theirs and nothing overwrites it.
+  name: string
   // Everything this row puts up, as a query string: source, cue, look and
   // motion, in the contract `urlParams` already owns.
   //
@@ -308,15 +324,15 @@ export function rowFill(session: string, jitter?: MutateAmount): RowFill {
     : { kind: 'clip' }
 }
 
-// What the card calls this row. Here rather than in the component because it is
-// the same act as `rowFill` — reading a session string — and because a string
-// derived by a pure function is a string a test can pin.
+// What a row is called when nobody has said. Here rather than in the component
+// because it is the same act as `rowFill` — reading a session string — and
+// because a string a pure function derives is a string a test can pin.
 //
 // `SOURCE_DESC`'s entries read "Color bars — SMPTE test pattern", which is a
 // name and then an explanation; a card has room for the name. Splitting on the
 // em dash rather than keeping a second table of short names is what stops the
 // two drifting when a mode is renamed.
-export function rowLabel(row: Row): string {
+export function derivedLabel(row: Row): string {
   if (row.fill.kind === 'jitter') return `shake · ${row.fill.amount}`
   const q = new URLSearchParams(row.session)
   const url = q.get('vurl') ?? q.get('iurl')
@@ -337,6 +353,18 @@ export function rowLabel(row: Row): string {
   const mode = SOURCE_MODES.find(m => m === src)
   return mode === undefined ? src : (SOURCE_DESC[mode].split(' — ')[0] ?? src)
 }
+
+// What the card actually says. The given name when there is one, and what the
+// session says otherwise — so an unnamed rundown still reads, and a named one
+// reads as whatever its author called it.
+export const rowLabel = (row: Row): string =>
+  row.name === '' ? derivedLabel(row) : row.name
+
+// Whether this row is wearing a name of its own, for the card: a given name and
+// a derived one are the same kind of string, and drawing them the same way
+// would leave no way to tell "the author called this the drop" from "the app
+// worked out that this is a sweep".
+export const named = (row: Row): boolean => row.name !== ''
 
 // How the hold reads on the card. The `≈` is the whole point of the default —
 // it says out loud that the boundary is not where the number says, which is the
@@ -390,20 +418,53 @@ const nextId = (rows: readonly Row[]): string => {
 }
 
 // Capture the board. `session` is `writeProfileParams`' output — see `Row`.
+//
+// `name` is a suggestion from the caller, not something derived here: what a
+// board should be called is the app's question (the preset it matches, the
+// profile being worked in), and `strip.ts` can see none of that. Blank is the
+// ordinary answer and leaves the row reading off its session.
 export function addRow(
   strip: Strip,
   session: string,
-  jitter?: MutateAmount,
+  opts: { jitter?: MutateAmount; name?: string } = {},
 ): Strip {
   const row: Row = {
     id: nextId(strip.rows),
+    // Deduped against the rows already there, the way a saved look is deduped
+    // against the library: two rows called "vhs" in one rundown is exactly the
+    // case a name exists to prevent.
+    name: uniqueName(strip.rows, cleanProfileName(opts.name ?? '')),
     session,
-    fill: rowFill(session, jitter),
+    fill: rowFill(session, opts.jitter),
     hold: DEFAULT_HOLD,
     arrive: { seconds: 1 },
   }
   return { ...strip, rows: [...strip.rows, row] }
 }
+
+// A name no other row is using, by appending a count — `suggestProfileName`'s
+// rule, applied to a rundown instead of a library. Blank stays blank: "unnamed"
+// is not a name, and three unnamed rows are not a collision.
+function uniqueName(rows: readonly Row[], want: string): string {
+  if (want === '') return ''
+  const taken = new Set(rows.map(r => r.name))
+  if (!taken.has(want)) return want
+  for (let n = 2; n < 1000; n++) {
+    const candidate = `${want} ${n}`
+    if (!taken.has(candidate)) return candidate
+  }
+  return want
+}
+
+// Rename, or clear the name by passing a blank one — which puts the row back on
+// its derived label rather than leaving it nameless, so there is no state where
+// a card says nothing.
+//
+// Not deduped, unlike a capture: a hand typing the same name onto two rows has
+// said what it meant, and silently appending a "2" to something someone just
+// typed is the kind of help that reads as a bug.
+export const renameRow = (strip: Strip, index: number, name: string): Strip =>
+  patchRow(strip, index, { name: cleanProfileName(name) })
 
 export const removeRow = (strip: Strip, index: number): Strip => ({
   ...strip,
@@ -519,7 +580,14 @@ function readRow(raw: unknown, index: number): Row | undefined {
   const session = 'session' in raw ? raw.session : undefined
   if (typeof session !== 'string' || session === '') return undefined
   const id = 'id' in raw ? raw.id : undefined
+  const name = 'name' in raw ? raw.name : undefined
   return {
+    // Anything that is not a string reads as unnamed, which is a state the card
+    // already handles — so a stale-schema row loses its name rather than
+    // rendering an object into the tray. Cleaned on the way in as well as on
+    // the way out: this is stored JSON, and a hand-edited 400-character name
+    // would push every other card off the row.
+    name: typeof name === 'string' ? cleanProfileName(name) : '',
     // A row that lost its id gets one from its position. Ids only have to be
     // unique within the strip — nothing else keys on them, unlike the shelf's,
     // which key IndexedDB records — so minting one here is safe in a way it is
