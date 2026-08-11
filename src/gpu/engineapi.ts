@@ -182,6 +182,16 @@ export interface EngineApi {
   // standing between this engine and "frame N is a function of N"
   // (docs/EDITOR.md › _Fixed-framerate export_).
   setVirtualClock: (fps: number | null) => void
+  // Take the frames away from rAF, and give them back. `pauseLoop` answers
+  // whether the loop was running, so a caller restores what it found rather
+  // than what it assumed. Together with the clock above this is what an offline
+  // render is made of — see `ui/render.ts`.
+  pauseLoop: () => boolean
+  resumeLoop: () => void
+  // One sim step, forced past `timeScale` and the frame lock. On the API rather
+  // than only on the concrete class now that something in the app — rather than
+  // only a harness — pulls frames by hand.
+  step: () => void
   // What that clock reads now, in ms. For harnesses: every other effect of the
   // switch is a pixel.
   clockMs: () => number

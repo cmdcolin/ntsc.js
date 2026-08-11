@@ -1801,6 +1801,32 @@ export class Engine implements EngineApi {
     this.virtualFps = fps
   }
 
+  // Take the frames away from rAF and hand them to whoever asked. Answers
+  // whether the loop was in fact running, so the caller can put it back the way
+  // it found it and not merely the way it assumed.
+  //
+  // This is the last thing an offline render needed and neither of the two
+  // steps before it supplied. `step()` forces a sim step past `timeScale` and
+  // the frame lock, so frames can always be pulled by hand — but while the rAF
+  // loop is *also* running it advances the counter underneath, and two runs of
+  // the same take step different totals. The virtual clock then faithfully
+  // reports a different time for each. Determinism needs the clock and the
+  // loop, and this is the loop.
+  //
+  // **Not a destroy, and nothing near one.** The device is untouched and the
+  // loop is restartable by construction — `start()` resets every field a
+  // previous run could have dirtied, so a resumed loop cannot inherit a stale
+  // stall flag. See adr/0004 for what the tidier-looking teardown costs.
+  pauseLoop(): boolean {
+    const was = this.loop.running
+    if (was) this.loop.stop()
+    return was
+  }
+
+  resumeLoop(): void {
+    if (!this.loop.running) this.loop.start()
+  }
+
   // What the clock currently reads, in milliseconds — for a harness that needs
   // to prove the switch took, since every effect of it is otherwise a pixel.
   clockMs(): number {

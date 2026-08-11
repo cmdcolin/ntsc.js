@@ -784,15 +784,27 @@ arrives.
 2. ~~**The virtual clock.**~~ **Landed** — five reads, one `now()`, and
    `scripts/clockcheck.mjs` to prove the inversion.
 
-   What steps 1 and 2 together still do *not* make is an offline render, and
-   the missing piece is neither of them: **nothing owns the loop.** The
-   recorder is driven by rAF, so it captures at whatever rate the tab renders
-   and stamps it 60fps, and the engine's own loop keeps advancing the frame
-   counter underneath anything that tries to step by hand. A render that is
-   reproducible needs the rAF loop *stopped* and the frames pulled — which is a
-   third thing, small, and now the whole of what is between here and a take
-   that re-renders identically. It is also the point at which the strip's
-   offline walk (_One walk, two clocks_) has a clock to walk on.
+   The third piece — **owning the loop** — is `ui/render.ts` and
+   `Engine.pauseLoop`/`resumeLoop`. Steps 1 and 2 could not make a render
+   between them: the recorder was fed by rAF, so it captured at whatever rate
+   the tab managed and stamped it 60fps, and the engine's loop kept advancing
+   the counter underneath anything stepping by hand. `renderTake` stops the
+   loop, steps the engine, and hands each frame straight to the encoder — so a
+   take renders as fast as the GPU will go and a slow frame costs the render
+   wall time and the file nothing.
+
+   Two things it turned up. **`RenderLoop.stop()` drops a flag rather than
+   cancelling**, deliberately — so two already-scheduled chains each land one
+   more frame after `pauseLoop()` returns. `scripts/rendercheck.mjs` measured
+   it as 122 frames across a 120-frame render; the render now waits two
+   animation frames so those land *before* it rather than interleaved, and the
+   frames in the file are consecutive. And **a render is reproducible from a
+   given starting state, not absolutely**: frame N is a function of N and of
+   the tape ring, the phosphor persistence and the PLL's lock age at frame 0.
+   Two renders with the live loop running between them differ by about 5%.
+   Byte-identity across sessions needs those buffers put back, which is what
+   recording a take (_Seeding_) has to carry — the next piece, and now the only
+   one left before the strip's offline walk (_One walk, two clocks_) can run.
 3. **The transition shelf.** Cheap, and it does not need the strip: A and B are
    both live today, so the first transitions can run off the T-bar and a MIDI
    pad with no rundown anywhere near them. A table of named recipes over
