@@ -35,6 +35,7 @@ import {
 } from './cue'
 import { clearStash, readStash, stashClip, stashFile } from './fileStash'
 import { formatBytes, reason } from './format'
+import { openPullFromUrl } from './framePull'
 import { canPickHandle, pickHandle } from './fsAccess'
 import { morphTo } from './morph'
 import { randomPresetMix, rollControls } from './presets'
@@ -1834,6 +1835,16 @@ export function useEngine() {
         // region two dozen lines below.
         created.setVideoRelay((start, end) => promoteHead(slotA, start, end))
         created.setVideoRelayB((start, end) => promoteHead(slotB, start, end))
+        // Where a take's frames come from. One opener for both decks, because
+        // it is a function of the url and nothing else — unlike the relay, which
+        // has to name which slot's elements it is swapping.
+        //
+        // It declines by returning null, which is most sources: a webcam and a
+        // generated mode have no file, a YouTube embed is not ours to fetch, and
+        // the demuxer refuses anything it cannot read a sample table out of.
+        // Every one of those leaves that deck on the wall-rate element, exactly
+        // as it was before the pull existed.
+        created.setVideoPullOpener(url => openPullFromUrl(url))
         // Both belong to the engine being replaced: a gpu fault it reported on
         // its way out, and a paint stall latched against its loop. The new loop
         // only reports edges, so a stale `frozen` would never clear itself.

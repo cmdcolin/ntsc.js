@@ -690,4 +690,226 @@ describe('VideoPump', () => {
       expect(b.currentTime).toBe(5)
     })
   })
+
+  // --- under a take ---------------------------------------------------------
+  //
+  // The arithmetic that turns a take frame into a clip position, which is the
+  // whole of what makes a rendered clip a function of N. Tested here rather
+  // than in a browser for the reason `cue.ts` and `deck.ts` already are: it is
+  // pure, and a browser is an expensive place to find an off-by-one in it.
+  describe('take', () => {
+    // A `FramePull` as far as the pump is concerned: it asks for a time and
+    // gets something with a display size. Recording the times is the point —
+    // *which frame was asked for* is the assertion, and no picture is needed to
+    // make it.
+    const fakePull = (duration = 10) => {
+      const asked: number[] = []
+      const closed = { yes: false }
+      return {
+        asked,
+        closed,
+        pull: {
+          asked,
+          duration,
+          codedWidth: 640,
+          codedHeight: 480,
+          frameAt: (t: number) => {
+            asked.push(t)
+            return Promise.resolve({
+              displayWidth: 640,
+              displayHeight: 480,
+              close: () => {},
+            } as unknown as VideoFrame)
+          },
+          close: () => {
+            closed.yes = true
+          },
+        },
+      }
+    }
+
+    // Everything a take needs standing up: an element on a url, an opener that
+    // answers for it, and the take switched on.
+    const taking = async (
+      fps: number,
+      over: Partial<HTMLVideoElement> = {},
+    ) => {
+      const bmps = stubBitmaps()
+      const pump = new VideoPump()
+      const s = sink()
+      const el = videoEl({ src: 'blob:clip', ...over })
+      const fake = fakePull()
+      pump.setPullOpener(() => Promise.resolve(fake.pull as never))
+      pump.setA(el)
+      pump.setTakeFps(fps)
+      // The open is a promise; the first pull awaits it.
+      await pump.pullFrames(0)
+      return { pump, s, el, fake, bmps }
+    }
+
+    it('asks for the clip position the take frame lands on', async () => {
+      const { pump, fake } = await taking(60)
+      await pump.pullFrames(30)
+      await pump.pullFrames(90)
+      // 0, half a second, a second and a half — the frame number over the
+      // take's rate, and nothing to do with what the element is doing.
+      expect(fake.asked).toEqual([0, 0.5, 1.5])
+    })
+
+    it('computes the position from the frame rather than accumulating it', async () => {
+      const { pump, fake } = await taking(60)
+      // Asked out of order and repeatedly, which an accumulated head would
+      // answer differently every time. A render walks forward, but the property
+      // that makes it reproducible is that the answer is a function of N — and
+      // the cheapest way to state that is to ask twice.
+      await pump.pullFrames(120)
+      await pump.pullFrames(120)
+      await pump.pullFrames(60)
+      expect(fake.asked).toEqual([0, 2, 2, 1])
+    })
+
+    it('loops a region by arithmetic, landing exactly on the in-point', async () => {
+      const { pump, fake } = await taking(60)
+      pump.setRegionA({ start: 4, end: 5 })
+      // A one-second region at 60fps: frame 60 is one lap, and lands back on
+      // the in-point rather than a frame past it the way a playing element
+      // does — the clamp can only fire once the playhead has crossed the
+      // out-point, and arithmetic has no such lag.
+      await pump.pullFrames(60)
+      await pump.pullFrames(90)
+      expect(fake.asked.slice(1)).toEqual([4, 4.5])
+    })
+
+    it('scales the position by the deck speed, so a slowed clip renders slowed', async () => {
+      const { pump, fake } = await taking(60, { playbackRate: 0.5 })
+      await pump.pullFrames(120)
+      // Two seconds of take at half speed is one second of clip. The rate is a
+      // setting rather than a position, which is why reading it off the element
+      // does not put the element's playhead back in the loop.
+      expect(fake.asked.at(-1)).toBe(1)
+    })
+
+    it('does not seek the element, which is the whole point', async () => {
+      const { pump, s, el } = await taking(60)
+      pump.setRegionA({ start: 1, end: 2 })
+      el.currentTime = 9
+      await pump.pullFrames(600)
+      pump.pump(s)
+      // The live wrap would have put this back to 1. A pulling slot's loop is
+      // the modulo, and seeking here would pay the cost the whole route exists
+      // to avoid — on a playhead nothing reads.
+      expect(el.currentTime).toBe(9)
+    })
+
+    it('does not ask the element for frames while it is pulling', async () => {
+      const { pump, s, bmps } = await taking(60)
+      const before = bmps.calls.length
+      pump.pump(s)
+      await Promise.resolve()
+      // One delivery, from the staged pull — and no *second* bitmap started off
+      // the element. A slot that did both would overwrite a frame that is a
+      // function of N with one that is a function of the wall clock, silently
+      // and only in the file.
+      expect(s.a).toHaveLength(1)
+      expect(bmps.calls.length).toBe(before)
+    })
+
+    it('stages A at its own aspect and B cropped to the raster', async () => {
+      stubBitmaps()
+      const pump = new VideoPump()
+      const s = sink()
+      const fake = fakePull()
+      pump.setPullOpener(() => Promise.resolve(fake.pull as never))
+      pump.setB(videoEl({ src: 'blob:clip' }))
+      pump.setTakeFps(60)
+      await pump.pullFrames(0)
+      pump.pump(s)
+      expect(s.b[0].w).toBe(ACTIVE_WIDTH)
+      expect(s.b[0].h).toBe(ACTIVE_HEIGHT)
+      expect(s.b[0].aspect).toBe(4 / 3)
+    })
+
+    it('starts a clip that arrives mid-take at its own beginning', async () => {
+      const { pump } = await taking(60)
+      await pump.pullFrames(300)
+      const next = fakePull()
+      pump.setPullOpener(() => Promise.resolve(next.pull as never))
+      // A row firing at frame 300 puts a new clip on the deck. It should start
+      // at the top of *that* clip, not five seconds into it.
+      pump.setA(videoEl({ src: 'blob:other' }))
+      await pump.pullFrames(300)
+      await pump.pullFrames(360)
+      expect(next.asked).toEqual([0, 1])
+    })
+
+    it('retires the decoder when the source changes, and when the take ends', async () => {
+      const { pump, fake } = await taking(60)
+      pump.setA(videoEl({ src: 'blob:other' }))
+      expect(fake.closed.yes).toBe(true)
+      const second = fakePull()
+      pump.setPullOpener(() => Promise.resolve(second.pull as never))
+      pump.setA(videoEl({ src: 'blob:third' }))
+      await pump.pullFrames(0)
+      pump.setTakeFps(null)
+      expect(second.closed.yes).toBe(true)
+    })
+
+    it('leaves a source it cannot pull from on its element', async () => {
+      const bmps = stubBitmaps()
+      const pump = new VideoPump()
+      const s = sink()
+      const el = videoEl({ src: 'blob:clip', currentTime: 3 })
+      // The opener declining is the ordinary answer for a webcam, a generated
+      // mode, or a codec the demuxer will not read — and it has to leave that
+      // deck exactly as reproducible as it was before any of this existed,
+      // which is to say pumped from its element.
+      pump.setPullOpener(() => Promise.resolve(null))
+      pump.setA(el)
+      pump.setTakeFps(60)
+      await pump.pullFrames(0)
+      await cycle(pump, s)
+      expect(bmps.calls[0][0]).toBe(el)
+    })
+
+    it('waits for an open that has not landed rather than rendering without it', async () => {
+      stubBitmaps()
+      const pump = new VideoPump()
+      const fake = fakePull()
+      let land: () => void = () => {}
+      pump.setPullOpener(
+        () =>
+          new Promise(resolve => {
+            land = () => resolve(fake.pull)
+          }),
+      )
+      pump.setA(videoEl({ src: 'blob:clip' }))
+      pump.setTakeFps(60)
+      let done = false
+      const pulling = pump.pullFrames(0).then(() => {
+        done = true
+      })
+      await Promise.resolve()
+      // This is the awaiting sink docs/EDITOR.md describes: a row that names a
+      // clip arrives on the frame it fired on rather than whenever the network
+      // answered. It is worth building only because what it waits for is now
+      // frame exact.
+      expect(done).toBe(false)
+      land()
+      await pulling
+      expect(fake.asked).toEqual([0])
+    })
+
+    it('does nothing at all outside a take', async () => {
+      const bmps = stubBitmaps()
+      const pump = new VideoPump()
+      const s = sink()
+      const fake = fakePull()
+      pump.setPullOpener(() => Promise.resolve(fake.pull as never))
+      pump.setA(videoEl({ src: 'blob:clip' }))
+      await pump.pullFrames(0)
+      await cycle(pump, s)
+      expect(fake.asked).toEqual([])
+      expect(bmps.calls).toHaveLength(1)
+    })
+  })
 })

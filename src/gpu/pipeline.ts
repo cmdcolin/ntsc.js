@@ -91,7 +91,7 @@ import type { DestroyOptions, EngineApi } from './engineapi'
 import type { FeedSource } from './feedgates'
 import type { ParamName } from './prelude'
 import type { FrozenKind } from './renderloop'
-import type { PumpedFrame, Relay, WrapHealth } from './videopump'
+import type { PullOpener, PumpedFrame, Relay, WrapHealth } from './videopump'
 
 const N = SAMPLES_PER_LINE * LINES
 const LINE_PARAM_BYTES = LINES * 16
@@ -1306,6 +1306,16 @@ export class Engine implements EngineApi {
     this.pump.setRelayB(relay)
   }
 
+  setVideoPullOpener(open: PullOpener | null): void {
+    this.pump.setPullOpener(open)
+  }
+
+  // Stage each deck's picture for take frame `frame`, and wait for it. The one
+  // thing an offline render does that a live frame cannot: see `pullFrames`.
+  pullVideo(frame: number): Promise<void> {
+    return this.pump.pullFrames(frame)
+  }
+
   loopHealth(): { a: WrapHealth; b: WrapHealth } {
     return this.pump.health()
   }
@@ -1831,6 +1841,13 @@ export class Engine implements EngineApi {
     this.takeFrom ??= this.frame
     this.dice = rngFor(take.seed)
     this.virtualFps = take.fps
+    // The fourth thing, and the one that arrived last: the video. Every reader
+    // above counts frames, and until this line the *pictures* still advanced at
+    // whatever rate the browser played them at — so a take was a function of N
+    // in everything except the one input a viewer actually looks at. It belongs
+    // in this switch for the reason the switch exists: flipping three of four
+    // gives a take that looks deterministic and is not.
+    this.pump.setTakeFps(take.fps)
     this.resetSignal()
   }
 
@@ -1846,6 +1863,11 @@ export class Engine implements EngineApi {
   endTake(): void {
     this.virtualFps = null
     this.dice = Math.random
+    // Which closes the decoders as well as handing the decks back to their
+    // elements. A picture left on a slot stays there — the live pump will
+    // replace it on its first frame — so this is the same "left as it was
+    // found" rule the counter below follows, not a tidy-up of the screen.
+    this.pump.setTakeFps(null)
     if (this.takeFrom !== null) this.frame = this.takeFrom
     this.takeFrom = null
   }

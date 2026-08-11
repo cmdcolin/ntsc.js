@@ -37,7 +37,7 @@ import type { FaultPlan } from '../signal/fault'
 import type { GlidePlan } from '../signal/glide'
 import type { StabPlan } from '../signal/stab'
 import type { FrozenKind } from './renderloop'
-import type { Relay, WrapHealth } from './videopump'
+import type { PullOpener, Relay, WrapHealth } from './videopump'
 
 export interface DestroyOptions {
   // Leave the audio graph open, because a successor engine is taking it over.
@@ -144,6 +144,12 @@ export interface EngineApi {
   setVideoSourceB: (el: HTMLVideoElement | null) => void
   setVideoRegionB: (region: { start: number; end: number } | null) => void
   setVideoRelayB: (relay: Relay | null) => void
+  // Where a take's frames are opened from, given the url a deck is on. Set once
+  // at engine creation, like the relay above, and for the same reason: this
+  // side owns *when* a frame is wanted and the page owns what is behind it.
+  // `null` — or an opener that declines a url — leaves that deck on the
+  // wall-rate element, which is what every deck did before this existed.
+  setVideoPullOpener: (open: PullOpener | null) => void
   // What each slot's loop wrap is actually costing, for the note the cue row
   // shows when a clip's encoding makes looping it judder. Polled rather than
   // pushed: the panel already reads the playheads at 10 Hz and this rides along
@@ -216,6 +222,18 @@ export interface EngineApi {
   // than only on the concrete class now that something in the app — rather than
   // only a harness — pulls frames by hand.
   step: () => void
+  // Stage each deck's picture for take frame `frame`, and wait for it.
+  //
+  // **The one asynchronous member here, and it has to be.** Everything else on
+  // this surface is synchronous because React reads it; this is not read by
+  // React at all — it is called by the offline render, between the walk's
+  // `onFrame` and the `step` that draws. What it waits for is a decode, and
+  // waiting is the entire point: a `<video>` polled the way `pump()` polls it
+  // advances at wall rate, which is the one thing a take cannot have.
+  //
+  // A no-op outside a take, and for any deck whose source cannot be pulled
+  // from, so a render can await it without knowing what is on the decks.
+  pullVideo: (frame: number) => Promise<void>
   // What that clock reads now, in ms. For harnesses: every other effect of the
   // switch is a pixel.
   clockMs: () => number

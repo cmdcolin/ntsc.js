@@ -136,11 +136,22 @@ export async function renderTake(
   try {
     for (let i = 0; i < frames; i++) {
       spec.onFrame?.(i)
-      // Step first, then take what it drew: `step()` renders synchronously, so
-      // the canvas holds frame `i` by the time this returns. Taking the frame
-      // first would record the state *before* the render and shift the whole
-      // take one frame early — which no assertion about frame rate would catch,
-      // because the file would be perfectly constant and one frame wrong.
+      // **The awaited sink, finally worth building.** `stripRun.ts`'s header
+      // says why it was not before: a render waiting for a source buys nothing
+      // while what it is waiting for plays at wall rate. This is the other side
+      // of that seam — each deck's picture for frame `i`, decoded and staged
+      // before anything draws — and with it the frames in the file are the
+      // frames of the clip rather than whatever the browser had reached.
+      //
+      // After `onFrame`, because the walk is what decides which clip is on the
+      // deck for this frame, and a pull issued before the row fired would be a
+      // frame of the outgoing clip.
+      await engine.pullVideo(i)
+      // Step, then take what it drew: `step()` renders synchronously, so the
+      // canvas holds frame `i` by the time this returns. Taking the frame first
+      // would record the state *before* the render and shift the whole take one
+      // frame early — which no assertion about frame rate would catch, because
+      // the file would be perfectly constant and one frame wrong.
       engine.step()
       recorder.frame(canvas)
       if (i % YIELD_EVERY === YIELD_EVERY - 1) {

@@ -16,6 +16,8 @@ import { ACTIVE_HEIGHT, ACTIVE_WIDTH } from '../signal/constants'
 // Long edge capped, aspect preserved — see MAX_SRC_EDGE in sources.ts.
 import { coverFit43, fitSrc } from './sources'
 
+import type { FramePull } from '../ui/framePull'
+
 // 'low' rather than a nicer filter on purpose: it is what a 2D canvas used for
 // drawImage (imageSmoothingQuality defaults to 'low'), so the picture that
 // reaches the raster is the one this path always produced. The signal chain
@@ -34,6 +36,58 @@ export interface PumpedFrame {
   h: number
   aspect: number
 }
+
+// What a slot wants a source staged as: the size to land at, the aspect to tell
+// compose about, and the rectangle of the source to take.
+//
+// **Stated once for each slot rather than at each call site**, because there are
+// now two of those — a frame off the element and a frame off a take's decoder —
+// and the rules are a property of the slot rather than of where the picture came
+// from. Two copies of "B is raster-sized with a centred 4:3 crop" is the
+// duplication `slotView.ts` already argues about at a smaller scale.
+interface Stage {
+  w: number
+  h: number
+  aspect: number
+  // Source rectangle, or null for the whole picture.
+  crop: [number, number, number, number] | null
+}
+
+// A keeps its own aspect and compose letterboxes it, so there is no crop.
+const stageA = (vw: number, vh: number): Stage => {
+  const [w, h] = fitSrc(vw, vh)
+  return { w, h, aspect: vw / vh, crop: null }
+}
+
+// B is always raster-sized with a centred 4:3 crop, and `createImageBitmap`
+// takes the crop rect and the target size together — so the crop the CPU used to
+// do in drawImage's source rectangle goes off-thread as well. Rounded because
+// the bitmap crop rect is in whole source pixels, where drawImage took the
+// fractional rect directly. Sub-pixel, against a raster 754 wide.
+const stageB = (vw: number, vh: number): Stage => {
+  const [cx, cy, cw, ch] = coverFit43(vw, vh)
+  return {
+    w: ACTIVE_WIDTH,
+    h: ACTIVE_HEIGHT,
+    aspect: 4 / 3,
+    crop: [Math.round(cx), Math.round(cy), Math.round(cw), Math.round(ch)],
+  }
+}
+
+const bitmapFor = (
+  src: ImageBitmapSource,
+  stage: Stage,
+): Promise<ImageBitmap> =>
+  stage.crop === null
+    ? createImageBitmap(src, BITMAP_OPTS(stage.w, stage.h))
+    : createImageBitmap(
+        src,
+        stage.crop[0],
+        stage.crop[1],
+        stage.crop[2],
+        stage.crop[3],
+        BITMAP_OPTS(stage.w, stage.h),
+      )
 
 // Where finished frames go. Slot A keeps its own aspect and may resize its
 // texture; slot B always arrives at raster size, pre-cropped. The pushExt
@@ -105,6 +159,17 @@ const WRAP_WINDOW = 8
 // is the deadline that decides whether keeping a head is worth anything at all.
 export type Relay = (start: number, end: number) => HTMLVideoElement | null
 
+// Where a slot's frames come from while a take is running, given the url the
+// element is on. Null for a source that cannot be pulled from — a webcam, a
+// generated mode, a codec the demuxer declines — and that is a fallback rather
+// than a failure: the slot keeps the wall-rate element it already has, and the
+// take is exactly as reproducible as one has always been.
+//
+// Handed in rather than imported, on the same seam as `Relay` above and for the
+// same reason: this file owns *when* a frame is wanted, and whoever owns the
+// elements owns what is behind them.
+export type PullOpener = (url: string) => Promise<FramePull | null>
+
 interface Slot {
   el: HTMLVideoElement | null
   inFlight: boolean
@@ -126,6 +191,20 @@ interface Slot {
   // dropped, rather than landing a frame of the previous clip in the new one's
   // texture — a flash that would be near-impossible to attribute later.
   gen: number
+  // --- under a take only ---
+  //
+  // The decoder this slot's pictures come from, and the open that is still in
+  // flight. Two fields rather than one because opening is a fetch and a demux:
+  // a row that swaps a clip mid-render has to be *waited for* by the frame that
+  // wants it, which is the awaiting sink docs/EDITOR.md describes and the reason
+  // it was worth nothing until the thing on the other side was frame exact.
+  pull: FramePull | null
+  pullPending: Promise<FramePull | null> | null
+  // The take frame this slot's current source went on. What makes the clip
+  // position a function of the take frame *and of when this clip arrived*, so a
+  // row firing at frame 300 starts its clip at its in-point rather than five
+  // seconds in.
+  takeFrom: number
 }
 
 const emptySlot = (): Slot => ({
@@ -139,6 +218,9 @@ const emptySlot = (): Slot => ({
   wrapGaps: [],
   lastTime: -1,
   gen: 0,
+  pull: null,
+  pullPending: null,
+  takeFrom: 0,
 })
 
 const median = (xs: readonly number[]): number => {
@@ -162,6 +244,11 @@ export class VideoPump {
   private a = emptySlot()
   private b = emptySlot()
   private disposed = false
+  // Non-null while a take is running: the rate its frames are counted at, and
+  // the frame it has reached. See `setTakeFps`.
+  private takeFps: number | null = null
+  private takeFrame = 0
+  private opener: PullOpener | null = null
 
   // Direct mode: the device can sample the decoder's own frame
   // (importExternalTexture), so the pump never makes a bitmap — it just says
@@ -206,6 +293,164 @@ export class VideoPump {
     this.b.relay = relay
   }
 
+  // Where a take's frames are opened from. Set once at engine creation, like
+  // the relay: the answer belongs to whoever owns the elements.
+  setPullOpener(open: PullOpener | null): void {
+    this.opener = open
+  }
+
+  // **The take's clock reaching the video**, which is the last place in the
+  // engine it did not (docs/EDITOR.md › _Take state_). `fps` puts every slot on
+  // a playhead the pump computes from the frame number; `null` gives them back
+  // to their elements.
+  //
+  // What changes under it is not only where frames come from but *who owns the
+  // playhead*. Live, the element's `currentTime` is the position and the pump
+  // reads it; under a take the position is arithmetic on the frame counter and
+  // the element is not consulted at all — which is the whole difference between
+  // a picture that advances at wall rate and one that is a function of N.
+  setTakeFps(fps: number | null): void {
+    this.takeFps = fps
+    this.takeFrame = 0
+    for (const slot of [this.a, this.b]) {
+      this.closePull(slot)
+      slot.takeFrom = 0
+      if (fps !== null) this.openPull(slot)
+    }
+  }
+
+  // Stage each pulling slot's picture for take frame `frame`. Awaited by the
+  // render before it steps, which is the one thing `pump()` cannot be: a decode
+  // that has not landed is a frame of the wrong picture, and polling for it the
+  // way the live path does is exactly the wall-rate behaviour this replaces.
+  //
+  // A slot with no puller is untouched and goes on being pumped from its
+  // element. That is the fallback, and it is why this can be awaited
+  // unconditionally by a render that does not know what is on the decks.
+  async pullFrames(frame: number): Promise<void> {
+    if (this.takeFps === null) return
+    this.takeFrame = frame
+    await Promise.all([
+      this.pullSlot(this.a, frame, false),
+      this.pullSlot(this.b, frame, true),
+    ])
+  }
+
+  // Whether this slot's pictures are coming from a decoder rather than from its
+  // element. The guard on every path that would otherwise read or move the
+  // element's own playhead.
+  private pulling(slot: Slot): boolean {
+    return this.takeFps !== null && slot.pull !== null
+  }
+
+  private closePull(slot: Slot): void {
+    slot.pull?.close()
+    slot.pull = null
+    // A pending open is left to settle and closed on arrival rather than
+    // cancelled: a fetch cannot be taken back, and an opener that resolved into
+    // a slot which had moved on would be a decoder nothing ever closes.
+    const pending = slot.pullPending
+    slot.pullPending = null
+    if (pending !== null) void pending.then(p => p?.close())
+  }
+
+  // Start opening a puller for whatever this slot's element is on. A no-op
+  // outside a take, for an element with no url, or with no opener wired — all
+  // three of which are the fallback rather than a fault.
+  private openPull(slot: Slot): void {
+    const el = slot.el
+    if (this.takeFps === null || this.opener === null) return
+    // `src` alone is the test, and it is exact: the load paths set either `src`
+    // (a url) or `srcObject` (a webcam, a grabber, a shared screen) and never
+    // both, so an empty `src` *is* "nothing here a decoder could be opened on".
+    // Checking `srcObject` as well reads as more careful and is not — it is a
+    // second way to spell the same condition, and one an element that has never
+    // had either leaves undefined rather than null.
+    if (el === null || el.src === '') return
+    const gen = slot.gen
+    const opening = this.opener(el.src)
+    slot.pullPending = opening
+    void opening.then(
+      pull => {
+        // The slot moved on while the file was being fetched, so this decoder
+        // is for a clip that is no longer here. Same generation check the
+        // bitmap path makes, for the same reason.
+        if (this.disposed || gen !== slot.gen || slot.pullPending !== opening) {
+          pull?.close()
+          return
+        }
+        slot.pullPending = null
+        slot.pull = pull
+      },
+      () => {
+        if (slot.pullPending === opening) slot.pullPending = null
+      },
+    )
+  }
+
+  // One slot's picture for one take frame.
+  //
+  // **The clip position is computed from the frame, not accumulated.** An
+  // accumulated head would drift with every rounding, and worse, would make the
+  // picture depend on how many times this was called rather than on which frame
+  // it was called for — which is the property the whole take rests on.
+  private async pullSlot(
+    slot: Slot,
+    frame: number,
+    crop: boolean,
+  ): Promise<void> {
+    // An open still in flight is waited for here, which is the only place a
+    // render blocks on a load. A row that names a clip therefore arrives on the
+    // frame it was fired on rather than whenever the network answered.
+    if (slot.pullPending !== null) await slot.pullPending
+    const pull = slot.pull
+    const fps = this.takeFps
+    if (pull === null || fps === null) return
+    // The deck's own speed, which is a setting rather than a position — so
+    // reading it off the element keeps a slowed clip slowed without putting the
+    // element's playhead back in the loop.
+    const rate = slot.el?.playbackRate ?? 1
+    const elapsed = ((frame - slot.takeFrom) / fps) * rate
+    const r = slot.region
+    const looped = r !== null && r.end > r.start
+    const base = looped ? r.start : 0
+    const span = looped ? r.end - r.start : pull.duration
+    // **The wrap is a modulo, and it is exact where the live one is not.** A
+    // playing element overshoots its out-point by up to a frame because the
+    // clamp can only fire once the playhead has crossed it; arithmetic has no
+    // such lag, so a looped take lands on the in-point rather than a frame past
+    // it. That is a difference from the live picture and the right way round:
+    // the render is the one that can afford to be exact.
+    const at = span > 0 ? base + (elapsed % span) : base
+    const vf = await pull.frameAt(at)
+    if (vf === null) return
+    try {
+      if (this.disposed) return
+      // The frame's *display* size, not its coded one: a clip with a non-square
+      // pixel aspect codes at one size and is meant to be seen at another, and
+      // the aspect is what compose letterboxes by.
+      const vw = vf.displayWidth
+      const vh = vf.displayHeight
+      if (vw === 0 || vh === 0) return
+      const stage = crop ? stageB(vw, vh) : stageA(vw, vh)
+      const bmp = await bitmapFor(vf, stage)
+      // Checked after the await as well as before: a source change during the
+      // conversion retires this frame rather than landing the outgoing clip in
+      // the incoming one's texture.
+      if (this.disposed || !this.pulling(slot)) {
+        bmp.close()
+        return
+      }
+      slot.ready?.bmp.close()
+      slot.ready = { bmp, w: stage.w, h: stage.h, aspect: stage.aspect }
+    } catch {
+      // A frame the browser would not convert. The slot holds its last picture,
+      // which is what the element path does with the same failure.
+    } finally {
+      vf.close()
+    }
+  }
+
   // Everything about the slot goes back to untouched, `inFlight` included. A
   // decode from the outgoing source is still running and cannot be cancelled,
   // but it belongs to a generation this slot has retired, so it is not allowed
@@ -222,6 +467,13 @@ export class VideoPump {
     slot.gen += 1
     slot.ready?.bmp.close()
     slot.ready = null
+    // A decoder belongs to the clip it was opened on, so a source change retires
+    // it and opens the next — and the new clip starts *now* rather than however
+    // far into the take it happens to be, which is what makes a row that fires
+    // at frame 300 begin its clip at the top.
+    this.closePull(slot)
+    slot.takeFrom = this.takeFrame
+    this.openPull(slot)
     // A region belongs to the clip it was marked on, not to the slot: carried
     // over to the next source it would clamp a new timeline against positions
     // that mean nothing in it, and a short one would pin the fresh clip on a
@@ -246,21 +498,48 @@ export class VideoPump {
     // is exactly what freezing a deck does not touch.
     this.wrap(this.a)
     this.wrap(this.b)
-    if (this.direct) {
-      if (!freezeA) this.deliverDirect(this.a, el => sink.pushExtA(el))
-      if (!freezeB) this.deliverDirect(this.b, el => sink.pushExtB(el))
-      return
-    }
+    // **A pulling slot takes the bitmap path even in direct mode.** Direct means
+    // "let the engine import the decoder's own frame off the element", and a
+    // slot under a take has no element worth importing — its picture was staged
+    // by `pullFrames` as a bitmap, on the route `scripts/codeccheck.mjs` found
+    // is the only one Firefox leaves open for a `VideoFrame` anyway. A branch
+    // per slot rather than per pump, because A and B can differ: one deck on a
+    // pullable clip and the other on a webcam is an ordinary thing to render.
+    // **Wrapped, not passed.** `Sources` is a class and its `pushA` wants its
+    // own receiver; handing the method across bare drops it, and the failure is
+    // `this is undefined` inside the *sink* — a stack that names neither this
+    // file nor the change that caused it. The direct path below always wrapped
+    // for this reason and the bitmap path used to call through `sink.` directly,
+    // so factoring the two together is exactly where the receiver goes missing.
     if (!freezeA) {
-      const readyA = this.take(this.a)
-      if (readyA !== null) sink.pushA(readyA)
+      this.deliver(
+        this.a,
+        f => sink.pushA(f),
+        el => sink.pushExtA(el),
+      )
     }
     if (!freezeB) {
-      const readyB = this.take(this.b)
-      if (readyB !== null) sink.pushB(readyB)
+      this.deliver(
+        this.b,
+        f => sink.pushB(f),
+        el => sink.pushExtB(el),
+      )
     }
     if (!freezeA) this.requestA()
     if (!freezeB) this.requestB()
+  }
+
+  private deliver(
+    slot: Slot,
+    push: (f: PumpedFrame) => void,
+    pushExt: (el: HTMLVideoElement) => void,
+  ): void {
+    if (this.direct && !this.pulling(slot)) {
+      this.deliverDirect(slot, pushExt)
+      return
+    }
+    const ready = this.take(slot)
+    if (ready !== null) push(ready)
   }
 
   // Direct mode's whole delivery: the frame test the bitmap path uses, minus
@@ -343,6 +622,10 @@ export class VideoPump {
     const el = slot.el
     const r = slot.region
     if (el === null || r === null) return
+    // A pulling slot's loop is the modulo in `pullSlot`, and seeking the element
+    // here would be moving a playhead nothing reads — at the price of the seek
+    // this whole route exists to avoid.
+    if (this.pulling(slot)) return
     // Nothing without a timeline gets looped, whatever it was handed. A webcam, a
     // grabber or a screen share reports a duration of Infinity and ignores a seek
     // anyway, so a region over one would be a wrap attempted every single frame
@@ -426,6 +709,11 @@ export class VideoPump {
     const el = slot.el
     return (
       el !== null &&
+      // A pulling slot's picture is staged by `pullFrames` before the step, so
+      // asking the element for one would overwrite a frame that is a function
+      // of N with one that is a function of the wall clock — silently, and only
+      // in the file.
+      !this.pulling(slot) &&
       !slot.inFlight &&
       el.readyState >= 2 &&
       el.videoWidth > 0 &&
@@ -435,41 +723,23 @@ export class VideoPump {
 
   private requestA(): void {
     const el = this.a.el
+    // Direct mode makes no bitmaps at all; `deliver` above is the whole of its
+    // delivery. A pulling slot is caught by `due`.
+    if (this.direct) return
     if (el !== null && this.due(this.a)) {
       this.a.lastTime = el.currentTime
-      const [w, h] = fitSrc(el.videoWidth, el.videoHeight)
-      // No crop: A keeps its own aspect and compose letterboxes it.
-      this.start(this.a, w, h, el.videoWidth / el.videoHeight, () =>
-        createImageBitmap(el, BITMAP_OPTS(w, h)),
-      )
+      const stage = stageA(el.videoWidth, el.videoHeight)
+      this.start(this.a, stage, () => bitmapFor(el, stage))
     }
   }
 
   private requestB(): void {
     const el = this.b.el
+    if (this.direct) return
     if (el !== null && this.due(this.b)) {
       this.b.lastTime = el.currentTime
-      // B is always raster-sized with a centred 4:3 crop, and createImageBitmap
-      // takes the crop rect and the target size together — so the crop the CPU
-      // used to do in drawImage's source rectangle goes off-thread as well.
-      // Rounded because the bitmap crop rect is in whole source pixels, where
-      // drawImage took the fractional rect directly. Sub-pixel, against a raster
-      // 754 wide.
-      const [cx, cy, cw, ch] = coverFit43(el.videoWidth, el.videoHeight)
-      const sx = Math.round(cx)
-      const sy = Math.round(cy)
-      const sw = Math.round(cw)
-      const sh = Math.round(ch)
-      this.start(this.b, ACTIVE_WIDTH, ACTIVE_HEIGHT, 4 / 3, () =>
-        createImageBitmap(
-          el,
-          sx,
-          sy,
-          sw,
-          sh,
-          BITMAP_OPTS(ACTIVE_WIDTH, ACTIVE_HEIGHT),
-        ),
-      )
+      const stage = stageB(el.videoWidth, el.videoHeight)
+      this.start(this.b, stage, () => bitmapFor(el, stage))
     }
   }
 
@@ -479,9 +749,7 @@ export class VideoPump {
   // the new frame and copy the old one into it.
   private start(
     slot: Slot,
-    w: number,
-    h: number,
-    aspect: number,
+    stage: Stage,
     make: () => Promise<ImageBitmap>,
   ): void {
     slot.inFlight = true
@@ -497,7 +765,7 @@ export class VideoPump {
         } else {
           slot.inFlight = false
           slot.ready?.bmp.close()
-          slot.ready = { bmp, w, h, aspect }
+          slot.ready = { bmp, w: stage.w, h: stage.h, aspect: stage.aspect }
         }
       },
       () => {
@@ -540,6 +808,13 @@ export class VideoPump {
       slot.relay = null
       slot.ready?.bmp.close()
       slot.ready = null
+      // A decoder is a real resource and holds decoded pictures; an engine torn
+      // down mid-render must not leave one open. `closePull` also disposes of an
+      // open still in flight, which is the case a teardown is most likely to
+      // catch — a render abandoned while a row's clip was being fetched.
+      this.closePull(slot)
     }
+    this.takeFps = null
+    this.opener = null
   }
 }

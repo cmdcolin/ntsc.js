@@ -35,6 +35,7 @@ import { join } from 'node:path'
 import process from 'node:process'
 
 const port = process.argv[2] ?? '5199'
+const origin = `http://localhost:${port}`
 const FRAMES = 60
 const FPS = 60
 // `YIELD_EVERY` in ui/render.ts, which is where the render's progress callback
@@ -418,6 +419,112 @@ check(
   'and decodes without a warning',
   decoded === '',
   decoded.split('\n')[0] ?? '',
+)
+
+// --- a take with a clip in it ------------------------------------------------
+//
+// **The thing this harness used to say it could not check.** Its header carried
+// the exclusion for months: "a take over a `<video>` is not reproducible — the
+// pump pulls at wall rate — so this renders the default bars". Frame-exact pull
+// is what removes it, and the check is the same one as above with a clip on the
+// deck: two renders, real time injected into the second, the live loop running
+// in between, and the same file out.
+//
+// It is deliberately the *last* arm. Everything before it renders bars, so a
+// failure there is the render and a failure only here is the video path — which
+// is the difference between "the take is broken" and "the pull is".
+const clip = `${origin}/test.mp4`
+const renderClip = jitter =>
+  page.evaluate(
+    async (src, n, pause, fps) => {
+      const mod = await import('/src/ui/render.ts')
+      const vf = window.vf
+      const cv = document.querySelector('canvas')
+      // **Sampled inside the render, because identical is not the same as
+      // right.** Two renders come out byte-identical if the pull is working
+      // *and* if the deck is showing one frozen frame both times — and a
+      // fallback to the wall-rate element is the thing this arm is meant to
+      // tell apart from a working pull. So the arm asks the pump directly
+      // whether the deck had a decoder on it while the take ran.
+      const pulled = []
+      const blob = await mod.renderTake(vf, cv, {
+        frames: n,
+        fps,
+        seed: 4242,
+        onProgress: async () => {
+          pulled.push(
+            vf.pump?.a?.pull !== null && vf.pump?.a?.pull !== undefined,
+          )
+          if (pause > 0) await new Promise(r => setTimeout(r, pause))
+        },
+      })
+      const buf = new Uint8Array(await blob.arrayBuffer())
+      const digest = [
+        ...new Uint8Array(await crypto.subtle.digest('SHA-256', buf)),
+      ]
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+      return {
+        digest,
+        size: buf.length,
+        src,
+        pulling: pulled.length > 0 && pulled.every(Boolean),
+      }
+    },
+    clip,
+    FRAMES,
+    jitter,
+    FPS,
+  )
+
+// Loaded through the app's own `?vurl` path rather than by reaching into the
+// slot, so what is under test is the wiring a user gets and not a shortcut this
+// file invented.
+await page.goto(`${origin}/?preset=vhs&vurl=${encodeURIComponent(clip)}`, {
+  waitUntil: 'domcontentloaded',
+})
+await appUp(page, 6000)
+await page.bringToFront()
+// The element has to be *loaded* before a take starts — not for the pull, which
+// never touches it, but because a deck with nothing on it is a deck this arm
+// would pass on for the wrong reason.
+//
+// Read off the pump rather than the DOM: the slot's elements are created with
+// `document.createElement` and never appended, so `querySelector('video')` finds
+// nothing however well the clip loaded. That cost this file a twenty-second
+// timeout naming no cause, which is the shape of every mistake about this app's
+// video path — there is no element on the page to look at.
+await page.waitForFunction(
+  () => (window.vf?.pump?.info?.().videoA?.ready ?? 0) >= 2,
+  { timeout: 20_000 },
+)
+check('the clip arm has a clip on the deck', true)
+
+const clipA = await renderClip(0)
+// Between the two, exactly as above: the live loop runs and moves the tape
+// ring, the phosphor and the element's own playhead on. The element's position
+// is the one that matters here — under a wall-rate pump it is what made two
+// renders differ, and under a frame-exact one it must not be readable at all.
+await new Promise(r => setTimeout(r, 1200))
+const clipB = await renderClip(25)
+
+check(
+  'the deck pulled its frames from a decoder, not from the element',
+  clipA.pulling && clipB.pulling,
+  `${clipA.pulling} then ${clipB.pulling}`,
+)
+check(
+  'two renders of a take with a clip in it are the same file',
+  clipA.digest === clipB.digest && clipA.size > 0,
+  `${clipA.digest.slice(0, 16)} vs ${clipB.digest.slice(0, 16)} (${clipA.size}B)`,
+)
+// Against the bars arm's digest, so "the same twice" cannot be satisfied by a
+// clip that never reached the picture at all — two renders of a blank deck are
+// also identical.
+check(
+  'and the clip is actually in it',
+  clipA.digest !== a.digest,
+  `${clipA.size}B with a clip vs ${a.size}B without`,
 )
 
 check('no page errors', errors.length === 0, errors.join(' | '))
