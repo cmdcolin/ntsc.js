@@ -199,13 +199,23 @@ results.push(await armTwice('control', '?vurl=/test.mp4&debug'))
 // misclassifies one clip or the other depending on what else is running. The
 // ordering has held across every run, which is what the panel's readout relies on
 // and all it claims.
+//
+// **Both arms run with `?loophead=0`**, which is the flag that arms no second read
+// head (ui/videoSlot.ts). A loop that keeps a head does not seek, so there is no
+// gap for `medianMs` to time and these two arms would have nothing left to order —
+// the readout they check is now the one a loop falls back on. What the head itself
+// costs the sound is scripts/wrapsound.mjs, which measures both sides of the same
+// flag in one run.
 const stallArms = [
   { label: 'enc:sparse', file: 'test.mp4' },
   { label: 'enc:dense', file: 'demo-v2.mp4' },
 ]
 const encRead = {}
 for (const a of stallArms) {
-  const r = await armTwice(a.label, `?vurl=/${a.file}&cuea=5.1,5.4&debug`)
+  const r = await armTwice(
+    a.label,
+    `?vurl=/${a.file}&cuea=5.1,5.4&loophead=0&debug`,
+  )
   const h = r.health
   encRead[a.label] = h
   console.log(

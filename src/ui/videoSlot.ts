@@ -275,6 +275,24 @@ export async function prerollUrl(
   }
 }
 
+// `?loophead=0` arms no second head, so a loop wraps by seeking the way it did
+// before this existed.
+//
+// Its own flag rather than a thing to reason about from the outside, and it
+// earns its keep twice. `scripts/wrapsound.mjs` can then measure the before and
+// the after in one run on one machine, which matters more here than usual
+// because the numbers move about 2x with machine load — an A/B across two
+// commits on a shared box compares two different afternoons. And `cuecheck`'s
+// encoding arms assert an ordering in the *seek* cost, which is exactly what a
+// working head stops there being anything to measure.
+//
+// Read per call rather than latched: it is a harness flag on a code path that
+// runs once per cue press, and a module-level constant would be one more thing
+// that has to be got right about ordering at import time.
+const loopHeadAllowed = (): boolean =>
+  typeof location === 'undefined' ||
+  new URLSearchParams(location.search).get('loophead') !== '0'
+
 // Retire the second read head. **It does not revoke the url**, which is the one
 // thing to know about it: the head is by construction the same src as the
 // element on air, so for a `blob:` they hold one object and revoking here would
@@ -307,7 +325,7 @@ export function dropHead(slot: VideoSlot): void {
 export async function armHead(slot: VideoSlot, start: number): Promise<void> {
   dropHead(slot)
   const live = slot.ref.current
-  if (live === null || live.src === '') return
+  if (live === null || live.src === '' || !loopHeadAllowed()) return
   const v = configureVideo(slot)
   slot.head.current = v
   v.preload = 'auto'

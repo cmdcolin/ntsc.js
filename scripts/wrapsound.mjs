@@ -326,13 +326,13 @@ const STEP = () => {
     : [as.graph.ctx.currentTime, el.currentTime, el.seeking ? 1 : 0]
 }
 
-const arm = async (label, clip, cue) => {
+const arm = async (label, clip, cue, head = true) => {
   const browser = await launch()
   try {
     const page = await browser.newPage()
     await page.setViewport({ width: 1200, height: 800 })
     const src = encodeURIComponent(`${fixtures}/${clip}.mp4`)
-    const q = cue ? `&cuea=${IN},${OUT}` : ''
+    const q = (cue ? `&cuea=${IN},${OUT}` : '') + (head ? '' : '&loophead=0')
     await page.goto(`http://127.0.0.1:${PORT}/?vurl=${src}${q}`, {
       waitUntil: 'domcontentloaded',
     })
@@ -448,7 +448,14 @@ const analyse = ({ runs, polls }) => {
 
 const results = []
 for (const name of Object.keys(built)) {
-  results.push({ clip: name, ...(await arm(name, name, true)) })
+  // Each arm twice, seeking and relaying, on the same machine minutes apart.
+  // The absolute numbers here move about 2x with machine load, so an A/B across
+  // two commits is comparing two afternoons — `?loophead=0` makes it one run.
+  results.push({
+    clip: name,
+    ...(await arm(`${name}:seek`, name, true, false)),
+  })
+  results.push({ clip: name, ...(await arm(`${name}:head`, name, true)) })
 }
 // Same clip, nothing marked. It has to come back with no silence in it, or the
 // arms above are measuring the harness.
@@ -459,7 +466,7 @@ results.push({
 })
 
 console.log(
-  `\n${'arm'.padEnd(9)}${'keys'.padStart(5)}${'wraps'.padStart(7)}` +
+  `\n${'arm'.padEnd(13)}${'keys'.padStart(5)}${'wraps'.padStart(7)}` +
     `${'seek'.padStart(9)}${'silence'.padStart(10)}${'worst'.padStart(9)}` +
     `${'quiet'.padStart(8)}${'seeking'.padStart(9)}${'steps/s'.padStart(9)}` +
     `${'free'.padStart(8)}`,
@@ -472,7 +479,7 @@ for (const r of results) {
   const mine = a.runs.filter(x => x.wrapped)
   const ms = mine.map(x => x.ms)
   console.log(
-    `${r.label.padEnd(9)}${String(built[r.clip]?.keys ?? 0).padStart(5)}` +
+    `${r.label.padEnd(13)}${String(built[r.clip]?.keys ?? 0).padStart(5)}` +
       `${String(a.wraps).padStart(7)}` +
       `${((r.health?.laps ?? 0) >= 2 ? `${r.health.medianMs.toFixed(0)}ms` : '--').padStart(9)}` +
       `${(mine.length === 0 ? '--' : `${pct(ms, 0.5).toFixed(0)}ms`).padStart(10)}` +
@@ -527,20 +534,43 @@ for (const r of results) {
 }
 
 // The one ordering worth asserting, and the one loopseek's own header rests on:
-// a clip with a single keyframe pays far more than a well-encoded one. Six-fold
-// here, which is the size of gap that survives a loaded machine.
+// a clip with a single keyframe pays far more than a well-encoded one. Asserted
+// on the *seeking* arms, because that is where a seek is what a wrap costs.
 //
 // **Deliberately not asserted between `intra` and `dense`.** Both are down where
 // the run-to-run variance lives — one loaded run put intra at 67ms and dense at
 // 28ms, and intra on its own measured 4ms — so an ordering between them would
 // fail for reasons that are about the box. cuecheck makes the same call about
 // the same pair of tiers.
-if (read.sparse !== undefined && read.dense !== undefined) {
-  if (!(med('sparse') > med('dense') * 2)) {
+if (read['sparse:seek'] !== undefined && read['dense:seek'] !== undefined) {
+  if (!(med('sparse:seek') > med('dense:seek') * 2)) {
     fails.push(
-      `sparse ${med('sparse').toFixed(0)}ms should clearly exceed dense ` +
-        `${med('dense').toFixed(0)}ms — the silence has stopped tracking how ` +
-        'the clip was encoded',
+      `sparse ${med('sparse:seek').toFixed(0)}ms should clearly exceed dense ` +
+        `${med('dense:seek').toFixed(0)}ms — the silence has stopped tracking ` +
+        'how the clip was encoded',
+    )
+  }
+}
+
+// **And the head has to be worth having.** Total silence per second of run, not
+// a median over the laps that dropped out: the head's whole effect is on *how
+// many* laps drop out, and the first cut of this scored a better median and a
+// worse sound — two catastrophic laps in place of twelve ordinary ones. So the
+// arm that keeps a head must be quieter overall than the arm that seeks, on
+// every clip, which is the claim the feature makes and the one it failed before
+// it learned to give the head back.
+for (const name of Object.keys(built)) {
+  const seek = read[`${name}:seek`]
+  const head = read[`${name}:head`]
+  if (seek === undefined || head === undefined) continue
+  if (seek.wraps < 3 || head.wraps < 3) continue
+  // A tenth of a percent of slack, so an arm that is silent either way does not
+  // fail on floating-point dust.
+  if (head.quiet > seek.quiet + 0.001) {
+    fails.push(
+      `${name}: ${(head.quiet * 100).toFixed(0)}% quiet with a second read head ` +
+        `against ${(seek.quiet * 100).toFixed(0)}% without one — the head is ` +
+        'costing more than the seek it replaced',
     )
   }
 }

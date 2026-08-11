@@ -136,6 +136,19 @@ export const insideCue = (cue: Cue | null, time: number): boolean =>
 // advantage over a warning as well as being the honest option: the remedy is to
 // mark the loop somewhere else, and a live number is something you can re-mark
 // against and watch change. A threshold could only ever have said "bad".
+//
+// **A loop with a second read head does not seek, so it reports nothing** — and
+// that turns out to be the threshold the two attempts above could not build.
+// `ui/videoSlot.ts` parks a second element at the in-point and swaps to it,
+// which costs no seek at all; where it cannot keep up it gives itself back, and
+// the loop falls to seeking and starts reporting again. So the number now
+// appears exactly when there is something wrong with looping this clip here, by
+// mechanism rather than by a cutoff someone had to pick — nothing was calibrated
+// to make that true, and the readout below did not change.
+//
+// It also means what the number *measures* is unchanged and worth keeping: the
+// silence a wrap costs is the seek within about 15ms (scripts/wrapsound.mjs), so
+// this is milliseconds of dropped sound as much as it is dropped picture.
 export function wrapCostMs(health: {
   medianMs: number
   laps: number
