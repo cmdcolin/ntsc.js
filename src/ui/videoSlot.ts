@@ -38,8 +38,10 @@
 // elements are both seeking the same expensive file at once, and
 // `scripts/wrapsound.mjs` measured that contention turning a 213ms dropout on
 // every lap into a 1028ms one on half of them — the same silence, in worse
-// lumps. So the re-park is timed against the lap it had to fit in, and a head
-// that overran is dropped for the life of the cue. See `promoteHead`.
+// lumps. So the re-park is held against the lap it had to fit in by a timer, and
+// a head that overruns is dropped for the life of the cue — at the deadline
+// rather than whenever it eventually finishes, because the wraps that land in
+// between are the ones that would pay for it. See `promoteHead`.
 
 import { debugLog } from '../gpu/env'
 
@@ -364,7 +366,16 @@ export function promoteHead(
   // `HAVE_FUTURE_DATA`: parked, and with a frame at the in-point ready to show.
   // Anything less is a head that has not finished arriving, and promoting it
   // would trade a seek for a stall.
-  if (head === null || live === null || head.readyState < 3) return null
+  //
+  // **And `seeking` as well, because readyState alone does not mean *parked*.**
+  // A seek only drops readyState when the new position is outside the buffered
+  // range; on a `blob:`, which is the whole file, the position is always
+  // buffered and a decode-bound re-park can run to completion at
+  // `HAVE_ENOUGH_DATA` throughout. That is the case this is for — the element
+  // reads as ready, `currentTime` already reads back as the target, and the only
+  // thing that says the frame is not there yet is this flag.
+  if (head === null || live === null || head.readyState < 3 || head.seeking)
+    return null
   slot.head.current = live
   slot.ref.current = head
   // Muted before it is left, adopted after it is taken: `routeAudio` only knows
@@ -373,24 +384,47 @@ export function promoteHead(
   live.pause()
   live.muted = true
   slot.adopt()
-  void head.play().catch(() => {})
+  // A rejected `play()` is an autoplay block, and it leaves this slot showing one
+  // frame: the promoted element is on air and paused at the in-point, so
+  // `currentTime` never reaches `end` and there is no next wrap to recover at.
+  // The element is loaded and on air, so the user's next gesture rolls it — the
+  // same contract `roll` has — but nothing else says what happened, and a slot
+  // frozen at its in-point is exactly what someone would come to the console
+  // about.
+  void head.play().catch(() => debugLog('DEBUG loop head promoted but blocked'))
   // The outgoing head goes back to the in-point now, so it has the whole lap to
   // finish a seek the wrap would otherwise have waited on.
   //
-  // **And the lap is the deadline, timed here.** A re-park that does not fit
-  // cannot ever be ready when it is wanted, so leaving it armed means two
-  // elements seeking the same file against each other on every lap — measured as
-  // five times the dropout on half as many laps, which is worse than the seek
-  // this was built to avoid. One overrun retires the head; a fresh cue press
-  // arms a new one, which is the only thing that could have changed the answer.
-  const began = performance.now()
+  // **And the lap is the deadline, held by a timer rather than measured after
+  // the fact.** A re-park that does not fit cannot ever be ready when it is
+  // wanted, so leaving it armed means two elements seeking the same file against
+  // each other on every lap — measured as five times the dropout on half as many
+  // laps, which is worse than the seek this was built to avoid.
+  //
+  // The first cut of this checked the elapsed time inside `seeked`, which is a
+  // measurement and not a deadline: it cannot fire until the re-park finishes, so
+  // an overrun stayed armed for the whole of its own overrun — every wrap in that
+  // span finding a head that was not ready and seeking against it, which is the
+  // contention it exists to stop. And a re-park that never completes at all — a
+  // decoder that gives up, a url that stops delivering — never fired it, so the
+  // one case with no bound on it was the one nothing retired.
+  //
+  // A fresh cue press arms a new head, which is the only thing that could have
+  // changed the answer.
   const onSeeked = () => {
     live.removeEventListener('seeked', onSeeked)
-    const took = performance.now() - began
-    if (took <= (end - start) * 1000 || slot.head.current !== live) return
-    debugLog('DEBUG loop head dropped: re-park', Math.round(took), 'ms')
-    dropHead(slot)
+    clearTimeout(deadline)
   }
+  const deadline = setTimeout(
+    () => {
+      live.removeEventListener('seeked', onSeeked)
+      // Something else already retired or replaced it; that decision stands.
+      if (slot.head.current !== live) return
+      debugLog('DEBUG loop head dropped: re-park outlasted its lap')
+      dropHead(slot)
+    },
+    (end - start) * 1000,
+  )
   live.addEventListener('seeked', onSeeked)
   live.currentTime = start
   return head

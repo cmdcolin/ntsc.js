@@ -740,11 +740,19 @@ the design above.
   Where the outgoing head cannot re-park within one lap, both elements seek the
   same expensive file at once: 1028 ms of dropout on half the laps in place of
   213 ms on all of them — a better median, a worse sound, and a shape that reads
-  as fine if you look at the wrong number. So the re-park is timed against its
-  own lap and an overrun retires the head for the life of the cue. There is no
+  as fine if you look at the wrong number. So the re-park is held against its own
+  lap and an overrun retires the head for the life of the cue. There is no
   minimum-lap constant, because whether a head can keep up is a question about
   the clip and the loop together that the first lap answers and no threshold
   written here could.
+
+  **A deadline and not a stopwatch**, which is the correction the first fix
+  needed in its turn. Checking the elapsed time inside `seeked` cannot fire until
+  the re-park finishes, so an overrun stayed armed for the whole of its own
+  overrun — and every wrap in that span found a head that was not ready and
+  seeked against it, which is the contention being retired for. Worse, a re-park
+  that never completes at all never fired the check, so the one case with no
+  bound on it was the one nothing retired. A timer armed at the lap catches both.
 - **The promotion deliberately does not go through `setVideoSource`.** That is a
   source change, and `retarget` clears the region on purpose — a loop routed
   through it ends at its first lap. The pump asks for an element and installs it
