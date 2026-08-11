@@ -36,6 +36,38 @@ different Graphviz build emits different SVG).
 ## Verification harness
 
 ```
+pnpm harnesses 5199                    # every browser check, one line each
+pnpm harnesses 5199 --skip poolcheck   # …without the live one
+```
+
+**Thirteen harnesses, 5m49s**, measured on this box — which is the number that
+decides whether anyone actually runs it, so it is worth keeping honest here as
+it moves. Most of that is two: `cuecheck` at 92s launches a fresh browser per
+arm on purpose, and `panelcheck` at 49s walks the whole panel.
+
+Start here, because **none of the harnesses below runs in CI**. The workflow
+does lint, format, the compiler gate, typecheck, the unit suite and the build;
+every browser check needs Firefox Nightly with WebGPU, which the runner has not
+got. So a harness can stop working and nothing says so, which is not
+hypothetical: `poolcheck` — the only coverage of the two live archives — spent
+an unknown number of commits failing all twenty-six of its checks, and
+`composecheck` spent them reading the chain map's zoom slider and reporting a
+CSS layer as broken that was fine. Both were found by accident. The sweep is
+what makes that a line in a list instead.
+
+The first full run after fixing those two came back **13/13 green**, which is
+the useful thing to know about it: those two were the only dead ones, so this is
+a gate to keep rather than a pile of work to do.
+
+It runs each check against one dev server and reports its exit code. What it
+leaves out is deliberate and the file says why: the device-torture harnesses
+(they break a GPU device on purpose), the generators (they write files rather
+than judge), the two checks that need no server and already run in CI, and the
+measurements, which report numbers rather than a verdict. `poolcheck` runs last
+and is marked, because it is the one entry that can fail for a reason that is
+nobody's bug.
+
+```
 node scripts/shot.mjs http://localhost:5199/ out.png [waitMs]
 ```
 
