@@ -2,6 +2,79 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.26.0](https://github.com/cmdcolin/ntsc.js/compare/v0.25.7...v0.26.0) - 2026-08-11
+
+### Features
+- *(midi)* [`3360b7a`](https://github.com/cmdcolin/ntsc.js/commit/3360b7a58f4c79629585a55b3dcb9cf408abfdab) give notes a binding family of their own
+- *(ui)* [`ddbb224`](https://github.com/cmdcolin/ntsc.js/commit/ddbb22444d0f064327899c7a3f3ffe9a9aff36ce) put fire-all on a key, and write the pads up
+- *(ui)* [`404418b`](https://github.com/cmdcolin/ntsc.js/commit/404418b20d0e23220537911caf5fd2c06c3f4fce) the rundown, and the walk down it
+- *(ui)* [`75189d1`](https://github.com/cmdcolin/ntsc.js/commit/75189d1e3d2b1ae3bd18eedee98308a9f34fad23) run the walk — the sink, the driver, and one apply for both callers
+- *(ui)* [`3cc4f59`](https://github.com/cmdcolin/ntsc.js/commit/3cc4f59ea077b790d80bc8fa27009dbee801d4dc) the tray — a rundown under the picture
+- *(ui)* [`7ea6e76`](https://github.com/cmdcolin/ntsc.js/commit/7ea6e769afcb1b0c5c64f35ffe43b19700859940) let a row carry a name
+- *(ui)* [`3f6256e`](https://github.com/cmdcolin/ntsc.js/commit/3f6256e06a0bde7def20df54cce9d9e183ae6465) make the rundown safe to edit — undo, duplicate, shake rows
+- *(ui)* [`dc47294`](https://github.com/cmdcolin/ntsc.js/commit/dc4729464abddfa97e5e9ef18aefbce1f7cc9415) play the rundown and the track together
+- *(ui)* [`15d7bb3`](https://github.com/cmdcolin/ntsc.js/commit/15d7bb3f6e2755af05854a71ed43ec89edfb6a88) a constant-framerate MP4, instead of a wall-clock WebM
+- *(gpu)* [`aa850c0`](https://github.com/cmdcolin/ntsc.js/commit/aa850c0698ab1cc0dbad2b9537c4c7a2cb283a1d) count time in frames, so frame N is a function of N
+- *(ui)* [`447d029`](https://github.com/cmdcolin/ntsc.js/commit/447d0299e6d9a1d078dc397abec5c38c89e57fcd) render a take offline, on frames the render owns
+- *(ui)* [`eff8f42`](https://github.com/cmdcolin/ntsc.js/commit/eff8f429796b2504ab8de6e589635303b78cc23b) a render button, so the offline render has a way in
+- *(gpu)* [`9cf23ca`](https://github.com/cmdcolin/ntsc.js/commit/9cf23cab3e6fcfe42388b4bf2d0e24e61947d507) a take starts from a known state, so a render reproduces
+- *(ui)* [`9e0d76c`](https://github.com/cmdcolin/ntsc.js/commit/9e0d76cd1f751ab3946c72e66c0b60515351ed06) the transition shelf — a fault that resolves, not a drawn wipe
+- *(ui)* [`f1395f0`](https://github.com/cmdcolin/ntsc.js/commit/f1395f07fec089e472f1cc54360e24e9cc8a2b60) render the rundown, not just the board — the strip's offline walk
+- *(ui)* [`81ea1fd`](https://github.com/cmdcolin/ntsc.js/commit/81ea1fd92aafcc9fe836ab45c89e6184d509f6f8) preroll depth 1 — load the next clip during this one
+- *(ui)* [`72bb405`](https://github.com/cmdcolin/ntsc.js/commit/72bb405ba8cee42253075662b1982ff71472b3a4) transitions between rows — a row arrives behind a fault
+- *(ui)* [`c1813fd`](https://github.com/cmdcolin/ntsc.js/commit/c1813fd5e4ac52a4d7aad20156978bf66bb45b40) a loop's second read head — wrap by changing elements, not seeking
+
+### Fixes
+- *(ui)* [`44d1434`](https://github.com/cmdcolin/ntsc.js/commit/44d143462d20d1d1419f7ef77608dc32c4010084) keep a search that only reaches a loop or a branch
+- *(ui)* [`b5f6bb4`](https://github.com/cmdcolin/ntsc.js/commit/b5f6bb4aa1cf4a4cdbd5e49313238b406269b036) say which box to press when a search lands on a dead branch
+- *(ui)* [`0ede3c9`](https://github.com/cmdcolin/ntsc.js/commit/0ede3c92360f4686b409d2248f7bb632585715b0) don't wait on animation frames a tab has stopped delivering
+- *(ui)* [`93328b7`](https://github.com/cmdcolin/ntsc.js/commit/93328b73f4cca115ff0b00584ecfae6c35ea12df) a row with no transition arrives plainly, not behind an undefined one
+- *(ui)* [`ac2b63e`](https://github.com/cmdcolin/ntsc.js/commit/ac2b63ea29f232630ad6759622bc1088ad8925c9) a transition defers the row's whole step, not only its session
+- *(ui)* [`debc230`](https://github.com/cmdcolin/ntsc.js/commit/debc23064e8736e98125a985cfcb36a269062a66) a pending cut goes stale when the walk moves under it
+- *(ui)* [`a08127f`](https://github.com/cmdcolin/ntsc.js/commit/a08127f7f1860b4dd34dfbbf16c7708b828100ca) the transition chip is one glyph, so the ✕ stays on the card
+- *(ui)* [`e460743`](https://github.com/cmdcolin/ntsc.js/commit/e460743691c8cdd4352114e8c02150a86d9c725a) the speed slider reaches the loop's second read head too
+- *(ui)* [`b2ddcb0`](https://github.com/cmdcolin/ntsc.js/commit/b2ddcb0c1f8a7d7491de7d66571bb47de50be874) hold a re-park against its lap with a deadline, not a stopwatch
+- *(gpu)* [`f5b18d1`](https://github.com/cmdcolin/ntsc.js/commit/f5b18d1d564791fd839853674c7ca213c49234fa) a relayed wrap clears the health window, so the cue row means now
+
+### Refactor
+- *(ui)* [`320d476`](https://github.com/cmdcolin/ntsc.js/commit/320d476a81326288d364b27d080ab0e3ce1f9f3a) move the palette's verb list out of App
+- *(ui)* [`d520a08`](https://github.com/cmdcolin/ntsc.js/commit/d520a089a14290810d6f991fcff67202bfb8d495) one press rule for both drawings' loop runs
+- *(ui)* [`6f4756c`](https://github.com/cmdcolin/ntsc.js/commit/6f4756c7c33d8bdfa2a07a42c8c89d22193fa8be) one hold, for the two things that park at zero
+- *(ui)* [`4e30a8d`](https://github.com/cmdcolin/ntsc.js/commit/4e30a8daf085098a4acdf28718eb8cf48aa49ebd) one preset chip, not two whole buttons
+- [`39e76f9`](https://github.com/cmdcolin/ntsc.js/commit/39e76f9011596b0453c8ef7e3dd79a2bf60649e3) one home for randomness a take can be asked to repeat
+- *(ui)* [`4c515dc`](https://github.com/cmdcolin/ntsc.js/commit/4c515dc54c23f6e76593f2fc1f2e68a246c4ba28) the loop bin is not the Tape stage, so stop calling it one
+- *(ui)* [`4398ef9`](https://github.com/cmdcolin/ntsc.js/commit/4398ef9ed1a6ca3e023a046b7e690ceaba9e4c25) delay loop — the machine this models, named for what it is
+
+### Documentation
+- [`ba02f85`](https://github.com/cmdcolin/ntsc.js/commit/ba02f85b131680b849b6e88e20809ad9cad55637) decline the NLE plugin, and say what the portable part was
+- [`6a39d7c`](https://github.com/cmdcolin/ntsc.js/commit/6a39d7c1c28aaef21399f8f7154dd205db81036b) gather the editor work into one document, and design its transitions
+- *(ui)* [`b642640`](https://github.com/cmdcolin/ntsc.js/commit/b64264086c90328dc50fb42add18858a7a39c415) design the editor into the app, and rule out a page of its own
+- *(ui)* [`f87fe3e`](https://github.com/cmdcolin/ntsc.js/commit/f87fe3ed16c9c74e0a364f160eeebad5ef50c7bb) settle the strip's React shape before a component exists
+- [`ccb31cc`](https://github.com/cmdcolin/ntsc.js/commit/ccb31cc15228b105ac353f648658255973a5d2b6) say what to build next, from having built the rest
+- [`fc71e24`](https://github.com/cmdcolin/ntsc.js/commit/fc71e24908f119856b900ce9ca2d83084f730a42) write up take state, and make the seeding rule an ADR
+- [`f3c1842`](https://github.com/cmdcolin/ntsc.js/commit/f3c1842b1e8653becd6261fe2d9710e3958362f1) say what the harness floor actually was
+- [`cd706d0`](https://github.com/cmdcolin/ntsc.js/commit/cd706d0e78313544807e637c8591005e4bf5d819) the loop's wrap is a half-second dropout, not a click
+- [`5471636`](https://github.com/cmdcolin/ntsc.js/commit/5471636379f3af55a4bf3c708b7716f955bc31c4) the wrap's dropout is the seek, measured rather than inferred
+- [`33454e1`](https://github.com/cmdcolin/ntsc.js/commit/33454e1c36e2303af57406697a2d47b65b0ff721) the second read head landed, and what it corrected on the way
+- *(editor)* [`31b0847`](https://github.com/cmdcolin/ntsc.js/commit/31b0847eedbf78996c8666a2b50beabe4df13922) the crossfade's mechanism landed; the crossfade did not
+
+### Style
+- *(docs)* [`77c2c63`](https://github.com/cmdcolin/ntsc.js/commit/77c2c63eea69bdf9fe910fca7eb9f58dd029521a) run the formatter, so CI gets past its first gate
+
+### Tests
+- *(midi)* [`bc6a376`](https://github.com/cmdcolin/ntsc.js/commit/bc6a376a4ea1b427a34d3d8c89e349737619e8f4) drive the note path, and unrot the rest of midicheck
+- *(ui)* [`7472964`](https://github.com/cmdcolin/ntsc.js/commit/747296460c35ee0256537a2cae1b8d58ad2dc9d0) make faultcheck cheap enough to finish, and honest about its floor
+- *(ui)* [`5e43dbd`](https://github.com/cmdcolin/ntsc.js/commit/5e43dbd5151be5d436557d13d79646f07bc21081) traycheck waits for answers instead of sleeping past them
+- [`99db0aa`](https://github.com/cmdcolin/ntsc.js/commit/99db0aab76890c58c57c9c3759e5682cfc2d8038) harnesses wait for the app and the archives, not for a duration
+- [`cb398bc`](https://github.com/cmdcolin/ntsc.js/commit/cb398bcffe816bcf57833dd84a3c4abbabc7dd51) two harnesses learn that the panel mounts one stage at a time
+- [`1dd7425`](https://github.com/cmdcolin/ntsc.js/commit/1dd7425202e865c2f889b6edf5cc1d17d86b349d) one command that runs every browser harness, because CI cannot
+- [`719b921`](https://github.com/cmdcolin/ntsc.js/commit/719b921f7ef8fb7629917ebe290feac40f538d15) a harness says when its window stopped being drawn
+- *(audio)* [`407e006`](https://github.com/cmdcolin/ntsc.js/commit/407e0067ae5cb296d9bd866d354cafdf0b6602e6) listen to a loop's wrap instead of inferring it from the seek
+- *(ui)* [`00a6c61`](https://github.com/cmdcolin/ntsc.js/commit/00a6c61695338381322b770b249f39fc110d35ae) ?loophead=0 puts the seeking wrap back, so the A/B is one run
+- *(audio)* [`c505a0c`](https://github.com/cmdcolin/ntsc.js/commit/c505a0c724aa31750fdd9ec9fc133c862c9f35a2) assert the direction, not a band, when comparing the two clocks
+- *(ui)* [`6f652d4`](https://github.com/cmdcolin/ntsc.js/commit/6f652d49b99d9ee2d90270b51a871ad7bc908c61) prerollcheck's slot double gains the second read head's field
+- *(ui)* [`35023a3`](https://github.com/cmdcolin/ntsc.js/commit/35023a3f619d922664d2b6984ec43d05c822e1a7) the read head's ordering, in vitest rather than only in a browser
+
 ## [0.25.7](https://github.com/cmdcolin/ntsc.js/compare/v0.25.6...v0.25.7) - 2026-08-10
 
 ### Fixes
