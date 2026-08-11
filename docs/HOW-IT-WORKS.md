@@ -1,7 +1,7 @@
 # How it works
 
-The whole program is one array of numbers and a chain of small GPU programs
-that rewrite it.
+The whole program is one array of numbers and a chain of small GPU programs that
+rewrite it.
 
 ## The array
 
@@ -45,9 +45,9 @@ each writes only its own `dst[n]`.
 cp.dispatchWorkgroups(Math.ceil(910 / 64), 525)
 ```
 
-Those are the bounds of the loop, and they come back as `gid`. Threads launch
-in fixed blocks of 64, so 15 blocks per line covers 910 samples with 50 to
-spare — hence the `if (s >= SPL) { return; }` in every shader.
+Those are the bounds of the loop, and they come back as `gid`. Threads launch in
+fixed blocks of 64, so 15 blocks per line covers 910 samples with 50 to spare —
+hence the `if (s >= SPL) { return; }` in every shader.
 
 ## The chain
 

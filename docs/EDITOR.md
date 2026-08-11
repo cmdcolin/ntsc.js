@@ -80,19 +80,19 @@ integration strategy.
 ## What this is not either: a second page
 
 The other version of "put it somewhere else" is closer to home and more
-tempting, because it is true as far as it goes: the live app is already dense,
-a rundown is a lot of new surface, and this repo has a second entry point
-already. Still no. One document, and three of the reasons are load-bearing
-rather than preferences.
+tempting, because it is true as far as it goes: the live app is already dense, a
+rundown is a lot of new surface, and this repo has a second entry point already.
+Still no. One document, and three of the reasons are load-bearing rather than
+preferences.
 
 **The strip writes; it does not view.** Every row it fires goes through funnels
-the live app owns — `writeControls` / `startGlide` for the look,
-`selectSource` / `loadClip` / `showRef` for the source, `setVideoRegion` for the
-cue. A second page needs a second engine, and around it a second copy of
-`useEngine`'s two thousand lines of source loading, plus the bay, the tempo and
-the MIDI wiring. That is a fork of the app wearing a second URL, and two copies
-of one contract drift — which is the argument `slotView.ts` already makes about
-a much smaller duplication.
+the live app owns — `writeControls` / `startGlide` for the look, `selectSource`
+/ `loadClip` / `showRef` for the source, `setVideoRegion` for the cue. A second
+page needs a second engine, and around it a second copy of `useEngine`'s two
+thousand lines of source loading, plus the bay, the tempo and the MIDI wiring.
+That is a fork of the app wearing a second URL, and two copies of one contract
+drift — which is the argument `slotView.ts` already makes about a much smaller
+duplication.
 
 **`vote.html` is the counter-example, and it states the test.** The second entry
 in `vite.config.ts` exists on an explicit condition — "nothing in it should cost
@@ -111,12 +111,12 @@ one walk across two documents — see _One walk, two clocks_, which is the thing
 the whole design is arranged around.
 
 What the worry is actually about is screen space, and the app already answers
-that. `usePopout` opens a same-origin window and portals the panel into it:
-same React tree, same engine store, same MIDI, no message plumbing, because the
-JS heap is shared. A strip that wants its own screen gets one from a mechanism
-that exists, and the arrangement it enables is the right one here — picture on
-the projector, rundown on the laptop. The strip is a better popout candidate
-than the panel is.
+that. `usePopout` opens a same-origin window and portals the panel into it: same
+React tree, same engine store, same MIDI, no message plumbing, because the JS
+heap is shared. A strip that wants its own screen gets one from a mechanism that
+exists, and the arrangement it enables is the right one here — picture on the
+projector, rundown on the laptop. The strip is a better popout candidate than
+the panel is.
 
 So the live/edit tension is a **mode, not a page**: tray shut, the app is what
 it is today to the byte. That is the property worth holding, and it is cheaper
@@ -281,9 +281,9 @@ clip on air, so the ceiling this section argues for is not one the two share.
 `videoSlot.ts` holds two elements, `strip.ts` looks one row ahead, and the two
 meet at `playUrl` — which every clip load in the app already came through, so
 the picker, a pool pick, a link's `?vurl` and a strip row all spend a preroll
-without knowing it exists. `scripts/prerollcheck.mjs` measures the cut at
-**9ms warm against 58ms cold**, on a small file over localhost, which is the
-least favourable case there is: over a network the gap is the network.
+without knowing it exists. `scripts/prerollcheck.mjs` measures the cut at **9ms
+warm against 58ms cold**, on a small file over localhost, which is the least
+favourable case there is: over a network the gap is the network.
 
 Four things worth knowing about how it landed.
 
@@ -303,14 +303,14 @@ Four things worth knowing about how it landed.
   resolves the two that can be named: an explicit `?vurl`, and a bundled clip
   id, which is a url on the slot's side of the boundary.
 - **`stopSlot` deliberately leaves a parked element alone.** The load paths stop
-  the slot and *then* call `playUrl`, so a `stopSlot` that retired the next
+  the slot and _then_ call `playUrl`, so a `stopSlot` that retired the next
   element would destroy it a line before the cut it was loaded for. What bounds
   it is the one-field rule above rather than that call.
 
-Both things filed as waiting on this have landed: **transitions between rows** is
-written up below, and **the second read head** the crossfade was filed under is
-IDEAS.md › _Landed: the second read head_ — which took the mechanism from here
-and not the field, for the reason above.
+Both things filed as waiting on this have landed: **transitions between rows**
+is written up below, and **the second read head** the crossfade was filed under
+is IDEAS.md › _Landed: the second read head_ — which took the mechanism from
+here and not the field, for the reason above.
 
 What that leaves is smaller than the entry it closes, and IDEAS.md says so:
 removing the seek removed the _dropout_, and the join is now a hard splice
@@ -359,17 +359,17 @@ names a pool resolves it from the take's generator rather than from
 **And the signal path rolls too**, which this section did not say and _Take
 state_ found: `MixState` and `TapeState` reached for `Math.random` from inside
 the frame, through the `Wow` each owns, so a vhs board re-rendered differently
-every time however clean frame zero was. Both take a trailing `rand` now, on
-the same convention, and the engine hands all of them — those two, `LineState`,
-and the bay's random walk and sample-hold — one generator seeded per take.
+every time however clean frame zero was. Both take a trailing `rand` now, on the
+same convention, and the engine hands all of them — those two, `LineState`, and
+the bay's random walk and sample-hold — one generator seeded per take.
 
 What that does **not** buy, and the code says so at both call sites: **the same
 seed does not hand back the same file.** Commons rolls with `gsrsort=random`, so
 which twelve candidates come back is the server's choice; archive.org's
-within-page ordering is upstream's too. A seed reproduces this app's
-_decisions_ — which pool, which page, which of the candidates — and the recorded
-`PoolRef` reproduces the _file_. Which is why the rule is a seed **plus** the
-resolved picks, and never either one alone.
+within-page ordering is upstream's too. A seed reproduces this app's _decisions_
+— which pool, which page, which of the candidates — and the recorded `PoolRef`
+reproduces the _file_. Which is why the rule is a seed **plus** the resolved
+picks, and never either one alone.
 
 This rule is [adr/0006](adr/0006-a-take-is-a-seed-and-its-picks.md), because it
 is the one a later reader would otherwise be within their rights to simplify
@@ -395,7 +395,7 @@ the rolls are reproducible.
 `advance` already took a `Clock` and never cared where the frame came from,
 `runStep` already turned a step into calls, and _Take state_ made frame zero the
 same frame zero every time. So the difference between a performance and a render
-really is only *what advances the frame* — rAF reading the engine's counter, or
+really is only _what advances the frame_ — rAF reading the engine's counter, or
 `renderTake`'s own loop through a new `onFrame` hook. `scripts/rendercheck.mjs`
 renders a three-row rundown twice and gets one file, with a bare render of the
 same take as the control arm.
@@ -405,9 +405,9 @@ Three things worth knowing about the shape it landed in.
 - **The offline walk keeps its own place, and the live one is stopped.** A
   render is not a performance: pressing ⎙ stops the tray's walk and starts a
   fresh one at the top, so a take begun mid-set does not inherit where the set
-  had got to and finishing one does not move it. What the two share is the
-  sink — a rendered take asks the browser for exactly what a performed one
-  does, which is the whole of "one walk".
+  had got to and finishing one does not move it. What the two share is the sink
+  — a rendered take asks the browser for exactly what a performed one does,
+  which is the whole of "one walk".
 - **`onFrame` fires before the step, not after.** A row applied after the engine
   stepped would be a cut landing one frame late, every time and in the same
   direction, which is precisely the error no assertion about frame rate would
@@ -433,23 +433,23 @@ carries out what it says.
 
 - `ui/strip.ts` — **landed.** The row type, the codec, and
   `advance(strip, walk, clock) → { walk, effects } | null`. One pure function:
-  given a rundown, where the walk is and what frame it is, what changes.
-  Effects are a small union, never engine calls.
+  given a rundown, where the walk is and what frame it is, what changes. Effects
+  are a small union, never engine calls.
 - `ui/stripRun.ts` — **landed.** The interpreter: one effect against a
   `StripSink`. Plain functions, no React, so a fake sink tests the whole walk
   end to end and the offline render reuses it rather than reimplementing it.
-- `ui/useStrip.ts` — **landed.** The driver, in two halves:
-  `makeStripRunner()`, a plain object holding the rundown, the walk and the
-  subscriptions, and the thin hook over it. Only the hook needs a browser, and
-  it holds the only effects in the feature.
+- `ui/useStrip.ts` — **landed.** The driver, in two halves: `makeStripRunner()`,
+  a plain object holding the rundown, the walk and the subscriptions, and the
+  thin hook over it. Only the hook needs a browser, and it holds the only
+  effects in the feature.
 - `ui/StripContext.ts` — the contexts, split on the rule below.
 - `ui/transitions.ts` — the shelf as a table (below). Pure.
 - `ui/StripTray.tsx`, `ui/StripRow.tsx` — the surface, on the pointer drags
-  _Interaction_ names. The shell in `app.module.css` currently sets `.stage`
-  and `.panel` side by side as one flex row; the tray puts the stage in a
-  column with the tray under it, and the panel is untouched. Not a section
-  _in_ the panel: a rundown does not fit 332px, and the tray is where a hand
-  works during a take rather than where a circuit is dialed in.
+  _Interaction_ names. The shell in `app.module.css` currently sets `.stage` and
+  `.panel` side by side as one flex row; the tray puts the stage in a column
+  with the tray under it, and the panel is untouched. Not a section _in_ the
+  panel: a rundown does not fit 332px, and the tray is where a hand works during
+  a take rather than where a circuit is dialed in.
 - `rng.ts` — the seeded generator and the two pickers over it, landed already
   (see _Seeding_). The strip's own seed is the only new caller.
 
@@ -471,9 +471,9 @@ both receipts are in the tree.
 `controls` object on the API changed identity on every write, so every consumer
 re-rendered no matter what the compiler had memoized — 19 ms of React per slider
 write with all the rows mounted, which is past a frame and dropped one off the
-WebGPU loop per pointer move. The fix was to split what *moves* (a
-subscribe/get `ControlStore`, read through `useSyncExternalStore`) from what is
-*stable* (`ControlsApi`, whose every member keeps its identity across a write).
+WebGPU loop per pointer move. The fix was to split what _moves_ (a subscribe/get
+`ControlStore`, read through `useSyncExternalStore`) from what is _stable_
+(`ControlsApi`, whose every member keeps its identity across a write).
 `ModSlotsContext.ts` is the same rule from the other side: it stays one plain
 context, with no store, precisely because a bay changes when a hand patches it
 rather than at frame rate — and it is a separate context from the controls
@@ -496,35 +496,34 @@ The strip has three clocks, so it gets three homes and not one big
 **The compiler decides where the walk lives, and it is not `useState`.** The
 obvious spelling of the driver keeps the walk in state and mirrors it into a ref
 for the rAF closure to read. Writing a ref during render is one of exactly two
-patterns that make React Compiler give up on a hook *silently*, and quieting the
+patterns that make React Compiler give up on a hook _silently_, and quieting the
 resulting dependency warning with `eslint-disable` is worse — it skips
-optimisation for the whole hook. Both were tried here and `pnpm compiler`
-caught both, which is what that gate is for. So the runner is a plain object
-outside React, handed to `useState` once and read through
-`useSyncExternalStore`: the same answer `ControlStore` and `MorphStore` already
-reached. The side benefit is the one that matters longer — a driver that is not
-a hook is a driver a test can drive, and the walk's own logic is covered without
-a DOM.
+optimisation for the whole hook. Both were tried here and `pnpm compiler` caught
+both, which is what that gate is for. So the runner is a plain object outside
+React, handed to `useState` once and read through `useSyncExternalStore`: the
+same answer `ControlStore` and `MorphStore` already reached. The side benefit is
+the one that matters longer — a driver that is not a hook is a driver a test can
+drive, and the walk's own logic is covered without a DOM.
 
 **The driver is the only effect.** `useStrip` synchronises with things outside
 React — the engine's frame counter, and the async work a roll starts — which is
 what an effect is for. Nothing else in the feature is. In particular, three
-things that will look like effects and must not become them: the hold's
-progress is *derived* from the walk and the frame, not state kept in step with
-them; a row card's "am I live" is a comparison during render, not state; and
-persisting the strip belongs in the verb that changed it, the way `useTempo`
-already writes its tempo in `write()` rather than in an effect watching it. An
-effect that mirrors state into other state is the failure mode this app has
-been careful to avoid, and a feature this size is where it would creep in.
+things that will look like effects and must not become them: the hold's progress
+is _derived_ from the walk and the frame, not state kept in step with them; a
+row card's "am I live" is a comparison during render, not state; and persisting
+the strip belongs in the verb that changed it, the way `useTempo` already writes
+its tempo in `write()` rather than in an effect watching it. An effect that
+mirrors state into other state is the failure mode this app has been careful to
+avoid, and a feature this size is where it would creep in.
 
-**Effects as data is what keeps the additions cheap.** Everything on the
-roadmap — preroll, the fault shelf, takes, per-row MIDI, the offline render —
-lands as a variant on `Effect` and an arm in `stripRun`'s switch, with
-`advance` deciding when. The offline renderer is then a second caller of the
-same two functions with a different `Clock` and a different sink, rather than a
-parallel implementation that drifts. That is the whole reason `advance` returns
-a list instead of calling the engine, and it is worth defending when the first
-"it would be simpler to just call it here" arrives.
+**Effects as data is what keeps the additions cheap.** Everything on the roadmap
+— preroll, the fault shelf, takes, per-row MIDI, the offline render — lands as a
+variant on `Effect` and an arm in `stripRun`'s switch, with `advance` deciding
+when. The offline renderer is then a second caller of the same two functions
+with a different `Clock` and a different sink, rather than a parallel
+implementation that drifts. That is the whole reason `advance` returns a list
+instead of calling the engine, and it is worth defending when the first "it
+would be simpler to just call it here" arrives.
 
 The corollary is worth saying out loud, because it will read as a missing
 feature: **the walk has no seek.** Row N depends on every row before it — a
@@ -605,19 +604,19 @@ Two of the five predictions in it were wrong, and both in the same direction.
 
 - **"A table of named recipes over existing controls" undersold the table.** Two
   of the five recipes as written here did nothing. `hHold`/`vHold` past the
-  capture range rolls a picture only if there is something to roll *to* — an
+  capture range rolls a picture only if there is something to roll _to_ — an
   oscillator free-running at exactly 60 sits still however completely it wins,
   so `vFreqHz` is the key that makes the mechanism bite and it is not named
   above. And `dubGens` ramped 1→4→1 compounds damage rather than inventing it:
   four passes over a clean board is four times nothing. Both measured at
   0.4-0.6/255 from rest by `scripts/faultcheck.mjs` — transitions that
-  transitioned nothing — and both were fixed by naming the rest of the
-  mechanism rather than by turning anything up.
+  transitioned nothing — and both were fixed by naming the rest of the mechanism
+  rather than by turning anything up.
 - **Duration is per entry, not a rate control.** This section says "borrow
   `MORPH_SECONDS`", and the deck's own take rate was the obvious hand to put it
   in. Both are wrong for the same reason the taste note above is right: a raster
-  takes about a second to collapse and reopen, three generations of dub need
-  two and a half to read as wear rather than as a glitch, and a rolling picture
+  takes about a second to collapse and reopen, three generations of dub need two
+  and a half to read as wear rather than as a glitch, and a rolling picture
   stops being a transition after one. A single thumbwheel over all five is a
   knob whose good setting changes with the button next to it. It also makes a
   bound pad fire exactly what the button fires, with no deck-local state a pad
@@ -626,10 +625,11 @@ Two of the five predictions in it were wrong, and both in the same direction.
 And one thing it was right about without saying why. **The picture resolves
 after the board does.** The fault is handed back inside the frame it ran — the
 resting board is untouched, which is the invariant the whole design rests on —
-but the phosphor is still holding the band, the delay loop has recorded the broken
-frames, and the PLL is still walking its lock back. So a transition ends as a
-receiver recovering rather than as an effect switching off, which is the half of
-"a fault that resolves" that no recipe writes down and no NLE can composite.
+but the phosphor is still holding the band, the delay loop has recorded the
+broken frames, and the PLL is still walking its lock back. So a transition ends
+as a receiver recovering rather than as an effect switching off, which is the
+half of "a fault that resolves" that no recipe writes down and no NLE can
+composite.
 
 #### Landed: between rows
 
@@ -639,9 +639,9 @@ plain row does it when the row fires; a transition row hands the engine a fault
 whose `onCut` does it, so the source swaps on the frame the picture is least
 legible and the fault heals onto the new clip.
 
-`scripts/faultcheck.mjs` measures exactly that: `fired@0 cut@30 session@30
-preroll@30`, which is a one-second `collapse` cutting at 0.5 with the row's
-whole step arriving thirty frames after the row did.
+`scripts/faultcheck.mjs` measures exactly that:
+`fired@0 cut@30 session@30 preroll@30`, which is a one-second `collapse` cutting
+at 0.5 with the row's whole step arriving thirty frames after the row did.
 
 - **One `onCut`, two cuts.** Off the deck a transition throws the T-bar; off a
   row it runs the row's step. Same fault, same plan, same `faultPlan` — which
@@ -659,15 +659,16 @@ whole step arriving thirty frames after the row did.
   on a perfectly ordinary row. So each shelf entry carries a one-character
   `glyph` for the card and keeps its `label` for the deck, which is the
   arrangement the `.kind` chip beside it already uses — one character, words in
-  the title. One character *each* is the other half: a chip that resized as the
+  the title. One character _each_ is the other half: a chip that resized as the
   ring stepped moved the ✎ and the ⧉ under the pointer that was stepping it,
   which is the rule the card's own rename field already states.
 
-  Worth keeping, because it is about the harness and not the feature: naming
-  the controls `data-act` made `traycheck.mjs` robust to layout edits and, in
-  the same stroke, blind to this. `element.click()` does no hit-testing, so it
-  reaches a button a hand cannot. The tray harness now *measures* one thing
+  Worth keeping, because it is about the harness and not the feature: naming the
+  controls `data-act` made `traycheck.mjs` robust to layout edits and, in the
+  same stroke, blind to this. `element.click()` does no hit-testing, so it
+  reaches a button a hand cannot. The tray harness now _measures_ one thing
   rather than clicking it — that every control on a card is inside the card.
+
 - **Preroll is what makes it land.** The row before loaded the clip and parked
   it, so the cut promotes an element rather than starting a load — the swap is a
   swap, which is what "a transition needs both clips live at once" meant.
@@ -675,10 +676,10 @@ whole step arriving thirty frames after the row did.
 **The fault defers the whole step, and the first cut of this shipped deferring
 only the session.** That reads like a detail and was three bugs, all from the
 same inversion: a row's other effects went on firing at the moment the row did,
-while the session they are supposed to depart *from* waited for the cut.
+while the session they are supposed to depart _from_ waited for the cut.
 
 - **A roll row stopped reproducing.** `applySession` re-rolls a `?src=…-random`
-  itself, so the late session kicked off an *unseeded* roll that took a fresher
+  itself, so the late session kicked off an _unseeded_ roll that took a fresher
   `beginLoad` token than the seeded one fired half a second earlier — and the
   later token wins. The take's own generator was drawn from and then overruled,
   which is precisely what [adr/0006](adr/0006-a-take-is-a-seed-and-its-picks.md)
@@ -688,7 +689,7 @@ while the session they are supposed to depart *from* waited for the cut.
   from.
 - **And every transition cut paid the cold price**, on exactly the rows preroll
   was built for. A slot parks one element and `prerollUrl` clears it, so a
-  transition row's lookahead retired its *own* parked clip a moment before the
+  transition row's lookahead retired its _own_ parked clip a moment before the
   cut that was going to promote it — `playUrl` then found no match and loaded
   from scratch. Worse than losing the 9ms-against-58ms: in an all-transition
   rundown every parked element was a whole file downloaded, decoded and dropped
@@ -709,15 +710,14 @@ rather than needing its own copy. **The fault itself is not cancelled**, and
 that distinction is the whole of it: a fault is a picture effect and should heal
 rather than vanish (the board is handed back by the frame that ran, so stopping
 one mid-flight is a jump), while the cut is a decision, and only decisions go
-out of date. The two
-things worth keeping from how it was found: the assertion that should have
-caught it pinned `['fault', 'roll']`, which was the right *order* in a list
-whose order had stopped meaning time; and the browser harness re-implemented
-`faultTo` inside itself rather than calling it, so it measured the engine's
-timing correctly and the app's wiring not at all.
+out of date. The two things worth keeping from how it was found: the assertion
+that should have caught it pinned `['fault', 'roll']`, which was the right
+_order_ in a list whose order had stopped meaning time; and the browser harness
+re-implemented `faultTo` inside itself rather than calling it, so it measured
+the engine's timing correctly and the app's wiring not at all.
 
 And one thing worth keeping that is about the harness rather than the feature.
-The card's chips and verbs were reached *positionally* by `traycheck.mjs`, so
+The card's chips and verbs were reached _positionally_ by `traycheck.mjs`, so
 adding one chip silently shifted three unrelated buttons — a run that deleted a
 row where it meant to rename one and reported it as five failures in features
 nothing had touched. They carry `data-act` names now. A harness that indexes a
@@ -786,8 +786,8 @@ worth recording.
 
 The transition shelf is deliberately not in either list, because it does not
 belong to the strip. A and B are both live today, so the first faults run off
-the T-bar and a MIDI pad with no rundown anywhere near them — build order, step
-3. By the time the strip can preroll, the shelf is a table it picks from.
+the T-bar and a MIDI pad with no rundown anywhere near them — build order,
+step 3. By the time the strip can preroll, the shelf is a table it picks from.
 
 ### What a first user will reach for and not find
 
@@ -816,6 +816,7 @@ neither was obvious from the design.
   thing was missing from the build order — that order was written about export
   and transitions, which are what a _finished_ piece needs rather than what
   making one needs.
+
 - **A file at the end.** Build order step 1 (`VideoEncoder` CFR) is still the
   answer, and it is now the only thing between a rundown that plays and a
   rundown somebody else can watch. `useCapture` still records wall-clock VFR.
@@ -901,6 +902,7 @@ So "render frame N" is nearly a pure function already. Four things are not.
   way, so the readers track the counter linearly rather than merely flipping at
   the end. The wall-clock arm is a control — if it finished too, the other arm
   would prove nothing.
+
 - **Live input has no offline meaning.** MIDI and mic/line audio can't be
   re-rendered. The interesting answer is not to stub them but to record the
   _automation_: capture control writes with frame stamps during a live take,
@@ -916,31 +918,31 @@ So "render frame N" is nearly a pure function already. Four things are not.
   muxer written for the one shape this needs (`ui/mp4.ts`) — CFR by
   construction, and indifferent to how long any frame took. ffprobe reports
   `r_frame_rate == avg_frame_rate == 60/1` on the result, which is what
-  constant-framerate *is* to everything downstream; `scripts/reccheck.mjs`
+  constant-framerate _is_ to everything downstream; `scripts/reccheck.mjs`
   asserts it against the real app.
 
   **Three things this paragraph got wrong**, all found by measuring:
 
   - **No `copyTextureToBuffer` is needed, and no offscreen target.**
-    `new VideoFrame(webgpuCanvas)` reads the canvas directly and comes back
-    BGRA and full of picture. The blank `toBlob` and the silent
-    `captureStream()` are real and still true — they are simply a different
-    path from WebCodecs. So the mirror-through-a-2D-canvas hack is deleted from
-    the recording path (the *still* grab still needs it, for the `toBlob`
-    reason), and the extra copy per frame goes with it.
+    `new VideoFrame(webgpuCanvas)` reads the canvas directly and comes back BGRA
+    and full of picture. The blank `toBlob` and the silent `captureStream()` are
+    real and still true — they are simply a different path from WebCodecs. So
+    the mirror-through-a-2D-canvas hack is deleted from the recording path (the
+    _still_ grab still needs it, for the `toBlob` reason), and the extra copy
+    per frame goes with it.
   - **This did not have to be Chrome-only.** Nightly has `VideoEncoder` and
     reports vp8, vp9, H.264 and AV1 all supported.
-  - **MP4 rather than WebM was not a free choice.** Resolve does not import
-    WebM at all and Premiere needs a plugin, so the container is the part that
+  - **MP4 rather than WebM was not a free choice.** Resolve does not import WebM
+    at all and Premiere needs a plugin, so the container is the part that
     decides whether "an editor will conform it" is true.
 
   And two browser faults worth knowing before anyone touches this:
 
   - **H.264 needs even dimensions**, and an ordinary window gives an odd one
-    (measured: 440x573). Firefox accepts the `configure` *and* the `encode`,
+    (measured: 440x573). Firefox accepts the `configure` _and_ the `encode`,
     then fails the whole encoder asynchronously on its error callback with
-    `NotSupportedError: Operation is not supported` and nothing naming the
-    size. `record.ts` rounds down and crops.
+    `NotSupportedError: Operation is not supported` and nothing naming the size.
+    `record.ts` rounds down and crops.
   - **Firefox's `decoderConfig.description` is a malformed avcC.** The reserved
     bits the spec fixes at 1 are left clear, and each parameter set carries a
     duplicate of its own NAL header byte. ffmpeg decoded the picture anyway but
@@ -986,8 +988,8 @@ engine where this one is inside it.
   take a trailing `rand` now, which is _Seeding_'s convention arriving somewhere
   that section did not look.
 - **A morph in flight was a bug, not merely state.** Its origin is stamped on
-  the wall clock, and a take counts from zero, so a render started under one
-  saw `now() - startMs` go hugely negative and parked the board on the morph's
+  the wall clock, and a take counts from zero, so a render started under one saw
+  `now() - startMs` go hugely negative and parked the board on the morph's
   _origin_ look for the whole take. `rendercheck.mjs` had a `stopGlide()` in it
   that was hiding this. The reset stops it properly.
 - **The file had the wall clock in it.** `mp4.ts` stamped `Date.now()` into six
@@ -1052,17 +1054,18 @@ lives there. Revisit Electron only when the file-size wall or ProRes actually
 arrives.
 
 1. ~~**`VideoEncoder` CFR export, replacing `useCapture`.**~~ **Landed** —
-   `ui/record.ts`, `ui/mp4.ts`, `scripts/reccheck.mjs`, and the mirror hack
-   gone from the recording path. It was the right thing to do first for the
-   reason given: nothing depended on it, and it fixed the recording that
-   _already shipped_ rather than only what was planned.
+   `ui/record.ts`, `ui/mp4.ts`, `scripts/reccheck.mjs`, and the mirror hack gone
+   from the recording path. It was the right thing to do first for the reason
+   given: nothing depended on it, and it fixed the recording that _already
+   shipped_ rather than only what was planned.
 
    What it does **not** do yet, and the next thing anyone will want: the
    recorder is still driven by rAF, so it captures at whatever rate the tab
-   renders and calls that 60fps. The file is internally consistent — every
-   frame exactly one tick apart — but a tab that dropped to 40fps writes a take
-   that plays 1.5x fast. Fixing that is step 2 below plus a loop that steps the
+   renders and calls that 60fps. The file is internally consistent — every frame
+   exactly one tick apart — but a tab that dropped to 40fps writes a take that
+   plays 1.5x fast. Fixing that is step 2 below plus a loop that steps the
    engine rather than waiting on rAF, which is the offline render proper.
+
 2. ~~**The virtual clock.**~~ **Landed** — five reads, one `now()`, and
    `scripts/clockcheck.mjs` to prove the inversion.
 
@@ -1077,12 +1080,13 @@ arrives.
 
    Two things it turned up. **`RenderLoop.stop()` drops a flag rather than
    cancelling**, deliberately — so two already-scheduled chains each land one
-   more frame after `pauseLoop()` returns. `scripts/rendercheck.mjs` measured
-   it as 122 frames across a 120-frame render; the render now waits two
-   animation frames so those land *before* it rather than interleaved, and the
-   frames in the file are consecutive. And **a render was reproducible from a
-   given starting state, not absolutely** — which is what step 3 turned out to
-   be, and it is fixed.
+   more frame after `pauseLoop()` returns. `scripts/rendercheck.mjs` measured it
+   as 122 frames across a 120-frame render; the render now waits two animation
+   frames so those land _before_ it rather than interleaved, and the frames in
+   the file are consecutive. And **a render was reproducible from a given
+   starting state, not absolutely** — which is what step 3 turned out to be, and
+   it is fixed.
+
 3. ~~**Take state.**~~ **Landed** — _Take state_ above is the write-up.
    `Engine.startTake({fps, seed})` is one switch over the clock, the dice and a
    signal path put back to what a fresh engine has, and `rendercheck.mjs` now
@@ -1090,7 +1094,7 @@ arrives.
    renders of one take are the same file, byte for byte.**
 4. ~~**The transition shelf.**~~ **Landed** — five entries under the T-bar and
    on the pad list, `signal/fault.ts` for the envelope and `ui/transitions.ts`
-   for the table. It was as cheap as predicted and the *recipes* were not; see
+   for the table. It was as cheap as predicted and the _recipes_ were not; see
    _Landed, and what it cost_ above. The strip picks from it when it can
    preroll.
 5. ~~**The live strip.**~~ **Landed to the line _The first slice_ drew**: rows,
@@ -1141,26 +1145,27 @@ list above in two places.
    **The contention it named as a policy decision was not one.** This step used
    to say the fix "costs an answer to the contention over the one `next` field
    per slot, which a looping clip and a rundown's lookahead both want", and that
-   the answer was the reason it was not a small job. It dissolved on contact: the
-   bound depth 1 protects is *files*, and a loop's head is the same url as the
-   element on air — a decoder and no bytes — so the two want different budgets
-   and get separate fields. The expensive-looking part of a feature is worth
-   re-deriving before it is paid for.
+   the answer was the reason it was not a small job. It dissolved on contact:
+   the bound depth 1 protects is _files_, and a loop's head is the same url as
+   the element on air — a decoder and no bytes — so the two want different
+   budgets and get separate fields. The expensive-looking part of a feature is
+   worth re-deriving before it is paid for.
 
    **And measuring first paid for itself twice.** Once before, because
    `scripts/wrapsound.mjs` heard the dropout rather than inferring it and found
-   the silence *is* the seek — nothing to fix in the audio graph, and the cue
+   the silence _is_ the seek — nothing to fix in the audio graph, and the cue
    row's `wrap 0.15s` had been a readout of the sound all along. Once after,
    because the first cut of the fix made the worst case worse — two elements
    seeking one expensive file against each other, 1028 ms of dropout on half the
-   laps where seeking alone cost 213 ms on all of them — and it had a *better*
+   laps where seeking alone cost 213 ms on all of them — and it had a _better_
    median while doing it. Nothing short of listening would have caught that, and
    the shipped version gives the head back rather than keeping it.
+
 5. **Frame-exact video pull**, then **automation recording**, as before. The
-   first is now the only thing between a take and reproducing with a clip in
-   it: everything below the video is deterministic, and the video is not. It
-   carries the awaiting sink with it — a render waiting for a load is worth
-   building the day what it is waiting for is frame exact, and not before (see
+   first is now the only thing between a take and reproducing with a clip in it:
+   everything below the video is deterministic, and the video is not. It carries
+   the awaiting sink with it — a render waiting for a load is worth building the
+   day what it is waiting for is frame exact, and not before (see
    `stripRun.ts`'s header).
 
 Three things this list deliberately does not carry, all of them wants rather

@@ -617,9 +617,9 @@ clamp is `VideoPump.wrap`. Three things around it are deliberately not done.
   re-mark against turned out to be more useful than a label anyway.
 
 A last one used to be a real limit rather than a choice: the wrap is a hard cut
-in the clip's audio when playback audio is on. Nothing short of a crossfade fixes
-it, and a crossfade needs two read heads on one element, which a `<video>` does
-not have. **That one is now built** — `armHead` / `promoteHead` in
+in the clip's audio when playback audio is on. Nothing short of a crossfade
+fixes it, and a crossfade needs two read heads on one element, which a `<video>`
+does not have. **That one is now built** — `armHead` / `promoteHead` in
 `ui/videoSlot.ts`, and the write-up is at the end of this section.
 
 **This used to say "audible as a click", and that undersold it by two orders of
@@ -628,8 +628,8 @@ whole time: `loopHealth().medianMs` is the median time from issuing the wrap's
 `currentTime = start` to its `seeked`, and `cuecheck` prints it every run —
 **199 ms on a densely-keyframed clip and 524 ms on a sparse one**. A seeking
 element is not playing, so what a loop actually does to the sound is drop out
-for a fifth to half a second, every lap. A click is what is left at the edges
-of that.
+for a fifth to half a second, every lap. A click is what is left at the edges of
+that.
 
 Three things follow, and they are why this is worth more than its place in the
 build order suggests.
@@ -641,22 +641,22 @@ build order suggests.
 - **The two-element fix has no sync cost**, which is the objection that would
   otherwise sink it. The instinct is to crossfade the audio while the picture
   stays on the outgoing element, and that trades a click for lip-sync error. But
-  the second element can carry *both*: `playUrl` already promotes a parked
+  the second element can carry _both_: `playUrl` already promotes a parked
   element for picture and sound together, so the loop's double-buffer is a swap
   and not a blend, and nothing leads anything.
 - **The machinery is nearly all built, and `strip.ts` says so in passing.**
   `land`'s comment already notices that a one-row looping rundown prerolls the
   clip it is playing and calls it "an odd-looking case that happens to be the
   loop's best behaviour" — which is exactly this feature, arrived at sideways. A
-  loop's second read head *is* a preroll of the same clip at its in-point. Two
+  loop's second read head _is_ a preroll of the same clip at its in-point. Two
   gaps: a parked element is paused, and it would have to be rolling before the
   outgoing one reaches `r.end`; and there is one `next` field per slot, so a
   looping clip and a rundown's lookahead contend for it. That contention is a
   policy decision and is the reason this is not simply a small job.
 
 **Measured, and it is both.** `scripts/wrapsound.mjs` listens rather than
-inferring — an AudioWorklet tapping the app's own analyser, on a generated 440 Hz
-tone so that floor means silence and not a quiet bar, with the same GOP arms
+inferring — an AudioWorklet tapping the app's own analyser, on a generated 440
+Hz tone so that floor means silence and not a quiet bar, with the same GOP arms
 `loopseek` uses. Three runs, medians, Firefox Nightly / Linux:
 
     arm      keyframes   seek (app)   silence (heard)   worst   quiet
@@ -666,34 +666,36 @@ tone so that floor means silence and not a quiet bar, with the same GOP arms
     control         40         --           --           --        0%
 
 **Read the middle two columns against each other, not the absolute numbers.**
-These are `testsrc` fixtures, which loopseek's header is emphatic about: they are
-about as cheap a thing to decode as exists, and the same "frames back" buys an
-order of magnitude more on real footage. The dense arm at 11-14 ms is not
+These are `testsrc` fixtures, which loopseek's header is emphatic about: they
+are about as cheap a thing to decode as exists, and the same "frames back" buys
+an order of magnitude more on real footage. The dense arm at 11-14 ms is not
 `demo-v2.mp4`, which the same `medianMs` instrument puts at 64-90 ms.
 
 What transfers is the relationship, and it is the finding:
 
 - **The silence _is_ the seek, plus about one animation frame.** Two independent
-  instruments — a worklet on the audio thread, and the app's own `seeked`
-  timing — agree to within about 15 ms on every arm, across three orders of
-  magnitude of seek. So there is no separate audio cost hiding here and nothing
-  to fix in the audio graph: whatever removes the seek removes the dropout.
+  instruments — a worklet on the audio thread, and the app's own `seeked` timing
+  — agree to within about 15 ms on every arm, across three orders of magnitude
+  of seek. So there is no separate audio cost hiding here and nothing to fix in
+  the audio graph: whatever removes the seek removes the dropout.
 - **Which means the app has been displaying the dropout all along.** The cue
   row's `wrap 0.15s` is `wrapCostMs`, off the same `seeked` timing — so every
   number in the table above can now be read as milliseconds of silence without
   re-measuring anything: 12-15 ms on minnie-moocher, 64-90 ms on demo-v2,
   128-233 ms on haunted-house. That readout was built to be re-marked against,
   and it turns out to be a readout of the sound.
-- **Both earlier claims were right, about different clips.** "Audible as a click"
-  is what the well-encoded end does, and there the de-click envelope above really
-  would be the whole fix. "A fifth to half a second" is what the sparse end does:
-  **19% of the run silent, and one wrap in 469 ms**. Neither number is a property
-  of _looping_ — both are properties of the file, which is the same conclusion
-  the wrap-cost readout reached from the picture side and declined to threshold.
+- **Both earlier claims were right, about different clips.** "Audible as a
+  click" is what the well-encoded end does, and there the de-click envelope
+  above really would be the whole fix. "A fifth to half a second" is what the
+  sparse end does: **19% of the run silent, and one wrap in 469 ms**. Neither
+  number is a property of _looping_ — both are properties of the file, which is
+  the same conclusion the wrap-cost readout reached from the picture side and
+  declined to threshold.
 
 So this is worth building for the clips that need it and worth nothing for the
 rest. Two of the four clips this repo ships are in the slow tier, and an
-archive.org pick is whatever it is; that is the case the second read head is for.
+archive.org pick is whatever it is; that is the case the second read head is
+for.
 
 The control arm is what makes the rest a measurement: same clip, no loop marked,
 0% quiet and no wraps. Without it "the sound sits at floor" cannot be told from
@@ -709,8 +711,8 @@ harness would be measuring the window manager.
 ### Landed: the second read head
 
 `armHead` / `promoteHead` in `ui/videoSlot.ts`, and a `Relay` the pump asks at
-the wrap. Same harness, `?loophead=0` against the shipped path, both arms of each
-clip minutes apart on one quiet machine:
+the wrap. Same harness, `?loophead=0` against the shipped path, both arms of
+each clip minutes apart on one quiet machine:
 
     arm            wraps   seek     silence   quiet   free
     intra:seek        13    7 ms      11 ms      1%     0%
@@ -720,9 +722,9 @@ clip minutes apart on one quiet machine:
     sparse:seek       10  237 ms     245 ms     18%     0%
     sparse:head       13     --       11 ms      0%    85%
 
-**A sparse clip goes from a fifth of the run silent to none of it.** 85% of wraps
-make no sound at all; the rest are 11 ms, which is the instrument's floor rather
-than a reading. `seek --` is the app recording fewer than two seeks in a
+**A sparse clip goes from a fifth of the run silent to none of it.** 85% of
+wraps make no sound at all; the rest are 11 ms, which is the instrument's floor
+rather than a reading. `seek --` is the app recording fewer than two seeks in a
 fourteen-second run — the head essentially never gave up on a one-second lap.
 
 Four things are worth keeping from building it, and the first two were not in
@@ -733,26 +735,28 @@ the design above.
   decision and it dissolved instead: a preroll is speculative and names a
   different clip, so it can cost a whole download; a loop's head is the same url
   as the element on air, which for a `blob:` is the same object and otherwise a
-  cache hit. Sharing one field would have made a rundown's lookahead and a marked
-  loop take turns breaking each other, to protect a budget only one of them
-  spends.
-- **The first cut made the sparse case worse, and only the measurement said so.**
-  Where the outgoing head cannot re-park within one lap, both elements seek the
-  same expensive file at once: 1028 ms of dropout on half the laps in place of
-  213 ms on all of them — a better median, a worse sound, and a shape that reads
-  as fine if you look at the wrong number. So the re-park is held against its own
-  lap and an overrun retires the head for the life of the cue. There is no
-  minimum-lap constant, because whether a head can keep up is a question about
-  the clip and the loop together that the first lap answers and no threshold
-  written here could.
+  cache hit. Sharing one field would have made a rundown's lookahead and a
+  marked loop take turns breaking each other, to protect a budget only one of
+  them spends.
+- **The first cut made the sparse case worse, and only the measurement said
+  so.** Where the outgoing head cannot re-park within one lap, both elements
+  seek the same expensive file at once: 1028 ms of dropout on half the laps in
+  place of 213 ms on all of them — a better median, a worse sound, and a shape
+  that reads as fine if you look at the wrong number. So the re-park is held
+  against its own lap and an overrun retires the head for the life of the cue.
+  There is no minimum-lap constant, because whether a head can keep up is a
+  question about the clip and the loop together that the first lap answers and
+  no threshold written here could.
 
   **A deadline and not a stopwatch**, which is the correction the first fix
-  needed in its turn. Checking the elapsed time inside `seeked` cannot fire until
-  the re-park finishes, so an overrun stayed armed for the whole of its own
-  overrun — and every wrap in that span found a head that was not ready and
+  needed in its turn. Checking the elapsed time inside `seeked` cannot fire
+  until the re-park finishes, so an overrun stayed armed for the whole of its
+  own overrun — and every wrap in that span found a head that was not ready and
   seeked against it, which is the contention being retired for. Worse, a re-park
   that never completes at all never fired the check, so the one case with no
-  bound on it was the one nothing retired. A timer armed at the lap catches both.
+  bound on it was the one nothing retired. A timer armed at the lap catches
+  both.
+
 - **The promotion deliberately does not go through `setVideoSource`.** That is a
   source change, and `retarget` clears the region on purpose — a loop routed
   through it ends at its first lap. The pump asks for an element and installs it
@@ -765,18 +769,18 @@ the design above.
   someone had to pick, and nothing was calibrated to make it true.
 
   It takes one line to hold, and it did not have it at first: a relayed wrap has
-  to *clear* the health window rather than merely not add to it. A head is armed
-  unawaited, so on a big file a lap or two wraps by seeking before it lands — and
-  those two laps were otherwise the number the row showed for the rest of the
-  cue, while every wrap after them was free. Clearing is safe rather than
-  blinding because a head cannot alternate: one that misses its lap is retired at
-  the deadline, so the window refills within two laps and the number returns.
+  to _clear_ the health window rather than merely not add to it. A head is armed
+  unawaited, so on a big file a lap or two wraps by seeking before it lands —
+  and those two laps were otherwise the number the row showed for the rest of
+  the cue, while every wrap after them was free. Clearing is safe rather than
+  blinding because a head cannot alternate: one that misses its lap is retired
+  at the deadline, so the window refills within two laps and the number returns.
 
-Still open, and genuinely small now: the **de-click envelope** at the top of this
-section. 11 ms is one frame, which is a click rather than a dropout, and fading
-the gain across the join is the standard fix for exactly that. It was worth
-almost nothing against a half-second hole; against what is left it is the whole
-of the remainder.
+Still open, and genuinely small now: the **de-click envelope** at the top of
+this section. 11 ms is one frame, which is a click rather than a dropout, and
+fading the gain across the join is the standard fix for exactly that. It was
+worth almost nothing against a half-second hole; against what is left it is the
+whole of the remainder.
 
 ## In flight — preset screening, round 2
 

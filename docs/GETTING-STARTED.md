@@ -44,8 +44,8 @@ the sidebar is that path, and every box on it is a button.
 
 ## Three looks to try
 
-|                                                                                     |                                                                                    |                                                                              |
-| :---------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------: | :---------------------------------------------------------------------------: |
+|                                                                                          |                                                                                           |                                                                            |
+| :--------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------: | :------------------------------------------------------------------------: |
 | ![Reversed polarity: every hue complementary, the raster sheared](img/look-negative.jpg) | ![The video synth keyed against itself: hard bands of saturated colour](img/look-key.jpg) | ![A mixer loop past unity, breeding coloured structure](img/look-loop.jpg) |
 
 **negative** reverses polarity on the composite line, and sync goes with it ·

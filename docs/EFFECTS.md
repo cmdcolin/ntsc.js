@@ -15,12 +15,12 @@ you can find an artifact without knowing its knob.
 
 ## Sources and wiring
 
-Two decks. Either takes a still, a video file, a webcam, a shared screen,
-colour bars, TV static, a video synth, or a teletype card you type on — plus
-your own clip shelf and a roll out of Wikimedia Commons and archive.org.
+Two decks. Either takes a still, a video file, a webcam, a shared screen, colour
+bars, TV static, a video synth, or a teletype card you type on — plus your own
+clip shelf and a roll out of Wikimedia Commons and archive.org.
 
-Then the faults, starting at the connector: snow, a loose plug, a ground loop,
-a termination fault, polarity flips, S-video miswired into composite. Cable
+Then the faults, starting at the connector: snow, a loose plug, a ground loop, a
+termination fault, polarity flips, S-video miswired into composite. Cable
 scrambling, Macrovision AGC pulses and colorstripe are the interesting corner —
 they work by playing the receiver's own AGC and burst circuits against it.
 
@@ -43,8 +43,8 @@ are on the return.
 **Delay loop** — a second machine threaded with a loop of tape, up to four
 playback heads on it, patched across the bus rather than round the chain. Not
 the Tape stage below, which is the deck this signal was played back on. The
-return gets recorded again, so repeats decay by generation loss rather than by
-a fader, and chroma dies first.
+return gets recorded again, so repeats decay by generation loss rather than by a
+fader, and chroma dies first.
 
 ## A/B mix
 
@@ -52,9 +52,9 @@ B genlocked onto A's raster for a clean dissolve, or summed dirty and
 free-running against it, which is the two-deck rig. Ring mod, hue and gain
 trims, wipes, a PiP inset, and a chroma key.
 
-The keyer cuts the chroma the encoder made, and that filter has no vertical
-term — so mattes come out soft across and razor sharp down, the way every
-composite key was.
+The keyer cuts the chroma the encoder made, and that filter has no vertical term
+— so mattes come out soft across and razor sharp down, the way every composite
+key was.
 
 ## Tape and channel
 
@@ -82,13 +82,13 @@ crawling coloured speckle rather than grey grain.
 A consumer enhancer between the deck and the set, with its jumpers moved. The
 clamp gate slides off the back porch so black level bounces line to line; the
 peaking coil gets feedback wrapped round it and rings; the sync regenerator
-restamps pulses wherever its slicer crosses — bend that up into picture and
-dark content starts minting sync of its own.
+restamps pulses wherever its slicer crosses — bend that up into picture and dark
+content starts minting sync of its own.
 
 ## Receiver
 
-A television, and the ways one can be misadjusted. Sync faults move the
-picture; decoding faults move its colour.
+A television, and the ways one can be misadjusted. Sync faults move the picture;
+decoding faults move its colour.
 
 - **Sync and deflection** — AGC, horizontal and vertical hold, oscillator
   detune, retrace flag, deflection bend, V size, HV sag, beam limiter.

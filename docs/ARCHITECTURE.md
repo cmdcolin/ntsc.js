@@ -297,12 +297,12 @@ replaces the board and restores. Each subsection below says why that order.
 
 ### A lost device is rebuilt in place, not reloaded
 
-Sleep/wake and driver
-resets fire `device.lost`, and they are the losses a session should survive:
-`onDeviceLost` builds a replacement engine and hands it back the controls, the
-debug tap, B's enable flag and both slots' sources, so the only thing the user
-sees is a banner for the length of a `requestDevice` (measured well under 100 ms
-on the dev box). Three consequences bind anything that touches this:
+Sleep/wake and driver resets fire `device.lost`, and they are the losses a
+session should survive: `onDeviceLost` builds a replacement engine and hands it
+back the controls, the debug tap, B's enable flag and both slots' sources, so
+the only thing the user sees is a banner for the length of a `requestDevice`
+(measured well under 100 ms on the dev box). Three consequences bind anything
+that touches this:
 
 - **The outgoing engine stays the store until the swap.** React reads controls
   from the engine via `useSyncExternalStore`, so nulling `engineRef` during the
@@ -414,14 +414,13 @@ morphs at all.
 ### The stab gate
 
 `signal/stab.ts`, `applyStab`. It replaces the _whole board_ with
-`DEFAULT_CONTROLS` for a few
-tens of milliseconds several times a second — a clean picture with the look
-poked into it, rather than the look running continuously. Like `applyMod` it
-restores at the end of the frame, so the sliders never move; unlike it, there is
-nothing to point at a target and no depth, because it drives everything at once.
-It runs immediately **after** `applyMod` and restores immediately before it, so
-a clean frame is clean including whatever the LFOs were doing to it. Three
-things it has to get right:
+`DEFAULT_CONTROLS` for a few tens of milliseconds several times a second — a
+clean picture with the look poked into it, rather than the look running
+continuously. Like `applyMod` it restores at the end of the frame, so the
+sliders never move; unlike it, there is nothing to point at a target and no
+depth, because it drives everything at once. It runs immediately **after**
+`applyMod` and restores immediately before it, so a clean frame is clean
+including whatever the LFOs were doing to it. Three things it has to get right:
 
 - **`STOCK_HOLD` (`src/controls.ts`) is held back.** The engine cannot read the
   panel's `VIEW_KEYS`, so it carries its own copy of the same five keys, and
@@ -458,8 +457,8 @@ grep -n "import_compiler_runtime.c)(" dist/assets/*.js   # one per compiled fn
 
 ## Testing
 
-Two things here are architecture rather than procedure; the harnesses, the
-traps they have hit and the performance protocol are all in
+Two things here are architecture rather than procedure; the harnesses, the traps
+they have hit and the performance protocol are all in
 [`DEVELOPMENT.md`](DEVELOPMENT.md).
 
 - **WGSL is validated statically.** `src/gpu/shaders.test.ts` prepends the real

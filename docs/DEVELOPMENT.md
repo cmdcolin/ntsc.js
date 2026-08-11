@@ -67,12 +67,12 @@ outcomes rather than two — `ok`, `FAIL`, and `STALL` for a run whose window
 stopped being drawn (see the rAF note below). A stall is not a failure and not a
 pass: it measured nothing, so put the window in front and run it again.
 
-What it leaves out is deliberate and the file says why: the device-torture harnesses
-(they break a GPU device on purpose), the generators (they write files rather
-than judge), the two checks that need no server and already run in CI, and the
-measurements, which report numbers rather than a verdict. `poolcheck` runs last
-and is marked, because it is the one entry that can fail for a reason that is
-nobody's bug.
+What it leaves out is deliberate and the file says why: the device-torture
+harnesses (they break a GPU device on purpose), the generators (they write files
+rather than judge), the two checks that need no server and already run in CI,
+and the measurements, which report numbers rather than a verdict. `poolcheck`
+runs last and is marked, because it is the one entry that can fail for a reason
+that is nobody's bug.
 
 ```
 node scripts/shot.mjs http://localhost:5199/ out.png [waitMs]
@@ -150,7 +150,7 @@ find:
   (`window.vf.step()`) rather than waited for; a clip, which samples the canvas
   as it paints, has to own the only window on screen.
 
-  The harnesses that *cannot* step — the interaction ones, which wait on wall
+  The harnesses that _cannot_ step — the interaction ones, which wait on wall
   clock time — carry `watchFrames` from `scripts/frames.mjs` instead, and it is
   worth knowing what it does and does not detect. **A visibility event is not
   the signal.** A window merely covered by another goes on reporting
@@ -165,6 +165,7 @@ find:
   next to pass and fail. That distinction is the point: **a window that was
   clicked away measured nothing**, and calling it a failure sends the next
   person hunting a bug in a feature that never ran.
+
 - **`setTimeout` is clamped in a backgrounded tab too**, so stepping from an
   in-page loop does not escape the trap above — it hits the same wall by the
   other door. An in-page sampler of either kind returns three frames for two
@@ -214,7 +215,7 @@ find:
   simply not have moved yet. `traycheck.mjs` had one of each: the music arm
   slept 1500ms for a track named only once `el.play()` resolved, and the capture
   arm slept 350ms into a morph that a stalled rAF chain had not started, so
-  `matchPreset` still answered with the *previous* preset and rows were captured
+  `matchPreset` still answered with the _previous_ preset and rows were captured
   under the wrong name. Both read as broken features.
 
   `scripts/until.mjs` is the answer and `until.test.mjs` covers it without a
@@ -230,22 +231,23 @@ find:
   Boot was the widespread instance — thirteen harnesses slept 3.5–6s and then
   used `window.vf`, three of them through `window.vf?.step()`, which turns a
   boot that had not finished into a canvas that was never rendered and a check
-  that reports the *pixels* as wrong.
+  that reports the _pixels_ as wrong.
 
   The exceptions are worth knowing: `deviceloss`, `devicetear`, `gpusleep`,
-  `rafceiling` and `soak` keep their sleeps, because there the waiting *is* the
+  `rafceiling` and `soak` keep their sleeps, because there the waiting _is_ the
   measurement — a device that never comes back is the answer, not a timeout. And
   `iaroll`'s `setTimeout` inside a `seeked` listener is already the right shape:
   an event or a give-up, whichever lands first.
+
 - **`element.click()` reaches a button a hand cannot.** It does no hit-testing,
   so a control scrolled or clipped out of its container — `overflow: hidden` on
   a card, say — goes on passing every check that presses it. If a layout can put
-  a control out of reach, one assertion has to *measure* rather than click; the
+  a control out of reach, one assertion has to _measure_ rather than click; the
   tray harness checks every control on a row card is inside the card, which is
   how a chip that pushed the ✕ off the end would now be caught.
 - **A click that finds nothing must fail where it happened.** These scripts find
   buttons by their text, so a chip that is missing — off a shortlist, behind a
-  fold, renamed — makes the click a silent no-op and the *next* few assertions
+  fold, renamed — makes the click a silent no-op and the _next_ few assertions
   fail instead, in features nothing has touched. Check the hit at the press.
 - **The panel mounts one stage at a time, and none of them is open on arrival.**
   A deck's picker, its caption, its ★, and every control row with a slider or a
@@ -261,7 +263,7 @@ find:
   `<g role=button>`, so dispatch the click on the element rather than aiming at
   a coordinate and the diagram's layout stops mattering. They **toggle**, so ask
   whether what you want is already there before clicking, or you will shut it.
-  And prefer opening by *what a stage contains* over opening by name where the
+  And prefer opening by _what a stage contains_ over opening by name where the
   check allows it — stages get renamed, and a harness that fails on a rename
   fails somewhere unrelated to the rename.
 
@@ -461,7 +463,7 @@ than the app. The check steps the engine by hand (as `shot.mjs` does) and then
 forces a React re-read with a click, which is what makes the number meaningful.
 
 Worth knowing about the feature and not only about the harness: when a tab stops
-getting frames, the picture and the rundown freeze *together* and resume
+getting frames, the picture and the rundown freeze _together_ and resume
 together. That is the right behaviour, and it falls out of clocking the walk on
 frames rather than on the wall — a wall-clock strip would come back having
 silently skipped four rows nobody saw.
@@ -518,8 +520,8 @@ samples the canvas, and two traps come with that:
 
 It found two dead recipes on its first run, which is the reason it exists: a
 transition can be perfectly plumbed, land its cut on the right frame, hand the
-board back correctly, and move the picture by 0.4/255. See EDITOR.md ›
-_Landed, and what it cost_.
+board back correctly, and move the picture by 0.4/255. See EDITOR.md › _Landed,
+and what it cost_.
 
 ## The offline render, and the file it writes
 
@@ -861,12 +863,13 @@ into a page of empty boxes with nothing else complaining.
 
 **Why archive.org picks are downloaded whole rather than streamed.** Measured
 2026-08-08/09, curl and then Firefox Nightly against the real upload path.
-`/metadata/` and `advancedsearch.php` both send `access-control-allow-origin: *`,
-but `/download/` and `/serve/` 302 to a `dn######.us.archive.org` storage node
-that sends no `access-control-*` header at all — so with `crossOrigin='anonymous'`,
-which `ui/videoSlot.ts` sets unconditionally, the element does not merely taint,
-it **refuses to load** (`MEDIA_ERR_SRC_NOT_SUPPORTED`). `/cors/<id>/<file>` is the
-route that works: 200, ACAO echoing the Origin, no redirect off-host, no size cap.
+`/metadata/` and `advancedsearch.php` both send
+`access-control-allow-origin: *`, but `/download/` and `/serve/` 302 to a
+`dn######.us.archive.org` storage node that sends no `access-control-*` header
+at all — so with `crossOrigin='anonymous'`, which `ui/videoSlot.ts` sets
+unconditionally, the element does not merely taint, it **refuses to load**
+(`MEDIA_ERR_SRC_NOT_SUPPORTED`). `/cors/<id>/<file>` is the route that works:
+200, ACAO echoing the Origin, no redirect off-host, no size cap.
 
 The catch is that **`/cors/` ignores `Range`** — it answers `bytes=0-1000` with
 200 and the whole file, and sends no `accept-ranges`. So `video.seekable` only
@@ -877,7 +880,7 @@ On a 628 s clip, `seekable [[0, 4.3]]` and `currentTime = 502.4` read back as
 lands exactly. That breaks cue in/out loops (`gpu/videopump.ts`) and scrub
 (`ui/useEngine.ts`), not playback — which is why it is easy to miss. Fetching to
 a Blob and handing over an object URL fixes it: same-origin, so fully seekable
-*and* untainted (`seekable [[0, 628]]`, a 502.4 s seek landing in 50 ms). The
+_and_ untainted (`seekable [[0, 628]]`, a 502.4 s seek landing in 50 ms). The
 cost is the whole file up front at ~5 MB/s, which is what the size cap is for.
 
 Two more archive.org failures that look like nothing:
@@ -887,15 +890,15 @@ Two more archive.org failures that look like nothing:
   `canPlayType('video/ogg')` is now `''`, and the element does not error — it
   fires `loadeddata` and reports `videoWidth`/`videoHeight` of **0**.
 - **`archive.org/metadata/<id>` intermittently takes 33 s** and then returns no
-  `files` at all (2 of 3 Prelinger reads hit one). Without a per-request deadline
-  these stack and a roll looks like a hang.
+  `files` at all (2 of 3 Prelinger reads hit one). Without a per-request
+  deadline these stack and a roll looks like a hang.
 
 **Picking a rendition:** `h.264 IA` (the newer `.ia.mp4`) is the derivative most
 items carry and is usually the small one — 3 MB against an 89 MB master of the
-same commercial. Filtering on `h.264` alone, the obvious guess, matched 1 item in
-5; adding `h.264 IA` took the same pools to 3–4 in 5. Every numeric field arrives
-as a *string* and `length` is sometimes a timestamp (`"1:04:12"`), so `Number()`
-gives NaN.
+same commercial. Filtering on `h.264` alone, the obvious guess, matched 1 item
+in 5; adding `h.264 IA` took the same pools to 3–4 in 5. Every numeric field
+arrives as a _string_ and `length` is sometimes a timestamp (`"1:04:12"`), so
+`Number()` gives NaN.
 
 **Pool yields, both sources, measured by rolling the live APIs.** archive.org,
 usable items per random sample at a 24 MB cap: `vhsopenings` 7/11,
@@ -903,18 +906,18 @@ usable items per random sample at a 24 MB cap: `vhsopenings` 7/11,
 and ads. `prelinger` needs a 64 MB cap to reach its h.264 reels (48–57 MB) and
 still lands only ~3/11. Empty or useless: `vhskids`, `vhsmovies`, `machinima`,
 `computerchronicles` (whole tapes and 28-minute episodes), `educationalfilms`
-(2/11 at *any* cap), and free-text `collection:vhsvault` searches for
+(2/11 at _any_ cap), and free-text `collection:vhsvault` searches for
 mall/muzak/test-pattern/infomercial.
 
 Commons, counting pages whose `videoinfo.derivatives` hold a `transcodekey`:
 `deepcat:"Time-lapse videos"`, `"Videos of fountains"`, `"Videos of clouds"`,
 `"Videos of fire"` and `"Videos of trains"` all 12/12, `"Videos of animals"`
-11/12, `"Underwater videos"` 9/12. **`"Videos of cities at night"`, `"Videos of
-waves"` and `"Videos of aurorae"` return zero pages** — don't add them back;
-their absence is why the video channels carry none of the neon the photo
-channels lean on. Video pools being this much thinner than photo pools is the
-whole argument for archive.org as the video source. The Commons API 429s after
-roughly ten quick probes, so space out any further survey.
+11/12, `"Underwater videos"` 9/12. **`"Videos of cities at night"`,
+`"Videos of waves"` and `"Videos of aurorae"` return zero pages** — don't add
+them back; their absence is why the video channels carry none of the neon the
+photo channels lean on. Video pools being this much thinner than photo pools is
+the whole argument for archive.org as the video source. The Commons API 429s
+after roughly ten quick probes, so space out any further survey.
 
 Two fields the browser leans on are optional, and neither failing would look
 like a failure. Commons returns a clip's `duration` alongside the thumbnail for

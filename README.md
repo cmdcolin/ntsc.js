@@ -1,9 +1,9 @@
 # ntsc.js
 
-A TV you can break on purpose. The picture is encoded into a real NTSC
-waveform, damaged the way tape, cable and a tired receiver damage one, then
-decoded with the mistakes still in. Nothing here draws an artifact — you break
-something upstream and watch what falls out.
+A TV you can break on purpose. The picture is encoded into a real NTSC waveform,
+damaged the way tape, cable and a tired receiver damage one, then decoded with
+the mistakes still in. Nothing here draws an artifact — you break something
+upstream and watch what falls out.
 
 Real-time in the browser, on WebGPU compute shaders.
 
@@ -17,8 +17,8 @@ Requires a WebGPU-enabled browser.
 
 - Every stage of the path, with the hardware fault behind each control: the
   wiring, the tape and RF, the receiver, the screen.
-- Three feedback loops — a camera at the monitor, the mixer patched into
-  itself, and a tape loop with up to four playback heads.
+- Three feedback loops — a camera at the monitor, the mixer patched into itself,
+  and a tape loop with up to four playback heads.
 - Two sources, summed dirty or genlocked, with wipes and a chroma keyer.
 - Any slider can run on an LFO, random walk, Lorenz attractor or live audio.
 - MIDI learn and automap, with soft takeover and clock-locked rates.
@@ -39,12 +39,9 @@ Running locally adds a **YouTube…** source the hosted demo doesn't have.
 
 ### [Read the docs site →](https://cmdcolin.github.io/ntsc.js/guide/)
 
-[Getting started](docs/GETTING-STARTED.md) ·
-[User guide](docs/USER-GUIDE.md) ·
-[Effects](docs/EFFECTS.md) ·
-[How it works](docs/HOW-IT-WORKS.md) — the code ·
-[MIDI](docs/MIDI.md) ·
-[Comparison](docs/COMPARISON.md)
+[Getting started](docs/GETTING-STARTED.md) · [User guide](docs/USER-GUIDE.md) ·
+[Effects](docs/EFFECTS.md) · [How it works](docs/HOW-IT-WORKS.md) — the code ·
+[MIDI](docs/MIDI.md) · [Comparison](docs/COMPARISON.md)
 
 ---
 
