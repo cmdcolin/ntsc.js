@@ -29,6 +29,11 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Waiting for an answer rather than for a duration — `until.mjs` says which of
+// the two a given line wants, and `until.test.mjs` covers the loop itself
+// without a browser.
+import { until } from './until.mjs'
+
 import process from 'node:process'
 
 const port = process.argv[2] ?? '5199'
@@ -95,15 +100,39 @@ const check = (name, ok, detail = '') => {
 }
 
 // --- capture ---------------------------------------------------------------
+//
+// What the board matches right now, by preset name — the same question
+// `app.tsx` asks to decide what a captured row is called (`matchPreset`, then
+// `mix.lastPreset` when the answer is nothing).
+const matched = () =>
+  page.evaluate(async () => {
+    const { matchPreset } = await import('/src/ui/presets.ts')
+    return matchPreset(window.vf.getControls())?.name ?? null
+  })
+
 await click('strip')
 await wait(400)
 for (const preset of ['vhs', 'broadcast', 'neon tube']) {
-  await click(preset, true)
+  const before = await matched()
+  // A chip that is not on the shortlist is a harness that clicks nothing and
+  // then reports it three assertions later as a feature being broken — which is
+  // the same failure `data-act` was added for, one section down.
+  check(`the ${preset} chip is there to press`, await click(preset, true))
   // Deliberately *inside* the look bar's default 1s morph. A capture taken
   // mid-morph must bank where the look is going, not the frame it has reached —
   // "a tween is a frame, not a look", the rule useMix.banked() already follows.
   // Before that fix this arm was flaky and recorded half-way boards.
-  await wait(350)
+  //
+  // **Waited for rather than slept through**, because a morph advances on
+  // *rendered frames* and this window is occluded — the trap this file's header
+  // already names for the hold bar. A stalled rAF chain left the board still
+  // exactly equal to the preset before it, so `matchPreset` went on answering
+  // with that one and the row was captured under the previous look's name:
+  // `["vhs","vhs 2","neon tube"]`, about one run in eight, reported as three
+  // failures in naming and duplication. The board having left the last look is
+  // the earliest moment a capture means anything, and it is still inside the
+  // morph, which is the property the sleep was here to test.
+  await until(matched, m => m !== before)
   await click('+ row')
   await wait(1200)
 }
@@ -393,13 +422,17 @@ await page.evaluate(() => {
   input.files = dt.files
   input.dispatchEvent(new Event('change', { bubbles: true }))
 })
-await wait(1500)
-
-const trackLabel = await page.evaluate(
+// Named once `play()` resolves, not when the change event was dispatched — so
+// this waits for the answer rather than for a duration. See `until`.
+const trackLabel = await until(
   () =>
-    [...document.querySelectorAll('button')]
-      .map(b => b.textContent ?? '')
-      .find(t => t.startsWith('♪')) ?? '',
+    page.evaluate(
+      () =>
+        [...document.querySelectorAll('button')]
+          .map(b => b.textContent ?? '')
+          .find(t => t.startsWith('♪')) ?? '',
+    ),
+  t => t.includes('tone.wav'),
 )
 check(
   'the tray names the loaded track',
@@ -415,13 +448,18 @@ const head = () =>
       : { time: el.currentTime, paused: el.paused }
   })
 
-await wait(2500)
-const ran = await head()
+// Two seconds of playhead, waited for rather than slept through: the assertion
+// is still "past one second", and the extra second is the margin the restart
+// below is measured against.
+const ran = await until(head, h => (h?.time ?? 0) > 2)
 check('the track plays, and runs on', (ran?.time ?? 0) > 1, JSON.stringify(ran))
 
+// `restart` sets `currentTime` and calls `play()` in one synchronous body, so
+// what is being waited for is the click reaching it — and the playhead going
+// *backwards* is the one reading that cannot happen any other way, since it
+// only ever climbs while the track runs.
 await click('▶ play')
-await wait(500)
-const restarted = await head()
+const restarted = await until(head, h => (h?.time ?? 99) < (ran?.time ?? 0))
 check(
   'play takes it back to the top, with the walk',
   (restarted?.time ?? 99) < (ran?.time ?? 0),
@@ -430,8 +468,7 @@ check(
 check('and leaves it playing', restarted?.paused === false)
 
 await click('■ stop')
-await wait(500)
-const paused = await head()
+const paused = await until(head, h => h?.paused === true)
 check('stop pauses it', paused?.paused === true, JSON.stringify(paused))
 
 // --- persistence -----------------------------------------------------------

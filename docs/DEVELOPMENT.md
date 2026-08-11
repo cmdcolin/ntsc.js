@@ -149,6 +149,31 @@ find:
   stall a harness mid-run — it hangs on an `evaluate` that never returns, which
   reads as the app deadlocking rather than the transport drowning. Filter to
   warnings, errors, and the lines the harness is actually looking for.
+- **A fixed `wait()` is right for what has already happened by the next line,
+  and wrong for anything on the browser's own clock.** Clicks, React renders and
+  chips stepping are the first kind, which is why most sleeps in these scripts
+  are fine and short. The second kind is anything waiting on a decoder, a
+  `play()` promise, or a rendered frame — and it is worth calling out that
+  **rAF-clocked app state is in that set**, because an occluded window throttles
+  frames (above) and so a morph, a hold bar or a lock age can simply not have
+  moved yet. `traycheck.mjs` had one of each: the music arm slept 1500ms for a
+  track named only once `el.play()` resolved, and the capture arm slept 350ms
+  into a morph that a stalled rAF chain had not started, so `matchPreset` still
+  answered with the *previous* preset and rows were captured under the wrong
+  name. Both read as broken features. Poll for the answer instead — and hand the
+  last reading back rather than throwing, the way `until` in that file does, so
+  a genuine failure is one failed check with the value in it rather than a
+  `TimeoutError` that abandons the twenty assertions after it.
+- **`element.click()` reaches a button a hand cannot.** It does no hit-testing,
+  so a control scrolled or clipped out of its container — `overflow: hidden` on
+  a card, say — goes on passing every check that presses it. If a layout can put
+  a control out of reach, one assertion has to *measure* rather than click; the
+  tray harness checks every control on a row card is inside the card, which is
+  how a chip that pushed the ✕ off the end would now be caught.
+- **A click that finds nothing must fail where it happened.** These scripts find
+  buttons by their text, so a chip that is missing — off a shortlist, behind a
+  fold, renamed — makes the click a silent no-op and the *next* few assertions
+  fail instead, in features nothing has touched. Check the hit at the press.
 
 ## Measuring performance
 
