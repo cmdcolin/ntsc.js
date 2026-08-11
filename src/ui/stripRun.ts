@@ -8,19 +8,31 @@
 // three minutes into a set.
 //
 // It is also what lets the offline render reuse the walk rather than
-// reimplement it (docs/EDITOR.md › _One walk, two clocks_). An offline take is
-// this same function, against a sink that awaits its loads instead of firing
-// them off, driven by a `Clock` counting rendered frames. Nothing here knows
-// which of the two it is running under, and that is the point — the day it
-// needs to know, the walk has stopped being one walk.
+// reimplement it (docs/EDITOR.md › _One walk, two clocks_), and `offlineWalk`
+// at the foot of this file is that reuse: the same `advance`, the same
+// `runStep`, a `Clock` counting rendered frames. Nothing here knows which of
+// the two it is running under, and that is the point — the day it needs to
+// know, the walk has stopped being one walk.
+//
+// **The sink is synchronous in both**, which an earlier draft of this header
+// promised it would not be: it said an offline take would run "against a sink
+// that awaits its loads instead of firing them off". It does not, and the
+// reason is worth keeping rather than the promise. A load that has not landed
+// yet is a picture arriving a frame late, and offline a render *could* wait —
+// but what it would be waiting for is a `<video>` that plays at wall rate, so
+// waiting patiently for a source that is not frame-exact buys a take that is
+// still not reproducible. The awaiting sink is worth building the day the thing
+// on the other side of it is (EDITOR.md's frame-exact video pull), and not one
+// commit before.
 
 import { rngFor } from '../rng'
+import { STOPPED, advance, start } from './strip'
 import { parseSessionParams } from './urlParams'
 
 import type { Rand } from '../rng'
 import type { PoolOrigin } from '../sources/pools'
 import type { MutateAmount } from './mutate'
-import type { Effect, Step } from './strip'
+import type { Effect, Step, Strip } from './strip'
 import type { SessionParams } from './urlParams'
 
 // What a row needs the browser to do. Three verbs, matching the three effects.
@@ -69,4 +81,43 @@ export function runEffect(effect: Effect, sink: StripSink): void {
 // first — and it is `fireEffects` that decides it, not this.
 export function runStep(step: Step, sink: StripSink): void {
   for (const effect of step.effects) runEffect(effect, sink)
+}
+
+// --- the offline walk -------------------------------------------------------
+
+// The same rundown, on a clock the caller drives one frame at a time.
+//
+// This is the second half of _One walk, two clocks_, and the reason it is nine
+// lines is everything above it: `advance` already takes a `Clock` and does not
+// care where the frame came from, `runStep` already turns a step into calls,
+// and the difference between a performance and a render is entirely *what
+// advances the frame*. Live it is rAF reading the engine's counter; here it is
+// the render's own loop, which is why a take renders as fast as the GPU will go
+// and still cuts on the frame the rundown says.
+//
+// **Its own `walk`, and deliberately not the live one.** A render is not a
+// performance — it starts from the top whatever the tray was doing — so a take
+// begun while a set is running does not inherit its place, and finishing one
+// does not move it. What it does share is the sink, so a rendered take asks the
+// browser for exactly what a performed one does.
+//
+// **`frame` is the take's, not the engine's**, which under a take are the same
+// number (`startTake` counts from zero) and would not be if this were handed
+// `frameNo()` while the live loop was running. Taking it as an argument rather
+// than reading it is what keeps that a caller's problem rather than a bug here.
+export function offlineWalk(
+  strip: Strip,
+  sink: StripSink,
+  tempo: { bpm: number; fps: number },
+): (frame: number) => void {
+  let walk = STOPPED
+  return frame => {
+    const clock = { frame, bpm: tempo.bpm, fps: tempo.fps }
+    // Frame zero starts the walk; every frame after it asks whether a boundary
+    // has been crossed, which on nearly all of them it has not.
+    const step = frame === 0 ? start(strip, clock) : advance(strip, walk, clock)
+    if (step === null) return
+    walk = step.walk
+    runStep(step, sink)
+  }
 }

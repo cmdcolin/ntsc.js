@@ -53,7 +53,7 @@ import {
   stepHold,
   walking,
 } from './strip'
-import { runStep } from './stripRun'
+import { offlineWalk, runStep } from './stripRun'
 
 import type { Controls } from '../controls'
 import type { Rand } from '../rng'
@@ -148,6 +148,10 @@ export interface StripRunner {
   getDepth: () => { undo: boolean; redo: boolean }
   undo: () => void
   redo: () => void
+  // A second walk over the rundown as it stands, driven a frame at a time by
+  // whoever asked — the offline half of _One walk, two clocks_. See the
+  // implementation for why it keeps its own place and shares the sink.
+  offlineWalk: () => (frame: number) => void
 }
 
 // Subscribe/unsubscribe, and fan-out. At module scope because they capture
@@ -186,9 +190,14 @@ export function makeStripRunner(): StripRunner {
   const walkFns = new Set<() => void>()
   const frameFns = new Set<() => void>()
 
+  // The tempo both walks measure their holds against. Its own function because
+  // the offline walk wants the number and not the whole live clock — under a
+  // render the frame comes from the render, not from `frameNo()`.
+  const bpmNow = (): number => deps?.bpm ?? FALLBACK_BPM
+
   const clock = (): Clock => ({
     frame: deps?.frameNo() ?? 0,
-    bpm: deps?.bpm ?? FALLBACK_BPM,
+    bpm: bpmNow(),
     fps: FPS,
   })
 
@@ -284,6 +293,16 @@ export function makeStripRunner(): StripRunner {
       past = record(past, strip, (a, b) => a === b)
       install(next)
     },
+    // The offline half of _One walk, two clocks_: a second walk over the
+    // rundown as it stands, on a clock the caller drives (`stripRun.offlineWalk`
+    // says what that means). Built here rather than by the render because the
+    // sink is here — a rendered take has to ask the browser for exactly what a
+    // performed one does, and two sinks is two answers to that.
+    //
+    // A snapshot of the rundown, taken now: a render is of the piece as it was
+    // when the button went down, and a row edited while it runs would otherwise
+    // change a take already half written.
+    offlineWalk: () => offlineWalk(strip, sink, { bpm: bpmNow(), fps: FPS }),
     getDepth: () => depth,
     // Both directions, and neither records: `stepBack` moves the current
     // rundown onto the redo tail itself, so banking here as well would make one
@@ -344,6 +363,10 @@ export interface StripApi {
   // A new seed: the same rundown, different rolls and different drifts. The one
   // gesture that says "give me another take of this".
   reseed: () => void
+  // Hand the offline render a walk over this rundown — see `StripRunner`. Not
+  // a hook and not stateful here: each call is a fresh walk starting at the
+  // top, which is what a take is.
+  offlineWalk: StripRunner['offlineWalk']
 }
 
 export function useStrip(deps: StripDeps): StripApi {
@@ -425,6 +448,7 @@ export function useStrip(deps: StripDeps): StripApi {
     canRedo: depth.redo,
     undo: runner.undo,
     redo: runner.redo,
+    offlineWalk: runner.offlineWalk,
     ...verbs,
   }
 }

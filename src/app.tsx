@@ -1349,7 +1349,14 @@ export function App() {
                   audio.track.loaded && audio.duration > 0
                     ? audio.duration
                     : 10,
-                start: () =>
+                start: () => {
+                  // **A render is not a performance**, so it takes the walk
+                  // away from the tray rather than running beside it. The live
+                  // one ticks on rAF off the engine's counter, which a take
+                  // rewinds to zero underneath it; leaving it running would be
+                  // two walks over one rundown disagreeing about where the
+                  // piece is, and stopping it is also what a hand would do.
+                  strip.stop()
                   render.render(
                     audio.track.loaded && audio.duration > 0
                       ? audio.duration
@@ -1358,7 +1365,13 @@ export function App() {
                     // the same piece and rendering twice without it gives the
                     // same one.
                     strip.strip.seed,
-                  ),
+                    // And the rundown itself, a frame at a time. An empty tray
+                    // hands over a walk that finds nothing to start and the
+                    // render is a take of whatever is on the board, which is
+                    // what ⎙ meant before there was a rundown to render.
+                    strip.offlineWalk(),
+                  )
+                },
                 cancel: render.cancel,
               }}
             />

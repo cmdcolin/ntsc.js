@@ -342,6 +342,40 @@ Which is why the live path is worth building first: it is a hard prerequisite
 for the offline one, since a CFR render of a rolling strip means nothing until
 the rolls are reproducible.
 
+**Landed, and it is nine lines** — `offlineWalk` in `ui/stripRun.ts`, beside the
+`runStep` it calls. Everything that made it nine lines was built before it:
+`advance` already took a `Clock` and never cared where the frame came from,
+`runStep` already turned a step into calls, and _Take state_ made frame zero the
+same frame zero every time. So the difference between a performance and a render
+really is only *what advances the frame* — rAF reading the engine's counter, or
+`renderTake`'s own loop through a new `onFrame` hook. `scripts/rendercheck.mjs`
+renders a three-row rundown twice and gets one file, with a bare render of the
+same take as the control arm.
+
+Three things worth knowing about the shape it landed in.
+
+- **The offline walk keeps its own place, and the live one is stopped.** A
+  render is not a performance: pressing ⎙ stops the tray's walk and starts a
+  fresh one at the top, so a take begun mid-set does not inherit where the set
+  had got to and finishing one does not move it. What the two share is the
+  sink — a rendered take asks the browser for exactly what a performed one
+  does, which is the whole of "one walk".
+- **`onFrame` fires before the step, not after.** A row applied after the engine
+  stepped would be a cut landing one frame late, every time and in the same
+  direction, which is precisely the error no assertion about frame rate would
+  catch.
+- **The render does not wait for a source to load**, and that is the honest
+  limit of this piece. `applySession` fires its loads and returns; a row naming
+  a clip therefore arrives when it arrives, exactly as it does live. For a
+  rundown of look changes, shakes and generated sources — which is what the
+  common case looks like, per _A row is a thing that already exists_ — the take
+  is reproducible today. For one naming clips it is not, and it cannot be until
+  frame-exact video pull lands, because a `<video>` pulled at wall rate is not
+  reproducible however patiently the walk waits for it. That is why the awaiting
+  sink `stripRun.ts`'s header describes is still described rather than built:
+  the seam is worth nothing until the thing on the other side of it is frame
+  exact.
+
 ### The modules, and what does not need a browser
 
 The walk is where an editor gets its bugs, and a browser is an expensive place
@@ -945,25 +979,19 @@ list above in two places.
    the shelf cuts the deck's own T-bar, because that is the only cut there is
    until a rundown can preroll — the fault is the same either way, which is why
    `faultPlan` takes the `onCut` from its caller.
-3. **The strip's offline walk.** `advance` already takes a `Clock` and does not
-   care where the frame number comes from, and `renderTake` already owns a
-   frame counter; what is missing is a driver that steps the walk once per
-   rendered frame instead of once per rAF. It moved *up* the list, because take
-   state was the thing blocking it — a rolling strip rendered from an unknown
-   state is a different video every time, and it no longer is.
-
-   Worth knowing before starting: the live walk ticks on rAF and reads the
-   engine's counter, so it walks *through* a render at GPU speed. A take
-   rewinding that counter to zero stalls it rather than firing it, which is the
-   better of the two accidents and still an accident. Whoever builds this should
-   take the walk away from rAF for the length of a take, the way `renderTake`
-   already takes the frames.
+3. ~~**The strip's offline walk.**~~ **Landed** — nine lines, for the reason
+   _One walk, two clocks_ now records, and ⎙ renders the rundown rather than
+   just the board. It stops the live walk rather than running beside it, which
+   is what the note here said to do.
 4. **Preroll depth 1.** `videoSlot.ts`'s one-element-per-slot assumption. It
    unblocks three filed things at once — transitions between rows, the audio
    crossfade (IDEAS.md › _Clip cues_), and any cut that is not a hard one.
 5. **Frame-exact video pull**, then **automation recording**, as before. The
    first is now the only thing between a take and reproducing with a clip in
-   it: everything below the video is deterministic, and the video is not.
+   it: everything below the video is deterministic, and the video is not. It
+   carries the awaiting sink with it — a render waiting for a load is worth
+   building the day what it is waiting for is frame exact, and not before (see
+   `stripRun.ts`'s header).
 
 Three things this list deliberately does not carry, all of them wants rather
 than needs. **Cutting to the track's clock** rather than starting with it — the

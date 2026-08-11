@@ -29,8 +29,15 @@ export interface RenderApi {
   // fields is two chances for them to disagree.
   progress: number | null
   // `seed` is the rundown's, so re-rendering a take asks the dice the same
-  // questions — see `RenderSpec.seed`.
-  render: (seconds: number, seed: number) => void
+  // questions — see `RenderSpec.seed`. `walk` is the rundown itself, one frame
+  // at a time (`StripApi.offlineWalk`), or omitted for a take of whatever is
+  // on the board — which is what ⎙ meant before there was a walk to render and
+  // still means for an empty tray.
+  render: (
+    seconds: number,
+    seed: number,
+    walk?: (frame: number) => void,
+  ) => void
   cancel: () => void
 }
 
@@ -47,7 +54,7 @@ export function useRender(
   const cancelled = useRef(false)
 
   const render = useCallback(
-    (seconds: number, seed: number) => {
+    (seconds: number, seed: number, walk?: (frame: number) => void) => {
       const canvas = canvasRef.current
       if (engine === null || canvas === null || seconds <= 0) return
       cancelled.current = false
@@ -56,6 +63,7 @@ export function useRender(
         frames: Math.round(seconds * FPS),
         fps: FPS,
         seed,
+        onFrame: walk,
         onProgress: (done, total) => setProgress(done / total),
         cancelled: () => cancelled.current,
       }).then(

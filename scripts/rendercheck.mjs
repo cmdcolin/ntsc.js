@@ -162,6 +162,75 @@ const render = (frames, jitter, wantFile = false) =>
     wantFile,
   )
 
+// A rundown rendered offline: the strip's own walk stepped once per rendered
+// frame (`ui/stripRun.offlineWalk`) through the render's `onFrame`. Answers a
+// digest, so two of them can be compared, and takes `walkOn` so the same take
+// can be rendered with the rundown and without it.
+//
+// The sink writes controls and nothing else, deliberately. Source loading is
+// asynchronous and the render does not wait for it — see docs/EDITOR.md ›
+// _Landed: the offline walk_ — so a row that names a clip is not yet a
+// reproducible row, and putting one here would be testing the network. What is
+// under test is the driver: that the boundaries land on the frames the rundown
+// says, and that a rundown is a take you can ask for twice.
+const renderStrip = walkOn =>
+  page.evaluate(
+    async (on, fps, frames) => {
+      const mod = await import('/src/ui/render.ts')
+      const { offlineWalk } = await import('/src/ui/stripRun.ts')
+      const vf = window.vf
+      const cv = document.querySelector('canvas')
+      // Every key the rows below touch, explicitly at stock. `session` is a
+      // *patch*, so without this the second render would start from wherever
+      // the first one's last row left the board and the digests could not be
+      // compared — which is a property of the test, not of the walk.
+      vf.stopGlide()
+      vf.applyControls({
+        ...vf.getControls(),
+        vSize: 1,
+        hvSagUs: 0,
+        trackAmt: 0,
+      })
+      // 120bpm at 60fps makes a quarter-bar hold 30 frames, so a 60-frame take
+      // holds two whole rows and cuts once in the middle of itself.
+      const hold = { bars: 0.25, drift: 0 }
+      const rows = [
+        { id: 'r1', name: '', session: 'set=vSize:0.6', hold },
+        { id: 'r2', name: '', session: 'set=hvSagUs:40', hold },
+        { id: 'r3', name: '', session: 'set=trackAmt:0.8', hold },
+      ].map(r => ({ ...r, fill: { kind: 'clip' }, arrive: { seconds: 0 } }))
+      const fired = []
+      const sink = {
+        session: p => {
+          fired.push(vf.frameNo())
+          vf.applyControls(p.controls)
+        },
+        roll: () => {},
+        jitter: () => {},
+      }
+      const step = offlineWalk({ rows, seed: 7, loop: true }, sink, {
+        bpm: 120,
+        fps,
+      })
+      const blob = await mod.renderTake(vf, cv, {
+        frames,
+        fps,
+        seed: 7,
+        onFrame: on ? step : undefined,
+      })
+      const buf = new Uint8Array(await blob.arrayBuffer())
+      const digest = [
+        ...new Uint8Array(await crypto.subtle.digest('SHA-256', buf)),
+      ]
+        .map(x => x.toString(16).padStart(2, '0'))
+        .join('')
+      return { digest, size: buf.length, fired }
+    },
+    walkOn,
+    FPS,
+    FRAMES,
+  )
+
 // --- two renders of one take are one file -------------------------------------
 //
 // The headline, and everything else here is the reason it can be asserted. The
@@ -194,6 +263,31 @@ check(
     a.last === FRAMES &&
     b.last === FRAMES,
   `${a.first}..${a.last} and ${b.first}..${b.last} for ${FRAMES} asked`,
+)
+
+// --- a rundown is a take you can ask for twice --------------------------------
+//
+// _One walk, two clocks_, measured: the same `advance` and the same `runStep`
+// the tray runs on, stepped by the render instead of by rAF.
+const s1 = await renderStrip(true)
+const s2 = await renderStrip(true)
+const bare = await renderStrip(false)
+check(
+  'the walk cuts on the frames the rundown says',
+  JSON.stringify(s1.fired) === JSON.stringify([0, 30]),
+  `fired on ${s1.fired.join(', ')} of ${FRAMES}, for a 30-frame hold`,
+)
+check(
+  'two renders of one rundown are the same file',
+  s1.digest === s2.digest,
+  `${s1.digest.slice(0, 16)} vs ${s2.digest.slice(0, 16)}`,
+)
+// The control arm, and the check above is worth nothing without it: a walk that
+// never fired would render two identical files too.
+check(
+  'and the rundown is what made it that file',
+  s1.digest !== bare.digest,
+  `${s1.size}B walked vs ${bare.size}B not`,
 )
 
 // --- the engine is left as it was found --------------------------------------

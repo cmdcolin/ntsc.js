@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { DEFAULT_CONTROLS } from '../controls'
-import { runEffect, runStep } from './stripRun'
+import { offlineWalk, runEffect, runStep } from './stripRun'
 import { makeStripRunner } from './useStrip'
 
 import type { Rand } from '../rng'
@@ -384,5 +384,127 @@ describe('makeStripRunner', () => {
     off()
     h.to(10)
     expect(onProgress).not.toHaveBeenCalled()
+  })
+
+  // A render takes the walk away from the tray rather than running beside it
+  // (app.tsx stops it), and the offline walk keeps its own place — so a take
+  // begun mid-set starts from the top and leaves the set where it was.
+  it('is not moved by an offline walk over the same rundown', () => {
+    const h = harness([row({ hold: { bars: 1, drift: 0 } })])
+    h.runner.start()
+    h.to(200)
+    const live = h.runner.getWalk()
+    const f = fakeSink()
+    const step = offlineWalk(h.runner.getStrip(), f.sink, { bpm: 120, fps: 60 })
+    step(0)
+    step(120)
+    expect(f.order).toHaveLength(2)
+    expect(h.runner.getWalk()).toEqual(live)
+  })
+})
+
+// The offline half of _One walk, two clocks_ (docs/EDITOR.md). The same
+// `advance` and the same `runStep` as the live driver above — what differs is
+// only who moves the frame — so what is worth testing is that the boundaries
+// land where the rundown says, and that two walks of one rundown agree.
+describe('offlineWalk', () => {
+  const row = (over: Partial<Row> = {}): Row => ({
+    id: 'r1',
+    name: '',
+    session: 'set=&mod=',
+    fill: { kind: 'clip' },
+    hold: { bars: 4, drift: 0 },
+    arrive: { seconds: 1 },
+    ...over,
+  })
+
+  // 120bpm at 60fps: a 1-bar hold is 120 frames.
+  const TEMPO = { bpm: 120, fps: 60 }
+  const stripOf = (rows: Row[], over: Partial<Strip> = {}): Strip => ({
+    rows,
+    seed: 42,
+    loop: true,
+    ...over,
+  })
+
+  // Drive `n` frames and hand back what the sink was asked for, and on which
+  // frames — which is the whole of what this driver decides.
+  const walkFrames = (strip: Strip, n: number) => {
+    const f = fakeSink()
+    const step = offlineWalk(strip, f.sink, TEMPO)
+    const at: number[] = []
+    for (let i = 0; i < n; i++) {
+      const before = f.order.length
+      step(i)
+      if (f.order.length > before) at.push(i)
+    }
+    return { ...f, at }
+  }
+
+  it('starts the rundown on frame zero rather than waiting for a boundary', () => {
+    const w = walkFrames(stripOf([row(), row({ id: 'r2' })]), 5)
+    expect(w.at).toEqual([0])
+    expect(w.sessions).toHaveLength(1)
+  })
+
+  it('cuts on the frame the hold is up, not a frame either side', () => {
+    const w = walkFrames(
+      stripOf([
+        row({ hold: { bars: 1, drift: 0 } }),
+        row({ id: 'r2', hold: { bars: 1, drift: 0 } }),
+      ]),
+      300,
+    )
+    expect(w.at).toEqual([0, 120, 240])
+  })
+
+  it('comes back round on a looping rundown, and stops on one with an end', () => {
+    const rows = [row({ hold: { bars: 1, drift: 0 } })]
+    expect(walkFrames(stripOf(rows), 400).at).toEqual([0, 120, 240, 360])
+    expect(walkFrames(stripOf(rows, { loop: false }), 400).at).toEqual([0])
+  })
+
+  // The point of the seed, and of this test: a rundown whose rows roll is a
+  // different video every time unless the draws come from somewhere a record
+  // can point at (docs/adr/0006). Two offline walks of one rundown ask the same
+  // questions, in the same order, on the same frames.
+  it('asks the same questions twice, rolls and drifted holds included', () => {
+    const rows = [
+      row({
+        hold: { bars: 1, drift: 0.4 },
+        fill: { kind: 'roll', origin: 'commons' },
+      }),
+      row({
+        id: 'r2',
+        hold: { bars: 1, drift: 0.4 },
+        fill: { kind: 'jitter', amount: 'normal' },
+      }),
+    ]
+    const a = walkFrames(stripOf(rows), 600)
+    const b = walkFrames(stripOf(rows), 600)
+    expect(a.at).toEqual(b.at)
+    expect(a.order).toEqual(b.order)
+    // Not merely the same *pools* — the same numbers out of them, which is what
+    // a recorded seed has to buy.
+    expect(a.rolls.map(r => r.rand())).toEqual(b.rolls.map(r => r.rand()))
+    expect(a.jitters.map(j => j.rand())).toEqual(b.jitters.map(j => j.rand()))
+  })
+
+  it('and different ones from a different seed, which is what ⟳ is for', () => {
+    const rows = [
+      row({
+        hold: { bars: 1, drift: 0.4 },
+        fill: { kind: 'roll', origin: 'commons' },
+      }),
+    ]
+    const a = walkFrames(stripOf(rows, { seed: 1 }), 600)
+    const b = walkFrames(stripOf(rows, { seed: 2 }), 600)
+    expect(a.rolls.map(r => r.rand())).not.toEqual(b.rolls.map(r => r.rand()))
+  })
+
+  // An empty tray is not an error, and the render leans on it: pressing ⎙ with
+  // no rundown is a take of whatever is on the board.
+  it('does nothing at all for an empty rundown', () => {
+    expect(walkFrames(stripOf([]), 600).order).toEqual([])
   })
 })

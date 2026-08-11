@@ -44,6 +44,19 @@ export interface RenderSpec {
   // the stick-slip patches, the bay's random walk. The rundown's seed, so a
   // re-render of a strip asks the dice the same questions its walk did.
   seed: number
+  // Called before each frame is stepped, with the take's own frame index —
+  // which is the engine's counter too, since `startTake` counts from zero.
+  //
+  // What this is for is the strip's offline walk (`stripRun.offlineWalk`), and
+  // it is a callback rather than the render knowing about rundowns because the
+  // two have no business knowing about each other: this file owns frames and a
+  // file, and what should be on screen for frame N is somebody else's question.
+  //
+  // Before the step, not after: whatever it puts up has to be what this frame
+  // renders, and a row applied after the step would be a cut that lands one
+  // frame late — every time, in the same direction, which is the kind of error
+  // no assertion about frame rate would ever catch.
+  onFrame?: (frame: number) => void
   // Called after each yield, never per frame — a progress bar has no use for
   // sixty updates a second and React has no time for them mid-render.
   onProgress?: (done: number, total: number) => void
@@ -122,6 +135,7 @@ export async function renderTake(
   })
   try {
     for (let i = 0; i < frames; i++) {
+      spec.onFrame?.(i)
       // Step first, then take what it drew: `step()` renders synchronously, so
       // the canvas holds frame `i` by the time this returns. Taking the frame
       // first would record the state *before* the render and shift the whole
