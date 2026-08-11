@@ -175,5 +175,15 @@ export interface EngineApi {
   // on a healthy loop.
   kick: () => void
   frameNo: () => number
+  // Count time in frames at this rate rather than off the wall clock, or null
+  // for the wall. It is what turns the five rate-driven readers in the signal
+  // path — the two glide reads, the stab gate, the strobe gate and the PLL's
+  // auto-lock — into functions of the frame counter, which is the last thing
+  // standing between this engine and "frame N is a function of N"
+  // (docs/EDITOR.md › _Fixed-framerate export_).
+  setVirtualClock: (fps: number | null) => void
+  // What that clock reads now, in ms. For harnesses: every other effect of the
+  // switch is a pixel.
+  clockMs: () => number
   destroy: (opts?: DestroyOptions) => void
 }

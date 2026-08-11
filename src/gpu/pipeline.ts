@@ -228,6 +228,17 @@ export class Engine implements EngineApi {
   private gpu: Gpu
   private canvas: RenderTarget
   private frame = 0
+  // The rate the clock below counts at, or null for the wall clock.
+  //
+  // Everything in the signal path that has a *rate* rather than a per-frame
+  // step reads `now()`, and off the wall clock those are the five places where
+  // "frame N is a function of N" stops being true: render the same take twice
+  // and the strobe lands on different frames, because it landed on different
+  // milliseconds. Set this and they become functions of the frame counter
+  // instead — which is what an offline render needs, and what makes a re-render
+  // of a recorded take the same take (docs/EDITOR.md › _Fixed-framerate
+  // export_).
+  private virtualFps: number | null = null
   private filtersDirty = true
   private lineState = new LineState()
   // Not built here: an engine replacing a lost one inherits its predecessor's
@@ -1058,6 +1069,26 @@ export class Engine implements EngineApi {
     }
   }
 
+  // What every rate in the signal path measures itself against.
+  //
+  // Live this is the wall clock, which is right: a strobe you count along with
+  // has to be that rate whatever the panel is doing, and a morph you are
+  // watching should take the seconds it says. Under a virtual clock it is the
+  // frame counter in milliseconds, and the same five readers become pure
+  // functions of the frame — which is the whole of what `frame N is a function
+  // of N` was missing.
+  //
+  // One method rather than a threaded argument because the readers are five
+  // unrelated places in the frame, and an argument each is five chances to pass
+  // the wrong one. `strobeGate`'s own comment argues *for* the wall clock, and
+  // it is right — for live. Offline the output timebase is the honest one, and
+  // that is exactly the inversion this switch is.
+  private now(): number {
+    return this.virtualFps === null
+      ? performance.now()
+      : (this.frame * 1000) / this.virtualFps
+  }
+
   // The resting board, which is not the same thing as the board this frame was
   // rendered from. The bay and the stab write the live controls and unwind them
   // inside one frame without ever calling `emitControls`, so what comes back here
@@ -1111,7 +1142,7 @@ export class Engine implements EngineApi {
   // That is what makes rolls chain — hit surprise repeatedly and the look wanders
   // continuously rather than snapping back to the last resting one each time.
   startGlide(plan: GlidePlan): void {
-    this.glide.start(this.controls, plan, performance.now())
+    this.glide.start(this.controls, plan, this.now())
     this.glideNotify = 0
     // On this call rather than on the first frame, so the readout is up before
     // the picture has moved. The gap is one frame and it is the wrong frame to
@@ -1187,7 +1218,7 @@ export class Engine implements EngineApi {
   // value, not the pre-morph one, because the glide has already written it.
   private advanceGlide(): void {
     if (!this.glide.running) return
-    const step = this.glide.apply(this.controls, performance.now())
+    const step = this.glide.apply(this.controls, this.now())
     if (step.coarseMoved) this.filtersDirty = true
     // Every frame, unthrottled — one button re-renders. The landing frame is
     // the one that matters most: `apply` has already stopped the glide by now,
@@ -1522,7 +1553,7 @@ export class Engine implements EngineApi {
       // be that rate under a frame lock and on a 144 Hz panel (signal/strobe.ts).
       beamBlank: this.strobeGate.step(
         { hz: c.strobeHz, ms: c.strobeMs },
-        performance.now(),
+        this.now(),
       ),
       chromaGain: c.chromaGain,
       burstLock: c.burstLock,
@@ -1759,6 +1790,23 @@ export class Engine implements EngineApi {
     return this.frame
   }
 
+  // Count time in frames at this rate instead of off the wall clock, or `null`
+  // to go back to the wall. See `now()` for what reads it and why.
+  //
+  // Deliberately not a mode the app boots into: live, the wall clock is the
+  // correct answer for all five readers, and a session that measured its own
+  // strobe in frames would drift against the room the moment the tab dropped
+  // one. This is for a render that owns its own clock.
+  setVirtualClock(fps: number | null): void {
+    this.virtualFps = fps
+  }
+
+  // What the clock currently reads, in milliseconds — for a harness that needs
+  // to prove the switch took, since every effect of it is otherwise a pixel.
+  clockMs(): number {
+    return this.now()
+  }
+
   // Bender's modulation: LFOs / random walks / audio envelopes wiggle controls
   // around their slider settings, the way bent hardware has oscillators and
   // hands patched into pots. Applied by mutating `controls` for the duration
@@ -1807,7 +1855,7 @@ export class Engine implements EngineApi {
   // a look that is drifting underneath rather than on the same frozen frame each
   // time.
   private applyStab(): () => void {
-    const { clean, changed } = this.stabGate.step(this.stab, performance.now())
+    const { clean, changed } = this.stabGate.step(this.stab, this.now())
     // Only on the two edges of a cycle. Every frame inside one holds the same
     // values, so the bank designed on the way in is still the right bank —
     // marking each clean frame instead is a FIR redesign at the frame rate, which
@@ -1942,9 +1990,7 @@ export class Engine implements EngineApi {
     // control that stops the app is worth being unable to express at all.
     const lockDiv = Math.max(
       1,
-      lockSel === LOCK_AUTO
-        ? this.autoLock.tick(performance.now())
-        : 1 + lockSel,
+      lockSel === LOCK_AUTO ? this.autoLock.tick(this.now()) : 1 + lockSel,
     )
     this.lockDivLive = lockDiv
     this.lockPhase = (this.lockPhase + 1) % lockDiv

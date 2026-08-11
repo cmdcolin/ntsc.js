@@ -659,12 +659,24 @@ So "render frame N" is nearly a pure function already. Four things are not.
   - _Proper:_ WebCodecs `VideoDecoder` plus a demuxer (mp4box.js), pulling
     frames in decode order by index. No seeking, no `createImageBitmap` race.
     **But see the Firefox constraint below — it does not land cleanly here.**
-- **Four wall-clock reads, three of which move pixels.** `advanceGlide` (twice),
-  `stabGate`, `strobeGate`, and `autoLock` all take `performance.now()`. Fix is
-  one argument each: pass the virtual `frame * 1000 / fps`. Note `strobeGate`'s
-  comment argues _for_ wall clock so the rate is honest under a frame lock and
-  on a 144 Hz panel — that reasoning is right for live and inverted for export,
-  where the output timebase is the honest one.
+- ~~**Four wall-clock reads, three of which move pixels.**~~ **Landed**, and
+  there were five, not four: `startGlide` stamps the walk's origin as well as
+  `advanceGlide` reading it. `stabGate`, `strobeGate` and `autoLock` are the
+  other three. `Engine.setVirtualClock(fps)` points all of them at
+  `frame * 1000 / fps`; `null` puts them back on the wall.
+
+  One method rather than the argument-each this predicted. The readers are five
+  unrelated places in the frame, and an argument each is five chances to pass
+  the wrong one — where one private `now()` is a single switch nothing can miss.
+  `strobeGate`'s comment does argue _for_ the wall clock and is right for live,
+  which is why this is a mode and not a replacement.
+
+  Measured by `scripts/clockcheck.mjs`: sixty frames stepped in no real time
+  finish a one-second morph on the virtual clock (progress `null`, arriving
+  exactly on target) and move it 0.03 on the wall clock. Thirty frames get half
+  way, so the readers track the counter linearly rather than merely flipping at
+  the end. The wall-clock arm is a control — if it finished too, the other arm
+  would prove nothing.
 - **Live input has no offline meaning.** MIDI and mic/line audio can't be
   re-rendered. The interesting answer is not to stub them but to record the
   _automation_: capture control writes with frame stamps during a live take,
@@ -769,8 +781,18 @@ arrives.
    frame exactly one tick apart — but a tab that dropped to 40fps writes a take
    that plays 1.5x fast. Fixing that is step 2 below plus a loop that steps the
    engine rather than waiting on rAF, which is the offline render proper.
-2. **The virtual clock.** Small — the four wall-clock reads above, one argument
-   each, all in `pipeline.ts`.
+2. ~~**The virtual clock.**~~ **Landed** — five reads, one `now()`, and
+   `scripts/clockcheck.mjs` to prove the inversion.
+
+   What steps 1 and 2 together still do *not* make is an offline render, and
+   the missing piece is neither of them: **nothing owns the loop.** The
+   recorder is driven by rAF, so it captures at whatever rate the tab renders
+   and stamps it 60fps, and the engine's own loop keeps advancing the frame
+   counter underneath anything that tries to step by hand. A render that is
+   reproducible needs the rAF loop *stopped* and the frames pulled — which is a
+   third thing, small, and now the whole of what is between here and a take
+   that re-renders identically. It is also the point at which the strip's
+   offline walk (_One walk, two clocks_) has a clock to walk on.
 3. **The transition shelf.** Cheap, and it does not need the strip: A and B are
    both live today, so the first transitions can run off the T-bar and a MIDI
    pad with no rundown anywhere near them. A table of named recipes over
