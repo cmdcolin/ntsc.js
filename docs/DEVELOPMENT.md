@@ -732,5 +732,7 @@ the other GPU" wants answering without a rebuild.
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — pass graph, buffer layouts, adding a
   control end to end
 - [`EFFECTS.md`](EFFECTS.md) — the map of what it can break, stage by stage
+- [`EDITOR.md`](EDITOR.md) — the strip, glitch transitions, and the export an
+  editor can conform: design for work not yet built
 - [`adr/`](adr/) — the decisions where the obvious thing is wrong for a
   non-obvious reason
