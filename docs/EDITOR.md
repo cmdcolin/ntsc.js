@@ -5,7 +5,7 @@ document is music videos: a series of clips, set up in advance, played back to
 back. It is the design, written before the code, because one decision in it
 (seeding, below) is cheap now and expensive to retrofit.
 
-It has two halves and one boundary.
+It has two halves and a boundary, drawn twice.
 
 - **The strip** is the live half — an ordered list of cued states you can also
   fire by hand, and a shelf of transitions to get between them. It is a rundown,
@@ -13,9 +13,9 @@ It has two halves and one boundary.
 - **Fixed-framerate export** is the offline half — rendering a take where frame
   N is a pure function of N, so an editor can conform the result. Most of its
   precondition is already paid for reasons that had nothing to do with export.
-- **The boundary** is that none of this becomes a plugin for somebody else's
-  timeline. That was investigated and declined, and the reasoning is first
-  because it is what shapes the rest.
+- **The boundary** is drawn twice, and both are argued before anything else
+  because they are what shape the rest: none of this becomes a plugin for
+  somebody else's timeline, and none of it becomes a page of its own either.
 
 The two halves are one project rather than two: the live walk and the offline
 walk are the same walk on different clocks, and the live one is a hard
@@ -77,6 +77,51 @@ stays on the table as a _shell_ decision (file writing, ProRes, a pinned
 runtime, all argued under _What a desktop shell actually buys_) and never as an
 integration strategy.
 
+## What this is not either: a second page
+
+The other version of "put it somewhere else" is closer to home and more
+tempting, because it is true as far as it goes: the live app is already dense,
+a rundown is a lot of new surface, and this repo has a second entry point
+already. Still no. One document, and three of the reasons are load-bearing
+rather than preferences.
+
+**The strip writes; it does not view.** Every row it fires goes through funnels
+the live app owns — `writeControls` / `startGlide` for the look,
+`selectSource` / `loadClip` / `showRef` for the source, `setVideoRegion` for the
+cue. A second page needs a second engine, and around it a second copy of
+`useEngine`'s two thousand lines of source loading, plus the bay, the tempo and
+the MIDI wiring. That is a fork of the app wearing a second URL, and two copies
+of one contract drift — which is the argument `slotView.ts` already makes about
+a much smaller duplication.
+
+**`vote.html` is the counter-example, and it states the test.** The second entry
+in `vite.config.ts` exists on an explicit condition — "nothing in it should cost
+the app a byte — a visitor to index.html never downloads it" — and the vote page
+meets it: it shares `Engine` and `presets`, builds its two engines on one
+device, and needs no part of the panel. The strip fails that test from both
+ends. It wants nearly all of the panel, and a visitor to the strip page would
+download the app entire.
+
+**The offline half is pinned here regardless.** An offline render must adopt the
+live device rather than create one
+([adr/0004](adr/0004-never-destroy-a-presenting-device.md)), and a second tab
+cannot adopt the first tab's. So the export has no second-page option even in
+principle, and putting the strip where the export could not follow would split
+one walk across two documents — see _One walk, two clocks_, which is the thing
+the whole design is arranged around.
+
+What the worry is actually about is screen space, and the app already answers
+that. `usePopout` opens a same-origin window and portals the panel into it:
+same React tree, same engine store, same MIDI, no message plumbing, because the
+JS heap is shared. A strip that wants its own screen gets one from a mechanism
+that exists, and the arrangement it enables is the right one here — picture on
+the projector, rundown on the laptop. The strip is a better popout candidate
+than the panel is.
+
+So the live/edit tension is a **mode, not a page**: tray shut, the app is what
+it is today to the byte. That is the property worth holding, and it is cheaper
+to hold than a second entry point would be.
+
 ## The strip
 
 **The shape is a rundown, not an NLE timeline.** Tracks, a playhead and trim
@@ -136,6 +181,44 @@ holds exist, so nothing is lost by making the accident the default.
 `ui/useTempo.ts` already supplies the beat, from MIDI clock when there is one
 and a tapped `DEFAULT_BPM` underneath when there is not, so bar-relative holds
 work on a machine with no gear attached.
+
+### The row, as a type
+
+```ts
+interface Row {
+  id: string
+  // What this row *is* — the three fillings above, one shape.
+  fill:
+    | { kind: 'clip'; src: RowSource; cue: Cue | null }
+    | { kind: 'roll'; pool: PoolMode }
+    | { kind: 'mutate'; amount: MutateAmount }
+  // How long it holds. `bars: null` is "wait for a hand".
+  hold: { bars: number | null; drift: number }
+  // How it arrives, off the shelf below.
+  arrive: { transition: TransitionName; seconds: MorphSeconds }
+  // The look, as a query string: `writeProfileParams`' output, verbatim.
+  look: string
+}
+```
+
+`look` as a query string is _A row is a thing that already exists_ made
+concrete, and `writeProfileParams` rather than `writeSessionParams` is the
+deliberate half: a row is read back weeks later, which is exactly the case that
+function was split out for — resolved controls, with no `preset=` underneath to
+re-supply a knob the hand had already put back. It costs a parse per row fire,
+which is nothing beside a source swap, and it buys three things at once. A row
+is shareable on its own. `scripts/clips.mjs` can drive one with no new contract.
+And `urlParams.test.ts` is already the row codec's test.
+
+The strip itself is not a query string — twenty rows is well past what an
+address bar carries — so a rundown is JSON in `storage.ts` beside the shelf,
+holding rows whose looks are strings. **A row is a link; a rundown is a file.**
+
+`RowSource` is the one genuinely new union, and it stays small because it can
+only name things that survive being written down: a shelf id (`lib:<id>`), a
+`PoolRef`, a url, a YouTube url, or a generated mode. Not a `File` — the same
+rule `urlParams` gives for `?src=file`, for the same reason, and `fileStash` is
+already where the local answer to it lives.
 
 ### Interaction: follow the drags this app already has
 
@@ -205,6 +288,26 @@ This is also the natural carrier for the automation recording described under
 _Fixed-framerate export_ — control writes with frame stamps, replayed offline. A
 seed plus a resolved pick list plus stamped control writes _is_ a take.
 
+**What the rule actually costs, checked against the code:** much less than the
+warning implies, because the seam is nearly all built and was built for other
+reasons. `mutate()` takes a `rand` and always has. `randomPresetMix` takes one
+too, and the note above it says why — the vote page could not have existed
+otherwise, since "a label is worthless if the thing labelled cannot be rendered
+again" is the same sentence as this section with a different noun. `modstate`,
+`noise` and `linestate` each take one. And `vote/candidates.ts` already has the
+generator — mulberry32, `rngFor` — and already threads a seed end to end, side
+assignment included.
+
+Three things are missing, and all three are small. `rngFor` has no shared home,
+so it wants lifting to `math.ts` on the same rule the clamp/wrap pass followed.
+And the two pool pickers still reach for `Math.random` directly:
+`sources/pool.ts`'s `randomIndex` and the one-liner at the bottom of
+`sources/commons.ts`. Those two are the whole of the retrofit this section
+warns about, and they are a parameter each.
+
+That does not weaken the rule, it sharpens it: everything expensive about
+seeding has already been paid for, so the first commit has no excuse.
+
 When the code lands, this rule is the part that should become an ADR — it is the
 one a later reader would otherwise be within their rights to simplify into
 `Math.random()`.
@@ -223,6 +326,46 @@ is the same live and offline; only what advances it differs.
 Which is why the live path is worth building first: it is a hard prerequisite
 for the offline one, since a CFR render of a rolling strip means nothing until
 the rolls are reproducible.
+
+### The modules, and what does not need a browser
+
+The walk is where an editor gets its bugs, and a browser is an expensive place
+to find them. So the split is the one `cue.ts`, `deck.ts` and `modSlots.ts`
+already model — the arithmetic is pure and tested under vitest, and React only
+carries out what it says.
+
+- `ui/strip.ts` — the row type, the codec, and
+  `advance(strip, state, frame, tempo) → { state, effects }`. One pure function:
+  given a rundown, where the walk is and what frame it is, what changes.
+  Effects are a small union (`load`, `apply`, `fault`, `preroll`), never engine
+  calls.
+- `ui/useStrip.ts` — the driver, which turns effects into calls on `eng` and
+  `ControlsApi` and does nothing else. The only part that needs a browser.
+- `ui/transitions.ts` — the shelf as a table (below). Pure.
+- `ui/StripTray.tsx`, `ui/StripRow.tsx` — the surface, on the pointer drags
+  _Interaction_ names. The shell in `app.module.css` currently sets `.stage`
+  and `.panel` side by side as one flex row; the tray puts the stage in a
+  column with the tray under it, and the panel is untouched. Not a section
+  _in_ the panel: a rundown does not fit 332px, and the tray is where a hand
+  works during a take rather than where a circuit is dialed in.
+- `math.ts` — gains `rngFor`, lifted out of `vote/candidates.ts` (see
+  _Seeding_).
+
+**The walk advances on the engine's frame counter, not on a wall clock.**
+`advance` takes a frame and a tempo, so "≈4 bars" is arithmetic over
+`frameNo()`. That makes the live driver a poll on the tick that already reads
+the playheads at 10 Hz, and the offline driver a call per rendered frame with
+nothing else changed. It is _One walk, two clocks_ built rather than promised,
+and it is why `advance` should be a function of a frame in the first commit
+instead of a `setTimeout` that gets replaced later.
+
+The corollary is worth saying out loud, because it will read as a missing
+feature: **the walk has no seek.** Row N depends on every row before it — a
+mutate jitters what is live, a roll draws from a stream of numbers with a
+position in it — so a rundown plays from the top or not at all. That is the
+property the signal path has had all along, and it is most of why this cannot be
+a plugin (_What this is not_). It is also why _Deliberately not this_ can rule
+out a scrubbable playhead at no cost: there was never one to lose.
 
 ### Transitions: a fault that resolves, not a drawn wipe
 
@@ -282,6 +425,65 @@ live at once, which is the preroll above and the reason it is filed after it;
 and a fault big enough to hide a cut is a fault big enough to be unpleasant at
 the wrong duration, so the shelf needs taste-setting defaults far more than it
 needs range.
+
+#### The envelope belongs in the engine, not in React
+
+A transition is two curves and a cut point, and the obvious way to draw curves
+is a rAF loop in the panel writing `preview()` sixty times a second. Don't. That
+is React work at frame rate on the one path that must not have any, and the same
+loop is wrong offline, where there is no rAF and a frame is not a millisecond.
+
+The engine has this shape twice already. `setStab` is a plan handed over once
+and "applied and undone inside a single frame"; the modulation bay is the same
+contract at eight slots. A fault is a third instance, beside `startGlide`:
+
+```ts
+startFault(plan: {
+  peak: Partial<Controls>  // the fault at full depth
+  frames: number           // its span
+  cut: number              // where the source swap lands, 0..1
+  onCut: () => void        // fired once, on the peak frame
+}): void
+```
+
+Evaluated where the bay is evaluated — additively over the resting controls,
+inside the frame, never touching what React renders from. Three things then come
+free. It is frame-clocked, so it is already right under the virtual clock. It
+composes with `startGlide` instead of fighting it, which is the pairing
+_Transitions_ asks for: the look walks while the fault cuts. And it is one
+object an automation recorder can stamp, when that arrives.
+
+The cut is a callback rather than something the panel polls for because the swap
+has to land on the peak frame and nothing in React runs that often — the same
+argument `setVideoRegion` already carries for living on the engine rather than
+in the panel.
+
+### The first slice, and where the cut runs
+
+Everything above is the strip finished. What is worth building first is smaller,
+and the line to cut along is the preroll.
+
+**In:** the row type and its codec, `advance` and its tests, the tray with rows
+that hold and fire, drag-to-reorder, the hold chip visible on the row, roll and
+mutate rows, the seeded RNG from the first commit, and arrival by look-morph —
+`morphTo` needs nothing new. One rundown in `storage.ts`, not a library of them.
+
+**Out, and in this order afterwards:** preroll depth 1, where `videoSlot.ts`'s
+one-element-per-slot assumption is the change; then transitions between rows,
+which need it, because a fault that hides a cut needs both clips live; then the
+audio crossfade the second element makes possible (IDEAS.md › _Clip cues_ files
+that as a real limit, and this is what lifts it); then takes, which want the
+export to exist before they are worth recording.
+
+The transition shelf is deliberately not in either list, because it does not
+belong to the strip. A and B are both live today, so the first faults run off
+the T-bar and a MIDI pad with no rundown anywhere near them — build order, step
+3. By the time the strip can preroll, the shelf is a table it picks from.
+
+What that leaves is an editor whose rows land on hard cuts, and that is the
+honest first version. A rundown that plays is worth having on its own, and the
+thing that makes the cuts good is a known, ordered piece of work rather than a
+redesign.
 
 ### Deliberately not this
 
@@ -415,7 +617,8 @@ arrives.
    new pass. The strip later just picks from the shelf.
 4. **The live strip.** Rows, holds, the walk, preroll depth 1 — with the seeded
    RNG in from the first commit, because it cannot be retrofitted onto takes
-   already recorded.
+   already recorded. _The first slice_ above splits this one again: everything
+   up to the preroll is worth landing before the preroll is started.
 5. **Frame-exact video pull.** The real project, and the one with the Firefox
    constraint sitting on it.
 6. **Automation recording.** Control writes with frame stamps, replayed offline;
