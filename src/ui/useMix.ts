@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { DEFAULT_CONTROLS } from '../controls'
-import { ALL_SLIDERS, VIEW_KEYS } from './controls'
+import { MUTATE_SLIDERS } from './controls'
 import { EMPTY_HISTORY, record, stepBack, stepForward } from './history'
 import { morphTo } from './morph'
 import { MUTATE_AMOUNTS, mutate } from './mutate'
@@ -40,11 +40,10 @@ const sameLook = (a: Look, b: Look) => controlsEqual(a.controls, b.controls)
 // Stable empty weights, so a stale mix passes the same map every render.
 const NO_WEIGHTS: PresetWeights = new Map()
 
-// Mutate jitters the signal path, not where you're looking at it: the
-// magnifier's zoom/pan stay put so a mutate never yanks the view. A jitter
-// aimed at one group is exempt — it names what it moves, so if that group is
-// the magnifier's, moving it is the point.
-const MUTATE_SLIDERS = ALL_SLIDERS.filter(s => !VIEW_KEYS.has(s.key))
+// `MUTATE_SLIDERS` — the signal path without the view — now lives in
+// controls.ts, since a strip row's shake has to draw on the same list this does.
+// A jitter aimed at one group is exempt and passes its own sliders: it names
+// what it moves, so if that group is the magnifier's, moving it is the point.
 
 // The look and how it got here: the preset mix, and the walk of looks behind
 // the one on screen. The engine owns the controls — this owns the recipe that

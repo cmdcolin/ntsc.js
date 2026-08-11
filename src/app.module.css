@@ -19,6 +19,20 @@
   font-size: var(--fs);
 }
 
+/* The picture's side of the split, as a column: the stage takes what it can and
+   the strip tray sits under it. A wrapper rather than making `.app` itself a
+   column — the panel has to stay *beside* both of them, and the portrait rule
+   below already restacks the whole shell. */
+.left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* both are needed for the stage to shrink rather than push the tray off the
+     bottom: a flex item's floor is its content, and the canvas has one */
+  min-width: 0;
+  min-height: 0;
+}
+
 /* Wide enough that a slider's label and its value share a line at --fs; at
    300px the labels were wrapping as soon as the type stopped being tiny. */
 .panel {

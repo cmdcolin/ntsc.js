@@ -13,10 +13,12 @@
 // then a wrong list rather than a wrong picture.
 
 import { randomSeed, rngFor } from '../rng'
+import { SOURCE_DESC, SOURCE_MODES } from '../sources/modes'
 import { MODE_ORIGIN, isPoolMode } from '../sources/pools'
 import { MORPH_SECONDS } from './morph'
 import { parseMutateAmount } from './mutate'
 import { readRecord, writeJSON } from './storage'
+import { urlName } from './urlParams'
 
 import type { PoolOrigin } from '../sources/pools'
 import type { MorphSeconds } from './morph'
@@ -304,6 +306,151 @@ export function rowFill(session: string, jitter?: MutateAmount): RowFill {
   return src !== null && isPoolMode(src)
     ? { kind: 'roll', origin: MODE_ORIGIN[src] }
     : { kind: 'clip' }
+}
+
+// What the card calls this row. Here rather than in the component because it is
+// the same act as `rowFill` — reading a session string — and because a string
+// derived by a pure function is a string a test can pin.
+//
+// `SOURCE_DESC`'s entries read "Color bars — SMPTE test pattern", which is a
+// name and then an explanation; a card has room for the name. Splitting on the
+// em dash rather than keeping a second table of short names is what stops the
+// two drifting when a mode is renamed.
+export function rowLabel(row: Row): string {
+  if (row.fill.kind === 'jitter') return `shake · ${row.fill.amount}`
+  const q = new URLSearchParams(row.session)
+  const url = q.get('vurl') ?? q.get('iurl')
+  if (url !== null) return urlName(url)
+  if (q.get('yt') !== null) return 'YouTube'
+  const src = q.get('src')
+  if (src === null) {
+    // A row that names no source is not a broken row: it is a look change over
+    // whatever is already up, which is a thing a set actually wants — and the
+    // one kind of row that costs nothing at the boundary, since there is no
+    // load.
+    return 'look only'
+  }
+  // Narrowed through the mode list rather than asserted: `?src=` is a stored
+  // string, and a row written by a build that had a mode this one does not
+  // should read as its own name rather than index a record with a key that is
+  // not in it.
+  const mode = SOURCE_MODES.find(m => m === src)
+  return mode === undefined ? src : (SOURCE_DESC[mode].split(' — ')[0] ?? src)
+}
+
+// How the hold reads on the card. The `≈` is the whole point of the default —
+// it says out loud that the boundary is not where the number says, which is the
+// taste call in _Loose holds by default_ made visible rather than hidden in a
+// field nobody opens.
+export function holdLabel(hold: Hold): string {
+  if (hold.bars === null) return 'hold'
+  const bars = `${hold.bars} bar${hold.bars === 1 ? '' : 's'}`
+  return hold.drift === 0 ? bars : `≈${bars}`
+}
+
+// --- editing the rundown ----------------------------------------------------
+//
+// All pure, and all in terms of whole strips, so the hook's verbs are one line
+// each and the arithmetic that can be off by one is tested without a browser.
+
+// What the hold chip steps through. Powers of two up to four bars of four, then
+// "wait for a hand" — which belongs in the ring rather than in a menu, because
+// the row that ends a section is the one you most often want to reach for
+// mid-set.
+export const HOLD_BARS = [1, 2, 4, 8, 16, null] as const
+
+export const cycleHold = (hold: Hold): Hold => {
+  // `indexOf` answers -1 for a hold not on the ring — a hand-edited file, an
+  // older build's list — and -1 + 1 is 0, so an unrecognised hold steps to the
+  // head rather than sticking. No branch needed, and none wanted: the obvious
+  // `?? HOLD_BARS[0]` guard against an out-of-range index also swallows the
+  // *legitimate* null at the end, which quietly deleted "wait for a hand" from
+  // the ring. The modulo cannot go out of range, so there is nothing to guard.
+  // `findIndex` rather than `indexOf`, which would want a cast: a stored hold is
+  // any number, and the ring holds six particular ones.
+  const at = HOLD_BARS.findIndex(b => b === hold.bars)
+  return { ...hold, bars: HOLD_BARS[(at + 1) % HOLD_BARS.length] }
+}
+
+export const cycleArrive = (seconds: MorphSeconds): MorphSeconds => {
+  const at = MORPH_SECONDS.indexOf(seconds)
+  return MORPH_SECONDS[(at + 1) % MORPH_SECONDS.length]
+}
+
+// Unique within this strip, which is all a row id has to be — nothing else keys
+// on it, unlike the shelf's ids, which key IndexedDB records. Taken from the
+// highest already present rather than from a counter on the strip, so a row
+// pasted in from somewhere else cannot collide with one already here.
+const nextId = (rows: readonly Row[]): string => {
+  const highest = rows.reduce((max, r) => {
+    const n = Number(r.id.slice(1))
+    return Number.isFinite(n) && n > max ? n : max
+  }, 0)
+  return `r${highest + 1}`
+}
+
+// Capture the board. `session` is `writeProfileParams`' output — see `Row`.
+export function addRow(
+  strip: Strip,
+  session: string,
+  jitter?: MutateAmount,
+): Strip {
+  const row: Row = {
+    id: nextId(strip.rows),
+    session,
+    fill: rowFill(session, jitter),
+    hold: DEFAULT_HOLD,
+    arrive: { seconds: 1 },
+  }
+  return { ...strip, rows: [...strip.rows, row] }
+}
+
+export const removeRow = (strip: Strip, index: number): Strip => ({
+  ...strip,
+  rows: strip.rows.filter((_, i) => i !== index),
+})
+
+// Reorder. Out-of-range at either end is a no-op rather than a clamp: a drag
+// that ended outside the tray should put the row back, not park it at an end
+// the hand never went to.
+export function moveRow(strip: Strip, from: number, to: number): Strip {
+  const n = strip.rows.length
+  if (from < 0 || from >= n || to < 0 || to >= n || from === to) return strip
+  const rows = [...strip.rows]
+  const [row] = rows.splice(from, 1)
+  rows.splice(to, 0, row)
+  return { ...strip, rows }
+}
+
+// Patch one row in place. Out-of-range is a no-op by construction, which is
+// what makes the two chip verbs below safe to call from a card whose index the
+// rundown may have shrunk past between the render and the click.
+export const patchRow = (
+  strip: Strip,
+  index: number,
+  patch: Partial<Row>,
+): Strip => ({
+  ...strip,
+  rows: strip.rows.map((r, i) => (i === index ? { ...r, ...patch } : r)),
+})
+
+// The two chips, as whole-strip verbs. Guarded here rather than in the hook so
+// the bounds check is tested with everything else — a missing row is the
+// ordinary case after an edit, not an exceptional one.
+export const stepHold = (strip: Strip, index: number): Strip => {
+  const row = strip.rows[index]
+  return row === undefined
+    ? strip
+    : patchRow(strip, index, { hold: cycleHold(row.hold) })
+}
+
+export const stepArrive = (strip: Strip, index: number): Strip => {
+  const row = strip.rows[index]
+  return row === undefined
+    ? strip
+    : patchRow(strip, index, {
+        arrive: { seconds: cycleArrive(row.arrive.seconds) },
+      })
 }
 
 // --- the codec --------------------------------------------------------------

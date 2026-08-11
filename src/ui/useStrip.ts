@@ -25,17 +25,29 @@
 // and the strip is persisted in the verb that changed it (the way
 // `useTempo.write` does) rather than by an effect watching state.
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 
+import { randomSeed } from '../rng'
 import { MUTATE_AMOUNTS, mutate } from './mutate'
 import {
   STOPPED,
+  addRow,
   advance,
   fire,
   holdProgress,
   loadStrip,
+  moveRow,
+  removeRow,
   saveStrip,
   start,
+  stepArrive,
+  stepHold,
   walking,
 } from './strip'
 import { runStep } from './stripRun'
@@ -44,7 +56,8 @@ import type { Controls } from '../controls'
 import type { Rand } from '../rng'
 import type { PoolOrigin } from '../sources/pools'
 import type { SliderDef } from './controls'
-import type { Clock, Row, Step, Strip, Walk } from './strip'
+import type { MutateAmount } from './mutate'
+import type { Clock, Step, Strip, Walk } from './strip'
 import type { StripSink } from './stripRun'
 import type { SessionParams } from './urlParams'
 
@@ -103,7 +116,7 @@ export interface StripRunner {
 
 // Subscribe/unsubscribe, and fan-out. At module scope because they capture
 // nothing — three sets in the runner below want the same two lines each.
-const on = (set: Set<() => void>) => (fn: () => void) => {
+const subscriberFor = (set: Set<() => void>) => (fn: () => void) => {
   set.add(fn)
   return () => {
     set.delete(fn)
@@ -159,11 +172,11 @@ export function makeStripRunner(): StripRunner {
   }
 
   return {
-    subscribeStrip: on(stripFns),
+    subscribeStrip: subscriberFor(stripFns),
     getStrip: () => strip,
-    subscribeWalk: on(walkFns),
+    subscribeWalk: subscriberFor(walkFns),
     getWalk: () => walk,
-    subscribeProgress: on(frameFns),
+    subscribeProgress: subscriberFor(frameFns),
     getProgress: () => holdProgress(walk, clock()),
     setDeps: next => {
       deps = next
@@ -201,6 +214,9 @@ export function makeStripRunner(): StripRunner {
   }
 }
 
+// The verbs, and nothing that moves at frame rate except as a subscribe/get
+// pair. Every member keeps its identity across a render — the rule
+// `ControlsApi` states and the reason a running strip does not rebuild the tray.
 export interface StripApi {
   strip: Strip
   // Which row is up, or -1. Derived from the walk snapshot at render rather
@@ -212,8 +228,18 @@ export interface StripApi {
   start: () => void
   stop: () => void
   fireRow: (index: number) => void
-  setStrip: (next: Strip) => void
-  setRows: (rows: readonly Row[]) => void
+  // Capture what is on the board now. The caller supplies the session string
+  // because building one needs the whole app's state (`useUrlState`'s
+  // `profileQuery`), which a strip has no business reaching into.
+  addRow: (session: string, jitter?: MutateAmount) => void
+  removeRow: (index: number) => void
+  moveRow: (from: number, to: number) => void
+  cycleHold: (index: number) => void
+  cycleArrive: (index: number) => void
+  setLoop: (on: boolean) => void
+  // A new seed: the same rundown, different rolls and different drifts. The one
+  // gesture that says "give me another take of this".
+  reseed: () => void
 }
 
 export function useStrip(deps: StripDeps): StripApi {
@@ -247,11 +273,30 @@ export function useStrip(deps: StripDeps): StripApi {
     return () => cancelAnimationFrame(raf)
   }, [running, runner])
 
-  const setRows = useCallback(
-    (rows: readonly Row[]) => {
-      runner.setStrip({ ...runner.getStrip(), rows })
+  // Every edit is the same two steps — read the current rundown, hand back a
+  // new one — so they are one helper rather than eight closures that each
+  // remember to persist. `runner.getStrip()` rather than the `strip` above:
+  // these are called from event handlers, where the render's snapshot may be a
+  // beat behind a boundary that just landed.
+  const edit = useCallback(
+    (fn: (strip: Strip) => Strip) => {
+      runner.setStrip(fn(runner.getStrip()))
     },
     [runner],
+  )
+
+  const verbs = useMemo(
+    () => ({
+      addRow: (session: string, jitter?: MutateAmount) =>
+        edit(s => addRow(s, session, jitter)),
+      removeRow: (index: number) => edit(s => removeRow(s, index)),
+      moveRow: (from: number, to: number) => edit(s => moveRow(s, from, to)),
+      cycleHold: (index: number) => edit(s => stepHold(s, index)),
+      cycleArrive: (index: number) => edit(s => stepArrive(s, index)),
+      setLoop: (on: boolean) => edit(s => ({ ...s, loop: on })),
+      reseed: () => edit(s => ({ ...s, seed: randomSeed() })),
+    }),
+    [edit],
   )
 
   return {
@@ -263,7 +308,6 @@ export function useStrip(deps: StripDeps): StripApi {
     start: runner.start,
     stop: runner.stop,
     fireRow: runner.fireRow,
-    setStrip: runner.setStrip,
-    setRows,
+    ...verbs,
   }
 }

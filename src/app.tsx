@@ -21,6 +21,7 @@ import { CommandPalette } from './ui/CommandPalette'
 import { ControlRows } from './ui/ControlGroup'
 import {
   ALL_SLIDERS,
+  MUTATE_SLIDERS,
   DECK_BLURB,
   DECK_STAGE,
   LOOP_STAGE_NAMES,
@@ -76,6 +77,8 @@ import { Rack } from './ui/Slider'
 import { HiddenFilePicker, SourceSlot } from './ui/SourceSlot'
 import { Stage } from './ui/Stage'
 import { usePersistedFlag, usePersistedString } from './ui/storage'
+import { StripContext } from './ui/StripContext'
+import { StripTray } from './ui/StripTray'
 import { TagsPopover } from './ui/TagsPopover'
 import { TeletypeDialog } from './ui/TeletypeDialog'
 import ui from './ui/ui.module.css'
@@ -97,6 +100,7 @@ import { usePopout } from './ui/usePopout'
 import { useSavedProfiles } from './ui/useSavedProfiles'
 import { useScrollAnchor } from './ui/useScrollAnchor'
 import { useShortcuts } from './ui/useShortcuts'
+import { useStrip } from './ui/useStrip'
 import { useTempo } from './ui/useTempo'
 import { useUrlState } from './ui/useUrlState'
 import { WebcamDialog } from './ui/WebcamDialog'
@@ -452,6 +456,23 @@ export function App() {
   // stored mod is missing (hand-edited storage; no saved look this app wrote
   // lacks one) leaves the bay alone rather than silencing it, the same rule a
   // link without ?mod= follows.
+  // The rundown. Everything it needs from the app is a value or a verb that
+  // already existed — the engine's session apply, the same mutate list the
+  // panel's own shake uses, the tempo — which is the point of a row being a
+  // query string rather than a shape of its own.
+  const strip = useStrip({
+    showSession: eng.showSession,
+    rollOn: eng.rollOn,
+    getControls: controlStore.get,
+    writeControls,
+    mutateSliders: MUTATE_SLIDERS,
+    bpm: tempo.bpm,
+    ensureTempo: tempo.ensure,
+    // Through the ref, like startGlide above: the strip's tick reads this once
+    // per frame, and a fresh closure per render would rebuild the loop.
+    frameNo: useCallback(() => engineRef.current?.frameNo() ?? 0, [engineRef]),
+  })
+
   const profiles = useSavedProfiles()
 
   // Labelling the live look — the tags menu in the look bar. Nothing leaves the
@@ -1220,33 +1241,45 @@ export function App() {
     <FatalScreen fatal={eng.fatal} />
   ) : (
     <div className={styles.app}>
-      <Stage
-        canvasRef={eng.canvasRef}
-        error={eng.error}
-        frozen={eng.frozen}
-        rebuilding={eng.rebuilding}
-        budget={eng.budget}
-        lens={lens}
-        onLens={setLens}
-        boxZoom={boxZoom}
-        // Nothing over the picture while the masthead is on screen beside it —
-        // one ☰ per window, and in the ordinary layout the panel's is already at
-        // the top right of it. Fullscreen and the popout are the two states that
-        // take the panel away, and there the picture keeps its own copy (which
-        // is the only one that can be dismissed, since it is the only one
-        // sitting on top of what you are watching).
-        chrome={
-          !fullscreen && popout === null ? null : barHidden ? (
-            <ShowMenuButton onClick={() => setBarHidden(false)} />
-          ) : (
-            <AppMenu
-              variant="stage"
-              {...menuProps}
-              onHideBar={() => setBarHidden(true)}
-            />
-          )
-        }
-      />
+      {/* The stage and the strip share a column, so the tray sits under the
+          picture rather than beside it; the panel is untouched either way. */}
+      <div className={styles.left}>
+        <Stage
+          canvasRef={eng.canvasRef}
+          error={eng.error}
+          frozen={eng.frozen}
+          rebuilding={eng.rebuilding}
+          budget={eng.budget}
+          lens={lens}
+          onLens={setLens}
+          boxZoom={boxZoom}
+          // Nothing over the picture while the masthead is on screen beside it —
+          // one ☰ per window, and in the ordinary layout the panel's is already at
+          // the top right of it. Fullscreen and the popout are the two states that
+          // take the panel away, and there the picture keeps its own copy (which
+          // is the only one that can be dismissed, since it is the only one
+          // sitting on top of what you are watching).
+          chrome={
+            !fullscreen && popout === null ? null : barHidden ? (
+              <ShowMenuButton onClick={() => setBarHidden(false)} />
+            ) : (
+              <AppMenu
+                variant="stage"
+                {...menuProps}
+                onHideBar={() => setBarHidden(true)}
+              />
+            )
+          }
+        />
+        {/* Not in fullscreen: that state is the picture and nothing else, and a
+            shelf of cards over a projector feed is the one place this must not
+            appear. */}
+        {fullscreen ? null : (
+          <StripContext value={strip}>
+            <StripTray onCapture={() => strip.addRow(profileQuery())} />
+          </StripContext>
+        )}
+      </div>
       {fullscreen || popout !== null ? null : (
         <div className={cx(styles.panel, benchOn && styles.panelWide)}>
           {panel}

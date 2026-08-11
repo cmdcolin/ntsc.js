@@ -1,0 +1,90 @@
+/* The rundown's shelf, under the picture and above nothing.
+
+   Shut it is one line of chrome — a disclosure and a count — because the app
+   without a strip has to stay the app it was. That is the trade docs/EDITOR.md
+   makes in exchange for the strip not being a second page: it costs the live
+   surface a row of text, and only a row of text, until somebody opens it. */
+.tray {
+  flex: none;
+  border-top: 1px solid var(--border-quiet);
+  background: var(--panel-bg);
+  /* the picture above it keeps the rest; the tray never grows past a third of
+     the stage even with forty rows, because what is being watched is up there */
+  max-height: 33dvh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.open {
+  border-top-color: var(--border);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  flex: none;
+}
+
+.disclose {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+  letter-spacing: 0.04em;
+  padding: 2px 4px;
+}
+.disclose:hover {
+  color: var(--fg);
+}
+
+.caret {
+  color: var(--fg4);
+  font-size: var(--fs-xs);
+}
+
+.count {
+  color: var(--fg4);
+  font-size: var(--fs-xs);
+  font-family: var(--mono);
+}
+
+/* Quiet, and to the right of the verbs: the seed is a thing to read off and
+   write down rather than a control, right up until the moment it is the one
+   button that matters. */
+.seed {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--fg4);
+  padding: 2px 5px;
+  border-radius: var(--ctl-radius);
+}
+.seed:hover {
+  color: var(--fg2);
+  background: var(--ctl-bg-hover);
+}
+
+.empty {
+  margin: 0;
+  padding: 2px 10px 10px;
+  max-width: 52ch;
+}
+
+/* One line of cards that scrolls sideways. Not a wrapping grid: a rundown is an
+   order, and a second line reads as a second track — which is the NLE timeline
+   this deliberately is not. */
+.list {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 2px 8px 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-height: 0;
+  /* the drag is ours: without this a touch drag scrolls the list instead of
+     moving the row, and the reorder never starts */
+  touch-action: pan-y;
+}

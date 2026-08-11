@@ -1,22 +1,33 @@
 import { describe, expect, it } from 'vitest'
 
+import { MORPH_SECONDS } from './morph'
 import {
   DEFAULT_HOLD,
+  HOLD_BARS,
   MAX_DRIFT,
   STOPPED,
+  addRow,
   advance,
+  cycleArrive,
+  cycleHold,
   fire,
   fireEffects,
   holdFrames,
+  holdLabel,
   holdProgress,
+  moveRow,
   readStrip,
+  removeRow,
   rowFill,
+  rowLabel,
   seedFor,
   start,
+  stepArrive,
+  stepHold,
   walking,
 } from './strip'
 
-import type { Clock, Effect, Row, Strip, Walk } from './strip'
+import type { Clock, Effect, Hold, Row, Strip, Walk } from './strip'
 
 // 120bpm at 60fps: one bar is 2 seconds is 120 frames, so a 4-bar hold is 480.
 // Chosen so every expectation below is a round number a reader can check by
@@ -364,6 +375,135 @@ describe('readStrip', () => {
     for (const junk of [null, 7, 'x', [], {}, { rows: 'lots' }]) {
       expect(readStrip(junk).rows).toEqual([])
     }
+  })
+})
+
+describe('editing the rundown', () => {
+  const three = strip([row({ id: 'a' }), row({ id: 'b' }), row({ id: 'c' })])
+  const ids = (s: Strip) => s.rows.map(r => r.id)
+
+  it('adds a row from a captured session, reading its kind off it', () => {
+    const got = addRow(strip([]), 'src=ia-random&set=')
+    expect(got.rows).toHaveLength(1)
+    expect(got.rows[0].fill).toEqual({ kind: 'roll', origin: 'archive' })
+    expect(got.rows[0].hold).toEqual(DEFAULT_HOLD)
+  })
+
+  it('takes a jitter over what the session names', () => {
+    const got = addRow(strip([]), 'src=wiki-random', 'wild')
+    expect(got.rows[0].fill).toEqual({ kind: 'jitter', amount: 'wild' })
+  })
+
+  // Ids only have to be unique within the strip, but they do have to be that:
+  // React keys the cards on them, and two rows sharing one is a card that keeps
+  // another row's drag state.
+  it('never mints an id a row already has', () => {
+    let s = strip([])
+    for (let i = 0; i < 12; i++) s = addRow(s, 'set=')
+    expect(new Set(ids(s)).size).toBe(12)
+  })
+
+  it('mints past the highest, not past the count', () => {
+    const s = addRow(strip([row({ id: 'r9' })]), 'set=')
+    expect(s.rows[1].id).not.toBe('r9')
+  })
+
+  it('removes by index', () => {
+    expect(ids(removeRow(three, 1))).toEqual(['a', 'c'])
+  })
+
+  it('moves a row, closing the gap behind it', () => {
+    expect(ids(moveRow(three, 0, 2))).toEqual(['b', 'c', 'a'])
+    expect(ids(moveRow(three, 2, 0))).toEqual(['c', 'a', 'b'])
+  })
+
+  // A drag that ended outside the tray should put the row back rather than park
+  // it at an end the hand never reached.
+  it('leaves the order alone for a move that goes nowhere', () => {
+    for (const [from, to] of [
+      [0, 0],
+      [-1, 1],
+      [1, 9],
+      [9, 1],
+    ]) {
+      expect(moveRow(three, from, to)).toBe(three)
+    }
+  })
+
+  it('steps the hold around its ring and back', () => {
+    let hold: Hold = { bars: 1, drift: 0.25 }
+    const seen = HOLD_BARS.map(() => {
+      hold = cycleHold(hold)
+      return hold.bars
+    })
+    expect(seen).toEqual([...HOLD_BARS.slice(1), HOLD_BARS[0]])
+  })
+
+  it('keeps the drift while stepping the bars', () => {
+    expect(cycleHold({ bars: 2, drift: 0.4 }).drift).toBe(0.4)
+  })
+
+  // A hand-edited file or an older build's ring lands here; the chip must not
+  // become a dead button.
+  it('steps a hold that is not on the ring to the head of it', () => {
+    expect(cycleHold({ bars: 3, drift: 0 }).bars).toBe(HOLD_BARS[0])
+  })
+
+  it('steps the arrival around the morph durations', () => {
+    expect(cycleArrive(0)).toBe(MORPH_SECONDS[1])
+    expect(cycleArrive(MORPH_SECONDS[MORPH_SECONDS.length - 1])).toBe(
+      MORPH_SECONDS[0],
+    )
+  })
+
+  it('steps a row in place, and only that row', () => {
+    const got = stepHold(three, 1)
+    expect(got.rows[0]).toBe(three.rows[0])
+    expect(got.rows[1].hold.bars).not.toBe(three.rows[1].hold.bars)
+  })
+
+  it('leaves the strip alone when the row is not there', () => {
+    expect(stepHold(three, 9)).toBe(three)
+    expect(stepArrive(three, -1)).toBe(three)
+  })
+})
+
+describe('what a card says', () => {
+  it('names a shake by its amount', () => {
+    expect(rowLabel(row({ fill: { kind: 'jitter', amount: 'gentle' } }))).toBe(
+      'shake · gentle',
+    )
+  })
+
+  it('names a file by its filename, not its url', () => {
+    expect(
+      rowLabel(row({ session: 'vurl=https://x.test/a/clip%20one.mp4' })),
+    ).toBe('clip one.mp4')
+  })
+
+  // SOURCE_DESC reads "Color bars — SMPTE test pattern": a name and then an
+  // explanation, and a card has room for the name.
+  it('names a generated source by the head of its description', () => {
+    expect(rowLabel(row({ session: 'src=sweep' }))).toBe('Sweep')
+  })
+
+  // Not a broken row: a look change over whatever is already up is a thing a
+  // set wants, and the only row that costs nothing at the boundary.
+  it('calls a row that names no source what it is', () => {
+    expect(rowLabel(row({ session: 'set=vSize:0.4' }))).toBe('look only')
+  })
+
+  it('falls back to the bare mode a build no longer has', () => {
+    expect(rowLabel(row({ session: 'src=holodeck' }))).toBe('holodeck')
+  })
+
+  // The ≈ is the taste call made visible: it says out loud that the boundary is
+  // not where the number says.
+  it('marks a drifting hold and leaves an exact one plain', () => {
+    expect(holdLabel({ bars: 4, drift: 0.25 })).toBe('≈4 bars')
+    expect(holdLabel({ bars: 4, drift: 0 })).toBe('4 bars')
+    expect(holdLabel({ bars: 1, drift: 0 })).toBe('1 bar')
+    expect(holdLabel({ bars: null, drift: 0 })).toBe('hold')
   })
 })
 

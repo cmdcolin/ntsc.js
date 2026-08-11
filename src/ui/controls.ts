@@ -3513,6 +3513,21 @@ export const VIEW_KEYS = new Set<ControlKey>([
   'frameLock',
 ])
 
+// Every control a jitter may touch: all of them but the view.
+//
+// Mutate shakes the signal path, not where you are looking at it — the
+// magnifier's zoom and pan stay put, so a roll never yanks the frame. Here
+// rather than beside either caller because there are two of them now, and they
+// have to shake the same set: the panel's mutate verbs (`useMix`) and a strip
+// row whose filling is a shake (`useStrip`). A second copy of the filter is how
+// the button and the row would come to mean different things.
+//
+// Below `VIEW_KEYS` and not beside `ALL_SLIDERS`, which is where it reads more
+// naturally: a `const` is in its temporal dead zone until its own line runs, so
+// evaluating this any earlier throws at import time — as every test in the app
+// said at once when it was up there.
+export const MUTATE_SLIDERS = ALL_SLIDERS.filter(s => !VIEW_KEYS.has(s.key))
+
 // The two branches' groups — off the spine, but on the map: each hangs under
 // the trunk and joins the stage it actually feeds. The mixer is no longer among
 // them: it is the Mix stage, always drawn, so only what is patched into each

@@ -1,0 +1,147 @@
+/* One row of the rundown, as a card.
+
+   Sized by its label rather than to a grid: the rundown is an order, and a card
+   that says what it holds is worth more than forty identical boxes. The floor
+   keeps a short name from collapsing to a chip, the ceiling keeps a long
+   filename from taking the row. */
+.card {
+  flex: none;
+  min-width: 108px;
+  max-width: 190px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-quiet);
+  border-radius: var(--ctl-radius);
+  background: var(--ctl-bg);
+  overflow: hidden;
+}
+.card:hover {
+  border-color: var(--border-hover);
+}
+
+/* The row that is up. The cue purple rather than the accent: this is a position
+   in a running thing, which is what that colour already means on the transport
+   and the loop marks. */
+.live {
+  border-color: var(--cue);
+}
+
+/* Being dragged past. Deliberately a shift of the whole card rather than a
+   gap opening up — the list is one line and a gap would make every card jump. */
+.dragging {
+  border-color: var(--edit);
+  background: var(--ctl-bg-hover);
+}
+
+/* The face, and the drag handle, and the fire button — all the same surface,
+   because firing the row is what the card is for. */
+.fire {
+  appearance: none;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 6px 4px;
+  min-width: 0;
+}
+.fire:hover {
+  background: var(--ctl-bg-hover);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.num {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--fg4);
+}
+
+/* Which of the three fillings this is, as one glyph. The colours say how much
+   of the row is decided in advance: a clip is fixed, a roll picks when it
+   fires, a shake departs from whatever is live. */
+.kind {
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+.kind[data-kind='clip'] {
+  color: var(--fg4);
+}
+.kind[data-kind='roll'] {
+  color: var(--accent);
+}
+.kind[data-kind='jitter'] {
+  color: var(--edit);
+}
+
+.name {
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feet {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 4px 4px;
+}
+
+/* The hold, and the arrival. On the card rather than behind a menu because the
+   hold is the field a hand touches most — the one placement rule the design
+   states for a row. */
+.chip {
+  font-size: var(--fs-xs);
+  font-family: var(--mono);
+  color: var(--fg3);
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.chip:hover {
+  color: var(--fg);
+  background: var(--ctl-face);
+}
+
+.arrive {
+  color: var(--fg4);
+}
+
+.drop {
+  margin-left: auto;
+  color: var(--fg4);
+  font-size: var(--fs-xs);
+  padding: 1px 3px;
+  line-height: 1;
+}
+.drop:hover {
+  color: var(--bad);
+}
+
+/* The hold's own progress. A track that is always there, so a row does not
+   change height when it becomes the live one. */
+.track {
+  height: 2px;
+  background: var(--border-faint);
+  overflow: hidden;
+}
+
+/* Scaled rather than sized: a transform is composited, so the one element in
+   the tray that moves every frame never asks for layout. */
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--cue);
+  transform-origin: left center;
+  will-change: transform;
+}

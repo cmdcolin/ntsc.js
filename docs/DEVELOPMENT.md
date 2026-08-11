@@ -326,6 +326,31 @@ The fake device is installed with `page.evaluate` after load, never
 realm, and the app then trips over Xray vision reading `.length` off a message
 built on the other side of it.
 
+## The strip tray, end to end
+
+```
+node scripts/traycheck.mjs [port]
+```
+
+Captures three rows off three boards, steps a hold and an arrival chip, plays,
+drags a row across the list, and reads the stored rundown back. The walk itself
+is unit-tested (`ui/strip.test.ts`) and so is the driver against a fake sink
+(`ui/stripRun.test.ts`); this covers the wiring between them, which is where it
+can break with every unit test passing.
+
+**One trap it documents rather than works around.** The engine's frame counter
+and the strip's own tick are both rAF-driven, and a browser throttles rAF for an
+occluded window — which under puppeteer is nearly always. So the hold bar sits
+at zero however long the harness waits, and that is the window manager rather
+than the app. The check steps the engine by hand (as `shot.mjs` does) and then
+forces a React re-read with a click, which is what makes the number meaningful.
+
+Worth knowing about the feature and not only about the harness: when a tab stops
+getting frames, the picture and the rundown freeze *together* and resume
+together. That is the right behaviour, and it falls out of clocking the walk on
+frames rather than on the wall — a wall-clock strip would come back having
+silently skipped four rows nobody saw.
+
 ## Surviving a lost GPU device
 
 ```
