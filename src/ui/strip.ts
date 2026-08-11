@@ -13,8 +13,10 @@
 // then a wrong list rather than a wrong picture.
 
 import { randomSeed, rngFor } from '../rng'
+import { clipUrl, isClipId } from '../sources/clips'
 import { SOURCE_DESC, SOURCE_MODES } from '../sources/modes'
 import { MODE_ORIGIN, isPoolMode } from '../sources/pools'
+import { parseCue } from './cue'
 import { MORPH_SECONDS } from './morph'
 import { parseMutateAmount } from './mutate'
 import { cleanProfileName } from './savedProfiles'
@@ -156,11 +158,11 @@ export interface Clock {
 
 // One thing the driver has to do, in the order returned.
 //
-// Two variants named in the design are deliberately absent until the code
-// behind them is: `preroll` waits on `videoSlot.ts` holding two elements per
-// slot, and `fault` waits on the transition shelf. Adding either is a variant
-// here and an arm in the driver's switch; declaring them now would only put two
-// unreachable arms in it.
+// One variant named in the design is still deliberately absent: `fault` waits
+// on the transition shelf being reachable from a row, which needs the preroll
+// below to have both clips live at once. Adding it is a variant here and an arm
+// in the driver's switch; declaring it now would only put an unreachable arm in
+// it.
 export type Effect =
   // Put this session up: the source it names, the cue on it, and the look,
   // arriving over `seconds` (0 cuts).
@@ -173,6 +175,17 @@ export type Effect =
   // whatever is on the board when it fires, which is why it carries an amount
   // and a seed rather than controls.
   | { kind: 'jitter'; amount: MutateAmount; seed: number }
+  // Load the clip the *next* row will want, and park it at its in-point. Fired
+  // with the row that precedes it, so the load has that row's whole hold to
+  // finish in — which is the whole of preroll depth 1 (docs/EDITOR.md ›
+  // _Performance: the boundary is the only cost_).
+  //
+  // Carries a url rather than a row or a session, because that is all a slot
+  // can act on and all that has to be true for the promotion to be a swap: at
+  // the cut, `playUrl` takes the parked element if it is this exact url. A row
+  // whose source cannot be named ahead of time — a pool, which is a search
+  // rather than a file — simply produces no such effect.
+  | { kind: 'preroll'; url: string; start: number }
 
 // The generator for one fire of one row.
 //
@@ -227,6 +240,35 @@ export function fireEffects(row: Row, seed: number): Effect[] {
   return out
 }
 
+// The clip a row will want, when it wants one that can be named in advance.
+//
+// Two sources answer, and they are the two a row can carry a *file* for: an
+// explicit `?vurl`, and a bundled clip named by `?src=clip-…`, which is an id
+// this side already resolves to a url. Everything else answers null and means
+// it: a pool is a search rather than a file (nothing to load until it is
+// rolled), a still needs no element, and a look-only row leaves the deck where
+// it is — which is the case preroll exists to make free, since it is the one
+// with no boundary cost at all.
+//
+// `start` comes off the row's own cue, because a row is "this stretch of this
+// clip" and parking the element anywhere else would leave the promotion with a
+// seek to do on the frame it was supposed to be a cut.
+export function prerollFor(row: Row): { url: string; start: number } | null {
+  const q = new URLSearchParams(row.session)
+  const src = q.get('src')
+  const url =
+    q.get('vurl') ?? (src !== null && isClipId(src) ? clipUrl(src) : null)
+  if (url === null) return null
+  return { url, start: parseCue(q.get('cuea'))?.in ?? 0 }
+}
+
+// Which row a walk will reach next, or null when there is not one — the end of
+// a rundown that does not come back round. Its own function because `land`
+// wants it and so does a test: "what does this rundown load next" is a question
+// about the list, not about the frame it is asked on.
+export const nextRow = (strip: Strip, index: number): Row | null =>
+  strip.rows[index + 1] ?? (strip.loop ? (strip.rows[0] ?? null) : null)
+
 // --- the walk ---------------------------------------------------------------
 
 export interface Step {
@@ -240,6 +282,18 @@ export interface Step {
 function land(strip: Strip, index: number, lap: number, clock: Clock): Step {
   const row = strip.rows[index]
   const seed = seedFor(strip.seed, index, lap)
+  // The lookahead, and it belongs here rather than in `fireEffects` because it
+  // is a fact about *the rundown* and not about the row: firing row 3 by hand
+  // out of a bank of scenes should still load whatever row 4 would want, since
+  // running on is what a walk does next either way.
+  //
+  // Last, after the row's own effects, so the deck is pointed at what is on air
+  // before anything starts fetching what comes after it. A rundown of one
+  // looping row prerolls the clip it is already playing, which `playUrl` spends
+  // as a swap to a second element parked at the in-point — an odd-looking case
+  // that happens to be the loop's best behaviour.
+  const ahead = nextRow(strip, index)
+  const load = ahead === null ? null : prerollFor(ahead)
   return {
     walk: {
       row: index,
@@ -247,7 +301,10 @@ function land(strip: Strip, index: number, lap: number, clock: Clock): Step {
       since: clock.frame,
       frames: holdFrames(row.hold, clock, seed),
     },
-    effects: fireEffects(row, seed),
+    effects:
+      load === null
+        ? fireEffects(row, seed)
+        : [...fireEffects(row, seed), { kind: 'preroll', ...load }],
   }
 }
 

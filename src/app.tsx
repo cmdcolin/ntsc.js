@@ -503,6 +503,7 @@ export function App() {
   const strip = useStrip({
     showSession: eng.showSession,
     rollOn: eng.rollOn,
+    prerollOn: eng.prerollOn,
     getControls: controlStore.get,
     writeControls,
     mutateSliders: MUTATE_SLIDERS,

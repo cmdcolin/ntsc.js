@@ -53,6 +53,11 @@ export interface StripSink {
   // Shake the live look by this much. Not a look to land on: a jitter row is a
   // departure from whatever is on the board when it fires.
   jitter: (amount: MutateAmount, rand: Rand) => void
+  // Load the next row's clip and park it at its in-point, so the cut that wants
+  // it is a swap rather than a load. Fire-and-forget by nature: nothing waits
+  // on it, and a preroll that does not finish in time is a cut that pays the
+  // price it paid before this existed.
+  preroll: (url: string, start: number) => void
 }
 
 // One effect. A switch with no default: the union is closed, so adding a
@@ -72,6 +77,9 @@ export function runEffect(effect: Effect, sink: StripSink): void {
       break
     case 'jitter':
       sink.jitter(effect.amount, rngFor(effect.seed))
+      break
+    case 'preroll':
+      sink.preroll(effect.url, effect.start)
       break
   }
 }

@@ -19,6 +19,7 @@ function fakeSink() {
   const sessions: { params: SessionParams; seconds: number }[] = []
   const rolls: { origin: PoolOrigin; rand: Rand }[] = []
   const jitters: { amount: MutateAmount; rand: Rand }[] = []
+  const prerolls: { url: string; start: number }[] = []
   const order: string[] = []
   const sink: StripSink = {
     session: (params, seconds) => {
@@ -33,8 +34,12 @@ function fakeSink() {
       jitters.push({ amount, rand })
       order.push('jitter')
     },
+    preroll: (url, start) => {
+      prerolls.push({ url, start })
+      order.push('preroll')
+    },
   }
-  return { sink, sessions, rolls, jitters, order }
+  return { sink, sessions, rolls, jitters, prerolls, order }
 }
 
 describe('runEffect', () => {
@@ -117,12 +122,14 @@ describe('makeStripRunner', () => {
     let frame = 0
     const showSession = vi.fn()
     const rollOn = vi.fn()
+    const prerollOn = vi.fn()
     const writeControls = vi.fn()
     const ensureTempo = vi.fn()
     const track = { loaded: true, restart: vi.fn(), pause: vi.fn() }
     runner.setDeps({
       showSession,
       rollOn,
+      prerollOn,
       getControls: () => DEFAULT_CONTROLS,
       writeControls,
       mutateSliders: [],
@@ -137,6 +144,7 @@ describe('makeStripRunner', () => {
       runner,
       showSession,
       rollOn,
+      prerollOn,
       writeControls,
       ensureTempo,
       track,
@@ -384,6 +392,26 @@ describe('makeStripRunner', () => {
     off()
     h.to(10)
     expect(onProgress).not.toHaveBeenCalled()
+  })
+
+  // The lookahead, through the driver rather than as a returned effect: what
+  // `strip.test.ts` pins is that the walk *asks*, and this is that ask reaching
+  // the browser. The two together are the whole path bar `prerollOn` itself,
+  // which is one line into `videoSlot.prerollUrl` (`scripts/prerollcheck.mjs`
+  // measures what that buys).
+  it('loads the next row’s clip when this one fires', () => {
+    const h = harness([
+      row({ id: 'a' }),
+      row({ id: 'b', session: 'vurl=https://example.test/reel.mp4&cuea=3' }),
+    ])
+    h.runner.start()
+    expect(h.prerollOn).toHaveBeenCalledWith('https://example.test/reel.mp4', 3)
+  })
+
+  it('and asks for nothing when the next row has no clip to load', () => {
+    const h = harness([row({ id: 'a' }), row({ id: 'b' })])
+    h.runner.start()
+    expect(h.prerollOn).not.toHaveBeenCalled()
   })
 
   // A render takes the walk away from the tray rather than running beside it

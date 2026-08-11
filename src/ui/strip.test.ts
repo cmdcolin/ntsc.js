@@ -21,6 +21,8 @@ import {
   holdLabel,
   holdProgress,
   moveRow,
+  nextRow,
+  prerollFor,
   readStrip,
   removeRow,
   rowFill,
@@ -671,5 +673,91 @@ describe('a walk is reproducible', () => {
     )
     const jumped = fire(mixed, STOPPED, 2, CLOCK(0))
     expect(played?.effects).toEqual(jumped.effects)
+  })
+})
+
+// Preroll depth 1 (docs/EDITOR.md › _Performance: the boundary is the only
+// cost_). Two questions, and they are separate on purpose: what a row's clip
+// resolves to, and when a walk asks for it.
+describe('what a row loads ahead', () => {
+  const CLIP = 'https://example.test/reel.mp4'
+
+  it('names an explicit clip url, with the row’s in-point', () => {
+    expect(prerollFor(row({ session: `vurl=${CLIP}&cuea=12.5` }))).toEqual({
+      url: CLIP,
+      start: 12.5,
+    })
+  })
+
+  // A bundled clip is an id on this side of the boundary and a url on the
+  // other, and the row stores the id — so resolving it here is what lets a slot
+  // be handed the one thing it can act on.
+  it('resolves a bundled clip id to the url the slot would load', () => {
+    const got = prerollFor(row({ session: 'src=clip-popeye' }))
+    expect(got?.url).toContain('popeye')
+    expect(got?.start).toBe(0)
+  })
+
+  // The three that cannot be named ahead of time, and the reason each one is
+  // not a gap: a pool is a search rather than a file, a still needs no element,
+  // and a look-only row leaves the deck where it is — which is the case with no
+  // boundary cost to save in the first place.
+  it('answers nothing for a pool, a still, or a row that names no source', () => {
+    expect(prerollFor(row({ session: 'src=wiki-random' }))).toBeNull()
+    expect(prerollFor(row({ session: 'src=bars' }))).toBeNull()
+    expect(prerollFor(row({ session: 'set=vSize:0.5' }))).toBeNull()
+  })
+
+  it('looks round the end of a looping rundown, and off the end of one without', () => {
+    const rows = [row({ id: 'a' }), row({ id: 'b' })]
+    expect(nextRow(strip(rows), 1)?.id).toBe('a')
+    expect(nextRow(strip(rows, { loop: false }), 1)).toBeNull()
+    expect(nextRow(strip(rows), 0)?.id).toBe('b')
+  })
+
+  // The lookahead is on the *walk*, so firing row 0 asks for row 1's clip — a
+  // whole hold before the cut that wants it, which is the point.
+  it('is fired with the row before the one that wants it', () => {
+    const rows = [row({ id: 'a' }), row({ id: 'b', session: `vurl=${CLIP}` })]
+    const effects = start(strip(rows), CLOCK(0)).effects
+    expect(effects.at(-1)).toEqual({ kind: 'preroll', url: CLIP, start: 0 })
+  })
+
+  // Last, after the row's own effects: the deck is pointed at what is on air
+  // before anything starts fetching what comes after it.
+  it('comes after the row’s own effects, never before them', () => {
+    const rows = [
+      row({ id: 'a', fill: { kind: 'roll', origin: 'commons' } }),
+      row({ id: 'b', session: `vurl=${CLIP}` }),
+    ]
+    expect(
+      start(strip(rows), CLOCK(0)).effects.map((e: Effect) => e.kind),
+    ).toEqual(['session', 'roll', 'preroll'])
+  })
+
+  it('asks for nothing when the next row has nothing to load', () => {
+    const rows = [row({ id: 'a' }), row({ id: 'b', session: 'src=bars' })]
+    expect(
+      start(strip(rows), CLOCK(0)).effects.some(
+        (e: Effect) => e.kind === 'preroll',
+      ),
+    ).toBe(false)
+  })
+
+  // A hand jumping into a bank of scenes still loads what running on would
+  // want: the lookahead is a fact about the rundown, not about how the row was
+  // reached.
+  it('loads ahead from a row fired by hand too', () => {
+    const rows = [
+      row({ id: 'a' }),
+      row({ id: 'b' }),
+      row({ id: 'c', session: `vurl=${CLIP}` }),
+    ]
+    const jumped = fire(strip(rows), STOPPED, 1, CLOCK(0))
+    expect(jumped.effects.at(-1)).toEqual({
+      kind: 'preroll',
+      url: CLIP,
+      start: 0,
+    })
   })
 })

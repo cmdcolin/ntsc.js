@@ -48,7 +48,13 @@ import {
   urlName,
 } from './urlParams'
 import { useSourcePrompt } from './useSourcePrompt'
-import { playStream, playUrl, stopSlot, stopTyping } from './videoSlot'
+import {
+  playStream,
+  playUrl,
+  prerollUrl,
+  stopSlot,
+  stopTyping,
+} from './videoSlot'
 
 import type { FrameStats } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
@@ -69,7 +75,7 @@ import type { StashSlot, Stashed } from './fileStash'
 import type { PickedFileHandle } from './fsAccess'
 import type { SlotView } from './slotView'
 import type { SessionParams } from './urlParams'
-import type { SlotKind, VideoSlot } from './videoSlot'
+import type { Preroll, SlotKind, VideoSlot } from './videoSlot'
 import type { RefObject } from 'react'
 
 // Capped to the same long edge the engine's texture is, and for the same
@@ -305,6 +311,10 @@ export function useEngine() {
   // The teletype reveal each slot may have in flight, retired by stopSlot.
   const typerARef = useRef<{ stop: () => void } | null>(null)
   const typerBRef = useRef<{ stop: () => void } | null>(null)
+  // The next clip each slot has loaded and parked, if a rundown looked ahead —
+  // preroll depth 1, one per deck by construction (ui/videoSlot.ts).
+  const nextARef = useRef<Preroll | null>(null)
+  const nextBRef = useRef<Preroll | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const fileInputBRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
@@ -738,6 +748,7 @@ export function useEngine() {
   const makeSlot = (id: StashSlot): VideoSlot => ({
     id,
     ref: id === 'a' ? videoRef : videoBRef,
+    next: id === 'a' ? nextARef : nextBRef,
     typer: id === 'a' ? typerARef : typerBRef,
     rate: () => vaporRef.current.speed[id],
     // The three engine entry points below are separate methods per slot on
@@ -1027,6 +1038,22 @@ export function useEngine() {
     const mode = POOL_MODE_FOR[origin]
     setSourceMode(m => ({ ...m, a: mode }))
     rollFrom(slotA, mode, rand)
+  }
+
+  // A strip row's lookahead: load what the next row will want onto deck A's
+  // second element, parked at its in-point (ui/videoSlot.ts).
+  //
+  // Deck A alone, because that is where a rundown puts its rows — B is the mix
+  // source and a take will want it, which is the same reason preroll lives in a
+  // slot rather than on B.
+  //
+  // Nothing awaits it and nothing reports it. A preroll is an optimisation on a
+  // cut that already works: if it lands, the cut is a swap; if it does not, the
+  // cut loads exactly as it did before this existed. Failing loudly would be
+  // reporting a fault the user has no way to act on and would not have been
+  // told about a version ago.
+  const prerollOn = (url: string, start: number) => {
+    void prerollUrl(slotA, url, start)
   }
 
   // One named file onto a slot, off the shelf or out of the browser. Resolved
@@ -2100,12 +2127,14 @@ export function useEngine() {
     // mode names and those two are different doors.
     showRef,
     rollAgain,
-    // The two the strip fires through (ui/useStrip.ts). `showSession` is the
+    // The three the strip fires through (ui/useStrip.ts). `showSession` is the
     // same apply a link gets, which is what makes "a row is a query string"
     // true rather than nearly true; `rollOn` is a roll that names its pool and
-    // draws from the take's generator instead of `Math.random`.
+    // draws from the take's generator instead of `Math.random`; `prerollOn` is
+    // the row after next's clip, loaded during this one.
     showSession,
     rollOn,
+    prerollOn,
     // Whether there is a pool to roll out of at all, which is not the same as
     // there being a pick up: a file taken off the shelf came out of a list, and a
     // list is not a pool. The palette row says so rather than going quiet, since

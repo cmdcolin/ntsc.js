@@ -270,6 +270,43 @@ The hard cut in a looping clip's audio is filed in [`IDEAS.md`](IDEAS.md) ›
 _Clip cues_ as "a real limit rather than a choice", because a `<video>` has one
 read head — a preroll element is the second one.
 
+#### Landed
+
+`videoSlot.ts` holds two elements, `strip.ts` looks one row ahead, and the two
+meet at `playUrl` — which every clip load in the app already came through, so
+the picker, a pool pick, a link's `?vurl` and a strip row all spend a preroll
+without knowing it exists. `scripts/prerollcheck.mjs` measures the cut at
+**9ms warm against 58ms cold**, on a small file over localhost, which is the
+least favourable case there is: over a network the gap is the network.
+
+Four things worth knowing about how it landed.
+
+- **Depth 1 is structural, not a rule to remember.** There is one `next` field
+  per slot and `prerollUrl` clears it, so a second preroll retires the first. A
+  queue would have needed a policy; a field cannot hold two.
+- **The lookahead is a fact about the rundown, not about the frame.** It is
+  emitted by `land` rather than `fireEffects`, so firing row 3 by hand out of a
+  bank of scenes still loads what row 4 would want — running on is what a walk
+  does next either way. It comes last in the step, after the row's own effects,
+  so the deck is pointed at what is on air before anything starts fetching what
+  follows.
+- **A row that cannot name its clip in advance simply produces no effect**, and
+  the three cases are all fine: a pool is a search rather than a file, a still
+  needs no element, and a look-only row leaves the deck where it is — which is
+  the case with no boundary cost to save in the first place. `prerollFor`
+  resolves the two that can be named: an explicit `?vurl`, and a bundled clip
+  id, which is a url on the slot's side of the boundary.
+- **`stopSlot` deliberately leaves a parked element alone.** The load paths stop
+  the slot and *then* call `playUrl`, so a `stopSlot` that retired the next
+  element would destroy it a line before the cut it was loaded for. What bounds
+  it is the one-field rule above rather than that call.
+
+The two things filed as waiting on this are now unblocked and neither is built:
+**transitions between rows** (the shelf exists and cuts the deck's T-bar; a row
+needs both clips live, which is what this makes true) and **the audio
+crossfade** — the second read head now exists, which is the whole of what
+IDEAS.md › _Clip cues_ said was missing.
+
 ### Seeding: the decision that is expensive later
 
 **Every roll goes through a seeded RNG, and a take records the seed plus the
@@ -983,9 +1020,11 @@ list above in two places.
    _One walk, two clocks_ now records, and ⎙ renders the rundown rather than
    just the board. It stops the live walk rather than running beside it, which
    is what the note here said to do.
-4. **Preroll depth 1.** `videoSlot.ts`'s one-element-per-slot assumption. It
-   unblocks three filed things at once — transitions between rows, the audio
-   crossfade (IDEAS.md › _Clip cues_), and any cut that is not a hard one.
+4. ~~**Preroll depth 1.**~~ **Landed** — the write-up is _Landed_ under
+   _Performance: the boundary is the only cost_, and the measurement is 9ms
+   against 58ms. The three things filed under it are what is left: transitions
+   between rows, the audio crossfade (IDEAS.md › _Clip cues_), and any cut that
+   is not a hard one. All three are now unblocked and none is built.
 5. **Frame-exact video pull**, then **automation recording**, as before. The
    first is now the only thing between a take and reproducing with a clip in
    it: everything below the video is deterministic, and the video is not. It

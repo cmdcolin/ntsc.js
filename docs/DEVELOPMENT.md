@@ -351,6 +351,29 @@ together. That is the right behaviour, and it falls out of clocking the walk on
 frames rather than on the wall — a wall-clock strip would come back having
 silently skipped four rows nobody saw.
 
+## Preroll: is the cut cheaper?
+
+```
+node scripts/prerollcheck.mjs [port]
+```
+
+Times the same cut twice on the same clip — once cold, once with the clip
+prerolled — and checks the promoted one took the parked element rather than
+making a new one. Measured 9ms warm against 58ms cold.
+
+**The cold arm has to be genuinely cold**, and it is most of what the file is
+careful about: a browser that has already fetched a url serves the second load
+out of its HTTP cache, which would make both arms fast and the check
+meaningless. Each arm uses its own cache-busting query, so the two are the same
+bytes and different cache entries. Anyone re-tuning this should keep that — the
+failure it prevents is a check that passes for the wrong reason.
+
+It drives `videoSlot.ts` against a stub slot rather than a real deck, because
+what is under test is the two-element swap and a real deck would be timing the
+panel too. The path from a rundown to that call is unit-tested either side
+(`strip.test.ts` for what a row loads ahead, `stripRun.test.ts` for the ask
+reaching the browser).
+
 ## The transition shelf
 
 ```

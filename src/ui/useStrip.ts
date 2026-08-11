@@ -84,6 +84,8 @@ export interface StripDeps {
   // than nearly true.
   showSession: (params: SessionParams, arrive: number) => void
   rollOn: (origin: PoolOrigin, rand: Rand) => void
+  // The next row's clip, loaded during this one — see `useEngine.prerollOn`.
+  prerollOn: (url: string, start: number) => void
   getControls: () => Controls
   writeControls: (controls: Controls) => void
   // Every slider a jitter may touch: the panel's own list, passed in rather
@@ -207,6 +209,8 @@ export function makeStripRunner(): StripRunner {
   const sink: StripSink = {
     session: (params, seconds) => deps?.showSession(params, seconds),
     roll: (origin, rand) => deps?.rollOn(origin, rand),
+    // `at` rather than `start`, which is the walk's own verb imported above.
+    preroll: (url, at) => deps?.prerollOn(url, at),
     jitter: (amount, rand) => {
       if (deps === null) return
       deps.writeControls(
