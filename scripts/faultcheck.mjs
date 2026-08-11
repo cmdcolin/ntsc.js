@@ -289,33 +289,40 @@ check(
 // --- a row arriving behind one -----------------------------------------------
 //
 // The shelf's other cut. Off the deck a transition throws the T-bar; off a row
-// it puts the row's session up — the same fault, a different `onCut`, which is
+// it does the row's whole step — the same fault, a different `onCut`, which is
 // why `faultPlan` takes it from its caller. What is asserted is the *timing*,
-// because that is the whole claim: the session lands in the middle of the
-// fault, not when the row fires.
+// because that is the whole claim: the step lands in the middle of the fault,
+// not when the row fires.
+//
+// Two rows rather than one, and the second is what makes the preroll assertion
+// below possible: the walk looks one row ahead, so firing row 1 is also what
+// asks for row 2's clip. Row 1's hold is two seconds, comfortably past the
+// ninety frames stepped here, so nothing but row 1 ever fires.
 const arrived = await page.evaluate(async () => {
   const { offlineWalk } = await import('/src/ui/stripRun.ts')
   const { transitionOf, faultPlan } = await import('/src/ui/transitions.ts')
   const vf = window.vf
   // A sink standing in for the app's, with the one verb under test wired the
-  // way `useEngine.faultTo` wires it: a plan off the shelf whose cut applies
-  // the session. `vSize` stands in for a whole session — what is being timed is
-  // when the write lands, not what it writes.
+  // way `useEngine.faultTo` wires it: a plan off the shelf whose cut runs the
+  // step. What is being timed is when each verb lands, not what it writes.
   const at = []
   const sink = {
     session: () => at.push({ kind: 'session', frame: vf.frameNo() }),
-    fault: (name, params, seconds) => {
+    fault: (name, onCut) => {
       at.push({ kind: 'fired', frame: vf.frameNo() })
       const t = transitionOf(name)
       vf.startFault(
-        faultPlan(t, () => at.push({ kind: 'cut', frame: vf.frameNo() })),
+        faultPlan(t, () => {
+          at.push({ kind: 'cut', frame: vf.frameNo() })
+          onCut()
+        }),
       )
     },
     roll: () => {},
     jitter: () => {},
-    preroll: () => {},
+    preroll: () => at.push({ kind: 'preroll', frame: vf.frameNo() }),
   }
-  const hold = { bars: 0.25, drift: 0 }
+  const hold = { bars: 1, drift: 0 }
   const rows = [
     {
       id: 'r1',
@@ -324,6 +331,14 @@ const arrived = await page.evaluate(async () => {
       fill: { kind: 'clip' },
       hold,
       arrive: { seconds: 0, transition: 'collapse' },
+    },
+    {
+      id: 'r2',
+      name: '',
+      session: 'vurl=/clips/next.mp4',
+      fill: { kind: 'clip' },
+      hold,
+      arrive: { seconds: 0, transition: null },
     },
   ]
   vf.pauseLoop()
@@ -343,12 +358,15 @@ const arrived = await page.evaluate(async () => {
   vf.resumeLoop()
   return at
 })
+const where = arrived.map(a => `${a.kind}@${a.frame}`).join(' ')
 const fired = arrived.find(a => a.kind === 'fired')
 const cut = arrived.find(a => a.kind === 'cut')
+const session = arrived.find(a => a.kind === 'session')
+const preroll = arrived.find(a => a.kind === 'preroll')
 check(
   'a row with a transition fires a fault instead of a bare session',
-  fired !== undefined && !arrived.some(a => a.kind === 'session'),
-  arrived.map(a => `${a.kind}@${a.frame}`).join(' '),
+  fired !== undefined && session !== undefined && session.frame > fired.frame,
+  where,
 )
 // The point of the whole feature. A plain row applies its session on the frame
 // it fires; this one applies it half a transition later, which is the frame the
@@ -359,6 +377,19 @@ check(
   cut === undefined
     ? 'no cut'
     : `${cut.frame - fired.frame} frames after firing, for a 60-frame fault cutting at 0.5`,
+)
+// And the rest of the step rides with it. A slot parks one element, so a
+// lookahead spent while this row's own session was still waiting for the cut
+// retired the clip that cut was about to promote — every transition cut paying
+// the cold price, on exactly the rows preroll was built for. What that looked
+// like from here was a `preroll@0` beside a `session@30`.
+check(
+  'and the next row’s preroll waits for the cut rather than pre-empting it',
+  preroll !== undefined &&
+    session !== undefined &&
+    preroll.frame === session.frame &&
+    preroll.frame === cut?.frame,
+  where,
 )
 
 check('no page errors', errors.length === 0, errors.join(' | '))

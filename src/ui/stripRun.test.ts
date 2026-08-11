@@ -21,19 +21,18 @@ function fakeSink() {
   const rolls: { origin: PoolOrigin; rand: Rand }[] = []
   const jitters: { amount: MutateAmount; rand: Rand }[] = []
   const prerolls: { url: string; start: number }[] = []
-  const faults: {
-    transition: TransitionName
-    params: SessionParams
-    seconds: number
-  }[] = []
+  // The cut is kept rather than called, which is the whole point of the shape:
+  // a fake sink that ran it immediately could not tell "at the cut" from "when
+  // the row fired", and that difference is the entire feature.
+  const faults: { transition: TransitionName; cut: () => void }[] = []
   const order: string[] = []
   const sink: StripSink = {
     session: (params, seconds) => {
       sessions.push({ params, seconds })
       order.push('session')
     },
-    fault: (transition, params, seconds) => {
-      faults.push({ transition, params, seconds })
+    fault: (transition, cut) => {
+      faults.push({ transition, cut })
       order.push('fault')
     },
     roll: (origin, rand) => {
@@ -407,10 +406,9 @@ describe('makeStripRunner', () => {
     expect(onProgress).not.toHaveBeenCalled()
   })
 
-  // A transition row, through the driver: the session does not go up now, it
-  // goes to `faultTo` — which hands the engine a plan whose cut applies it. The
-  // difference between the two is *when the source swaps*, and this is the line
-  // where that is decided.
+  // A transition row, through the driver: nothing goes up now, it goes to
+  // `faultTo` — which hands the engine a plan whose cut runs it. The difference
+  // between the two is *when*, and this is the line where that is decided.
   it('sends a transition row through the fault rather than straight up', () => {
     const h = harness([
       row({ session: 'src=sweep', arrive: { seconds: 4, transition: 'roll' } }),
@@ -419,7 +417,11 @@ describe('makeStripRunner', () => {
     expect(h.showSession).not.toHaveBeenCalled()
     expect(h.faultTo).toHaveBeenCalledTimes(1)
     expect(h.faultTo.mock.calls[0][0]).toBe('roll')
-    expect(h.faultTo.mock.calls[0][2]).toBe(4)
+    // And the session lands when the engine says the picture is least legible,
+    // which the driver cannot see and must not try to time.
+    h.faultTo.mock.calls[0][1]()
+    expect(h.showSession).toHaveBeenCalledTimes(1)
+    expect(h.showSession.mock.calls[0][1]).toBe(4)
   })
 
   it('and a plain row still goes straight up', () => {
@@ -427,6 +429,54 @@ describe('makeStripRunner', () => {
     h.runner.start()
     expect(h.showSession).toHaveBeenCalledTimes(1)
     expect(h.faultTo).not.toHaveBeenCalled()
+  })
+
+  // The bug this shape exists to prevent, at the level a live set would meet
+  // it. A transition row's roll used to fire the moment the row did, while its
+  // session waited for the cut — so the *engine's* own re-roll of the same
+  // `?src=…-random`, kicked off by the late session, took a fresher load token
+  // and beat the seeded pick. A take stopped reproducing (adr/0006), and
+  // nothing in the effect list looked wrong, because the list order was right
+  // and only the clock was not.
+  it('keeps a transition row’s roll behind its own session', () => {
+    const h = harness([
+      row({
+        session: 'src=wiki-random',
+        fill: { kind: 'roll', origin: 'commons' },
+        arrive: { seconds: 0, transition: 'dub' },
+      }),
+    ])
+    h.runner.start()
+    expect(h.rollOn).not.toHaveBeenCalled()
+    h.faultTo.mock.calls[0][1]()
+    expect(h.showSession).toHaveBeenCalledTimes(1)
+    expect(h.rollOn).toHaveBeenCalledTimes(1)
+    expect(h.showSession.mock.invocationCallOrder[0]).toBeLessThan(
+      h.rollOn.mock.invocationCallOrder[0],
+    )
+  })
+
+  // The other half of the same fault, and the one preroll was built for. A slot
+  // parks one element, so a lookahead spent while this row's own session was
+  // still waiting retired the very clip the cut was about to promote — every
+  // transition cut paying the cold price, on the rows preroll exists for.
+  it('holds the next row’s preroll until the cut has promoted this one', () => {
+    const h = harness([
+      row({
+        id: 'a',
+        session: 'vurl=https://example.test/a.mp4',
+        arrive: { seconds: 0, transition: 'collapse' },
+      }),
+      row({ id: 'b', session: 'vurl=https://example.test/b.mp4' }),
+    ])
+    h.runner.start()
+    expect(h.prerollOn).not.toHaveBeenCalled()
+    h.faultTo.mock.calls[0][1]()
+    expect(h.showSession).toHaveBeenCalledTimes(1)
+    expect(h.prerollOn).toHaveBeenCalledWith('https://example.test/b.mp4', 0)
+    expect(h.showSession.mock.invocationCallOrder[0]).toBeLessThan(
+      h.prerollOn.mock.invocationCallOrder[0],
+    )
   })
 
   // The lookahead, through the driver rather than as a returned effect: what

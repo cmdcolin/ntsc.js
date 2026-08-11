@@ -622,19 +622,19 @@ receiver recovering rather than as an effect switching off, which is the half of
 #### Landed: between rows
 
 A row carries `arrive.transition` now — the field this section's `Row` type
-predicted — and the whole of the difference is **when the session lands**. A
-plain row applies it when the row fires; a transition row hands the engine a
-fault whose `onCut` applies it, so the source swaps on the frame the picture is
-least legible and the fault heals onto the new clip.
+predicted — and the whole of the difference is **when the row's step lands**. A
+plain row does it when the row fires; a transition row hands the engine a fault
+whose `onCut` does it, so the source swaps on the frame the picture is least
+legible and the fault heals onto the new clip.
 
-`scripts/faultcheck.mjs` measures exactly that: `fired@0 cut@30`, which is a
-one-second `collapse` cutting at 0.5 with the session arriving thirty frames
-after the row did.
+`scripts/faultcheck.mjs` measures exactly that: `fired@0 cut@30 session@30
+preroll@30`, which is a one-second `collapse` cutting at 0.5 with the row's
+whole step arriving thirty frames after the row did.
 
 - **One `onCut`, two cuts.** Off the deck a transition throws the T-bar; off a
-  row it puts the row's session up. Same fault, same plan, same `faultPlan` —
-  which takes its `onCut` from the caller precisely so the shelf never had to
-  learn what a rundown is.
+  row it runs the row's step. Same fault, same plan, same `faultPlan` — which
+  takes its `onCut` from the caller precisely so the shelf never had to learn
+  what a rundown is.
 - **The two arrivals are separate chips because they are separate things.** The
   look glides over `seconds` while the fault does the cutting, which is the
   pairing this section asks for, so neither is a mode of the other. `null` is
@@ -643,6 +643,38 @@ after the row did.
 - **Preroll is what makes it land.** The row before loaded the clip and parked
   it, so the cut promotes an element rather than starting a load — the swap is a
   swap, which is what "a transition needs both clips live at once" meant.
+
+**The fault defers the whole step, and the first cut of this shipped deferring
+only the session.** That reads like a detail and was three bugs, all from the
+same inversion: a row's other effects went on firing at the moment the row did,
+while the session they are supposed to depart *from* waited for the cut.
+
+- **A roll row stopped reproducing.** `applySession` re-rolls a `?src=…-random`
+  itself, so the late session kicked off an *unseeded* roll that took a fresher
+  `beginLoad` token than the seeded one fired half a second earlier — and the
+  later token wins. The take's own generator was drawn from and then overruled,
+  which is precisely what [adr/0006](adr/0006-a-take-is-a-seed-and-its-picks.md)
+  says must not happen. Nothing looked wrong in the effect list, because the
+  list order was right and only the clock was not.
+- **A shake row lost its shake**, overwritten by the session it was a departure
+  from.
+- **And every transition cut paid the cold price**, on exactly the rows preroll
+  was built for. A slot parks one element and `prerollUrl` clears it, so a
+  transition row's lookahead retired its *own* parked clip a moment before the
+  cut that was going to promote it — `playUrl` then found no match and loaded
+  from scratch. Worse than losing the 9ms-against-58ms: in an all-transition
+  rundown every parked element was a whole file downloaded, decoded and dropped
+  unspent.
+
+So the rule is one sentence — **a transition row does at the cut exactly what a
+plain row does when it fires** — and the type carries it: the `fault` effect
+holds the step (`atCut`), the sink's `fault` verb takes a callback rather than a
+session, and `useEngine.faultTo` is the shelf lookup and nothing else. The two
+things worth keeping from how it was found: the assertion that should have
+caught it pinned `['fault', 'roll']`, which was the right *order* in a list
+whose order had stopped meaning time; and the browser harness re-implemented
+`faultTo` inside itself rather than calling it, so it measured the engine's
+timing correctly and the app's wiring not at all.
 
 And one thing worth keeping that is about the harness rather than the feature.
 The card's chips and verbs were reached *positionally* by `traycheck.mjs`, so

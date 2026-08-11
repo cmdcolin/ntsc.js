@@ -85,12 +85,9 @@ export interface StripDeps {
   // `useEngine.showSession`. What makes "a row is a query string" true rather
   // than nearly true.
   showSession: (params: SessionParams, arrive: number) => void
-  // The same session landing inside a named fault — see `useEngine.faultTo`.
-  faultTo: (
-    transition: TransitionName,
-    params: SessionParams,
-    arrive: number,
-  ) => void
+  // A named fault off the shelf, with the row's whole step landing on its cut
+  // frame — see `useEngine.faultTo`.
+  faultTo: (transition: TransitionName, onCut: () => void) => void
   rollOn: (origin: PoolOrigin, rand: Rand) => void
   // The next row's clip, loaded during this one — see `useEngine.prerollOn`.
   prerollOn: (url: string, start: number) => void
@@ -216,8 +213,7 @@ export function makeStripRunner(): StripRunner {
   // engine handed in is a different object after a device-loss rebuild.
   const sink: StripSink = {
     session: (params, seconds) => deps?.showSession(params, seconds),
-    fault: (transition, params, seconds) =>
-      deps?.faultTo(transition, params, seconds),
+    fault: (transition, onCut) => deps?.faultTo(transition, onCut),
     roll: (origin, rand) => deps?.rollOn(origin, rand),
     // `at` rather than `start`, which is the walk's own verb imported above.
     preroll: (url, at) => deps?.prerollOn(url, at),

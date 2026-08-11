@@ -1660,32 +1660,30 @@ export function useEngine() {
     if (eng !== null) applySession(eng, params, { boot: false, arrive })
   }
 
-  // The same, arriving behind a named fault off the shelf (ui/transitions.ts):
-  // the picture breaks, the session lands on the frame the engine says it is
-  // least legible, and the fault heals onto it.
+  // A named fault off the shelf (ui/transitions.ts), with the caller's work
+  // landing inside it: the picture breaks, `onCut` runs on the frame the engine
+  // says it is least legible, and the fault heals onto whatever that put up.
   //
-  // **The swap is the engine's callback and not a timer here**, which is the
-  // whole reason `startFault` takes an `onCut`: the cut has to land on one
-  // particular frame and nothing in React runs that often. What this composes
-  // is two things that already existed — `faultPlan` off the shelf and
-  // `showSession` above — so a row's transition and the deck's shelf button run
-  // the same fault and differ only in what their cut does.
+  // **The cut is the engine's callback and not a timer here**, which is the
+  // whole reason `startFault` takes an `onCut`: it has to land on one
+  // particular frame and nothing in React runs that often. This adds nothing to
+  // `faultPlan` but the lookup — a row's transition and the deck's shelf button
+  // run the same fault and differ only in what their cut does.
   //
-  // Both clips being live at that instant is preroll's doing: the row before
-  // this one loaded the clip and parked it, so `showSession` promotes an
-  // element rather than starting a load, and the swap is a swap.
-  const faultTo = (
-    name: TransitionName,
-    params: SessionParams,
-    arrive: number,
-  ) => {
+  // **What the strip hands over is its whole step**, not a session: the roll,
+  // the shake and the next row's preroll ride the cut with it, because a
+  // transition row has to do at the cut exactly what a plain row does when it
+  // fires (ui/strip.ts, `Effect`). That is also what keeps the swap a swap —
+  // the row before parked the clip, and nothing retires it in between.
+  const faultTo = (name: TransitionName, onCut: () => void) => {
     const t = transitionOf(name)
     const eng = engineRef.current
     // An unknown name is a rundown from a build with a shelf entry this one
-    // does not have. The row still arrives — it simply arrives plainly, which
-    // is what it would have done before the shelf existed.
-    if (t === undefined || eng === null) showSession(params, arrive)
-    else eng.startFault(faultPlan(t, () => showSession(params, arrive)))
+    // does not have; no engine is a tab that has not been given one. Either way
+    // the step still lands — it simply lands plainly, which is what it would
+    // have done before the shelf existed.
+    if (t === undefined || eng === null) onCut()
+    else eng.startFault(faultPlan(t, onCut))
   }
 
   // The device this tab cannot afford, declined out loud instead of spent.
@@ -2161,8 +2159,8 @@ export function useEngine() {
     // same apply a link gets, which is what makes "a row is a query string"
     // true rather than nearly true; `rollOn` is a roll that names its pool and
     // draws from the take's generator instead of `Math.random`; `prerollOn` is
-    // the row after next's clip, loaded during this one; `faultTo` is
-    // `showSession` again, landing inside a transition off the shelf.
+    // the row after next's clip, loaded during this one; `faultTo` runs a
+    // transition off the shelf with the row's whole step on its cut frame.
     showSession,
     faultTo,
     rollOn,

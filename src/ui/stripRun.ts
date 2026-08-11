@@ -48,18 +48,20 @@ export interface StripSink {
   // and belongs on this side of the boundary: a sink should not have to know
   // that a row is a query string.
   session: (params: SessionParams, seconds: number) => void
-  // The same, arriving behind a named fault: break the picture, put the session
-  // up on the frame the engine says it is least legible, and heal onto it.
+  // Break the picture with a named fault off the shelf, and run `onCut` on the
+  // frame the engine says it is least legible.
   //
-  // One verb rather than "start a fault" and "put a session up" as two, because
-  // the whole point is that the second happens *inside* the first — on a frame
-  // the engine picks and nothing here can see. What a sink does with it is hand
-  // the engine a plan; what it must not do is try to time the swap itself.
-  fault: (
-    transition: TransitionName,
-    params: SessionParams,
-    seconds: number,
-  ) => void
+  // **A callback rather than a session**, because what lands at the cut is the
+  // row's whole step and not one verb of it — see `Effect`'s `fault` variant
+  // for the three things that go wrong when only the session waits. The sink
+  // therefore does not have to know what a transition row defers, only that
+  // something does.
+  //
+  // One verb rather than "start a fault" and "do the step" as two, because the
+  // whole point is that the second happens *inside* the first — on a frame the
+  // engine picks and nothing here can see. What a sink does with it is hand the
+  // engine a plan; what it must not do is try to time the swap itself.
+  fault: (transition: TransitionName, onCut: () => void) => void
   // Roll a pool onto the deck, drawing from this generator rather than from
   // `Math.random` — the whole of `rng.ts`'s reason for existing.
   roll: (origin: PoolOrigin, rand: Rand) => void
@@ -86,11 +88,13 @@ export function runEffect(effect: Effect, sink: StripSink): void {
       sink.session(parseSessionParams(`?${effect.session}`), effect.seconds)
       break
     case 'fault':
-      sink.fault(
-        effect.transition,
-        parseSessionParams(`?${effect.session}`),
-        effect.seconds,
-      )
+      // The deferred step, run through this same function when the cut comes —
+      // so a transition row does at the cut exactly what a plain row does when
+      // it fires, down to the parse. One level deep by construction: `atCut`
+      // holds no faults, so this cannot recur.
+      sink.fault(effect.transition, () => {
+        for (const e of effect.atCut) runEffect(e, sink)
+      })
       break
     case 'roll':
       sink.roll(effect.origin, rngFor(effect.seed))

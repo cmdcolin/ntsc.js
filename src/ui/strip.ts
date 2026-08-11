@@ -168,29 +168,13 @@ export interface Clock {
 
 // --- what a fire asks for ---------------------------------------------------
 
-// One thing the driver has to do, in the order returned.
-export type Effect =
+// One thing the driver has to do, in the order returned. Everything a row can
+// ask for *except* the deferral below, which wraps a list of these rather than
+// being one of them.
+export type PlainEffect =
   // Put this session up: the source it names, the cue on it, and the look,
   // arriving over `seconds` (0 cuts).
   | { kind: 'session'; session: string; seconds: MorphSeconds }
-  // The same session, arriving behind a named fault: break the picture, put the
-  // session up on the frame it is least legible, and heal onto it
-  // (EDITOR.md › _Transitions_).
-  //
-  // It carries the session rather than the driver remembering one, because the
-  // swap has to land on a frame the engine picks and nothing in React runs that
-  // often — so what the sink hands over is a plan *including what to do at the
-  // cut*, which is the shape `startFault` already takes.
-  //
-  // A separate variant rather than a field on `session`, so the driver's switch
-  // is where the difference lives: a plain arrival applies immediately and this
-  // one applies later, and those are two verbs rather than one with a mode.
-  | {
-      kind: 'fault'
-      transition: TransitionName
-      session: string
-      seconds: MorphSeconds
-    }
   // Roll this pool and put what comes back on the deck. The seed is the row's,
   // so re-walking the same strip asks the same questions — though not
   // necessarily of the same file, which is `rng.ts`'s note and EDITOR.md's.
@@ -210,6 +194,37 @@ export type Effect =
   // whose source cannot be named ahead of time — a pool, which is a search
   // rather than a file — simply produces no such effect.
   | { kind: 'preroll'; url: string; start: number }
+
+// What the driver is handed. Either a row's step outright, or that same step
+// behind a named fault (EDITOR.md › _Transitions_): break the picture, and do
+// all of it on the frame the picture is least legible.
+//
+// **The fault carries the whole step, not only the session**, and that is the
+// correction this variant exists in its current shape for. Deferring the
+// session alone and letting the rest of the row fire now inverts the order
+// `fireEffects` is careful about, in three ways that all bite:
+//
+//   - a roll would land *before* the session naming its pool, and since
+//     `applySession` re-rolls a `?src=…-random` itself, the engine's own
+//     unseeded roll would then outrun the seeded one and win. A take stops
+//     reproducing, which is the one rule adr/0006 says must not break.
+//   - a jitter would be overwritten by the session it was supposed to be a
+//     departure *from*.
+//   - the lookahead would retire the very element the cut was about to promote.
+//     There is one parked element per slot and `prerollUrl` clears it, so a
+//     transition row prerolled the *next* row's clip over its own and every cut
+//     paid the cold price — the price preroll exists to remove, on the rows it
+//     was built for.
+//
+// So the rule is one sentence: **a transition row does at the cut exactly what
+// a plain row does when it fires.** `atCut` is that step, verbatim.
+//
+// One level deep by construction, since `atCut` holds `PlainEffect`: a fault
+// cannot carry a fault, which is the only nesting that would need a policy —
+// and it is the type that says so, so there is no runtime check to keep.
+export type Effect =
+  | PlainEffect
+  | { kind: 'fault'; transition: TransitionName; atCut: readonly PlainEffect[] }
 
 // The generator for one fire of one row.
 //
@@ -249,11 +264,44 @@ export function holdFrames(
   return Math.max(1, Math.round(seconds * (1 + spread) * clock.fps))
 }
 
-// What firing one row asks for. Ordered: the session goes up before the roll or
-// the jitter lands on it, because both are departures *from* what the session
-// named.
-export function fireEffects(row: Row, seed: number): Effect[] {
-  const { seconds } = row.arrive
+// What a row does, in the order it does it, with no regard for *when*.
+//
+// Ordered, and every part of the order is load-bearing. The session goes up
+// before the roll or the jitter lands on it, because both are departures *from*
+// what the session named. The lookahead comes last, after the row's own
+// effects, so the deck is pointed at what is on air before anything starts
+// fetching what follows — and, since a slot parks one element, so that a
+// promotion of this row's clip has happened before the next row's replaces it.
+//
+// One list whether or not the row names a transition: `fireEffects` decides
+// when it runs, and nothing here has to know which of the two it is.
+function stepEffects(
+  row: Row,
+  seed: number,
+  ahead: Lookahead | null,
+): PlainEffect[] {
+  const out: PlainEffect[] = [
+    { kind: 'session', session: row.session, seconds: row.arrive.seconds },
+  ]
+  if (row.fill.kind === 'roll') {
+    out.push({ kind: 'roll', origin: row.fill.origin, seed })
+  } else if (row.fill.kind === 'jitter') {
+    out.push({ kind: 'jitter', amount: row.fill.amount, seed })
+  }
+  if (ahead !== null) out.push({ kind: 'preroll', ...ahead })
+  return out
+}
+
+// What firing one row asks for: the step above, now if the row arrives plainly
+// and on the fault's cut frame if it names a transition. The whole of the
+// difference between the two is *when*, which is why it is a wrapper around one
+// list rather than a different list.
+export function fireEffects(
+  row: Row,
+  seed: number,
+  ahead: Lookahead | null = null,
+): Effect[] {
+  const step = stepEffects(row, seed, ahead)
   // Narrowed here rather than trusted, even though `readArrive` already
   // narrows: a row can also be built by hand — a harness, a test, an object
   // literal that never went through the codec — and `undefined` is not `null`.
@@ -264,17 +312,16 @@ export function fireEffects(row: Row, seed: number): Effect[] {
   // and the one `useEngine.faultTo` gives at the far end.
   const transition =
     TRANSITION_NAMES.find(t => t === row.arrive.transition) ?? null
-  const out: Effect[] = [
-    transition === null
-      ? { kind: 'session', session: row.session, seconds }
-      : { kind: 'fault', transition, session: row.session, seconds },
-  ]
-  if (row.fill.kind === 'roll') {
-    out.push({ kind: 'roll', origin: row.fill.origin, seed })
-  } else if (row.fill.kind === 'jitter') {
-    out.push({ kind: 'jitter', amount: row.fill.amount, seed })
-  }
-  return out
+  return transition === null
+    ? step
+    : [{ kind: 'fault', transition, atCut: step }]
+}
+
+// A clip to park before the cut that wants it: all a slot can act on, and all
+// `fireEffects` needs in order to put the ask in the right place in the step.
+export interface Lookahead {
+  url: string
+  start: number
 }
 
 // The clip a row will want, when it wants one that can be named in advance.
@@ -290,7 +337,7 @@ export function fireEffects(row: Row, seed: number): Effect[] {
 // `start` comes off the row's own cue, because a row is "this stretch of this
 // clip" and parking the element anywhere else would leave the promotion with a
 // seek to do on the frame it was supposed to be a cut.
-export function prerollFor(row: Row): { url: string; start: number } | null {
+export function prerollFor(row: Row): Lookahead | null {
   const q = new URLSearchParams(row.session)
   const src = q.get('src')
   const url =
@@ -319,18 +366,20 @@ export interface Step {
 function land(strip: Strip, index: number, lap: number, clock: Clock): Step {
   const row = strip.rows[index]
   const seed = seedFor(strip.seed, index, lap)
-  // The lookahead, and it belongs here rather than in `fireEffects` because it
-  // is a fact about *the rundown* and not about the row: firing row 3 by hand
-  // out of a bank of scenes should still load whatever row 4 would want, since
-  // running on is what a walk does next either way.
+  // The lookahead, and *which clip* it is belongs here rather than in
+  // `fireEffects` because it is a fact about the rundown and not about the row:
+  // firing row 3 by hand out of a bank of scenes should still load whatever row
+  // 4 would want, since running on is what a walk does next either way.
   //
-  // Last, after the row's own effects, so the deck is pointed at what is on air
-  // before anything starts fetching what comes after it. A rundown of one
-  // looping row prerolls the clip it is already playing, which `playUrl` spends
-  // as a swap to a second element parked at the in-point — an odd-looking case
-  // that happens to be the loop's best behaviour.
+  // Handed to `fireEffects` rather than appended after it, because where it
+  // goes in the step is the row's business: last, and behind the same fault the
+  // rest of the step is behind. Appended out here it fired while a transition
+  // row's own session was still waiting on the cut, and retired the element
+  // that cut was about to promote. A rundown of one looping row prerolls the
+  // clip it is already playing, which `playUrl` spends as a swap to a second
+  // element parked at the in-point — an odd-looking case that happens to be the
+  // loop's best behaviour.
   const ahead = nextRow(strip, index)
-  const load = ahead === null ? null : prerollFor(ahead)
   return {
     walk: {
       row: index,
@@ -338,10 +387,7 @@ function land(strip: Strip, index: number, lap: number, clock: Clock): Step {
       since: clock.frame,
       frames: holdFrames(row.hold, clock, seed),
     },
-    effects:
-      load === null
-        ? fireEffects(row, seed)
-        : [...fireEffects(row, seed), { kind: 'preroll', ...load }],
+    effects: fireEffects(row, seed, ahead === null ? null : prerollFor(ahead)),
   }
 }
 

@@ -211,7 +211,12 @@ const renderStrip = walkOn =>
         // fires. They are here because a sink is an interface: a walk that
         // started asking for one and found nothing would be a `TypeError` three
         // arms into the run rather than a check that failed.
-        fault: () => {},
+        //
+        // `fault` runs its cut rather than swallowing it, which is what the app
+        // does when the shelf has no such entry (`useEngine.faultTo`) — a
+        // stand-in that dropped the step would make a rundown that grew a
+        // transition look like a rundown that stopped doing anything.
+        fault: (_name, onCut) => onCut(),
         preroll: () => {},
       }
       const step = offlineWalk({ rows, seed: 7, loop: true }, sink, {

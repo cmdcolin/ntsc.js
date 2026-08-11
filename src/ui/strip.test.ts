@@ -179,10 +179,10 @@ describe('fireEffects', () => {
     expect(out[0]).toMatchObject({ kind: 'session', seconds: 0 })
   })
 
-  // A transition row arrives as a *fault* rather than a session, and the
-  // difference is when the session lands: plainly it is applied now, and behind
-  // a fault it is applied on the frame the engine says the picture is least
-  // legible. Two verbs rather than one with a mode — see the `Effect` union.
+  // A transition row asks for a *fault* rather than a step, and the difference
+  // is when the step lands: plainly it is done now, and behind a fault it is
+  // done on the frame the engine says the picture is least legible. Two verbs
+  // rather than one with a mode — see the `Effect` union.
   it('arrives behind a fault when the row names a transition', () => {
     const out = fireEffects(
       row({
@@ -195,8 +195,7 @@ describe('fireEffects', () => {
     expect(out[0]).toEqual({
       kind: 'fault',
       transition: 'collapse',
-      session: 'src=sweep',
-      seconds: 4,
+      atCut: [{ kind: 'session', session: 'src=sweep', seconds: 4 }],
     })
   })
 
@@ -208,7 +207,10 @@ describe('fireEffects', () => {
       row({ arrive: { seconds: 8, transition: 'roll' } }),
       1,
     )
-    expect(out[0]).toMatchObject({ kind: 'fault', seconds: 8 })
+    expect(out[0]).toMatchObject({
+      kind: 'fault',
+      atCut: [{ kind: 'session', seconds: 8 }],
+    })
   })
 
   // A row built by hand rather than read through the codec — a harness, a test,
@@ -226,7 +228,13 @@ describe('fireEffects', () => {
     expect(fireEffects(odd, 1)[0]).toMatchObject({ kind: 'session' })
   })
 
-  it('still departs from the session afterwards, fault or not', () => {
+  // The departure rides the cut with the session rather than beside it, and
+  // this is the assertion that says so. It used to read `['fault', 'roll']` —
+  // the right *order* in a list whose order had stopped meaning time, since the
+  // roll fired at once and the session waited. What that cost is in
+  // `stripRun.test.ts`: the engine's own re-roll, kicked off by the late
+  // session, beat the seeded pick and the take stopped reproducing.
+  it('keeps the whole step behind the fault, in the order it would have run', () => {
     const out = fireEffects(
       row({
         fill: { kind: 'roll', origin: 'commons' },
@@ -234,7 +242,13 @@ describe('fireEffects', () => {
       }),
       9,
     )
-    expect(out.map(e => e.kind)).toEqual(['fault', 'roll'])
+    expect(out.map(e => e.kind)).toEqual(['fault'])
+    expect(out[0]).toMatchObject({
+      atCut: [
+        { kind: 'session' },
+        { kind: 'roll', origin: 'commons', seed: 9 },
+      ],
+    })
   })
 })
 
@@ -840,6 +854,24 @@ describe('what a row loads ahead', () => {
     expect(
       start(strip(rows), CLOCK(0)).effects.map((e: Effect) => e.kind),
     ).toEqual(['session', 'roll', 'preroll'])
+  })
+
+  // And it goes behind the fault with the rest of the step when the row names
+  // one. A slot parks one element, so a lookahead spent while this row's own
+  // session was still waiting for the cut retired the clip that cut was about
+  // to promote — every transition cut paying the cold price, on exactly the
+  // rows preroll was built for.
+  it('rides the cut when the row it fires with arrives behind a fault', () => {
+    const rows = [
+      row({ id: 'a', arrive: { seconds: 1, transition: 'collapse' } }),
+      row({ id: 'b', session: `vurl=${CLIP}` }),
+    ]
+    const effects = start(strip(rows), CLOCK(0)).effects
+    expect(effects.map((e: Effect) => e.kind)).toEqual(['fault'])
+    const fault = effects[0]
+    if (fault.kind !== 'fault') throw new Error('expected a fault')
+    expect(fault.atCut.map(e => e.kind)).toEqual(['session', 'preroll'])
+    expect(fault.atCut.at(-1)).toEqual({ kind: 'preroll', url: CLIP, start: 0 })
   })
 
   it('asks for nothing when the next row has nothing to load', () => {
