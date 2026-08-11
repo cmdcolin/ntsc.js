@@ -514,21 +514,28 @@ const med = k =>
     0.5,
   )
 
-// **The silence has to be the seek.** Two independent instruments on the same
-// laps — a worklet on the audio thread, and the app's own `seeked` timing — and
-// if they disagree then one of them is measuring something else, which is the
-// only way this run can be quietly wrong. Slack because they are not measuring
-// the same span: the silence brackets the seek and adds whatever the element
-// takes to resume, which is a few ms on top rather than a factor.
+// **The silence has to be at least the seek.** Two independent instruments on
+// the same laps — a worklet on the audio thread, and the app's own `seeked`
+// timing — and a silence *shorter* than the seek would mean one of them is
+// measuring something else, which is the only way this run can be quietly wrong.
+//
+// **One-sided on purpose, and it took a loaded box to get that right.** The two
+// do not measure the same span: the silence brackets the seek and then adds
+// whatever the element takes to resume, and a resume is a scheduling cost rather
+// than a decode — so it is small on a quiet machine and not small on a busy one.
+// A symmetric band held at load 5 and failed at load 43 on the `intra` arm, on a
+// 16ms seek heard as 53ms of silence, which is the harness reporting the box.
+// The claim worth asserting is the direction.
 for (const r of results) {
   const a = read[r.label]
   const seek = r.health?.medianMs ?? 0
   if (a.wraps < 3 || (r.health?.laps ?? 0) < 2) continue
   const heard = med(r.label)
-  if (Math.abs(heard - seek) > Math.max(25, seek * 0.6)) {
+  if (heard < seek - 25) {
     fails.push(
       `${r.label}: ${heard.toFixed(0)}ms of silence against a ${seek.toFixed(0)}ms ` +
-        'seek — the two instruments have stopped agreeing',
+        'seek — a wrap cannot be quieter than the seek it is made of, so the ' +
+        'two instruments have stopped agreeing',
     )
   }
 }
