@@ -453,6 +453,53 @@ Note for anyone evaluating the reverse arrangement: Max's `jweb` embeds a web
 view but is unlikely to expose WebGPU, so hosting ntsc.js inside a patch
 probably isn't viable — it wants to be a separate app you route into.
 
+## An NLE plugin — declined, and what the portable part actually is
+
+The recurring version of this is "the shaders are the value, so put them in
+something that has a timeline" — After Effects, Premiere, Resolve. Investigated
+and declined. The findings are in order of how fast each one kills it, and the
+last is the one that would still stand if the first two were solved.
+
+**There is no "the shaders" to port.** The WGSL is about a third of the
+simulator. Against twenty-four shaders sit `src/signal/`'s per-frame CPU state
+(`LineState`, `MixState`, `TapeState`, `RfState`, `SynthState`, `AudioState`,
+and the FIR bank, redesigned CPU-side whenever one of the filter five moves) and
+`src/gpu/`'s pass graph, uniform packing and buffer management. `PARAM_DEFS` is
+228 fields, `DEFAULT_CONTROLS` 234 keys, and several buffers are _state_ rather
+than scratch — `timingBuf[525..532]`, `persistBufs`, `tapeBuf`, `storePrev`.
+Lifting the shaders alone lifts nothing that runs.
+
+- **No plugin API speaks WebGPU.** OFX 1.5's GPU rendering suite is CUDA, OpenCL
+  and Metal; there is no Vulkan and no WebGPU, and Adobe's SDK is the same
+  family. wgpu/naga does mean the WGSL survives a _native_ port unchanged — one
+  source over Vulkan, Metal and DX12, and the one genuinely reusable asset here
+  — but inside a CUDA or Metal host it makes you a wgpu island paying a
+  full-frame upload and readback every frame, in both directions.
+- **The host's frame model fights the feedback loops.** OFX has
+  `kOfxImageEffectPropSequentialRender` for temporal dependence and hosts do
+  honour it for renders, but the tape ring, the phosphor persistence, the PLL's
+  lock age, the AGC and the two servos all make frame N a function of every
+  frame before it. Scrubbing is then wrong, playing from the middle is wrong,
+  and a viewer still means nothing until it has been rendered from the top. The
+  three feedback loops `COMPARISON.md` names as what distinguishes this project
+  are exactly the parts that cannot survive being a plugin.
+- **The slot is taken, by a tool built for it.** `COMPARISON.md` already routes
+  "put this look on a clip in your edit" to **ntsc-rs** — same premise, in Rust,
+  CPU-side and SIMD, already shipping After Effects, Premiere and OpenFX builds,
+  and not locked to the NTSC raster. Going there means competing on raster
+  independence, resolution and host integration, which are its three strengths
+  and this architecture's three weakest points, while giving up the live
+  instrument that is the whole reason for building it this way. Worth noting too
+  that Resolve's free tier does not load third-party OFX, so the "more
+  accessible" host is Studio or an Adobe subscription.
+
+So the honest version of "put it in an editor" is not a plugin. It is a
+**deterministic render of frame N handed over as a file**, which is the next
+section — and its virtual clock is the precondition every other version of this
+shares, including the plugin that isn't being built. A native standalone on wgpu
+stays on the table as a _shell_ decision (file writing, ProRes, a pinned
+runtime, all argued below) and never as an integration strategy.
+
 ## Fixed-framerate export (and whether it wants a desktop app)
 
 Not to be confused with **Capture / deinterlace** above, which is about a
@@ -919,3 +966,6 @@ depends on it; the shipped presets stand alone.
 - **A TBC.** A corrective box that removes `tbJitter`/`tbWow`. Considered and
   declined; inverse-effect controls are interesting for performance but nobody
   has wanted one.
+- **An After Effects / Premiere / OpenFX plugin.** Declined at length in _An NLE
+  plugin_ above, which also says what the reusable part turned out to be and
+  where the editor-facing work actually goes.
