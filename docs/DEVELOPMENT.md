@@ -367,12 +367,13 @@ so React never sees it and a preset saved mid-transition is the look rather than
 the fault — which means "did it run" cannot be read off `getControls()`. So this
 samples the canvas, and two traps come with that:
 
-- **A resting picture is not a still one.** `tapeNoiseIre` rests at 1.5 and
-  regenerates every frame, so two frames of the same board thirty apart already
-  differ by 15-17/255 through the harness's downscale. Every reading is stated
-  over a measured floor rather than against zero — the first version compared to
-  rest and asked for near-zero, which passed only in runs where the window was
-  behind another one and the readback was stale.
+- **Every reading is stated over a measured floor, not against zero**, and the
+  floor is the same gap with no fault in it. It reads ~0 today; it read 15-17
+  when each entry took its own take, because `rest` was then captured thirty
+  frames into a cleared signal path whose phosphor was still filling, so the
+  picture brightened on its own and every entry reported the same number
+  whatever its fault had done. A harness that asserts against zero is one that
+  reports its own warmup.
 - **`getImageData` blocks on the GPU**, so it rather than `step()` is what the
   run costs. It samples a 64x48 downscale every third frame; at full resolution
   every frame it was 4.8MB a time and blew the protocol timeout.

@@ -25,6 +25,9 @@
 // is the shape — far from rest at the cut, near it again after the memory has
 // had a moment — which is what "a fault that resolves" actually claims.
 //
+// And measured against a control rather than against zero, for a reason worth
+// knowing before trusting any number this file prints: see the floor arm below.
+//
 // Driven frame by frame off `step()` under a take, so the fault's own clock is
 // the only thing moving and every reading below is exact rather than sampled
 // out of a running loop. Sampled through a 64x48 downscale rather than
@@ -133,17 +136,21 @@ const runFault = name =>
     const before = { ...vf.getControls() }
     const rest = grab()
 
-    // **The control arm, and the harness does not work without it.** A resting
-    // picture is not a still one — `tapeNoiseIre` rests at 1.5 and regenerates
-    // every frame — so two frames of the *same* board twenty apart already
-    // differ, measured at 15-17/255 through this downscale. A first version
-    // compared the settled picture to rest and asked for near-zero; it read
-    // 0.4 in a run where the window was behind another one and the readback was
-    // stale, and 16 in a run where it was not, which is a harness measuring the
-    // compositor. So the floor is measured here, over exactly the gap the
-    // settled reading below is taken over, and every claim past this point is
-    // about the fault's *excess* over it. It doubles as the settling gap for
-    // whatever the previous entry left behind.
+    // **The control arm: the same gap, with no fault in it.** How far the
+    // picture drifts from `rest` over twenty frames of doing nothing, so that
+    // every claim past this point is about the fault's *excess* over whatever
+    // the board was doing anyway. It doubles as the settling gap for whatever
+    // the previous entry left behind.
+    //
+    // It reads ~0 now and it did not always, which is the reason it is measured
+    // rather than assumed. When each entry took its own `startTake`, `rest` was
+    // captured thirty frames into a *cleared* signal path — a phosphor still
+    // filling — so the picture kept getting brighter on its own and every
+    // entry's settled reading came back 15-17/255 from rest whatever its fault
+    // had done. That is a harness reporting its own warmup. Warming up once and
+    // sharing the take fixed it; measuring the floor is what makes the arm hold
+    // either way, including in a run where the window is behind another one and
+    // the readback is stale.
     const GAP = 20
     for (let i = 0; i < GAP; i++) vf.step()
     const floorDiff = diff(grab(), rest)
