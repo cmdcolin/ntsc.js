@@ -882,6 +882,64 @@ So "render frame N" is nearly a pure function already. Four things are not.
   - _Proper:_ WebCodecs `VideoDecoder` plus a demuxer (mp4box.js), pulling
     frames in decode order by index. No seeking, no `createImageBitmap` race.
     **But see the Firefox constraint below — it does not land cleanly here.**
+
+  **Measured, and the cheap route is dead.** `scripts/pullstep.mjs` asked the
+  one question the cost model above does not answer: a render's seek is
+  _forward, by one frame, from where the decoder already is_, and if a decoder
+  continues in place then the keyframe spacing stops mattering entirely. It does
+  not. A one-frame forward seek costs what a seek across the whole clip costs —
+  38 ms against a random seek's 35 ms on a 3s GOP, 183-607 ms on a
+  single-keyframe clip — against a 2-3 ms decode floor measured on the same
+  fixture with the seek path left alone. So `loopseek.mjs`'s table applies 3600
+  times in a 60-second take rather than once a lap: one second of 60 fps take
+  costs 2.3 s of pull on the good clip and 6-11 s on `public/test.mp4`'s
+  structure.
+
+  Two further readings from the same run. Stepping 1:1 through a sparse clip is
+  _worse_ than seeking randomly through it (607 ms against 268 ms), because each
+  step is one frame further from the single keyframe — the cost climbs as the
+  take goes on. And **`seeked` is not a promise that the picture moved**: on the
+  all-intra arm, where seeks complete in ~7 ms, `createImageBitmap` handed back
+  the pre-seek frame about half the time, so the route needs rVFC to confirm the
+  frame as well as `seeked` to confirm the seek — and would still be paying the
+  costs above.
+
+  **So the proper route it is, and both halves have landed.** `ui/mp4demux.ts`
+  is the demuxer — not mp4box.js, for the argument `mp4.ts` already makes in the
+  other direction, and it is checked against ffprobe on real files by
+  `scripts/demuxcheck.mjs` rather than only against itself. `ui/framePull.ts` is
+  the walk over `VideoDecoder`: ask for a clip time, get the frame a viewer
+  would see there, at **0.85 ms a frame and flat in the keyframe spacing**,
+  because nothing seeks. That is 45x the seek route on a well-keyframed clip and
+  50x on a sparse one.
+
+  Three things worth having here rather than only in those files.
+
+  - **Edit lists had to be honoured, not declined.** The demuxer was going to
+    report one and let the caller refuse, on the reasoning that honouring one
+    half way is worse than not at all. Both clips in `public/` have one — every
+    byte offset and sync flag agreed with ffprobe and every timestamp was out by
+    a constant. Declining would have declined this repo's own footage. The two
+    shapes ffmpeg writes are applied; only the ones needing a piecewise time map
+    are refused.
+  - **`ctts` is the thing that is invisible when wrong.** Decode order is not
+    presentation order on any clip with B-frames, which is most real footage and
+    none of what `mp4.ts` writes — so a puller indexing by `dts` is correct on
+    every fixture this repo can generate for itself and scrambles the first clip
+    anybody imports. `pullcheck.mjs` carries an arm that is two thirds B-frames,
+    and asserts the fixture really has them.
+  - **A frame's identity has to be checkable.** The failure mode of a puller is
+    returning _some_ frame, promptly, forever, and no timing column shows it. So
+    each fixture frame carries its own index as ten binary cells in the picture
+    and the harness reads it back off the decoded frame. Three bugs came out of
+    that which nothing else would have found — a cache evicting the frame being
+    waited for, a cache emptied by handing a frame out, and a feed loop awaiting
+    a microtask where a decoder's output is a task.
+
+  **What is left is the wiring**, and it is the smaller half: `VideoPump` asking
+  the puller instead of the element while a take is running, and `renderTake`
+  awaiting that before it steps. See _What to do next_.
+
 - ~~**Four wall-clock reads, three of which move pixels.**~~ **Landed**, and
   there were five, not four: `startGlide` stamps the walk's origin as well as
   `advanceGlide` reading it. `stabGate`, `strobeGate` and `autoLock` are the
@@ -1023,6 +1081,32 @@ zero-copy. Re-measure before building on it; it is a snapshot of one Nightly
 build. (The engine's `direct` mode in `videopump.ts` is the capability-gated
 path for browsers where this _does_ work.)
 
+**Re-measured on Nightly 151, and it stands unchanged.**
+`scripts/codeccheck.mjs` asks all of it in one place: `importExternalTexture` is
+still `undefined`, and `copyExternalImageToTexture` still refuses a `VideoFrame`
+outright. The conversion costs **1.0 ms** a frame against a decode of 0.53 ms —
+so the route is affordable exactly as this section predicted, and buys
+frame-exactness rather than zero-copy, exactly as it predicted. Nothing about
+the decision changes; what changes is that the paragraph above is a reading
+rather than a memory, and the harness behind it can be pointed at a new browser
+build in one command.
+
+Two things worth keeping from writing that harness, because both cost time and
+neither is about WebCodecs.
+
+- **It must run over `http://localhost`, not `about:blank`.** WebCodecs is
+  secure-context only, so the first cut reported `VideoDecoder` missing on a
+  browser that has it — and would have reported the same for the `VideoEncoder`
+  the app already ships and `reccheck.mjs` already passes on. A capability probe
+  that runs somewhere the app never does answers a question nobody asked.
+- **`flush()` per chunk is not "wait for this frame".** A completed flush sets
+  the key-chunk requirement again, so flushing after every decode turns one
+  sequential decode into sixty broken ones — Firefox says
+  `VideoDecoder needs a key chunk` and is right. The thing to wait on is the
+  `output` callback, and the thing to wait on _as well_ is `dequeue`, or a
+  decoder holding frames for reordering deadlocks a loop that only listens for
+  output.
+
 ### What a desktop shell actually buys
 
 Honestly: **nothing for any of the four items above.** Every one is browser-API
@@ -1104,7 +1188,14 @@ arrives.
    top of it — transitions between rows, and the loop's second read head — so
    what is left of this step is takes, which want the export first.
 6. **Frame-exact video pull.** The real project, and the one with the Firefox
-   constraint sitting on it.
+   constraint sitting on it. **The pull itself has landed** — `ui/mp4demux.ts`,
+   `ui/framePull.ts`, and four harnesses that between them closed the seek
+   route, re-measured the constraint, checked the sample table against ffprobe
+   and read each decoded frame's own index back out of the picture. What is left
+   is the wiring: the pump asking the puller while a take is running, and the
+   render awaiting it. The Firefox constraint turned out to cost 1 ms a frame,
+   which is not the thing that shapes the choice — the seek route's 38-600 ms
+   was.
 7. **Automation recording.** Control writes with frame stamps, replayed offline;
    the thing that makes performing and rendering the same take.
 
@@ -1161,12 +1252,37 @@ list above in two places.
    median while doing it. Nothing short of listening would have caught that, and
    the shipped version gives the head back rather than keeping it.
 
-5. **Frame-exact video pull**, then **automation recording**, as before. The
-   first is now the only thing between a take and reproducing with a clip in it:
-   everything below the video is deterministic, and the video is not. It carries
-   the awaiting sink with it — a render waiting for a load is worth building the
-   day what it is waiting for is frame exact, and not before (see
-   `stripRun.ts`'s header).
+5. ~~**Frame-exact video pull**~~ — **the pull has landed; the wiring has not.**
+   `ui/framePull.ts` answers "the frame shown at time t" off a `VideoDecoder` at
+   0.85 ms a frame, and `scripts/pullcheck.mjs` proves the frames are the right
+   ones rather than merely prompt. Nothing in the app calls it yet, which is
+   deliberate: the measurement work is what decided the route, and it is worth
+   landing on its own before anything is wired to it.
+
+   What the wiring is, in the order it wants doing:
+
+   - **A puller per slot, opened when a take starts and closed when it ends.**
+     It belongs beside the elements, in `ui/videoSlot.ts`, because that is what
+     already owns "which url is this slot playing" — and it is the same seam the
+     second read head used rather than a new one.
+   - **`VideoPump` asks the puller instead of the element, under a take.** The
+     pump's own playhead, advanced by `1/fps` a frame and wrapped by the region,
+     rather than `el.currentTime` read back — which is the whole of what makes a
+     loop exact as well as a walk. `startTake` is the switch, on the argument
+     _Take state_ already makes for having one switch rather than three.
+   - **`renderTake` awaits the pull before it steps**, which is the one place
+     the synchronous `step()` has to gain an `await` in front of it. It is also
+     where the awaiting sink `stripRun.ts`'s header describes becomes worth
+     building: the thing on the other side of it is frame exact now, which is
+     the condition that header names.
+   - **The fallback stays**, and it is not a lesser path. A puller that declines
+     — a codec it cannot name, an edit list it cannot express as a shift, a
+     source with no file behind it at all, which is every generated mode and
+     every webcam — leaves the slot exactly as reproducible as it is today. A
+     take over a clip that cannot be pulled is a take with wall-rate video in
+     it, which is what every take has now.
+
+   Then **automation recording**, as before.
 
 Three things this list deliberately does not carry, all of them wants rather
 than needs. **Cutting to the track's clock** rather than starting with it — the

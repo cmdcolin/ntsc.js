@@ -551,6 +551,45 @@ pulls at wall rate, so a take over a `<video>` is not reproducible until
 frame-exact pull lands. And **byte-identity is within one browser build** — the
 H.264 encoder is Firefox's, and nothing here asserts across versions of it.
 
+### Frame-exact pull, and the four harnesses that decided it
+
+```
+node scripts/pullstep.mjs            # what a stepped <video> costs — a measurement
+node scripts/codeccheck.mjs          # what the decoder path costs — a measurement
+node scripts/demuxcheck.mjs [file…]  # the sample table, against ffprobe
+node scripts/pullcheck.mjs           # the right frames, off the real puller
+```
+
+The first two are measurements and are not in `sweep.mjs`; the last two are
+checks and are. Read them in that order, because each answers the question the
+one before it raised.
+
+**`pullstep` closed the obvious route.** Seeking a `<video>` once per rendered
+frame is what everyone reaches for, and the reason it fails is not obvious from
+outside: a forward seek of _one frame_ restarts the decode from the previous
+keyframe exactly as a seek across the whole clip does. Its `jump` arm is the
+control that says so — if stepping were cheaper than jumping, the decoder would
+be continuing in place, and it is not.
+
+**`codeccheck` opened the other one**, and re-measures the Firefox constraint
+`EDITOR.md` asks to have re-checked rather than trusted. Run it against a new
+Nightly before believing anything in that section.
+
+**`demuxcheck` is the outside check on `ui/mp4demux.ts`.** Hand-built fixtures
+can be self-consistently wrong; ffprobe cannot be wrong in the same direction.
+It is what found that both clips in `public/` carry edit lists, which turned a
+"decline these" design into an "apply these" one.
+
+**`pullcheck` is the one that matters**, because the failure mode of a puller is
+returning _some_ frame, promptly, forever — and no timing column shows it. Each
+fixture frame carries its own index as ten binary cells in the picture, so the
+harness reads back which frame it actually got. It has a two-thirds-B-frame arm
+as the control on presentation order, and asserts the fixture really has them,
+since a control that quietly stopped controlling is worse than none.
+
+Both of the last two want `ffmpeg` and `ffprobe`. `pullcheck` builds its own
+fixtures and serves them alongside the app's vite, so it takes no port.
+
 **A backgrounded window makes it slow rather than wrong**, and slow enough to
 look broken: `renderTake` yields with `setTimeout(0)`, which a browser clamps to
 about a second once the window is not in front, so a 120-frame render takes ten

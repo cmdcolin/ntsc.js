@@ -31,8 +31,17 @@
 //     `clips`, `labels`, `contact`) write files rather than judging anything.
 //   - `compilercheck` and `guidecheck` need no server and already run in CI as
 //     `pnpm compiler` and `pnpm guide:check`.
-//   - `perf`, `loopseek`, `pixdiff` and `affinity` are measurements. They
-//     report numbers a human reads; there is no pass to report.
+//   - `perf`, `loopseek`, `pullstep`, `codeccheck`, `pixdiff` and `affinity`
+//     are measurements. They report numbers a human reads; there is no pass to
+//     report. The two newest are why the frame-exact pull is built the way it
+//     is — one closed the seek route and one opened the decoder route — and
+//     both are worth re-running deliberately against a new browser build rather
+//     than on the way past.
+//
+// **Two entries bring their own server**, which is a departure worth naming:
+// `demuxcheck` and `pullcheck` build their own fixtures and serve them, because
+// what they test is a file being read rather than the app being driven. They
+// take the port and ignore it.
 
 import { STALL_EXIT } from './frames.mjs'
 
@@ -64,6 +73,9 @@ const HARNESSES = [
   { name: 'panelcheck', args: [`${origin}/`] },
   { name: 'midicheck', args: [`${origin}/`] },
   { name: 'pixelcheck', args: ['--url', `${origin}/`] },
+  // These two serve themselves; see the note above.
+  { name: 'demuxcheck', args: [] },
+  { name: 'pullcheck', args: ['--frames=60'] },
   // Last, and on its own footing: this one talks to Wikimedia and archive.org,
   // so it is the only entry here that can fail for a reason that is nobody's
   // bug. A run that fails only this is a network, not a regression.
