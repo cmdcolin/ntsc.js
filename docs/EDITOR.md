@@ -346,12 +346,13 @@ carries out what it says.
   `advance(strip, walk, clock) → { walk, effects } | null`. One pure function:
   given a rundown, where the walk is and what frame it is, what changes.
   Effects are a small union, never engine calls.
-- `ui/stripRun.ts` — the interpreter: one effect against a `StripSink`. Plain
-  functions, no React, so a fake sink tests the whole walk end to end and the
-  offline render reuses it rather than reimplementing it.
-- `ui/useStrip.ts` — the driver: owns the state, builds the sink out of the
-  engine and `ControlsApi`, and polls the clock. The only part needing a
-  browser, and the only legitimate effect in the feature.
+- `ui/stripRun.ts` — **landed.** The interpreter: one effect against a
+  `StripSink`. Plain functions, no React, so a fake sink tests the whole walk
+  end to end and the offline render reuses it rather than reimplementing it.
+- `ui/useStrip.ts` — **landed.** The driver, in two halves:
+  `makeStripRunner()`, a plain object holding the rundown, the walk and the
+  subscriptions, and the thin hook over it. Only the hook needs a browser, and
+  it holds the only effects in the feature.
 - `ui/StripContext.ts` — the contexts, split on the rule below.
 - `ui/transitions.ts` — the shelf as a table (below). Pure.
 - `ui/StripTray.tsx`, `ui/StripRow.tsx` — the surface, on the pointer drags
@@ -402,6 +403,19 @@ The strip has three clocks, so it gets three homes and not one big
   `morph.ts`'s `MorphStore` is exactly this shape, for exactly this reason, and
   `LookBar.tsx` is the widget that subscribes to it. `holdProgress` in
   `strip.ts` is already the pure function behind it.
+
+**The compiler decides where the walk lives, and it is not `useState`.** The
+obvious spelling of the driver keeps the walk in state and mirrors it into a ref
+for the rAF closure to read. Writing a ref during render is one of exactly two
+patterns that make React Compiler give up on a hook *silently*, and quieting the
+resulting dependency warning with `eslint-disable` is worse — it skips
+optimisation for the whole hook. Both were tried here and `pnpm compiler`
+caught both, which is what that gate is for. So the runner is a plain object
+outside React, handed to `useState` once and read through
+`useSyncExternalStore`: the same answer `ControlStore` and `MorphStore` already
+reached. The side benefit is the one that matters longer — a driver that is not
+a hook is a driver a test can drive, and the walk's own logic is covered without
+a DOM.
 
 **The driver is the only effect.** `useStrip` synchronises with things outside
 React — the engine's frame counter, and the async work a roll starts — which is

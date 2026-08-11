@@ -68,6 +68,22 @@ export const MODE_ORIGIN: Record<PoolMode, PoolOrigin> = {
   'ia-random': 'archive',
 }
 
+// The same pairing read the other way: which picker entry names this source.
+//
+// Wanted by anything holding an origin that has to put a deck on it — a strip
+// row's roll, which stores the origin rather than the mode because that is what
+// a `PoolRef` carries and what a take records.
+//
+// Written out rather than inverted with `Object.fromEntries`, which cannot
+// produce this type without an assertion — and an assertion here would be the
+// one that matters, since a wrong entry silently rolls the other archive. The
+// two tables being inverses is asserted in `modes.test.ts` instead, which is
+// what actually catches a third pool added to one and forgotten in the other.
+export const POOL_MODE_FOR: Record<PoolOrigin, PoolMode> = {
+  commons: 'wiki-random',
+  archive: 'ia-random',
+}
+
 // What a source is called in prose, for a caption's credit line and a browser
 // tab.
 export const ORIGIN_LABEL: Record<PoolOrigin, string> = {

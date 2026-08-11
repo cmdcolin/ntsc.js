@@ -15,6 +15,7 @@ import { clipUrl, isClipId } from '../sources/clips'
 import { smpteBars, sweep } from '../sources/pattern'
 import {
   MODE_ORIGIN,
+  POOL_MODE_FOR,
   isPoolMode,
   poolCaption,
   releasePick,
@@ -35,6 +36,7 @@ import {
 import { clearStash, readStash, stashClip, stashFile } from './fileStash'
 import { formatBytes, reason } from './format'
 import { canPickHandle, pickHandle } from './fsAccess'
+import { morphTo } from './morph'
 import { randomPresetMix, rollControls } from './presets'
 import { RebuildPolicy } from './rebuildPolicy'
 import { printCard } from './teletypeSlot'
@@ -51,8 +53,15 @@ import { playStream, playUrl, stopSlot, stopTyping } from './videoSlot'
 import type { FrameStats } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
 import type { FrozenKind } from '../gpu/renderloop'
+import type { Rand } from '../rng'
 import type { SourceBMode, SourceMode } from '../sources/modes'
-import type { OnProgress, PoolMode, PoolPick, PoolRef } from '../sources/pools'
+import type {
+  OnProgress,
+  PoolMode,
+  PoolOrigin,
+  PoolPick,
+  PoolRef,
+} from '../sources/pools'
 import type { TeletypeCard } from '../sources/teletype'
 import type { Cue } from './cue'
 import type { Fatal } from './FatalScreen'
@@ -975,7 +984,11 @@ export function useEngine() {
   // The caption is written twice on purpose. The first write is the only thing
   // on screen that says a request is out, and without it a pick reads as having
   // done nothing.
-  const rollFrom = (slot: VideoSlot, mode: PoolMode) => {
+  // `rand` is how a strip row rolls reproducibly: unseeded for every hand-driven
+  // roll (the picker, the palette, a MIDI pad), and the take's own generator
+  // when a row fires. See rng.ts — and note what a seed does not buy, since the
+  // candidate list is upstream's choice either way.
+  const rollFrom = (slot: VideoSlot, mode: PoolMode, rand?: Rand) => {
     const origin = MODE_ORIGIN[mode]
     // Read before `beginLoad` clears it: what is on the slot right now is what a
     // re-roll of the *same* source should try not to hand back. A roll on the
@@ -985,7 +998,7 @@ export function useEngine() {
     const avoid = showing?.origin === origin ? showing.title : ''
     const fresh = beginLoad(slot.id)
     slot.setName('rolling…')
-    rollPool(origin, avoid, downloading(slot, fresh)).then(
+    rollPool(origin, avoid, downloading(slot, fresh), rand).then(
       picked => landPick(slot, picked, fresh),
       (e: unknown) => {
         if (fresh()) {
@@ -1000,9 +1013,20 @@ export function useEngine() {
   // the sidebar — the command palette's row, and the keyboard through it. A wins
   // when both are rolling, since A is the picture; a set with a channel on B
   // alone still gets the command.
-  const rollAgain = () => {
-    if (isPoolMode(sourceMode.a)) rollFrom(slotA, sourceMode.a)
-    else if (isPoolMode(sourceMode.b)) rollFrom(slotB, sourceMode.b)
+  const rollAgain = (rand?: Rand) => {
+    if (isPoolMode(sourceMode.a)) rollFrom(slotA, sourceMode.a, rand)
+    else if (isPoolMode(sourceMode.b)) rollFrom(slotB, sourceMode.b, rand)
+  }
+
+  // A strip row's roll, which differs from `rollAgain` in naming the pool rather
+  // than reading it off whichever deck happens to be on one: the row said
+  // `?src=wiki-random`, and by the time this runs `showSession` has put deck A
+  // there, but saying it outright is what keeps the row's meaning independent of
+  // what the decks were doing a moment ago.
+  const rollOn = (origin: PoolOrigin, rand: Rand) => {
+    const mode = POOL_MODE_FOR[origin]
+    setSourceMode(m => ({ ...m, a: mode }))
+    rollFrom(slotA, mode, rand)
   }
 
   // One named file onto a slot, off the shelf or out of the browser. Resolved
@@ -1419,11 +1443,35 @@ export function useEngine() {
     }
   }
 
-  // Put a parsed link on the freshly-created engine. The parsing itself is pure
-  // and tested (urlParams.ts); what is left here is only the applying, in the
-  // one order that matters: the vaporwave settings land before any clip loads,
-  // since a new element reads its playback rate off vaporRef at creation.
-  const restoreSession = (eng: Engine, params: SessionParams) => {
+  // Put a parsed link on an engine. The parsing itself is pure and tested
+  // (urlParams.ts); what is left here is only the applying, in the one order
+  // that matters: the vaporwave settings land before any clip loads, since a
+  // new element reads its playback rate off vaporRef at creation.
+  //
+  // Two callers, and the difference between them is `boot`. A link arriving at
+  // page load is one; a **strip row firing** is the other, and it is why this is
+  // a function of an engine rather than boot code inline — a row is a query
+  // string (docs/EDITOR.md › _A row is a thing that already exists_), so "fire
+  // row 3" and "open this link" have to mean the same thing or the strip is a
+  // second, worse implementation of the share contract.
+  //
+  // What only boot does is bracketed below: the `?surprise` roll (which a row
+  // never carries — `writeProfileParams` deletes the param) and the stash dance,
+  // which decides what to do about *last session's* file and is meaningless
+  // mid-set. A row that names no source leaves the deck alone rather than
+  // reopening something from yesterday.
+  //
+  // `arrive` is the other difference: a link lands on its look, a row can morph
+  // to it over the seconds its arrival names.
+  // `EngineApi` rather than `Engine`: boot hands over the concrete engine it
+  // just built, a row fires against whatever `engineRef` is holding — which is
+  // the interface, and which after a device-loss rebuild is a different object
+  // than the one boot saw. Nothing in here reaches past the interface.
+  const applySession = (
+    eng: EngineApi,
+    params: SessionParams,
+    opts: { boot: boolean; arrive: number } = { boot: true, arrive: 0 },
+  ) => {
     // `?surprise` arrives on a rolled look rather than the landing one. The
     // link's own controls go on top, so `?surprise&set=noiseIre:9` is a roll
     // with that one knob pinned. Source B is not up yet at this point, so the
@@ -1444,10 +1492,26 @@ export function useEngine() {
     // no "already" to keep — nobody has framed anything on a fresh boot — so
     // stock is what it pins to. `?surprise&set=crtZoom:0.42` still works: the
     // link's own controls land after this and outrank it.
-    if (params.surprise) {
+    if (opts.boot && params.surprise) {
       eng.applyControls(rollControls(randomPresetMix(false), DEFAULT_CONTROLS))
     }
-    eng.applyControls(params.controls)
+    // A cut, or a walk to the look over the row's arrival. `startGlide` takes
+    // its origin from the engine's live controls, so a row arriving over a
+    // morph that lands on top of another sets off from where the picture
+    // actually is rather than snapping back — the same property that makes
+    // holding the surprise button wander through look space (useMix).
+    //
+    // A patch rather than a whole board is why this is not `morphTo` directly:
+    // `params.controls` is `Partial<Controls>`, and a glide needs a
+    // destination. Layering it over what is live is what a link means too —
+    // `applyControls` is a patch — so the two agree about what a session says.
+    if (opts.arrive > 0) {
+      eng.startGlide(
+        morphTo({ ...eng.getControls(), ...params.controls }, opts.arrive),
+      )
+    } else {
+      eng.applyControls(params.controls)
+    }
     // Armed before any source is touched, and claimed by whichever load the link
     // goes on to start (see takePendingCue). A link that names no clip leaves
     // these sitting unclaimed, which is correct: there is nothing to cue.
@@ -1533,6 +1597,12 @@ export function useEngine() {
     setReverb(params.vapor.reverb)
     if (params.yt !== null) loadYouTube(params.yt)
     if (params.ytb !== null) loadYouTubeB(params.ytb)
+    // Boot only, and the reason `opts` exists at all. What follows is a question
+    // about *last session's* file — reopen it, or let the link's own source
+    // replace it — and mid-set there is no such question: a row that names no
+    // source means "leave the deck where it is", and reopening yesterday's clip
+    // under a running strip would be the strip losing its place.
+    if (!opts.boot) return
     // Whatever the link did not speak for, the slot's own last pick fills —
     // reopened from the stashed copy, after the vaporwave settings above, since
     // a new element reads its playback rate at creation. A link that *does* name
@@ -1550,6 +1620,15 @@ export function useEngine() {
     if (linkNamesB) dropFile('b')
     else reopenStashed('b')
     debugLog('DEBUG engine ready')
+  }
+
+  // A strip row landing on the live engine: the same apply a link gets, minus
+  // the two things that only make sense at page load. Handed out on the engine's
+  // surface so `useStrip`'s sink is three calls and no knowledge of how a source
+  // gets onto a slot.
+  const showSession = (params: SessionParams, arrive: number) => {
+    const eng = engineRef.current
+    if (eng !== null) applySession(eng, params, { boot: false, arrive })
   }
 
   // The device this tab cannot afford, declined out loud instead of spent.
@@ -1863,7 +1942,7 @@ export function useEngine() {
               showGenerated(slotA, 'bars', beginLoad('a'))
               showGenerated(slotB, 'bars', beginLoad('b'))
               created.setSourceBEnabled(true) // B defaults to bars; ?srcb=none to opt out
-              restoreSession(created, parseSessionParams(location.search))
+              applySession(created, parseSessionParams(location.search))
             }
           },
           (e: unknown) =>
@@ -2021,6 +2100,12 @@ export function useEngine() {
     // mode names and those two are different doors.
     showRef,
     rollAgain,
+    // The two the strip fires through (ui/useStrip.ts). `showSession` is the
+    // same apply a link gets, which is what makes "a row is a query string"
+    // true rather than nearly true; `rollOn` is a roll that names its pool and
+    // draws from the take's generator instead of `Math.random`.
+    showSession,
+    rollOn,
     // Whether there is a pool to roll out of at all, which is not the same as
     // there being a pick up: a file taken off the shelf came out of a list, and a
     // list is not a pool. The palette row says so rather than going quiet, since

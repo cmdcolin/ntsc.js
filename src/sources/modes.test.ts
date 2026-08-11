@@ -9,6 +9,7 @@ import {
   SOURCE_MODES,
   sourceOptions,
 } from './modes'
+import { MODE_ORIGIN, POOL_MODE_FOR, POOL_MODES } from './pools'
 
 import type { SourceKind } from './modes'
 
@@ -85,5 +86,23 @@ describe('source pickers', () => {
     expect(options[0].value).toBe('none')
     expect(options[0].group).toBe(null)
     expect(options.filter(o => o.group === null)).toHaveLength(1)
+  })
+})
+
+// The two pool tables have to stay inverses. Nothing in the type system says so
+// — both are plain records over closed unions, and each is exhaustive on its own
+// — so a third pool added to one and forgotten in the other typechecks perfectly
+// and rolls the wrong archive at runtime.
+describe('the pool tables', () => {
+  it('pair every mode with an origin and back again', () => {
+    for (const mode of POOL_MODES) {
+      expect(POOL_MODE_FOR[MODE_ORIGIN[mode]]).toBe(mode)
+    }
+  })
+
+  it('cover every origin exactly once', () => {
+    const origins = POOL_MODES.map(m => MODE_ORIGIN[m])
+    expect(new Set(origins).size).toBe(POOL_MODES.length)
+    expect(Object.keys(POOL_MODE_FOR).toSorted()).toEqual(origins.toSorted())
   })
 })
