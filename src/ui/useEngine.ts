@@ -1207,7 +1207,7 @@ export function useEngine() {
         }
         if (open.at === 'pool') {
           showRef('a', open.ref, 'library')
-          markClip('a', { id, name: open.name })
+          markClip('a', { id, name: open.name, seconds: 0 })
         } else if (open.needsGesture) {
           setPending(
             onDeck<Stashed | null>('a', {
@@ -1303,7 +1303,7 @@ export function useEngine() {
     adoptInto(key, file, 'library')
     // After `adoptInto`, which goes through `commitDeck` and clears this — the
     // same order `stashClip` below is in, and for the same reason.
-    markClip(key, { id: clip.id, name: clip.name })
+    markClip(key, { id: clip.id, name: clip.name, seconds: 0 })
     stashClip(key, clip).catch((e: unknown) =>
       debugLog('DEBUG stash failed', reason(e)),
     )
@@ -1333,7 +1333,7 @@ export function useEngine() {
           // at load is as much a shelf clip as one clicked, and a row captured
           // over it has to say so — this is the half that made `+ row` record a
           // clip on a fresh visit and quietly not after a reload.
-          markClip(key, { id: stashed.clip, name: stashed.name })
+          markClip(key, { id: stashed.clip, name: stashed.name, seconds: 0 })
         } else if (stashed.needsGesture)
           setPending(onDeck<Stashed | null>(key, stashed))
         else
@@ -1341,7 +1341,11 @@ export function useEngine() {
             file => {
               adoptInto(key, file, stashed.mode)
               if (stashed.clip !== '')
-                markClip(key, { id: stashed.clip, name: stashed.name })
+                markClip(key, {
+                  id: stashed.clip,
+                  name: stashed.name,
+                  seconds: 0,
+                })
             },
             (e: unknown) => {
               debugLog('DEBUG stash reopen failed', reason(e))
@@ -1366,7 +1370,7 @@ export function useEngine() {
         file => {
           adoptInto(key, file, stashed.mode)
           if (stashed.clip !== '')
-            markClip(key, { id: stashed.clip, name: stashed.name })
+            markClip(key, { id: stashed.clip, name: stashed.name, seconds: 0 })
         },
         (e: unknown) => setError(`reopen ${stashed.name}: ${reason(e)}`),
       )
@@ -2375,7 +2379,18 @@ export function useEngine() {
     // What `+ row` records so the row can put this same clip up again. Deck A
     // alone is what a rundown captures, and the shape is the row's own — see
     // `strip.RowClip` for why an id rather than a url.
-    deckClipA: deckClip.a,
+    //
+    // The runtime is folded in here rather than kept in `deckClip`, because it
+    // is not known at the moment a clip lands: `duration` reads NaN until the
+    // element has metadata, and the poll that fills it in is the same one the
+    // seek bar draws from. Composing at the read makes it whatever the deck
+    // knows *now*, with no second copy to go stale — and a capture taken in the
+    // first instants of a load records 0, which reads as "cannot say" and holds
+    // for a bar count instead.
+    deckClipA:
+      deckClip.a === null
+        ? null
+        : { ...deckClip.a, seconds: transport.a.duration },
     // And the one the *offline* walk uses and the live one never does: wait for
     // whatever the row above just asked for to actually be on the deck. See
     // `settleSources`.

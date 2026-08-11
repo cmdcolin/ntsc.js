@@ -59,11 +59,28 @@ export type RowFill =
 // worth keeping visible here: a strip whose holds drift is a pattern rather
 // than an edit.
 export interface Hold {
-  bars: number | null
+  // A bar count, `'clip'` for as long as the picture runs, or null to wait for
+  // a hand.
+  //
+  // **`'clip'` is what makes a rundown of clips read like an edit rather than
+  // like a cue list**, and it is the setting somebody coming from iMovie
+  // expects by default: there, a clip's length on the timeline *is* its screen
+  // time, and trimming it to three seconds puts it on screen for three
+  // seconds. Here the two were always separate — the hold said how long you
+  // looked at a row, the cue said which part of the clip played, and a
+  // two-second clip under an eight-bar hold simply looped four times. That
+  // separation is worth keeping (a piece cut to music wants bars), but it is
+  // the wrong default for a row that arrived as a picture.
+  bars: number | 'clip' | null
   drift: number
 }
 
 export const DEFAULT_HOLD: Hold = { bars: 4, drift: 0.25 }
+
+// What a row carrying a clip arrives on. No drift: a clip's own length is an
+// exact number, and jittering it would cut the end off the picture the row was
+// added for — drift is a thing to do to a bar count, which is a guess anyway.
+export const CLIP_HOLD: Hold = { bars: 'clip', drift: 0 }
 
 // Widest a drift can be asked for. Half a hold either way is already the
 // difference between three bars and five; past that the hold stops being "≈4
@@ -104,6 +121,18 @@ export interface RowClip {
   // row whose clip has since been removed from the shelf can still say what it
   // is missing rather than going blank.
   name: string
+  // How long the clip runs, in seconds, or 0 for "not known here".
+  //
+  // Recorded at capture from the deck the row was taken off, because that is
+  // the one moment the answer is already in hand — the panel polls the
+  // playheads at 10 Hz and `duration` is sitting in that reading. A clip added
+  // straight off the shelf has never been on a deck, so it arrives 0 and its
+  // `'clip'` hold falls back to a bar count until somebody plays it.
+  //
+  // Stored rather than measured at fire time because measuring costs a load:
+  // the answer is only in a `<video>` that has already opened the file, and a
+  // walk deciding how long a row holds cannot wait for one.
+  seconds: number
 }
 
 export interface Row {
@@ -300,8 +329,19 @@ export function holdFrames(
   hold: Hold,
   clock: Clock,
   seed: number,
+  // How many seconds of picture the row has, when it knows: an in/out pair's
+  // span, or the clip's own length. Only `'clip'` reads it, and a row that
+  // cannot answer falls back to the default bar count rather than to "wait for
+  // a hand" — a rundown that silently stopped at a clip whose duration had not
+  // been recorded would look like a bug in the transport.
+  runtime = 0,
 ): number | null {
   if (hold.bars === null) return null
+  if (hold.bars === 'clip') {
+    return runtime > 0
+      ? Math.max(1, Math.round(runtime * clock.fps))
+      : holdFrames({ ...hold, bars: DEFAULT_HOLD_BARS }, clock, seed)
+  }
   const beats = hold.bars * 4
   const seconds = (beats * 60) / clock.bpm
   // One draw, at the moment the row fires. `rngFor` is constructed here rather
@@ -441,7 +481,7 @@ function land(strip: Strip, index: number, lap: number, clock: Clock): Step {
       row: index,
       lap,
       since: clock.frame,
-      frames: holdFrames(row.hold, clock, seed),
+      frames: holdFrames(row.hold, clock, seed, rowRuntime(row)),
     },
     effects: fireEffects(row, seed, ahead === null ? null : prerollFor(ahead)),
   }
@@ -573,6 +613,9 @@ export const named = (row: Row): boolean => row.name !== ''
 // field nobody opens.
 export function holdLabel(hold: Hold): string {
   if (hold.bars === null) return 'hold'
+  // Not "1 clip". What this says is *how long*, and the answer is the length of
+  // the thing on screen.
+  if (hold.bars === 'clip') return 'whole clip'
   const bars = `${hold.bars} bar${hold.bars === 1 ? '' : 's'}`
   return hold.drift === 0 ? bars : `≈${bars}`
 }
@@ -582,11 +625,33 @@ export function holdLabel(hold: Hold): string {
 // All pure, and all in terms of whole strips, so the hook's verbs are one line
 // each and the arithmetic that can be off by one is tested without a browser.
 
+// How many seconds of picture a row has, for a `'clip'` hold to use.
+//
+// The cue wins when there is one, and that ordering is the whole of what a trim
+// means: an in/out pair says which stretch plays, so a clip trimmed to three
+// seconds is on screen for three seconds however long the file is. Without a
+// cue it is the clip's own length, and 0 — no cue and an unmeasured clip — is
+// "cannot say", which `holdFrames` answers with a bar count.
+export function rowRuntime(row: Row): number {
+  const cue = parseCue(new URLSearchParams(row.session).get('cuea'))
+  // `out` is null for a cue that was marked and never closed — the playhead
+  // runs on past it — so that row has no span and falls through to the clip.
+  if (cue !== null && cue.out !== null && cue.out > cue.in) {
+    return cue.out - cue.in
+  }
+  return row.clip?.seconds ?? 0
+}
+
 // What the hold chip steps through. Powers of two up to four bars of four, then
 // "wait for a hand" — which belongs in the ring rather than in a menu, because
 // the row that ends a section is the one you most often want to reach for
 // mid-set.
-export const HOLD_BARS = [1, 2, 4, 8, 16, null] as const
+// `'clip'` sits at the head, because it is what a row dragged in off the shelf
+// arrives on and therefore the one the ring most often steps *away* from.
+export const HOLD_BARS = ['clip', 1, 2, 4, 8, 16, null] as const
+
+// What a bar-counted hold falls back to when `'clip'` has no runtime to use.
+const DEFAULT_HOLD_BARS = 4
 
 // The widest the hold chip can ever read, in characters.
 //
@@ -657,7 +722,16 @@ export function addRow(
     // wearing a jitter's name.
     clip: opts.jitter === undefined ? (opts.clip ?? null) : null,
     fill: rowFill(session, opts.jitter),
-    hold: DEFAULT_HOLD,
+    // A row that arrived as a picture holds for that picture, which is the
+    // iMovie reading and the one somebody adding clips to a list expects: a
+    // clip trimmed to three seconds is on screen for three seconds. A row
+    // captured off a board with no clip on it is a look change, and a look
+    // change has no length of its own — it holds for bars, loosely, which is
+    // what the strip has always defaulted to.
+    hold:
+      opts.jitter === undefined && (opts.clip ?? null) !== null
+        ? CLIP_HOLD
+        : DEFAULT_HOLD,
     arrive: NO_ARRIVE,
   }
   return { ...strip, rows: [...strip.rows, row] }
@@ -825,9 +899,11 @@ function readHold(raw: unknown): Hold {
     bars:
       bars === null
         ? null
-        : typeof bars === 'number' && Number.isFinite(bars) && bars > 0
-          ? bars
-          : DEFAULT_HOLD.bars,
+        : bars === 'clip'
+          ? 'clip'
+          : typeof bars === 'number' && Number.isFinite(bars) && bars > 0
+            ? bars
+            : DEFAULT_HOLD.bars,
     drift: Math.min(MAX_DRIFT, Math.max(0, num(drift, DEFAULT_HOLD.drift))),
   }
 }
@@ -864,7 +940,18 @@ function readClip(raw: unknown): RowClip | null {
   const id = 'id' in raw ? raw.id : undefined
   if (typeof id !== 'string' || id === '') return null
   const name = 'name' in raw ? raw.name : undefined
-  return { id, name: typeof name === 'string' ? name : '' }
+  const seconds = 'seconds' in raw ? raw.seconds : undefined
+  return {
+    id,
+    name: typeof name === 'string' ? name : '',
+    // Finite and positive or nothing: `duration` reads NaN before metadata
+    // lands and Infinity on a stream, and either one through `holdFrames`
+    // would be a row that never ends.
+    seconds:
+      typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0
+        ? seconds
+        : 0,
+  }
 }
 
 const readArrive = (raw: unknown): Row['arrive'] => {

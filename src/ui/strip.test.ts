@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { MORPH_SECONDS } from './morph'
 import { PROFILE_NAME_MAX } from './savedProfiles'
 import {
+  CLIP_HOLD,
   DEFAULT_HOLD,
   EMPTY_STRIP,
   HOLD_BARS,
@@ -29,6 +30,7 @@ import {
   readStrip,
   removeRow,
   rowFill,
+  rowRuntime,
   rowLabel,
   seedFor,
   start,
@@ -159,7 +161,10 @@ describe('fireEffects', () => {
   // `writeProfileParams` drops every source mode a URL cannot name.
   it('names its clip after putting the session up', () => {
     const out = fireEffects(
-      row({ session: 'set=vSize:0.5', clip: { id: 'c7', name: 'surf.mp4' } }),
+      row({
+        session: 'set=vSize:0.5',
+        clip: { id: 'c7', name: 'surf.mp4', seconds: 0 },
+      }),
       3,
     )
     expect(out).toEqual([
@@ -172,7 +177,10 @@ describe('fireEffects', () => {
   // carry a `?src=`, and the row's own clip is the more specific answer.
   it('puts the clip on top of the session, never under it', () => {
     const out = fireEffects(
-      row({ session: 'src=sweep', clip: { id: 'c1', name: 'a.mp4' } }),
+      row({
+        session: 'src=sweep',
+        clip: { id: 'c1', name: 'a.mp4', seconds: 0 },
+      }),
       3,
     )
     expect(out.map(e => e.kind)).toEqual(['session', 'clip'])
@@ -183,7 +191,7 @@ describe('fireEffects', () => {
   it('defers the clip to the cut on a transition row', () => {
     const out = fireEffects(
       row({
-        clip: { id: 'c2', name: 'b.mp4' },
+        clip: { id: 'c2', name: 'b.mp4', seconds: 0 },
         arrive: { seconds: 0, transition: 'collapse' },
       }),
       3,
@@ -498,28 +506,93 @@ describe('rowFill', () => {
   })
 })
 
+describe("a hold of 'clip'", () => {
+  // The iMovie reading: a clip trimmed to three seconds is on screen for three
+  // seconds, and the bar count has nothing to do with it.
+  it('holds for the clip’s own length', () => {
+    const r = row({
+      hold: { bars: 'clip', drift: 0 },
+      clip: { id: 'c1', name: 'a.mp4', seconds: 3 },
+    })
+    expect(holdFrames(r.hold, CLOCK(0), 1, rowRuntime(r))).toBe(180)
+  })
+
+  // The trim wins, which is the whole of what an in/out pair means: it says
+  // which stretch plays, so it is also how long the row is up.
+  it('a trimmed clip holds for the trim, not the file', () => {
+    const r = row({
+      hold: { bars: 'clip', drift: 0 },
+      session: 'cuea=2,5',
+      clip: { id: 'c1', name: 'a.mp4', seconds: 30 },
+    })
+    expect(rowRuntime(r)).toBe(3)
+    expect(holdFrames(r.hold, CLOCK(0), 1, rowRuntime(r))).toBe(180)
+  })
+
+  // A cue marked and never closed has no span — the playhead runs on past it —
+  // so it is not a trim and the clip's own length is still the answer.
+  it('an open-ended cue is not a trim', () => {
+    const r = row({
+      session: 'cuea=2',
+      clip: { id: 'c1', name: 'a.mp4', seconds: 30 },
+    })
+    expect(rowRuntime(r)).toBe(30)
+  })
+
+  // A rundown that silently stopped at a clip nobody had measured would read
+  // as a broken transport, so an unknown runtime holds for bars instead.
+  it('falls back to a bar count when nothing knows the length', () => {
+    const r = row({ hold: { bars: 'clip', drift: 0 }, clip: null })
+    expect(holdFrames(r.hold, CLOCK(0), 1, rowRuntime(r))).toBe(480)
+  })
+
+  it('never waits for a hand, which is a different setting', () => {
+    const r = row({ hold: { bars: 'clip', drift: 0 } })
+    expect(holdFrames(r.hold, CLOCK(0), 1, 0)).not.toBeNull()
+  })
+
+  it('says how long rather than what it is counting', () => {
+    expect(holdLabel({ bars: 'clip', drift: 0 })).toBe('whole clip')
+  })
+
+  it('round-trips through the codec', () => {
+    const original = strip([row({ id: 'a', hold: { bars: 'clip', drift: 0 } })])
+    expect(readStrip(JSON.parse(JSON.stringify(original)))).toEqual(original)
+  })
+
+  // A row that arrived as a picture holds for that picture; one captured off a
+  // board with no clip on it is a look change, which has no length of its own.
+  it('is what a clip row arrives on', () => {
+    const withClip = addRow(EMPTY_STRIP, 'set=', {
+      clip: { id: 'c3', name: 'n.mp4', seconds: 4 },
+    })
+    expect(withClip.rows[0].hold).toEqual(CLIP_HOLD)
+    expect(addRow(EMPTY_STRIP, 'set=').rows[0].hold).toEqual(DEFAULT_HOLD)
+  })
+})
+
 describe('a row that names a clip', () => {
   // The card used to read "look only" over a clip somebody had just loaded,
   // which was accurate about the session string and a lie about the picture.
   it('reads as its clip rather than as the session', () => {
-    expect(derivedLabel(row({ clip: { id: 'c7', name: 'surf.mp4' } }))).toBe(
-      'surf.mp4',
-    )
+    expect(
+      derivedLabel(row({ clip: { id: 'c7', name: 'surf.mp4', seconds: 0 } })),
+    ).toBe('surf.mp4')
   })
 
   // A clip the shelf has lost its name for falls through to what the session
   // says, rather than showing an empty card.
   it('falls back to the session when the clip has no name', () => {
-    expect(derivedLabel(row({ clip: { id: 'c7', name: '' } }))).toBe(
-      'look only',
-    )
+    expect(
+      derivedLabel(row({ clip: { id: 'c7', name: '', seconds: 0 } })),
+    ).toBe('look only')
   })
 
   it('captures the clip on the deck', () => {
     const got = addRow(EMPTY_STRIP, 'set=', {
-      clip: { id: 'c3', name: 'neon.mp4' },
+      clip: { id: 'c3', name: 'neon.mp4', seconds: 0 },
     })
-    expect(got.rows[0].clip).toEqual({ id: 'c3', name: 'neon.mp4' })
+    expect(got.rows[0].clip).toEqual({ id: 'c3', name: 'neon.mp4', seconds: 0 })
   })
 
   // A shake is a departure from whatever is live, so hauling a clip onto the
@@ -527,14 +600,20 @@ describe('a row that names a clip', () => {
   it('a shake row takes no clip even when one is on the deck', () => {
     const got = addRow(EMPTY_STRIP, 'set=', {
       jitter: 'normal',
-      clip: { id: 'c3', name: 'neon.mp4' },
+      clip: { id: 'c3', name: 'neon.mp4', seconds: 0 },
     })
     expect(got.rows[0].clip).toBeNull()
   })
 
   it('a duplicate carries the clip with it', () => {
-    const one = addRow(EMPTY_STRIP, 'set=', { clip: { id: 'c3', name: 'n' } })
-    expect(duplicateRow(one, 0).rows[1].clip).toEqual({ id: 'c3', name: 'n' })
+    const one = addRow(EMPTY_STRIP, 'set=', {
+      clip: { id: 'c3', name: 'n', seconds: 0 },
+    })
+    expect(duplicateRow(one, 0).rows[1].clip).toEqual({
+      id: 'c3',
+      name: 'n',
+      seconds: 0,
+    })
   })
 })
 
@@ -549,7 +628,7 @@ describe('readStrip', () => {
 
   it('round-trips a row that names a clip', () => {
     const original = strip([
-      row({ id: 'a', clip: { id: 'c7', name: 'surf.mp4' } }),
+      row({ id: 'a', clip: { id: 'c7', name: 'surf.mp4', seconds: 0 } }),
     ])
     expect(readStrip(JSON.parse(JSON.stringify(original)))).toEqual(original)
   })
@@ -718,7 +797,11 @@ describe('editing the rundown', () => {
   })
 
   it('steps the hold around its ring and back', () => {
-    let hold: Hold = { bars: 1, drift: 0.25 }
+    // From the head of the ring rather than from a hard-coded 1, so the
+    // assertion says "stepping walks the ring and comes back" rather than
+    // pinning today's first entry — which changed the day `'clip'` went in
+    // front, and failed here rather than anywhere the ring order matters.
+    let hold: Hold = { bars: HOLD_BARS[0], drift: 0.25 }
     const seen = HOLD_BARS.map(() => {
       hold = cycleHold(hold)
       return hold.bars

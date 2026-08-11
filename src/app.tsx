@@ -1552,7 +1552,11 @@ export function App() {
               ? undefined
               : clip =>
                   strip.addRow(profileQuery(), {
-                    clip: { id: clip.id, name: clip.name },
+                    // No runtime: this clip has never been on a deck, so
+                    // nothing here has ever read its duration. Its `'clip'`
+                    // hold falls back to a bar count until it is played —
+                    // see `strip.RowClip.seconds`.
+                    clip: { id: clip.id, name: clip.name, seconds: 0 },
                   })
           }
           onForgetClip={clips.forgetClip}
