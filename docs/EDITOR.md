@@ -1128,6 +1128,16 @@ list above in two places.
    against the other. What it does cost is an answer to the contention over the
    one `next` field per slot, which a looping clip and a rundown's lookahead
    both want.
+
+   **And it has now been heard rather than inferred**, which is what IDEAS.md
+   said to do before paying that price. `scripts/wrapsound.mjs` puts an
+   AudioWorklet on the app's own analyser and reports **the silence and the
+   seek agreeing to within about 15 ms across three orders of magnitude** — so
+   the dropout is exactly the seek, there is nothing to fix in the audio graph,
+   and the cue row's existing `wrap 0.15s` readout has been showing
+   milliseconds of silence all along. The measurement earns the feature and
+   bounds it: a well-encoded clip really is a click, a sparse one is silent for
+   a fifth of every lap, and the difference is the file rather than the loop.
 5. **Frame-exact video pull**, then **automation recording**, as before. The
    first is now the only thing between a take and reproducing with a clip in
    it: everything below the video is deterministic, and the video is not. It

@@ -654,12 +654,57 @@ build order suggests.
   looping clip and a rundown's lookahead contend for it. That contention is a
   policy decision and is the reason this is not simply a small job.
 
-**Measure before building.** "Audio is silent for the seek window" is an
-inference from `medianMs`, sound reasoning about an element that is seeking, and
-still not the same thing as having listened. The analyser is already in the
-graph; an arm that watches its level across a wrap and reports how long it sits
-at floor turns 199 ms of seek into N ms of silence, which is the number that
-says whether this is a papercut or the worst thing about looping a clip.
+**Measured, and it is both.** `scripts/wrapsound.mjs` listens rather than
+inferring — an AudioWorklet tapping the app's own analyser, on a generated 440 Hz
+tone so that floor means silence and not a quiet bar, with the same GOP arms
+`loopseek` uses. Three runs, medians, Firefox Nightly / Linux:
+
+    arm      keyframes   seek (app)   silence (heard)   worst   quiet
+    intra          600      4-6 ms         11 ms        21 ms      1%
+    dense           40     11-14 ms      11-21 ms       85 ms    1-3%
+    sparse           1    188-219 ms    203-235 ms     469 ms   16-19%
+    control         40         --           --           --        0%
+
+**Read the middle two columns against each other, not the absolute numbers.**
+These are `testsrc` fixtures, which loopseek's header is emphatic about: they are
+about as cheap a thing to decode as exists, and the same "frames back" buys an
+order of magnitude more on real footage. The dense arm at 11-14 ms is not
+`demo-v2.mp4`, which the same `medianMs` instrument puts at 64-90 ms.
+
+What transfers is the relationship, and it is the finding:
+
+- **The silence _is_ the seek, plus about one animation frame.** Two independent
+  instruments — a worklet on the audio thread, and the app's own `seeked`
+  timing — agree to within about 15 ms on every arm, across three orders of
+  magnitude of seek. So there is no separate audio cost hiding here and nothing
+  to fix in the audio graph: whatever removes the seek removes the dropout.
+- **Which means the app has been displaying the dropout all along.** The cue
+  row's `wrap 0.15s` is `wrapCostMs`, off the same `seeked` timing — so every
+  number in the table above can now be read as milliseconds of silence without
+  re-measuring anything: 12-15 ms on minnie-moocher, 64-90 ms on demo-v2,
+  128-233 ms on haunted-house. That readout was built to be re-marked against,
+  and it turns out to be a readout of the sound.
+- **Both earlier claims were right, about different clips.** "Audible as a click"
+  is what the well-encoded end does, and there the de-click envelope above really
+  would be the whole fix. "A fifth to half a second" is what the sparse end does:
+  **19% of the run silent, and one wrap in 469 ms**. Neither number is a property
+  of _looping_ — both are properties of the file, which is the same conclusion
+  the wrap-cost readout reached from the picture side and declined to threshold.
+
+So this is worth building for the clips that need it and worth nothing for the
+rest. Two of the four clips this repo ships are in the slow tier, and an
+archive.org pick is whatever it is; that is the case the second read head is for.
+
+The control arm is what makes the rest a measurement: same clip, no loop marked,
+0% quiet and no wraps. Without it "the sound sits at floor" cannot be told from
+an analyser that was never fed.
+
+Two notes for anyone re-running it. `public/test.mp4` — the sparse clip every
+existing reading comes from — **has no audio track at all**, which is why the
+fixtures are generated rather than pointed at `public/`. And the run steps the
+engine from Node rather than riding rAF, because the region clamp lives in
+`VideoPump.pump()`: on an occluded window the loop wraps once a second and the
+harness would be measuring the window manager.
 
 ## In flight — preset screening, round 2
 
