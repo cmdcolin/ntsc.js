@@ -466,6 +466,35 @@ describe('VideoPump', () => {
         expect(pump.health().a.laps).toBe(0)
       })
 
+      // The cue row's number has to mean "what wrapping this loop costs *now*".
+      // A head is armed unawaited, so a lap or two can wrap by seeking before it
+      // lands — and those laps must not be the reading for the rest of the cue,
+      // which is what they were until `continueOn` cleared the window.
+      it('forgets seeks the loop has stopped paying for', () => {
+        stubBitmaps()
+        const pump = new VideoPump()
+        const s = sink()
+        const el = videoEl({ currentTime: 4.31 })
+        pump.setA(el)
+        pump.setRegionA({ start: 4.0, end: 4.3 })
+
+        // Two seeking wraps, before the head is ready: enough for `wrapCostMs`
+        // to have something to say.
+        for (const _ of [0, 1]) {
+          el.currentTime = 4.31
+          pump.pump(s)
+          el.fire('seeked')
+        }
+        expect(pump.health().a.laps).toBe(2)
+
+        // Then the head arrives and takes over.
+        const head = videoEl({ currentTime: 4.0 })
+        pump.setRelayA(() => head)
+        el.currentTime = 4.31
+        pump.pump(s)
+        expect(pump.health().a.laps).toBe(0)
+      })
+
       it('never relays a slot that is not looping', () => {
         stubBitmaps()
         const pump = new VideoPump()

@@ -382,11 +382,20 @@ export class VideoPump {
   //     not a new clip, so clearing the region here would end every loop at its
   //     first wrap. This is why a promotion must not go back through
   //     `setVideoSource`.
-  //   - **the health window stays.** What it measures is what the in-point costs
-  //     to seek to, which has not changed — and a relayed wrap adds nothing to
-  //     it, because there was no seek to time. A loop that keeps its head
-  //     therefore stops reporting a wrap cost, which is the honest reading: the
-  //     cost the readout exists to name is the one this just avoided paying.
+  //   - **the health window goes**, which is the one place this departs from
+  //     retarget's reasons rather than borrowing them. `wrapCostMs` is what the
+  //     cue row shows, and what it has to mean is *what wrapping this loop is
+  //     costing now* — so laps the loop has stopped paying for cannot be left in
+  //     it. Carrying them would let a head that arrived late latch a number from
+  //     the two or three seeking wraps that beat it there, and report that number
+  //     for the life of the cue while every wrap after it was free.
+  //
+  //     Clearing rather than pushing a zero because `laps` is the count of
+  //     *measured seeks* and the readout says nothing below two: a head that
+  //     gives up refills the window within two laps and the number comes back.
+  //     That is only stable because a head cannot alternate — one that misses its
+  //     lap is retired at the deadline (ui/videoSlot.ts › `promoteHead`) rather
+  //     than left to be not-ready at every other wrap.
   //
   // Everything else is retarget's, for retarget's reasons: the listener follows
   // the element, the generation is bumped so a decode from the outgoing head
@@ -400,10 +409,11 @@ export class VideoPump {
     slot.gen += 1
     slot.ready?.bmp.close()
     slot.ready = null
-    // A seek outstanding on the element being left belongs to it, and its
-    // `seeked` will never be heard here now. Left set, the next real wrap's
-    // handler would close it and report a gap that spans a lap.
-    slot.wrapAt = 0
+    // Which also clears `wrapAt`, and that half is not optional: a seek
+    // outstanding on the element being left belongs to it, and its `seeked` will
+    // never be heard here now. Left set, the next real wrap's handler would close
+    // it and report a gap that spans a lap.
+    this.resetHealth(slot)
   }
 
   private take(slot: Slot): PumpedFrame | null {

@@ -146,6 +146,13 @@ export const insideCue = (cue: Cue | null, time: number): boolean =>
 // mechanism rather than by a cutoff someone had to pick — nothing was calibrated
 // to make that true, and the readout below did not change.
 //
+// What makes that hold for the whole life of a cue rather than only at the start
+// of one is that a relayed wrap *clears* the window (gpu/videopump.ts ›
+// `continueOn`). A head is armed unawaited, so on a big file a lap or two can
+// wrap by seeking before it lands — and without the clear, those two laps would
+// be the number this row showed for as long as the loop ran, while every wrap
+// after them cost nothing.
+//
 // It also means what the number *measures* is unchanged and worth keeping: the
 // silence a wrap costs is the seek within about 15ms (scripts/wrapsound.mjs), so
 // this is milliseconds of dropped sound as much as it is dropped picture.

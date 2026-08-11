@@ -764,6 +764,14 @@ the design above.
   this clip here is costing something — by mechanism rather than by a cutoff
   someone had to pick, and nothing was calibrated to make it true.
 
+  It takes one line to hold, and it did not have it at first: a relayed wrap has
+  to *clear* the health window rather than merely not add to it. A head is armed
+  unawaited, so on a big file a lap or two wraps by seeking before it lands — and
+  those two laps were otherwise the number the row showed for the rest of the
+  cue, while every wrap after them was free. Clearing is safe rather than
+  blinding because a head cannot alternate: one that misses its lap is retired at
+  the deadline, so the window refills within two laps and the number returns.
+
 Still open, and genuinely small now: the **de-click envelope** at the top of this
 section. 11 ms is one frame, which is a click rather than a dropout, and fading
 the gain across the join is the standard fix for exactly that. It was worth
