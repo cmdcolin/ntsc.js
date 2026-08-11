@@ -220,6 +220,55 @@ only name things that survive being written down: a shelf id (`lib:<id>`), a
 rule `urlParams` gives for `?src=file`, for the same reason, and `fileStash` is
 already where the local answer to it lives.
 
+#### Landed, and it was the gap that mattered
+
+**The strip shipped without this, and the whole "series of clips, played back to
+back" this document opens with was unreachable for as long as it did.** A row's
+session is `writeProfileParams`' output, and that writer drops every source mode
+a URL cannot carry — `LINKABLE` filters `file`, `library`, `browse` and `screen`
+— so a row captured over a clip recorded the look and nothing about the picture.
+`derivedLabel` called the card "look only", accurately. Only a link's `?vurl`,
+YouTube and the generated modes survived, which is none of the ways anybody
+loads a clip. Rows were a sequence of _effects_ over whatever was on the deck,
+and read that way to a first user.
+
+`Row.clip` is the union, narrowed to the one case that was actually missing: a
+shelf id. The other four already round-trip through the session string, so
+adding them would have been a second spelling of a contract that works.
+
+Four things worth keeping.
+
+- **The identity was already being kept, one consumer away.** `fileStash` writes
+  `{kind: 'lib', id}` every time a clip lands on a deck, and `openClipById`
+  turns it back into either a live file opener or a `PoolRef`. That is exactly
+  the union above, built for restoring a deck across a reload, and nobody had
+  pointed `+ row` at it. The expensive-looking part of a feature is worth
+  re-deriving before it is paid for — the same lesson the second read head's
+  contention turned out to teach.
+- **Beside `session`, not inside it**, which is the one place a row parts
+  company with _A row is a thing that already exists_. That section's rule is
+  right for everything that has followed it, and wrong here: a `lib:c7` in a
+  shared link is a promise about one person's disk, and the link contract's job
+  is to be true on somebody else's machine.
+- **A disk grant that died with the last page load needs a user gesture**, and a
+  walk is a timer with none to spend. That row parks and the caption offers the
+  click, exactly as the boot reopen does. It is the one thing a rundown cannot
+  resolve on its own, and it says so rather than leaving the previous picture up
+  and looking like a row that did nothing.
+- **`commitDeck` is where the deck's clip is cleared**, because it is the one
+  place every source change passes through. A per-caller arrangement fails
+  silently: one path that forgot would let `+ row` record a clip the picture had
+  left ten minutes earlier.
+
+**And a hold can now be `'clip'`** — as long as the picture runs, which is what
+a row carrying a clip arrives on. That is the setting this document never had
+and the one that made the strip read as alien to anyone expecting an editor: in
+an NLE a clip's length on the timeline _is_ its screen time, where here the hold
+and the cue were always separate things. Both are still available, and the bar
+count is still what a look-only row gets, because a piece cut to music wants
+bars. `rowRuntime` reads the trim first and the clip's own length second, so an
+in/out pair is also how long the row is up.
+
 ### Interaction: follow the drags this app already has
 
 **Pointer events, not HTML5 drag-and-drop.** There is no `dataTransfer`,
@@ -231,6 +280,17 @@ has no touch support and a drag image that fights styling.
 
 The bin dragged _from_ is built: `ui/clipLibrary.ts` (the shelf, which already
 holds both files on disk and kept pool rolls) and `MediaBrowserDialog`.
+
+**The shelf pushes; the tray does not pull, and that is a substitution worth
+naming.** _Landed_ above closes the model half of "drop a clip into the strip";
+the gesture half is a `＋` on every row of the clip library rather than a drag
+onto the tray. The shelf is a modal dialog, so there is nothing to drag _to_ —
+the tray is behind it and covered — and a drag would be the only way to reach
+it, which is the rule this section states against. It is also the better gesture
+for the job: a rundown of eight clips is one opening of the shelf and eight
+presses, against eight open-and-close cycles for a drag. A drag from a
+_non-modal_ shelf is still the nicer thing, and it is a change to the dialog
+rather than to the strip.
 
 **Right-click opens the per-row menu, and is never the only way to reach
 anything.** `ui/Popover.tsx` already has `MenuItem` on the native popover API,
