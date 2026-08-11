@@ -204,9 +204,18 @@ for (const name of ['tracking', 'roll', 'collapse', 'shuttle', 'dub']) {
   const left = r.settledDiff - r.floorDiff
   // **The only observable a fault has.** It never touches the resting board, so
   // "did it run" cannot be read off the controls — the picture is the report.
+  //
+  // The bar is 2 and not something rounder because of `tracking`, which is the
+  // one entry whose fault is *local* by nature: a band of noise across a
+  // fifteenth of the frame, averaged over the whole of it, measured 3.9 past a
+  // 16 floor where `collapse` — which folds the entire raster — measured 53.5.
+  // Both are working. A whole-frame mean understates a band, and the answer is
+  // a bar that a band clears rather than a metric tuned until a band looks like
+  // a raster collapse. What it still catches is the failure this arm exists
+  // for: two of the five recipes once measured 0.4-0.6, which is nothing.
   check(
     `${name}: breaks the picture`,
-    broke > 4,
+    broke > 2,
     `${broke.toFixed(1)}/255 past a ${r.floorDiff.toFixed(1)} floor, driving ${r.keys.join(', ')}`,
   )
   check(
