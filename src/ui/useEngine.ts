@@ -568,13 +568,20 @@ export function useEngine() {
   // `defaultPlaybackRate` as well as `playbackRate`, or loading the next src
   // resets the rate to 1 — which is the half of this that was easiest to lose
   // when it was written out twice.
+  // The loop's second read head takes the rate too, and it has to: it was
+  // configured at the rate that was set when the loop was marked, so a slider
+  // moved during a loop would otherwise be undone by the next wrap — the picture
+  // and its pitch snapping back for one lap, then again on the lap after.
   const changeSpeed = (key: StashSlot, rate: number) => {
     vaporRef.current.speed[key] = rate
     setSpeed(prev => ({ ...prev, [key]: rate }))
-    const v = (key === 'a' ? videoRef : videoBRef).current
-    if (v !== null) {
-      v.defaultPlaybackRate = rate
-      v.playbackRate = rate
+    const onAir = (key === 'a' ? videoRef : videoBRef).current
+    const head = (key === 'a' ? headARef : headBRef).current
+    for (const v of [onAir, head]) {
+      if (v !== null) {
+        v.defaultPlaybackRate = rate
+        v.playbackRate = rate
+      }
     }
   }
   // Whether the clips' own sound tracks are the audio input: heard out loud and
