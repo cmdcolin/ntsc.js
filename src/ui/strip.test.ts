@@ -211,6 +211,21 @@ describe('fireEffects', () => {
     expect(out[0]).toMatchObject({ kind: 'fault', seconds: 8 })
   })
 
+  // A row built by hand rather than read through the codec — a harness, a test,
+  // an object literal — has `undefined` where the codec would have put null,
+  // and `undefined !== null`. Tested against null alone this handed the engine
+  // an undefined transition; `scripts/rendercheck.mjs` found it by building a
+  // rundown the way a caller naturally would.
+  it('arrives plainly when the transition is missing rather than null', () => {
+    const bare = { ...row(), arrive: { seconds: 1 } } as Row
+    expect(fireEffects(bare, 1)[0]).toMatchObject({ kind: 'session' })
+  })
+
+  it('and when it names something this build’s shelf does not have', () => {
+    const odd = row({ arrive: { seconds: 1, transition: 'dissolve' as never } })
+    expect(fireEffects(odd, 1)[0]).toMatchObject({ kind: 'session' })
+  })
+
   it('still departs from the session afterwards, fault or not', () => {
     const out = fireEffects(
       row({

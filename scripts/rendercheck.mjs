@@ -207,6 +207,12 @@ const renderStrip = walkOn =>
         },
         roll: () => {},
         jitter: () => {},
+        // The rows below name no transition and no clip, so neither of these
+        // fires. They are here because a sink is an interface: a walk that
+        // started asking for one and found nothing would be a `TypeError` three
+        // arms into the run rather than a check that failed.
+        fault: () => {},
+        preroll: () => {},
       }
       const step = offlineWalk({ rows, seed: 7, loop: true }, sink, {
         bpm: 120,

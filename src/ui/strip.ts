@@ -253,7 +253,17 @@ export function holdFrames(
 // the jitter lands on it, because both are departures *from* what the session
 // named.
 export function fireEffects(row: Row, seed: number): Effect[] {
-  const { seconds, transition } = row.arrive
+  const { seconds } = row.arrive
+  // Narrowed here rather than trusted, even though `readArrive` already
+  // narrows: a row can also be built by hand — a harness, a test, an object
+  // literal that never went through the codec — and `undefined` is not `null`.
+  // Tested against null alone this fell into the fault branch and handed the
+  // engine an undefined transition, which `scripts/rendercheck.mjs` found by
+  // building a rundown the way a caller naturally would. Anything that is not a
+  // name this build has arrives plainly, which is the answer `readArrive` gives
+  // and the one `useEngine.faultTo` gives at the far end.
+  const transition =
+    TRANSITION_NAMES.find(t => t === row.arrive.transition) ?? null
   const out: Effect[] = [
     transition === null
       ? { kind: 'session', session: row.session, seconds }
