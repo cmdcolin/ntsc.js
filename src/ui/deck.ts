@@ -104,25 +104,12 @@ export const barInert = (c: Controls) => wipeEngaged(c.wipeMode) && c.bGain <= 0
 // B, which is what a wipe is asking for and where a dissolve ends.
 export const B_ON_AIR = 1
 
-// Shuttle travel.
-//
-// A deck's shuttle ring is not linear in speed. The first part of the throw is
-// where the picture is still readable (play to double), and the far end is the
-// screaming spool nobody parks on — a linear track spends four fifths of itself
-// past 8x. Speed grows geometrically with the throw instead, so every equal
-// nudge is an equal *ratio*, and the two directions are exact inverses so a
-// value round-trips through the ring without creeping.
-//
-// Anchored at zero rather than at play: 0 is pause, a real detent on a real
-// deck, and it is the one speed you want to be able to hit exactly.
-const SHUTTLE_MAX = 32
-const SHUTTLE_BASE = SHUTTLE_MAX + 1
-
-export const travelToShuttle = (t: number) =>
-  Math.sign(t) * (Math.pow(SHUTTLE_BASE, Math.abs(t)) - 1)
-
-export const shuttleToTravel = (v: number) =>
-  (Math.sign(v) * Math.log(Math.abs(v) + 1)) / Math.log(SHUTTLE_BASE)
+// Shuttle travel used to live here, as a geometric map the deck's own strip
+// drew and nothing else knew about — while the two slider rows for the same
+// controls stayed linear, so `shuttle (1 = play)` had two feels depending on
+// which surface you reached for. It is the 'shuttle' curve in travel.ts now,
+// named by both SliderDefs, so the rows, the deck and a bound MIDI knob all read
+// one definition. See curve.ts for the shape and why it anchors at pause.
 
 // The speeds worth a button rather than a throw: review, pause, play, cue. Play
 // is the one the ring springs back to, and it is the only one of the four that

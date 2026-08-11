@@ -11,12 +11,20 @@ import {
   fineToValue,
   persistToTravel,
   persistToValue,
+  shuttleToTravel,
+  shuttleToValue,
   synthToTravel,
   synthToValue,
 } from './curve'
 import { zoomAtTravel, zoomTravel } from './lens'
 
-export type CurveName = 'magnifier' | 'persistence' | 'synth' | 'zero' | 'unity'
+export type CurveName =
+  | 'magnifier'
+  | 'persistence'
+  | 'shuttle'
+  | 'synth'
+  | 'zero'
+  | 'unity'
 
 // The span a curved control is read through. Structural rather than SliderDef
 // itself: MIDI binds against a subset, and this module sits below the schema.
@@ -51,6 +59,10 @@ const CURVES: Record<
   persistence: {
     toValue: (_s, t) => persistToValue(t),
     toTravel: (_s, v) => persistToTravel(v),
+  },
+  shuttle: {
+    toValue: (s, t) => shuttleToValue(s, t),
+    toTravel: (s, v) => shuttleToTravel(s, v),
   },
   synth: {
     toValue: (_s, t) => synthToValue(t),

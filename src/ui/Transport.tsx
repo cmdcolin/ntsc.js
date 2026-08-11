@@ -1,30 +1,33 @@
 import { useState } from 'react'
 
+import { sliderFor } from './controls'
 import { useControlValue, useControlsApi } from './ControlsContext'
 import { cx } from './cx'
-import {
-  LOOP_TRANSPORT,
-  SHUTTLE_STOPS,
-  shuttleToTravel,
-  travelToShuttle,
-} from './deck'
+import { LOOP_TRANSPORT, SHUTTLE_STOPS } from './deck'
 import styles from './Deck.module.css'
+import { fromTravel, toTravel } from './travel'
 
+import type { SliderDef } from './controls'
 import type { PointerEvent } from 'react'
 
-// Where a speed sits along a strip whose low end is `lo` in travel units.
-const shuttleFrac = (v: number, lo: number) =>
-  (shuttleToTravel(v) - lo) / (1 - lo)
+// The two rows the strips below throw, read off the schema rather than restated
+// here. A span is all the curve needs (min, max, step, curve), so taking the
+// SliderDef whole is what makes it impossible for the deck's strip and the stage
+// row for the same control to disagree about where play sits — which is exactly
+// what they did while the ring's geometry lived in the deck alone.
+const TAPE_SPAN: SliderDef = sliderFor('shuttleX')
+const LOOP_SPAN: SliderDef = sliderFor('tapeShuttle')
 
 // The shuttle ring, flattened into a strip.
 //
-// Geometric in speed (see travelToShuttle), because the interesting half of a
-// shuttle is between pause and double and a linear track hands that four pixels.
-// Bipolar or not depending on whether the transport it belongs to carries its
-// own direction switch: the delay loop's does, the deck's does not.
+// Geometric in speed (the 'shuttle' curve — see curve.ts), because the
+// interesting half of a shuttle is between pause and double and a linear track
+// hands that four pixels. Bipolar or not according to the span it is given: the
+// delay loop's transport carries its own direction switch, so its ring runs
+// forwards only, and the tape deck's does not, so its ring is signed.
 function ShuttleStrip(props: {
+  span: SliderDef
   value: number
-  bipolar: boolean
   disabled: boolean
   title: string
   onChange: (v: number) => void
@@ -33,16 +36,14 @@ function ShuttleStrip(props: {
   // speed off stock, which grows "This look" at the top of the panel and moves
   // every row below it.
   const [grab, setGrab] = useState<DOMRect | null>(null)
-  const lo = props.bipolar ? -1 : 0
-  const t = shuttleToTravel(props.value)
+  const t = toTravel(props.span, props.value)
   // Where the throw sits along the drawn strip, and where zero is on it.
-  const frac = (t - lo) / (1 - lo)
-  const zero = -lo / (1 - lo)
+  const frac = t
+  const zero = toTravel(props.span, 0)
 
   const set = (e: PointerEvent<HTMLDivElement>, box: DOMRect) => {
     const x = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width))
-    const travel = lo + x * (1 - lo)
-    const v = travelToShuttle(travel)
+    const v = fromTravel(props.span, x)
     // Detents at pause and play, the two speeds worth being able to hit
     // exactly: a ring you cannot park on play is a ring that never gives the
     // picture back.
@@ -74,9 +75,9 @@ function ShuttleStrip(props: {
           only setting on here at which the head follows one track. */}
       <div
         className={styles.detent}
-        style={{ left: `${shuttleFrac(1, lo) * 100}%` }}
+        style={{ left: `${toTravel(props.span, 1) * 100}%` }}
       />
-      {props.bipolar ? (
+      {zero > 0 ? (
         <div className={styles.detent} style={{ left: `${zero * 100}%` }} />
       ) : null}
       <div
@@ -126,8 +127,8 @@ export function TapeTransport() {
           </button>
         ))}
         <ShuttleStrip
+          span={TAPE_SPAN}
           value={shuttleX}
-          bipolar
           disabled={false}
           title="tape speed as a multiple of play — off 1 the head crosses tracks and the noise bars start"
           onChange={v => writeControl('shuttleX', v)}
@@ -185,8 +186,8 @@ export function LoopTransport() {
           </button>
         ))}
         <ShuttleStrip
+          span={LOOP_SPAN}
           value={tapeShuttle}
-          bipolar={false}
           disabled={!held}
           title="how fast the held loop runs past the heads — the transport buttons give the direction"
           onChange={v => writeControl('tapeShuttle', Math.abs(v))}

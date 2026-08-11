@@ -175,3 +175,50 @@ export const fineToTravel = (span: FineSpan, stock: number, v: number) => {
   const edge = stock - span.min
   return edge <= 0 ? p : p - compress(k, clamp01((stock - v) / edge)) * p
 }
+
+// The fifth shape: a deck's shuttle ring, which is not linear in speed.
+//
+// The part of the throw that matters is where the picture is still readable —
+// play to double — and the far end is the screaming spool nobody parks on. A
+// linear track spends four fifths of itself past 8x, which is why `shuttle
+// (1 = play)` had play sitting at 51.5% of its travel with the whole watchable
+// range 0..2 inside 3% of it. Speed grows geometrically with the throw instead,
+// so every equal nudge is an equal *ratio*.
+//
+// Anchored at zero rather than at play, and that is the difference from the
+// 'zero' curve above: 0 is pause, a real detent on a real deck, and the two
+// sides of it are directions rather than a neighbourhood to expand around. A
+// side's base is its own far end plus one, so `a = 1` lands exactly on the stop
+// and the two directions of a bipolar ring stay exact inverses — a value
+// round-trips through the ring without creeping.
+//
+// It was `travelToShuttle`/`shuttleToTravel` in deck.ts, drawn only by the
+// deck's own strip while the two slider rows for the same controls stayed
+// linear. One control, two feels, depending on which surface you reached for.
+
+// One direction of the ring. `top` is the fastest speed that side reaches, so
+// base is top + 1 and a = 1 lands on it exactly. A side with no travel (the
+// loop bin's ring runs forwards only) maps everything to a standstill.
+const spinOut = (top: number, a: number) => (top <= 0 ? 0 : (top + 1) ** a - 1)
+const spinIn = (top: number, v: number) =>
+  top <= 0 ? 0 : Math.log(v + 1) / Math.log(top + 1)
+
+// Where the pause detent sits on the track: exactly where it sat linearly, so a
+// bipolar ring keeps zero mid-track and a forward-only one keeps it at the left
+// stop. Same rule `stockAt` follows above, about a different fixed point.
+const pauseAt = (span: FineSpan) =>
+  clamp01((0 - span.min) / (span.max - span.min))
+
+export const shuttleToValue = (span: FineSpan, t: number) => {
+  const z = pauseAt(span)
+  return t >= z
+    ? spinOut(span.max, z >= 1 ? 0 : clamp01((t - z) / (1 - z)))
+    : -spinOut(-span.min, z <= 0 ? 0 : clamp01((z - t) / z))
+}
+
+export const shuttleToTravel = (span: FineSpan, v: number) => {
+  const z = pauseAt(span)
+  return v >= 0
+    ? z + spinIn(span.max, v) * (1 - z)
+    : z - spinIn(-span.min, -v) * z
+}

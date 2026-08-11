@@ -5,6 +5,8 @@ import {
   fineToValue,
   persistToTravel,
   persistToValue,
+  shuttleToTravel,
+  shuttleToValue,
   TRAVEL_STEP,
 } from './curve'
 import { fromTravel, toTravel } from './travel'
@@ -130,6 +132,52 @@ describe('fine travel', () => {
   it('leaves an already-fine control straight', () => {
     const span = { min: -1, max: 1, step: 0.1 }
     expect(fineToValue(span, 0, 0.75)).toBeCloseTo(0.5, 9)
+  })
+})
+
+// The two rings in the app: the tape deck's, signed because its transport has
+// no direction switch, and the loop bin's, forward-only because its does.
+const RING = { min: -32, max: 32, step: 0.05 }
+const FWD = { min: 0, max: 32, step: 0.05 }
+
+describe('the shuttle ring', () => {
+  it('lands the stops where the deck has them', () => {
+    expect(shuttleToValue(RING, 0.5)).toBe(0)
+    expect(shuttleToValue(RING, 1)).toBeCloseTo(32, 6)
+    expect(shuttleToValue(RING, 0)).toBeCloseTo(-32, 6)
+  })
+
+  it('puts pause on the left stop when the ring runs one way', () => {
+    expect(shuttleToValue(FWD, 0)).toBe(0)
+    expect(shuttleToValue(FWD, 1)).toBeCloseTo(32, 6)
+    // and never asks the row for a speed its transport cannot express
+    expect(shuttleToValue(FWD, 0.5)).toBeGreaterThan(0)
+  })
+
+  it('round-trips a speed through the ring without creeping', () => {
+    for (const v of [-32, -8, -1, 0, 0.5, 1, 4, 32]) {
+      expect(shuttleToValue(RING, shuttleToTravel(RING, v))).toBeCloseTo(v, 9)
+    }
+    for (const v of [0, 0.5, 1, 4, 32]) {
+      expect(shuttleToValue(FWD, shuttleToTravel(FWD, v))).toBeCloseTo(v, 9)
+    }
+  })
+
+  it('spends real travel on the speeds you can still watch', () => {
+    // Linear, the half-way point of each ring is 16x — long past the picture,
+    // and where `shuttle (1 = play)` used to sit. Here both are under 6x, so
+    // play-to-double gets a throw you can aim.
+    expect(shuttleToValue(RING, 0.75)).toBeLessThan(6)
+    expect(shuttleToValue(FWD, 0.5)).toBeLessThan(6)
+  })
+
+  it('puts play a fifth of the way out of pause, on either ring', () => {
+    // The number that matters for aiming. Linear, play sat at 51.5% of the
+    // signed ring — a pixel and a half from pause — with everything watchable
+    // crushed against it. A fifth of a side is a throw with a gesture in it.
+    expect(shuttleToTravel(FWD, 1)).toBeCloseTo(0.198, 3)
+    expect(shuttleToTravel(RING, 1)).toBeCloseTo(0.5 + 0.198 / 2, 3)
+    expect(shuttleToTravel(RING, -1)).toBeCloseTo(0.5 - 0.198 / 2, 3)
   })
 })
 

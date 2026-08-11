@@ -33,6 +33,10 @@ export interface SliderDef {
   // gain, a hue, a key level): the curve is not a general improvement, it is
   // travel taken from one end and given to the other. `step` is the fine end's
   // resolution once curved, so it is worth lowering at the same time.
+  //
+  // 'shuttle' is the one that expands around a fixed point the control does not
+  // rest at: a tape speed is geometric out of *pause* in both directions, and
+  // play — where the row does rest — sits a fifth of the way along that.
   curve?: CurveName
   // Present on a control whose travel now runs past the range it was tuned to:
   // the old [min, max], drawn as a notch on the track at whichever end grew.
@@ -1074,6 +1078,10 @@ export const GROUPS: Group[] = [
         min: 0,
         max: 32,
         step: 0.05,
+        // Forward-only, so pause sits on the left stop and the whole track is
+        // one direction out of it. The deck's strip for this control drew the
+        // same curve privately; it reads the row's now.
+        curve: 'shuttle',
         redline: [0, 8],
         unit: 'x',
         help: 'How fast a held loop runs, as a multiple of play — the transport switch above gives the direction, this gives the speed. Off play speed the head no longer follows a single recorded track: each sweep crosses several, the RF nulls at every crossing, and that many noise bars sweep the picture. It is the same mechanism the deck shuttle uses, but running over your own captured loop instead of the incoming signal — cue and review through two seconds you recorded, with the picture skipping frames as it goes. Note this is why a paused loop has a bar across it and a reversed one has two: at a standstill the head still crosses one track per sweep, and backwards it crosses two.',
@@ -2179,6 +2187,10 @@ export const GROUPS: Group[] = [
         min: -32,
         max: 32,
         step: 0.05,
+        // Bipolar, so pause is mid-track and review and cue are the two
+        // directions out of it. Linear, this row put play at 51.5% of the
+        // travel and the whole watchable range — 0 to 2 — inside 3% of it.
+        curve: 'shuttle',
         redline: [-8, 8],
         unit: 'x',
         help: 'Tape speed as a multiple of play — cue past 1, pause at 0, review negative. Off play speed the spinning head no longer follows a single recorded track: each sweep crosses several, the RF nulls at every crossing, and that many noise bars sweep the frame. Each strip between bars is a different track with its own timing and color-under phase, so the picture tears and rainbows at the boundaries. At 1 the head tracks and the picture is clean.',

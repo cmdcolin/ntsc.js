@@ -6,9 +6,7 @@ import {
   barPosition,
   barThrow,
   deckLoad,
-  shuttleToTravel,
   takeAt,
-  travelToShuttle,
   wipeEngaged,
 } from './deck'
 
@@ -71,26 +69,6 @@ describe('the T-bar', () => {
   it('reads the pattern enum on the same band the shader does', () => {
     expect(wipeEngaged(0)).toBe(false)
     expect(wipeEngaged(1)).toBe(true)
-  })
-})
-
-describe('the shuttle ring', () => {
-  it('lands the detents where the deck has them', () => {
-    expect(travelToShuttle(0)).toBe(0)
-    expect(travelToShuttle(1)).toBeCloseTo(32, 6)
-    expect(travelToShuttle(-1)).toBeCloseTo(-32, 6)
-  })
-
-  it('round-trips a speed through the ring without creeping', () => {
-    for (const v of [-32, -8, -1, 0, 0.5, 1, 4, 32]) {
-      expect(travelToShuttle(shuttleToTravel(v))).toBeCloseTo(v, 9)
-    }
-  })
-
-  it('spends real travel on the speeds you can still watch', () => {
-    // The half-way point of a linear ring is 16x — long past the picture. Here
-    // it is under 6x, so play-to-double gets a throw you can aim.
-    expect(travelToShuttle(0.5)).toBeLessThan(6)
   })
 })
 
