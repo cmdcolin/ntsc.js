@@ -21,7 +21,7 @@ const shuttleFrac = (v: number, lo: number) =>
 // Geometric in speed (see travelToShuttle), because the interesting half of a
 // shuttle is between pause and double and a linear track hands that four pixels.
 // Bipolar or not depending on whether the transport it belongs to carries its
-// own direction switch: the loop bin's does, the deck's does not.
+// own direction switch: the delay loop's does, the deck's does not.
 function ShuttleStrip(props: {
   value: number
   bipolar: boolean
@@ -93,7 +93,7 @@ function ShuttleStrip(props: {
 
 // The deck playing the incoming tape: one speed control, signed, with the four
 // speeds that are worth a button. Its own transport, and deliberately not the
-// loop bin's below — they are two machines, and the tape in each was written at
+// delay loop's below — they are two machines, and the tape in each was written at
 // a different time by a different head. Folding them into one set of buttons
 // would be the tidier panel and the wrong signal path.
 //
@@ -138,7 +138,7 @@ export function TapeTransport() {
   )
 }
 
-// The loop bin's own deck. Everything here needs the record head lifted — a
+// The delay loop's own deck. Everything here needs the record head lifted — a
 // loop that is still being written over has nothing to shuttle through — so the
 // gate is stated once, on the head, and the rest goes quiet behind it rather
 // than each button repeating the note.
@@ -154,9 +154,9 @@ export function LoopTransport() {
     <div className={styles.deckRow}>
       <div
         className={styles.deckLabel}
-        title="the tape loop threaded through the feedback path"
+        title="the loop of tape threaded through the feedback path"
       >
-        loop bin
+        delay loop
       </div>
       <div className={styles.stops}>
         <button

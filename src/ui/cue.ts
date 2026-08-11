@@ -1,6 +1,6 @@
 // A cue point on a clip's own timeline, and the loop that can hang off it.
 //
-// **This is not the loop bin.** `signal/tapeloop.ts` is 120 frames of
+// **This is not the delay loop.** `signal/tapeloop.ts` is 120 frames of
 // already-damaged signal threaded through the feedback path, with its own record
 // head and shuttle; it is the right mechanism for "hold the last two seconds of
 // what I am seeing" and the wrong domain for this. What is here is upstream of

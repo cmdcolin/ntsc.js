@@ -151,7 +151,7 @@ fault through `timing[]` will spin hue that should have stayed put.
 - **`syncMeasureBuf`** — one `vec4f` per line from `sync_measure`:
   `(sync edge or −1000, sync depth, mean beam load, broad-pulse flag)`.
 - **`audioBuf`** — one float per line, the audio waveform at line rate.
-- **`tapeBuf`** — the loop bin, `TAPE_FRAMES` (120) composite frames as f16
+- **`tapeBuf`** — the delay loop, `TAPE_FRAMES` (120) composite frames as f16
   pairs packed into `u32`, two seconds at 60 fps for 109 MiB. It is a _medium_,
   not a frame store: `tapeRec` writes the slot `frame % TAPE_FRAMES` and
   `tapePlay` reads it back through up to four heads at their own distances

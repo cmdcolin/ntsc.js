@@ -364,7 +364,7 @@ export class Engine implements EngineApi {
   // path resamples this rather than synthesizing B analytically.
   private bCompBuf: GPUBuffer
   private compPrev: GPUBuffer
-  // The loop bin: a ring of composite frames the record head writes and the
+  // The delay loop: a ring of composite frames the record head writes and the
   // play head reads a couple of seconds behind. Unlike compPrev this is a
   // medium, not a frame store — see tape_play.wgsl.
   private tapeBuf: GPUBuffer
@@ -764,7 +764,7 @@ export class Engine implements EngineApi {
         perLine,
         () => c.cfbMix !== 0,
       ),
-      // The loop bin, patched across the mixer the way an outboard delay is: the
+      // The delay loop, patched across the mixer the way an outboard unit is: the
       // play head returns onto the bus, and the record head lays down the sum —
       // so anything still circulating is re-recorded once per lap and comes back
       // a generation older each time. Both heads sit ahead of the channel block,
@@ -2116,7 +2116,7 @@ export class Engine implements EngineApi {
   }
 
   // Crossing-pattern precession for the program deck. The mechanism and its
-  // constants are shared with the loop bin's own transport — see
+  // constants are shared with the delay loop's own transport — see
   // signal/crossings.ts — and what is this deck's own is only that its speed
   // arrives as a multiple of play, so the crossing count is one less.
   private advanceShuttle(shuttleX: number): void {

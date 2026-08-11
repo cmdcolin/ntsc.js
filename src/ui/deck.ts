@@ -147,7 +147,7 @@ export const SHUTTLE_STOPS = [
   { value: 4, label: '4x', title: 'cue — four times play speed, forwards' },
 ]
 
-// The loop bin's own deck: which way a held loop runs past the heads. Index is
+// The delay loop's own deck: which way a held loop runs past the heads. Index is
 // the value tapeTransport takes, so these are the same numbers the slider's
 // `choices` are indexed by.
 export const LOOP_TRANSPORT = ['◀◀', '❚❚', '▶', '≋']

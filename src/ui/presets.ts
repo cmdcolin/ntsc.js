@@ -505,8 +505,10 @@ export const PRESETS: PresetDef[] = [
     mod: [{ target: 'cfbDelayUs', source: 'sine', rateHz: 0.12, depth: 0.01 }],
   },
   {
+    // `name` is the MIDI-binding storage key and stays what it was written as:
+    // renaming it would drop the bindings and saved boards already keyed to it.
     name: 'loopBin',
-    displayName: 'loop bin',
+    displayName: 'delay loop',
     group: 'Feedback loops',
     blurb:
       'A loop of tape past three heads: the picture comes back on a beat, a generation older each lap.',

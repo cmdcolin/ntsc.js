@@ -201,7 +201,7 @@
 }
 
 /* ── transports ────────────────────────────────────────────────────────────
-   Two of them, one per machine, each named — the loop bin and the deck playing
+   Two of them, one per machine, each named — the delay loop and the deck playing
    the incoming tape are not the same transport, and one set of buttons over
    both would be the tidier panel and the wrong signal path. */
 .deckRow {

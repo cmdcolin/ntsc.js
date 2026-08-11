@@ -1,4 +1,4 @@
-// The loop bin: one loop of tape threaded from the record head, round the path,
+// The delay loop: one loop of tape threaded from the record head, round the path,
 // back to the play head. Everything the CPU has to know about where that tape
 // is — how far behind the play head is running right now, and when the splice
 // next reaches it — lives here, so it is testable without a GPU.

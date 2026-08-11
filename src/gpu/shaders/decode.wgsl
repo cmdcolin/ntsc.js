@@ -383,7 +383,7 @@ fn main(
   // persistence layer, on purpose: the phosphor below is handed a black frame
   // and goes on giving back the light it already holds, so the picture fades
   // through the dark at whatever rate the tube is set to instead of cutting to
-  // black. Everything downstream with memory — the three loops, the loop bin,
+  // black. Everything downstream with memory — the three loops, the delay loop,
   // the beam limiter's servo — sees the dark frames too and reacts to them.
   outc = outc * (1.0 - P.beamBlank);
   // Phosphor persistence: the screen still holds last field's decaying light.

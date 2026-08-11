@@ -1,6 +1,6 @@
 import {
   CAMERA_LOOP_STAGE,
-  LOOP_BIN_STAGE,
+  DELAY_LOOP_STAGE,
   LOOP_STAGES,
   MIX_STAGE,
   MIXER_LOOP_STAGE,
@@ -102,14 +102,14 @@ export const boxWidth = (name: string) =>
 //   mixer — electrical: `fbComposite` crossfades the bus against itself
 //     straight after the A/B sum, so it re-enters at Mix, and it taps at the
 //     Receiver because what goes round is the composite the decoder saw.
-//   loop bin — mechanical, and the one that taps nowhere: `tapePlay` returns
+//   delay loop — mechanical, and the one that taps nowhere: `tapePlay` returns
 //     onto the bus and `tapeRec` lays the sum back down at that same point, one
 //     pass later. So it is a tight loop *across* the mixer's output rather than
 //     a run around anything, which is why `self` is a field and not a special
 //     case — the filter rules below are different for a return whose two ends
 //     are one box. It read as a wire that had missed its box while it was
 //     called 'tape', there being a Tape box two along that it has nothing to do
-//     with; see LOOP_BIN_STAGE for why the name moved and the key did not.
+//     with; see DELAY_LOOP_STAGE for why the name moved and the key did not.
 //
 // Each is routed rather than swooped — up, back along its run, then straight
 // down into the stage it feeds, so the wire is vertical where the arrowhead
@@ -151,7 +151,7 @@ interface ReturnSpec {
 // on the row, and stacking a self loop's pair on its top edge beside the mixer
 // loop's single arrowhead put three verticals inside 16 units of a 24-unit box:
 // a knot rather than three wires. Straddling the box says the same thing better
-// — a machine patched *across* one node, which is what a loop bin is — and it
+// — a machine patched *across* one node, which is what a delay loop is — and it
 // leaves the mixer loop alone on the box top. Comfortably inside GAP, so the
 // ends stay on the runs either side and never reach the next box.
 const SELF_STRADDLE = 5
@@ -184,7 +184,7 @@ const RETURNS: readonly ReturnSpec[] = [
     tap: MIX_STAGE,
     into: MIX_STAGE,
     loop: 'tape',
-    stage: LOOP_BIN_STAGE,
+    stage: DELAY_LOOP_STAGE,
     optical: false,
     y: 29,
     turn: 3,
@@ -373,7 +373,7 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
       : [{ key: 'out', x0: boxes[last].x + boxes[last].w / 2, x1: W }]),
   ]
   // A return only reads as a return if it comes back from somewhere downstream
-  // of where it re-enters — except the loop bin, which taps the box it returns
+  // of where it re-enters — except the delay loop, which taps the box it returns
   // to and so is the one return whose two ends are the same. Both cases need
   // both of their stages on the row, which a filter can take away.
   //
@@ -392,7 +392,7 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
     // end of it — just clear of the box it lands on, so a name sits beside its
     // own arrowhead rather than somewhere along a span shared with two others.
     //
-    // The loop bin gets the other side of the box it straddles. Centred on its
+    // The delay loop gets the other side of the box it straddles. Centred on its
     // own run is the obvious place and the wrong one: that span is the box
     // itself, so the word comes down on top of the stage name and the two
     // arrowheads either side of it. Set to the left of the loop instead it is

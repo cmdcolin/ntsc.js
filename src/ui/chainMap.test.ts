@@ -275,10 +275,10 @@ describe('chain map geometry', () => {
     expect(
       chainLayout([SOURCE_A_STAGE, 'Screen']).returns.map(r => r.loop),
     ).toEqual(['camera'])
-    // The loop bin comes with Mix, because Mix is both of its ends — it is the
+    // The delay loop comes with Mix, because Mix is both of its ends — it is the
     // one return no filter can strand by dropping the stage it taps.
     expect(chainLayout([MIX_STAGE]).returns.map(r => r.loop)).toEqual(['tape'])
-    // A tap upstream of the re-entry is not a loop. The loop bin survives: it
+    // A tap upstream of the re-entry is not a loop. The delay loop survives: it
     // taps the box it returns to, so there is no downstream for it to be on the
     // wrong side of.
     expect(
@@ -328,7 +328,7 @@ describe('chain map geometry', () => {
   // Each run carries its own name, and where the name sits is the half of that
   // which can go wrong silently: a name off the end of its run reads as a word
   // floating over the chain. Each long return starts its name just clear of the
-  // box it lands on and has run left to cover it; the loop bin sets its name
+  // box it lands on and has run left to cover it; the delay loop sets its name
   // outside its own little loop, clear of the knot of wires at the box top.
   it('puts each loop’s name on its own run', () => {
     const { boxes, returns } = chainLayout(FULL)

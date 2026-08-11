@@ -12,7 +12,7 @@ import {
   FEED_B_CABLE_GROUP,
   FEED_B_GROUP,
   GROUPS,
-  LOOP_BIN_GROUP,
+  DELAY_LOOP_GROUP,
   LOOP_STAGE_NAMES,
   LOOP_STAGES,
   MIXER_LOOP_GROUP,
@@ -192,8 +192,8 @@ describe('control tables', () => {
     expect(stageGroups('Mixer loop').map(g => g.name)).toEqual([
       MIXER_LOOP_GROUP,
     ])
-    expect(stageGroups('Loop bin').map(g => g.name)).toEqual([
-      LOOP_BIN_GROUP,
+    expect(stageGroups('Delay loop').map(g => g.name)).toEqual([
+      DELAY_LOOP_GROUP,
       'Loop transport & heads',
     ])
   })

@@ -144,7 +144,7 @@ export const SYNTH_GROUP = 'Video synth (source)'
 // the three apart once more than one is running.
 export const CAMERA_LOOP_GROUP = 'Camera loop (optical)'
 export const MIXER_LOOP_GROUP = 'Mixer loop (electrical)'
-export const LOOP_BIN_GROUP = 'Loop bin (mechanical)'
+export const DELAY_LOOP_GROUP = 'Delay loop (mechanical)'
 
 // Which of the three are actually carrying signal, so a drawing can show a
 // running loop rather than only the three that exist in principle. One shape
@@ -164,7 +164,7 @@ export type LoopsLive = Record<LoopPlace, boolean>
 // closes a loop is the only thing that tells one from another once more than
 // one is running. The camera loop is optical: it points at the tube's face, so
 // it can only do what a lens can. The mixer loop is electrical: it carries the
-// subcarrier round with it, so it does things optics cannot. The loop bin is
+// subcarrier round with it, so it does things optics cannot. The delay loop is
 // mechanical: it re-records what it returns, so what circulates ages a
 // generation a lap.
 export interface LoopStage {
@@ -186,19 +186,26 @@ export interface LoopStage {
 // The three by name, for the surfaces that address one of them by identity —
 // written above the table and read out of it, so a rename lands in one place.
 //
-// The third is the loop bin and not the 'Tape loop' it was called for a while,
-// because 'Tape' is already a stage of the trunk two columns along: the deck
-// this signal was played back on, with its dropouts and its timebase wander.
-// Two machines, one word, and both drawn on the same picture — so the run
-// straddling Mix looked like a wire that had missed the box it was named after,
-// which is a drawing that has to be explained before it can be read. `loop` and
-// every control key stay `tape` (LOOP_PLACES, `tapeMix`, signal/tapeloop.ts):
-// the collision is in what the two are *called*, and the signal path has only
-// ever had one tape in it. The transport already says "loop bin" on its face
-// (Transport.tsx), so this is the panel catching up with the deck.
+// The third is the delay loop, and it has been called two other things. 'Tape
+// loop' was the first and the worst: 'Tape' is already a stage of the trunk two
+// columns along — the deck this signal was played back on, dropouts and
+// timebase wander — so one word stood over two machines on one drawing, and the
+// run straddling Mix read as a wire that had missed the box it was named after.
+//
+// 'Loop bin' was the second, and it is borrowed from the wrong trade. A loop bin
+// is duplication gear: a spliced master spilled loose into an open bin, running
+// past a playback head to feed a bank of slave recorders. No record head, no
+// feedback. What is modelled here — a record head laying down the sum, a play
+// head returning it a lap later, the return recorded again — is a tape echo,
+// which in a video rig is a delay loop. The image the bin conjured was right and
+// the machine it named was not.
+//
+// `loop` and every control key stay `tape` (LOOP_PLACES, `tapeMix`,
+// signal/tapeloop.ts): the collision was only ever in what the two are called,
+// and the signal path has one tape in it.
 export const CAMERA_LOOP_STAGE = 'Camera loop'
 export const MIXER_LOOP_STAGE = 'Mixer loop'
-export const LOOP_BIN_STAGE = 'Loop bin'
+export const DELAY_LOOP_STAGE = 'Delay loop'
 
 export const LOOP_STAGES: readonly LoopStage[] = [
   {
@@ -221,11 +228,10 @@ export const LOOP_STAGES: readonly LoopStage[] = [
   },
   {
     loop: 'tape',
-    name: LOOP_BIN_STAGE,
-    // Two words where the other two shorts are one, and worth the room: at
-    // 'tape' the miniature named this run after the box three along from where
-    // its arrowheads land.
-    short: 'loop bin',
+    name: DELAY_LOOP_STAGE,
+    // The distinguishing word, like the other two — all three are loops, so
+    // that half of the name is what the band it rides already says.
+    short: 'delay',
     blurb:
       'mechanical — a second deck threaded with a loop of tape, patched across the bus: what goes round is re-recorded and ages a generation a lap',
     what: 'a second machine threaded with a loop of tape, patched across the bus rather than round the chain: a play head returns what was laid down a lap ago, a record head lays the sum back down, and whatever keeps circulating ages a generation every time round',
@@ -925,7 +931,7 @@ export const GROUPS: Group[] = [
     ],
   },
   {
-    name: LOOP_BIN_GROUP,
+    name: DELAY_LOOP_GROUP,
     place: 'tape',
     sliders: [
       {
@@ -983,7 +989,7 @@ export const GROUPS: Group[] = [
     // The mechanics of the loop, split off from what the loop sounds like above.
     // Together they were fourteen controls under one header showing eleven rows —
     // the longest visible group left in the panel after the Tape and Screen
-    // stages were split, and for the same reason: "loop bin" was covering the
+    // stages were split, and for the same reason: one header was covering the
     // loop's mix and length, the deck driving it, the heads reading it, and the
     // oxide wearing out, which are four different questions.
     name: 'Loop transport & heads',
@@ -3398,7 +3404,7 @@ export const MOD_BLURB =
 // Deck.tsx for the case — the short version is that the signal path is the right
 // axis for almost everything and the wrong one for the twenty controls a hand
 // moves *during* a take, which are scattered across four stages (Mix, Tape, the
-// loop bin and the view) and want to be under one hand.
+// delay loop and the view) and want to be under one hand.
 //
 // So it is the second free box on the map, beside the bay, and for a reason that
 // rhymes with the bay's: both are the hand rather than the rig. The bay is the

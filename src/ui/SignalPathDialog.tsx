@@ -285,7 +285,7 @@ const LOOP_RUN: Record<(typeof LOOP_STAGES)[number]['loop'], LoopRun> = {
 // as one paragraph with a wire through it. `lx` is measured from the box the
 // run lands on, so a name sits beside its own arrowhead.
 //
-// `from` and `to` are absolute, not column indices, because the loop bin is not
+// `from` and `to` are absolute, not column indices, because the delay loop is not
 // a run around the chain at all: it leaves and re-enters the same box top, a
 // second machine patched across one node, while the other two reach back from
 // the stage they actually tap.

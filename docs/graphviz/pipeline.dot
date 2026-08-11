@@ -83,7 +83,7 @@ digraph ntsc_js {
   fbComposite [passes="fbComposite" fillcolor="@STORE@" style="rounded,filled,dashed"
                label="fbComposite\nhardware mixer loop\nkey · trails\n525 lines × 910 samples"];
 
-  // The loop bin is a second machine across the mixer, not a frame store: the
+  // The delay loop is a second machine across the mixer, not a frame store: the
   // return is recorded again, so material still circulating ages one tape
   // generation per lap.
   tapePlay [passes="tapePlay" fillcolor="@STORE@" style="rounded,filled,dashed"

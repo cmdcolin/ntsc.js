@@ -1,4 +1,4 @@
-// Play heads of the loop bin — up to four of them, sited at their own stretches
+// Play heads of the delay loop — up to four of them, sited at their own stretches
 // of tape further round the loop than the record head, summed onto the mixer
 // bus. This is the loop-echo arrangement: one lap hands back the picture once
 // per head, so the heads are a rhythm and the loop is the bar line.

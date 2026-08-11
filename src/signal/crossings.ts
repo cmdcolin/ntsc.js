@@ -8,7 +8,7 @@
 // reverse is not clean either, and never was on a two-head machine.
 //
 // Here rather than in either caller because there are two decks in this app —
-// the shuttle on the program path (Engine.advanceShuttle) and the loop bin's own
+// the shuttle on the program path (Engine.advanceShuttle) and the delay loop's own
 // transport (signal/tapeloop.ts) — and they are the same mechanism, feeding the
 // same `shuttleNull` in gpu/prelude.ts. The constants were written twice and
 // stayed byte-identical by luck rather than by construction. Same reason

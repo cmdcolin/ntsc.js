@@ -56,7 +56,7 @@ These read like naked periodic waves but are physically correct — don't
   track bleeds through as a _low-frequency-only_ ghost — a soft, colourless
   second picture that swims when tracking is off. Distinct from the multipath
   ghost, which is sharp and full-bandwidth.
-- **Crease / edge damage on the main deck.** The loop bin's `tapeWear` seeds
+- **Crease / edge damage on the main deck.** The delay loop's `tapeWear` seeds
   defects on _position on the tape_ so they recur every lap; the same idea on
   the main deck still wants doing — it has no tape-position coordinate to hang a
   defect off, which is exactly what the ring gave the loop.
@@ -548,7 +548,7 @@ does not work":
   real cost to weigh against a gate that is arguably the most performable thing
   in the bay.
 
-## Loop bin follow-ons (after the tape-delay pass)
+## Delay loop follow-ons (after the tape-delay pass)
 
 The loop shipped with the play head's own damage model — band loss, medium
 noise, wear, splice — rather than routing the return through the real `channel`

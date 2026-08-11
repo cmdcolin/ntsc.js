@@ -614,7 +614,7 @@ Two of the five predictions in it were wrong, and both in the same direction.
 And one thing it was right about without saying why. **The picture resolves
 after the board does.** The fault is handed back inside the frame it ran — the
 resting board is untouched, which is the invariant the whole design rests on —
-but the phosphor is still holding the band, the loop bin has recorded the broken
+but the phosphor is still holding the band, the delay loop has recorded the broken
 frames, and the PLL is still walking its lock back. So a transition ends as a
 receiver recovering rather than as an effect switching off, which is the half of
 "a fault that resolves" that no recipe writes down and no NLE can composite.

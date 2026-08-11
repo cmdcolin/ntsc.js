@@ -1,4 +1,4 @@
-// Record head of the loop bin. Whatever the mixer is putting out gets laid onto
+// Record head of the delay loop. Whatever the mixer is putting out gets laid onto
 // the tape as it passes, and one frame later that stretch of tape is somewhere
 // further round the loop on its way to the play head.
 //

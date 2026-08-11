@@ -378,7 +378,7 @@ const SAG_BASE = ${LINES + 8}u; // deflection sag region of the timing buffer
 const VSYNC_FIRST = ${VSYNC_FIRST}u;
 const VSYNC_LAST = ${VSYNC_LAST}u;
 const HEAD_SWITCH_LINE = ${HEAD_SWITCH_LINE}u;
-const TAPE_LEN = ${TAPE_FRAMES * SAMPLES_PER_LINE * LINES}u; // loop bin capacity, samples
+const TAPE_LEN = ${TAPE_FRAMES * SAMPLES_PER_LINE * LINES}u; // delay loop capacity, samples
 const IRE_SYNC = ${IRE_SYNC}.0;
 const IRE_BLANK = ${IRE_BLANK}.0;
 const IRE_BLACK = ${IRE_BLACK};
@@ -631,7 +631,7 @@ fn dropoutNull(v: f32, amt: f32, seed: u32) -> f32 {
 // Off play speed the spinning head no longer follows a single recorded track:
 // each sweep crosses |speed - 1| of them and the RF envelope nulls at every
 // crossing, so that many noise bars sweep the frame. One definition for the
-// deck (channel) and the loop bin (tape_play) — it is the same drum losing the
+// deck (channel) and the delay loop (tape_play) — it is the same drum losing the
 // same signal, and the two reading differently would say it was not.
 fn shuttleNull(v: f32, row: u32, bars: f32, phase: f32, seed: u32) -> f32 {
   if (bars == 0.0) {
