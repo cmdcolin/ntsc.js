@@ -669,7 +669,19 @@ while the session they are supposed to depart *from* waited for the cut.
 So the rule is one sentence — **a transition row does at the cut exactly what a
 plain row does when it fires** — and the type carries it: the `fault` effect
 holds the step (`atCut`), the sink's `fault` verb takes a callback rather than a
-session, and `useEngine.faultTo` is the shelf lookup and nothing else. The two
+session, and `useEngine.faultTo` is the shelf lookup and nothing else.
+
+**And a pending cut goes stale.** The other half of "the step lands half a
+second later" is that half a second is long enough for the answer to change: a
+hand firing a row mid-transition watched it arrive and then be replaced by the
+row it had just cut away from, and pressing stop stopped the walk and the music
+and then changed the source anyway. So the runner numbers its steps and the cut
+checks its number before running — on the sink, so the offline walk inherits it
+rather than needing its own copy. **The fault itself is not cancelled**, and
+that distinction is the whole of it: a fault is a picture effect and should heal
+rather than vanish (the board is handed back by the frame that ran, so stopping
+one mid-flight is a jump), while the cut is a decision, and only decisions go
+out of date. The two
 things worth keeping from how it was found: the assertion that should have
 caught it pinned `['fault', 'roll']`, which was the right *order* in a list
 whose order had stopped meaning time; and the browser harness re-implemented

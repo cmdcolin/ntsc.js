@@ -456,6 +456,67 @@ describe('makeStripRunner', () => {
     )
   })
 
+  // A pending cut is a decision taken half a second before it happens, so
+  // anything that moves the walk in between makes it stale. Firing a row by
+  // hand mid-transition used to show that row and then, half a second later,
+  // replace it with the one it had just cut away from.
+  it('drops a pending cut when another row lands before it', () => {
+    const h = harness([
+      row({
+        id: 'a',
+        session: 'set=vSize:0.2',
+        arrive: { seconds: 0, transition: 'collapse' },
+      }),
+      row({ id: 'b', session: 'set=vSize:0.9' }),
+    ])
+    h.runner.start()
+    const stale = h.faultTo.mock.calls[0][1]
+    h.runner.fireRow(1)
+    expect(h.showSession).toHaveBeenCalledTimes(1)
+    expect(h.showSession.mock.calls[0][0].controls.vSize).toBe(0.9)
+    stale()
+    expect(h.showSession).toHaveBeenCalledTimes(1)
+  })
+
+  // The transport is the one way a walk ends without a step replacing it, so it
+  // is the one place that has to say so out loud. Stop that stopped the walk and
+  // the music and then cut anyway was the plainest version of this.
+  it('drops a pending cut when the transport stops', () => {
+    const h = harness([row({ arrive: { seconds: 0, transition: 'collapse' } })])
+    h.runner.start()
+    const stale = h.faultTo.mock.calls[0][1]
+    h.runner.stop()
+    stale()
+    expect(h.showSession).not.toHaveBeenCalled()
+  })
+
+  // Two transitions overlapping: the newer one is the one that means something.
+  // The engine replaces the plan itself, so the old cut usually never fires at
+  // all — this is the walk saying the same thing, for the case where it does.
+  it('keeps only the newest pending cut when transitions overlap', () => {
+    const h = harness([
+      row({
+        id: 'a',
+        session: 'set=vSize:0.2',
+        arrive: { seconds: 0, transition: 'collapse' },
+      }),
+      row({
+        id: 'b',
+        session: 'set=vSize:0.9',
+        arrive: { seconds: 0, transition: 'roll' },
+      }),
+    ])
+    h.runner.start()
+    const stale = h.faultTo.mock.calls[0][1]
+    h.runner.fireRow(1)
+    const fresh = h.faultTo.mock.calls[1][1]
+    stale()
+    expect(h.showSession).not.toHaveBeenCalled()
+    fresh()
+    expect(h.showSession).toHaveBeenCalledTimes(1)
+    expect(h.showSession.mock.calls[0][0].controls.vSize).toBe(0.9)
+  })
+
   // The other half of the same fault, and the one preroll was built for. A slot
   // parks one element, so a lookahead spent while this row's own session was
   // still waiting retired the very clip the cut was about to promote — every

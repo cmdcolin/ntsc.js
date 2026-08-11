@@ -208,12 +208,47 @@ export function makeStripRunner(): StripRunner {
     fps: FPS,
   })
 
-  // The sink: three closures, and the whole of what a walk can ask a browser
+  // Which step's cut is still worth landing.
+  //
+  // A transition row's step is a *decision taken half a second before it
+  // happens* — the engine holds it until the frame the picture is least legible
+  // — and anything that moves the walk in between makes it stale. Without this,
+  // a hand firing a plain row mid-transition watched its row arrive and then be
+  // replaced, half a second later, by the row it had just cut away from; and
+  // pressing stop stopped the walk and the music and then changed the source
+  // anyway.
+  //
+  // **The fault is not cancelled, only its cut.** A fault is a picture effect
+  // and should heal rather than vanish — the board is handed back by the frame
+  // that ran, so stopping one mid-flight is a jump. What goes stale is the
+  // decision it was carrying, which is a different thing from the damage.
+  //
+  // On the sink rather than on the live driver, so the offline walk gets the
+  // same rule for free: both walks reach the browser through here, and the
+  // engine is where the pending cut actually waits.
+  let epoch = 0
+  const supersede = () => {
+    epoch += 1
+  }
+
+  // The sink: five closures, and the whole of what a walk can ask a browser
   // for. Reads `deps` at call time rather than closing over it, since the
   // engine handed in is a different object after a device-loss rebuild.
   const sink: StripSink = {
-    session: (params, seconds) => deps?.showSession(params, seconds),
-    fault: (transition, onCut) => deps?.faultTo(transition, onCut),
+    session: (params, seconds) => {
+      // A session landing is a new step being up, which is exactly what makes
+      // an older pending cut stale. Harmless inside a cut of its own: the
+      // guard below has already been passed by then.
+      supersede()
+      deps?.showSession(params, seconds)
+    },
+    fault: (transition, onCut) => {
+      supersede()
+      const mine = epoch
+      deps?.faultTo(transition, () => {
+        if (mine === epoch) onCut()
+      })
+    },
     roll: (origin, rand) => deps?.rollOn(origin, rand),
     // `at` rather than `start`, which is the walk's own verb imported above.
     preroll: (url, at) => deps?.prerollOn(url, at),
@@ -284,6 +319,12 @@ export function makeStripRunner(): StripRunner {
     stop: () => {
       walk = STOPPED
       deps?.track.pause()
+      // The transport is the one way a walk ends without a step replacing it,
+      // so it is the one place that has to say so out loud: a transition still
+      // healing when stop is pressed keeps healing, and the source swap it was
+      // holding does not land. Stop that stopped the walk and the music and
+      // then cut anyway was the plainest version of this bug.
+      supersede()
       emit(walkFns)
     },
     // A hand on a row. Fires whether or not the walk is running, which is what
