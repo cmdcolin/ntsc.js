@@ -1380,7 +1380,18 @@ export function App() {
                   // landing on the board it was captured from, so the look's
                   // name would be a lie on it. `derivedLabel` says "shake ·
                   // normal", which is what it does.
-                  name: jitter === undefined ? lookLabel : '',
+                  //
+                  // A row carrying a clip is left unnamed too, and for the
+                  // reason the name field already gives about staleness: what
+                  // identifies it is the picture, `derivedLabel` reads that off
+                  // the clip, and a name frozen at capture would go on claiming
+                  // a clip the shelf has since renamed. The look's name is the
+                  // right answer only for the rundown of look changes over one
+                  // source that this used to be the only kind of.
+                  name:
+                    jitter !== undefined || eng.deckClipA !== null
+                      ? ''
+                      : lookLabel,
                 })
               }
               track={{
@@ -1528,6 +1539,22 @@ export function App() {
           onAdopt={clips.adopt}
           onRescan={clips.rescan}
           onPlay={clips.play}
+          // Into the rundown rather than onto a deck. The look it lands with is
+          // whatever is on the board now, the same snapshot `+ row` takes —
+          // building a rundown of clips is picking the look once and then
+          // choosing the pictures, and a row that arrived with a stock board
+          // would throw that away.
+          //
+          // Left off in fullscreen, where the tray is not drawn: a ＋ that
+          // silently appends to a list nobody can see is worse than no ＋.
+          onAddRow={
+            fullscreen
+              ? undefined
+              : clip =>
+                  strip.addRow(profileQuery(), {
+                    clip: { id: clip.id, name: clip.name },
+                  })
+          }
           onForgetClip={clips.forgetClip}
           onForgetFolder={clips.forgetFolder}
           onClose={eng.prompt.dismiss}

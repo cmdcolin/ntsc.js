@@ -56,6 +56,9 @@ function ClipRow(props: {
   slot: StashSlot
   onPlay: (clip: Clip, slot: StashSlot) => void
   onForget: (clip: Clip) => void
+  // Append this clip to the rundown. Undefined when there is no strip to append
+  // to — a fullscreen session, where the tray is deliberately not drawn.
+  onAddRow: ((clip: Clip) => void) | undefined
 }) {
   const { clip, slot } = props
   // Undefined is "not resolved yet", which reads as ready: the shelf opens
@@ -87,6 +90,28 @@ function ClipRow(props: {
         onPlay={to => props.onPlay(clip, to)}
         className={styles.rowBtn}
       />
+      {/* Into the rundown, rather than onto a deck.
+
+          **A button and not a drag**, which is a substitution worth naming: the
+          shelf is a modal dialog, so there is nothing to drag *to* — the tray is
+          behind it and covered. A drag would also be the one way to reach this,
+          which is the rule docs/EDITOR.md › _Interaction_ sets against: a drag
+          is unreachable on a touchscreen and this app routes its verbs through
+          things you can press.
+
+          It is the better gesture here anyway. Building a rundown of eight
+          clips means opening the shelf once and pressing this eight times,
+          where a drag would mean opening and closing it eight times. */}
+      {props.onAddRow === undefined ? null : (
+        <button
+          className={styles.rowBtn}
+          title={`add ${clip.name} to the rundown as a new row`}
+          aria-label={`add ${clip.name} to the rundown`}
+          onClick={() => props.onAddRow?.(clip)}
+        >
+          ＋
+        </button>
+      )}
       {/* The credit, for the half of the shelf that is somebody else's work.
           Same link the caption carries while it is playing, kept on the row so a
           clip you kept months ago can still be traced to its licence. */}
@@ -167,6 +192,9 @@ export function ClipLibraryDialog(props: {
   lib: Library
   access: LibraryAccess
   note: string
+  // Append a clip to the rundown — see `ClipRow` for why this is a button and
+  // not a drag. Undefined where there is no rundown on screen to append to.
+  onAddRow?: (clip: Clip) => void
   // Whether this browser can hold a file open across a reload. It decides one
   // sentence at the foot and nothing else: both halves of the UI work either
   // way, they just cost a different number of clicks next session.
@@ -274,6 +302,7 @@ export function ClipLibraryDialog(props: {
                   state={props.access.clips.get(clip.id)?.state}
                   slot={props.slot}
                   onPlay={props.onPlay}
+                  onAddRow={props.onAddRow}
                   onForget={props.onForgetClip}
                 />
               ))}
