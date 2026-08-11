@@ -270,6 +270,12 @@ The hard cut in a looping clip's audio is filed in [`IDEAS.md`](IDEAS.md) ›
 _Clip cues_ as "a real limit rather than a choice", because a `<video>` has one
 read head — a preroll element is the second one.
 
+**That turned out to be right about the mechanism and wrong about the field.** A
+loop's second head shipped as its own element rather than as a use of the
+preroll, and IDEAS.md › _Landed: the second read head_ says why: a preroll is
+speculative and can cost a whole download, while a head is the same url as the
+clip on air, so the ceiling this section argues for is not one the two share.
+
 #### Landed
 
 `videoSlot.ts` holds two elements, `strip.ts` looks one row ahead, and the two
@@ -301,10 +307,10 @@ Four things worth knowing about how it landed.
   element would destroy it a line before the cut it was loaded for. What bounds
   it is the one-field rule above rather than that call.
 
-Of the two things filed as waiting on this, **transitions between rows** landed
-next and is written up below. **The audio crossfade** is still open, and the
-second read head it needed now exists — which is the whole of what IDEAS.md ›
-_Clip cues_ said was missing.
+Both things filed as waiting on this have landed: **transitions between rows** is
+written up below, and **the audio crossfade** is IDEAS.md › _Landed: the second
+read head_ — which took the mechanism from here and not the field, for the reason
+above.
 
 ### Seeding: the decision that is expensive later
 
@@ -763,13 +769,13 @@ useless, and the common case. **Undo on the rundown**, its own walk over
 you spent five minutes dialling in was otherwise gone for good. **Duplicate**,
 which is the cheapest thing an editor gives you and was three lines.
 
-**Out, and in this order afterwards** — the first two are in, in that order:
+**Out, and in this order afterwards** — the first three are in, in that order:
 ~~preroll depth 1~~, where `videoSlot.ts`'s one-element-per-slot assumption was
 the change; ~~then transitions between rows~~, which needed it, because a fault
-that hides a cut needs both clips live; then the audio crossfade the second
-element makes possible (IDEAS.md › _Clip cues_ files that as a real limit, and
-this is what lifts it); then takes, which want the export to exist before they
-are worth recording.
+that hides a cut needs both clips live; ~~then the audio crossfade~~, which took
+the second element's mechanism and a field of its own (IDEAS.md › _Landed: the
+second read head_); then takes, which want the export to exist before they are
+worth recording.
 
 The transition shelf is deliberately not in either list, because it does not
 belong to the strip. A and B are both live today, so the first faults run off
@@ -1083,8 +1089,9 @@ arrives.
 5. ~~**The live strip.**~~ **Landed to the line _The first slice_ drew**: rows,
    names, holds, the walk, drag-to-reorder, undo, duplicate, roll and shake
    rows, one transport with the music, and the seeded RNG in from the first
-   commit. Preroll is the part still out, and everything filed under it below
-   still waits on it.
+   commit. Everything that was filed as waiting on preroll has since landed on
+   top of it — transitions between rows, and the loop's second read head — so
+   what is left of this step is takes, which want the export first.
 6. **Frame-exact video pull.** The real project, and the one with the Firefox
    constraint sitting on it.
 7. **Automation recording.** Control writes with frame stamps, replayed offline;
@@ -1113,31 +1120,34 @@ list above in two places.
    _One walk, two clocks_ now records, and ⎙ renders the rundown rather than
    just the board. It stops the live walk rather than running beside it, which
    is what the note here said to do.
-4. ~~**Preroll depth 1**~~, and ~~**transitions between rows**~~ on top of it.
-   **Both landed** — _Landed_ under _Performance: the boundary is the only
-   cost_, and _Landed: between rows_ under _Transitions_. What is left of the
-   three things filed under preroll is **the audio crossfade** (IDEAS.md ›
-   _Clip cues_): the second read head exists now, and nothing uses it.
+4. ~~**Preroll depth 1**~~, ~~**transitions between rows**~~ on top of it, and
+   ~~**the audio crossfade**~~. **All three landed** — _Landed_ under
+   _Performance: the boundary is the only cost_, _Landed: between rows_ under
+   _Transitions_, and IDEAS.md › _Clip cues_ › _Landed: the second read head_.
+   That empties this step.
 
-   Worth more than its place in this list implies, and IDEAS.md now carries the
-   reason: the wrap is not the click it was filed as. `loopHealth().medianMs`
-   reports **199–524 ms** between issuing a wrap's seek and its `seeked`, and a
-   seeking element is not playing — so a looping clip drops its sound for up to
-   half a second every lap. The two-element fix costs no sync, because
-   `playUrl` promotes picture and sound together rather than blending one
-   against the other. What it does cost is an answer to the contention over the
-   one `next` field per slot, which a looping clip and a rundown's lookahead
-   both want.
+   Two things from the last of them are worth having here rather than only
+   there, because both are about how this document was wrong rather than about
+   the loop.
 
-   **And it has now been heard rather than inferred**, which is what IDEAS.md
-   said to do before paying that price. `scripts/wrapsound.mjs` puts an
-   AudioWorklet on the app's own analyser and reports **the silence and the
-   seek agreeing to within about 15 ms across three orders of magnitude** — so
-   the dropout is exactly the seek, there is nothing to fix in the audio graph,
-   and the cue row's existing `wrap 0.15s` readout has been showing
-   milliseconds of silence all along. The measurement earns the feature and
-   bounds it: a well-encoded clip really is a click, a sparse one is silent for
-   a fifth of every lap, and the difference is the file rather than the loop.
+   **The contention it named as a policy decision was not one.** This step used
+   to say the fix "costs an answer to the contention over the one `next` field
+   per slot, which a looping clip and a rundown's lookahead both want", and that
+   the answer was the reason it was not a small job. It dissolved on contact: the
+   bound depth 1 protects is *files*, and a loop's head is the same url as the
+   element on air — a decoder and no bytes — so the two want different budgets
+   and get separate fields. The expensive-looking part of a feature is worth
+   re-deriving before it is paid for.
+
+   **And measuring first paid for itself twice.** Once before, because
+   `scripts/wrapsound.mjs` heard the dropout rather than inferring it and found
+   the silence *is* the seek — nothing to fix in the audio graph, and the cue
+   row's `wrap 0.15s` had been a readout of the sound all along. Once after,
+   because the first cut of the fix made the worst case worse — two elements
+   seeking one expensive file against each other, 1028 ms of dropout on half the
+   laps where seeking alone cost 213 ms on all of them — and it had a *better*
+   median while doing it. Nothing short of listening would have caught that, and
+   the shipped version gives the head back rather than keeping it.
 5. **Frame-exact video pull**, then **automation recording**, as before. The
    first is now the only thing between a take and reproducing with a clip in
    it: everything below the video is deterministic, and the video is not. It

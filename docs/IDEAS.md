@@ -616,11 +616,11 @@ clamp is `VideoPump.wrap`. Three things around it are deliberately not done.
   it was not buildable from what was measured here, and a readout the user can
   re-mark against turned out to be more useful than a label anyway.
 
-A last one is a real limit rather than a choice: the wrap is a hard cut in the
-clip's audio when playback audio is on. Nothing short of a crossfade fixes it,
-and a crossfade needs two read heads on one element, which a `<video>` does not
-have. [`EDITOR.md`](EDITOR.md) › _Performance_ is where that stops being a
-limit: the strip's preroll element is the second read head.
+A last one used to be a real limit rather than a choice: the wrap is a hard cut
+in the clip's audio when playback audio is on. Nothing short of a crossfade fixes
+it, and a crossfade needs two read heads on one element, which a `<video>` does
+not have. **That one is now built** — `armHead` / `promoteHead` in
+`ui/videoSlot.ts`, and the write-up is at the end of this section.
 
 **This used to say "audible as a click", and that undersold it by two orders of
 magnitude.** The app's own readout is the evidence, and it was shipping the
@@ -705,6 +705,62 @@ fixtures are generated rather than pointed at `public/`. And the run steps the
 engine from Node rather than riding rAF, because the region clamp lives in
 `VideoPump.pump()`: on an occluded window the loop wraps once a second and the
 harness would be measuring the window manager.
+
+### Landed: the second read head
+
+`armHead` / `promoteHead` in `ui/videoSlot.ts`, and a `Relay` the pump asks at
+the wrap. Same harness, `?loophead=0` against the shipped path, both arms of each
+clip minutes apart on one quiet machine:
+
+    arm            wraps   seek     silence   quiet   free
+    intra:seek        13    7 ms      11 ms      1%     0%
+    intra:head        11     --       11 ms      0%    73%
+    dense:seek        13   14 ms      21 ms      2%     0%
+    dense:head        13     --       11 ms      0%    85%
+    sparse:seek       10  237 ms     245 ms     18%     0%
+    sparse:head       13     --       11 ms      0%    85%
+
+**A sparse clip goes from a fifth of the run silent to none of it.** 85% of wraps
+make no sound at all; the rest are 11 ms, which is the instrument's floor rather
+than a reading. `seek --` is the app recording fewer than two seeks in a
+fourteen-second run — the head essentially never gave up on a one-second lap.
+
+Four things are worth keeping from building it, and the first two were not in
+the design above.
+
+- **The two elements do not contend for the preroll slot, because the bound that
+  rule protects is _files_.** This section filed the contention as a policy
+  decision and it dissolved instead: a preroll is speculative and names a
+  different clip, so it can cost a whole download; a loop's head is the same url
+  as the element on air, which for a `blob:` is the same object and otherwise a
+  cache hit. Sharing one field would have made a rundown's lookahead and a marked
+  loop take turns breaking each other, to protect a budget only one of them
+  spends.
+- **The first cut made the sparse case worse, and only the measurement said so.**
+  Where the outgoing head cannot re-park within one lap, both elements seek the
+  same expensive file at once: 1028 ms of dropout on half the laps in place of
+  213 ms on all of them — a better median, a worse sound, and a shape that reads
+  as fine if you look at the wrong number. So the re-park is timed against its
+  own lap and an overrun retires the head for the life of the cue. There is no
+  minimum-lap constant, because whether a head can keep up is a question about
+  the clip and the loop together that the first lap answers and no threshold
+  written here could.
+- **The promotion deliberately does not go through `setVideoSource`.** That is a
+  source change, and `retarget` clears the region on purpose — a loop routed
+  through it ends at its first lap. The pump asks for an element and installs it
+  itself (`continueOn`), so it never has to learn what a read head is, which is
+  the same seam `faultPlan` uses to avoid learning what a rundown is.
+- **The wrap-cost readout became the threshold two attempts could not build.** A
+  loop with a working head does not seek, so `wrapCostMs` reports nothing; when
+  the head gives up, the number comes back. It now appears exactly when looping
+  this clip here is costing something — by mechanism rather than by a cutoff
+  someone had to pick, and nothing was calibrated to make it true.
+
+Still open, and genuinely small now: the **de-click envelope** at the top of this
+section. 11 ms is one frame, which is a click rather than a dropout, and fading
+the gain across the join is the standard fix for exactly that. It was worth
+almost nothing against a half-second hole; against what is left it is the whole
+of the remainder.
 
 ## In flight — preset screening, round 2
 
