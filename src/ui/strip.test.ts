@@ -37,6 +37,7 @@ import {
   transitionLabel,
   walking,
 } from './strip'
+import { TRANSITION_NAMES, transitionOf } from './transitions'
 
 import type { Clock, Effect, Hold, Row, Strip, Walk } from './strip'
 
@@ -271,9 +272,20 @@ describe('the transition ring', () => {
     expect(cycleTransition('dissolve' as never)).toBeNull()
   })
 
-  it('reads as an arrow when there is no transition, and as the shelf’s own word when there is', () => {
+  // One character either way, which is what keeps the chip from resizing as the
+  // ring steps under the pointer — and what keeps the ✕ inside a 190px card.
+  it('reads as an arrow when there is no transition, and as the shelf’s glyph when there is', () => {
     expect(transitionLabel(null)).toBe('↷')
-    expect(transitionLabel('collapse')).toBe('collapse')
+    expect(transitionLabel('collapse')).toBe(transitionOf('collapse')?.glyph)
+    for (const name of TRANSITION_NAMES) {
+      expect(Array.from(transitionLabel(name)), name).toHaveLength(1)
+    }
+  })
+
+  // A name off a shelf this build does not have draws as the plain cut rather
+  // than as the raw string, which would be both wrong and eight chips wide.
+  it('draws an unknown name as the plain cut', () => {
+    expect(transitionLabel('dissolve' as never)).toBe('↷')
   })
 
   it('steps one row only, and leaves the look’s arrival alone', () => {

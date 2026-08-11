@@ -34,6 +34,19 @@ export interface Transition {
   name: TransitionName
   // What the button says. Lowercase, like every other deck button.
   label: string
+  // What a *row card* says, where there is no room for the word.
+  //
+  // The deck has a button's width and uses `label`; a strip row has five other
+  // chips beside it in 190px, and the words are long enough that "collapse"
+  // pushed the ✕ off the end of the card, where `overflow: hidden` made it
+  // unclickable. Measured at 203px of feet in a 190px card, and the card's own
+  // `.field` rule already states the rule that broke: a control must not resize
+  // under the pointer that is clicking it.
+  //
+  // So the card falls back on the idiom it already has — `.kind` draws a row's
+  // filling as one glyph with the words in the `title` — and this is that glyph.
+  // One character each, so stepping the ring cannot move the chips beside it.
+  glyph: string
   // What it does, in the words the mechanism's own slider uses — this is a
   // title attribute, and the point of it is that somebody who has met the
   // control recognises it.
@@ -67,6 +80,8 @@ export const TRANSITIONS: readonly Transition[] = [
   {
     name: 'tracking',
     label: 'track',
+    // The band of noise, as the waveform the mechanism is.
+    glyph: '∿',
     title:
       'the head comes off track — a band of noise sweeps up the picture, the clip changes under it, and the band retreats',
     // The band travels as the fault deepens and retreats as it heals, because
@@ -82,6 +97,8 @@ export const TRANSITIONS: readonly Transition[] = [
   {
     name: 'roll',
     label: 'roll',
+    // The picture travelling up the screen and round again.
+    glyph: '↕',
     title:
       'the receiver loses its hold — the picture tears and rolls, the cut lands mid-roll, and the sync separator re-hunts onto the new source',
     // Three keys, and the third is the one this needed: `vHold` at 0 hands the
@@ -108,6 +125,8 @@ export const TRANSITIONS: readonly Transition[] = [
   {
     name: 'collapse',
     label: 'collapse',
+    // The raster folded down to the one line a dying tube leaves.
+    glyph: '▬',
     title:
       'the CRT power-cycle — the raster folds toward a line, the clip changes inside it, and the scan opens back out',
     // The one everybody recognises, and the reason it needs both keys: `vSize`
@@ -123,6 +142,8 @@ export const TRANSITIONS: readonly Transition[] = [
   {
     name: 'shuttle',
     label: 'shuttle',
+    // The transport running away, as the bars it sweeps through the frame.
+    glyph: '≫',
     title:
       'the transport runs away — head-crossing bars sweep the frame, and the new clip is between them',
     peak: { shuttleX: 8 },
@@ -132,6 +153,8 @@ export const TRANSITIONS: readonly Transition[] = [
   {
     name: 'dub',
     label: 'dub',
+    // Wear, as the only glyph on the shelf that is made of noise.
+    glyph: '▩',
     title:
       'a copy of a copy — generations pile up, the new clip arrives already worn, and it cleans up',
     // **Generations compound damage; they do not invent it.** `dubGens` alone

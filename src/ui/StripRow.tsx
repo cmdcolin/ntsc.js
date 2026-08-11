@@ -53,6 +53,13 @@ export function StripRow(props: {
 }) {
   const api = useStripApi()
   const { row } = props
+  // Undefined for a plain cut, and for a name off a shelf this build does not
+  // have — which the chip draws the same way, since both mean "nothing off the
+  // shelf is armed here".
+  const transition =
+    row.arrive.transition === null
+      ? undefined
+      : transitionOf(row.arrive.transition)
   // Whether this card is being renamed. Local to the card and not in the strip:
   // it is a state of the *pointer*, not of the rundown, so it must not be
   // persisted and must not survive the row being dragged elsewhere.
@@ -158,19 +165,24 @@ export function StripRow(props: {
         >
           {MORPH_LABELS[row.arrive.seconds]}
         </button>
+        {/* One glyph, not the shelf's word: six controls share 190px and
+            "collapse" pushed the ✕ out past the card's `overflow: hidden`. The
+            name it stands for is in the title, which is the arrangement the
+            `.kind` glyph above already uses. */}
         <button
           className={cx(
             ui.bare,
             styles.chip,
             styles.arrive,
+            styles.tchip,
             row.arrive.transition !== null && styles.chipOn,
           )}
           data-act="transition"
           onClick={() => api.cycleTransition(props.index)}
           title={
-            row.arrive.transition === null
+            transition === undefined
               ? 'this row cuts straight in — click for a transition off the shelf'
-              : `${transitionOf(row.arrive.transition)?.title ?? ''} — click to step`
+              : `${transition.label} — ${transition.title}`
           }
         >
           {transitionLabel(row.arrive.transition)}

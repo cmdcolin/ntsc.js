@@ -640,6 +640,22 @@ whole step arriving thirty frames after the row did.
   pairing this section asks for, so neither is a mode of the other. `null` is
   the plain cut and the head of the ring: it is the ordinary arrival, and the
   one a hand steps back to when a fault is too much for the moment.
+- **The chip draws a glyph, and had to.** The shelf's words are a deck button's
+  width; a row card is 190px holding six controls, and "collapse" pushed the ✕
+  out past the card's `overflow: hidden`, where it was invisible, unclickable,
+  and the only way to remove a row. Measured at 203px of feet in a 190px card,
+  on a perfectly ordinary row. So each shelf entry carries a one-character
+  `glyph` for the card and keeps its `label` for the deck, which is the
+  arrangement the `.kind` chip beside it already uses — one character, words in
+  the title. One character *each* is the other half: a chip that resized as the
+  ring stepped moved the ✎ and the ⧉ under the pointer that was stepping it,
+  which is the rule the card's own rename field already states.
+
+  Worth keeping, because it is about the harness and not the feature: naming
+  the controls `data-act` made `traycheck.mjs` robust to layout edits and, in
+  the same stroke, blind to this. `element.click()` does no hit-testing, so it
+  reaches a button a hand cannot. The tray harness now *measures* one thing
+  rather than clicking it — that every control on a card is inside the card.
 - **Preroll is what makes it land.** The row before loaded the clip and parked
   it, so the cut promotes an element rather than starting a load — the swap is a
   swap, which is what "a transition needs both clips live at once" meant.

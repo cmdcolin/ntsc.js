@@ -70,6 +70,25 @@ describe('the shelf', () => {
     expect(transitionOf('roll')?.label).toBe('roll')
     expect(transitionOf('wipe')).toBeUndefined()
   })
+
+  // A strip row draws the glyph rather than the word, because six controls
+  // share 190px and the words pushed the ✕ off the card. Two properties make
+  // that safe, and both are what the entry has to promise: one character, so
+  // the chip cannot resize as the ring steps under a stationary pointer, and a
+  // distinct one, so the chip says *which* fault is armed rather than only
+  // that one is.
+  it('gives every entry one distinct character for the row card', () => {
+    for (const t of TRANSITIONS) {
+      expect(Array.from(t.glyph), t.name).toHaveLength(1)
+    }
+    expect(new Set(TRANSITIONS.map(t => t.glyph)).size).toBe(TRANSITIONS.length)
+  })
+
+  // The plain cut's own glyph is the arrow `transitionLabel` falls back on, and
+  // an entry wearing it would make "armed" and "not armed" the same card.
+  it('and none of them is the plain cut’s arrow', () => {
+    expect(TRANSITIONS.map(t => t.glyph)).not.toContain('↷')
+  })
 })
 
 describe('faultPlan', () => {

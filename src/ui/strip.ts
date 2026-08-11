@@ -705,12 +705,21 @@ export const stepTransition = (strip: Strip, index: number): Strip => {
       })
 }
 
-// What the transition chip says. The plain cut draws as the arrow the chip is
-// about rather than as the word "cut", which the arrival chip beside it already
-// uses for a look that does not glide — two chips reading "cut" and meaning
-// different things is the one confusion this row cannot afford.
+// What the transition chip says: one glyph, whichever way the ring is set.
+//
+// The plain cut draws as the arrow the chip is about rather than as the word
+// "cut", which the arrival chip beside it already uses for a look that does not
+// glide — two chips reading "cut" and meaning different things is the one
+// confusion this row cannot afford. And an armed one draws as the shelf's
+// `glyph` rather than its `label`, for the reason that field exists: the words
+// are a deck button's width and the card has 190px holding six controls, so
+// "collapse" pushed the ✕ out past `overflow: hidden` and made it unclickable.
+//
+// One character either way is the other half of it. A chip that changed width
+// as it stepped moved the ✎ and the ⧉ under the pointer that was stepping it,
+// which is the rule the card's own `.field` states and this broke.
 export const transitionLabel = (at: TransitionName | null): string =>
-  at === null ? '↷' : (transitionOf(at)?.label ?? at)
+  at === null ? '↷' : (transitionOf(at)?.glyph ?? '↷')
 
 // --- the codec --------------------------------------------------------------
 

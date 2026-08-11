@@ -251,8 +251,32 @@ await wait(300)
 rows = await cards()
 check(
   'the transition chip arms a row off the shelf',
-  rows[0].transition === 'track',
+  rows[0].transition === '∿',
   rows[0].transition,
+)
+// The one thing on this page that has to be measured rather than clicked.
+//
+// `element.click()` reaches a button whether or not a hand could — it does no
+// hit-testing — so a control clipped out of the card by `overflow: hidden`
+// goes on passing every other check here. This chip used to draw the shelf's
+// *word*, and "collapse" beside a "≈16 bars" hold pushed the ✕ 8 to 21px past
+// the card's right edge, where it was invisible and unclickable and the only
+// way to remove a row.
+const outside = await page.evaluate(() =>
+  [...document.querySelectorAll('[data-index]')].flatMap(card => {
+    const box = card.getBoundingClientRect()
+    return [...card.querySelectorAll('button')]
+      .filter(b => {
+        const r = b.getBoundingClientRect()
+        return r.right > box.right + 0.5 || r.left < box.left - 0.5
+      })
+      .map(b => `row ${card.dataset.index}'s ${b.dataset.act ?? 'face'}`)
+  }),
+)
+check(
+  'and every control on an armed row is still inside its card',
+  outside.length === 0,
+  outside.join(', '),
 )
 check(
   'and does not disturb how the look arrives',
