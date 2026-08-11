@@ -153,17 +153,35 @@ find:
   and wrong for anything on the browser's own clock.** Clicks, React renders and
   chips stepping are the first kind, which is why most sleeps in these scripts
   are fine and short. The second kind is anything waiting on a decoder, a
-  `play()` promise, or a rendered frame — and it is worth calling out that
-  **rAF-clocked app state is in that set**, because an occluded window throttles
-  frames (above) and so a morph, a hold bar or a lock age can simply not have
-  moved yet. `traycheck.mjs` had one of each: the music arm slept 1500ms for a
-  track named only once `el.play()` resolved, and the capture arm slept 350ms
-  into a morph that a stalled rAF chain had not started, so `matchPreset` still
-  answered with the *previous* preset and rows were captured under the wrong
-  name. Both read as broken features. Poll for the answer instead — and hand the
-  last reading back rather than throwing, the way `until` in that file does, so
-  a genuine failure is one failed check with the value in it rather than a
-  `TimeoutError` that abandons the twenty assertions after it.
+  `play()` promise, a live archive, or a rendered frame — and it is worth
+  calling out that **rAF-clocked app state is in that set**, because an occluded
+  window throttles frames (above) and so a morph, a hold bar or a lock age can
+  simply not have moved yet. `traycheck.mjs` had one of each: the music arm
+  slept 1500ms for a track named only once `el.play()` resolved, and the capture
+  arm slept 350ms into a morph that a stalled rAF chain had not started, so
+  `matchPreset` still answered with the *previous* preset and rows were captured
+  under the wrong name. Both read as broken features.
+
+  `scripts/until.mjs` is the answer and `until.test.mjs` covers it without a
+  browser. Two properties are load-bearing. It **hands the last reading back
+  rather than throwing**, where `waitForFunction` rejects — so a genuine failure
+  is one failed check with the value in it, not a `TimeoutError` that abandons
+  the twenty assertions after it. And **`appUp(page, ms)` polls through
+  `page.evaluate`**, which is the realm the harness will actually use: the first
+  trap in this list is `waitForFunction` passing on a realm whose `evaluate`
+  still cannot see `window.vf`. Give it the budget the sleep it replaces had,
+  and a slow boot is no worse off than before.
+
+  Boot was the widespread instance — thirteen harnesses slept 3.5–6s and then
+  used `window.vf`, three of them through `window.vf?.step()`, which turns a
+  boot that had not finished into a canvas that was never rendered and a check
+  that reports the *pixels* as wrong.
+
+  The exceptions are worth knowing: `deviceloss`, `devicetear`, `gpusleep`,
+  `rafceiling` and `soak` keep their sleeps, because there the waiting *is* the
+  measurement — a device that never comes back is the answer, not a timeout. And
+  `iaroll`'s `setTimeout` inside a `seeked` listener is already the right shape:
+  an event or a give-up, whichever lands first.
 - **`element.click()` reaches a button a hand cannot.** It does no hit-testing,
   so a control scrolled or clipped out of its container — `overflow: hidden` on
   a card, say — goes on passing every check that presses it. If a layout can put

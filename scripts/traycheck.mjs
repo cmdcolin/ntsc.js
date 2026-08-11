@@ -32,7 +32,7 @@ import puppeteer from 'puppeteer-core'
 // Waiting for an answer rather than for a duration — `until.mjs` says which of
 // the two a given line wants, and `until.test.mjs` covers the loop itself
 // without a browser.
-import { until } from './until.mjs'
+import { appUp, until } from './until.mjs'
 
 import process from 'node:process'
 
@@ -58,7 +58,7 @@ await page.setViewport({ width: 1352, height: 900 })
 const errors = []
 page.on('pageerror', e => errors.push(String(e).slice(0, 200)))
 await page.goto(url, { waitUntil: 'domcontentloaded' })
-await new Promise(r => setTimeout(r, 6000))
+await appUp(page, 6000)
 
 const wait = ms => new Promise(r => setTimeout(r, ms))
 

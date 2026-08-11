@@ -31,6 +31,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Boot waited for rather than slept through — see until.mjs.
+import { appUp } from './until.mjs'
+
 import process from 'node:process'
 
 const port = process.argv[2] ?? '5199'
@@ -58,7 +61,7 @@ page.on('pageerror', e => errors.push(String(e).slice(0, 200)))
 await page.goto(`http://localhost:${port}/?set=strobeHz:8,strobeMs:40`, {
   waitUntil: 'domcontentloaded',
 })
-await new Promise(r => setTimeout(r, 6000))
+await appUp(page, 6000)
 await page.bringToFront()
 
 // One second of morph, then exactly that many frames stepped in a *synchronous*

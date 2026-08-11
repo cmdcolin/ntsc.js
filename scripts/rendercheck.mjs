@@ -25,6 +25,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Boot waited for rather than slept through — see until.mjs.
+import { appUp } from './until.mjs'
+
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -81,7 +84,7 @@ await page.goto(
     waitUntil: 'domcontentloaded',
   },
 )
-await new Promise(r => setTimeout(r, 6000))
+await appUp(page, 6000)
 await page.bringToFront()
 
 // One render, from a fixed board, returning a digest of the file it produced.

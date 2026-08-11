@@ -25,6 +25,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Boot waited for rather than slept through — see until.mjs.
+import { appUp } from './until.mjs'
+
 import { spawn } from 'node:child_process'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -159,7 +162,7 @@ try {
     // A fresh page per state. Sections remember whether they were open, so
     // reusing one would make each shot depend on the order of the ones before.
     await page.goto(base, { waitUntil: 'load' })
-    await new Promise(r => setTimeout(r, 3500))
+    await appUp(page, 3500)
     // Park the pointer clear of the panel. Headed Firefox puts the real cursor
     // wherever the WM left it, and over a preset chip that swaps the caption
     // for that preset's blurb — one line becoming up to five, under a shot

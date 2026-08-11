@@ -26,6 +26,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Boot waited for rather than slept through — see until.mjs.
+import { appUp } from './until.mjs'
+
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -58,7 +61,7 @@ await page.setViewport({ width: 1352, height: 900 })
 const errors = []
 page.on('pageerror', e => errors.push(String(e).slice(0, 200)))
 await page.goto(`http://localhost:${port}/`, { waitUntil: 'domcontentloaded' })
-await new Promise(r => setTimeout(r, 6000))
+await appUp(page, 6000)
 await page.bringToFront()
 
 // Driven straight at record.ts rather than through the menu: what is being

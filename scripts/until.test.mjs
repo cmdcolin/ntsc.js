@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { until } from './until.mjs'
+import { appUp, until } from './until.mjs'
 
 // The harness helper, tested where it belongs: it is a loop and a deadline, and
 // the browser has nothing to say about either. What sent it here is that the
@@ -69,5 +69,38 @@ describe('until', () => {
       { every: 1 },
     )
     expect(got).toBe(5)
+  })
+})
+
+// The boot wait every harness here shares, which is worth a test of its own
+// because the two ways it can be wrong are both silent: answering `true` off a
+// realm the harness will not use, and answering at all when `evaluate` threw.
+describe('appUp', () => {
+  const fakePage = answers => {
+    let at = 0
+    return {
+      evaluate: () => {
+        const a = answers[Math.min(at++, answers.length - 1)]
+        return a instanceof Error ? Promise.reject(a) : Promise.resolve(a)
+      },
+    }
+  }
+
+  it('answers true once the app is there', async () => {
+    expect(await appUp(fakePage([false, false, true]), 500)).toBe(true)
+  })
+
+  // The window that used to be a five-second sleep: a boot slower than the
+  // budget answers false rather than hanging or throwing, so the harness can
+  // report it as one failed check at the top instead of twelve underneath.
+  it('answers false when the budget runs out, without throwing', async () => {
+    expect(await appUp(fakePage([false]), 20)).toBe(false)
+  })
+
+  // An `evaluate` that rejects — a detached frame, a realm swapped out from
+  // under it — is "not up yet", not a crash: the page may still be arriving.
+  it('treats an evaluate that throws as not up yet', async () => {
+    const page = fakePage([new Error('frame detached'), true])
+    expect(await appUp(page, 500)).toBe(true)
   })
 })

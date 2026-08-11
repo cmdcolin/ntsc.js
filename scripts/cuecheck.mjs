@@ -33,6 +33,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Waiting on the clip's own playhead rather than on a duration — see until.mjs.
+import { until } from './until.mjs'
+
 const PORT = process.argv[2] ?? '5173'
 const IN = 1.0
 const OUT = 1.4
@@ -84,7 +87,19 @@ const arm = async (label, query, during) => {
     await page.bringToFront()
     // Rolling before anything is pressed: a cue is taken from the element's own
     // playhead, so there has to be one.
-    await new Promise(r => setTimeout(r, 3500))
+    //
+    // Waited for rather than slept through. A clip has to be fetched and
+    // decoded before it has a playhead at all, and 3.5s was a guess about a
+    // network — miss it and `times` is empty, every cue below is taken from
+    // nothing, and the run reports a fault in cueing. The frame log filling up
+    // is the app saying the clip is rolling, which is the actual precondition.
+    await until(
+      () => Promise.resolve(times.length),
+      n => n >= 2,
+      {
+        budget: 8000,
+      },
+    )
     const pressedAt = times.length
     if (during !== undefined) await during(page, times)
     // The address-bar mirror is debounced 250ms.
@@ -138,10 +153,29 @@ let stabbed = { before: NaN, after: NaN }
 results.push(
   await armTwice('stab', '?vurl=/test.mp4&debug', async (page, times) => {
     await page.keyboard.press('i')
-    await new Promise(r => setTimeout(r, 2500))
+    // Far enough past the in-point that the jump back is unambiguous — the
+    // check below wants more than half a second of it. Waited for rather than
+    // slept through: a `<video>` advances in wall time but only *reports* where
+    // it got to once per rendered frame, and this window is occluded.
+    const from = times.at(-1) ?? 0
+    await until(
+      () => Promise.resolve(times.at(-1) ?? 0),
+      t => t > from + 1,
+      {
+        budget: 8000,
+      },
+    )
     const before = times.at(-1)
     await page.keyboard.press('o')
-    await new Promise(r => setTimeout(r, 1200))
+    // The playhead going *backwards* is the retrigger, and it is the one
+    // reading that cannot happen any other way while a clip plays forward.
+    await until(
+      () => Promise.resolve(times.at(-1) ?? 0),
+      t => t < before,
+      {
+        budget: 8000,
+      },
+    )
     stabbed = { before, after: times.at(-1) }
   }),
 )

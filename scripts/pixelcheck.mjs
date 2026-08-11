@@ -22,6 +22,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Boot waited for rather than slept through — see until.mjs.
+import { appUp } from './until.mjs'
+
 import { spawn } from 'node:child_process'
 
 const argUrl = process.argv.indexOf('--url')
@@ -76,7 +79,7 @@ async function probes(url) {
   const page = await browser.newPage()
   await page.setViewport({ width: 1100, height: 800 })
   await page.goto(url, { waitUntil: 'networkidle0' })
-  await new Promise(r => setTimeout(r, 5000))
+  await appUp(page, 5000)
   const out = await page.evaluate(async xs => {
     for (let i = 0; i < 120; i++) {
       window.vf?.step()
@@ -124,7 +127,7 @@ async function waveform(url) {
   const page = await browser.newPage()
   await page.setViewport({ width: 1100, height: 800 })
   await page.goto(url, { waitUntil: 'networkidle0' })
-  await new Promise(r => setTimeout(r, 5000))
+  await appUp(page, 5000)
   const out = await page.evaluate(
     async (syncFrac, tip) => {
       for (let i = 0; i < 120; i++) {

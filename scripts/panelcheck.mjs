@@ -37,6 +37,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Boot waited for rather than slept through — see until.mjs.
+import { appUp } from './until.mjs'
+
 const url = new URL(process.argv[2] ?? 'http://localhost:5371/')
 const fails = []
 const check = (ok, msg) => {
@@ -79,7 +82,7 @@ const phase = async (name, { seed = null, query = '' } = {}, body) => {
     // caption and a stray press applies a preset, either of which quietly
     // measures a different app than the one the check names.
     await page.mouse.move(400, 500)
-    await new Promise(r => setTimeout(r, 5000))
+    await appUp(page, 5000)
     await page.mouse.move(400, 500)
     await body(page)
   } catch (e) {

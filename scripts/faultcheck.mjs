@@ -44,6 +44,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Boot waited for rather than slept through — see until.mjs.
+import { appUp } from './until.mjs'
+
 import process from 'node:process'
 
 const port = process.argv[2] ?? '5199'
@@ -80,7 +83,7 @@ page.on('pageerror', e => errors.push(String(e).slice(0, 200)))
 await page.goto(`http://localhost:${port}/?set=bGain:0.5,bGenlock:1`, {
   waitUntil: 'domcontentloaded',
 })
-await new Promise(r => setTimeout(r, 6000))
+await appUp(page, 6000)
 await page.bringToFront()
 
 // **One take across all five entries, warmed up once.** Stepping frames costs

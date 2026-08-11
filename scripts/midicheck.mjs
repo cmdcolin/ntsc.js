@@ -19,6 +19,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Boot waited for rather than slept through — see until.mjs.
+import { appUp } from './until.mjs'
+
 const url = process.argv[2] ?? 'http://localhost:5199/'
 
 const browser = await puppeteer.launch({
@@ -52,7 +55,7 @@ page.on('pageerror', e => {
 // seeding storage — a preload script runs in a sandbox realm under Firefox BiDi,
 // and anything it builds there is walled off from the page by Xray vision.
 await page.goto(`${url}?mod=hHold:sine:0.35:0.4`, { waitUntil: 'networkidle0' })
-await new Promise(r => setTimeout(r, 6000))
+await appUp(page, 6000)
 
 // A device that is never plugged in: enough of Web MIDI for createMidi to bind
 // its listener, plus a hook to push CC messages at it. Installed from the page's

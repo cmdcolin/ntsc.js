@@ -20,6 +20,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Waiting on the archives rather than on a duration — see until.mjs.
+import { until } from './until.mjs'
+
 const base = (process.argv[2] ?? 'http://localhost:5199').replace(/\/$/, '')
 const wait = ms => new Promise(r => setTimeout(r, ms))
 const failures = []
@@ -126,9 +129,32 @@ const press = label =>
     return 'ok'
   }, label)
 
+// A roll that has landed. The caption is the app saying so: empty while there
+// is nothing, one of the two in-flight words while there is a request out, and
+// the file's own name once it is back.
+//
+// **Waited for rather than slept through, and this is the file with the most to
+// gain from it** — every roll below is a live fetch against Wikimedia or
+// archive.org, so the six-second sleeps these replace were guesses about
+// somebody else's network, and a slow archive read as "the picker moved off the
+// source". A generous budget rather than the old sleep, because here the thing
+// being waited for genuinely can take that long, and the check still fails with
+// the caption it saw if the archive is actually down.
+//
+// This file already argued the point in one arm — `captionsUntilSettled` below
+// polls, because that is the arm whose flakiness got noticed. Same answer, now
+// applied to the three that had the same problem more quietly.
+const ROLL_MS = 15000
+const settled = c =>
+  c !== null &&
+  c !== '' &&
+  !c.startsWith('rolling…') &&
+  !c.startsWith('fetching…')
+const caption = () => state().then(s => s.caption)
+
 // ── a random source rolls, and says what it rolled ───────────────────────────
 await page.goto(`${base}/?src=wiki-random`, { waitUntil: 'networkidle0' })
-await wait(6000)
+await until(caption, settled, { budget: ROLL_MS, every: 250 })
 let now = await state()
 check(now.mode === 'wiki-random', 'the picker stays on the source', now.mode)
 check(
@@ -165,7 +191,13 @@ check(
 )
 
 await clickTitled('roll another')
-await wait(6000)
+// A *different* file, settled — which is also the assertion below, so waiting
+// for it is waiting for the roll to finish rather than for it to succeed: a
+// pool that hands back the same file twice still fails, 15s later, saying so.
+await until(caption, c => settled(c) && c !== kept, {
+  budget: ROLL_MS,
+  every: 250,
+})
 now = await state()
 check(now.caption !== kept, 'clicking the caption rolls a different file', kept)
 check(now.star === '☆', 'the new roll is not kept', now.star)
@@ -201,7 +233,9 @@ await page.evaluate(() => {
     .find(b => b.title.startsWith('play '))
     ?.click()
 })
-await wait(6000)
+// The kept one coming back by name — a resolve rather than a roll, but the same
+// live round trip, and the same caption saying when it has landed.
+await until(caption, c => c === kept, { budget: ROLL_MS, every: 250 })
 now = await state()
 check(
   now.mode === 'library' && now.caption === kept,

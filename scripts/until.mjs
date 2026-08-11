@@ -30,3 +30,30 @@ export const until = async (read, ok, opts = {}) => {
   }
   return seen
 }
+
+// The app being up, which nearly every harness here waits for and most of them
+// used to wait for by sleeping five or six seconds and hoping.
+//
+// **Polled through `page.evaluate` rather than with `waitForFunction`**, and
+// that is not a style preference — `docs/DEVELOPMENT.md` records that
+// `waitForFunction` polls in *its own realm*, so under Firefox BiDi it can see
+// `window.vf`, pass, and hand back a page whose `evaluate` still cannot. Asking
+// the question through the realm the harness is actually going to use is what
+// makes the answer worth having.
+//
+// **`budget` should be whatever the sleep it replaces was**, so a slow boot is
+// no worse off than before: this returns as soon as the app is up, and
+// otherwise gives up at exactly the moment the old sleep would have expired,
+// having waited the same amount and no longer.
+//
+// **It answers rather than throwing**, for two reasons. A harness that has a
+// `check` can report the boot as a failed check, at the top, instead of as
+// twelve confusing ones underneath. And a device-torture harness may be
+// deliberately watching for `vf` *not* to come back, which is a legitimate
+// answer rather than an error.
+export const appUp = async (page, budget = 6000) =>
+  until(
+    () => page.evaluate(() => window.vf !== undefined).catch(() => false),
+    up => up === true,
+    { budget, every: 100 },
+  )

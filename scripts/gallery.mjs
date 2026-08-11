@@ -5,6 +5,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Boot waited for rather than slept through — see until.mjs.
+import { appUp } from './until.mjs'
+
 const outDir = process.argv[2] ?? 'docs/gallery'
 const base = process.argv[3] ?? 'http://localhost:5199/'
 
@@ -37,7 +40,7 @@ for (const shot of SHOTS) {
   )
   const url = shot.srcb === undefined ? base : `${base}?srcb=${shot.srcb}`
   await page.goto(url, { waitUntil: 'networkidle0' })
-  await new Promise(r => setTimeout(r, 4000))
+  await appUp(page, 4000)
   await page.evaluate(name => {
     const btn = [...document.querySelectorAll('button')].find(
       b => b.textContent.trim() === name,

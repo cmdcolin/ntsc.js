@@ -39,6 +39,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Boot waited for rather than slept through — see until.mjs.
+import { appUp } from './until.mjs'
+
 const origin = process.argv[2] ?? 'http://localhost:5199/'
 const base = `${origin}?srcb=none&set=bGain:1`
 
@@ -78,7 +81,7 @@ page.on('console', m => {
 })
 
 await page.goto(base, { waitUntil: 'networkidle0' })
-await new Promise(r => setTimeout(r, 4000))
+await appUp(page, 4000)
 
 // Frames are stepped from Node rather than waited for: an occluded window
 // throttles rAF, which would read as the app not rendering.

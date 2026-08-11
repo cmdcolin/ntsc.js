@@ -8,6 +8,9 @@
 
 import puppeteer from 'puppeteer-core'
 
+// Boot waited for rather than slept through — see until.mjs.
+import { appUp } from './until.mjs'
+
 const url = process.argv[2] ?? 'http://localhost:5381/'
 const fails = []
 
@@ -24,7 +27,7 @@ try {
   const page = await browser.newPage()
   await page.setViewport({ width: 1352, height: 900 })
   await page.goto(url, { waitUntil: 'load' })
-  await new Promise(r => setTimeout(r, 4000))
+  await appUp(page, 4000)
   await page.mouse.move(1000, 700)
   await new Promise(r => setTimeout(r, 1000))
 
