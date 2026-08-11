@@ -1070,14 +1070,63 @@ So "render frame N" is nearly a pure function already. Four things are not.
   the end. The wall-clock arm is a control — if it finished too, the other arm
   would prove nothing.
 
-- **Live input has no offline meaning.** MIDI and mic/line audio can't be
-  re-rendered. The interesting answer is not to stub them but to record the
-  _automation_: capture control writes with frame stamps during a live take,
-  replay them into the offline render. That is the feature that would actually
-  make this a performance tool — perform at whatever rate the GPU gives you,
-  render at quality afterwards — and it reuses the single
-  `writeControl(key, value)` funnel that the OSC idea in [`IDEAS.md`](IDEAS.md)
-  › _Patching into other apps_ also leans on.
+- ~~**Live input has no offline meaning.**~~ **Landed.** MIDI and mic/line audio
+  can't be re-rendered. The answer was not to stub them but to record the
+  _automation_: control writes with frame stamps during a live take, replayed
+  into the offline render. `ui/automation.ts` is the tape and the arithmetic
+  over it, `ui/useAutomation.ts` is the recorder, and ● in the tray is ▶ with
+  the tape rolling.
+
+  **This paragraph named the wrong funnel, and the one it named is the half that
+  does not matter.** There is no single `writeControl`: a MIDI knob deliberately
+  does _not_ come through it, because the physical move is its own soft takeover
+  and routing it there would reset the takeover it had just satisfied. So
+  tapping the funnel named above would have recorded the sliders and lost the
+  controller — which is precisely the input this bullet is about. The tap is in
+  `useMidi`, the one place in the app where both halves are visible at once, and
+  that is an argument for the file rather than a detail of it.
+
+  Four things worth having here rather than only in those files.
+
+  - **Frames, not milliseconds**, and the trade is visible: a take performed in
+    a tab running at 40fps renders at two thirds of the wall time it was
+    performed in. That is not new — the strip's holds are already measured in
+    frames, so a rundown performed at 40fps already rendered short — and
+    stamping this any other way would have put the automation and the walk on
+    two different clocks, which is the one thing _One walk, two clocks_ is
+    arranged to avoid.
+  - **The walk first, the hand second.** A row puts a look up and a hand moves a
+    knob on top of it, so `onFrame` replays the rundown and then the tape. The
+    other order would have a row overwrite the gesture that was made against it.
+  - **Nothing the walk reproduces is on the tape**, and the wiring makes that
+    structural rather than a rule to remember: a row reaches the engine through
+    `useEngine.showSession` while the tap sits on the write path App owns, so a
+    row's session, roll, jitter and preroll are physically out of its reach.
+  - **A morph is one event, not sixty a second** — which is _The envelope
+    belongs in the engine_ coming true a section early. It predicted a fault
+    would be "one object an automation recorder can stamp, when that arrives",
+    and the same turned out to be true of `startGlide`: both are frame-clocked
+    in the engine and already right under a take's virtual clock, so one stamped
+    destination reproduces the whole travel.
+
+  **What is not on the tape is the honest limit, and it is a specific one.**
+  Three engine events a hand can fire are events rather than writes, and none is
+  recorded: a transition off the shelf (`startFault`), a bay strike (`fireMod`),
+  and a re-patch of the bay (`setModSlots`). The first is the one that will be
+  noticed, and it fails in an interesting way rather than a silent one — a
+  hand-thrown transition's _cut_ replays, because the cut writes through
+  `writeControls`, while the fault that hid it does not. So the picture cuts
+  where it cut and does not break where it broke. `AutoEvent` is a closed union
+  under a switch that will not compile without a new arm, which is what makes
+  each of those a small addition rather than a redesign.
+
+  **A tape lives as long as the tab.** It is not in `storage.ts` and not in the
+  rundown, because what would make it worth persisting is the thing
+  [adr/0006](adr/0006-a-take-is-a-seed-and-its-picks.md) describes and this does
+  not build: a take _file_ holding the seed, the resolved `PoolRef`s and the
+  tape together. A localStorage key holding one of the three is the shape that
+  looks like the feature and is not it.
+
 - ~~**The encoder is variable-framerate by construction.**~~ **Landed.**
   `useCapture.ts` was `captureStream()` + `MediaRecorder`, which timestamps by
   wall clock; an NLE conforms that badly. It is now `VideoEncoder` with an
@@ -1316,14 +1365,26 @@ arrives.
    ms, which nothing in this document predicted because nobody had asked what a
    _forward one-frame_ seek costs.
 
-7. **Automation recording.** Control writes with frame stamps, replayed offline;
-   the thing that makes performing and rendering the same take.
+7. ~~**Automation recording.**~~ **Landed** — `ui/automation.ts`,
+   `ui/useAutomation.ts`, the tap in `useMidi`, and ● in the tray. _Live input
+   has no offline meaning_ above is the write-up, including the funnel this
+   document named and had wrong. `scripts/rendercheck.mjs` renders one tape
+   twice to the same bytes and once without it to different ones; the tray arm
+   in `traycheck.mjs` drives ● through the panel's own slider, which is the half
+   no unit test sees.
+
+   **It answers a want this document filed separately**, cheaply enough to be
+   worth saying out loud: ⎙ renders the recorded take's length when there is
+   one. _What to do next_ lists "a render range" as a thing deliberately not
+   carried, on the grounds that a button rendering a song or ten seconds is
+   enough to be useful and not enough to be an edit. Pressing ● and then ■ is a
+   range, chosen by hand, and it arrived as a consequence rather than as a
+   feature.
 
 Steps 1 to 4 were independent of the strip and of each other, which is what made
-them the ones to do while its design settled. All four are done, so what is left
-is the part that was always going to need the strip: 5 is landed to its first
-slice, and 6 and 7 are what a finished piece needs rather than what making one
-needs.
+them the ones to do while its design settled. All seven are done. What is left
+is not on this list: the three engine _events_ automation does not record (_Live
+input_ names them), and the take file that would make a tape outlive its tab.
 
 ## What to do next, and why in this order
 
@@ -1406,7 +1467,26 @@ list above in two places.
    fallback every other decline takes and the same shape of answer preroll depth
    1 already gives — a budget nobody can see is one somebody eventually spends.
 
-   Then **automation recording**, as before.
+6. ~~Then **automation recording**, as before.~~ **Landed**, and _Live input has
+   no offline meaning_ above is the write-up. Two things about it belong here
+   rather than only there, because both are about how this list was wrong.
+
+   **The funnel this document kept pointing at was the wrong one.** "It reuses
+   the single `writeControl(key, value)` funnel" is written twice above and is
+   not true: a MIDI knob deliberately bypasses it, since the physical move is
+   its own soft takeover. Tapping the named funnel would have recorded a
+   session's sliders and dropped its controller — the one input the feature
+   exists for. The tap is `useMidi`, which owns both paths and is the only place
+   they are visible together.
+
+   **And the last item on both lists turned out to depend on nothing.** It is
+   filed after frame-exact pull, and it did not need it: a tape is stamped
+   against the frame counter and replayed through the render's existing
+   `onFrame`, and neither of those knows what a source is. It was buildable the
+   day _Take state_ landed. What made it worth doing last anyway is that the
+   take it records is only reproducible because everything above it is done — a
+   gesture replayed onto a picture that was not frame-exact would have been a
+   gesture landing somewhere new every render.
 
 Three things this list deliberately does not carry, all of them wants rather
 than needs. **Cutting to the track's clock** rather than starting with it — the
@@ -1414,9 +1494,10 @@ walk's `Clock.frame` would come off `currentTime`, which `strip.ts` is already
 indifferent to, but it needs an answer for what a rundown does when the song
 ends. **Proportional card widths**, so a rundown can be read for its rhythm
 rather than as a row of equal boxes; cheap, but it wants a decision about what
-the tray is when a piece is four minutes long. And **a render range** — the
-button renders the track's length or ten seconds, which is enough to be useful
-and not enough to be an edit.
+the tray is when a piece is four minutes long. And **a render range** — though
+this one is now half answered by accident: ⎙ renders a recorded take's own
+length, so ● and ■ are a range chosen by hand. What is still not there is a
+range over a rundown nobody performed.
 
 What used to be listed here as blocking the live half was step 1 —
 `useCapture.ts` on `captureStream()` plus `MediaRecorder`, timestamped by wall
