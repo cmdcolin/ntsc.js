@@ -673,15 +673,43 @@ So "render frame N" is nearly a pure function already. Four things are not.
   render at quality afterwards — and it reuses the single
   `writeControl(key, value)` funnel that the OSC idea in [`IDEAS.md`](IDEAS.md)
   › _Patching into other apps_ also leans on.
-- **The encoder is variable-framerate by construction.** `useCapture.ts` is
-  `captureStream()` + `MediaRecorder`, which timestamps by wall clock; an NLE
-  conforms that badly. The replacement is `VideoEncoder` with an explicit
-  `timestamp: i * 1e6 / fps` per frame and an mp4 muxer — CFR by construction,
-  and indifferent to how long each frame took to render. It also lets the whole
-  `present` path be bypassed: render to an offscreen target and
-  `copyTextureToBuffer`, which drops the mirror-through-a-2D-canvas hack that
-  `useCapture.ts` needs today (Firefox returns a blank image from a WebGPU
-  canvas's `toBlob`, and `captureStream()` emits no frames from one).
+- ~~**The encoder is variable-framerate by construction.**~~ **Landed.**
+  `useCapture.ts` was `captureStream()` + `MediaRecorder`, which timestamps by
+  wall clock; an NLE conforms that badly. It is now `VideoEncoder` with an
+  explicit `timestamp: i * 1e6 / fps` per frame (`ui/record.ts`) and an MP4
+  muxer written for the one shape this needs (`ui/mp4.ts`) — CFR by
+  construction, and indifferent to how long any frame took. ffprobe reports
+  `r_frame_rate == avg_frame_rate == 60/1` on the result, which is what
+  constant-framerate *is* to everything downstream; `scripts/reccheck.mjs`
+  asserts it against the real app.
+
+  **Three things this paragraph got wrong**, all found by measuring:
+
+  - **No `copyTextureToBuffer` is needed, and no offscreen target.**
+    `new VideoFrame(webgpuCanvas)` reads the canvas directly and comes back
+    BGRA and full of picture. The blank `toBlob` and the silent
+    `captureStream()` are real and still true — they are simply a different
+    path from WebCodecs. So the mirror-through-a-2D-canvas hack is deleted from
+    the recording path (the *still* grab still needs it, for the `toBlob`
+    reason), and the extra copy per frame goes with it.
+  - **This did not have to be Chrome-only.** Nightly has `VideoEncoder` and
+    reports vp8, vp9, H.264 and AV1 all supported.
+  - **MP4 rather than WebM was not a free choice.** Resolve does not import
+    WebM at all and Premiere needs a plugin, so the container is the part that
+    decides whether "an editor will conform it" is true.
+
+  And two browser faults worth knowing before anyone touches this:
+
+  - **H.264 needs even dimensions**, and an ordinary window gives an odd one
+    (measured: 440x573). Firefox accepts the `configure` *and* the `encode`,
+    then fails the whole encoder asynchronously on its error callback with
+    `NotSupportedError: Operation is not supported` and nothing naming the
+    size. `record.ts` rounds down and crops.
+  - **Firefox's `decoderConfig.description` is a malformed avcC.** The reserved
+    bits the spec fixes at 1 are left clear, and each parameter set carries a
+    duplicate of its own NAL header byte. ffmpeg decoded the picture anyway but
+    reported `sps_id out of range` on every frame; `normaliseAvcc` rebuilds the
+    record, and afterwards ffmpeg is silent.
 
 ### The Firefox constraint that shapes the choice
 
@@ -729,11 +757,18 @@ Build it in the web app first; it is the same code either way and all the risk
 lives there. Revisit Electron only when the file-size wall or ProRes actually
 arrives.
 
-1. **`VideoEncoder` CFR export, replacing `useCapture`.** Self-contained, 152
-   lines to replace, and it fixes the variable-framerate problem for the
-   recording that _already ships_ rather than only for what is planned. It also
-   deletes the mirror-through-a-2D-canvas hack. Do it first because nothing else
-   depends on it and everything else is worth less without it.
+1. ~~**`VideoEncoder` CFR export, replacing `useCapture`.**~~ **Landed** —
+   `ui/record.ts`, `ui/mp4.ts`, `scripts/reccheck.mjs`, and the mirror hack
+   gone from the recording path. It was the right thing to do first for the
+   reason given: nothing depended on it, and it fixed the recording that
+   _already shipped_ rather than only what was planned.
+
+   What it does **not** do yet, and the next thing anyone will want: the
+   recorder is still driven by rAF, so it captures at whatever rate the tab
+   renders and calls that 60fps. The file is internally consistent — every
+   frame exactly one tick apart — but a tab that dropped to 40fps writes a take
+   that plays 1.5x fast. Fixing that is step 2 below plus a loop that steps the
+   engine rather than waiting on rAF, which is the offline render proper.
 2. **The virtual clock.** Small — the four wall-clock reads above, one argument
    each, all in `pipeline.ts`.
 3. **The transition shelf.** Cheap, and it does not need the strip: A and B are

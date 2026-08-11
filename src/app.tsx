@@ -365,7 +365,7 @@ export function App() {
   // differently. matchPreset returns undefined for "matches nothing authored".
   const activePreset = matchPreset(controls)
   const lookName = activePreset ? activePreset.name : mix.lastPreset
-  const capture = useCapture(eng.canvasRef, lookName ?? 'edit')
+  const capture = useCapture(eng.canvasRef, lookName ?? 'edit', eng.setError)
   // The same look, spelled for a human rather than for a query string. `?preset=`
   // and MIDI keys want the identifier `lookName` carries; anything a person
   // reads wants the words — a strip row called "neonTube" beside a chip that

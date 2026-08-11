@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { isSupported, startRecording } from './record'
+
+import type { Recorder } from './record'
 import type { RefObject } from 'react'
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -24,72 +27,49 @@ function save(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 2000)
 }
 
-// Prefer VP9, then fall through the codecs a given browser actually ships.
-function pickMime(): string {
-  const codecs = [
-    'video/webm;codecs=vp9',
-    'video/webm;codecs=vp8',
-    'video/webm',
-  ]
-  return codecs.find(t => MediaRecorder.isTypeSupported(t)) ?? 'video/webm'
-}
+// The rate the file is written at, and it is the simulation's own: the signal
+// path is a fixed-timestep 60Hz sim (`signal/modstate.ts` is `const DT = 1/60`,
+// and the artifacts clock off the frame counter), so any other number would be
+// a file whose timing disagrees with what produced it.
+const FPS = { num: 60, den: 1 }
 
-// MediaRecorder defaults to ~2.5 Mbps, which this content pulps: snow, grain and
-// dot crawl are worst-case for a codec, and every frame is a new noise field.
-// 0.4 bits per pixel per frame keeps the grain intact; still smaller than
-// lossless, still far above what the default gives.
-function bitrateFor(canvas: HTMLCanvasElement): number {
-  const perFrame = canvas.width * canvas.height * 60 * 0.4
-  return Math.min(60_000_000, Math.max(16_000_000, perFrame))
-}
-
-// A WebGPU canvas can't be captured directly: Firefox's toBlob returns a blank
-// image and captureStream() emits no frames, because the presented drawing
-// buffer isn't retained for async readback. Drawing it into a 2D canvas
-// synchronously *does* work, so both paths mirror through one first.
-function mirrorOf(src: HTMLCanvasElement): {
-  canvas: HTMLCanvasElement
-  draw: () => void
-} {
+// A still still needs the 2D mirror, and that is not an oversight: `toBlob` on
+// a WebGPU canvas comes back blank in Firefox because the presented drawing
+// buffer is not retained for async readback, while `drawImage` out of it
+// synchronously does work. The *recording* path no longer needs the mirror —
+// `new VideoFrame(canvas)` reads the WebGPU canvas directly (see record.ts) —
+// which is the copy per frame this used to cost.
+function mirrorOf(src: HTMLCanvasElement): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   canvas.width = src.width
   canvas.height = src.height
-  const g = canvas.getContext('2d')
-  return {
-    canvas,
-    // Follow the source: going fullscreen mid-recording grows the backing store,
-    // and a fixed-size mirror would squeeze every later frame into the old one.
-    // captureStream tracks the resize, so the clip just changes resolution.
-    draw: () => {
-      if (canvas.width !== src.width || canvas.height !== src.height) {
-        canvas.width = src.width
-        canvas.height = src.height
-      }
-      g?.drawImage(src, 0, 0, canvas.width, canvas.height)
-    },
-  }
+  canvas.getContext('2d')?.drawImage(src, 0, 0)
+  return canvas
 }
 
-// Save the rendered canvas as a PNG still or a WebM clip. Downstream of
-// `present` — the same pixels the user sees — so nothing touches the signal
-// path. Recording holds the window visible (rAF at full rate) by design.
+// Save the rendered canvas as a PNG still or a constant-framerate MP4.
+// Downstream of `present` — the same pixels the user sees — so nothing touches
+// the signal path. Recording holds the window visible (rAF at full rate) by
+// design.
 export function useCapture(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   name: string,
+  onError: (message: string) => void,
 ) {
-  const recRef = useRef<{ rec: MediaRecorder; stream: MediaStream } | null>(
-    null,
-  )
+  const recRef = useRef<Recorder | null>(null)
   const rafRef = useRef(0)
   const [recording, setRecording] = useState(false)
 
-  // The recorder and its rAF pump are browser objects that outlive React, so a
-  // teardown mid-recording would leave both running forever. Stopping (rather
-  // than discarding) also flushes the clip to disk instead of losing it.
+  // The encoder and its rAF pump are browser objects that outlive React, so a
+  // teardown mid-recording would leave both running forever. Aborted rather
+  // than finished, unlike the `MediaRecorder` this replaces: that one could
+  // flush a clip to disk on the way out, and a download started from an
+  // unmounting tree is not a thing that reliably lands.
   useEffect(
     () => () => {
       cancelAnimationFrame(rafRef.current)
-      recRef.current?.rec.stop()
+      recRef.current?.abort()
+      recRef.current = null
     },
     [],
   )
@@ -97,55 +77,72 @@ export function useCapture(
   const grabStill = () => {
     const canvas = canvasRef.current
     if (canvas !== null) {
-      const mirror = mirrorOf(canvas)
-      // Draw inside a frame: Chrome only keeps the WebGPU drawing buffer
+      // Drawn inside a frame: Chrome only keeps the WebGPU drawing buffer
       // readable during a paint, so a synchronous drawImage from the event
       // handler copies a blank buffer.
       requestAnimationFrame(() => {
-        mirror.draw()
-        mirror.canvas.toBlob(blob => {
+        mirrorOf(canvas).toBlob(blob => {
           if (blob !== null) save(blob, fileName(name, 'png'))
         }, 'image/png')
       })
     }
   }
 
-  const toggleRecord = () => {
-    const active = recRef.current
-    if (active === null) {
-      const canvas = canvasRef.current
-      if (canvas !== null) {
-        const mirror = mirrorOf(canvas)
-        // Pump each rendered frame into the mirror; captureStream() samples it
-        // on every change, tracking the engine's frame rate.
-        const pump = () => {
-          mirror.draw()
-          rafRef.current = requestAnimationFrame(pump)
-        }
-        const stream = mirror.canvas.captureStream()
-        const chunks: Blob[] = []
-        const rec = new MediaRecorder(stream, {
-          mimeType: pickMime(),
-          videoBitsPerSecond: bitrateFor(canvas),
-        })
-        rec.ondataavailable = e => {
-          if (e.data.size > 0) chunks.push(e.data)
-        }
-        rec.onstop = () => {
-          save(new Blob(chunks, { type: rec.mimeType }), fileName(name, 'webm'))
-          stream.getTracks().forEach(t => t.stop())
-        }
-        recRef.current = { rec, stream }
-        rafRef.current = requestAnimationFrame(pump)
-        rec.start()
-        setRecording(true)
-      }
-    } else {
-      cancelAnimationFrame(rafRef.current)
-      active.rec.stop()
-      recRef.current = null
-      setRecording(false)
+  const stop = async () => {
+    const rec = recRef.current
+    cancelAnimationFrame(rafRef.current)
+    recRef.current = null
+    setRecording(false)
+    if (rec === null) return
+    try {
+      save(await rec.finish(), fileName(name, 'mp4'))
+    } catch (e) {
+      onError(`recording failed: ${e instanceof Error ? e.message : String(e)}`)
     }
+  }
+
+  const toggleRecord = () => {
+    if (recRef.current !== null) {
+      void stop()
+      return
+    }
+    const canvas = canvasRef.current
+    if (canvas === null) return
+    if (!isSupported()) {
+      onError('this browser cannot encode video (WebCodecs is missing)')
+      return
+    }
+    // The size is fixed for the whole recording, unlike the stream this
+    // replaces, which tracked the canvas and changed resolution mid-clip when
+    // somebody went fullscreen. An encoder is configured once with a frame
+    // size, and a file whose resolution changes halfway is one an editor has to
+    // be told about — so going fullscreen now scales into the size the
+    // recording started at, which is the behaviour a take actually wants.
+    const width = canvas.width
+    const height = canvas.height
+    startRecording({ width, height, fps: FPS }).then(
+      rec => {
+        recRef.current = rec
+        setRecording(true)
+        const pump = () => {
+          rafRef.current = requestAnimationFrame(pump)
+          const live = canvasRef.current
+          if (live !== null && recRef.current !== null) {
+            // One frame per rAF, and the timestamp comes off the count rather
+            // than the clock (record.ts). A slow frame therefore stretches the
+            // take in real time and not in the file, which is the trade this
+            // whole path exists to make.
+            recRef.current.frame(live)
+          }
+        }
+        rafRef.current = requestAnimationFrame(pump)
+      },
+      (e: unknown) => {
+        onError(
+          `could not start recording: ${e instanceof Error ? e.message : String(e)}`,
+        )
+      },
+    )
   }
 
   return { recording, toggleRecord, grabStill }
