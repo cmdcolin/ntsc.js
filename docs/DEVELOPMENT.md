@@ -8,6 +8,18 @@ pnpm lint --fix # oxlint
 pnpm test       # vitest
 ```
 
+**`pnpm test` excludes `.claude/`, and that is load-bearing rather than tidy.**
+Work here happens in `git worktree` copies under `.claude/worktrees/`, which are
+full checkouts with their own `src/` — and vitest's default `include` is a glob
+over the whole tree, so a run from the primary checkout used to collect every
+worktree's suite along with its own: **374 test files and 6746 tests against
+this checkout's 71 and 1385**, twelve seconds against two and a half. The cost
+that matters is not the time, though: a half-finished branch somebody else is
+working on could fail _your_ run, in files you have never opened, at paths that
+look like yours because every worktree has the same layout. The exclude is in
+`vite.config.ts` and is spread over `configDefaults.exclude` — replacing that
+array rather than extending it silently un-excludes `node_modules`.
+
 Most of this file is a runbook for the browser harnesses in `scripts/`, and most
 of it is here because something cost a day to work out. If you are about to
 drive a browser at this app, read

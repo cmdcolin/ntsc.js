@@ -1,6 +1,6 @@
 import babel from '@rolldown/plugin-babel'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 import pkg from './package.json' with { type: 'json' }
 import { ytdlp } from './vite-plugin-ytdlp.ts'
@@ -51,4 +51,19 @@ export default defineConfig(({ command }) => ({
   // where it was logged. The render loop's whole diagnostic story is console
   // breadcrumbs, so the real source location is worth more than the relay.
   server: { port: 5199, forwardConsole: false },
+  // **`pnpm test` must not run other checkouts' tests.** Work here happens in
+  // `git worktree` copies under `.claude/worktrees/`, which are full checkouts
+  // with their own `src/` — and vitest's default `include` is a glob over the
+  // whole tree, so a run from the primary checkout collects every worktree's
+  // suite as well as its own. Measured: 374 test files and 6746 tests against
+  // this checkout's 68 and 1357.
+  //
+  // That is not merely slow. It means a half-finished branch someone else is
+  // working on can fail *your* test run, in files you have never opened, and
+  // the failure names a path that looks like yours because every worktree has
+  // the same layout.
+  //
+  // Spread over the defaults rather than replacing them, so `node_modules` and
+  // `dist` stay excluded — passing a bare array here silently drops both.
+  test: { exclude: [...configDefaults.exclude, '**/.claude/**'] },
 }))

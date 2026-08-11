@@ -82,6 +82,21 @@ const FEED_AHEAD_LIMIT = 240
 // correct and would give up the pipelining that makes this route cheap.
 const FEED_DEPTH = 8
 
+// The largest file this will hold a second copy of, per deck.
+//
+// 192MB covers everything the app ships and the great majority of what an
+// archive.org roll turns up, and refuses the hour-long transfer that would
+// otherwise be held twice on each of two decks while a render ran. It is a
+// memory ceiling and not a quality one — the clip still plays, it is simply
+// pumped from its element at wall rate, which is what every clip did before
+// frame-exact pull existed.
+//
+// Worth stating what it is *not* protecting against: the browser's own decoded
+// picture buffers, which are the elements' and are not counted here. This
+// bounds the compressed bytes this module allocates, because those are the ones
+// it can be wrong about.
+const MAX_PULL_BYTES = 192 * 1024 * 1024
+
 export interface FramePull {
   // The frame shown at `seconds` on the clip's own timeline. **Ownership passes
   // to the caller**, which must `close()` it — a `VideoFrame` holds a decoded
@@ -134,11 +149,33 @@ export async function openPull(bytes: Uint8Array): Promise<FramePull | null> {
 // The same, from a url the app is already holding — a `blob:` for a pool pick
 // or a bundled clip's path. Whole file, because that is what the demuxer reads
 // and what `sources/pool.ts` already downloads for its own reasons.
+//
+// **And that whole file is a second copy**, which is the cost this function
+// quietly carries and the reason for the ceiling below. A pool pick is already
+// resident as a `Blob` — `sources/pool.ts` says why it downloads whole — and
+// there is no way to reach that object from a `blob:` url, so reading it back
+// through `fetch` allocates it again. Two decks under a take is four copies of
+// two files, on top of whatever the `<video>` elements are holding.
+//
+// The bound is structural rather than a rule to remember, which is the same
+// answer `videoSlot.ts` gives for preroll depth 1 and for the same reason: a
+// budget nobody can see is one somebody eventually spends. Past the ceiling the
+// deck stays on its element, which is the fallback every other decline here
+// takes and is exactly as reproducible as every take was before this existed.
 export async function openPullFromUrl(url: string): Promise<FramePull | null> {
   try {
     const res = await fetch(url)
     if (!res.ok) return null
-    return await openPull(new Uint8Array(await res.arrayBuffer()))
+    // Asked before the body is read, so an oversized file is declined without
+    // ever being held. A `blob:` reports its length; a server may not, and
+    // `null` there means "unknown" rather than "small" — hence the check after
+    // the read as well, which costs a peak that has already happened but stops
+    // an unknown-length stream from being kept.
+    const declared = Number(res.headers.get('content-length') ?? '0')
+    if (declared > MAX_PULL_BYTES) return null
+    const bytes = new Uint8Array(await res.arrayBuffer())
+    if (bytes.byteLength > MAX_PULL_BYTES) return null
+    return await openPull(bytes)
   } catch {
     return null
   }

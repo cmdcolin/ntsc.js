@@ -1397,6 +1397,15 @@ list above in two places.
      the fallback is not an error path but the ordinary answer for half of what
      a deck can hold.
 
+   **And it carries a memory cost this list did not predict.** A puller holds
+   the whole compressed file, and for a `blob:` — which is what a pool pick is —
+   that file is _already_ resident, with no way to reach the `Blob` behind the
+   url. So a take over two pool rows holds four copies of two files on top of
+   whatever the elements have. That is bounded rather than engineered away: past
+   192MB a clip is declined and its deck stays on the element, which is the same
+   fallback every other decline takes and the same shape of answer preroll depth
+   1 already gives — a budget nobody can see is one somebody eventually spends.
+
    Then **automation recording**, as before.
 
 Three things this list deliberately does not carry, all of them wants rather
