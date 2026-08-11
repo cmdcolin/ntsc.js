@@ -18,16 +18,18 @@ point at. Record four good minutes with unseeded rolls and there is no way back
 to them.
 
 **And the signal path rolls too**, which was not on the list. `MixState` and
-`TapeState` each own a `Wow` — the capstan's quasi-periodic wander — and both
-reached for `Math.random` from inside the frame. `LineState` and `ModState` took
-a `rand` already but the engine was passing neither. Measured: with the clock,
-the loop and every buffer held identical, two renders of a `vhs` board still
-came out about 3% apart in encoded size, because the tape wandered differently.
+`TapeState` each own a `Wow` — the capstan's quasi-periodic wander, which draws
+three times a frame — and both reached for `Math.random` from inside the frame.
+`LineState` draws once a line and `ModState`'s random walk and sample-hold once
+a frame each; both took a `rand` already, and the engine was passing neither. So
+a `vhs` board could not have re-rendered identically however clean frame zero
+was, and the 3% spread the old harness measured between two takes was never only
+the feedback buffers it was attributed to.
 
-A seed alone is also not enough, and `sources/pool.ts` says why: **a url is a
-rendering.** Commons rolls with `gsrsort=random`, so which candidates come back
-is the server's choice; archive.org's within-page ordering is upstream's; and
-the url that worked today 404s when a transcode ladder is rebuilt. A seed
+A seed alone is also not enough, and `src/sources/pool.ts` says why: **a url is
+a rendering.** Commons rolls with `gsrsort=random`, so which candidates come
+back is the server's choice; archive.org's within-page ordering is upstream's;
+and the url that worked today 404s when a transcode ladder is rebuilt. A seed
 reproduces this app's _decisions_ — which pool, which page, which of the
 candidates — and only a recorded `PoolRef` (origin, title, kind) reproduces the
 _file_.
@@ -47,7 +49,12 @@ every per-frame modulator at `rngFor(seed)` for the length of the take;
 session nobody is recording should not walk one fixed sequence from page load.
 
 **A take records the seed _and_ the resolved picks**, never either alone, and
-the picks are stored as identity (`PoolRef`) rather than as urls.
+the picks are stored as identity (`PoolRef`) rather than as urls. The seed half
+is built — the rundown carries one, `seedFor` derives a per-row generator from
+it, and `renderTake` hands it to the engine. The picks half has nothing to
+record yet, because nothing rolls during a render until the strip's offline walk
+lands; this record is here first so that walk is built against the rule rather
+than discovering it.
 
 ## Consequences
 
@@ -68,8 +75,9 @@ the picks are stored as identity (`PoolRef`) rather than as urls.
   paragraph twice.
 - **Reproducibility stops at the video decoder.** `VideoPump` pulls frames at
   wall rate, so a take over a clip is not yet reproducible whatever the dice
-  did. Frame-exact pull is `EDITOR.md`'s build-order step 6, and until it lands
-  the guarantee is honest only for generated and still sources.
+  did. Frame-exact pull is `EDITOR.md`'s remaining build-order item, and until
+  it lands the guarantee is honest only for generated and still sources — which
+  is why `rendercheck.mjs` renders bars.
 - **This was cheap because the seam was already there**, for a reason that had
   nothing to do with the strip: `vote/candidates.ts` needed it first, since a
   dataset's whole claim is that a recorded seed re-renders the look it labelled.

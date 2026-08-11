@@ -1806,7 +1806,11 @@ export class Engine implements EngineApi {
   // load, and a strobe measured in frames drifts against the room the moment
   // the tab drops one.
   startTake(take: { fps: number; seed: number }): void {
-    this.takeFrom = this.frame
+    // `??=`, so starting a take inside one keeps the first origin rather than
+    // banking the zero the first reset left. A second `startTake` is a
+    // legitimate thing to do — it is how a harness renders two takes back to
+    // back — and it should not be how the counter gets lost.
+    this.takeFrom ??= this.frame
     this.dice = rngFor(take.seed)
     this.virtualFps = take.fps
     this.resetSignal()

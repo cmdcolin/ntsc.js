@@ -59,6 +59,16 @@ export class RenderCancelled extends Error {
   }
 }
 
+// Two animation frames, or `ms` — whichever lands first. See the call site for
+// what the two frames are for and why they have to be given up on.
+const twoFramesOr = (ms: number): Promise<void> =>
+  Promise.race([
+    new Promise<void>(resolve => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    }),
+    new Promise<void>(resolve => setTimeout(resolve, ms)),
+  ])
+
 // Render `frames` frames and hand back the file.
 //
 // The engine is left exactly as it was found — clock back on the wall, loop
@@ -89,11 +99,18 @@ export async function renderTake(
   // and they are part of the take's history either way. What it buys is that
   // they land *before* the render rather than interleaved with it, so the
   // frames this loop steps are consecutive and the file has no seam in it.
-  if (wasRunning) {
-    await new Promise<void>(resolve => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-    })
-  }
+  //
+  // **Raced against a timeout, because a tab that is not being painted never
+  // delivers them.** An occluded window throttles rAF to about 1Hz and a tab
+  // the compositor has stopped painting drops it to nothing — both documented
+  // in docs/DEVELOPMENT.md, and the second one hung `rendercheck.mjs` here
+  // rather than in the app only because a harness is where a window ends up
+  // behind another. Waiting forever buys nothing in that case: the two stray
+  // frames are not coming either, which is the same reason there is nothing to
+  // order against. The cap is generous enough to cover a throttled-but-alive
+  // tab (2 frames at 1Hz is 2s) and short enough that a render never looks
+  // hung before it has started.
+  if (wasRunning) await twoFramesOr(3000)
   // After the two frames above, not before: those strays are the live loop's
   // last, and stepping them through a freshly-cleared signal path would put two
   // frames of someone else's take at the front of this one.

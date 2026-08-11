@@ -18,9 +18,10 @@
 // check (docs/EDITOR.md › _Take state_).
 //
 // Two things it still cannot claim. A take over a `<video>` is not reproducible
-// — the pump pulls at wall rate, which is build-order step 5 — so this renders
-// the default bars. And a take is reproducible *within a browser build*: the
-// H.264 encoder is Firefox's, and nothing here asserts across versions of it.
+// — the pump pulls at wall rate, which is EDITOR.md's frame-exact video pull —
+// so this renders the default bars. And a take is reproducible *within a
+// browser build*: the H.264 encoder is Firefox's, and nothing here asserts
+// across versions of it.
 
 import puppeteer from 'puppeteer-core'
 
@@ -54,11 +55,17 @@ const check = (name, ok, detail = '') => {
 // two, and puppeteer's default 30s protocol timeout fires as a bare
 // `ProtocolError` naming nothing at all. Hence the generous timeout: the run
 // survives being tabbed away from, it just takes longer.
+//
+// 480s and not the 240s this started at, because 240 was not enough: a run that
+// takes two minutes in the foreground blew the timeout when a neighbour's
+// browser took the screen mid-run, and it reports as a `ProtocolError` naming
+// no cause rather than as a slow run. On a shared box that is a harness that
+// fails for reasons that have nothing to do with the app.
 const browser = await puppeteer.launch({
   browser: 'firefox',
   executablePath: '/usr/bin/firefox-nightly',
   headless: false,
-  protocolTimeout: 240_000,
+  protocolTimeout: 480_000,
   extraPrefsFirefox: {
     'dom.webgpu.enabled': true,
     'gfx.webgpu.ignore-blocklist': true,
@@ -106,6 +113,10 @@ const render = (frames, jitter, wantFile = false) =>
           if (pause > 0) await new Promise(r => setTimeout(r, pause))
         },
       })
+      // Read the instant the render returns, before the digest and the base64
+      // below — the loop is running again by then, so anything measured after
+      // them is partly how long a hash took.
+      const drifted = vf.frameNo() - at
       const buf = new Uint8Array(await blob.arrayBuffer())
       const digest = [
         ...new Uint8Array(await crypto.subtle.digest('SHA-256', buf)),
@@ -125,10 +136,11 @@ const render = (frames, jitter, wantFile = false) =>
       return {
         b64: want ? btoa(s) : '',
         digest,
-        // Where the counter is left, against where the take found it. The loop
-        // is running again by the time this is read, so it is "near" rather
-        // than "equal" — what would fail is a take that left it 600 frames on.
-        drifted: vf.frameNo() - at,
+        // Where the counter is left, against where the take found it. "Near"
+        // rather than "equal": the loop is running again the instant the
+        // render's `finally` returns, so a frame or two lands before this is
+        // read. What would fail is a take that left it 600 frames on.
+        drifted,
         // Every sample taken inside the render, where the clock is virtual.
         // The invariant is that it reads exactly the frame counter over the
         // rate — which is the whole of what "the render owns its time" means.
@@ -197,17 +209,29 @@ check(
   a.drifted < 10 && b.drifted < 10,
   `${a.drifted} and ${b.drifted} frames on, for ${FRAMES}-frame takes`,
 )
+// **Whether the loop was put back, not whether frames are flowing**, which is
+// the same rule the cancel check below already follows and for the same reason:
+// an occluded window throttles rAF to nearly nothing, so counting frames over
+// 600ms measures the window manager. It did — this arm was `advanced > 0` and
+// reported 29 frames with the window in front and 0 behind another one, which
+// is a harness that fails when somebody clicks somewhere else. `loop.running`
+// is the fact the check is about, and it is reachable because `window.vf` is
+// the concrete `Engine` (see gpu/engineapi.ts on why it stays that way).
 const after = await page.evaluate(async () => {
   const before = window.vf.frameNo()
   const clock = window.vf.clockMs()
   await new Promise(r => setTimeout(r, 600))
-  return { advanced: window.vf.frameNo() - before, wallish: clock > 5000 }
+  return {
+    running: window.vf.loop.running,
+    advanced: window.vf.frameNo() - before,
+    wallish: clock > 5000,
+  }
 })
 check('the clock goes back on the wall afterwards', after.wallish, '')
 check(
-  'and the picture starts moving again',
-  after.advanced > 0,
-  `${after.advanced} frames in 600ms`,
+  'and the render loop is running again',
+  after.running,
+  `${after.advanced} frames in 600ms, which is the window manager's to say`,
 )
 
 // --- cancelling ---------------------------------------------------------------
