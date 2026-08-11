@@ -59,6 +59,13 @@
   /* below both: a hairline that only has to exist — a group card's outline, a
      subheading's rule, the edge of an empty slot */
   --border-faint: #2e2e38;
+  /* The app's ground, behind everything including the panel — which sets no
+     background of its own and so is this colour wherever nothing else paints.
+     A token rather than the two literals it was (app.module.css's .app and
+     .appPop) because something now has to *match* it: a sticky heading has to
+     paint the panel's own ground over the sliver above it, and a fill that has
+     to agree with another fill is exactly what a token is for. */
+  --app-bg: #000;
   --panel-bg: #16161a;
   /* the face of a filled control — a preset chip, a segmented toggle, a tab */
   --ctl-face: #26262e;

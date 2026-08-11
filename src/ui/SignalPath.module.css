@@ -39,18 +39,83 @@
 }
 
 /* The stage the map has open: its name (click to fold), what it does, then its
-   groups. Navigation lives in the map, so these rows carry no rail. */
+   groups.
+
+   It used to carry no rail, on the argument that navigation lives in the map.
+   That was the right reason for the wrong conclusion: a rail here is not a
+   second way to navigate, it is the only thing saying where the stage begins
+   and ends. Without one an open stage was four naked elements in the panel's
+   flow, and its groups wear the same name-over-a-hairline shape the panel's own
+   sections do (Section.module.css .headSub, off the same ui.module.css .head) —
+   so opening Tape dropped nine more section headers into a stack of section
+   headers, with nothing bounding them and nothing terminating them. What tied
+   them to the box you pressed was the accent on the stage name alone, which is
+   at the top of a panel you have to scroll to reach a slider. */
 .stages {
   margin: 2px 0 0;
 }
+/* One stage as one object. The rail is the cheap half of that: a full card
+   (.groupCard below, which is what the bench got and the spine never did) costs
+   20px of a 304px column, and the panel's width is its scarcest thing — this
+   costs 10. Where the rail stops is the stage's bottom edge, which the flow
+   never drew at all: the last group used to run straight into the MIDI section. */
 .stageRow {
-  padding: 0 0 2px;
+  margin: 8px 0 10px;
+  padding: 0 0 6px 8px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
 }
 .stageHead {
   display: flex;
   align-items: baseline;
   gap: 2px;
   margin: 8px 0 2px;
+}
+/* The same heading as a strip, on the spine only — the bench renders StageHead
+   in .benchStage, where its groups are grid siblings outside the box and there
+   is nothing for it to stick over.
+
+   Sticky because the panel is the app's only scroller (app.module.css .panel)
+   and a nine-group stage is taller than it: the name, its count and the × stay
+   on screen for as long as any of the stage's rows do, so "which stage is this"
+   and "how do I get out" survive the scroll that made them a question. It sticks
+   within .stageRow, so it lets go exactly where the stage ends — and under a
+   live filter, where several of these render at once, each hands off to the next.
+
+   Tinted with the same recipe the map tints the box you pressed with
+   (ChainMap.module.css .mapNodeOn .mapBox). That shared colour is the link the
+   accent on the name was carrying alone, and unlike the name it is still there
+   after you scroll. Bled back over the rail's padding so the strip reads as the
+   object's top edge rather than a band floating inside it.
+
+   z-index 1 is over the stage's own rows and under a slider's help card
+   (Slider.module.css .helpPop, at 5), which has to keep opening on top. */
+.stageRow .stageHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  /* The separation above the stage lives on .stageRow's margin, not here: a
+     margin-top on the sticky element itself parks it that far down the
+     scrollport, and the panel has no background of its own to fill the gap —
+     rows would scroll through the sliver between the strip and the top edge. */
+  margin: 0 0 0 -8px;
+  padding: 3px 4px 3px 8px;
+  border-bottom: 1px solid var(--border-faint);
+  background: color-mix(in srgb, var(--accent) 9%, var(--panel-bg));
+  /* And the panel's own ground painted above the strip, because a pinned one
+     does not sit flush with the top of the panel. Measured on Firefox Nightly:
+     `top: 0` lands the strip below the scroller's top *padding* rather than at
+     its padding-box edge, so the panel's 10px (8 in the short-landscape rule)
+     stayed open as a window onto the rows scrolling behind — a slider's label
+     peeking over the stage name. A negative `top` would close it on this engine
+     and tuck the strip under the edge on one that pins at 0; this is right
+     either way, and invisible at rest, because whatever is above the strip is
+     the panel's background in every state. */
+  box-shadow: 0 -14px 0 var(--app-bg);
+}
+/* The strip's own padding is the gap under it now, so the blurb takes the one
+   the heading's margin used to give it. */
+.stageRow .stageBlurb {
+  margin-top: 4px;
 }
 /* The stage outranks the group headers under it, so it has to win on size as
    well as color — at 10px it was the smallest thing on screen while naming the
