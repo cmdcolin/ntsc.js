@@ -308,6 +308,13 @@ rolls take a trailing `rand`, through the one `rollPool` funnel, so a row that
 names a pool resolves it from the take's generator rather than from
 `Math.random`.
 
+**And the signal path rolls too**, which this section did not say and _Take
+state_ found: `MixState` and `TapeState` reached for `Math.random` from inside
+the frame, through the `Wow` each owns, so a vhs board re-rendered differently
+every time however clean frame zero was. Both take a trailing `rand` now, on
+the same convention, and the engine hands all of them — those two, `LineState`,
+and the bay's random walk and sample-hold — one generator seeded per take.
+
 What that does **not** buy, and the code says so at both call sites: **the same
 seed does not hand back the same file.** Commons rolls with `gsrsort=random`, so
 which twelve candidates come back is the server's choice; archive.org's
@@ -316,9 +323,9 @@ _decisions_ — which pool, which page, which of the candidates — and the reco
 `PoolRef` reproduces the _file_. Which is why the rule is a seed **plus** the
 resolved picks, and never either one alone.
 
-When the code lands, this rule is the part that should become an ADR — it is the
-one a later reader would otherwise be within their rights to simplify into
-`Math.random()`.
+This rule is [adr/0006](adr/0006-a-take-is-a-seed-and-its-picks.md), because it
+is the one a later reader would otherwise be within their rights to simplify
+into `Math.random()`.
 
 ### One walk, two clocks
 
@@ -662,14 +669,16 @@ So "render frame N" is nearly a pure function already. Four things are not.
 - ~~**Four wall-clock reads, three of which move pixels.**~~ **Landed**, and
   there were five, not four: `startGlide` stamps the walk's origin as well as
   `advanceGlide` reading it. `stabGate`, `strobeGate` and `autoLock` are the
-  other three. `Engine.setVirtualClock(fps)` points all of them at
-  `frame * 1000 / fps`; `null` puts them back on the wall.
+  other three. `Engine.startTake({fps, seed})` points all of them at
+  `frame * 1000 / fps`; `endTake()` puts them back on the wall.
 
   One method rather than the argument-each this predicted. The readers are five
   unrelated places in the frame, and an argument each is five chances to pass
   the wrong one — where one private `now()` is a single switch nothing can miss.
   `strobeGate`'s comment does argue _for_ the wall clock and is right for live,
-  which is why this is a mode and not a replacement.
+  which is why this is a mode and not a replacement. It shipped as
+  `setVirtualClock`, alone; _Take state_ below is why it is now one of three
+  things a single switch holds.
 
   Measured by `scripts/clockcheck.mjs`: sixty frames stepped in no real time
   finish a one-second morph on the virtual clock (progress `null`, arriving
@@ -722,6 +731,64 @@ So "render frame N" is nearly a pure function already. Four things are not.
     duplicate of its own NAL header byte. ffmpeg decoded the picture anyway but
     reported `sps_id out of range` on every frame; `normaliseAvcc` rebuilds the
     record, and afterwards ffmpeg is silent.
+
+### Take state
+
+**Landed.** The last of the four, and the one that turns "the same take from the
+same starting state is the same take" into "the same take is the same take".
+Frame N was a function of N _and of where the engine happened to be_ at frame
+zero — the tape ring, the phosphor still on the glass, the PLL's lock age, the
+two servos — so two renders with the live loop running between them came out
+about 5% apart, which `scripts/rendercheck.mjs` measured and then spent a
+paragraph explaining it could not assert away.
+
+`Engine.startTake({fps, seed})` is one switch over all three of the things a
+take needs held, and `endTake()` puts them back:
+
+- the clock counts frames, which is the piece that shipped first as
+  `setVirtualClock` and has been folded in — flipping two of three gives a take
+  that _looks_ deterministic and is not;
+- everything that still rolls draws from the seed;
+- and the signal path starts where a fresh engine's does.
+
+It leaves the board alone. The look, the bay and the sources are what a take
+_is_; only what has accumulated underneath them is put back.
+
+**The reset zeroes every buffer and texture, not the four that carry state.** A
+WebGPU resource is zero-initialized, so zeroing one _is_ the constructed state,
+by definition and with nothing to be wrong about — where a hand-kept list of
+which buffers survive a frame boundary is wrong exactly once, and the symptom is
+a take that does not reproduce with no way to see why. It costs one command
+submission and no frames, which is the difference from `vote/prepare.ts`: that
+flushes by running 600ms of stock signal, being the same idea from outside the
+engine where this one is inside it.
+
+**Four things it turned up**, none of them predicted here:
+
+- **The signal path rolls.** `MixState` and `TapeState` reached for
+  `Math.random` from inside the frame, through the `Wow` each owns — so a vhs
+  board re-rendered differently every time however clean frame zero was. Both
+  take a trailing `rand` now, which is _Seeding_'s convention arriving somewhere
+  that section did not look.
+- **A morph in flight was a bug, not merely state.** Its origin is stamped on
+  the wall clock, and a take counts from zero, so a render started under one
+  saw `now() - startMs` go hugely negative and parked the board on the morph's
+  _origin_ look for the whole take. `rendercheck.mjs` had a `stopGlide()` in it
+  that was hiding this. The reset stops it properly.
+- **The file had the wall clock in it.** `mp4.ts` stamped `Date.now()` into six
+  `creation_time` / `modification_time` fields, so two takes came back the same
+  length to the byte with different digests. Nothing reads them; they are zero
+  now. Worth naming because it is the shape of fault that survives every check
+  short of comparing the bytes.
+- **The frame counter is the app's clock too**, not only the take's. The strip
+  measures its holds against `frameNo()`, so a take rewinding it to zero has to
+  hand it back — the same "left as it was found" rule `pauseLoop` already
+  follows. What that does _not_ yet fix is the live walk ticking on rAF straight
+  through a render; see _What to do next_.
+
+**What a take still cannot reproduce is a clip.** `VideoPump` pulls at wall
+rate, so everything below the video is deterministic and the video is not —
+which is build-order step 6, and the reason the harness renders bars.
 
 ### The Firefox constraint that shapes the choice
 
@@ -798,61 +865,63 @@ arrives.
    more frame after `pauseLoop()` returns. `scripts/rendercheck.mjs` measured
    it as 122 frames across a 120-frame render; the render now waits two
    animation frames so those land *before* it rather than interleaved, and the
-   frames in the file are consecutive. And **a render is reproducible from a
-   given starting state, not absolutely**: frame N is a function of N and of
-   the tape ring, the phosphor persistence and the PLL's lock age at frame 0.
-   Two renders with the live loop running between them differ by about 5%.
-   Byte-identity across sessions needs those buffers put back, which is what
-   recording a take (_Seeding_) has to carry — the next piece, and now the only
-   one left before the strip's offline walk (_One walk, two clocks_) can run.
-3. **The transition shelf.** Cheap, and it does not need the strip: A and B are
+   frames in the file are consecutive. And **a render was reproducible from a
+   given starting state, not absolutely** — which is what step 3 turned out to
+   be, and it is fixed.
+3. ~~**Take state.**~~ **Landed** — _Take state_ above is the write-up.
+   `Engine.startTake({fps, seed})` is one switch over the clock, the dice and a
+   signal path put back to what a fresh engine has, and `rendercheck.mjs` now
+   asserts what it previously spent a paragraph explaining it could not: **two
+   renders of one take are the same file, byte for byte.**
+4. **The transition shelf.** Cheap, and it does not need the strip: A and B are
    both live today, so the first transitions can run off the T-bar and a MIDI
    pad with no rundown anywhere near them. A table of named recipes over
    existing controls, plus the envelope and the cut point — no new uniforms, no
    new pass. The strip later just picks from the shelf.
-4. ~~**The live strip.**~~ **Landed to the line _The first slice_ drew**: rows,
+5. ~~**The live strip.**~~ **Landed to the line _The first slice_ drew**: rows,
    names, holds, the walk, drag-to-reorder, undo, duplicate, roll and shake
    rows, one transport with the music, and the seeded RNG in from the first
    commit. Preroll is the part still out, and everything filed under it below
    still waits on it.
-5. **Frame-exact video pull.** The real project, and the one with the Firefox
+6. **Frame-exact video pull.** The real project, and the one with the Firefox
    constraint sitting on it.
-6. **Automation recording.** Control writes with frame stamps, replayed offline;
+7. **Automation recording.** Control writes with frame stamps, replayed offline;
    the thing that makes performing and rendering the same take.
 
-Steps 1, 2 and 3 were independent of the strip and of each other, which is what
-made them the ones to do while its design settled; 1 and 2 are done and 3 is
-where the ordering now bites, because it is the last cheap thing left.
+Steps 1 to 4 were independent of the strip and of each other, which is what made
+them the ones to do while its design settled; 1, 2 and 3 are done and 4 is where
+the ordering now bites, because it is the last cheap thing left.
 
 ## What to do next, and why in this order
 
 Written after building it rather than before, which is why it disagrees with the
 list above in two places.
 
-1. **Take state, so a render reproduces.** The smallest remaining thing between
-   here and the whole premise. `renderTake` makes a take reproducible *from a
-   given starting state*, and nothing captures that state: frame N is a function
-   of N and of the tape ring, the phosphor persistence and the PLL's lock age at
-   frame zero, so two renders with the live loop running between them come out
-   about 5% apart (`scripts/rendercheck.mjs` measures it and declines to assert
-   otherwise). What is needed is a flush to a known signal state before a render
-   — `vote/prepare.ts` already does exactly this between candidate pairs, for
-   exactly this reason — plus the seed and the resolved picks the _Seeding_
-   section specifies. It is also the piece that turns the recorder's existing
-   determinism into something a user can rely on, and it is small.
-2. **The transition shelf** (step 3 above). Still cheap, still needs no strip,
-   still a table of named recipes plus the envelope and the cut point. It moved
-   *down* the list only because take state is now smaller and unblocks more.
-3. **Preroll depth 1.** `videoSlot.ts`'s one-element-per-slot assumption. It
-   unblocks three filed things at once — transitions between rows, the audio
-   crossfade (IDEAS.md › _Clip cues_), and any cut that is not a hard one.
-4. **The strip's offline walk.** `advance` already takes a `Clock` and does not
+1. ~~**Take state, so a render reproduces.**~~ **Landed** — _Take state_ above
+   is the write-up, and the short version is that two renders of one take are
+   now the same file byte for byte, which is what unblocks 3.
+2. **The transition shelf** (step 4 above). Still cheap, still needs no strip,
+   still a table of named recipes plus the envelope and the cut point. Now the
+   cheapest thing left, and the only one that needs nothing built first.
+3. **The strip's offline walk.** `advance` already takes a `Clock` and does not
    care where the frame number comes from, and `renderTake` already owns a
    frame counter; what is missing is a driver that steps the walk once per
-   rendered frame instead of once per rAF. Small, and blocked only by 1 above —
-   a rolling strip rendered from an unknown state is a different video every
-   time, which is the failure _Seeding_ exists to prevent.
-5. **Frame-exact video pull**, then **automation recording**, as before.
+   rendered frame instead of once per rAF. It moved *up* the list, because take
+   state was the thing blocking it — a rolling strip rendered from an unknown
+   state is a different video every time, and it no longer is.
+
+   Worth knowing before starting: the live walk ticks on rAF and reads the
+   engine's counter, so it walks *through* a render at GPU speed. A take
+   rewinding that counter to zero stalls it rather than firing it, which is the
+   better of the two accidents and still an accident. Whoever builds this should
+   take the walk away from rAF for the length of a take, the way `renderTake`
+   already takes the frames.
+4. **Preroll depth 1.** `videoSlot.ts`'s one-element-per-slot assumption. It
+   unblocks three filed things at once — transitions between rows, the audio
+   crossfade (IDEAS.md › _Clip cues_), and any cut that is not a hard one.
+5. **Frame-exact video pull**, then **automation recording**, as before. The
+   first is now the only thing between a take and reproducing with a clip in
+   it: everything below the video is deterministic, and the video is not.
 
 Three things this list deliberately does not carry, all of them wants rather
 than needs. **Cutting to the track's clock** rather than starting with it — the

@@ -351,6 +351,41 @@ together. That is the right behaviour, and it falls out of clocking the walk on
 frames rather than on the wall — a wall-clock strip would come back having
 silently skipped four rows nobody saw.
 
+## The offline render, and the file it writes
+
+```
+node scripts/reccheck.mjs [port]     # the encoder and the muxer
+node scripts/clockcheck.mjs [port]   # time counted in frames
+node scripts/rendercheck.mjs [port]  # a whole take, twice
+```
+
+Three harnesses over the export half of [`EDITOR.md`](EDITOR.md), in the order
+the pieces landed. All three want `ffprobe` and `ffmpeg` on the path; the first
+and third write an MP4 to a temp dir and read it back with them, because a claim
+about a file is worth what a decoder says about it and nothing more.
+
+**`rendercheck.mjs` is the one to run after touching anything in the signal
+path.** Its headline check is that two renders of one take come back with the
+same SHA-256 — with 25ms of real time injected at every yield of the second, and
+the live render loop running in between to dirty the tape ring, the phosphor and
+the PLL that the second take then starts from. Nothing else here is as
+sensitive: one unseeded `Math.random` in a per-frame modulator, or one buffer
+left out of the reset, and it fails. It is the guard
+[`adr/0006`](adr/0006-a-take-is-a-seed-and-its-picks.md) names.
+
+Two things it deliberately does not claim, and both are properties of the world
+rather than gaps in the harness. **It renders bars, not a clip:** `VideoPump`
+pulls at wall rate, so a take over a `<video>` is not reproducible until
+frame-exact pull lands. And **byte-identity is within one browser build** — the
+H.264 encoder is Firefox's, and nothing here asserts across versions of it.
+
+**A backgrounded window makes it slow rather than wrong**, and slow enough to
+look broken: `renderTake` yields with `setTimeout(0)`, which a browser clamps to
+about a second once the window is not in front, so a 120-frame render takes ten
+seconds instead of two and puppeteer's default 30s protocol timeout fires as a
+bare `ProtocolError` naming nothing. Hence the 240s `protocolTimeout` in that
+file — the run survives being tabbed away from.
+
 ## Surviving a lost GPU device
 
 ```

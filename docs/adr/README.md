@@ -30,3 +30,4 @@ readable without it.
 | [0003](0003-delete-the-worker-engine.md)          | Delete the worker-hosted engine                                         |
 | [0004](0004-never-destroy-a-presenting-device.md) | Never destroy a GPUDevice that has been presenting                      |
 | [0005](0005-saved-profiles-need-an-account.md)    | Saved profiles live in Firestore, and need an account                   |
+| [0006](0006-a-take-is-a-seed-and-its-picks.md)    | A take is a seed plus its resolved picks, and never `Math.random`       |
