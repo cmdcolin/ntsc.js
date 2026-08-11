@@ -20,6 +20,26 @@
 // element is a live decoder, and an archive.org pick is a `blob:` holding the
 // entire file (`sources/pool.ts` says why it downloads whole), so a deeper
 // queue is a memory bug waiting to happen.
+//
+// **A running loop's second read head is a third element, and deliberately not
+// the preroll one.** `docs/IDEAS.md` › _Clip cues_ filed the contention between
+// them as a policy decision, and the policy is that there is no contention to
+// settle, because the bound the preroll rule protects is *files* rather than
+// elements. A preroll is speculative and names a different clip, so it can cost
+// a whole second download; a loop's head is the same url as the element on air,
+// which for a `blob:` is the same Blob and for anything else is a cache hit, so
+// it costs a decoder and no bytes. Sharing one field would have made a rundown's
+// lookahead and a marked loop take turns breaking each other, to protect a
+// budget only one of them spends.
+
+// **And it gives up rather than making things worse**, which the first cut of
+// this did not and the measurement caught. A head only helps if the outgoing
+// element can finish parking itself within one lap; where it cannot, the two
+// elements are both seeking the same expensive file at once, and
+// `scripts/wrapsound.mjs` measured that contention turning a 213ms dropout on
+// every lap into a 1028ms one on half of them — the same silence, in worse
+// lumps. So the re-park is timed against the lap it had to fit in, and a head
+// that overran is dropped for the life of the cue. See `promoteHead`.
 
 import { debugLog } from '../gpu/env'
 
@@ -55,6 +75,9 @@ export interface VideoSlot {
   // promoted — a parked element that the mixer could see would be a second
   // picture, and one the audio graph had adopted would be a second sound.
   next: { current: Preroll | null }
+  // The **second read head on the clip that is on air**, parked at a running
+  // loop's in-point, or nothing. See `armHead`.
+  head: { current: HTMLVideoElement | null }
   // The teletype reveal currently printing into this slot, if any. It lives
   // here for the same reason the element does: whatever a slot holds has to be
   // retired by stopSlot, and every load path already opens with that call.
@@ -116,6 +139,12 @@ export function stopTyping(slot: VideoSlot): void {
 // accumulating.
 export function stopSlot(slot: VideoSlot): void {
   stopTyping(slot)
+  // The second read head goes first, and the order is load-bearing: it shares
+  // the live element's `src`, so it has to be off the url before the revoke
+  // below rather than after it. Unlike the preroll it is never spent by a later
+  // load either — a cue cannot outlive its clip (`clearCue` below says why), so
+  // a head that survived a source change would be a decoder on the previous one.
+  dropHead(slot)
   const v = slot.ref.current
   if (v !== null) {
     v.pause()
@@ -244,6 +273,109 @@ export async function prerollUrl(
     // worth parking; a promotion will simply not find it and load normally.
     if (slot.next.current === parked) dropPreroll(slot)
   }
+}
+
+// Retire the second read head. **It does not revoke the url**, which is the one
+// thing to know about it: the head is by construction the same src as the
+// element on air, so for a `blob:` they hold one object and revoking here would
+// pull the file out from under the picture. `stopSlot` revokes once, for both.
+export function dropHead(slot: VideoSlot): void {
+  const head = slot.head.current
+  if (head === null) return
+  slot.head.current = null
+  head.pause()
+  head.removeAttribute('src')
+}
+
+// Load a second element on the same clip and park it at the loop's in-point.
+//
+// **This is what makes a wrap free**, and the mechanism is the whole of it: a
+// wrap is a seek, a seek is a decode from the previous keyframe forward to the
+// in-point, and an element that is *already there* has nothing to decode. What
+// the loop pays instead is that same seek on the outgoing head, off air, during
+// the lap — see `promoteHead`.
+//
+// Muted and unadopted until it is promoted, for the same reason a preroll is:
+// an element the audio graph had taken would be the clip playing twice, a lap
+// apart.
+//
+// Armed unconditionally, with no minimum lap length to clear first. Whether a
+// head can keep up is a question about the clip's encoding and the loop's
+// length together, and neither this nor any constant written here can answer it
+// — `promoteHead` measures it instead, on the first lap, and gives the head back
+// if the answer is no.
+export async function armHead(slot: VideoSlot, start: number): Promise<void> {
+  dropHead(slot)
+  const live = slot.ref.current
+  if (live === null || live.src === '') return
+  const v = configureVideo(slot)
+  slot.head.current = v
+  v.preload = 'auto'
+  v.src = live.src
+  try {
+    await once(v, 'loadedmetadata')
+    v.currentTime = start
+    await once(v, 'seeked')
+  } catch {
+    // Errored, or retired underneath us. Either way there is nothing to park;
+    // the wrap will find no head and seek, which is the price it always paid.
+    if (slot.head.current === v) dropHead(slot)
+  }
+}
+
+// The wrap, when there is a head to take. Hands back the element the pump should
+// carry on with, or null for "seek instead".
+//
+// The two elements change places: what was on air becomes the parked head and is
+// sent back to the in-point, and what was parked goes on air. So a loop is a
+// ping-pong rather than a queue, and the expensive seek is still paid every
+// lap — just on the head nobody is watching or listening to.
+//
+// **`attach` is deliberately not called.** The pump is mid-wrap and installs the
+// element it is handed itself; telling it again through `setVideoSource` would
+// come back as a source change and clear the region this loop runs in
+// (gpu/videopump.ts › `continueOn`). Nothing else `attach` does applies either —
+// the clip has not changed, so neither has what the slot is holding.
+export function promoteHead(
+  slot: VideoSlot,
+  start: number,
+  end: number,
+): HTMLVideoElement | null {
+  const head = slot.head.current
+  const live = slot.ref.current
+  // `HAVE_FUTURE_DATA`: parked, and with a frame at the in-point ready to show.
+  // Anything less is a head that has not finished arriving, and promoting it
+  // would trade a seek for a stall.
+  if (head === null || live === null || head.readyState < 3) return null
+  slot.head.current = live
+  slot.ref.current = head
+  // Muted before it is left, adopted after it is taken: `routeAudio` only knows
+  // about the element the slot is holding, so the one stepping off the air has
+  // to be silenced here or it goes on sounding a lap behind.
+  live.pause()
+  live.muted = true
+  slot.adopt()
+  void head.play().catch(() => {})
+  // The outgoing head goes back to the in-point now, so it has the whole lap to
+  // finish a seek the wrap would otherwise have waited on.
+  //
+  // **And the lap is the deadline, timed here.** A re-park that does not fit
+  // cannot ever be ready when it is wanted, so leaving it armed means two
+  // elements seeking the same file against each other on every lap — measured as
+  // five times the dropout on half as many laps, which is worse than the seek
+  // this was built to avoid. One overrun retires the head; a fresh cue press
+  // arms a new one, which is the only thing that could have changed the answer.
+  const began = performance.now()
+  const onSeeked = () => {
+    live.removeEventListener('seeked', onSeeked)
+    const took = performance.now() - began
+    if (took <= (end - start) * 1000 || slot.head.current !== live) return
+    debugLog('DEBUG loop head dropped: re-park', Math.round(took), 'ms')
+    dropHead(slot)
+  }
+  live.addEventListener('seeked', onSeeked)
+  live.currentTime = start
+  return head
 }
 
 // One event, as a promise that also settles if the element errors — so a

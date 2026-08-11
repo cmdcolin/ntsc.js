@@ -37,7 +37,7 @@ import type { FaultPlan } from '../signal/fault'
 import type { GlidePlan } from '../signal/glide'
 import type { StabPlan } from '../signal/stab'
 import type { FrozenKind } from './renderloop'
-import type { WrapHealth } from './videopump'
+import type { Relay, WrapHealth } from './videopump'
 
 export interface DestroyOptions {
   // Leave the audio graph open, because a successor engine is taking it over.
@@ -131,12 +131,19 @@ export interface EngineApi {
   // by mutate. Held here rather than in the panel because the wrap has to happen
   // once a frame (see VideoPump.wrap) and nothing in React runs that often.
   setVideoRegion: (region: { start: number; end: number } | null) => void
+  // Where this slot's second read head is offered from, for a loop that would
+  // rather swap elements than seek. Set once, at engine creation, and asked at
+  // the wrap — the owner of the elements answers, and the pump never has to
+  // learn what a read head is. `null` is "always seek", which is what a loop did
+  // before this existed and what one still does when no head is ready.
+  setVideoRelay: (relay: Relay | null) => void
   // A GPU-generated noise field instead of a texture (1 TV static, 2 VHS
   // static); 0 restores the texture path.
   setNoiseSource: (kind: number) => void
   setImageSourceB: (source: OffscreenCanvas | ImageBitmap) => void
   setVideoSourceB: (el: HTMLVideoElement | null) => void
   setVideoRegionB: (region: { start: number; end: number } | null) => void
+  setVideoRelayB: (relay: Relay | null) => void
   // What each slot's loop wrap is actually costing, for the note the cue row
   // shows when a clip's encoding makes looping it judder. Polled rather than
   // pushed: the panel already reads the playheads at 10 Hz and this rides along

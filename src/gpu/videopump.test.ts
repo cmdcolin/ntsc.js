@@ -389,6 +389,101 @@ describe('VideoPump', () => {
       expect(next.currentTime).toBe(12)
     })
 
+    // The second read head. A loop with one wraps by changing elements instead
+    // of seeking, which is what makes the wrap free — and the failure this has to
+    // be held against is a relay that ends the loop, because a promotion that
+    // went back through `setA` would clear the region on the way past.
+    describe('relay', () => {
+      it('continues on the head instead of seeking, and keeps looping', () => {
+        stubBitmaps()
+        const pump = new VideoPump()
+        const s = sink()
+        const el = videoEl({ currentTime: 4.31 })
+        const head = videoEl({ currentTime: 4.0 })
+        pump.setA(el)
+        pump.setRegionA({ start: 4.0, end: 4.3 })
+        pump.setRelayA(() => head)
+
+        pump.pump(s)
+        // The outgoing element is left where it was: the caller owns it now, and
+        // sending it back to the in-point is the caller's job rather than a seek
+        // the pump made a second decision about.
+        expect(el.currentTime).toBe(4.31)
+
+        // And the region survived, which is the whole of what `continueOn`
+        // exists for. Proven by the head wrapping in its turn rather than by
+        // reading a private field.
+        head.currentTime = 4.31
+        pump.setRelayA(() => null)
+        pump.pump(s)
+        expect(head.currentTime).toBe(4.0)
+      })
+
+      it('seeks when no head is ready', () => {
+        stubBitmaps()
+        const pump = new VideoPump()
+        const s = sink()
+        const el = videoEl({ currentTime: 4.31 })
+        pump.setA(el)
+        pump.setRegionA({ start: 4.0, end: 4.3 })
+        pump.setRelayA(() => null)
+
+        pump.pump(s)
+        expect(el.currentTime).toBe(4.0)
+      })
+
+      // Being handed back the element already on air is "no head", not a swap
+      // onto itself — which would bump the generation every frame and drop every
+      // decode in flight.
+      it('seeks when the head is the element already playing', () => {
+        stubBitmaps()
+        const pump = new VideoPump()
+        const s = sink()
+        const el = videoEl({ currentTime: 4.31 })
+        pump.setA(el)
+        pump.setRegionA({ start: 4.0, end: 4.3 })
+        pump.setRelayA(() => el)
+
+        pump.pump(s)
+        expect(el.currentTime).toBe(4.0)
+      })
+
+      // The listener moves with the element. Left on the outgoing head, a
+      // `seeked` from the re-park the caller starts would be counted as a wrap
+      // this loop paid for — the one reading that must stay about the seek.
+      it('does not count the outgoing head re-parking as a wrap', () => {
+        stubBitmaps()
+        const pump = new VideoPump()
+        const s = sink()
+        const el = videoEl({ currentTime: 4.31 })
+        const head = videoEl({ currentTime: 4.0 })
+        pump.setA(el)
+        pump.setRegionA({ start: 4.0, end: 4.3 })
+        pump.setRelayA(() => head)
+
+        pump.pump(s)
+        el.fire('seeked')
+        expect(pump.health().a.laps).toBe(0)
+      })
+
+      it('never relays a slot that is not looping', () => {
+        stubBitmaps()
+        const pump = new VideoPump()
+        const s = sink()
+        const el = videoEl({ currentTime: 12 })
+        const head = videoEl({ currentTime: 0 })
+        let asked = 0
+        pump.setA(el)
+        pump.setRelayA(() => {
+          asked += 1
+          return head
+        })
+
+        pump.pump(s)
+        expect(asked).toBe(0)
+      })
+    })
+
     // A live stream reports Infinity and ignores seeks. Left unguarded this is a
     // seek attempted every frame against a playhead that never comes back.
     it('never wraps a source with no timeline', () => {

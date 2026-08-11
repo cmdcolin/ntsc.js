@@ -461,7 +461,8 @@ results.push({
 console.log(
   `\n${'arm'.padEnd(9)}${'keys'.padStart(5)}${'wraps'.padStart(7)}` +
     `${'seek'.padStart(9)}${'silence'.padStart(10)}${'worst'.padStart(9)}` +
-    `${'quiet'.padStart(8)}${'seeking'.padStart(9)}${'steps/s'.padStart(9)}`,
+    `${'quiet'.padStart(8)}${'seeking'.padStart(9)}${'steps/s'.padStart(9)}` +
+    `${'free'.padStart(8)}`,
 )
 const read = {}
 const fails = []
@@ -478,7 +479,11 @@ for (const r of results) {
       `${(mine.length === 0 ? '--' : `${pct(ms, 1).toFixed(0)}ms`).padStart(9)}` +
       `${`${(a.quiet * 100).toFixed(0)}%`.padStart(8)}` +
       `${`${((a.seeking ?? 0) * 100).toFixed(0)}%`.padStart(9)}` +
-      `${(a.rate ?? 0).toFixed(0).padStart(9)}`,
+      `${(a.rate ?? 0).toFixed(0).padStart(9)}` +
+      // Wraps that made no sound at all. The single most useful column once a
+      // second read head exists: a median over the laps that *did* drop out says
+      // nothing about how many did not, and those are the ones the head bought.
+      `${(a.wraps === 0 ? '--' : `${(((a.wraps - mine.length) / a.wraps) * 100).toFixed(0)}%`).padStart(8)}`,
   )
   if (r.bad !== undefined) fails.push(`${r.label}: ${r.bad}`)
   else if (a.n < 100)

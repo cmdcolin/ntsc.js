@@ -91,7 +91,7 @@ import type { DestroyOptions, EngineApi } from './engineapi'
 import type { FeedSource } from './feedgates'
 import type { ParamName } from './prelude'
 import type { FrozenKind } from './renderloop'
-import type { PumpedFrame, WrapHealth } from './videopump'
+import type { PumpedFrame, Relay, WrapHealth } from './videopump'
 
 const N = SAMPLES_PER_LINE * LINES
 const LINE_PARAM_BYTES = LINES * 16
@@ -1253,6 +1253,10 @@ export class Engine implements EngineApi {
     this.pump.setRegionA(region)
   }
 
+  setVideoRelay(relay: Relay | null): void {
+    this.pump.setRelayA(relay)
+  }
+
   // A GPU-generated noise field (1 TV static, 2 VHS static); 0 restores the
   // texture path. Any real image/video source clears it.
   // A video frame decoded somewhere else. On the main thread the pump feeds
@@ -1296,6 +1300,10 @@ export class Engine implements EngineApi {
 
   setVideoRegionB(region: { start: number; end: number } | null): void {
     this.pump.setRegionB(region)
+  }
+
+  setVideoRelayB(relay: Relay | null): void {
+    this.pump.setRelayB(relay)
   }
 
   loopHealth(): { a: WrapHealth; b: WrapHealth } {

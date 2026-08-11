@@ -50,9 +50,12 @@ import {
 } from './urlParams'
 import { useSourcePrompt } from './useSourcePrompt'
 import {
+  armHead,
+  dropHead,
   playStream,
   playUrl,
   prerollUrl,
+  promoteHead,
   stopSlot,
   stopTyping,
 } from './videoSlot'
@@ -317,6 +320,12 @@ export function useEngine() {
   // preroll depth 1, one per deck by construction (ui/videoSlot.ts).
   const nextARef = useRef<Preroll | null>(null)
   const nextBRef = useRef<Preroll | null>(null)
+  // The second read head each slot may have on the clip it is playing, parked at
+  // a running loop's in-point. A separate field from the preroll above and not a
+  // second use of it — ui/videoSlot.ts argues why, and the short version is that
+  // the two bound different things.
+  const headARef = useRef<HTMLVideoElement | null>(null)
+  const headBRef = useRef<HTMLVideoElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const fileInputBRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
@@ -646,6 +655,13 @@ export function useEngine() {
     const region = cueRegion(next)
     if (key === 'a') engineRef.current?.setVideoRegion(region)
     else engineRef.current?.setVideoRegionB(region)
+    // The loop's second read head, armed here because this is the one place a
+    // loop starts or stops existing. Fired and not awaited: it is a load, the
+    // first lap wraps by seeking whether or not it has landed, and the only
+    // thing waiting for it would achieve is to make marking a loop feel slow.
+    const slot = slotOf(key)
+    if (region === null) dropHead(slot)
+    else void armHead(slot, region.start)
   }
 
   // Dragging the seek bar out of a running loop lets go of the loop but keeps the
@@ -751,6 +767,7 @@ export function useEngine() {
     id,
     ref: id === 'a' ? videoRef : videoBRef,
     next: id === 'a' ? nextARef : nextBRef,
+    head: id === 'a' ? headARef : headBRef,
     typer: id === 'a' ? typerARef : typerBRef,
     rate: () => vaporRef.current.speed[id],
     // The three engine entry points below are separate methods per slot on
@@ -1803,6 +1820,13 @@ export function useEngine() {
         created.onHang = () =>
           rebuild(created, 'hung', 'submitted work stopped completing')
         created.onFrozen = f => setFrozen(f)
+        // Where each slot's second read head is offered from. Set here rather
+        // than beside the region, so a rebuilt engine gets one too: the elements
+        // played straight through the device loss — they are the browser's, not
+        // the GPU's — so a loop that was running keeps its head along with its
+        // region two dozen lines below.
+        created.setVideoRelay((start, end) => promoteHead(slotA, start, end))
+        created.setVideoRelayB((start, end) => promoteHead(slotB, start, end))
         // Both belong to the engine being replaced: a gpu fault it reported on
         // its way out, and a paint stall latched against its loop. The new loop
         // only reports edges, so a stale `frozen` would never clear itself.

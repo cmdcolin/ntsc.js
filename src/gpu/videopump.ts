@@ -90,12 +90,28 @@ export interface WrapHealth {
 // the decoder's — which a plain worst-of would report as the loop's fault.
 const WRAP_WINDOW = 8
 
+// Asked at the moment a loop would wrap: is there a second read head to
+// continue on, already parked at `start`? An element means "carry on with this
+// one"; null means seek, which is what every loop did before there was a second
+// head and what every loop still does when one is not ready in time.
+//
+// **The caller does not tell the pump about the element it hands back.** The
+// swap below is the telling — routing it through `setVideoSource` as well would
+// come back through `retarget`, which clears the region on purpose, and the loop
+// would end at its first lap. This is not the same operation as a source change
+// and does not share its funnel: see `continueOn`.
+// The whole region and not just the in-point: the caller sends the outgoing head
+// back to `start`, and `end - start` is the lap it has to be back inside — which
+// is the deadline that decides whether keeping a head is worth anything at all.
+export type Relay = (start: number, end: number) => HTMLVideoElement | null
+
 interface Slot {
   el: HTMLVideoElement | null
   inFlight: boolean
   ready: PumpedFrame | null
   // Where this slot's loop runs, or null for "play straight through".
   region: Region | null
+  relay: Relay | null
   // Wrap timing: when the wrap's seek was issued (0 for none outstanding), the
   // listener that closes it, and the window of durations it has collected.
   wrapAt: number
@@ -117,6 +133,7 @@ const emptySlot = (): Slot => ({
   inFlight: false,
   ready: null,
   region: null,
+  relay: null,
   wrapAt: 0,
   onSeeked: null,
   wrapGaps: [],
@@ -175,6 +192,18 @@ export class VideoPump {
   setRegionB(region: Region | null): void {
     this.b.region = region
     this.resetHealth(this.b)
+  }
+
+  // Where a slot's second read head is offered from, or null for "always seek".
+  // Set once for the life of the slot rather than armed per loop: the answer to
+  // "is there another head" belongs to whoever owns the elements, and asking it
+  // at the wrap is cheaper than keeping this in step with every cue press.
+  setRelayA(relay: Relay | null): void {
+    this.a.relay = relay
+  }
+
+  setRelayB(relay: Relay | null): void {
+    this.b.relay = relay
   }
 
   // Everything about the slot goes back to untouched, `inFlight` included. A
@@ -328,11 +357,53 @@ export class VideoPump {
     // API that the harnesses drive, and this is the line that would spin.
     if (r.end <= r.start) return
     if (el.currentTime < r.end) return
+    // The second read head first, because it is the version of this that costs
+    // nothing: an element already parked at the in-point needs no seek, and the
+    // seek is the whole of what a wrap costs the picture *and* the sound
+    // (scripts/wrapsound.mjs). Null is the ordinary answer — no head armed, or
+    // one that has not finished parking — and then this is the seek it always
+    // was.
+    const head = slot.relay?.(r.start, r.end) ?? null
+    if (head !== null && head !== el) {
+      this.continueOn(slot, head)
+      return
+    }
     // Stamped before the assignment: `seeked` can fire synchronously for a seek
     // that is already satisfied, and a handler finding wrapAt still 0 would drop
     // the cheapest wraps and leave the median reading only the expensive ones.
     slot.wrapAt = performance.now()
     el.currentTime = r.start
+  }
+
+  // The same clip, on the other read head. `retarget` with the two lines that
+  // make it a *source* change left out, and that is the whole of the difference:
+  //
+  //   - **the region stays.** A relay is one lap of the loop it was marked on,
+  //     not a new clip, so clearing the region here would end every loop at its
+  //     first wrap. This is why a promotion must not go back through
+  //     `setVideoSource`.
+  //   - **the health window stays.** What it measures is what the in-point costs
+  //     to seek to, which has not changed — and a relayed wrap adds nothing to
+  //     it, because there was no seek to time. A loop that keeps its head
+  //     therefore stops reporting a wrap cost, which is the honest reading: the
+  //     cost the readout exists to name is the one this just avoided paying.
+  //
+  // Everything else is retarget's, for retarget's reasons: the listener follows
+  // the element, the generation is bumped so a decode from the outgoing head
+  // cannot write here, and `lastTime` is cleared so the first frame of the new
+  // one is asked for even though it sits at a position the old one already had.
+  private continueOn(slot: Slot, el: HTMLVideoElement): void {
+    this.listen(slot, el)
+    slot.el = el
+    slot.lastTime = -1
+    slot.inFlight = false
+    slot.gen += 1
+    slot.ready?.bmp.close()
+    slot.ready = null
+    // A seek outstanding on the element being left belongs to it, and its
+    // `seeked` will never be heard here now. Left set, the next real wrap's
+    // handler would close it and report a gap that spans a lap.
+    slot.wrapAt = 0
   }
 
   private take(slot: Slot): PumpedFrame | null {
@@ -453,6 +524,10 @@ export class VideoPump {
     for (const slot of [this.a, this.b]) {
       this.listen(slot, null)
       slot.el = null
+      // The relay closes over the slot that owns the elements, which outlives
+      // this object — a pump kept alive by a stale reference would go on being
+      // asked nothing and holding everything.
+      slot.relay = null
       slot.ready?.bmp.close()
       slot.ready = null
     }
