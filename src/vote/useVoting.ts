@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { randomSeed } from '../rng'
 import { putCandidate, putVotes } from '../ui/cloud'
 import { DEVELOP_MS, FLUSH_MS, flushEngines, showPair } from './prepare'
 import {
@@ -26,8 +27,6 @@ import type { Choice } from './votes'
 //   'developing' — the pair is up and blooming; voting is held off
 //   'ready'      — old enough to judge
 export type Phase = 'flushing' | 'developing' | 'ready'
-
-const randomSeed = () => Math.floor(Math.random() * 0x7fffffff)
 
 export function useVoting(args: {
   engines: readonly [EngineApi, EngineApi] | null

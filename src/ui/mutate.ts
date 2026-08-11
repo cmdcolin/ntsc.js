@@ -14,13 +14,24 @@ import type { SliderDef } from './controls'
 // a variation on the look you had. It keeps the same shape as the others —
 // jitter around where things sit, not fresh-random — so a turbo roll off a
 // patch you like still remembers it was that patch.
-export const MUTATE_AMOUNTS = {
+// The names first and the record against them, rather than the other way round
+// — the same shape `MORPH_SECONDS` and `POOL_MODES` use, and for the reason
+// they use it: a stored amount read back off a strip row has to be narrowed
+// from `unknown`, and a list is something `.find` can narrow through where a
+// record's keys are only reachable by asserting.
+export const MUTATE_KEYS = ['gentle', 'normal', 'wild', 'turbo'] as const
+export type MutateAmount = (typeof MUTATE_KEYS)[number]
+
+export const MUTATE_AMOUNTS: Record<MutateAmount, number> = {
   gentle: 0.04,
   normal: 0.12,
   wild: 0.3,
   turbo: 0.6,
 }
-export type MutateAmount = keyof typeof MUTATE_AMOUNTS
+
+// A stored name back onto the list, or undefined for anything that is not one.
+export const parseMutateAmount = (v: unknown): MutateAmount | undefined =>
+  MUTATE_KEYS.find(a => a === v)
 
 // Which roll a click is asking for. Shared by the panel's two mutate buttons —
 // the bar's and each stage's die — so the modifiers cannot drift apart between

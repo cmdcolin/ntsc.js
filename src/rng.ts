@@ -39,6 +39,16 @@ export function rngFor(seed: number): Rand {
   }
 }
 
+// A seed to start something reproducible from — a vote pair, a strip's rolls.
+//
+// The one draw in this file that is deliberately *not* reproducible, which is
+// not a contradiction: its whole job is to be the thing everything downstream
+// is reproducible from, so a fixed one would mean every session, and every
+// user, walking the same sequence. Positive and inside 31 bits, so it survives
+// JSON, a URL, and `>>> 0`.
+export const randomSeed = (): number =>
+  1 + Math.floor(Math.random() * 0x7ffffffe)
+
 // An index into something of this length. Zero-length answers 0, which is not a
 // valid index — but every caller indexes a list it has already established is
 // non-empty (a constant pool, or a page `pickOne` has length-checked), so

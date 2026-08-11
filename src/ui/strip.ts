@@ -1,0 +1,412 @@
+// The rundown, and the walk down it. Pure — nothing here touches React, the
+// engine, or the network.
+//
+// The design is [`docs/EDITOR.md`](../../docs/EDITOR.md) › _The strip_. What
+// this file is responsible for is the part that is easy to get subtly wrong and
+// expensive to debug in a browser: where the walk is, when a row's hold is up,
+// and which numbers a roll draws. `advance` decides; `useStrip` carries out.
+//
+// **Effects rather than calls** is the whole shape. `advance` returns a list of
+// things to do — put this session up, roll a pool, shake the look — and never
+// does any of them, so the boundary between "the walk said so" and "the browser
+// did it" is a value a test can assert on. Every bug this file could have is
+// then a wrong list rather than a wrong picture.
+
+import { randomSeed, rngFor } from '../rng'
+import { MODE_ORIGIN, isPoolMode } from '../sources/pools'
+import { MORPH_SECONDS } from './morph'
+import { parseMutateAmount } from './mutate'
+import { readRecord, writeJSON } from './storage'
+
+import type { PoolOrigin } from '../sources/pools'
+import type { MorphSeconds } from './morph'
+import type { MutateAmount } from './mutate'
+
+// --- the row ----------------------------------------------------------------
+
+// What resolving a row costs when it fires — the "three kinds of row, one
+// shape" of the design.
+//
+// `clip` is the ordinary one: the session string below says everything, so
+// firing is a write. `roll` names a pool rather than a file and resolves it at
+// fire time. `jitter` keeps whatever is up and shakes the look instead.
+//
+// Deliberately stored, not derived. `rowFill` below reads it off a session
+// string, and a captured row records the answer so the tray can draw a card
+// without parsing four hundred characters of query string per row per render.
+// The two cannot drift because `rowFill` is the only thing that ever writes it.
+export type RowFill =
+  | { kind: 'clip' }
+  | { kind: 'roll'; origin: PoolOrigin }
+  | { kind: 'jitter'; amount: MutateAmount }
+
+// How long a row holds.
+//
+// `bars: null` waits for a hand — the row that ends a section, or the whole
+// strip used as a bank of scenes with no timing at all. Otherwise it is "≈N
+// bars", loosely: `drift` is a fraction of the hold, so 0.25 lands the boundary
+// anywhere in ±a quarter of it, and 0 is the exact beat-lock the design keeps
+// available per row for the cut that has to land on a hit.
+//
+// The default being loose is the taste call EDITOR.md names as one, and it is
+// worth keeping visible here: a strip whose holds drift is a pattern rather
+// than an edit.
+export interface Hold {
+  bars: number | null
+  drift: number
+}
+
+export const DEFAULT_HOLD: Hold = { bars: 4, drift: 0.25 }
+
+// Widest a drift can be asked for. Half a hold either way is already the
+// difference between three bars and five; past that the hold stops being "≈4
+// bars" and becomes a coin toss, which is a different feature and not a better
+// one.
+export const MAX_DRIFT = 0.5
+
+export interface Row {
+  id: string
+  // Everything this row puts up, as a query string: source, cue, look and
+  // motion, in the contract `urlParams` already owns.
+  //
+  // `writeProfileParams`' output rather than `writeSessionParams`', and the
+  // difference matters here for exactly the reason that function was split out
+  // — a row is read back weeks later, and a live link's `?preset=` would by
+  // then re-supply a knob the hand had already put back to stock.
+  session: string
+  fill: RowFill
+  hold: Hold
+  // How the row arrives. An object holding one field on purpose: the shelf of
+  // named transitions (EDITOR.md › _Transitions_) is a second field here, and a
+  // bare number now would make that a codec migration later.
+  arrive: { seconds: MorphSeconds }
+}
+
+// A whole rundown.
+//
+// `seed` is the one field that cannot be added later. Every roll and every
+// drifted hold draws from it, so a strip without one is a strip whose takes are
+// unreproducible — which is the failure EDITOR.md › _Seeding_ exists to
+// prevent, and the reason this is here in the first commit rather than the
+// third.
+export interface Strip {
+  rows: readonly Row[]
+  seed: number
+  // Whether the walk comes back round. On for a set, off for a piece with an
+  // ending — and off is what gives an offline render a natural last frame.
+  loop: boolean
+}
+
+export const EMPTY_STRIP: Strip = { rows: [], seed: 1, loop: true }
+
+// --- where the walk is ------------------------------------------------------
+
+export interface Walk {
+  // Which row is up. -1 is stopped, which is also where a walk starts.
+  row: number
+  // How many times round. Part of the seed derivation below, so lap two rolls
+  // differently from lap one — and does so reproducibly, which is the point.
+  lap: number
+  // The frame the current row fired on.
+  since: number
+  // How long it holds, in frames, or null to wait for a hand.
+  //
+  // Resolved once, when the row fires, rather than recomputed per tick. Drift
+  // is rolled per fire, so a hold recomputed every tick would be a boundary
+  // that moved every time it was asked about and a row that never ended.
+  frames: number | null
+}
+
+export const STOPPED: Walk = { row: -1, lap: 0, since: 0, frames: null }
+
+export const walking = (walk: Walk): boolean => walk.row >= 0
+
+// What the walk is measured against. One object because it is the thing that
+// differs between the two clocks — live, `frame` comes off the engine's own
+// counter at whatever rate it is running; offline, it is the render's frame
+// index — and everything else in this file is indifferent to which.
+export interface Clock {
+  frame: number
+  // Already resolved. `useTempo.ensure()` puts a tempo there when there is
+  // none, on the rule the bay already follows for patching into a frozen board:
+  // asking for the thing is unambiguous, so the ask wins.
+  bpm: number
+  fps: number
+}
+
+// --- what a fire asks for ---------------------------------------------------
+
+// One thing the driver has to do, in the order returned.
+//
+// Two variants named in the design are deliberately absent until the code
+// behind them is: `preroll` waits on `videoSlot.ts` holding two elements per
+// slot, and `fault` waits on the transition shelf. Adding either is a variant
+// here and an arm in the driver's switch; declaring them now would only put two
+// unreachable arms in it.
+export type Effect =
+  // Put this session up: the source it names, the cue on it, and the look,
+  // arriving over `seconds` (0 cuts).
+  | { kind: 'session'; session: string; seconds: MorphSeconds }
+  // Roll this pool and put what comes back on the deck. The seed is the row's,
+  // so re-walking the same strip asks the same questions — though not
+  // necessarily of the same file, which is `rng.ts`'s note and EDITOR.md's.
+  | { kind: 'roll'; origin: PoolOrigin; seed: number }
+  // Shake the live look. Not a stored look: a jitter row is a departure from
+  // whatever is on the board when it fires, which is why it carries an amount
+  // and a seed rather than controls.
+  | { kind: 'jitter'; amount: MutateAmount; seed: number }
+
+// The generator for one fire of one row.
+//
+// Derived from the three things that identify it rather than drawn off a
+// running cursor, which is what makes the walk replayable from any point: state
+// is four plain numbers, and re-entering row 3 on lap 2 asks the same question
+// whether it was reached by playing from the top or by a hand jumping there.
+// The vote page derives its pair seeds the same way and for the same reason.
+//
+// Mixed rather than added, so (seed 1, row 2) and (seed 2, row 1) are not the
+// same draw. The constants are the odd multipliers Knuth-style mixing uses;
+// nothing here needs them to be good, only to separate.
+export const seedFor = (seed: number, row: number, lap: number): number =>
+  (Math.imul(seed | 0, 0x9e3779b1) ^
+    Math.imul(row + 1, 0x85ebca6b) ^
+    Math.imul(lap + 1, 0xc2b2ae35)) >>>
+  0
+
+// How many frames a hold lasts, or null when it waits for a hand.
+//
+// Four beats to the bar, which is the assumption `useTempo` already makes
+// everywhere else. Floored at one frame: a hold of zero would fire every row in
+// the strip on one tick, which reads as the strip having emptied itself.
+export function holdFrames(
+  hold: Hold,
+  clock: Clock,
+  seed: number,
+): number | null {
+  if (hold.bars === null) return null
+  const beats = hold.bars * 4
+  const seconds = (beats * 60) / clock.bpm
+  // One draw, at the moment the row fires. `rngFor` is constructed here rather
+  // than threaded so the answer depends on the seed alone — the same row on the
+  // same lap drifts by the same amount however it was reached.
+  const drift = Math.min(MAX_DRIFT, Math.max(0, hold.drift))
+  const spread = drift === 0 ? 0 : (rngFor(seed)() * 2 - 1) * drift
+  return Math.max(1, Math.round(seconds * (1 + spread) * clock.fps))
+}
+
+// What firing one row asks for. Ordered: the session goes up before the roll or
+// the jitter lands on it, because both are departures *from* what the session
+// named.
+export function fireEffects(row: Row, seed: number): Effect[] {
+  const out: Effect[] = [
+    { kind: 'session', session: row.session, seconds: row.arrive.seconds },
+  ]
+  if (row.fill.kind === 'roll') {
+    out.push({ kind: 'roll', origin: row.fill.origin, seed })
+  } else if (row.fill.kind === 'jitter') {
+    out.push({ kind: 'jitter', amount: row.fill.amount, seed })
+  }
+  return out
+}
+
+// --- the walk ---------------------------------------------------------------
+
+export interface Step {
+  walk: Walk
+  effects: Effect[]
+}
+
+// Land on a row: the one place a Walk is built, so every way of getting to a
+// row — starting, running on, a hand jumping — resolves its hold and draws its
+// seed identically.
+function land(strip: Strip, index: number, lap: number, clock: Clock): Step {
+  const row = strip.rows[index]
+  const seed = seedFor(strip.seed, index, lap)
+  return {
+    walk: {
+      row: index,
+      lap,
+      since: clock.frame,
+      frames: holdFrames(row.hold, clock, seed),
+    },
+    effects: fireEffects(row, seed),
+  }
+}
+
+// Start the walk at the top. An empty strip stays stopped rather than pretending
+// to run — a transport that says it is playing with nothing to play is the
+// worse of the two lies.
+export const start = (strip: Strip, clock: Clock): Step =>
+  strip.rows.length === 0
+    ? { walk: STOPPED, effects: [] }
+    : land(strip, 0, 0, clock)
+
+// A hand putting the walk on a particular row. Out-of-range is a no-op rather
+// than a clamp: the callers are a click on a row and a MIDI pad bound to one,
+// and a pad bound to row 7 of a strip that has since lost three rows should do
+// nothing rather than fire row 4.
+export function fire(
+  strip: Strip,
+  walk: Walk,
+  index: number,
+  clock: Clock,
+): Step {
+  if (index < 0 || index >= strip.rows.length) return { walk, effects: [] }
+  return land(strip, index, Math.max(0, walk.lap), clock)
+}
+
+// One tick. Null when there is nothing to do, which is nearly every tick — the
+// caller polls this at whatever rate it likes and only acts when a boundary has
+// actually been crossed.
+//
+// Deliberately advances by one row per call and not by however many holds have
+// elapsed. A tick that arrives late (a slow frame, a tab that was hidden, an
+// offline render stepping coarsely) would otherwise fire three rows into the
+// void to catch up, and every one of them would have loaded a source nobody
+// saw. Late means the next row is late, not that the strip skips.
+export function advance(strip: Strip, walk: Walk, clock: Clock): Step | null {
+  if (!walking(walk) || walk.frames === null) return null
+  if (clock.frame - walk.since < walk.frames) return null
+  // A row that outlived its strip — the list was edited under a running walk —
+  // is the same case as running off the end.
+  const next = walk.row + 1
+  if (next < strip.rows.length) return land(strip, next, walk.lap, clock)
+  if (!strip.loop || strip.rows.length === 0) {
+    return { walk: STOPPED, effects: [] }
+  }
+  return land(strip, 0, walk.lap + 1, clock)
+}
+
+// How far through its hold the current row is, 0..1, or null when there is
+// nothing to draw — stopped, or holding for a hand. For the row card's fill.
+export function holdProgress(walk: Walk, clock: Clock): number | null {
+  if (!walking(walk) || walk.frames === null || walk.frames <= 0) return null
+  const through = (clock.frame - walk.since) / walk.frames
+  return Math.min(1, Math.max(0, through))
+}
+
+// --- reading a row off a session string -------------------------------------
+
+// What kind of row a captured session is. The one writer of `Row.fill`.
+//
+// The pool question is asked through `isPoolMode`/`MODE_ORIGIN` rather than by
+// matching `?src=` against a list of this file's own: which modes are pools is
+// `sources/pools.ts`'s to say, and a second copy here would go stale the day a
+// third source is added — which that file's header says is a module beside the
+// other two and four lines in it.
+//
+// A jitter row is never derived. Nothing about a session string says "and then
+// shake it", because that is a statement about the row rather than about the
+// session, so it is chosen in the tray and passed in.
+export function rowFill(session: string, jitter?: MutateAmount): RowFill {
+  if (jitter !== undefined) return { kind: 'jitter', amount: jitter }
+  const src = new URLSearchParams(session).get('src')
+  return src !== null && isPoolMode(src)
+    ? { kind: 'roll', origin: MODE_ORIGIN[src] }
+    : { kind: 'clip' }
+}
+
+// --- the codec --------------------------------------------------------------
+
+// A strip is JSON beside the shelf rather than a query string. One row is a
+// link — that is what `session` above is for — but twenty of them is past what
+// an address bar carries, so the rundown is a file and the rows inside it are
+// strings.
+
+const KEY = 'ntsc.js.strip'
+
+const num = (v: unknown, fallback: number): number =>
+  typeof v === 'number' && Number.isFinite(v) ? v : fallback
+
+function readHold(raw: unknown): Hold {
+  if (typeof raw !== 'object' || raw === null) return DEFAULT_HOLD
+  const bars = 'bars' in raw ? raw.bars : undefined
+  const drift = 'drift' in raw ? raw.drift : undefined
+  return {
+    // Null and a number are both meaningful, so anything else falls back to the
+    // default rather than to null: a corrupt field reading as "waits for a
+    // hand" would give a strip that silently stopped at its first bad row.
+    bars:
+      bars === null
+        ? null
+        : typeof bars === 'number' && Number.isFinite(bars) && bars > 0
+          ? bars
+          : DEFAULT_HOLD.bars,
+    drift: Math.min(MAX_DRIFT, Math.max(0, num(drift, DEFAULT_HOLD.drift))),
+  }
+}
+
+function readFill(raw: unknown): RowFill {
+  if (typeof raw !== 'object' || raw === null) return { kind: 'clip' }
+  const kind = 'kind' in raw ? raw.kind : undefined
+  if (kind === 'roll') {
+    const origin = 'origin' in raw ? raw.origin : undefined
+    return origin === 'commons' || origin === 'archive'
+      ? { kind: 'roll', origin }
+      : { kind: 'clip' }
+  }
+  if (kind === 'jitter') {
+    const amount = parseMutateAmount('amount' in raw ? raw.amount : undefined)
+    return amount === undefined ? { kind: 'clip' } : { kind: 'jitter', amount }
+  }
+  return { kind: 'clip' }
+}
+
+const readArrive = (raw: unknown): { seconds: MorphSeconds } => {
+  if (typeof raw !== 'object' || raw === null) return { seconds: 1 }
+  const seconds = 'seconds' in raw ? raw.seconds : undefined
+  const found = MORPH_SECONDS.find(s => s === seconds)
+  return { seconds: found ?? 1 }
+}
+
+// One stored row, or undefined when it is not one. Same contract as the shelf's
+// reader (`clipLibrary.readLibrary`): stored JSON is a claim rather than a
+// fact, and a row that cannot be drawn or fired is dropped rather than kept as
+// something the tray would render as a blank card.
+//
+// `session` is the only field with no fallback. A row whose session is missing
+// or empty names nothing to put up, and firing it would be a no-op the user
+// would read as a dead row.
+function readRow(raw: unknown, index: number): Row | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined
+  const session = 'session' in raw ? raw.session : undefined
+  if (typeof session !== 'string' || session === '') return undefined
+  const id = 'id' in raw ? raw.id : undefined
+  return {
+    // A row that lost its id gets one from its position. Ids only have to be
+    // unique within the strip — nothing else keys on them, unlike the shelf's,
+    // which key IndexedDB records — so minting one here is safe in a way it is
+    // not there.
+    id: typeof id === 'string' && id !== '' ? id : `r${index}`,
+    session,
+    fill: readFill('fill' in raw ? raw.fill : undefined),
+    hold: readHold('hold' in raw ? raw.hold : undefined),
+    arrive: readArrive('arrive' in raw ? raw.arrive : undefined),
+  }
+}
+
+export function readStrip(raw: unknown): Strip {
+  const known = typeof raw === 'object' && raw !== null
+  const rows = (
+    known && 'rows' in raw && Array.isArray(raw.rows) ? raw.rows : []
+  ).flatMap((v: unknown, i: number) => {
+    const row = readRow(v, i)
+    return row === undefined ? [] : [row]
+  })
+  const seed = known && 'seed' in raw ? raw.seed : undefined
+  const loop = known && 'loop' in raw ? raw.loop : undefined
+  return {
+    rows,
+    // A stored strip with no usable seed gets a fresh one rather than a fixed
+    // fallback. Every strip in every browser sharing one constant would mean
+    // every user's rolls were the same rolls, which is the one way this could
+    // come out worse than unseeded.
+    seed:
+      typeof seed === 'number' && Number.isFinite(seed) ? seed : randomSeed(),
+    loop: typeof loop === 'boolean' ? loop : true,
+  }
+}
+
+export const loadStrip = (): Strip => readStrip(readRecord<object>(KEY, {}))
+
+export const saveStrip = (strip: Strip): void => writeJSON(KEY, strip)
