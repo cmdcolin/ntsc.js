@@ -342,13 +342,17 @@ to find them. So the split is the one `cue.ts`, `deck.ts` and `modSlots.ts`
 already model — the arithmetic is pure and tested under vitest, and React only
 carries out what it says.
 
-- `ui/strip.ts` — the row type, the codec, and
-  `advance(strip, state, frame, tempo) → { state, effects }`. One pure function:
+- `ui/strip.ts` — **landed.** The row type, the codec, and
+  `advance(strip, walk, clock) → { walk, effects } | null`. One pure function:
   given a rundown, where the walk is and what frame it is, what changes.
-  Effects are a small union (`load`, `apply`, `fault`, `preroll`), never engine
-  calls.
-- `ui/useStrip.ts` — the driver, which turns effects into calls on `eng` and
-  `ControlsApi` and does nothing else. The only part that needs a browser.
+  Effects are a small union, never engine calls.
+- `ui/stripRun.ts` — the interpreter: one effect against a `StripSink`. Plain
+  functions, no React, so a fake sink tests the whole walk end to end and the
+  offline render reuses it rather than reimplementing it.
+- `ui/useStrip.ts` — the driver: owns the state, builds the sink out of the
+  engine and `ControlsApi`, and polls the clock. The only part needing a
+  browser, and the only legitimate effect in the feature.
+- `ui/StripContext.ts` — the contexts, split on the rule below.
 - `ui/transitions.ts` — the shelf as a table (below). Pure.
 - `ui/StripTray.tsx`, `ui/StripRow.tsx` — the surface, on the pointer drags
   _Interaction_ names. The shell in `app.module.css` currently sets `.stage`
@@ -366,6 +370,58 @@ the playheads at 10 Hz, and the offline driver a call per rendered frame with
 nothing else changed. It is _One walk, two clocks_ built rather than promised,
 and it is why `advance` should be a function of a frame in the first commit
 instead of a `setTimeout` that gets replaced later.
+
+### The React shape, and the rule it follows
+
+This is the part most likely to be added to for years, so it is worth settling
+before a component exists. The app has already paid for the lesson twice, and
+both receipts are in the tree.
+
+**One context per clock.** `ControlsContext.ts` carries the measurement: a
+`controls` object on the API changed identity on every write, so every consumer
+re-rendered no matter what the compiler had memoized — 19 ms of React per slider
+write with all the rows mounted, which is past a frame and dropped one off the
+WebGPU loop per pointer move. The fix was to split what *moves* (a
+subscribe/get `ControlStore`, read through `useSyncExternalStore`) from what is
+*stable* (`ControlsApi`, whose every member keeps its identity across a write).
+`ModSlotsContext.ts` is the same rule from the other side: it stays one plain
+context, with no store, precisely because a bay changes when a hand patches it
+rather than at frame rate — and it is a separate context from the controls
+because "the two move on completely different clocks".
+
+The strip has three clocks, so it gets three homes and not one big
+`StripContext`:
+
+- **The rundown** — rows, holds, arrivals. Moves when a hand edits it. Ordinary
+  state behind an API context of stable verbs (`addRow`, `moveRow`, `setHold`,
+  `fireRow`, `start`, `stop`).
+- **Which row is up** — moves at row boundaries, seconds apart. Ordinary state.
+  Cheap, and every row card wants it.
+- **How far through the hold** — moves every frame. A subscribe/get store, read
+  by the one element that draws the progress. This is not a new invention:
+  `morph.ts`'s `MorphStore` is exactly this shape, for exactly this reason, and
+  `LookBar.tsx` is the widget that subscribes to it. `holdProgress` in
+  `strip.ts` is already the pure function behind it.
+
+**The driver is the only effect.** `useStrip` synchronises with things outside
+React — the engine's frame counter, and the async work a roll starts — which is
+what an effect is for. Nothing else in the feature is. In particular, three
+things that will look like effects and must not become them: the hold's
+progress is *derived* from the walk and the frame, not state kept in step with
+them; a row card's "am I live" is a comparison during render, not state; and
+persisting the strip belongs in the verb that changed it, the way `useTempo`
+already writes its tempo in `write()` rather than in an effect watching it. An
+effect that mirrors state into other state is the failure mode this app has
+been careful to avoid, and a feature this size is where it would creep in.
+
+**Effects as data is what keeps the additions cheap.** Everything on the
+roadmap — preroll, the fault shelf, takes, per-row MIDI, the offline render —
+lands as a variant on `Effect` and an arm in `stripRun`'s switch, with
+`advance` deciding when. The offline renderer is then a second caller of the
+same two functions with a different `Clock` and a different sink, rather than a
+parallel implementation that drifts. That is the whole reason `advance` returns
+a list instead of calling the engine, and it is worth defending when the first
+"it would be simpler to just call it here" arrives.
 
 The corollary is worth saying out loud, because it will read as a missing
 feature: **the walk has no seek.** Row N depends on every row before it — a
