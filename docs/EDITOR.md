@@ -810,24 +810,65 @@ arrives.
    pad with no rundown anywhere near them. A table of named recipes over
    existing controls, plus the envelope and the cut point — no new uniforms, no
    new pass. The strip later just picks from the shelf.
-4. **The live strip.** Rows, holds, the walk, preroll depth 1 — with the seeded
-   RNG in from the first commit, because it cannot be retrofitted onto takes
-   already recorded. _The first slice_ above splits this one again: everything
-   up to the preroll is worth landing before the preroll is started.
+4. ~~**The live strip.**~~ **Landed to the line _The first slice_ drew**: rows,
+   names, holds, the walk, drag-to-reorder, undo, duplicate, roll and shake
+   rows, one transport with the music, and the seeded RNG in from the first
+   commit. Preroll is the part still out, and everything filed under it below
+   still waits on it.
 5. **Frame-exact video pull.** The real project, and the one with the Firefox
    constraint sitting on it.
 6. **Automation recording.** Control writes with frame stamps, replayed offline;
    the thing that makes performing and rendering the same take.
 
-Steps 1, 2 and 3 are independent of the strip and of each other, which makes
-them the ones to do while the strip's design settles. Step 4 is the hard
-prerequisite for any offline render of a rolling strip — and the point at which
-transitions between _rows_ (rather than between the two live decks) need its
-preroll.
+Steps 1, 2 and 3 were independent of the strip and of each other, which is what
+made them the ones to do while its design settled; 1 and 2 are done and 3 is
+where the ordering now bites, because it is the last cheap thing left.
 
-One other thing blocks the live half, and it is the same item as step 1:
-`useCapture.ts` is `captureStream()` plus `MediaRecorder`, timestamped by wall
-clock. Fine for a screen grab, wrong for anything cut to music. (Per-note MIDI
+## What to do next, and why in this order
+
+Written after building it rather than before, which is why it disagrees with the
+list above in two places.
+
+1. **Take state, so a render reproduces.** The smallest remaining thing between
+   here and the whole premise. `renderTake` makes a take reproducible *from a
+   given starting state*, and nothing captures that state: frame N is a function
+   of N and of the tape ring, the phosphor persistence and the PLL's lock age at
+   frame zero, so two renders with the live loop running between them come out
+   about 5% apart (`scripts/rendercheck.mjs` measures it and declines to assert
+   otherwise). What is needed is a flush to a known signal state before a render
+   — `vote/prepare.ts` already does exactly this between candidate pairs, for
+   exactly this reason — plus the seed and the resolved picks the _Seeding_
+   section specifies. It is also the piece that turns the recorder's existing
+   determinism into something a user can rely on, and it is small.
+2. **The transition shelf** (step 3 above). Still cheap, still needs no strip,
+   still a table of named recipes plus the envelope and the cut point. It moved
+   *down* the list only because take state is now smaller and unblocks more.
+3. **Preroll depth 1.** `videoSlot.ts`'s one-element-per-slot assumption. It
+   unblocks three filed things at once — transitions between rows, the audio
+   crossfade (IDEAS.md › _Clip cues_), and any cut that is not a hard one.
+4. **The strip's offline walk.** `advance` already takes a `Clock` and does not
+   care where the frame number comes from, and `renderTake` already owns a
+   frame counter; what is missing is a driver that steps the walk once per
+   rendered frame instead of once per rAF. Small, and blocked only by 1 above —
+   a rolling strip rendered from an unknown state is a different video every
+   time, which is the failure _Seeding_ exists to prevent.
+5. **Frame-exact video pull**, then **automation recording**, as before.
+
+Three things this list deliberately does not carry, all of them wants rather
+than needs. **Cutting to the track's clock** rather than starting with it — the
+walk's `Clock.frame` would come off `currentTime`, which `strip.ts` is already
+indifferent to, but it needs an answer for what a rundown does when the song
+ends. **Proportional card widths**, so a rundown can be read for its rhythm
+rather than as a row of equal boxes; cheap, but it wants a decision about what
+the tray is when a piece is four minutes long. And **a render range** — the
+button renders the track's length or ten seconds, which is enough to be useful
+and not enough to be an edit.
+
+What used to be listed here as blocking the live half was step 1 —
+`useCapture.ts` on `captureStream()` plus `MediaRecorder`, timestamped by wall
+clock, fine for a screen grab and wrong for anything cut to music. It is done,
+and so is the thing behind it: there is a ⎙ in the tray that writes a
+constant-framerate MP4 of the length of the loaded track. (Per-note MIDI
 bindings used to be listed here too; they shipped — `ActionTarget` in
 `ui/midi.ts` is a second binding family beside `BindTarget`, and a row is one
 more action id plus a sink in `useMidi`. What a strip would want beyond the
