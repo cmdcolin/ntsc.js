@@ -126,8 +126,10 @@ export const rotate = <T>(xs: readonly T[], by: number): T[] => [
   ...xs.slice(0, by),
 ]
 
-export const randomIndex = (length: number): number =>
-  Math.floor(Math.random() * length)
+// `randomIndex` used to live here, and is now `rng.ts`'s along with the seeded
+// generator that feeds it. Where a roll gets its numbers from is one decision
+// for the whole app rather than a detail of the pool code — see that file, and
+// `rollCommons`/`rollArchive` for what a seed can and cannot promise here.
 
 // --- browsing ---------------------------------------------------------------
 

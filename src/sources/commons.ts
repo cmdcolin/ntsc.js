@@ -27,8 +27,10 @@
 // The pools stay because a channel is a one-click gesture mid-set and a dialog
 // is not.
 
-import { BROWSE_LIMIT, isRecord, num, randomIndex, rotate, str } from './pool'
+import { pickOne, randomIndex } from '../rng'
+import { BROWSE_LIMIT, isRecord, num, rotate, str } from './pool'
 
+import type { Rand } from '../rng'
 import type { BrowseHit, PickKind, PoolPick, PoolRef } from './pool'
 
 const API = 'https://commons.wikimedia.org/w/api.php'
@@ -177,9 +179,6 @@ const pagesOf = (body: unknown): Record<string, unknown>[] => {
   return Object.values(pages).filter(isRecord)
 }
 
-const pick = <T>(xs: readonly T[]): T | null =>
-  xs.length === 0 ? null : (xs[Math.floor(Math.random() * xs.length)] ?? null)
-
 // Anonymous CORS on the Commons API needs `origin=*` in the query string; the
 // response then carries `access-control-allow-origin: *`. No proxy and no
 // dev-server bridge, which is why this works in a production build where the
@@ -316,9 +315,10 @@ const usableIn = (body: unknown, kind: PickKind): PoolPick[] =>
 export function choosePick(
   candidates: readonly PoolPick[],
   avoid: string,
+  rand: Rand = Math.random,
 ): PoolPick | null {
   const fresh = candidates.filter(c => c.title !== avoid)
-  return pick(fresh.length === 0 ? candidates : fresh)
+  return pickOne(fresh.length === 0 ? candidates : fresh, rand)
 }
 
 // How many requests one roll will spend before giving up.
@@ -350,10 +350,20 @@ export const rollPlan = <T>(pools: readonly T[], start: number): T[] =>
 // A roll can hand back a still or a clip, since the pools hold both and this is
 // one entry in the picker rather than seven. `rollFromPool` below is what a
 // browser preset uses to stay inside one of them.
-export async function rollCommons(avoid = ''): Promise<PoolPick> {
-  const start = randomIndex(COMMONS_POOLS.length)
+// **A seed does not pin which file comes back, and cannot.** `gsrsort=random`
+// below hands the choice of candidates to Commons, so what a seeded roll
+// reproduces is which pools this app tried and which of the twelve it took —
+// not what those twelve were. That is why a take records the resolved `PoolRef`
+// alongside its seed (docs/EDITOR.md › _Seeding_) rather than trusting the seed
+// to regenerate the pick: the seed reproduces the *decisions*, the ref
+// reproduces the *file*.
+export async function rollCommons(
+  avoid = '',
+  rand: Rand = Math.random,
+): Promise<PoolPick> {
+  const start = randomIndex(COMMONS_POOLS.length, rand)
   for (const pool of rollPlan(COMMONS_POOLS, start)) {
-    const found = await rollFromPool(pool, avoid)
+    const found = await rollFromPool(pool, avoid, rand)
     if (found !== null) return found
   }
   throw new Error('nothing usable came back — roll again')
@@ -365,7 +375,11 @@ export async function rollCommons(avoid = ''): Promise<PoolPick> {
 // is a function at all and why it is not exported: it is that loop's body and
 // has no caller of its own. A browser preset does not come through here; it
 // runs a ranked *search* over the same query, which is a different request.
-async function rollFromPool(pool: Pool, avoid = ''): Promise<PoolPick | null> {
+async function rollFromPool(
+  pool: Pool,
+  avoid = '',
+  rand: Rand = Math.random,
+): Promise<PoolPick | null> {
   const body = await query({
     generator: 'search',
     gsrsearch: pool.query,
@@ -374,7 +388,7 @@ async function rollFromPool(pool: Pool, avoid = ''): Promise<PoolPick | null> {
     gsrsort: 'random',
     ...WANTED[pool.kind],
   })
-  return choosePick(usableIn(body, pool.kind), avoid)
+  return choosePick(usableIn(body, pool.kind), avoid, rand)
 }
 
 // One named file, fetched the same way and read by the same reader. This is what

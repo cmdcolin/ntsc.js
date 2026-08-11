@@ -1,4 +1,5 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
+import { randomIndex } from '../rng'
 import { SLIDER_BY_KEY, VIEW_KEYS, snapToStep } from './controls'
 
 import type { ControlKey, Controls } from '../controls'
@@ -1582,7 +1583,7 @@ export function randomPresetMix(
   // the third is the one most likely to be the fault that tipped it over.
   const wanted = rand() < 0.3 ? 3 : 2
   const lead = pool.filter(p => p.group === groups[0])
-  const first = lead[Math.floor(rand() * lead.length)]
+  const first = lead[randomIndex(lead.length, rand)]
   const weights = new Map<string, number>([[first.name, 1]])
   const claimed = new Set(PRESET_KEYS.get(first.name))
   for (const g of groups.slice(1)) {

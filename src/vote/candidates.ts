@@ -1,4 +1,5 @@
 import { DEFAULT_CONTROLS } from '../controls'
+import { randomIndex, rngFor } from '../rng'
 import { VIEW_KEYS } from '../ui/controls'
 import { PRESETS, blendMod, blendPresets, randomPresetMix } from '../ui/presets'
 
@@ -72,20 +73,6 @@ export const ANCHOR_PRESETS = POOL.map(p => p.name)
 // against.
 export const ANCHOR_RATE = 0.15
 
-// mulberry32. A seeded generator is the whole point of this module, so it is
-// spelled out rather than pulled in: 32 bits of state, no dependency, and the
-// same sequence in a browser, a test, and whatever renders the dataset later.
-function rngFor(seed: number): () => number {
-  let a = seed >>> 0
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0
-    let t = a
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
 // Two decimals. Weights are read by eye off the record during analysis, and a
 // float with seventeen digits of tail says nothing the second digit did not.
 const round2 = (v: number) => Math.round(v * 100) / 100
@@ -110,7 +97,7 @@ export function sampleRecipe(seed: number): Recipe {
 // so the pair it came from still reproduces.
 export function anchorRecipe(seed: number): Recipe {
   const rand = rngFor(seed)
-  const name = ANCHOR_PRESETS[Math.floor(rand() * ANCHOR_PRESETS.length)]
+  const name = ANCHOR_PRESETS[randomIndex(ANCHOR_PRESETS.length, rand)]
   return { seed, weights: { [name]: 1 }, kind: 'anchor' }
 }
 

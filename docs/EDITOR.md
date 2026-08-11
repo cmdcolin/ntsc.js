@@ -294,19 +294,27 @@ reasons. `mutate()` takes a `rand` and always has. `randomPresetMix` takes one
 too, and the note above it says why — the vote page could not have existed
 otherwise, since "a label is worthless if the thing labelled cannot be rendered
 again" is the same sentence as this section with a different noun. `modstate`,
-`noise` and `linestate` each take one. And `vote/candidates.ts` already has the
-generator — mulberry32, `rngFor` — and already threads a seed end to end, side
+`noise` and `linestate` each take one. And `vote/candidates.ts` already had the
+generator — mulberry32, `rngFor` — and already threaded a seed end to end, side
 assignment included.
 
-Three things are missing, and all three are small. `rngFor` has no shared home,
-so it wants lifting to `math.ts` on the same rule the clamp/wrap pass followed.
-And the two pool pickers still reach for `Math.random` directly:
-`sources/pool.ts`'s `randomIndex` and the one-liner at the bottom of
-`sources/commons.ts`. Those two are the whole of the retrofit this section
-warns about, and they are a parameter each.
+That did not weaken the rule, it sharpened it: everything expensive about
+seeding had already been paid for, which is why the plumbing landed first.
 
-That does not weaken the rule, it sharpens it: everything expensive about
-seeding has already been paid for, so the first commit has no excuse.
+**Landed.** `src/rng.ts` holds `Rand`, `rngFor` (lifted out of
+`vote/candidates.ts`, which still uses it), `randomIndex` (moved off `pool.ts`)
+and `pickOne` (lifted out of `commons.ts`, where it was private). Both pool
+rolls take a trailing `rand`, through the one `rollPool` funnel, so a row that
+names a pool resolves it from the take's generator rather than from
+`Math.random`.
+
+What that does **not** buy, and the code says so at both call sites: **the same
+seed does not hand back the same file.** Commons rolls with `gsrsort=random`, so
+which twelve candidates come back is the server's choice; archive.org's
+within-page ordering is upstream's too. A seed reproduces this app's
+_decisions_ — which pool, which page, which of the candidates — and the recorded
+`PoolRef` reproduces the _file_. Which is why the rule is a seed **plus** the
+resolved picks, and never either one alone.
 
 When the code lands, this rule is the part that should become an ADR — it is the
 one a later reader would otherwise be within their rights to simplify into
@@ -348,8 +356,8 @@ carries out what it says.
   column with the tray under it, and the panel is untouched. Not a section
   _in_ the panel: a rundown does not fit 332px, and the tray is where a hand
   works during a take rather than where a circuit is dialed in.
-- `math.ts` — gains `rngFor`, lifted out of `vote/candidates.ts` (see
-  _Seeding_).
+- `rng.ts` — the seeded generator and the two pickers over it, landed already
+  (see _Seeding_). The strip's own seed is the only new caller.
 
 **The walk advances on the engine's frame counter, not on a wall clock.**
 `advance` takes a frame and a tempo, so "≈4 bars" is arithmetic over

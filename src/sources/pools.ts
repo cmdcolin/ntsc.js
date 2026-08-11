@@ -28,6 +28,7 @@ import {
   rollCommons,
 } from './commons'
 
+import type { Rand } from '../rng'
 import type {
   BrowseHit,
   OnProgress,
@@ -81,12 +82,20 @@ export const ORIGIN_LABEL: Record<PoolOrigin, string> = {
 // the front of the file, so there is no wait to report on. The archive.org half
 // has to hold the whole rendition first (see the head of archive.ts) and is the
 // one place in this app that makes you wait without a picture.
+// `rand` is the seam the strip rolls through: a row that names a pool rather
+// than a file resolves it when the row fires, and a take has to be able to walk
+// the same decisions again (docs/EDITOR.md › _Seeding_). Both halves say what a
+// seed can and cannot promise about the file that comes back — this is the one
+// funnel, so it is the one place a seeded caller has to reach.
 export const rollPool = (
   origin: PoolOrigin,
   avoid = '',
   onProgress?: OnProgress,
+  rand?: Rand,
 ): Promise<PoolPick> =>
-  origin === 'commons' ? rollCommons(avoid) : rollArchive(avoid, onProgress)
+  origin === 'commons'
+    ? rollCommons(avoid, rand)
+    : rollArchive(avoid, onProgress, rand)
 
 // One named file, resolved back into something playable. This is what a shelf
 // entry is worth: both sources keep an identity rather than a url, and both can

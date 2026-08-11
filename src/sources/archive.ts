@@ -27,8 +27,10 @@
 // seek landing in 50ms. That is what the byte caps below are really capping: the
 // wait before the clip appears.
 
-import { BROWSE_LIMIT, isRecord, num, randomIndex, rotate, str } from './pool'
+import { randomIndex } from '../rng'
+import { BROWSE_LIMIT, isRecord, num, rotate, str } from './pool'
 
+import type { Rand } from '../rng'
 import type { BrowseHit, OnProgress, PoolPick } from './pool'
 
 const SEARCH = 'https://archive.org/advancedsearch.php'
@@ -750,12 +752,22 @@ const fetchPick = async (
 // Roll one clip out of archive.org. Two requests at best — a search and one
 // item's metadata — plus the download, and up to ATTEMPTS metadata requests
 // where the first items hold nothing playable.
+//
+// What a seed pins here is the channel and the page, which is more than the
+// Commons half can promise (see `rollCommons`) and still not the file: the
+// ordering inside a page is archive.org's, and `candidateOrder` then walks it
+// until something holds a playable rendition. The seed reproduces the
+// decisions; the recorded `PoolRef` reproduces the clip.
 export async function rollArchive(
   avoid = '',
   onProgress: OnProgress = () => {},
+  rand: Rand = Math.random,
 ): Promise<PoolPick> {
-  const pool = chosenPool(ARCHIVE_POOLS, randomIndex(ARCHIVE_POOLS.length))
-  const page = 1 + randomIndex(PAGE_SPAN)
+  const pool = chosenPool(
+    ARCHIVE_POOLS,
+    randomIndex(ARCHIVE_POOLS.length, rand),
+  )
+  const page = 1 + randomIndex(PAGE_SPAN, rand)
   let found = identifiersIn(await request(searchUrl(pool.query, page)))
   // A pool smaller than PAGE_SPAN pages answers a deep page with nothing. That
   // is a fact about the pool rather than a failed roll, so the first page —

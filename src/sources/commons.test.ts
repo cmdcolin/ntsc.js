@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { rngFor } from '../rng'
 import {
   COMMONS_POOLS,
   choosePick,
@@ -243,6 +244,17 @@ describe('choosePick', () => {
 
   it('reads an empty page of candidates as nothing', () => {
     expect(choosePick([], '')).toBeNull()
+  })
+
+  // The seam docs/EDITOR.md › _Seeding_ asks for. It cannot promise the same
+  // *file* — `gsrsort=random` means the twelve candidates are Commons' choice,
+  // not this app's — but which of the twelve gets taken has to be reproducible,
+  // because that is the decision a take replays.
+  it('takes the same candidate from the same seed', () => {
+    const candidates = ['a', 'b', 'c', 'd', 'e'].map(t => pick(`File:${t}.jpg`))
+    const once = choosePick(candidates, '', rngFor(7))
+    const again = choosePick(candidates, '', rngFor(7))
+    expect(once?.title).toBe(again?.title)
   })
 })
 
