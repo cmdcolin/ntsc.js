@@ -51,6 +51,15 @@ export function StripTray(props: {
   // where you decide you want a track, and the panel's own picker is four
   // sections down behind a fold.
   track: { name: string; onPick: () => void }
+  // The offline render. `seconds` is how long a take would be — the loaded
+  // track's length when there is one, since a piece cut to a song is as long as
+  // the song, and a default otherwise.
+  render: {
+    progress: number | null
+    seconds: number
+    start: () => void
+    cancel: () => void
+  }
 }) {
   const api = useStripApi()
   const [open, setOpen] = useState(false)
@@ -141,6 +150,33 @@ export function StripTray(props: {
             >
               ↻ loop
             </button>
+            {/* Rendering is not recording, which is why both exist. The
+                recorder follows the picture in real time; this takes the frames
+                away from the screen and writes a file whose timing is the
+                simulation's rather than the tab's — faster than real time when
+                the GPU allows, slower when it does not, and the same length
+                either way. */}
+            {props.render.progress === null ? (
+              <button
+                className={ui.btn}
+                onClick={props.render.start}
+                title={`render ${Math.round(props.render.seconds)}s to a constant-framerate MP4${
+                  props.track.name === ''
+                    ? ' — pick a track and it renders the length of the song'
+                    : ` — the length of ${props.track.name}`
+                }`}
+              >
+                ⎙ render {Math.round(props.render.seconds)}s
+              </button>
+            ) : (
+              <button
+                className={cx(ui.btn, ui.active)}
+                onClick={props.render.cancel}
+                title="stop the render and keep the picture"
+              >
+                {Math.round(props.render.progress * 100)}% · cancel
+              </button>
+            )}
             {/* ▶ takes the track from the top with the walk, so a rundown and
                 the song it was cut to start together. The name is shown because
                 that is the whole confirmation there is that pressing play will

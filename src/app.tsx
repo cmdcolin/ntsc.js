@@ -97,6 +97,7 @@ import { useModSlots } from './ui/useModSlots'
 import { usePageLifecycle } from './ui/usePageLifecycle'
 import { usePanelNav } from './ui/usePanelNav'
 import { usePopout } from './ui/usePopout'
+import { useRender } from './ui/useRender'
 import { useSavedProfiles } from './ui/useSavedProfiles'
 import { useScrollAnchor } from './ui/useScrollAnchor'
 import { useShortcuts } from './ui/useShortcuts'
@@ -473,6 +474,16 @@ export function App() {
   // strip takes its transport: ▶ on a rundown starts the picked track from the
   // top so the two are locked at frame zero.
   const audio = useAudio(engine, eng.setVideoAudio)
+
+  // The offline render, which is the recorder's opposite number: `capture`
+  // follows the picture in real time, this takes the frames away from the
+  // screen and writes what the simulation did.
+  const render = useRender(
+    engine,
+    eng.canvasRef,
+    lookLabel || 'take',
+    eng.setError,
+  )
 
   const strip = useStrip({
     showSession: eng.showSession,
@@ -1306,6 +1317,23 @@ export function App() {
               track={{
                 name: audio.track.loaded ? audio.name : '',
                 onPick: () => audio.select('file'),
+              }}
+              render={{
+                progress: render.progress,
+                // A piece cut to a song is as long as the song; with no track
+                // loaded there is nothing to take a length from, so ten
+                // seconds — long enough to be a take, short enough to be a try.
+                seconds:
+                  audio.track.loaded && audio.duration > 0
+                    ? audio.duration
+                    : 10,
+                start: () =>
+                  render.render(
+                    audio.track.loaded && audio.duration > 0
+                      ? audio.duration
+                      : 10,
+                  ),
+                cancel: render.cancel,
               }}
             />
           </StripContext>

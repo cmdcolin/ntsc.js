@@ -1,31 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { fileName, save } from './download'
 import { isSupported, startRecording } from './record'
 
 import type { Recorder } from './record'
 import type { RefObject } from 'react'
-
-const pad2 = (n: number) => String(n).padStart(2, '0')
-
-// yyyymmdd-hhmmss, so saved files sort chronologically and never collide.
-function stamp(): string {
-  const d = new Date()
-  return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
-}
-
-function fileName(name: string, ext: string): string {
-  const slug = name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '')
-  return `ntsc.js-${slug}-${stamp()}.${ext}`
-}
-
-function save(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 2000)
-}
 
 // The rate the file is written at, and it is the simulation's own: the signal
 // path is a fixed-timestep 60Hz sim (`signal/modstate.ts` is `const DT = 1/60`,
