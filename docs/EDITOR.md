@@ -131,6 +131,33 @@ of which can also fire on its own — because the same list then serves setting 
 piece up _and_ playing it live, which are the same activity here at different
 speeds.
 
+#### Half of that held and half of it did not
+
+Worth writing down, because the correction came from watching somebody use the
+thing rather than from an argument, and because two readers of the paragraph
+above would now take away opposite things.
+
+**What held: there is no playhead, and there cannot be one.** Row N depends on
+every row before it and frame N on every frame before it — the tape ring, the
+phosphor, the PLL's lock — so a piece plays from the top or not at all. That is
+the same property that rules out being a plugin, and no amount of drawing the
+tray differently touches it.
+
+**What did not: "an ordered list of cued states" described the shipped thing too
+well.** A rundown of clips is what this document opens by asking for, and the
+first person to sit down with the strip read it as a list of _effects_ — which
+is what it was, because a row could not name a clip (_Landed_ under _A row is a
+thing that already exists_). With that fixed, the remaining distance to what an
+iMovie user expects is small and mostly cosmetic: cards that show their clip and
+are as wide as their screen time, transitions drawn between clips rather than as
+a chip on one, and handles to trim with. None of those is a track, a playhead or
+a ripple edit, and none of them costs the live half anything.
+
+So the shape is a rundown **that reads like a filmstrip**, and the sentence to
+keep from the paragraph above is the second half of it: the same list serves
+setting a piece up and playing it live. What was over-claimed was that the
+_drawing_ had to be austere to keep that true. It does not.
+
 ### A row is a thing that already exists
 
 `ui/urlParams.ts` calls itself "the share-link contract: everything a session
@@ -145,6 +172,22 @@ So the row model is mostly done, and a row is that snapshot plus two fields: how
 long it holds, and how it arrives. Everything the strip needs to serialise,
 share and re-render is already serialisable, and it stays that way only if new
 row state is added to `urlParams` rather than beside it.
+
+> **The paragraph above is the one thing in this document that was actively
+> misleading, and it cost the strip its main feature.** "It round-trips the
+> source (`?src`, `?vurl`, `?iurl`, `?yt`)" is true of the four keys it names
+> and false of the sentence it implies. `writeSessionParams` writes `?src` only
+> for modes that pass `LINKABLE`, which filters out `file`, `library`, `browse`
+> and `screen`; `?vurl` and `?iurl` are _carried from the address bar_ and
+> nothing in the app ever writes one. So a clip picked from disk, taken off the
+> shelf, or found in the media browser — which is every ordinary way of loading
+> one — round-trips as nothing at all, and "everything the strip needs is
+> already serialisable" was wrong about the half that mattered.
+>
+> The fix is _Landed_ below. What is worth keeping here is the shape of the
+> error: the claim was checked against the _writer's_ key list and not against
+> what a user does, and a share-link contract is exactly the kind of thing that
+> is honest about what it refuses and silent about it in the same breath.
 
 ### Three kinds of row, one shape
 
@@ -184,7 +227,12 @@ work on a machine with no gear attached.
 
 ### The row, as a type
 
+Written as designed, and then as it shipped — because the difference between the
+two is where the strip's one real gap was, and a reader comparing them learns
+more than either alone.
+
 ```ts
+// As designed.
 interface Row {
   id: string
   // What this row *is* — the three fillings above, one shape.
@@ -200,6 +248,38 @@ interface Row {
   look: string
 }
 ```
+
+```ts
+// As shipped (ui/strip.ts).
+interface Row {
+  id: string
+  name: string
+  session: string
+  clip: { id: string; name: string; seconds: number } | null
+  fill:
+    | { kind: 'clip' }
+    | { kind: 'roll'; origin: PoolOrigin }
+    | { kind: 'jitter'; amount: MutateAmount }
+  hold: { bars: number | 'clip' | null; drift: number }
+  arrive: { seconds: MorphSeconds; transition: TransitionName | null }
+}
+```
+
+Three differences, and each is a thing this document got wrong rather than a
+detail of spelling.
+
+- **`fill` lost its payload and `session` took it.** The design has the source
+  and the cue inside the fill; both round-trip through the query string already,
+  so what is left of `fill` is a tag saying which card to draw. It is derived
+  from the session by `rowFill`, which is why it cannot drift.
+- **`clip` is the piece that had to come back**, because `session` turned out
+  not to carry a source after all for most sources — see _Landed_ below. The
+  design was right that a row needs a `RowSource`; it was wrong that the query
+  string made one unnecessary.
+- **`name`, which the design has no field for at all.** A rundown of look
+  changes over one clip is four cards reading "look only", which is accurate and
+  useless — the argument is under _The first slice_, and it is the clearest case
+  in here of a field that only a built thing asks for.
 
 `look` as a query string is _A row is a thing that already exists_ made
 concrete, and `writeProfileParams` rather than `writeSessionParams` is the
@@ -933,11 +1013,17 @@ neither was obvious from the design.
 - **A file at the end.** Build order step 1 (`VideoEncoder` CFR) is still the
   answer, and it is now the only thing between a rundown that plays and a
   rundown somebody else can watch. `useCapture` still records wall-clock VFR.
-- **Seeing the shape.** Every card is the same width, so a strip cannot be read
-  for its rhythm — sixteen bars and one look the same size. Cards sized by hold
-  would say more than any chip does. Cheap, and deliberately not done yet:
-  proportional widths and a horizontal scroll fight, and that wants a decision
-  about what the tray is when the piece is four minutes long.
+- **Seeing the shape.** _Now the next thing to build, and it has an answer it
+  did not have before._ A `'clip'` hold gives a card a length in seconds that
+  came from the picture rather than from a bar count somebody guessed, which is
+  the number a proportional width should be drawn from — so the open question in
+  the rest of this entry is no longer "proportional to what".
+
+  Every card is the same width, so a strip cannot be read for its rhythm —
+  sixteen bars and one look the same size. Cards sized by hold would say more
+  than any chip does. Cheap, and deliberately not done yet: proportional widths
+  and a horizontal scroll fight, and that wants a decision about what the tray
+  is when the piece is four minutes long.
 
   This is now _exactly_ true rather than nearly so, and the reason is worth
   having: the widths the cards used to differ by were the hold chip's own label
@@ -958,9 +1044,28 @@ redesign.
 
 ### Deliberately not this
 
-- **Tracks, a scrubbable playhead, trim handles.** A large amount of UI for a
-  storyboard, and the argument in [`IDEAS.md`](IDEAS.md) › _Clip cues_ applies —
-  the panel is built around what a hand moves during a take.
+- **Tracks and a scrubbable playhead.** A large amount of UI for a storyboard,
+  and the argument in [`IDEAS.md`](IDEAS.md) › _Clip cues_ applies — the panel
+  is built around what a hand moves during a take.
+
+  The playhead half of that is not taste, and it is the one thing in this
+  section that cannot be reconsidered: row N depends on every row before it and
+  frame N on every frame before it, so there is no seeking to the middle of a
+  piece to look at it. It is the same property that keeps this from being a
+  plugin (_What this is not_) and it holds however the tray is drawn.
+
+- ~~**Trim handles.**~~ **Reversed, and worth recording as a reversal rather
+  than quietly dropping.** They were filed here on the reasoning above — a lot
+  of UI for a storyboard — and that reasoning was about a strip whose rows were
+  looks. Once a row can be a clip (_Landed_ under _A row is a thing that already
+  exists_), the in/out pair stops being a detail of the source and becomes the
+  row's own length: `rowRuntime` reads the trim first, so trimming a clip to
+  three seconds is what puts it on screen for three seconds.
+
+  What made the original position defensible was that the strip could not hold
+  clips, and what makes it wrong is that it can. The rest of the section stands
+  — this buys a trim, not a timeline.
+
 - **ffmpeg.wasm anywhere in the live path.** It is a transcoder, not a player.
   Concatenating clips with it means re-encoding ahead of time (stream-copy needs
   every clip to match codec, resolution and timebase), losing live cut points,
@@ -1442,14 +1547,28 @@ arrives.
    feature.
 
 Steps 1 to 4 were independent of the strip and of each other, which is what made
-them the ones to do while its design settled. All seven are done. What is left
-is not on this list: the three engine _events_ automation does not record (_Live
+them the ones to do while its design settled. All seven are done, and **that
+turned out not to mean the thing was finished** — which is the most useful
+sentence in this section.
+
+Everything on this list is about the parts that were hard: a deterministic
+clock, a demuxer, a frame-exact puller, an encoder that an editor will conform.
+None of it is about a row naming a clip, because a row naming a clip is not hard
+and this document had already written the type for it. It was missing anyway,
+and it was the whole of what stood between the strip and the piece this document
+opens by asking for. A list of the difficult things is not a list of the
+necessary ones, and the two look identical right up until somebody uses what you
+built.
+
+So what is left is on the other list, and in front of the leftovers this one was
+going to end with — the three engine _events_ automation does not record (_Live
 input_ names them), and the take file that would make a tape outlive its tab.
 
 ## What to do next, and why in this order
 
 Written after building it rather than before, which is why it disagrees with the
-list above in two places.
+list above — in two places when it was written, and in more since. The last two
+entries were on neither list until somebody sat down with the thing.
 
 1. ~~**Take state, so a render reproduces.**~~ **Landed** — _Take state_ above
    is the write-up, and the short version is that two renders of one take are
@@ -1547,6 +1666,42 @@ list above in two places.
    take it records is only reproducible because everything above it is done — a
    gesture replayed onto a picture that was not frame-exact would have been a
    gesture landing somewhere new every render.
+
+7. ~~**A row that names its clip.**~~ **Landed**, and it was never on either
+   list — which is the most useful thing about it. Six numbered steps and a
+   redesign of the tray's layout went by while the strip could not do the one
+   thing this document opens by asking for, and nothing in here noticed, because
+   everything in here was written about the parts that were hard.
+
+   The write-up is _Landed_ under _A row is a thing that already exists_. What
+   belongs here is only how it was missed: **a design that specifies a type and
+   a shipped thing that omits it look identical from the inside.** `RowSource`
+   is written out in this document, `fill: {kind: 'clip'}` exists in the code,
+   the tray draws a card that says `clip`, and every test passes — the row is a
+   clip row, it simply has no clip. Nothing was inconsistent; a field was
+   absent, and absence is what a checklist cannot see. What surfaced it was
+   somebody adding two clips and asking why both cards said the same preset
+   name.
+
+8. **The filmstrip, and trimming.** Where the tray goes next, and the first
+   entry on either list that is about how the strip _reads_ rather than what it
+   can do.
+
+   - **Cards that show their clip and are as wide as their screen time.** The
+     width has a number to come from now — see _Seeing the shape_ — and the open
+     question it leaves is the one that entry always named: what the tray is
+     when a piece is four minutes long.
+   - **Transitions drawn between cards** rather than as a chip on one. The shelf
+     entry already carries a glyph for exactly this reason; what changes is
+     where it sits, and the model behind it changes not at all.
+   - **Trim handles**, which _Deliberately not this_ used to rule out and no
+     longer does. The cue pair they set already exists and `rowRuntime` already
+     reads it, so this is a gesture over a field rather than a new field.
+   - **And a duration for a clip nobody has played.** A clip added straight off
+     the shelf has never been on a deck, so nothing has read its `duration` and
+     its `'clip'` hold falls back to a bar count. Both halves of this step want
+     the same fix — a width and a trim are both drawn in seconds — so it is one
+     job rather than a caveat on two.
 
 Three things this list deliberately does not carry, all of them wants rather
 than needs. **Cutting to the track's clock** rather than starting with it — the
