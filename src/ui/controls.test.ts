@@ -12,6 +12,7 @@ import {
   FEED_B_CABLE_GROUP,
   FEED_B_GROUP,
   GROUPS,
+  LOOP_BIN_GROUP,
   LOOP_STAGE_NAMES,
   LOOP_STAGES,
   MIXER_LOOP_GROUP,
@@ -25,7 +26,6 @@ import {
   SOURCE_B_STAGE,
   stageGroups,
   SYNTH_GROUP,
-  TAPE_LOOP_GROUP,
   VIEW_GROUPS,
   VIEW_KEYS,
   VIEW_STAGE,
@@ -192,8 +192,8 @@ describe('control tables', () => {
     expect(stageGroups('Mixer loop').map(g => g.name)).toEqual([
       MIXER_LOOP_GROUP,
     ])
-    expect(stageGroups('Tape loop').map(g => g.name)).toEqual([
-      TAPE_LOOP_GROUP,
+    expect(stageGroups('Loop bin').map(g => g.name)).toEqual([
+      LOOP_BIN_GROUP,
       'Loop transport & heads',
     ])
   })

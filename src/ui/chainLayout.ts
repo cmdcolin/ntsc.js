@@ -1,10 +1,10 @@
 import {
   CAMERA_LOOP_STAGE,
+  LOOP_BIN_STAGE,
   LOOP_STAGES,
   MIX_STAGE,
   MIXER_LOOP_STAGE,
   SOURCE_A_STAGE,
-  TAPE_LOOP_STAGE,
 } from './controls'
 
 import type { LoopPlace } from './controls'
@@ -102,12 +102,14 @@ export const boxWidth = (name: string) =>
 //   mixer — electrical: `fbComposite` crossfades the bus against itself
 //     straight after the A/B sum, so it re-enters at Mix, and it taps at the
 //     Receiver because what goes round is the composite the decoder saw.
-//   tape — mechanical, and the one that taps nowhere: `tapePlay` returns onto
-//     the bus and `tapeRec` lays the sum back down at that same point, one pass
-//     later. So it is a tight loop *across* the mixer's output rather than a
-//     run around anything, which is why `self` is a field and not a special
+//   loop bin — mechanical, and the one that taps nowhere: `tapePlay` returns
+//     onto the bus and `tapeRec` lays the sum back down at that same point, one
+//     pass later. So it is a tight loop *across* the mixer's output rather than
+//     a run around anything, which is why `self` is a field and not a special
 //     case — the filter rules below are different for a return whose two ends
-//     are one box.
+//     are one box. It read as a wire that had missed its box while it was
+//     called 'tape', there being a Tape box two along that it has nothing to do
+//     with; see LOOP_BIN_STAGE for why the name moved and the key did not.
 //
 // Each is routed rather than swooped — up, back along its run, then straight
 // down into the stage it feeds, so the wire is vertical where the arrowhead
@@ -182,7 +184,7 @@ const RETURNS: readonly ReturnSpec[] = [
     tap: MIX_STAGE,
     into: MIX_STAGE,
     loop: 'tape',
-    stage: TAPE_LOOP_STAGE,
+    stage: LOOP_BIN_STAGE,
     optical: false,
     y: 29,
     turn: 3,

@@ -1,10 +1,10 @@
 import {
   CAMERA_LOOP_STAGE,
   GROUPS,
+  LOOP_BIN_STAGE,
   MIXER_LOOP_STAGE,
   SOUND_STAGE,
   SOURCE_B_STAGE,
-  TAPE_LOOP_STAGE,
   VIEW_STAGE,
 } from './controls'
 
@@ -45,7 +45,7 @@ const OFF_SPINE_STAGE: Partial<Record<Group['place'], string>> = {
   view: VIEW_STAGE,
   camera: CAMERA_LOOP_STAGE,
   mixer: MIXER_LOOP_STAGE,
-  tape: TAPE_LOOP_STAGE,
+  tape: LOOP_BIN_STAGE,
 }
 
 // The off-spine placements are named for what they hold; the stage each opens

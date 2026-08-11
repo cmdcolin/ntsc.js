@@ -140,9 +140,11 @@ export const FEED_B_CABLE_GROUP = 'Feed B · cable'
 // three groups has to be able to say so by name instead of guessing at a prefix.
 export const SYNTH_GROUP = 'Video synth (source)'
 
+// Each named for the physics that closes it, which is the one thing that tells
+// the three apart once more than one is running.
 export const CAMERA_LOOP_GROUP = 'Camera loop (optical)'
 export const MIXER_LOOP_GROUP = 'Mixer loop (electrical)'
-export const TAPE_LOOP_GROUP = 'Tape loop (loop bin)'
+export const LOOP_BIN_GROUP = 'Loop bin (mechanical)'
 
 // Which of the three are actually carrying signal, so a drawing can show a
 // running loop rather than only the three that exist in principle. One shape
@@ -183,9 +185,20 @@ export interface LoopStage {
 
 // The three by name, for the surfaces that address one of them by identity —
 // written above the table and read out of it, so a rename lands in one place.
+//
+// The third is the loop bin and not the 'Tape loop' it was called for a while,
+// because 'Tape' is already a stage of the trunk two columns along: the deck
+// this signal was played back on, with its dropouts and its timebase wander.
+// Two machines, one word, and both drawn on the same picture — so the run
+// straddling Mix looked like a wire that had missed the box it was named after,
+// which is a drawing that has to be explained before it can be read. `loop` and
+// every control key stay `tape` (LOOP_PLACES, `tapeMix`, signal/tapeloop.ts):
+// the collision is in what the two are *called*, and the signal path has only
+// ever had one tape in it. The transport already says "loop bin" on its face
+// (Transport.tsx), so this is the panel catching up with the deck.
 export const CAMERA_LOOP_STAGE = 'Camera loop'
 export const MIXER_LOOP_STAGE = 'Mixer loop'
-export const TAPE_LOOP_STAGE = 'Tape loop'
+export const LOOP_BIN_STAGE = 'Loop bin'
 
 export const LOOP_STAGES: readonly LoopStage[] = [
   {
@@ -208,8 +221,11 @@ export const LOOP_STAGES: readonly LoopStage[] = [
   },
   {
     loop: 'tape',
-    name: TAPE_LOOP_STAGE,
-    short: 'tape',
+    name: LOOP_BIN_STAGE,
+    // Two words where the other two shorts are one, and worth the room: at
+    // 'tape' the miniature named this run after the box three along from where
+    // its arrowheads land.
+    short: 'loop bin',
     blurb:
       'mechanical — a second deck threaded with a loop of tape, patched across the bus: what goes round is re-recorded and ages a generation a lap',
     what: 'a second machine threaded with a loop of tape, patched across the bus rather than round the chain: a play head returns what was laid down a lap ago, a record head lays the sum back down, and whatever keeps circulating ages a generation every time round',
@@ -909,7 +925,7 @@ export const GROUPS: Group[] = [
     ],
   },
   {
-    name: TAPE_LOOP_GROUP,
+    name: LOOP_BIN_GROUP,
     place: 'tape',
     sliders: [
       {

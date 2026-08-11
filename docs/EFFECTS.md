@@ -40,9 +40,11 @@ round with it, which is why the delay doubles as a hue rotation and each
 generation lands further round the wheel. Ring mod, luma keying and soft rails
 are on the return.
 
-**Tape loop** — a loop of tape with up to four playback heads. The return gets
-recorded again, so repeats decay by generation loss rather than by a fader, and
-chroma dies first.
+**Loop bin** — a second machine threaded with a loop of tape, up to four
+playback heads on it, patched across the bus rather than round the chain. Not
+the Tape stage below, which is the deck this signal was played back on. The
+return gets recorded again, so repeats decay by generation loss rather than by
+a fader, and chroma dies first.
 
 ## A/B mix
 
