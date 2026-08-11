@@ -28,17 +28,17 @@
 // honouring one half way is worse than not at all. Then `scripts/demuxcheck.mjs`
 // ran it against the two clips in `public/` and **both** have one — every byte
 // offset, size and sync flag agreed with ffprobe and every timestamp was out by
-// a constant, 1024 ticks on one file and 266 on the other. That constant is the
-// single edit's `media_time`, which is what a muxer writes to absorb the
-// reordering delay B-frames introduce, and it is on ordinary output from
-// ordinary tools rather than on anything exotic. Declining would have declined
-// everything.
+// a constant, 1024 ticks on one file and 266 on the other. Those constants are
+// what a muxer writes to absorb the reordering delay B-frames introduce, and
+// they are on ordinary output from ordinary tools rather than on anything
+// exotic. Declining would have declined this repo's own footage.
 //
-// So the one-entry case is subtracted, which is all it is, and the shapes that
-// genuinely cannot be handled this way — more than one segment, a rate other
-// than 1, a leading empty edit — set `unsupportedEdit` for the caller to decline
-// on. That is the same split as before with the line drawn where the measurement
-// put it instead of where caution guessed.
+// So the two shapes ffmpeg writes are applied — see `readEdit` for what they are
+// and for the clock mix-up that sits in the middle of the second one — and only
+// the shapes that genuinely need a piecewise map from presentation time to media
+// time set `unsupportedEdit` for the caller to decline on. That is the same
+// split as before with the line drawn where the measurement put it rather than
+// where caution guessed.
 //
 // What it deliberately does not do:
 //
