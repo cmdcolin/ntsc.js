@@ -308,9 +308,15 @@ Four things worth knowing about how it landed.
   it is the one-field rule above rather than that call.
 
 Both things filed as waiting on this have landed: **transitions between rows** is
-written up below, and **the audio crossfade** is IDEAS.md › _Landed: the second
-read head_ — which took the mechanism from here and not the field, for the reason
-above.
+written up below, and **the second read head** the crossfade was filed under is
+IDEAS.md › _Landed: the second read head_ — which took the mechanism from here
+and not the field, for the reason above.
+
+What that leaves is smaller than the entry it closes, and IDEAS.md says so:
+removing the seek removed the _dropout_, and the join is now a hard splice
+between two elements at zero gap — a click of about one frame, where a fade
+across the join is the standard fix. It was worth nothing against a half-second
+hole, and it is what remains.
 
 ### Seeding: the decision that is expensive later
 
@@ -772,9 +778,10 @@ which is the cheapest thing an editor gives you and was three lines.
 **Out, and in this order afterwards** — the first three are in, in that order:
 ~~preroll depth 1~~, where `videoSlot.ts`'s one-element-per-slot assumption was
 the change; ~~then transitions between rows~~, which needed it, because a fault
-that hides a cut needs both clips live; ~~then the audio crossfade~~, which took
-the second element's mechanism and a field of its own (IDEAS.md › _Landed: the
-second read head_); then takes, which want the export to exist before they are
+that hides a cut needs both clips live; ~~then the second read head~~ the audio
+crossfade was filed under, which took the second element's mechanism and a field
+of its own (IDEAS.md › _Landed: the second read head_) and leaves the de-click
+envelope behind it; then takes, which want the export to exist before they are
 worth recording.
 
 The transition shelf is deliberately not in either list, because it does not
@@ -1121,10 +1128,11 @@ list above in two places.
    just the board. It stops the live walk rather than running beside it, which
    is what the note here said to do.
 4. ~~**Preroll depth 1**~~, ~~**transitions between rows**~~ on top of it, and
-   ~~**the audio crossfade**~~. **All three landed** — _Landed_ under
-   _Performance: the boundary is the only cost_, _Landed: between rows_ under
-   _Transitions_, and IDEAS.md › _Clip cues_ › _Landed: the second read head_.
-   That empties this step.
+   ~~**the second read head**~~ the audio crossfade was filed under. **All three
+   landed** — _Landed_ under _Performance: the boundary is the only cost_,
+   _Landed: between rows_ under _Transitions_, and IDEAS.md › _Clip cues_ ›
+   _Landed: the second read head_. What is left of the third is the de-click
+   envelope, which is a few lines of gain and is filed there rather than here.
 
    Two things from the last of them are worth having here rather than only
    there, because both are about how this document was wrong rather than about
