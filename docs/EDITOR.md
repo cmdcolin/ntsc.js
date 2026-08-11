@@ -573,17 +573,27 @@ Worth writing down against the shipped thing rather than the planned one,
 because two of these are bigger than anything left on the build order and
 neither was obvious from the design.
 
-- **The music.** The document opens with "the ask behind this document is music
-  videos", and there is no way to cut to a song. The app _can_ play one —
-  `useAudio`'s `file` mode loads a track and feeds the bay's envelope — but the
-  strip's clock and that track have no relationship at all: the tempo is tapped
-  in by hand or arrives over MIDI clock, and pressing ▶ on the rundown does not
-  start the music or take its phase from it. The smallest honest version is one
-  transport: ▶ starts the track from the top and the walk with it, so the two
-  are locked at the top and a known BPM keeps them together for the length of a
-  piece. That is the single highest-value thing left, and it is not on the build
-  order at all — the order was written about export and transitions, which are
-  what a *finished* piece needs rather than what making one needs.
+- ~~**The music.**~~ **Landed, in the smallest form that is worth anything: one
+  transport.** ▶ takes the picked track from the top and the walk with it, stop
+  stops both, and a rundown that runs off its end stops the music too — the rule
+  is one sentence, _the track runs while the walk runs_. Firing a row by hand
+  deliberately does not touch it: that is a hand reaching into a take, not the
+  take restarting. `useAudio` gained two verbs over the element it already owns
+  (`track.restart` / `track.pause`); the tray names what is loaded and opens the
+  same picker the Sound stage does, since a rundown is where you decide you want
+  a track and that picker is four sections down behind a fold.
+
+  **This is a start, not a lock,** and the difference is worth stating because
+  it is what someone will hit next. The walk still advances on the engine's
+  frame counter, so the two are together at frame zero and a tempo that is wrong
+  drifts against the music over minutes — fine for a three-minute piece with the
+  BPM tapped in, not fine for a set. Cutting to the track's own clock is the
+  bigger version: it wants the walk's `Clock.frame` derived from `currentTime`
+  rather than from `frameNo()`, which `strip.ts` is already indifferent to, plus
+  an answer for what a rundown does when the song ends. Worth noting the whole
+  thing was missing from the build order — that order was written about export
+  and transitions, which are what a _finished_ piece needs rather than what
+  making one needs.
 - **A file at the end.** Build order step 1 (`VideoEncoder` CFR) is still the
   answer, and it is now the only thing between a rundown that plays and a
   rundown somebody else can watch. `useCapture` still records wall-clock VFR.

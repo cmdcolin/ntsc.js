@@ -95,6 +95,21 @@ export interface StripDeps {
   // does not give a session a tempo it never asked for.
   ensureTempo: () => void
   frameNo: () => number
+  // The picked music track, if there is one — `useAudio`'s `track`.
+  //
+  // The rule is one sentence: **the track runs while the walk runs.** ▶ takes
+  // it from the top so the two are locked at frame zero; stopping stops it; a
+  // rundown that runs off its end stops it too. Firing a row by hand
+  // deliberately does not touch it — that is a hand reaching into a take, not
+  // the take restarting, and hauling the song back to zero under it would be
+  // the one thing nobody wants mid-set.
+  //
+  // What this is not is a lock. The walk still advances on the engine's frame
+  // counter, so a tempo that is wrong drifts against the music over minutes.
+  // Cutting to the track's own clock is a bigger question (it wants the walk's
+  // clock to come from `currentTime`, and an answer for what happens when the
+  // song ends); starting together is most of the value for none of that.
+  track: { loaded: boolean; restart: () => void; pause: () => void }
 }
 
 export interface StripRunner {
@@ -213,6 +228,11 @@ export function makeStripRunner(): StripRunner {
   // without the subscribers hearing about it or without the step being run.
   const land = (step: Step) => {
     walk = step.walk
+    // A rundown that has run off its end stops the music with it — the same
+    // rule `stop()` follows, applied at the one other place a walk can end.
+    // Here rather than in `advance`, which is pure and has no business knowing
+    // there is a song.
+    if (!walking(walk)) deps?.track.pause()
     emit(walkFns)
     runStep(step, sink)
   }
@@ -237,10 +257,14 @@ export function makeStripRunner(): StripRunner {
     },
     start: () => {
       deps?.ensureTempo()
+      // Before the walk, so the two are as close to the same instant as one
+      // synchronous body gets them. Both are cheap and neither awaits.
+      deps?.track.restart()
       land(start(strip, clock()))
     },
     stop: () => {
       walk = STOPPED
+      deps?.track.pause()
       emit(walkFns)
     },
     // A hand on a row. Fires whether or not the walk is running, which is what

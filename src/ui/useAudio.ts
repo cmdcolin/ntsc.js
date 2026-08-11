@@ -99,6 +99,38 @@ export function useAudio(
   return {
     mode,
     name,
+    // The picked track as a transport something else can drive — today the
+    // strip's ▶, so a rundown and the song it was cut to start together.
+    //
+    // Only a picked *file* offers this. 'mic' has no position to start from,
+    // and 'video' is the clip's own sound — which the strip is already cutting,
+    // so restarting it would fight the source change the row just made.
+    //
+    // Two verbs and no state of its own: the element is already here, the
+    // analyser is already wired to it, and the whole of what was missing was
+    // somebody else being able to say "from the top".
+    track: {
+      loaded: mode === 'file',
+      name,
+      // From the top, which is what makes the pairing worth anything: the walk
+      // and the track are locked at frame zero, and a tempo that is right keeps
+      // them together from there.
+      restart: () => {
+        const el = elRef.current
+        if (el !== null && mode === 'file') {
+          el.currentTime = 0
+          // Rejections are ignored rather than surfaced: this is a second
+          // gesture on an element that is already playing under a grant the
+          // pick established, so the autoplay refusal `playFile` reports cannot
+          // arise here — and a banner over the picture at the top of a take is
+          // the worse failure either way.
+          el.play().catch(() => {})
+        }
+      },
+      pause: () => {
+        if (mode === 'file') elRef.current?.pause()
+      },
+    },
     audioState: engine === null ? null : engine.audioState,
     error,
     time: play.time,

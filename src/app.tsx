@@ -466,6 +466,14 @@ export function App() {
   // already existed — the engine's session apply, the same mutate list the
   // panel's own shake uses, the tempo — which is the point of a row being a
   // query string rather than a shape of its own.
+  // The picker owns where sound comes from, including the clips' own tracks —
+  // which the engine is the one that can route, so it hands the switch over.
+  //
+  // Above the strip rather than beside the panel rows that draw it, because the
+  // strip takes its transport: ▶ on a rundown starts the picked track from the
+  // top so the two are locked at frame zero.
+  const audio = useAudio(engine, eng.setVideoAudio)
+
   const strip = useStrip({
     showSession: eng.showSession,
     rollOn: eng.rollOn,
@@ -477,6 +485,7 @@ export function App() {
     // Through the ref, like startGlide above: the strip's tick reads this once
     // per frame, and a fresh closure per render would rebuild the loop.
     frameNo: useCallback(() => engineRef.current?.frameNo() ?? 0, [engineRef]),
+    track: audio.track,
   })
 
   const profiles = useSavedProfiles()
@@ -621,10 +630,6 @@ export function App() {
     mutateGroup: mix.mutateGroup,
     resetGroup: mix.resetGroup,
   }
-
-  // The picker owns where sound comes from, including the clips' own tracks —
-  // which the engine is the one that can route, so it hands the switch over.
-  const audio = useAudio(engine, eng.setVideoAudio)
 
   // Everything ⌘K can run that is not a preset or a control, assembled in
   // paletteActions.ts — the list is a list, and what App is the authority on is
@@ -1298,6 +1303,10 @@ export function App() {
                   name: jitter === undefined ? lookLabel : '',
                 })
               }
+              track={{
+                name: audio.track.loaded ? audio.name : '',
+                onPick: () => audio.select('file'),
+              }}
             />
           </StripContext>
         )}

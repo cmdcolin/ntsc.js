@@ -46,6 +46,11 @@ export function StripTray(props: {
   // capture. The tray cannot build a session string itself — that needs the
   // whole app's state — so both go out through one callback.
   onCapture: (jitter?: MutateAmount) => void
+  // The music, if any: what is loaded, and the same picker the Sound stage
+  // opens. A second door to one hook rather than a second hook — a rundown is
+  // where you decide you want a track, and the panel's own picker is four
+  // sections down behind a fold.
+  track: { name: string; onPick: () => void }
 }) {
   const api = useStripApi()
   const [open, setOpen] = useState(false)
@@ -135,6 +140,21 @@ export function StripTray(props: {
               title="come back round at the end, or stop there"
             >
               ↻ loop
+            </button>
+            {/* ▶ takes the track from the top with the walk, so a rundown and
+                the song it was cut to start together. The name is shown because
+                that is the whole confirmation there is that pressing play will
+                start anything. */}
+            <button
+              className={cx(ui.bare, styles.track)}
+              onClick={props.track.onPick}
+              title={
+                props.track.name === ''
+                  ? 'pick a track — play then starts it with the rundown'
+                  : `${props.track.name} — starts from the top with the rundown`
+              }
+            >
+              ♪ {props.track.name === '' ? 'no track' : props.track.name}
             </button>
             {/* The rundown's own walk back, and a button rather than ctrl+z on
                 purpose. ctrl+z already means "put that knob back" and is used

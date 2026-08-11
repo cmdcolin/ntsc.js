@@ -41,6 +41,11 @@ const browser = await puppeteer.launch({
   extraPrefsFirefox: {
     'dom.webgpu.enabled': true,
     'gfx.webgpu.ignore-blocklist': true,
+    // The music arm hands over a track through the file input rather than a
+    // click, so there is no user gesture behind the play() that follows and
+    // Firefox would refuse it.
+    'media.autoplay.default': 0,
+    'media.autoplay.blocking_policy': 0,
   },
 })
 const page = await browser.newPage()
@@ -288,6 +293,86 @@ check(
   'and does not also fire it',
   (await cards()).every(r => !r.live),
 )
+
+// --- the music ---------------------------------------------------------------
+//
+// The rule in one sentence: the track runs while the walk runs. `new Audio()`
+// is detached, so there is no element in the DOM to read — but the analyser's
+// source node hands it back (`MediaElementAudioSourceNode.mediaElement`), which
+// is the playhead without the app exposing anything for a test's benefit.
+await page.evaluate(() => {
+  // 20 seconds of 440Hz, built here rather than shipped as a fixture: nothing
+  // listens to it, only to whether it is playing and where its playhead is.
+  const rate = 8000
+  const n = rate * 20
+  const buf = new ArrayBuffer(44 + n * 2)
+  const view = new DataView(buf)
+  const ascii = (off, s) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i))
+  }
+  ascii(0, 'RIFF')
+  view.setUint32(4, 36 + n * 2, true)
+  ascii(8, 'WAVEfmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, rate, true)
+  view.setUint32(28, rate * 2, true)
+  view.setUint16(32, 2, true)
+  view.setUint16(34, 16, true)
+  ascii(36, 'data')
+  view.setUint32(40, n * 2, true)
+  for (let i = 0; i < n; i++) {
+    const v = Math.sin((i / rate) * 440 * 2 * Math.PI) * 8000
+    view.setInt16(44 + i * 2, v, true)
+  }
+  const dt = new DataTransfer()
+  dt.items.add(new File([buf], 'tone.wav', { type: 'audio/wav' }))
+  const input = document.querySelector('input[type=file][accept*="audio"]')
+  if (input === null) return
+  input.files = dt.files
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+})
+await wait(1500)
+
+const trackLabel = await page.evaluate(
+  () =>
+    [...document.querySelectorAll('button')]
+      .map(b => b.textContent ?? '')
+      .find(t => t.startsWith('♪')) ?? '',
+)
+check(
+  'the tray names the loaded track',
+  trackLabel.includes('tone.wav'),
+  trackLabel,
+)
+
+const head = () =>
+  page.evaluate(() => {
+    const el = window.vf?.audioState?.input?.mediaElement
+    return el === undefined || el === null
+      ? null
+      : { time: el.currentTime, paused: el.paused }
+  })
+
+await wait(2500)
+const ran = await head()
+check('the track plays, and runs on', (ran?.time ?? 0) > 1, JSON.stringify(ran))
+
+await click('▶ play')
+await wait(500)
+const restarted = await head()
+check(
+  'play takes it back to the top, with the walk',
+  (restarted?.time ?? 99) < (ran?.time ?? 0),
+  `${ran?.time} -> ${restarted?.time}`,
+)
+check('and leaves it playing', restarted?.paused === false)
+
+await click('■ stop')
+await wait(500)
+const paused = await head()
+check('stop pauses it', paused?.paused === true, JSON.stringify(paused))
 
 // --- persistence -----------------------------------------------------------
 const stored = await page.evaluate(() =>

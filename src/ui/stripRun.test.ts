@@ -119,6 +119,7 @@ describe('makeStripRunner', () => {
     const rollOn = vi.fn()
     const writeControls = vi.fn()
     const ensureTempo = vi.fn()
+    const track = { loaded: true, restart: vi.fn(), pause: vi.fn() }
     runner.setDeps({
       showSession,
       rollOn,
@@ -128,6 +129,7 @@ describe('makeStripRunner', () => {
       bpm: 120,
       ensureTempo,
       frameNo: () => frame,
+      track,
     })
     const strip: Strip = { rows, seed: 42, loop: opts.loop ?? true }
     runner.setStrip(strip)
@@ -137,6 +139,7 @@ describe('makeStripRunner', () => {
       rollOn,
       writeControls,
       ensureTempo,
+      track,
       to: (f: number) => {
         frame = f
         runner.tick()
@@ -248,6 +251,56 @@ describe('makeStripRunner', () => {
     h.runner.setStrip({ ...h.runner.getStrip(), loop: false })
     expect(onStrip).toHaveBeenCalledTimes(1)
     expect(h.runner.getStrip().loop).toBe(false)
+  })
+
+  // One sentence, and these are it: **the track runs while the walk runs.**
+  // The whole of what "cut to music" is at this stage — the two locked at frame
+  // zero, and a tempo that is right keeping them together from there.
+  describe('the music', () => {
+    it('takes the track from the top when the walk starts', () => {
+      const h = harness([row()])
+      h.runner.start()
+      expect(h.track.restart).toHaveBeenCalledTimes(1)
+    })
+
+    it('pauses it when the walk stops', () => {
+      const h = harness([row()])
+      h.runner.start()
+      h.runner.stop()
+      expect(h.track.pause).toHaveBeenCalled()
+    })
+
+    // A rundown that runs off its own end is the other way a walk ends, and it
+    // has to mean the same thing as pressing stop.
+    it('pauses it when a strip that does not loop runs out', () => {
+      const h = harness([row()], { loop: false })
+      h.runner.start()
+      h.track.pause.mockClear()
+      h.to(480)
+      expect(h.runner.getWalk().row).toBe(-1)
+      expect(h.track.pause).toHaveBeenCalled()
+    })
+
+    // A hand reaching into a running take is not the take restarting. Hauling
+    // the song back to zero under it is the one thing nobody wants mid-set.
+    it('leaves the track alone when a row is fired by hand', () => {
+      const h = harness([row(), row({ id: 'r2' })])
+      h.runner.start()
+      h.track.restart.mockClear()
+      h.track.pause.mockClear()
+      h.runner.fireRow(1)
+      expect(h.track.restart).not.toHaveBeenCalled()
+      expect(h.track.pause).not.toHaveBeenCalled()
+    })
+
+    it('leaves it alone as the walk crosses a row boundary', () => {
+      const h = harness([row(), row({ id: 'r2' })])
+      h.runner.start()
+      h.track.restart.mockClear()
+      h.to(480)
+      expect(h.runner.getWalk().row).toBe(1)
+      expect(h.track.restart).not.toHaveBeenCalled()
+    })
   })
 
   // Undo is what makes an editor safe to poke at: a mis-clicked ✕ on a row you
