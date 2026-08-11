@@ -72,10 +72,19 @@ const join = (parts: Uint8Array[]): Uint8Array => {
   return out
 }
 
-// Seconds since 1904, which is what the format counts in. Truncated to 32 bits
-// on purpose: these are version-0 boxes, and nothing reads the date.
-const EPOCH_1904 = 2_082_844_800
-const now = (): number => (Math.floor(Date.now() / 1000) + EPOCH_1904) >>> 0
+// The creation/modification stamp the three header boxes carry, in seconds
+// since 1904. **Zero, meaning unset, rather than the wall clock**, and that is
+// load-bearing rather than laziness: it is the last thing standing between a
+// take and being a pure function of the frames in it.
+//
+// It was `Date.now()`, and `scripts/rendercheck.mjs` caught it the day the
+// render started clearing its signal state — two renders of one take came back
+// the same length to the byte and with different digests, and the whole of the
+// difference was these six fields, twenty-four bytes of "when did you press the
+// button". Nothing reads them (ffprobe reports no date either way), and a file
+// that differs by when it was made is a file two takes can never be compared
+// by.
+const NO_DATE = u32(0)
 
 // The unity matrix every writer emits, as 16.16 fixed point.
 const MATRIX = join([
@@ -293,8 +302,8 @@ export function writeMp4(spec: Mp4Spec): Uint8Array {
       'mvhd',
       0,
       0,
-      u32(now()),
-      u32(now()),
+      NO_DATE,
+      NO_DATE,
       u32(MOVIE_TIMESCALE),
       u32(movieDuration),
       // Rate 1.0, volume 1.0, then reserved.
@@ -315,8 +324,8 @@ export function writeMp4(spec: Mp4Spec): Uint8Array {
         'tkhd',
         0,
         3,
-        u32(now()),
-        u32(now()),
+        NO_DATE,
+        NO_DATE,
         u32(1),
         u32(0),
         u32(movieDuration),
@@ -338,8 +347,8 @@ export function writeMp4(spec: Mp4Spec): Uint8Array {
           'mdhd',
           0,
           0,
-          u32(now()),
-          u32(now()),
+          NO_DATE,
+          NO_DATE,
           u32(timescale),
           u32(trackDuration),
           // 'und', packed five bits per letter, then predefined.

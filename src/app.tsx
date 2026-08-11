@@ -1332,6 +1332,10 @@ export function App() {
                     audio.track.loaded && audio.duration > 0
                       ? audio.duration
                       : 10,
+                    // The rundown's seed, so ⟳ reseed gives a different take of
+                    // the same piece and rendering twice without it gives the
+                    // same one.
+                    strip.strip.seed,
                   ),
                 cancel: render.cancel,
               }}

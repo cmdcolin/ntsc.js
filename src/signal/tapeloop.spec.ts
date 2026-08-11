@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { rngFor } from '../rng'
 import {
   LINES,
   SAMPLES_PER_LINE,
@@ -407,5 +408,24 @@ describe('TapeState', () => {
     const seen = []
     for (let f = 0; f < 300; f++) seen.push(delayOf(tape.update(still, f)))
     expect(Math.max(...seen) - Math.min(...seen)).toBe(0)
+  })
+
+  // The half of docs/EDITOR.md › _Take state_ that lives on the CPU: the
+  // capstan is the one thing on this deck that rolls, and a take hands it a
+  // seeded generator so a re-render's tape wanders the same way. Two decks on
+  // the same seed against the same controls have to agree frame for frame —
+  // and the unseeded pair below is the control, since a wander that repeated
+  // anyway would make the seeded arm prove nothing.
+  it('wanders identically from the same dice, and differently without', () => {
+    const wobble = { ...still, tapeWowPct: 5, tapeColourFrame: 0 }
+    const run = (tape: TapeState) => {
+      const seen = []
+      for (let f = 0; f < 300; f++) seen.push(delayOf(tape.update(wobble, f)))
+      return seen
+    }
+    expect(run(new TapeState(rngFor(7)))).toEqual(run(new TapeState(rngFor(7))))
+    expect(run(new TapeState(rngFor(7)))).not.toEqual(
+      run(new TapeState(rngFor(8))),
+    )
   })
 })

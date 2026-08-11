@@ -2,25 +2,25 @@
 //
 //   node scripts/rendercheck.mjs [port]
 //
-// The render owns its own time. Two renders of the same length are asserted to
-// come out the same length *in the render's terms* — the same span of frames,
-// and a clock that reads exactly the frame counter over the rate at every
-// sample — while one of them has real time injected between yields.
+// The render owns its own time, its own dice and its own starting state, so two
+// renders of one take are **the same file, byte for byte** — asserted below on
+// a SHA-256 of each — while one of them has real time injected between its
+// yields and the live loop runs between the two.
 //
-// **What is deliberately not asserted, and why.** A first version compared the
-// pixels of two runs and called it determinism. It is not: frame N is a
-// function of N *and of the state the engine was in when the render started*,
-// and the live loop runs between two renders, so the second begins with a
-// different history in the tape ring, the phosphor persistence and the PLL.
-// Measured, the two files come out within about 5% of each other in size and
-// the last frames sometimes match and sometimes do not — which is the premise
-// of the simulator rather than a defect in the loop.
+// That assertion is younger than the harness. The version before `startTake`
+// could only claim that a take was the same take *from the same starting
+// state*, and measured the gap: frame N was a function of N and of the tape
+// ring, the phosphor persistence and the PLL's lock age at frame zero, so the
+// second render began with a different history and the two files came out about
+// 3% apart in size. `startTake` is what closed it — every buffer back to what
+// the device handed over, every CPU modulator rebuilt, and the dice seeded — so
+// the thing this file used to explain it could not check is now the headline
+// check (docs/EDITOR.md › _Take state_).
 //
-// So this proves what the render loop actually buys: **the same take from the
-// same starting state is the same take, however long it takes to run.** Getting
-// byte-identity across sessions additionally needs the feedback buffers put
-// back, which is what recording a take (docs/EDITOR.md › _Seeding_) has to
-// carry. That is the next piece, not this one.
+// Two things it still cannot claim. A take over a `<video>` is not reproducible
+// — the pump pulls at wall rate, which is build-order step 5 — so this renders
+// the default bars. And a take is reproducible *within a browser build*: the
+// H.264 encoder is Firefox's, and nothing here asserts across versions of it.
 
 import puppeteer from 'puppeteer-core'
 
@@ -33,6 +33,11 @@ import process from 'node:process'
 const port = process.argv[2] ?? '5199'
 const FRAMES = 60
 const FPS = 60
+// `YIELD_EVERY` in ui/render.ts, which is where the render's progress callback
+// fires. Mirrored rather than imported because this file runs in node and that
+// one is a browser module; what it buys is the first mark's frame number, which
+// is what says a take counted from zero.
+const YIELD_EVERY = 12
 
 const fail = []
 const check = (name, ok, detail = '') => {
@@ -72,10 +77,9 @@ await page.goto(
 await new Promise(r => setTimeout(r, 6000))
 await page.bringToFront()
 
-// One render, from a fixed board, returning the file and a hash of the last
-// frame. `jitter` puts real time between the yields — a machine having a bad
-// day — which is exactly what a wall clock notices and a frame counter must
-// not.
+// One render, from a fixed board, returning a digest of the file it produced.
+// `jitter` puts real time between the yields — a machine having a bad day —
+// which is exactly what a wall clock notices and a frame counter must not.
 const render = (frames, jitter, wantFile = false) =>
   page.evaluate(
     async (n, pause, fps, want) => {
@@ -83,18 +87,18 @@ const render = (frames, jitter, wantFile = false) =>
       const vf = window.vf
       const cv = document.querySelector('canvas')
       // The same board every time, so the only thing that can differ between
-      // runs is what the clock and the loop did.
-      vf.stopGlide()
+      // runs is what the clock, the loop and the dice did.
       vf.applyControls({ ...vf.getControls(), strobeHz: 7, strobeMs: 50 })
-      // Counted across the render itself, not across the gap between two of
-      // them: the loop is running again in between, so a reading taken outside
-      // includes whatever rAF managed.
+      // Read outside the render, and put back by it: `endTake` hands the
+      // counter back, so a take is an aside on the app's clock rather than a
+      // rewind of it, and the strip's walk still measures its holds correctly
+      // afterwards.
       const at = vf.frameNo()
-      const wallAt = performance.now()
       const marks = []
       const blob = await mod.renderTake(vf, cv, {
         frames: n,
         fps,
+        seed: 12345,
         onProgress: async done => {
           // Sampled inside the render, where the clock is still virtual: it
           // goes back on the wall before `renderTake` returns.
@@ -102,15 +106,12 @@ const render = (frames, jitter, wantFile = false) =>
           if (pause > 0) await new Promise(r => setTimeout(r, pause))
         },
       })
-      const oc = new OffscreenCanvas(cv.width, cv.height)
-      oc.getContext('2d').drawImage(cv, 0, 0)
-      const d = oc.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
-      let h = 0x811c9dc5
-      for (let i = 0; i < d.length; i += 37) {
-        h ^= d[i]
-        h = Math.imul(h, 0x01000193) >>> 0
-      }
       const buf = new Uint8Array(await blob.arrayBuffer())
+      const digest = [
+        ...new Uint8Array(await crypto.subtle.digest('SHA-256', buf)),
+      ]
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
       // Chunked, and only when asked for. A byte-at-a-time string build over a
       // six-megabyte take is slow enough to blow puppeteer's protocol timeout —
       // which it did, twice, as an unexplained ProtocolError rather than as
@@ -123,19 +124,23 @@ const render = (frames, jitter, wantFile = false) =>
       }
       return {
         b64: want ? btoa(s) : '',
-        hash: h,
-        stepped: vf.frameNo() - at,
+        digest,
+        // Where the counter is left, against where the take found it. The loop
+        // is running again by the time this is read, so it is "near" rather
+        // than "equal" — what would fail is a take that left it 600 frames on.
+        drifted: vf.frameNo() - at,
         // Every sample taken inside the render, where the clock is virtual.
         // The invariant is that it reads exactly the frame counter over the
         // rate — which is the whole of what "the render owns its time" means.
         drift: marks
           .map(m => Math.abs(m.clock - (m.frame * 1000) / fps))
           .reduce((x, y) => Math.max(x, y), 0),
-        span:
-          marks.length === 0
-            ? 0
-            : marks[marks.length - 1].frame - marks[0].frame,
-        wall: performance.now() - wallAt,
+        // The take's own first and last frame numbers. `first` is the one that
+        // says the counter started at zero: the render yields every twelfth
+        // frame, so a take that began mid-session would report its first mark
+        // at whatever the session was on.
+        first: marks[0]?.frame ?? -1,
+        last: marks[marks.length - 1]?.frame ?? -1,
         size: buf.length,
       }
     },
@@ -145,43 +150,53 @@ const render = (frames, jitter, wantFile = false) =>
     wantFile,
   )
 
-// --- the render owns its own time --------------------------------------------
+// --- two renders of one take are one file -------------------------------------
 //
-// The second arm has 25ms injected at every yield — a machine having a bad day.
-// What must be true is that none of it reaches the file: the take is the same
-// length in frames and in clock, and the wall time it took to produce is not
-// recorded anywhere.
+// The headline, and everything else here is the reason it can be asserted. The
+// second arm has 25ms injected at every yield — a machine having a bad day —
+// and the live loop runs between the two, dirtying the tape ring, the phosphor
+// and the PLL that the second take then starts from. None of it reaches the
+// file.
 const a = await render(FRAMES, 0, true)
 const b = await render(FRAMES, 25)
+check(
+  'two renders of one take are the same file, byte for byte',
+  a.digest === b.digest && a.size === b.size,
+  `${a.digest.slice(0, 16)} (${a.size}B) vs ${b.digest.slice(0, 16)} (${b.size}B)`,
+)
 check(
   'the clock reads exactly the frame counter throughout, jitter or not',
   a.drift === 0 && b.drift === 0,
   `worst drift ${a.drift}ms and ${b.drift}ms`,
 )
-check(
-  'and both renders covered the same span of frames',
-  a.span === b.span,
-  `${a.span} and ${b.span}`,
-)
 // There was an arm here asserting the jittered run really was slower in real
 // time, and it is not measurable: a backgrounded window clamps `setTimeout` to
 // about a second, so the injected 25ms disappears into the clamp and both arms
 // take the same wall time (measured: 3491ms vs 3434ms). Nothing is lost by
-// dropping it. The two checks above are the property that matters — whatever
-// the wall clock did, the render's own clock and span came out identical — and
-// they hold whether or not the jitter arrived.
-// Two more than asked for, every time: `RenderLoop.stop()` drops a flag rather
-// than cancelling, so the two already-scheduled chains each land one last
-// frame. They are ordered before the render (see render.ts) rather than
-// interleaved with it, which is what matters — the frames the file holds are
-// consecutive, and it holds exactly FRAMES of them, asserted below.
+// dropping it — whatever the wall clock did, the file came out identical, which
+// is the same property stated harder.
 check(
-  'the render steps its own frames and nothing steps more',
-  a.stepped === b.stepped && a.stepped <= FRAMES + 2,
-  `${a.stepped} and ${b.stepped} for ${FRAMES} asked`,
+  'a take counts its own frames from zero and covers exactly the span asked',
+  a.first === YIELD_EVERY &&
+    b.first === YIELD_EVERY &&
+    a.last === FRAMES &&
+    b.last === FRAMES,
+  `${a.first}..${a.last} and ${b.first}..${b.last} for ${FRAMES} asked`,
 )
 
 // --- the engine is left as it was found --------------------------------------
+//
+// Including the frame counter, which the take rewound to zero: `frameNo()` is
+// also the app's clock — the strip measures its holds against it — so a render
+// hands it back rather than leaving the walk hundreds of frames in the future.
+// Two of the frames below are the live loop's own strays (`RenderLoop.stop()`
+// drops a flag rather than cancelling, so both scheduled chains land one more),
+// and the rest is whatever the resumed loop managed before this was read.
+check(
+  'the frame counter is handed back where the take found it',
+  a.drifted < 10 && b.drifted < 10,
+  `${a.drifted} and ${b.drifted} frames on, for ${FRAMES}-frame takes`,
+)
 const after = await page.evaluate(async () => {
   const before = window.vf.frameNo()
   const clock = window.vf.clockMs()
@@ -205,6 +220,7 @@ const cancelled = await page.evaluate(async fps => {
     await mod.renderTake(vf, cv, {
       frames: 100000,
       fps,
+      seed: 1,
       cancelled: () => true,
     })
   } catch (e) {
@@ -270,29 +286,6 @@ check(
   'and decodes without a warning',
   decoded === '',
   decoded.split('\n')[0] ?? '',
-)
-
-// **What is deliberately not asserted: that the two files are identical.**
-//
-// They are not, and the reason is the premise of the whole simulator rather
-// than a defect here. Frame N is a function of N *and of the state the engine
-// was in when the render started* — the tape ring, the phosphor persistence,
-// the PLL's lock age, the two servos. Between these two renders the live loop
-// ran, so render B began with a different history in those buffers, and the
-// encoded sizes differ by about 3% even though the last frames come out
-// pixel-identical (the strobe and the raster converge; the feedback paths carry
-// their own past).
-//
-// So what the render loop buys is: **the same take from the same starting state
-// is the same take, however long it takes to run.** Byte-identity across
-// sessions additionally needs the feedback buffers put back — which is what
-// `vote/prepare.ts` does between candidate pairs, and what recording a take
-// (docs/EDITOR.md › _Seeding_) will have to record and replay. That is the next
-// piece, not this one.
-check(
-  'two renders differ only as much as their histories do',
-  Math.abs(a.size - b.size) / a.size < 0.1,
-  `${a.size} vs ${b.size} (${(((b.size - a.size) / a.size) * 100).toFixed(1)}%)`,
 )
 
 check('no page errors', errors.length === 0, errors.join(' | '))

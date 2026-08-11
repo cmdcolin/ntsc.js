@@ -5,8 +5,15 @@
 // Five places in the signal path measure a *rate* rather than taking a
 // per-frame step — the two glide reads, the stab gate, the strobe gate and the
 // PLL's auto-lock — and off the wall clock they land on different frames
-// depending on how fast the machine was that day. `setVirtualClock` points all
-// five at the frame counter instead. This measures that it took.
+// depending on how fast the machine was that day. `startTake` points all five
+// at the frame counter instead. This measures that it took.
+//
+// The clock is one of three things `startTake` holds still (the dice and the
+// signal state are the other two, and `scripts/rendercheck.mjs` is where the
+// whole switch is measured against a file). Here it is the clock alone that is
+// under test, which is why every arm below starts its glide *after* the switch:
+// a morph in flight when a take begins is stopped by it, deliberately, since
+// its origin was stamped on a clock that no longer exists.
 //
 // **What it deliberately does not claim.** A first version hashed the canvas
 // after two runs and asserted the pixels matched. That test cannot pass while
@@ -67,7 +74,8 @@ const glideAfter = (virtual, frames) =>
   page.evaluate(
     (useVirtual, n) => {
       const vf = window.vf
-      vf.setVirtualClock(useVirtual ? 60 : null)
+      if (useVirtual) vf.startTake({ fps: 60, seed: 1 })
+      else vf.endTake()
       const to = { ...vf.getControls(), vSize: 0.4 }
       vf.applyControls({ ...vf.getControls(), vSize: 1 })
       vf.startGlide({
@@ -86,7 +94,7 @@ const glideAfter = (virtual, frames) =>
 
 // --- the clock itself --------------------------------------------------------
 const before = await page.evaluate(() => {
-  window.vf.setVirtualClock(60)
+  window.vf.startTake({ fps: 60, seed: 1 })
   return { a: window.vf.clockMs(), frame: window.vf.frameNo() }
 })
 await new Promise(r => setTimeout(r, 700))
@@ -111,7 +119,7 @@ check(
 )
 
 const wall = await page.evaluate(() => {
-  window.vf.setVirtualClock(null)
+  window.vf.endTake()
   const a = window.vf.clockMs()
   return { a, big: a > 1000 }
 })
@@ -157,7 +165,7 @@ check(
 )
 await page.evaluate(() => {
   window.vf.stopGlide()
-  window.vf.setVirtualClock(null)
+  window.vf.endTake()
 })
 
 check('no page errors', errors.length === 0, errors.join(' | '))

@@ -7,12 +7,18 @@
 //      it captured at whatever rate the tab managed and *called* that 60fps —
 //      internally consistent, and a take that plays fast if the tab dropped
 //      frames.
-//   2. `setVirtualClock` makes the five rate-driven readers functions of the
+//   2. The virtual clock makes the five rate-driven readers functions of the
 //      frame counter. But while rAF is also running, the counter moves between
 //      steps and two runs of the same take see different times.
 //   3. Here: stop the loop, step the engine, hand each frame straight to the
 //      encoder. Now the frame count is exactly the frame count, the clock is
 //      exactly the frames, and the file is exactly both.
+//
+// A fourth arrived with `startTake`, and it is the one that makes the other
+// three worth having: frame N was a function of N *and of where the engine
+// happened to be* when the render started, so two renders of the same take came
+// out about 5% apart. A take now begins from a fresh engine's signal state with
+// its dice seeded, and two renders of one take are the same file.
 //
 // **It renders as fast as the GPU will go, and that is the point.** A take is
 // no longer something you sit through in real time — a slow frame costs the
@@ -34,6 +40,10 @@ const YIELD_EVERY = 12
 export interface RenderSpec {
   frames: number
   fps: number
+  // What everything left in the take that rolls draws from — the tape's wow,
+  // the stick-slip patches, the bay's random walk. The rundown's seed, so a
+  // re-render of a strip asks the dice the same questions its walk did.
+  seed: number
   // Called after each yield, never per frame — a progress bar has no use for
   // sixty updates a second and React has no time for them mid-render.
   onProgress?: (done: number, total: number) => void
@@ -60,7 +70,7 @@ export async function renderTake(
   canvas: HTMLCanvasElement,
   spec: RenderSpec,
 ): Promise<Blob> {
-  const { frames, fps } = spec
+  const { frames, fps, seed } = spec
   const wasRunning = engine.pauseLoop()
   // **Let the loop actually finish stopping before taking the frames.**
   //
@@ -84,7 +94,10 @@ export async function renderTake(
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     })
   }
-  engine.setVirtualClock(fps)
+  // After the two frames above, not before: those strays are the live loop's
+  // last, and stepping them through a freshly-cleared signal path would put two
+  // frames of someone else's take at the front of this one.
+  engine.startTake({ fps, seed })
   const recorder = await startRecording({
     width: canvas.width,
     height: canvas.height,
@@ -119,7 +132,7 @@ export async function renderTake(
     recorder.abort()
     throw e
   } finally {
-    engine.setVirtualClock(null)
+    engine.endTake()
     if (wasRunning) engine.resumeLoop()
   }
 }

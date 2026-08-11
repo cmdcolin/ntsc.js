@@ -175,17 +175,27 @@ export interface EngineApi {
   // on a healthy loop.
   kick: () => void
   frameNo: () => number
-  // Count time in frames at this rate rather than off the wall clock, or null
-  // for the wall. It is what turns the five rate-driven readers in the signal
-  // path — the two glide reads, the stab gate, the strobe gate and the PLL's
-  // auto-lock — into functions of the frame counter, which is the last thing
-  // standing between this engine and "frame N is a function of N"
-  // (docs/EDITOR.md › _Fixed-framerate export_).
-  setVirtualClock: (fps: number | null) => void
+  // Everything a take needs held still, in one switch, and `endTake` to put it
+  // all back (docs/EDITOR.md › _Take state_):
+  //
+  //   - time is counted in frames at `fps` rather than off the wall clock,
+  //     which is what turns the five rate-driven readers in the signal path —
+  //     the two glide reads, the stab gate, the strobe gate and the PLL's
+  //     auto-lock — into functions of the frame counter;
+  //   - everything that still rolls draws from `seed`;
+  //   - and the signal path starts where a fresh engine's does: nothing on the
+  //     tape, nothing left on the glass, no lock, frame zero.
+  //
+  // One switch rather than three because flipping two of them gives a take that
+  // looks deterministic and is not. It leaves the board alone: the look, the
+  // bay and the sources are what a take *is*, and only what has accumulated
+  // underneath them is put back.
+  startTake: (take: { fps: number; seed: number }) => void
+  endTake: () => void
   // Take the frames away from rAF, and give them back. `pauseLoop` answers
   // whether the loop was running, so a caller restores what it found rather
-  // than what it assumed. Together with the clock above this is what an offline
-  // render is made of — see `ui/render.ts`.
+  // than what it assumed. Together with the take switch above this is what an
+  // offline render is made of — see `ui/render.ts`.
   pauseLoop: () => boolean
   resumeLoop: () => void
   // One sim step, forced past `timeScale` and the frame lock. On the API rather

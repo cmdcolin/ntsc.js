@@ -90,7 +90,7 @@ const tapeScrubbing = (c: TapeControls): boolean =>
   !tapeRecording(c) && Math.round(c.tapeTransport) === TAPE_SCRUB
 
 export class TapeState {
-  private wow = new Wow()
+  private wow: Wow
   private t = 0 // transport time, seconds
   // Where the splice has got to along the tape path, measured from the record
   // head. It reaches a play head when it draws level with that head, so this
@@ -105,6 +105,14 @@ export class TapeState {
   // Where the track-crossing pattern has drifted to, in crossings. Same
   // quantity the deck keeps for `shuttleX` (Engine.advanceShuttle).
   private shuttlePhase = 0
+
+  // The capstan's dice, on the trailing-`rand` convention `rng.ts` states —
+  // `Math.random` live, a seeded generator under a take, so a re-render's tape
+  // wanders exactly as the first one did. The transport itself is arithmetic;
+  // the wow is the only thing on this deck that rolls.
+  constructor(rand: () => number = Math.random) {
+    this.wow = new Wow(rand)
+  }
 
   update(c: TapeControls, frame: number): TapeUniforms {
     const dt = 1 / FPS

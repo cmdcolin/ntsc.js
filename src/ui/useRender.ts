@@ -28,7 +28,9 @@ export interface RenderApi {
   // boolean and a number: "busy" is exactly "progress is not null", and two
   // fields is two chances for them to disagree.
   progress: number | null
-  render: (seconds: number) => void
+  // `seed` is the rundown's, so re-rendering a take asks the dice the same
+  // questions — see `RenderSpec.seed`.
+  render: (seconds: number, seed: number) => void
   cancel: () => void
 }
 
@@ -45,7 +47,7 @@ export function useRender(
   const cancelled = useRef(false)
 
   const render = useCallback(
-    (seconds: number) => {
+    (seconds: number, seed: number) => {
       const canvas = canvasRef.current
       if (engine === null || canvas === null || seconds <= 0) return
       cancelled.current = false
@@ -53,6 +55,7 @@ export function useRender(
       renderTake(engine, canvas, {
         frames: Math.round(seconds * FPS),
         fps: FPS,
+        seed,
         onProgress: (done, total) => setProgress(done / total),
         cancelled: () => cancelled.current,
       }).then(

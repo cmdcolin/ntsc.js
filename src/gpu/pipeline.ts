@@ -1,4 +1,5 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS, STOCK_HOLD } from '../controls'
+import { rngFor } from '../rng'
 import { AudioState } from '../signal/audiostate'
 import {
   ACTIVE_HEIGHT,
@@ -78,6 +79,7 @@ import { Sources } from './sources'
 import { VideoPump } from './videopump'
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
+import type { Rand } from '../rng'
 import type { GlidePlan } from '../signal/glide'
 import type { LineStateControls } from '../signal/linestate'
 import type { DeckPause } from '../signal/mixstate'
@@ -228,23 +230,37 @@ export class Engine implements EngineApi {
   private gpu: Gpu
   private canvas: RenderTarget
   private frame = 0
-  // The rate the clock below counts at, or null for the wall clock.
+  // The rate the clock below counts at, or null for the wall clock. The first
+  // of the three things `startTake` holds still.
   //
   // Everything in the signal path that has a *rate* rather than a per-frame
   // step reads `now()`, and off the wall clock those are the five places where
   // "frame N is a function of N" stops being true: render the same take twice
   // and the strobe lands on different frames, because it landed on different
-  // milliseconds. Set this and they become functions of the frame counter
-  // instead — which is what an offline render needs, and what makes a re-render
-  // of a recorded take the same take (docs/EDITOR.md › _Fixed-framerate
-  // export_).
+  // milliseconds. Under a take they are functions of the frame counter instead
+  // (docs/EDITOR.md › _Fixed-framerate export_).
   private virtualFps: number | null = null
+  // Where the counter was when the take started, or null outside one. A take
+  // counts from zero — the virtual clock and `impulseStorm(frame / 60)` are
+  // both functions of the counter, so "frame N" has to mean the take's Nth —
+  // and `endTake` puts it back, which is the same "left as it was found" rule
+  // `pauseLoop` already follows for the loop.
+  private takeFrom: number | null = null
+  // The dice every per-frame modulator draws from: the tape and capstan wow,
+  // the stick-slip patches, the per-line grain, the bay's random walk and
+  // sample-hold. `Math.random` live, and a seeded generator for the length of a
+  // take — `rng.ts`'s convention, and docs/EDITOR.md › _Seeding_'s rule.
+  //
+  // Handed out as the bound `rand` below rather than directly, so the state
+  // objects can be built once against a source switched underneath them.
+  private dice: Rand = Math.random
+  private readonly rand: Rand = () => this.dice()
   private filtersDirty = true
-  private lineState = new LineState()
+  private lineState = new LineState(this.rand)
   // Not built here: an engine replacing a lost one inherits its predecessor's
   // graph, so ownership arrives through the constructor. See EngineOptions.
   readonly audioState: AudioState
-  private mixState = new MixState()
+  private mixState = new MixState(this.rand)
   private modState = new ModState()
   private glide = new Glide(FILTER_KEYS)
   // Frames since React was last told where a morph has got to. A morph writes
@@ -254,7 +270,7 @@ export class Engine implements EngineApi {
   // which is half the point of watching a morph, and the cost is a tenth of what
   // notifying per frame would be.
   private glideNotify = 0
-  private tapeState = new TapeState()
+  private tapeState = new TapeState(this.rand)
   private rfState = new RfState()
   private synthState = new SynthState()
   // The blanking gate. Unlike the stab gate beside it this is a plain control
@@ -429,84 +445,51 @@ export class Engine implements EngineApi {
       })
     this.feedParamsA = feedParams()
     this.feedParamsB = feedParams()
-    this.filterBuf = d.createBuffer({
-      size: NUM_SECTIONS * FILTER_STRIDE * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-    this.yuvBuf = d.createBuffer({
-      size: N * 16,
-      usage: GPUBufferUsage.STORAGE,
-    })
-    this.yuvBBuf = d.createBuffer({
-      size: N * 16,
-      usage: GPUBufferUsage.STORAGE,
-    })
+    // Every storage buffer is COPY_DST as well, whether or not the host ever
+    // writes it, so `resetSignal` can clear the whole set back to what
+    // `createBuffer` handed over. That is the only definition of "a known
+    // signal state" that nobody has to invent — a WebGPU buffer is
+    // zero-initialized, so zeroing one *is* putting a fresh engine's state
+    // back. Clearing them by name instead would mean keeping a list of which
+    // buffers carry state across a frame boundary, and being wrong about it
+    // once (the tape ring, the two phosphor halves, the frame store, the PLL's
+    // scalars, and the stale audio line nothing rewrites while the mic is off)
+    // is a take that does not reproduce and no way to see why.
+    const storage = (size: number, extra = 0): GPUBuffer =>
+      d.createBuffer({
+        size,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | extra,
+      })
+    this.filterBuf = storage(NUM_SECTIONS * FILTER_STRIDE * 4)
+    this.yuvBuf = storage(N * 16)
+    this.yuvBBuf = storage(N * 16)
     // B's encoder-filtered chroma, one vec2f per sample (encode_chroma_b)
-    this.uvfBBuf = d.createBuffer({
-      size: N * 8,
-      usage: GPUBufferUsage.STORAGE,
-    })
-    this.compA = d.createBuffer({
-      size: N * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-    })
-    this.compB = d.createBuffer({ size: N * 4, usage: GPUBufferUsage.STORAGE })
-    this.bCompBuf = d.createBuffer({
-      size: N * 4,
-      usage: GPUBufferUsage.STORAGE,
-    })
-    this.compPrev = d.createBuffer({
-      size: N * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
+    this.uvfBBuf = storage(N * 8)
+    this.compA = storage(N * 4, GPUBufferUsage.COPY_SRC)
+    this.compB = storage(N * 4)
+    this.bCompBuf = storage(N * 4)
+    this.compPrev = storage(N * 4)
     // Two bytes a sample, not four: the loop is the one buffer here big enough
     // for its precision to be a VRAM decision, and f16 buys twice the tape for
     // a resolution still far under the noise the medium has anyway.
-    this.tapeBuf = d.createBuffer({
-      size: TAPE_FRAMES * N * 2,
-      usage: GPUBufferUsage.STORAGE,
-    })
-    this.chromaBuf = d.createBuffer({
-      size: N * 4,
-      usage: GPUBufferUsage.STORAGE,
-    })
-    this.underBuf = d.createBuffer({
-      size: N * 4,
-      usage: GPUBufferUsage.STORAGE,
-    })
-    this.lineInfoBuf = d.createBuffer({
-      size: LINES * 16,
-      usage: GPUBufferUsage.STORAGE,
-    })
-    this.lineParamsBuf = d.createBuffer({
-      size: LINE_PARAM_BYTES,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
+    this.tapeBuf = storage(TAPE_FRAMES * N * 2)
+    this.chromaBuf = storage(N * 4)
+    this.underBuf = storage(N * 4)
+    this.lineInfoBuf = storage(LINES * 16)
+    this.lineParamsBuf = storage(LINE_PARAM_BYTES)
     // per-line hoff + 8 persistent scalars (v-osc, PLL, AGC, the two
     // second-order gain servos — beam limiter and camera iris, gain + velocity
     // each — and the sync separator's lock age) + a per-raster-line sag
-    this.timingBuf = d.createBuffer({
-      size: (LINES * 2 + 8) * 4,
-      usage: GPUBufferUsage.STORAGE,
-    })
-    this.syncMeasureBuf = d.createBuffer({
-      size: LINES * 16,
-      usage: GPUBufferUsage.STORAGE,
-    })
+    this.timingBuf = storage((LINES * 2 + 8) * 4)
+    this.syncMeasureBuf = storage(LINES * 16)
     // one audio sample per line, uploaded each frame
-    this.audioBuf = d.createBuffer({
-      size: LINES * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
+    this.audioBuf = storage(LINES * 4)
     // Phosphor persistence state: the light still on the glass, as linear-light
     // half floats — two u32 per pixel, RG then B. Not the rgba8 this used to be;
     // see the store's note in decode.wgsl for why an 8-bit encoded tail freezes
     // partway down instead of fading out.
     const persistBuf = (): GPUBuffer =>
-      d.createBuffer({
-        size: ACTIVE_WIDTH * ACTIVE_HEIGHT * 8,
-        usage: GPUBufferUsage.STORAGE,
-      })
+      storage(ACTIVE_WIDTH * ACTIVE_HEIGHT * 8)
     this.persistBufs = [persistBuf(), persistBuf()]
 
     // Resizing A's texture invalidates the view compose's bind group holds, so
@@ -517,21 +500,22 @@ export class Engine implements EngineApi {
         this.composePass.bg = this.makeComposeBg()
       },
     })
-    this.inputTex = d.createTexture(
-      texDesc(
-        GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
-      ),
-    )
-    this.outTex = d.createTexture(
-      texDesc(
-        GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
-      ),
-    )
-    this.faceTex = d.createTexture(
-      texDesc(
-        GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
-      ),
-    )
+    // RENDER_ATTACHMENT on all three for the same reason the buffers are all
+    // COPY_DST: it is what lets `resetSignal` clear them, through a render pass
+    // whose `loadOp` is the clear. `faceTex` is the one that genuinely carries
+    // state — the feedback camera photographs last frame's glass — and the
+    // other two are cleared with it rather than reasoned about.
+    const stateTex = (): GPUTexture =>
+      d.createTexture(
+        texDesc(
+          GPUTextureUsage.TEXTURE_BINDING |
+            GPUTextureUsage.STORAGE_BINDING |
+            GPUTextureUsage.RENDER_ATTACHMENT,
+        ),
+      )
+    this.inputTex = stateTex()
+    this.outTex = stateTex()
+    this.faceTex = stateTex()
     this.linearSamp = d.createSampler({
       magFilter: 'linear',
       minFilter: 'linear',
@@ -1368,6 +1352,42 @@ export class Engine implements EngineApi {
     })
   }
 
+  // Every GPU resource this engine owns, as one list each, because two callers
+  // want the whole set and for opposite reasons: `destroy` hands them back, and
+  // `resetSignal` clears them. Two hand-kept lists would drift the first time a
+  // buffer was added, and the failure that drift causes is silent in both
+  // directions — a leaked buffer per rebuild, or a take that carries a stale
+  // ring nobody thought to zero.
+  private allBufs(): GPUBuffer[] {
+    return [
+      this.paramsBuf,
+      this.genParamsBuf,
+      this.genLineParamsBuf,
+      this.feedParamsA,
+      this.feedParamsB,
+      this.filterBuf,
+      this.yuvBuf,
+      this.yuvBBuf,
+      this.uvfBBuf,
+      this.compA,
+      this.compB,
+      this.bCompBuf,
+      this.compPrev,
+      this.chromaBuf,
+      this.underBuf,
+      this.lineInfoBuf,
+      this.lineParamsBuf,
+      this.timingBuf,
+      this.syncMeasureBuf,
+      this.audioBuf,
+      ...this.persistBufs,
+    ]
+  }
+
+  private allTexs(): GPUTexture[] {
+    return [this.inputTex, this.outTex, this.faceTex]
+  }
+
   // Idempotent, and deliberately keyed off its own flag rather than
   // `loop.running`: a loop stopped by the hang watchdog or by device loss is
   // precisely when the device most needs releasing, and gating on `running`
@@ -1393,31 +1413,8 @@ export class Engine implements EngineApi {
       this.onDeviceLost = NOOP
       this.onHang = NOOP
       this.onFrozen = NOOP
-      const bufs = [
-        this.paramsBuf,
-        this.genParamsBuf,
-        this.genLineParamsBuf,
-        this.feedParamsA,
-        this.feedParamsB,
-        this.filterBuf,
-        this.yuvBuf,
-        this.yuvBBuf,
-        this.uvfBBuf,
-        this.compA,
-        this.compB,
-        this.bCompBuf,
-        this.compPrev,
-        this.chromaBuf,
-        this.underBuf,
-        this.lineInfoBuf,
-        this.lineParamsBuf,
-        this.timingBuf,
-        this.syncMeasureBuf,
-        this.audioBuf,
-        ...this.persistBufs,
-      ]
-      for (const b of bufs) b.destroy()
-      for (const t of [this.inputTex, this.outTex, this.faceTex]) t.destroy()
+      for (const b of this.allBufs()) b.destroy()
+      for (const t of this.allTexs()) t.destroy()
       this.pump.destroy()
       this.sources.destroy()
       // The audio graph is not the device's, so nothing above releases it — and
@@ -1790,15 +1787,101 @@ export class Engine implements EngineApi {
     return this.frame
   }
 
-  // Count time in frames at this rate instead of off the wall clock, or `null`
-  // to go back to the wall. See `now()` for what reads it and why.
+  // Everything a take needs held still (docs/EDITOR.md › _Take state_): time
+  // counted in frames at `fps`, dice drawn from `seed`, and a signal path
+  // starting where a fresh engine's does.
   //
-  // Deliberately not a mode the app boots into: live, the wall clock is the
-  // correct answer for all five readers, and a session that measured its own
-  // strobe in frames would drift against the room the moment the tab dropped
-  // one. This is for a render that owns its own clock.
-  setVirtualClock(fps: number | null): void {
-    this.virtualFps = fps
+  // This is what turns "the same take from the same starting state is the same
+  // take" into "the same take is the same take". Frame N was already a function
+  // of N *and of the state the engine was in at frame zero* — the tape ring,
+  // the phosphor still on the glass, the PLL's lock age, the two servos — and
+  // nothing captured that state, so two renders with the live loop running
+  // between them came out about 5% apart (`scripts/rendercheck.mjs` measured it
+  // and declined to assert otherwise). Frame zero is now the same frame zero
+  // every time, and the harness asserts the two files match byte for byte.
+  //
+  // A mode rather than how the app boots: live, the wall clock is the right
+  // answer for all five readers and unseeded is the right answer for the dice —
+  // a session nobody is recording should not walk one fixed sequence from page
+  // load, and a strobe measured in frames drifts against the room the moment
+  // the tab drops one.
+  startTake(take: { fps: number; seed: number }): void {
+    this.takeFrom = this.frame
+    this.dice = rngFor(take.seed)
+    this.virtualFps = take.fps
+    this.resetSignal()
+  }
+
+  // Back to live, and the engine left as it was found — which is the contract
+  // `ui/render.ts` already keeps for the loop, extended to the counter a take
+  // rewound.
+  //
+  // It deliberately does not reset the signal path a second time. What the
+  // render left on the tape and on the glass is the picture on screen when the
+  // button goes back to ⎙, and blanking it on the way out would be the render
+  // tidying away something the user is looking at. A take starts from a known
+  // state; it does not have to end at one.
+  endTake(): void {
+    this.virtualFps = null
+    this.dice = Math.random
+    if (this.takeFrom !== null) this.frame = this.takeFrom
+    this.takeFrom = null
+  }
+
+  // Nothing on the tape, nothing left on the glass, no lock, frame zero.
+  //
+  // Every buffer and texture rather than the handful that carry state, for the
+  // reason `storage` in the constructor gives: this is the constructed state by
+  // definition, and it cannot be wrong about which those are. The CPU-side
+  // modulators are the same statement in the other language — a fresh object
+  // each, drawing from whichever dice `startTake` has just put in place.
+  private resetSignal(): void {
+    const d = this.gpu.device
+    const enc = d.createCommandEncoder()
+    for (const b of this.allBufs()) enc.clearBuffer(b)
+    // A render pass whose only job is its `loadOp` — no shader and no bind
+    // group, which is why the three textures carry RENDER_ATTACHMENT.
+    for (const t of this.allTexs()) {
+      enc
+        .beginRenderPass({
+          colorAttachments: [
+            {
+              view: t.createView(),
+              loadOp: 'clear',
+              storeOp: 'store',
+              clearValue: { r: 0, g: 0, b: 0, a: 0 },
+            },
+          ],
+        })
+        .end()
+    }
+    d.queue.submit([enc.finish()])
+
+    this.lineState = new LineState(this.rand)
+    this.mixState = new MixState(this.rand)
+    this.tapeState = new TapeState(this.rand)
+    this.modState = new ModState()
+    this.rfState = new RfState()
+    this.synthState = new SynthState()
+    this.strobeGate = new StrobeGate()
+    this.stabGate = new StabGate()
+    this.autoLock = new AutoLock()
+    // A morph in flight is state stamped on the wall clock, and the take is
+    // about to count from zero: left running, `now() - startMs` goes hugely
+    // negative and the morph parks on its origin look for the whole render. The
+    // board keeps the values it reached; what stops is the walk to the rest.
+    this.glide.stop()
+    this.scPhase = 0
+    this.shuttlePhase = 0
+    this.tapeFrame = { a: 0, b: 0 }
+    this.impulseTrainPos = 0
+    this.impulseTrainStep = 0
+    this.simAcc = 0
+    this.lockPhase = 0
+    this.frame = 0
+    // Designed from a board that has not moved, but into a buffer that has just
+    // been cleared with everything else.
+    this.filtersDirty = true
   }
 
   // Take the frames away from rAF and hand them to whoever asked. Answers
@@ -1923,6 +2006,10 @@ export class Engine implements EngineApi {
       this.modSlots,
       this.audioState.level,
       this.audioState.hit,
+      // The bay's random walk and its sample-hold, off the engine's dice rather
+      // than `Math.random` — the two sources in the bay that a take could not
+      // otherwise be asked for again. The other six are functions of a phase.
+      this.rand,
     )
     this.modSaved.begin()
     this.modTouchedFilter = false

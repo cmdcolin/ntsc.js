@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { rngFor } from '../rng'
 import { LINES, SAMPLES_PER_LINE } from './constants'
 import { MixState } from './mixstate'
 
@@ -143,5 +144,21 @@ describe('MixState', () => {
     const a = step(m, { wipePos: 0.5, wipeRateHz: 1 }, 10).wipePos
     const b = m.update({ ...STILL, wipePos: 0.7, wipeRateHz: 1 }).wipePos
     expect(b).not.toBeCloseTo(a, 3)
+  })
+
+  // A paused deck's defeated capstan is the only thing here that rolls, so it
+  // is the only thing a take has to be able to ask for again (docs/EDITOR.md ›
+  // _Take state_). The unseeded pair is the control.
+  it('wanders identically from the same dice, and differently without', () => {
+    const held = { aPause: 0.8 }
+    const run = (m: MixState) => {
+      const seen = []
+      for (let f = 0; f < 120; f++) seen.push(step(m, held, 1).decks.a.shift)
+      return seen
+    }
+    expect(run(new MixState(rngFor(3)))).toEqual(run(new MixState(rngFor(3))))
+    expect(run(new MixState(rngFor(3)))).not.toEqual(
+      run(new MixState(rngFor(4))),
+    )
   })
 })

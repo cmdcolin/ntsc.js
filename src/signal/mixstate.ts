@@ -37,15 +37,21 @@ export interface DeckPause {
 // noise channels differ per deck so two paused decks wander independently.
 class PauseDeck {
   t = 0
-  private wow = new Wow()
+  private wow: Wow
   private bar: number
   private readonly chanBar: number
   private readonly chanKick: number
 
-  constructor(bar0: number, chanBar: number, chanKick: number) {
+  constructor(
+    bar0: number,
+    chanBar: number,
+    chanKick: number,
+    rand: () => number,
+  ) {
     this.bar = bar0
     this.chanBar = chanBar
     this.chanKick = chanKick
+    this.wow = new Wow(rand)
   }
 
   update(pause: number): DeckPause {
@@ -103,9 +109,18 @@ export class MixState {
   private wipeLever = 0
   // the two decks park their tape in different places and hunt on their own
   // noise channels, so pausing both never moves them in lockstep
-  private deckA = new PauseDeck(0.4 * LINES, 5, 29)
-  private deckB = new PauseDeck(0.75 * LINES, 7, 23)
+  private deckA: PauseDeck
+  private deckB: PauseDeck
   private parity = 0
+
+  // The dice the two decks' wow draws from, on the trailing-`rand` convention
+  // `rng.ts` states: live it is `Math.random`, and a take hands over a seeded
+  // one so the same take wanders the same way twice. Nothing else here rolls —
+  // the slip, the roll and the wipe are all accumulators.
+  constructor(rand: () => number = Math.random) {
+    this.deckA = new PauseDeck(0.4 * LINES, 5, 29, rand)
+    this.deckB = new PauseDeck(0.75 * LINES, 7, 23, rand)
+  }
 
   update(c: MixControls): MixUniforms {
     const shiftPerLine = (c.bLineHz / F_H) * SAMPLES_PER_LINE
