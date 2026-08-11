@@ -87,6 +87,13 @@ export function barThrow(c: Controls, p: number): Controls {
     : { ...c, bGain: pos, aGain: 1 - pos }
 }
 
+// Throwing the bar to whichever end it is not at. The `cut` button's move, and
+// the one a transition makes on its cut frame — one definition, so a fault that
+// hides a cut and the button that makes one plainly cannot disagree about which
+// way "the other end" is.
+export const barCut = (c: Controls): Controls =>
+  barThrow(c, barPosition(c) < 0.5 ? 1 : 0)
+
 // The bar is throwing a wipe with B's fader shut. mix_b multiplies the wipe
 // gate *into* bGain on both paths, so the boundary moves and nothing appears —
 // the same "does nothing until…" situation a slider row states with a gate

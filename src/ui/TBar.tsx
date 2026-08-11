@@ -9,6 +9,7 @@ import { cx } from './cx'
 import {
   B_ON_AIR,
   TAKE_SECONDS,
+  barCut,
   barInert,
   barPosition,
   barThrow,
@@ -155,7 +156,7 @@ export function TBar() {
           title="cut — throw the bar to the other end now"
           onClick={() => {
             stopTake()
-            throwTo(p < 0.5 ? 1 : 0)
+            writeControls(barCut(store.get()))
           }}
         >
           cut

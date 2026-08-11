@@ -351,6 +351,37 @@ together. That is the right behaviour, and it falls out of clocking the walk on
 frames rather than on the wall — a wall-clock strip would come back having
 silently skipped four rows nobody saw.
 
+## The transition shelf
+
+```
+node scripts/faultcheck.mjs [port]
+```
+
+Runs every entry on the shelf frame by frame under a take, and asserts the four
+things the engine claims about one: it breaks the picture, it cuts once inside
+its own span, it hands the resting board back untouched, and it **resolves**.
+
+**A fault has exactly one observable, and it is the picture.** The whole design
+turns on the board never being touched — applied and undone inside each frame,
+so React never sees it and a preset saved mid-transition is the look rather than
+the fault — which means "did it run" cannot be read off `getControls()`. So this
+samples the canvas, and two traps come with that:
+
+- **A resting picture is not a still one.** `tapeNoiseIre` rests at 1.5 and
+  regenerates every frame, so two frames of the same board thirty apart already
+  differ by 15-17/255 through the harness's downscale. Every reading is stated
+  over a measured floor rather than against zero — the first version compared to
+  rest and asked for near-zero, which passed only in runs where the window was
+  behind another one and the readback was stale.
+- **`getImageData` blocks on the GPU**, so it rather than `step()` is what the
+  run costs. It samples a 64x48 downscale every third frame; at full resolution
+  every frame it was 4.8MB a time and blew the protocol timeout.
+
+It found two dead recipes on its first run, which is the reason it exists: a
+transition can be perfectly plumbed, land its cut on the right frame, hand the
+board back correctly, and move the picture by 0.4/255. See EDITOR.md ›
+_Landed, and what it cost_.
+
 ## The offline render, and the file it writes
 
 ```

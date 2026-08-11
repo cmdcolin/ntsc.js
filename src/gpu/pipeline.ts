@@ -12,6 +12,7 @@ import {
   TAPE_FRAMES,
 } from '../signal/constants'
 import { advanceCrossings } from '../signal/crossings'
+import { Fault } from '../signal/fault'
 import {
   FILTER_STRIDE,
   NUM_SECTIONS,
@@ -80,6 +81,7 @@ import { VideoPump } from './videopump'
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { Rand } from '../rng'
+import type { FaultPlan } from '../signal/fault'
 import type { GlidePlan } from '../signal/glide'
 import type { LineStateControls } from '../signal/linestate'
 import type { DeckPause } from '../signal/mixstate'
@@ -297,6 +299,14 @@ export class Engine implements EngineApi {
   // runs at frame rate on the thread that is also feeding the GPU, which is the
   // whole reason that record is reused rather than rebuilt.
   private readonly stabSaved = new SavedBoard()
+  // The transition in flight, or nothing — a few controls driven away from where
+  // they rest and back, with one frame in the middle marked as the one to swap
+  // the source on (signal/fault.ts). Written to and never read from, like the
+  // bay and the stab beside it, and for the same reason: it is applied and
+  // undone inside one frame, so it never reaches what React renders from.
+  private readonly fault = new Fault()
+  private readonly faultSaved = new SavedBoard()
+  private faultTouchedFilter = false
   // bent-crystal demod LO phase error, accumulated per frame (radians)
   private scPhase = 0
   // picture-search crossing pattern phase, accumulated per frame (crossings)
@@ -1875,6 +1885,9 @@ export class Engine implements EngineApi {
     // negative and the morph parks on its origin look for the whole render. The
     // board keeps the values it reached; what stops is the walk to the rest.
     this.glide.stop()
+    // Same for a transition in flight: it is a span measured in frames, and the
+    // counter is about to go back to zero underneath it.
+    this.fault.stop()
     this.scPhase = 0
     this.shuttlePhase = 0
     this.tapeFrame = { a: 0, b: 0 }
@@ -1947,6 +1960,21 @@ export class Engine implements EngineApi {
   // and undone inside one frame, so React has to be the store.
   setStab(stab: StabPlan): void {
     this.stab = stab
+  }
+
+  // Run a transition: break the controls a recipe names, fire `onCut` on the
+  // frame the picture is least legible, and heal (signal/fault.ts, and
+  // docs/EDITOR.md › _Transitions_ for what a transition is here).
+  //
+  // A plan handed over once rather than a curve React draws, which is the same
+  // contract `setStab` and the bay already keep and for a sharper reason: the
+  // obvious spelling is a rAF loop in the panel writing `preview()` sixty times
+  // a second, and that is React work at frame rate on the one path that must not
+  // have any. It is also wrong offline, where there is no rAF and a frame is not
+  // a millisecond — here it is frame-clocked, so it is already right under a
+  // take's virtual clock with no second code path.
+  startFault(plan: FaultPlan): void {
+    this.fault.start(plan)
   }
 
   setDbgView(view: number): void {
@@ -2045,6 +2073,40 @@ export class Engine implements EngineApi {
     }
   }
 
+  // One frame of the transition in flight (signal/fault.ts): the few controls
+  // its recipe names, carried from wherever they rest towards the peak by this
+  // frame's depth, and handed back at the end of the frame.
+  //
+  // **Lerped from the live value rather than written from stock**, which is what
+  // makes it compose instead of fight. The value it reads has already been
+  // through the morph, the bay and the stab this frame, so a look gliding under
+  // a transition keeps gliding and a patched LFO keeps wobbling — the fault
+  // pulls whatever is there towards its peak and lets it back. Writing the peak
+  // outright at depth 1 would be the same thing at the top of the curve and a
+  // discontinuity everywhere else.
+  private applyFault(): () => void {
+    const step = this.fault.step()
+    this.faultSaved.begin()
+    this.faultTouchedFilter = false
+    if (step === null) return NOOP
+    for (const k of CONTROL_KEYS) {
+      const to = step.peak[k]
+      if (to === undefined) continue
+      this.faultSaved.save(this.controls, k)
+      if (FILTER_KEYS.has(k)) this.faultTouchedFilter = true
+      const from = this.controls[k]
+      this.controls[k] = from + (to - from) * step.depth
+    }
+    if (this.faultTouchedFilter) this.filtersDirty = true
+    return this.restoreFault
+  }
+
+  // Handing the board back, as `restoreMod` does — see the note there.
+  private readonly restoreFault = (): void => {
+    this.faultSaved.restore(this.controls)
+    if (this.faultTouchedFilter) this.filtersDirty = true
+  }
+
   // Bent-crystal LO phase error keeps growing frame over frame; advance by
   // exactly one raster of samples so the shader's per-sample ramp is
   // continuous across the frame boundary.
@@ -2118,6 +2180,11 @@ export class Engine implements EngineApi {
     // already written, so handing the board back has to unwind in that order or
     // the resting look ends up holding one frame of modulation.
     const restoreStab = this.applyStab()
+    // Outermost, and that is the whole of why it is here rather than beside the
+    // bay. A transition is what hides a cut, so it has to land on every frame it
+    // covers — including the clean ones a stab gate is holding at stock, which
+    // is the one layer that would otherwise swallow it.
+    const restoreFault = this.applyFault()
     try {
       this.simAcc = Math.min(this.simAcc + this.controls.timeScale, 1)
       if (this.simAcc >= 1) {
@@ -2127,6 +2194,7 @@ export class Engine implements EngineApi {
         this.presentHeld()
       }
     } finally {
+      restoreFault()
       restoreStab()
       restoreMod()
     }

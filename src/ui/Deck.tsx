@@ -4,6 +4,7 @@ import { useControlValue, useControlsApi } from './ControlsContext'
 import { cx } from './cx'
 import { wipeEngaged } from './deck'
 import styles from './Deck.module.css'
+import { FaultShelf } from './FaultShelf'
 import { PipControl } from './PipControl'
 import { Rack } from './Slider'
 import { TBar } from './TBar'
@@ -141,6 +142,10 @@ function Transition() {
         onChange={v => writeControl('wipeMode', v)}
       />
       <TBar />
+      {/* Under the lever, because that is the relationship: the row above
+          mixes two pictures, and these break the receiver between them.
+          Each carries its own duration — see transitions.ts. */}
+      <FaultShelf />
       {/* Real rows, not deck-local copies: softness and sweep rate are settings
           you leave somewhere, so they keep their help, their MIDI bind and — for
           the sweep — the ♩ that locks it to clock. */}

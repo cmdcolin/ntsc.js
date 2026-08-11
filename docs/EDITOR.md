@@ -511,6 +511,44 @@ and a fault big enough to hide a cut is a fault big enough to be unpleasant at
 the wrong duration, so the shelf needs taste-setting defaults far more than it
 needs range.
 
+#### Landed, and what it cost
+
+`signal/fault.ts` is the envelope, `ui/transitions.ts` is the shelf, and
+`Engine.startFault` is the one verb between them. Five entries — `track`,
+`roll`, `collapse`, `shuttle`, `dub` — under the T-bar in the deck, and each is
+an action a MIDI pad can be bound to. It was as cheap as this section promised:
+no new uniforms, no new pass, no shader work at all.
+
+Two of the five predictions in it were wrong, and both in the same direction.
+
+- **"A table of named recipes over existing controls" undersold the table.** Two
+  of the five recipes as written here did nothing. `hHold`/`vHold` past the
+  capture range rolls a picture only if there is something to roll *to* — an
+  oscillator free-running at exactly 60 sits still however completely it wins,
+  so `vFreqHz` is the key that makes the mechanism bite and it is not named
+  above. And `dubGens` ramped 1→4→1 compounds damage rather than inventing it:
+  four passes over a clean board is four times nothing. Both measured at
+  0.4-0.6/255 from rest by `scripts/faultcheck.mjs` — transitions that
+  transitioned nothing — and both were fixed by naming the rest of the
+  mechanism rather than by turning anything up.
+- **Duration is per entry, not a rate control.** This section says "borrow
+  `MORPH_SECONDS`", and the deck's own take rate was the obvious hand to put it
+  in. Both are wrong for the same reason the taste note above is right: a raster
+  takes about a second to collapse and reopen, three generations of dub need
+  two and a half to read as wear rather than as a glitch, and a rolling picture
+  stops being a transition after one. A single thumbwheel over all five is a
+  knob whose good setting changes with the button next to it. It also makes a
+  bound pad fire exactly what the button fires, with no deck-local state a pad
+  cannot see.
+
+And one thing it was right about without saying why. **The picture resolves
+after the board does.** The fault is handed back inside the frame it ran — the
+resting board is untouched, which is the invariant the whole design rests on —
+but the phosphor is still holding the band, the loop bin has recorded the broken
+frames, and the PLL is still walking its lock back. So a transition ends as a
+receiver recovering rather than as an effect switching off, which is the half of
+"a fault that resolves" that no recipe writes down and no NLE can composite.
+
 #### The envelope belongs in the engine, not in React
 
 A transition is two curves and a cut point, and the obvious way to draw curves
@@ -873,11 +911,11 @@ arrives.
    signal path put back to what a fresh engine has, and `rendercheck.mjs` now
    asserts what it previously spent a paragraph explaining it could not: **two
    renders of one take are the same file, byte for byte.**
-4. **The transition shelf.** Cheap, and it does not need the strip: A and B are
-   both live today, so the first transitions can run off the T-bar and a MIDI
-   pad with no rundown anywhere near them. A table of named recipes over
-   existing controls, plus the envelope and the cut point — no new uniforms, no
-   new pass. The strip later just picks from the shelf.
+4. ~~**The transition shelf.**~~ **Landed** — five entries under the T-bar and
+   on the pad list, `signal/fault.ts` for the envelope and `ui/transitions.ts`
+   for the table. It was as cheap as predicted and the *recipes* were not; see
+   _Landed, and what it cost_ above. The strip picks from it when it can
+   preroll.
 5. ~~**The live strip.**~~ **Landed to the line _The first slice_ drew**: rows,
    names, holds, the walk, drag-to-reorder, undo, duplicate, roll and shake
    rows, one transport with the music, and the seeded RNG in from the first
@@ -889,8 +927,10 @@ arrives.
    the thing that makes performing and rendering the same take.
 
 Steps 1 to 4 were independent of the strip and of each other, which is what made
-them the ones to do while its design settled; 1, 2 and 3 are done and 4 is where
-the ordering now bites, because it is the last cheap thing left.
+them the ones to do while its design settled. All four are done, so what is left
+is the part that was always going to need the strip: 5 is landed to its first
+slice, and 6 and 7 are what a finished piece needs rather than what making one
+needs.
 
 ## What to do next, and why in this order
 
@@ -900,9 +940,11 @@ list above in two places.
 1. ~~**Take state, so a render reproduces.**~~ **Landed** — _Take state_ above
    is the write-up, and the short version is that two renders of one take are
    now the same file byte for byte, which is what unblocks 3.
-2. **The transition shelf** (step 4 above). Still cheap, still needs no strip,
-   still a table of named recipes plus the envelope and the cut point. Now the
-   cheapest thing left, and the only one that needs nothing built first.
+2. ~~**The transition shelf**~~ (step 4 above). **Landed**, and the write-up is
+   _Landed, and what it cost_. What it leaves behind for whoever picks this up:
+   the shelf cuts the deck's own T-bar, because that is the only cut there is
+   until a rundown can preroll — the fault is the same either way, which is why
+   `faultPlan` takes the `onCut` from its caller.
 3. **The strip's offline walk.** `advance` already takes a `Clock` and does not
    care where the frame number comes from, and `renderTake` already owns a
    frame counter; what is missing is a driver that steps the walk once per

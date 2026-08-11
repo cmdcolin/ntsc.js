@@ -33,6 +33,7 @@
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
 import type { AudioState } from '../signal/audiostate'
+import type { FaultPlan } from '../signal/fault'
 import type { GlidePlan } from '../signal/glide'
 import type { StabPlan } from '../signal/stab'
 import type { FrozenKind } from './renderloop'
@@ -166,6 +167,12 @@ export interface EngineApi {
   // written to, never read from, applied and undone inside one frame — so a rate
   // of 0 is off and nothing here ever reaches `getControls`.
   setStab: (stab: StabPlan) => void
+  // A transition, as a fault that resolves: break what the recipe names, swap
+  // the source on the frame the picture is least legible, and heal onto it
+  // (signal/fault.ts; docs/EDITOR.md › _Transitions_). Same contract as the two
+  // above — handed over once, applied and undone inside each frame, never read
+  // back — and frame-clocked, so it is already right under a take's clock.
+  startFault: (plan: FaultPlan) => void
   // Which decode-stage tap is on the glass. The engine owns the value (it reads
   // `?dbg=` at construction), so React mirrors it rather than the reverse.
   setDbgView: (view: number) => void

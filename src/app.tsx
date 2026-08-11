@@ -41,7 +41,7 @@ import {
 } from './ui/ControlsContext'
 import { cx } from './ui/cx'
 import { Deck } from './ui/Deck'
-import { deckLoad } from './ui/deck'
+import { barCut, deckLoad } from './ui/deck'
 import { FatalScreen } from './ui/FatalScreen'
 import {
   FilterContext,
@@ -81,6 +81,7 @@ import { StripContext } from './ui/StripContext'
 import { StripTray } from './ui/StripTray'
 import { TagsPopover } from './ui/TagsPopover'
 import { TeletypeDialog } from './ui/TeletypeDialog'
+import { faultPlan, transitionOf } from './ui/transitions'
 import ui from './ui/ui.module.css'
 import { parseSessionParams } from './ui/urlParams'
 import { useAudio } from './ui/useAudio'
@@ -109,6 +110,7 @@ import { YouTubeDialog } from './ui/YouTubeDialog'
 import { gitSha, versionLabel } from './version'
 
 import type { ControlKey, Controls } from './controls'
+import type { FaultPlan } from './signal/fault'
 import type { GlidePlan } from './signal/glide'
 import type { PickerStage } from './ui/controls'
 import type { ControlsApi, ControlStore } from './ui/ControlsContext'
@@ -345,6 +347,19 @@ export function App() {
       // to disagree about which deck that is.
       tapCue: deck => slotFor(deck).tapCue(),
       retrigger: deck => slotFor(deck).retrigger(),
+      // The same transition the shelf's button runs, down to the frame count
+      // and the cut — the entry carries both, so a pad and a click cannot mean
+      // two different things (ui/transitions.ts).
+      runFault: name => {
+        const t = transitionOf(name)
+        if (t !== undefined) {
+          engineRef.current?.startFault(
+            faultPlan(t, () => {
+              writeControls(barCut(controlStore.get()))
+            }),
+          )
+        }
+      },
     })
   })
 
@@ -640,6 +655,13 @@ export function App() {
     cycleSync,
     mutateGroup: mix.mutateGroup,
     resetGroup: mix.resetGroup,
+    // Through the ref, like every other engine verb here: the deck holds this
+    // across a render, and the engine object is a different one after a
+    // device-loss rebuild.
+    startFault: useCallback(
+      (plan: FaultPlan) => engineRef.current?.startFault(plan),
+      [engineRef],
+    ),
   }
 
   // Everything ⌘K can run that is not a preset or a control, assembled in

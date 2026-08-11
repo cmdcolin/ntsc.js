@@ -3,10 +3,12 @@ import { clamp } from '../math'
 import { AUTOMAP_KEYS, SLIDER_BY_KEY, sliderFor, snapToStep } from './controls'
 import { PRESETS, presetLabel } from './presets'
 import { readRecord, removeStored, writeJSON, writeString } from './storage'
+import { TRANSITION_NAMES, TRANSITIONS } from './transitions'
 import { fromTravel } from './travel'
 
 import type { ControlKey } from '../controls'
 import type { SliderDef } from './controls'
+import type { TransitionName } from './transitions'
 
 // One CC source = a (channel, controller) pair. Channel is kept so two knobs
 // that share a controller number on different channels stay distinct.
@@ -80,10 +82,12 @@ export type ActionTarget =
   | `fire:${number}`
   | `cue:${DeckTag}`
   | `jump:${DeckTag}`
+  | `fault:${TransitionName}`
 
 const FIRE_PREFIX = 'fire:'
 const CUE_PREFIX = 'cue:'
 const JUMP_PREFIX = 'jump:'
+const FAULT_PREFIX = 'fault:'
 
 // The bay's slot count, written here rather than imported: `modSlots.ts` sits
 // *above* this module — it reads SYNC_DIVISIONS out of it — so the number is
@@ -117,6 +121,16 @@ export const cueDeckOf = (t: ActionTarget): DeckTag | null =>
 export const jumpDeckOf = (t: ActionTarget): DeckTag | null =>
   deckAfter(t, JUMP_PREFIX)
 
+// The transition a pad runs, or null. Narrowed through `TRANSITION_NAMES`
+// rather than cast, on the rule the source modes already follow: a binding is
+// stored JSON, and a note bound by a build that had a transition this one does
+// not should do nothing rather than hand an unknown name to the shelf.
+export const faultOf = (t: ActionTarget): TransitionName | null => {
+  if (!t.startsWith(FAULT_PREFIX)) return null
+  const name = t.slice(FAULT_PREFIX.length)
+  return TRANSITION_NAMES.find(n => n === name) ?? null
+}
+
 // Every action a pad can be given, in the order the picker lists them: the bay
 // first (the whole bay, then its slots in position order), then the two cue
 // verbs per deck. Labels are the panel's own words for the buttons these stand
@@ -131,6 +145,13 @@ export const ACTIONS: { target: ActionTarget; label: string }[] = [
   { target: 'jump:a', label: 'back to the cue · A' },
   { target: 'cue:b', label: 'cue source B' },
   { target: 'jump:b', label: 'back to the cue · B' },
+  // The shelf, in the order it draws. A transition is the action a pad is most
+  // obviously for — it is one edge, it takes no argument, and it is beaten in
+  // time to something, which is this list's own test for what belongs on it.
+  ...TRANSITIONS.map(t => ({
+    target: `${FAULT_PREFIX}${t.name}` as ActionTarget,
+    label: `⌁ ${t.label} transition`,
+  })),
 ]
 
 export const actionLabel = (t: ActionTarget): string =>

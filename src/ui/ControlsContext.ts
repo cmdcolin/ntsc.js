@@ -3,6 +3,7 @@ import { createContext, use, useSyncExternalStore } from 'react'
 import { DEFAULT_CONTROLS } from '../controls'
 
 import type { ControlKey, Controls } from '../controls'
+import type { FaultPlan } from '../signal/fault'
 import type { SliderDef } from './controls'
 import type { BindTarget } from './midi'
 import type { MutateAmount } from './mutate'
@@ -100,6 +101,15 @@ export interface ControlsApi {
   mutateGroup: (sliders: readonly SliderDef[], amount?: MutateAmount) => void
   // Put one group back to stock, for the same reason and by the same route.
   resetGroup: (sliders: readonly SliderDef[]) => void
+  // Run a transition: break what a recipe names, swap the source on the frame
+  // the picture is least legible, and heal (signal/fault.ts).
+  //
+  // Here for the reason `ModSlotsApi.fire` is on that API — it is an *event*
+  // rather than a setting, so it goes straight to the engine instead of through
+  // anything React owns — and a thin forward rather than a transition name,
+  // because what to break, how long for and what the cut does are all the
+  // deck's to decide and none of them are App's.
+  startFault: (plan: FaultPlan) => void
 }
 
 export const ControlsContext = createContext<ControlsApi | null>(null)

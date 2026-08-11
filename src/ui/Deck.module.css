@@ -180,6 +180,26 @@
   color: var(--accent);
 }
 
+/* The shelf of named faults, under the lever. Wrapping rather than scrolling:
+   at the docked 332px five keys land as three and two, which is a shelf, and a
+   row that scrolls sideways would hide entries behind a gesture nobody makes
+   during a take. */
+.shelf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+/* Same key as the deck's, in the edit face: these do not set anything and do
+   not stay pressed — each one is a gesture that runs for a couple of seconds
+   and hands the board straight back — so they read as verbs rather than as the
+   toggles above them. */
+.faultBtn {
+  composes: deckBtn;
+  flex: 1 1 auto;
+  font-family: var(--mono);
+}
+
 /* ── transports ────────────────────────────────────────────────────────────
    Two of them, one per machine, each named — the loop bin and the deck playing
    the incoming tape are not the same transport, and one set of buttons over

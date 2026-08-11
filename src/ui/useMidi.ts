@@ -5,6 +5,7 @@ import {
   controlOf,
   createMidi,
   cueDeckOf,
+  faultOf,
   fireSlotOf,
   jumpDeckOf,
   presetOf,
@@ -24,6 +25,7 @@ import type {
   NoteMap,
   PickupMap,
 } from './midi'
+import type { TransitionName } from './transitions'
 import type { RefObject } from 'react'
 
 // Everything MIDI drives that isn't a control, and so isn't the engine's to
@@ -43,6 +45,11 @@ export interface MidiSinks {
   fire: (slot: number | undefined, velocity: number) => void
   tapCue: (deck: DeckTag) => void
   retrigger: (deck: DeckTag) => void
+  // Run a named transition off the shelf (ui/transitions.ts). No velocity: the
+  // entry carries its own depth and its own duration, and a pad struck softly
+  // wanting a shallower fault is a different feature — half a fault does not
+  // hide a cut, which is the one thing a transition has to do.
+  runFault: (name: TransitionName) => void
 }
 
 const NO_SINKS: MidiSinks = {
@@ -51,6 +58,7 @@ const NO_SINKS: MidiSinks = {
   fire: () => {},
   tapCue: () => {},
   retrigger: () => {},
+  runFault: () => {},
 }
 
 // Owns the MIDI manager (an imperative Web MIDI subsystem living outside React)
@@ -100,9 +108,14 @@ export function useMidi(engineRef: RefObject<EngineApi | null>) {
           return
         }
         const jump = jumpDeckOf(target)
-        if (jump !== null) sinks.retrigger(jump)
+        if (jump !== null) {
+          sinks.retrigger(jump)
+          return
+        }
+        const fault = faultOf(target)
+        if (fault !== null) sinks.runFault(fault)
         // Everything left is the whole bay: `fire` is the only action that
-        // narrows to none of the three, and it is what an unbound note sends.
+        // narrows to none of the four, and it is what an unbound note sends.
         else sinks.fire(undefined, velocity)
       },
       onStatus: setStatus,
