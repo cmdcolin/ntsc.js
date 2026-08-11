@@ -25,6 +25,7 @@ import {
 import { TELETYPE_DEFAULT } from '../sources/teletype'
 import { ytId } from '../sources/youtube'
 import { backingStoreSize } from './canvasSize'
+import { openClipById } from './clipLibrary'
 import {
   cueLooping,
   cueRegion,
@@ -79,6 +80,7 @@ import type { Fatal } from './FatalScreen'
 import type { StashSlot, Stashed } from './fileStash'
 import type { PickedFileHandle } from './fsAccess'
 import type { SlotView } from './slotView'
+import type { RowClip } from './strip'
 import type { TransitionName } from './transitions'
 import type { SessionParams } from './urlParams'
 import type { Preroll, SlotKind, VideoSlot } from './videoSlot'
@@ -405,6 +407,19 @@ export function useEngine() {
   }>({ a: 'bars', b: 'bars' })
   // Picked/loaded filename, shown while the source is 'file'; '' otherwise.
   const [sourceName, setSourceName] = useState({ a: '', b: '' })
+  // Which shelf clip each deck is on, or null for a source the shelf does not
+  // know about — a generated mode, a one-off pick, a url, a webcam.
+  //
+  // Its own state rather than something read back off the stash, because the
+  // two answer different questions. The stash is what this deck comes back on
+  // *next load*; this is what is on it *now*, which is what `+ row` has to
+  // record, and the two differ for the whole of an async reopen. It is also the
+  // one thing a row needs that `sourceName` cannot supply: two clips on the
+  // shelf may share a filename, and an id never collides.
+  const [deckClip, setDeckClip] = useState<{
+    a: RowClip | null
+    b: RowClip | null
+  }>({ a: null, b: null })
   // Last session's file, remembered as a disk handle whose read permission the
   // reload dropped: it cannot be reopened without a gesture, so the slot holds
   // it here and the panel offers the click (see fileStash.ts).
@@ -951,8 +966,21 @@ export function useEngine() {
   // 'webcam' — and a shared signature could only take them by widening to a
   // union neither setter accepts. The shared half is three lines and is not
   // worth a cast to reach.
+  // What is on a deck now, for `+ row` to record. One writer, so the clearing
+  // in `commitDeck` and the four settings after it cannot spell it differently.
+  const markClip = (key: StashSlot, clip: RowClip | null) => {
+    setDeckClip(onDeck<RowClip | null>(key, clip))
+  }
+
   const commitDeck = (key: StashSlot, stash: 'drop' | 'keep') => {
     const fresh = beginLoad(key)
+    // Whatever shelf clip the deck was on, it is not on it any more. Cleared
+    // here rather than by each caller because this is the one place every
+    // source change passes through, and the failure of the other arrangement is
+    // silent: one path that forgot would let `+ row` record a clip the picture
+    // has not been on for ten minutes. The two paths that *are* on a shelf clip
+    // set it back straight after, the way `stashClip` already does.
+    markClip(key, null)
     if (key === 'a') stopVideo()
     else stopVideoB()
     // `keep` is `adoptInto`'s alone, and it is not a nicety: a file *is* the
@@ -1149,6 +1177,57 @@ export function useEngine() {
     void prerollUrl(slotA, url, start)
   }
 
+  // A strip row's clip, onto deck A — the far end of `strip.RowClip`, and what
+  // makes a rundown of different clips possible at all.
+  //
+  // Deck A alone, for the reason `prerollOn` above gives: a rundown puts its
+  // rows on A and B is the mix source a take will want.
+  //
+  // Three ways a shelf entry becomes a picture, and this routes between them
+  // rather than knowing any of them — `openClipById` owns that, and it is the
+  // same call `reopenStashed` makes for the deck the page came back on:
+  //
+  //   - a kept roll answers with a `PoolRef`, which `showRef` asks the archive
+  //     for again;
+  //   - a copied file opens with no prompt and lands through `loadClip`, which
+  //     is the same funnel the shelf's own click uses — so a row and a click put
+  //     the deck in exactly the same state, stash line included;
+  //   - a disk handle whose grant died with the last page load needs a *user
+  //     gesture*, and a walk is a timer with none to spend. That row parks in
+  //     `pending` and the caption offers the click, which is what the reopen
+  //     path already does at boot. It is the one case a rundown cannot resolve
+  //     on its own, and it is honest about it rather than silently leaving the
+  //     last row's picture up.
+  const clipOn = (id: string, name: string) => {
+    openClipById(id).then(
+      open => {
+        if (open === null) {
+          setError(`${name === '' ? id : name}: no longer on the shelf`)
+          return
+        }
+        if (open.at === 'pool') {
+          showRef('a', open.ref, 'library')
+          markClip('a', { id, name: open.name })
+        } else if (open.needsGesture) {
+          setPending(
+            onDeck<Stashed | null>('a', {
+              ...open,
+              at: 'file',
+              mode: 'library',
+              clip: id,
+            }),
+          )
+        } else {
+          open.open().then(
+            file => loadClip('a', file, { id, name: open.name }),
+            (e: unknown) => setError(`${open.name}: ${reason(e)}`),
+          )
+        }
+      },
+      (e: unknown) => setError(`${name === '' ? id : name}: ${reason(e)}`),
+    )
+  }
+
   // One named file onto a slot, off the shelf or out of the browser. Resolved
   // rather than replayed from a stored url (sources/pool.ts says why), so this is
   // a request like a roll and not an assignment — hence the caption saying so
@@ -1222,6 +1301,9 @@ export function useEngine() {
   ) => {
     setError('')
     adoptInto(key, file, 'library')
+    // After `adoptInto`, which goes through `commitDeck` and clears this — the
+    // same order `stashClip` below is in, and for the same reason.
+    markClip(key, { id: clip.id, name: clip.name })
     stashClip(key, clip).catch((e: unknown) =>
       debugLog('DEBUG stash failed', reason(e)),
     )
@@ -1245,12 +1327,22 @@ export function useEngine() {
     readStash(key).then(
       stashed => {
         if (stashed === null) return
-        if (stashed.at === 'pool') showRef(key, stashed.ref, 'library')
-        else if (stashed.needsGesture)
+        if (stashed.at === 'pool') {
+          showRef(key, stashed.ref, 'library')
+          // After `showRef`, whose own commit clears it. A kept roll restored
+          // at load is as much a shelf clip as one clicked, and a row captured
+          // over it has to say so — this is the half that made `+ row` record a
+          // clip on a fresh visit and quietly not after a reload.
+          markClip(key, { id: stashed.clip, name: stashed.name })
+        } else if (stashed.needsGesture)
           setPending(onDeck<Stashed | null>(key, stashed))
         else
           stashed.open().then(
-            file => adoptInto(key, file, stashed.mode),
+            file => {
+              adoptInto(key, file, stashed.mode)
+              if (stashed.clip !== '')
+                markClip(key, { id: stashed.clip, name: stashed.name })
+            },
             (e: unknown) => {
               debugLog('DEBUG stash reopen failed', reason(e))
               dropFile(key)
@@ -1271,7 +1363,11 @@ export function useEngine() {
       stashed.open().then(
         // `adoptInto` is what clears the park, since every way out of it ends
         // there — the grant landing, or another source arriving first.
-        file => adoptInto(key, file, stashed.mode),
+        file => {
+          adoptInto(key, file, stashed.mode)
+          if (stashed.clip !== '')
+            markClip(key, { id: stashed.clip, name: stashed.name })
+        },
         (e: unknown) => setError(`reopen ${stashed.name}: ${reason(e)}`),
       )
   }
@@ -2263,16 +2359,23 @@ export function useEngine() {
     // mode names and those two are different doors.
     showRef,
     rollAgain,
-    // The three the strip fires through (ui/useStrip.ts). `showSession` is the
+    // The ones the strip fires through (ui/useStrip.ts). `showSession` is the
     // same apply a link gets, which is what makes "a row is a query string"
-    // true rather than nearly true; `rollOn` is a roll that names its pool and
-    // draws from the take's generator instead of `Math.random`; `prerollOn` is
-    // the row after next's clip, loaded during this one; `faultTo` runs a
-    // transition off the shelf with the row's whole step on its cut frame.
+    // true rather than nearly true; `clipOn` is the part of a row a query
+    // string *cannot* carry, resolved off the shelf; `rollOn` is a roll that
+    // names its pool and draws from the take's generator instead of
+    // `Math.random`; `prerollOn` is the row after next's clip, loaded during
+    // this one; `faultTo` runs a transition off the shelf with the row's whole
+    // step on its cut frame.
     showSession,
     faultTo,
+    clipOn,
     rollOn,
     prerollOn,
+    // What `+ row` records so the row can put this same clip up again. Deck A
+    // alone is what a rundown captures, and the shape is the row's own — see
+    // `strip.RowClip` for why an id rather than a url.
+    deckClipA: deckClip.a,
     // And the one the *offline* walk uses and the live one never does: wait for
     // whatever the row above just asked for to actually be on the deck. See
     // `settleSources`.

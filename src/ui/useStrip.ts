@@ -62,7 +62,7 @@ import type { PoolOrigin } from '../sources/pools'
 import type { SliderDef } from './controls'
 import type { History } from './history'
 import type { MutateAmount } from './mutate'
-import type { Clock, Step, Strip, Walk } from './strip'
+import type { Clock, RowClip, Step, Strip, Walk } from './strip'
 import type { StripSink } from './stripRun'
 import type { TransitionName } from './transitions'
 import type { SessionParams } from './urlParams'
@@ -88,6 +88,10 @@ export interface StripDeps {
   // A named fault off the shelf, with the row's whole step landing on its cut
   // frame — see `useEngine.faultTo`.
   faultTo: (transition: TransitionName, onCut: () => void) => void
+  // A shelf clip onto deck A — see `useEngine.clipOn`. The part of a row that
+  // a query string cannot carry, which is why it is a verb of its own rather
+  // than something `showSession` could have covered.
+  clipOn: (id: string, name: string) => void
   rollOn: (origin: PoolOrigin, rand: Rand) => void
   // The next row's clip, loaded during this one — see `useEngine.prerollOn`.
   prerollOn: (url: string, start: number) => void
@@ -237,9 +241,9 @@ export function makeStripRunner(): StripRunner {
     epoch += 1
   }
 
-  // The sink: five closures, and the whole of what a walk can ask a browser
-  // for. Reads `deps` at call time rather than closing over it, since the
-  // engine handed in is a different object after a device-loss rebuild.
+  // The sink: one closure per verb, and the whole of what a walk can ask a
+  // browser for. Reads `deps` at call time rather than closing over it, since
+  // the engine handed in is a different object after a device-loss rebuild.
   const sink: StripSink = {
     session: (params, seconds) => {
       // A session landing is a new step being up, which is exactly what makes
@@ -254,6 +258,13 @@ export function makeStripRunner(): StripRunner {
       deps?.faultTo(transition, () => {
         if (mine === epoch) onCut()
       })
+    },
+    // A clip landing supersedes a pending cut for the same reason a session
+    // does: it is a new picture being asked for, and a cut still waiting to
+    // swap the source is a decision taken before that ask.
+    clip: (id, name) => {
+      supersede()
+      deps?.clipOn(id, name)
     },
     roll: (origin, rand) => deps?.rollOn(origin, rand),
     // Safe to put on the shared sink because only `offlineWalk` calls it:
@@ -400,13 +411,14 @@ export interface StripApi {
   start: () => void
   stop: () => void
   fireRow: (index: number) => void
-  // Capture what is on the board now. The caller supplies both the session
-  // string and the suggested name because building either needs the whole app's
-  // state — `useUrlState`'s `profileQuery`, and whichever preset the controls
-  // still match — which a strip has no business reaching into.
+  // Capture what is on the board now. The caller supplies the session string,
+  // the suggested name and the clip on deck A, because building any of the
+  // three needs the whole app's state — `useUrlState`'s `profileQuery`,
+  // whichever preset the controls still match, and which shelf entry the deck
+  // came off — which a strip has no business reaching into.
   addRow: (
     session: string,
-    opts?: { jitter?: MutateAmount; name?: string },
+    opts?: { jitter?: MutateAmount; name?: string; clip?: RowClip | null },
   ) => void
   renameRow: (index: number, name: string) => void
   duplicateRow: (index: number) => void
@@ -485,7 +497,7 @@ export function useStrip(deps: StripDeps): StripApi {
     () => ({
       addRow: (
         session: string,
-        opts?: { jitter?: MutateAmount; name?: string },
+        opts?: { jitter?: MutateAmount; name?: string; clip?: RowClip | null },
       ) => edit(s => addRow(s, session, opts)),
       renameRow: (index: number, name: string) =>
         edit(s => renameRow(s, index, name)),

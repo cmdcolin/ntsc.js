@@ -539,6 +539,7 @@ export function App() {
   const strip = useStrip({
     showSession: eng.showSession,
     faultTo: eng.faultTo,
+    clipOn: eng.clipOn,
     rollOn: eng.rollOn,
     prerollOn: eng.prerollOn,
     settleSources: eng.settleSources,
@@ -1368,6 +1369,13 @@ export function App() {
               onCapture={jitter =>
                 strip.addRow(profileQuery(), {
                   jitter,
+                  // The clip on deck A, which the session string cannot carry:
+                  // `writeProfileParams` drops every source mode a URL cannot
+                  // name, and a shelf clip is one of them. Without this a row
+                  // captured over a clip recorded the look and nothing about
+                  // the picture, which is why a rundown could not be a sequence
+                  // of clips (docs/EDITOR.md › _A row names its clip_).
+                  clip: eng.deckClipA,
                   // A shake row departs from whatever is live rather than
                   // landing on the board it was captured from, so the look's
                   // name would be a lie on it. `derivedLabel` says "shake ·
@@ -1439,9 +1447,20 @@ export function App() {
                     // harmless where the two do touch the same frame — the
                     // tape's copy is the later word, and it is the word that
                     // was performed.
+                    // **The walk's promise is handed back, and dropping it is
+                    // the whole of what this line is for.** `offlineWalk`
+                    // resolves when the row's source is actually on the deck,
+                    // and `renderTake` awaits it before stepping — so a
+                    // composition that called it for effect and returned
+                    // nothing would silently put the render back to landing
+                    // rows whenever their fetch happened to finish. It is
+                    // invisible in a rundown of look changes and wrong in every
+                    // rundown of clips, which is the half nothing would have
+                    // caught until the file came out.
                     frame => {
-                      walk(frame)
+                      const settled = walk(frame)
                       play(frame)
+                      return settled
                     },
                   )
                 },

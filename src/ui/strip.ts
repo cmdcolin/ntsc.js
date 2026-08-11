@@ -71,6 +71,41 @@ export const DEFAULT_HOLD: Hold = { bars: 4, drift: 0.25 }
 // one.
 export const MAX_DRIFT = 0.5
 
+// The clip a row puts on deck A, when the session string cannot name it.
+//
+// **The session string cannot name most clips**, which is the gap this closes
+// and the reason the strip could not do the thing it was designed for. A row's
+// session is `writeProfileParams`' output, and that writer drops every source
+// mode a URL cannot carry — `file`, `library`, `browse`, `screen` — so a row
+// captured with a clip on the deck recorded the look and nothing about the
+// picture. `derivedLabel` called it "look only", accurately.
+//
+// **An identity, not a url**, for the reason `sources/pool.ts` gives about
+// pool picks and `fileStash` gives about disk handles: a url is a rendering.
+// A `blob:` dies with the page, an object URL dies with its revoke, and an
+// archive's url 404s when a transcode ladder is rebuilt. What survives being
+// written down is the shelf entry, so that is what a row keeps —
+// `clipLibrary.openClipById` turns it back into bytes at fire time, through
+// whichever of the three ways the shelf remembers it (a disk handle and its
+// grant, a copy in the origin's file system, or a `PoolRef` to ask an archive
+// for again).
+//
+// Beside `session` rather than inside it, which is the one place this parts
+// company with _A row is a thing that already exists_. That section's rule is
+// that new row state goes into `urlParams` — and it is right for everything
+// that has: a `lib:c7` in a shared link is a promise about one person's disk,
+// and the link contract's whole job is to be true on somebody else's machine.
+// So a row is still a link, and this is the part of a rundown that is a file.
+export interface RowClip {
+  // The shelf entry (`clipLibrary.Clip.id`).
+  id: string
+  // What the card says before the shelf has been asked. Stored rather than
+  // looked up so a card draws without an async round trip per render — and so a
+  // row whose clip has since been removed from the shelf can still say what it
+  // is missing rather than going blank.
+  name: string
+}
+
 export interface Row {
   id: string
   // What this row is called, or '' for "read it off the session".
@@ -96,6 +131,11 @@ export interface Row {
   // — a row is read back weeks later, and a live link's `?preset=` would by
   // then re-supply a knob the hand had already put back to stock.
   session: string
+  // The clip on deck A, when it is one only the shelf can name. Null for every
+  // row whose source the session already carries — a `?vurl`, a YouTube url, a
+  // generated mode, a pool — and for a look-only row, which is a change over
+  // whatever is already up and deliberately touches no source at all.
+  clip: RowClip | null
   fill: RowFill
   hold: Hold
   // How the row arrives, in the two senses that are genuinely different things.
@@ -183,6 +223,14 @@ export type PlainEffect =
   // whatever is on the board when it fires, which is why it carries an amount
   // and a seed rather than controls.
   | { kind: 'jitter'; amount: MutateAmount; seed: number }
+  // Put this shelf clip on deck A. An id and a caption rather than bytes or a
+  // url: resolving one costs a shelf read, a permission grant that may need a
+  // click, or an archive request, and none of those belongs on this side of the
+  // boundary — `advance` is pure and a step is a value a test can assert on.
+  //
+  // The name rides along so the sink can report a clip the shelf has lost by
+  // what it was called, rather than as an id nobody has ever seen.
+  | { kind: 'clip'; id: string; name: string }
   // Load the clip the *next* row will want, and park it at its in-point. Fired
   // with the row that precedes it, so the load has that row's whole hold to
   // finish in — which is the whole of preroll depth 1 (docs/EDITOR.md ›
@@ -283,6 +331,14 @@ function stepEffects(
   const out: PlainEffect[] = [
     { kind: 'session', session: row.session, seconds: row.arrive.seconds },
   ]
+  // After the session and before the fill, which is the same rule the other two
+  // depart on: the session is where a row sets off *from*, so anything that
+  // puts a picture up has to land on top of it rather than under it. A session
+  // carrying `?src=` for a row that also names a shelf clip would otherwise
+  // decide the deck, and the row's own clip is the more specific answer.
+  if (row.clip !== null) {
+    out.push({ kind: 'clip', id: row.clip.id, name: row.clip.name })
+  }
   if (row.fill.kind === 'roll') {
     out.push({ kind: 'roll', origin: row.fill.origin, seed })
   } else if (row.fill.kind === 'jitter') {
@@ -474,6 +530,11 @@ export function rowFill(session: string, jitter?: MutateAmount): RowFill {
 // two drifting when a mode is renamed.
 export function derivedLabel(row: Row): string {
   if (row.fill.kind === 'jitter') return `shake · ${row.fill.amount}`
+  // Ahead of the session, because a row that names a shelf clip *is* that clip
+  // — and the session it was captured with says nothing about the source, which
+  // is the whole reason `RowClip` exists. Reading the session first would call
+  // a row holding a named clip "look only", which is what it used to do.
+  if (row.clip !== null && row.clip.name !== '') return row.clip.name
   const q = new URLSearchParams(row.session)
   const url = q.get('vurl') ?? q.get('iurl')
   if (url !== null) return urlName(url)
@@ -582,7 +643,7 @@ const nextId = (rows: readonly Row[]): string => {
 export function addRow(
   strip: Strip,
   session: string,
-  opts: { jitter?: MutateAmount; name?: string } = {},
+  opts: { jitter?: MutateAmount; name?: string; clip?: RowClip | null } = {},
 ): Strip {
   const row: Row = {
     id: nextId(strip.rows),
@@ -591,6 +652,10 @@ export function addRow(
     // case a name exists to prevent.
     name: uniqueName(strip.rows, cleanProfileName(opts.name ?? '')),
     session,
+    // A shake row never carries one: it is a departure from whatever is live,
+    // and hauling a clip onto the deck under it would make it a source change
+    // wearing a jitter's name.
+    clip: opts.jitter === undefined ? (opts.clip ?? null) : null,
     fill: rowFill(session, opts.jitter),
     hold: DEFAULT_HOLD,
     arrive: NO_ARRIVE,
@@ -790,6 +855,18 @@ const NO_ARRIVE: Row['arrive'] = { seconds: 1, transition: null }
 // written by a build with an entry this one does not have should arrive by a
 // plain cut rather than hand an unknown name to the shelf. A row from before
 // the field existed reads as null, which is exactly what it did.
+// A stored clip reference, or null for the rows that carry none — which is
+// every row written before this field existed, and every look-only row since.
+// An id that is not a non-empty string names nothing the shelf could answer
+// for, so it reads as null rather than as a row that fires and does nothing.
+function readClip(raw: unknown): RowClip | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const id = 'id' in raw ? raw.id : undefined
+  if (typeof id !== 'string' || id === '') return null
+  const name = 'name' in raw ? raw.name : undefined
+  return { id, name: typeof name === 'string' ? name : '' }
+}
+
 const readArrive = (raw: unknown): Row['arrive'] => {
   if (typeof raw !== 'object' || raw === null) return NO_ARRIVE
   const seconds = 'seconds' in raw ? raw.seconds : undefined
@@ -827,6 +904,7 @@ function readRow(raw: unknown, index: number): Row | undefined {
     // not there.
     id: typeof id === 'string' && id !== '' ? id : `r${index}`,
     session,
+    clip: readClip('clip' in raw ? raw.clip : undefined),
     fill: readFill('fill' in raw ? raw.fill : undefined),
     hold: readHold('hold' in raw ? raw.hold : undefined),
     arrive: readArrive('arrive' in raw ? raw.arrive : undefined),

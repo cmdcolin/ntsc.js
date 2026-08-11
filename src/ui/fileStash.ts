@@ -49,15 +49,28 @@ export const otherSlot = (slot: StashSlot): StashSlot =>
 // `mode` is which source mode the restored source lands on — a clip off the
 // shelf goes back as a clip, not as a one-off pick, or the caption would offer
 // the file dialog where the shelf belongs.
+// `clip` is the shelf entry this came off, and '' for a one-off pick that never
+// went on the shelf. It rides along because a strip row names clips by shelf id
+// (`strip.RowClip`), and the deck that comes back at load has to be capturable
+// as a row exactly like one loaded by hand — otherwise `+ row` records a clip
+// on a fresh visit and silently does not after a reload, which is the shape of
+// bug nobody reports because it looks like their own mistake.
 export type Stashed =
   | {
       at: 'file'
       name: string
       mode: 'file' | 'library'
+      clip: string
       needsGesture: boolean
       open: () => Promise<File>
     }
-  | { at: 'pool'; name: string; mode: 'library'; ref: PoolRef }
+  | {
+      at: 'pool'
+      name: string
+      mode: 'library'
+      clip: string
+      ref: PoolRef
+    }
 
 interface Meta {
   name: string
@@ -181,8 +194,14 @@ export async function readStash(slot: StashSlot): Promise<Stashed | null> {
       if (clip !== null)
         stashed =
           clip.at === 'pool'
-            ? { at: 'pool', name: clip.name, mode: 'library', ref: clip.ref }
-            : { ...clip, at: 'file', mode: 'library' }
+            ? {
+                at: 'pool',
+                name: clip.name,
+                mode: 'library',
+                clip: meta.id,
+                ref: clip.ref,
+              }
+            : { ...clip, at: 'file', mode: 'library', clip: meta.id }
     } else if (meta.kind === 'handle') {
       const stored = await idbGet(slot)
       if (isPickedFile(stored)) {
@@ -194,6 +213,7 @@ export async function readStash(slot: StashSlot): Promise<Stashed | null> {
           at: 'file',
           name: meta.name,
           mode: 'file',
+          clip: '',
           needsGesture: !granted,
           open: () => openHandle(stored, granted),
         }
@@ -203,6 +223,7 @@ export async function readStash(slot: StashSlot): Promise<Stashed | null> {
         at: 'file',
         name: meta.name,
         mode: 'file',
+        clip: '',
         needsGesture: false,
         open: () => openCopy(slot, meta),
       }

@@ -4,6 +4,7 @@ import { MORPH_SECONDS } from './morph'
 import { PROFILE_NAME_MAX } from './savedProfiles'
 import {
   DEFAULT_HOLD,
+  EMPTY_STRIP,
   HOLD_BARS,
   derivedLabel,
   named,
@@ -50,6 +51,7 @@ const row = (over: Partial<Row> = {}): Row => ({
   id: 'r1',
   name: '',
   session: 'set=&mod=',
+  clip: null,
   fill: { kind: 'clip' },
   hold: { bars: 4, drift: 0 },
   arrive: { seconds: 1, transition: null },
@@ -150,6 +152,46 @@ describe('fireEffects', () => {
     expect(fireEffects(row({ session: 'set=vSize:0.5' }), 3)).toEqual([
       { kind: 'session', session: 'set=vSize:0.5', seconds: 1 },
     ])
+  })
+
+  // The whole reason `RowClip` exists: a row captured over a shelf clip has to
+  // put that clip back, and the session string cannot say which one —
+  // `writeProfileParams` drops every source mode a URL cannot name.
+  it('names its clip after putting the session up', () => {
+    const out = fireEffects(
+      row({ session: 'set=vSize:0.5', clip: { id: 'c7', name: 'surf.mp4' } }),
+      3,
+    )
+    expect(out).toEqual([
+      { kind: 'session', session: 'set=vSize:0.5', seconds: 1 },
+      { kind: 'clip', id: 'c7', name: 'surf.mp4' },
+    ])
+  })
+
+  // After the session, for the same reason the fillings are: a session may
+  // carry a `?src=`, and the row's own clip is the more specific answer.
+  it('puts the clip on top of the session, never under it', () => {
+    const out = fireEffects(
+      row({ session: 'src=sweep', clip: { id: 'c1', name: 'a.mp4' } }),
+      3,
+    )
+    expect(out.map(e => e.kind)).toEqual(['session', 'clip'])
+  })
+
+  // A transition row defers its *whole* step, clip included — the rule the
+  // fault variant already carries for the session and the fillings.
+  it('defers the clip to the cut on a transition row', () => {
+    const out = fireEffects(
+      row({
+        clip: { id: 'c2', name: 'b.mp4' },
+        arrive: { seconds: 0, transition: 'collapse' },
+      }),
+      3,
+    )
+    expect(out).toHaveLength(1)
+    expect(out[0].kind).toBe('fault')
+    if (out[0].kind === 'fault')
+      expect(out[0].atCut.map(e => e.kind)).toEqual(['session', 'clip'])
   })
 
   // Ordered, and the order is the point: both of the other fillings are
@@ -456,6 +498,46 @@ describe('rowFill', () => {
   })
 })
 
+describe('a row that names a clip', () => {
+  // The card used to read "look only" over a clip somebody had just loaded,
+  // which was accurate about the session string and a lie about the picture.
+  it('reads as its clip rather than as the session', () => {
+    expect(derivedLabel(row({ clip: { id: 'c7', name: 'surf.mp4' } }))).toBe(
+      'surf.mp4',
+    )
+  })
+
+  // A clip the shelf has lost its name for falls through to what the session
+  // says, rather than showing an empty card.
+  it('falls back to the session when the clip has no name', () => {
+    expect(derivedLabel(row({ clip: { id: 'c7', name: '' } }))).toBe(
+      'look only',
+    )
+  })
+
+  it('captures the clip on the deck', () => {
+    const got = addRow(EMPTY_STRIP, 'set=', {
+      clip: { id: 'c3', name: 'neon.mp4' },
+    })
+    expect(got.rows[0].clip).toEqual({ id: 'c3', name: 'neon.mp4' })
+  })
+
+  // A shake is a departure from whatever is live, so hauling a clip onto the
+  // deck under it would make it a source change wearing a jitter's name.
+  it('a shake row takes no clip even when one is on the deck', () => {
+    const got = addRow(EMPTY_STRIP, 'set=', {
+      jitter: 'normal',
+      clip: { id: 'c3', name: 'neon.mp4' },
+    })
+    expect(got.rows[0].clip).toBeNull()
+  })
+
+  it('a duplicate carries the clip with it', () => {
+    const one = addRow(EMPTY_STRIP, 'set=', { clip: { id: 'c3', name: 'n' } })
+    expect(duplicateRow(one, 0).rows[1].clip).toEqual({ id: 'c3', name: 'n' })
+  })
+})
+
 describe('readStrip', () => {
   it('reads back what it stores', () => {
     const original = strip([
@@ -463,6 +545,35 @@ describe('readStrip', () => {
       row({ id: 'b', hold: { bars: null, drift: 0 } }),
     ])
     expect(readStrip(JSON.parse(JSON.stringify(original)))).toEqual(original)
+  })
+
+  it('round-trips a row that names a clip', () => {
+    const original = strip([
+      row({ id: 'a', clip: { id: 'c7', name: 'surf.mp4' } }),
+    ])
+    expect(readStrip(JSON.parse(JSON.stringify(original)))).toEqual(original)
+  })
+
+  // Every row written before the field existed, which is every row anybody
+  // already has: a rundown must not lose its rows to a schema that grew.
+  it('reads a row stored without a clip as having none', () => {
+    const got = readStrip({ rows: [{ session: 'set=' }], seed: 3 })
+    expect(got.rows[0].clip).toBeNull()
+  })
+
+  // An id that names nothing the shelf could answer for is not a clip. A row
+  // that fires and silently does nothing is worse than one that never claimed
+  // to have a clip at all.
+  it('declines a clip with no usable id', () => {
+    const got = readStrip({
+      rows: [
+        { session: 'set=', clip: { id: '', name: 'x' } },
+        { session: 'set=', clip: { id: 7 } },
+        { session: 'set=', clip: 'c1' },
+      ],
+      seed: 3,
+    })
+    expect(got.rows.map(r => r.clip)).toEqual([null, null, null])
   })
 
   // Stored JSON is a claim rather than a fact — a stale schema, a hand edit,

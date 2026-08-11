@@ -27,7 +27,12 @@ function fakeSink() {
   const faults: { transition: TransitionName; cut: () => void }[] = []
   const order: string[] = []
   const settles = { count: 0 }
+  const clips: { id: string; name: string }[] = []
   const sink: StripSink = {
+    clip: (id, name) => {
+      clips.push({ id, name })
+      order.push('clip')
+    },
     session: (params, seconds) => {
       sessions.push({ params, seconds })
       order.push('session')
@@ -57,7 +62,17 @@ function fakeSink() {
       return Promise.resolve()
     },
   }
-  return { sink, sessions, rolls, jitters, prerolls, faults, order, settles }
+  return {
+    sink,
+    sessions,
+    rolls,
+    jitters,
+    prerolls,
+    faults,
+    clips,
+    order,
+    settles,
+  }
 }
 
 describe('runEffect', () => {
@@ -102,6 +117,14 @@ describe('runEffect', () => {
   })
 })
 
+describe('runEffect: a clip', () => {
+  it('hands the sink the shelf id and the caption', () => {
+    const f = fakeSink()
+    runEffect({ kind: 'clip', id: 'c7', name: 'surf.mp4' }, f.sink)
+    expect(f.clips).toEqual([{ id: 'c7', name: 'surf.mp4' }])
+  })
+})
+
 describe('runStep', () => {
   // Order is load-bearing: both other fillings are departures *from* what the
   // session named, so a roll landing before the session would be rolled over.
@@ -128,6 +151,7 @@ describe('makeStripRunner', () => {
     id: 'r1',
     name: '',
     session: 'set=&mod=',
+    clip: null,
     fill: { kind: 'clip' },
     hold: { bars: 4, drift: 0 },
     arrive: { seconds: 1, transition: null },
@@ -142,6 +166,7 @@ describe('makeStripRunner', () => {
     const faultTo = vi.fn()
     const rollOn = vi.fn()
     const prerollOn = vi.fn()
+    const clipOn = vi.fn()
     // Resolved, and counted: what the offline walk waits on. A live walk must
     // never reach it, which is one of the assertions below.
     const settleSources = vi.fn(() => Promise.resolve())
@@ -151,6 +176,7 @@ describe('makeStripRunner', () => {
     runner.setDeps({
       showSession,
       faultTo,
+      clipOn,
       rollOn,
       prerollOn,
       settleSources,
@@ -599,6 +625,7 @@ describe('offlineWalk', () => {
     id: 'r1',
     name: '',
     session: 'set=&mod=',
+    clip: null,
     fill: { kind: 'clip' },
     hold: { bars: 4, drift: 0 },
     arrive: { seconds: 1, transition: null },

@@ -72,6 +72,19 @@ export interface StripSink {
   // engine picks and nothing here can see. What a sink does with it is hand the
   // engine a plan; what it must not do is try to time the swap itself.
   fault: (transition: TransitionName, onCut: () => void) => void
+  // Put a shelf clip on deck A, by the id `clipLibrary` knows it as.
+  //
+  // **Fire-and-forget, and it is the one verb here that genuinely cannot be
+  // otherwise.** Resolving an id costs a shelf read and then one of three
+  // things: bytes already in the origin's file system, an archive request, or a
+  // disk handle whose read permission died with the last page load and needs a
+  // *user gesture* to come back. A walk has no gesture to spend — it is a timer
+  // — so the third case is a clip that arrives when someone clicks the caption,
+  // and there is no arrangement of this signature that changes that.
+  //
+  // `name` is what the row called it, for the sink to report a clip the shelf
+  // has since lost.
+  clip: (id: string, name: string) => void
   // Roll a pool onto the deck, drawing from this generator rather than from
   // `Math.random` — the whole of `rng.ts`'s reason for existing.
   roll: (origin: PoolOrigin, rand: Rand) => void
@@ -120,6 +133,9 @@ export function runEffect(effect: Effect, sink: StripSink): void {
       sink.fault(effect.transition, () => {
         for (const e of effect.atCut) runEffect(e, sink)
       })
+      break
+    case 'clip':
+      sink.clip(effect.id, effect.name)
       break
     case 'roll':
       sink.roll(effect.origin, rngFor(effect.seed))
