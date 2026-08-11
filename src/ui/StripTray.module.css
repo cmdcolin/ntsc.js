@@ -51,6 +51,35 @@
   font-family: var(--mono);
 }
 
+/* The two buttons in the bar whose own label changes width under them, held at
+   the width of the wider thing each can say.
+
+   The bar is a flex row up to `.walk`'s `margin-left: auto`, so a button that
+   grows pushes every button after it along — and both of these change without
+   being asked to. ▶/■ swap on every start and stop, and moved the five controls
+   after them by 4.3px each time (`scripts/traylayout.mjs`), which puts **+ row**
+   somewhere new under a pointer that has not moved. The render readout is the
+   worse of the two: it counts, so it re-solves the row about a hundred times
+   over a render with nobody near it.
+
+   A px floor rather than the `ch` count `StripRow`'s chips use, because these
+   wear the app's proportional face — there is no character to count. So the
+   numbers come from measuring the widest label each button can hold, which
+   `traylayout.mjs` prints beside the bar it measured: `■ stop` at 62, and
+   `100% · cancel` at 99 against `⎙ render 10s` at 96. Padding and border are in
+   those, because a <button> is border-box in every UA stylesheet.
+
+   `.readout` also asks for tabular figures, which is the half of it a floor
+   cannot do: 1 and 8 are not the same width in this face, so 11% and 88% are
+   two different widths inside any box wide enough for both. */
+.transport {
+  min-width: 62px;
+}
+.readout {
+  min-width: 104px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* The track. A caption more than a button — what it mostly does is tell you
    whether ▶ is going to start any music — so it wears the panel's prose grey
    and only lifts under the pointer, where it is the picker. */

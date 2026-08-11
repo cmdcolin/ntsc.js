@@ -1,9 +1,24 @@
 /* One row of the rundown, as a card.
 
-   Sized by its label rather than to a grid: the rundown is an order, and a card
-   that says what it holds is worth more than forty identical boxes. The floor
-   keeps a short name from collapsing to a chip, the ceiling keeps a long
-   filename from taking the row. */
+   Shrink to fit, between a floor and a ceiling: the rundown is an order, and a
+   card that says what it holds is worth more than forty identical boxes. The
+   ceiling keeps a long filename from taking the row.
+
+   **Which means every label in here is load-bearing on layout**, and that is
+   the thing to hold on to before adding one. A card is as wide as its widest
+   line, so text that changes width changes the card, and a card that changes
+   width slides every card to its right along the row — under the pointer that
+   is still resting on the control it just used. Everything below that reserves
+   a width reserves it for that reason, and `scripts/traylayout.mjs` is the
+   harness that says whether they still do.
+
+   Worth being honest about what that costs: the feet are six controls with
+   three of them now held at a fixed width, and they add up to more than the
+   floor, so the cards come out very nearly equal. The variety this used to have
+   was not the names — it was the hold chip being three characters wider on some
+   rows than others, which is the shift rather than the feature. Cards that
+   actually say something by their width want the *hold* to set it, which is
+   docs/EDITOR.md › _Seeing the shape_ and a different piece of work. */
 .card {
   flex: none;
   min-width: 108px;
@@ -31,6 +46,23 @@
 .dragging {
   border-color: var(--edit);
   background: var(--ctl-bg-hover);
+}
+
+/* The face: the fire button, with the rename field laid over it.
+
+   A layer rather than a swap, and that is the whole of what makes the rename
+   free. The field used to *replace* the button, and an `<input>` carries an
+   intrinsic width of its own — twenty characters of one — so in the flow it
+   grew the card by 22px and shoved every card to its right along the row the
+   moment the ✎ was pressed. `scripts/traylayout.mjs` has the number. Out of
+   flow it contributes no width at all, so the card the pointer opened is
+   exactly the card it was, which is what `.field` below always claimed and
+   could not deliver from inside the flow. */
+.face {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 /* The face, and the drag handle, and the fire button — all the same surface,
@@ -99,9 +131,12 @@
   font-style: italic;
 }
 
-/* The rename field, sized and coloured to sit exactly where the name was, so
-   the card does not resize under the pointer that opened it. */
+/* The rename field: the whole face, coloured as a field, so the card does not
+   resize under the pointer that opened it. Laid over the button rather than
+   swapped for it — see `.face`, which is what holds it there. */
 .field {
+  position: absolute;
+  inset: 0;
   font: inherit;
   font-size: var(--fs-sm);
   color: var(--fg);
@@ -109,9 +144,7 @@
   border: 1px solid var(--edit);
   border-radius: 2px;
   padding: 4px 5px;
-  margin: 5px 6px 4px;
   min-width: 0;
-  width: calc(100% - 12px);
 }
 .field:focus {
   outline: none;
@@ -135,10 +168,15 @@
    hold is the field a hand touches most — the one placement rule the design
    states for a row. */
 .chip {
+  /* Named because the reserved widths below have to add it back. A <button> is
+     `border-box` in every UA stylesheet, so a width in `ch` reserves room for
+     the text *and* the padding it sits in — which comes up exactly this much
+     short, and leaves a shift that looks like the reserve simply not working. */
+  --chip-pad: 4px;
   font-size: var(--fs-xs);
   font-family: var(--mono);
   color: var(--fg3);
-  padding: 1px 4px;
+  padding: 1px var(--chip-pad);
   border-radius: 2px;
   white-space: nowrap;
 }
@@ -151,15 +189,44 @@
   color: var(--fg4);
 }
 
+/* The two chips that step through a ring of *words*, each in a box as wide as
+   the widest thing its own ring can say.
+
+   The width is a property of the ring rather than of the value sitting in it —
+   the rule `Slider`'s `.reading` states for a readout, and here for the same
+   failure one layer out: a card is as wide as its widest line, so a chip that
+   grew as it stepped grew the card, which slid every card to its right along
+   the row and moved the ✎ and the ⧉ out from under the pointer that had just
+   clicked. Measured at 6.6px a step — one character — by
+   `scripts/traylayout.mjs`, on both of these.
+
+   `ch` is exact because `.chip` sets --mono: one ch is one character. The count
+   comes in from the ring itself (`HOLD_LABEL_CHARS`, `MORPH_LABEL_CHARS`), so
+   a longer hold added to `HOLD_BARS` widens the chip instead of quietly
+   restarting the shift. */
+.hchip,
+.achip {
+  min-width: calc(var(--ring-ch) * 1ch + 2 * var(--chip-pad));
+  text-align: center;
+}
+
 /* The transition chip: one glyph wide, whatever it is set to.
 
-   Held at a width rather than left to the glyph, because these are drawn from
-   whatever font has them and the ring steps through six of them under a
-   stationary pointer. A chip that resized as it stepped would move the ✎ and
-   the ⧉ beside it mid-click — the same rule `.field` above states about the
-   card not resizing under the pointer that opened it. */
+   A fixed width rather than a floor, which is the difference between this and
+   the two above. Its ring is glyphs drawn from whatever font has them, so their
+   advances differ by a pixel or so and no character count describes them — the
+   1.4em floor this used to carry was one the widest of them went a pixel over,
+   which was the same shift as the others and only quieter. Fixed, the layout
+   stops depending on the glyph at all: a wide one centres and bleeds into the
+   gap rather than moving the ✎ beside it. */
 .tchip {
-  min-width: 1.4em;
+  width: 1.7em;
+  /* Its own padding, because the width above is a border box and the widest of
+     the glyphs needs nearly all of it. The chip's usual 4px each side would
+     leave the glyph overflowing its own box — harmless, since a fixed width
+     means the layout never asks how wide the glyph is, but it would sit a
+     pixel off centre and read as one. */
+  padding-inline: 1px;
   text-align: center;
 }
 

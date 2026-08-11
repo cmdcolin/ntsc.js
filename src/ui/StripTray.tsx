@@ -117,7 +117,7 @@ export function StripTray(props: {
         {!open ? null : (
           <>
             <button
-              className={cx(ui.btn, api.running && ui.active)}
+              className={cx(ui.btn, styles.transport, api.running && ui.active)}
               onClick={() => (api.running ? api.stop() : api.start())}
               disabled={rows.length === 0}
               title={api.running ? 'stop the walk' : 'play from the top'}
@@ -158,7 +158,7 @@ export function StripTray(props: {
                 either way. */}
             {props.render.progress === null ? (
               <button
-                className={ui.btn}
+                className={cx(ui.btn, styles.readout)}
                 onClick={props.render.start}
                 title={`render ${Math.round(props.render.seconds)}s to a constant-framerate MP4${
                   props.track.name === ''
@@ -170,7 +170,7 @@ export function StripTray(props: {
               </button>
             ) : (
               <button
-                className={cx(ui.btn, ui.active)}
+                className={cx(ui.btn, styles.readout, ui.active)}
                 onClick={props.render.cancel}
                 title="stop the render and keep the picture"
               >

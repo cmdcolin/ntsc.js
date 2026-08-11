@@ -1,11 +1,12 @@
 import { useState, useSyncExternalStore } from 'react'
 
 import { cx } from './cx'
-import { MORPH_LABELS } from './morph'
+import { MORPH_LABEL_CHARS, MORPH_LABELS } from './morph'
 import { PROFILE_NAME_MAX } from './savedProfiles'
 import {
   derivedLabel,
   holdLabel,
+  HOLD_LABEL_CHARS,
   named,
   rowLabel,
   transitionLabel,
@@ -16,6 +17,15 @@ import { transitionOf } from './transitions'
 import ui from './ui.module.css'
 
 import type { Row } from './strip'
+import type { CSSProperties } from 'react'
+
+// How much room the two word chips reserve: the widest their own ring can say,
+// so stepping one cannot re-solve the card it is on. The stylesheet's `.hchip`
+// has the measurement; both are constants because a ring is, and neither wants
+// a fresh object per card per frame.
+type RingWidth = CSSProperties & Record<'--ring-ch', number>
+const HOLD_WIDTH: RingWidth = { '--ring-ch': HOLD_LABEL_CHARS }
+const ARRIVE_WIDTH: RingWidth = { '--ring-ch': MORPH_LABEL_CHARS }
 
 // The hold's fill, and the only thing in the tray that moves at frame rate.
 //
@@ -81,38 +91,10 @@ export function StripRow(props: {
       role="listitem"
       data-index={props.index}
     >
-      {editing ? (
-        // The whole face, swapped for the field. An input *inside* the fire
-        // button would be interactive content inside a button — invalid, and
-        // Firefox resolves it by dropping the input — so the two take turns
-        // rather than nest. Losing the drag handle for the moment somebody is
-        // typing a name is not a loss.
-        <input
-          className={styles.field}
-          defaultValue={row.name}
-          // What the card would say anyway, so the field shows what clearing it
-          // gets you rather than an empty box.
-          placeholder={derivedLabel(row)}
-          maxLength={PROFILE_NAME_MAX}
-          autoFocus
-          onKeyDown={e => {
-            if (e.key === 'Enter') commit(e.currentTarget.value)
-            if (e.key === 'Escape') {
-              // Escape is the panel's own "back out of whatever mode this is",
-              // and it would otherwise close something behind the card as well.
-              e.stopPropagation()
-              setEditing(false)
-            }
-          }}
-          // Commits rather than cancels: clicking away from a name you have
-          // typed means the name, and a field that threw it away on the way out
-          // would be the more surprising of the two.
-          onBlur={e => commit(e.currentTarget.value)}
-        />
-      ) : (
-        /* `data-drag` marks this as the reorder handle: the tray starts a drag
-           from a press here and from nowhere else on the card, so the chips and
-           the ✕ below stay pressable. */
+      <div className={styles.face}>
+        {/* `data-drag` marks this as the reorder handle: the tray starts a drag
+            from a press here and from nowhere else on the card, so the chips
+            and the ✕ below stay pressable. */}
         <button
           className={styles.fire}
           data-drag=""
@@ -141,12 +123,46 @@ export function StripRow(props: {
             {rowLabel(row)}
           </span>
         </button>
-      )}
+        {/* The field covers the face rather than replacing it, which is what
+            keeps the card the size it was — `.face` in the stylesheet has the
+            measurement. A *sibling* of the button and not a child: an input
+            inside a button is interactive content inside a button, which is
+            invalid and which Firefox resolves by dropping the input. Being a
+            sibling is also what keeps a press in the field from starting a
+            drag, since the handle is the button and `closest` does not find it
+            from here. */}
+        {!editing ? null : (
+          <input
+            className={styles.field}
+            defaultValue={row.name}
+            // What the card would say anyway, so the field shows what clearing
+            // it gets you rather than an empty box.
+            placeholder={derivedLabel(row)}
+            maxLength={PROFILE_NAME_MAX}
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') commit(e.currentTarget.value)
+              if (e.key === 'Escape') {
+                // Escape is the panel's own "back out of whatever mode this
+                // is", and it would otherwise close something behind the card
+                // as well.
+                e.stopPropagation()
+                setEditing(false)
+              }
+            }}
+            // Commits rather than cancels: clicking away from a name you have
+            // typed means the name, and a field that threw it away on the way
+            // out would be the more surprising of the two.
+            onBlur={e => commit(e.currentTarget.value)}
+          />
+        )}
+      </div>
       <div className={styles.feet}>
         {/* The field a hand touches most, so it is on the card rather than in
             the menu — the design's one placement rule for the row. */}
         <button
-          className={cx(ui.bare, styles.chip)}
+          className={cx(ui.bare, styles.chip, styles.hchip)}
+          style={HOLD_WIDTH}
           data-act="hold"
           onClick={() => api.cycleHold(props.index)}
           title="how long this row holds — click to step"
@@ -158,7 +174,8 @@ export function StripRow(props: {
             off the shelf. They compose — the board walks while the fault does
             the cutting — which is why neither is a mode of the other. */}
         <button
-          className={cx(ui.bare, styles.chip, styles.arrive)}
+          className={cx(ui.bare, styles.chip, styles.arrive, styles.achip)}
+          style={ARRIVE_WIDTH}
           data-act="arrive"
           onClick={() => api.cycleArrive(props.index)}
           title="how this row's look arrives — click to step"

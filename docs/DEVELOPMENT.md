@@ -468,6 +468,33 @@ together. That is the right behaviour, and it falls out of clocking the walk on
 frames rather than on the wall — a wall-clock strip would come back having
 silently skipped four rows nobody saw.
 
+## Does the tray move under the pointer?
+
+```
+node scripts/traylayout.mjs [port]
+```
+
+The other half of the tray, and a different question from `traycheck.mjs`: not
+"does the chip work" but "does using it move anything". A row card is
+shrink-to-fit, so every label in it decides layout, and the tray is one
+horizontal row of cards — a chip that grows as it steps grows its card and
+slides every card to its right, out from under the hand that is still on it.
+This seeds a fixture rundown through `localStorage`, steps each of the three
+rings all the way round, opens the rename field, and toggles ▶/■, comparing
+every control's rectangle against where it started. `docs/EDITOR.md` › _Nothing
+in the tray moves because its own text changed_ has the five it found.
+
+**Two things about the fixture, both of which cost a wrong answer once.** Row 0
+carries the _default_ drift, not none: `cycleHold` preserves drift, so a row at
+drift 0 never draws the `≈` that the widest label in the ring has, and the chip
+measured as fixed on the two thirds of the ring its reserve was already wide
+enough for. And the reserves are checked against the card's ceiling in the same
+run — widening a chip is exactly the move that once pushed the ✕ out past
+`overflow: hidden`, where it was invisible and unclickable.
+
+Nothing here waits on a rendered frame, so the rAF trap above does not apply:
+every reading is a synchronous layout after a click React has already handled.
+
 ## Preroll: is the cut cheaper?
 
 ```

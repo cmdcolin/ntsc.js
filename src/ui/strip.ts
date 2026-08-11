@@ -527,6 +527,22 @@ export function holdLabel(hold: Hold): string {
 // mid-set.
 export const HOLD_BARS = [1, 2, 4, 8, 16, null] as const
 
+// The widest the hold chip can ever read, in characters.
+//
+// A property of the *ring* rather than of the hold sitting in it, which is the
+// rule `Slider`'s `--reading-ch` already states for a readout and is here for
+// the same failure: a row card is as wide as its widest line, so a chip that
+// grew as it stepped grew the card, slid every card to its right along the row,
+// and moved the ✎ and the ⧉ out from under the pointer that was stepping it.
+// `scripts/traylayout.mjs` measured it at 6.6px — one character — per step.
+//
+// Derived rather than counted by hand, and drawn with a drift so the `≈` is in
+// it: adding a longer hold to the ring above should widen the chip, not start a
+// shift that nobody connects to this line.
+export const HOLD_LABEL_CHARS = Math.max(
+  ...HOLD_BARS.map(bars => holdLabel({ bars, drift: MAX_DRIFT }).length),
+)
+
 export const cycleHold = (hold: Hold): Hold => {
   // `indexOf` answers -1 for a hold not on the ring — a hand-edited file, an
   // older build's list — and -1 + 1 is 0, so an unrecognised hold steps to the

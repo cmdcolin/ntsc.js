@@ -39,6 +39,15 @@ export const MORPH_LABELS: Record<MorphSeconds, string> = {
   30: '30s',
 }
 
+// The widest of those, in characters — what a strip row's arrival chip reserves
+// so that stepping the ring cannot re-solve the card it is on. Same rule and
+// same reason as `strip.ts`'s `HOLD_LABEL_CHARS`, which has the measurement;
+// derived here too, so a duration added above widens the chip rather than
+// starting a shift.
+export const MORPH_LABEL_CHARS = Math.max(
+  ...Object.values(MORPH_LABELS).map(label => label.length),
+)
+
 // A stored duration back onto the ring. Anything unrecognised — including a
 // first run, which has never stored anything — lands on 1s rather than a cut:
 // the list is allowed to be retuned, and a localStorage entry written by an

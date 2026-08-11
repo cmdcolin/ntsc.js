@@ -240,6 +240,52 @@ trigger — the only `onContextMenu` in the app is a `preventDefault` in
 routes verbs through the command palette, so the field touched most (the hold)
 belongs **visible on the row**, with the menu carrying the rest.
 
+#### Nothing in the tray moves because its own text changed
+
+A row card is shrink-to-fit, so **every label in it is load-bearing on layout**,
+and the tray is one horizontal row of them — which means a card that grows
+slides every card to its right along the strip. The controls that change their
+own text are exactly the controls a hand clicks repeatedly, so the failure is
+specific: step the hold chip and the ✎, the ⧉ and the ✕ beside it walk out from
+under the pointer that is still resting on the chip. This is the same rule a
+slider's readout already follows (`Slider.module.css`'s `.reading` — "a box that
+does not depend on the number"), one layer out.
+
+`scripts/traylayout.mjs` measures it, and measured all five of these before they
+were fixed:
+
+| what changed              | what moved                                                                     |
+| ------------------------- | ------------------------------------------------------------------------------ |
+| hold chip, one step       | 6.6px — the card and every card right of it                                    |
+| arrival chip, one step    | 6.6px, the same way                                                            |
+| transition chip, one step | 1.1px — the `min-width: 1.4em` floor was under the widest glyph                |
+| the rename ✎              | 21.8px — an `<input>` in the flow carries twenty characters of intrinsic width |
+| ▶ play → ■ stop           | 4.3px — the five bar controls after it, including **+ row**                    |
+
+Four things worth keeping, because none of them is guessable from the fix:
+
+- **The reserve is a property of the _ring_, not of the value in it.**
+  `HOLD_LABEL_CHARS` and `MORPH_LABEL_CHARS` are derived from the rings
+  themselves, so a longer hold added to `HOLD_BARS` widens the chip rather than
+  quietly restarting the shift on the one row that reaches it.
+- **A `<button>` is `border-box` in every UA stylesheet**, so a width in `ch`
+  reserves room for the text _and_ the padding it sits in, and comes up two
+  characters short. That is the whole of why the first reserve looked like it
+  simply did not work. `--chip-pad` exists so the two cannot drift.
+- **A glyph ring gets a fixed width, not a floor.** The transition chip's ring
+  is drawn from whatever font has those characters, so no `ch` count describes
+  it — at a fixed width the layout stops asking how wide the glyph is at all.
+- **The rename field is laid over the face, not swapped for it.** Out of flow it
+  contributes no width, which is what the stylesheet had claimed all along and
+  could not deliver from inside the flow.
+
+And the cost, which is real: the feet are six controls, three of them now held
+at a fixed width, and together they come to more than the card's floor — so the
+cards come out very nearly equal. The variety they used to have was not the
+names, it was the hold chip being three characters wider on some rows than
+others. That is the shift, not the feature. Cards that say something by their
+width want the _hold_ to set it, which is _Seeing the shape_ below.
+
 ### Performance: the boundary is the only cost
 
 Steady-state playback does not care how long the strip is. `VideoPump.due()`
@@ -663,6 +709,13 @@ at 0.5 with the row's whole step arriving thirty frames after the row did.
   ring stepped moved the ✎ and the ⧉ under the pointer that was stepping it,
   which is the rule the card's own rename field already states.
 
+  **One character each was not enough**, and finding out why is _Nothing in the
+  tray moves_ above. These glyphs come from whatever font has them, so they are
+  one character and six different widths; the `min-width: 1.4em` this shipped
+  with sat under the widest of them and left a 1.1px step, which is the same
+  shift as the 6.6px one next to it and only quieter. The chip holds a fixed
+  width now, so the layout never asks how wide the glyph is.
+
   Worth keeping, because it is about the harness and not the feature: naming the
   controls `data-act` made `traycheck.mjs` robust to layout edits and, in the
   same stroke, blind to this. `element.click()` does no hit-testing, so it
@@ -825,6 +878,15 @@ neither was obvious from the design.
   would say more than any chip does. Cheap, and deliberately not done yet:
   proportional widths and a horizontal scroll fight, and that wants a decision
   about what the tray is when the piece is four minutes long.
+
+  This is now _exactly_ true rather than nearly so, and the reason is worth
+  having: the widths the cards used to differ by were the hold chip's own label
+  length, which is to say they were the shift _Nothing in the tray moves_ above
+  removed. Nothing was lost — a card three characters wider because it says
+  `≈16 bars` instead of `hold` was never the rhythm being asked for here. What
+  this wants is a width the hold _sets_, which is a different mechanism and
+  compatible with the reserves: an explicit card width leaves the chips inside
+  it to fit, rather than the chips deciding it from underneath.
 
 None of these change the design above; they are what an hour of using it says
 about the order to build the rest in.
