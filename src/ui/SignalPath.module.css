@@ -112,11 +112,6 @@
      the panel's background in every state. */
   box-shadow: 0 -14px 0 var(--app-bg);
 }
-/* The strip's own padding is the gap under it now, so the blurb takes the one
-   the heading's margin used to give it. */
-.stageRow .stageBlurb {
-  margin-top: 4px;
-}
 /* The stage outranks the group headers under it, so it has to win on size as
    well as color — at 10px it was the smallest thing on screen while naming the
    largest division in the panel. */
@@ -128,12 +123,13 @@
   text-transform: uppercase;
   color: var(--accent);
 }
-/* The stage's role, shown while it's open — the same line the diagram's box
-   carries, so the panel repeats what you clicked through. Held to one line: at
-   the sidebar's width every one of the five wraps to two, which is 19px spent
-   on a caption directly under the word it is captioning. The element carries
-   the whole line as its title, and so does the map box you clicked to get here,
-   so nothing is only knowable from the part that got cut. */
+/* The stage's role — the same line the diagram's box carries, so the panel
+   repeats what you clicked through. The bench's alone now (see StageHead's
+   `blurb`): it mounts six of these at once and has the width to spare, where
+   the spine has a tinted strip already saying which stage you pressed. Still
+   held to one line, because even at 664px the longer of them wrap. The element
+   carries the whole line as its title, and so does the map box you clicked to
+   get here, so nothing is only knowable from the part that got cut. */
 .stageBlurb {
   color: var(--fg3);
   margin: 0 0 4px;

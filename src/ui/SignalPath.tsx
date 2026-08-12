@@ -79,6 +79,17 @@ function StageHead(props: {
   // it would lie: the bench folds nothing, and while a filter is live every
   // matching stage is shown regardless of which one is open.
   onClose?: () => void
+  // Whether the stage's role is spelled out under its name. The bench does,
+  // because it mounts every stage at once and the line is what tells six
+  // headings apart at a glance, and because at 664px it has the width to spare.
+  //
+  // The spine no longer does. It is a caption directly under the word it
+  // captions, clamped to one line because at the sidebar's width all five of
+  // them wrap — and since the heading became a tinted strip that is unmistakably
+  // the stage you pressed on the map, it was 19px saying what the strip says.
+  // Nothing is lost with it: the full line is the title of the name button
+  // beside it, and of the map box the click came from.
+  blurb?: boolean
 }) {
   const { node } = props
   return (
@@ -120,9 +131,11 @@ function StageHead(props: {
           </button>
         )}
       </div>
-      <div className={styles.stageBlurb} title={node.blurb}>
-        {node.blurb}
-      </div>
+      {props.blurb !== true ? null : (
+        <div className={styles.stageBlurb} title={node.blurb}>
+          {node.blurb}
+        </div>
+      )}
     </>
   )
 }
@@ -400,6 +413,7 @@ function Bench(props: {
                   countHint="click to bring the stage up"
                   onName={() => props.onOpen(node.name)}
                   onCount={() => jump(node.name)}
+                  blurb
                 />
                 {/* The picker rides with the heading rather than in a card of
                   its own: it is what the stage is fed by, not one more module

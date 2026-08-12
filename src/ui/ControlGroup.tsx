@@ -379,8 +379,14 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   // returns the same three answers, the memo block holds, and React skips the
   // rows entirely — which is the difference between 19ms a write and a frame
   // that never notices.
-  const touched = useControlReading(c =>
-    group.sliders.some(s => !atRest(c[s.key], s.key)),
+  // A count, not a `some` — the header shows it (Section's `dot`), and the same
+  // sum over the same predicate is what the stage's heading counts, so the two
+  // agree by construction. It costs a re-render of the group's rows on each
+  // *crossing* of stock, where the boolean only paid on the first; a drag
+  // crosses once, and `fineTouched` below has always been a count on the same
+  // terms, so the reading budget this block is written for is unchanged.
+  const touched = useControlReading(
+    c => group.sliders.filter(s => !atRest(c[s.key], s.key)).length,
   )
   const fineTouched = useControlReading(
     c => fine.filter(s => !atRest(c[s.key], s.key)).length,
@@ -426,7 +432,7 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
               row's own ↺ follows, and the reason neither costs anything on the
               majority of headers that are still at stock. It sits before the
               dice because the pair reads as "back / further" in that order. */}
-          {touched ? (
+          {touched > 0 ? (
             <button
               className={styles.revert}
               title={`put this stage's controls back to stock, and leave the rest of the look alone (ctrl+z takes it back)`}

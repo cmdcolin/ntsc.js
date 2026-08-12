@@ -67,7 +67,11 @@
   letter-spacing: normal;
   text-transform: none;
 }
-/* section holds a control that's off its default */
+/* How many of the section's controls are off their default, in the panel's
+   amber for that — the same `• N` the stage heading above it wears
+   (SignalPath.module.css .phaseDot), down to dropping the heading's tracking so
+   the number reads as a number rather than as more heading. */
 .dot {
   color: var(--edit);
+  letter-spacing: normal;
 }

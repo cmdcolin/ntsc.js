@@ -67,8 +67,16 @@ export function Section(props: {
   // Filtering reaches inside this section, so a match must not stay hidden
   // behind a collapsed header. Off for sections holding nothing filterable.
   openOnFilter?: boolean
-  // Some control inside sits off its default.
-  dot?: boolean
+  // How many controls inside sit off their default — 0 for none, and then the
+  // header wears nothing.
+  //
+  // A count rather than the bare bullet it used to be, in the same `• N` the
+  // stage's own heading wears a few pixels above (SignalPath.module.css
+  // .phaseDot) and off the same arithmetic, so the counts under a stage add up
+  // to the one on it. A stage opens with its groups folded, and nine headers
+  // that each said only "something in here" left you opening them one at a time
+  // to find which held the three the stage was claiming.
+  dot?: number
   // What the section is set to, for a section whose whole state reads in a few
   // words — shown only while it is folded, where it is the reason folding is
   // free rather than a thing you have to open the section to check.
@@ -106,7 +114,9 @@ export function Section(props: {
         >
           <span className={styles.headTitle}>
             {props.title}
-            {props.dot === true ? <span className={styles.dot}> •</span> : null}
+            {props.dot === undefined || props.dot === 0 ? null : (
+              <span className={styles.dot}> • {props.dot}</span>
+            )}
           </span>
           {shown || props.summary === undefined ? null : (
             <span className={styles.summary} title={props.summary}>
