@@ -204,8 +204,18 @@ describe('the pending queue', () => {
     expect(readPendingVotes()).toEqual([two])
   })
 
+  // Seeded in one write, then one vote queued on top of it. It used to be 1005
+  // `queueVote` calls, and each of those reads the whole queue back and rewrites
+  // it — so the loop was quadratic in the cap and took 1.5s on its own, which is
+  // close enough to vitest's 5s timeout that the test failed intermittently when
+  // the rest of the suite was competing for the machine. One enqueue over a
+  // full queue is what the cap is about anyway.
   it('caps the queue at the newest votes', () => {
-    for (let i = 0; i < 1005; i++) queueVote(aVote({ at: i }))
+    localStorage.setItem(
+      'ntsc.js_pending_votes',
+      JSON.stringify(Array.from({ length: 1004 }, (_, i) => aVote({ at: i }))),
+    )
+    queueVote(aVote({ at: 1004 }))
     const kept = readPendingVotes()
     expect(kept).toHaveLength(1000)
     expect(kept[0].at).toBe(5)
