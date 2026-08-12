@@ -97,16 +97,9 @@ export class Sources {
 
   constructor(host: SourcesHost) {
     this.host = host
-    this.texA = this.createTexA(ACTIVE_WIDTH, ACTIVE_HEIGHT)
-    this.texB = host.device.createTexture({
-      size: [ACTIVE_WIDTH, ACTIVE_HEIGHT],
-      format: 'rgba8unorm',
-      usage:
-        GPUTextureUsage.TEXTURE_BINDING |
-        GPUTextureUsage.COPY_DST |
-        GPUTextureUsage.RENDER_ATTACHMENT |
-        GPUTextureUsage.STORAGE_BINDING,
-    })
+    this.texA = this.createSlotTex(ACTIVE_WIDTH, ACTIVE_HEIGHT)
+    // B is always raster-sized, so unlike A's this one is made once.
+    this.texB = this.createSlotTex(ACTIVE_WIDTH, ACTIVE_HEIGHT)
   }
 
   // What the chain reads: two views and the scalars that describe the slots.
@@ -140,7 +133,11 @@ export class Sources {
     return this.enabledB
   }
 
-  private createTexA(w: number, h: number): GPUTexture {
+  // A slot's staging texture. Both slots get the same usage set, including the
+  // STORAGE_BINDING neither needs on the bitmap path — the descriptors were
+  // written out separately and were identical anyway, so the shared one says
+  // once that a slot texture is a slot texture.
+  private createSlotTex(w: number, h: number): GPUTexture {
     return this.host.device.createTexture({
       size: [w, h],
       format: 'rgba8unorm',
@@ -268,7 +265,7 @@ export class Sources {
     this.aspectA = aspect
     if (this.texA.width !== w || this.texA.height !== h) {
       this.texA.destroy()
-      this.texA = this.createTexA(w, h)
+      this.texA = this.createSlotTex(w, h)
       // The view held by compose's bind group belongs to the destroyed texture.
       this.host.onResizeA()
     }
