@@ -522,18 +522,39 @@ was dragged, with nothing on the row saying why — dialing the gate on now lift
 the freeze, the same rule a claim and a restart in the bay already follow, and
 `panelcheck.mjs` drives every state the row can be in.
 
+Shipped since: **the far end takes a held look**, which turns the same gate into
+a hard flip between two looks — `⧉ hold this look` parks the resting board at the
+other side and the length row becomes a duty, because the two ends of a flip are
+peers where a stab's are not. Worth knowing for anything built near it: the
+_hard_ flip is the affordable one and a crossfade is not, since the filter bank
+is redesigned whenever a filter control moves — a cut pays that on the two edges
+of a cycle, a fade would pay it every frame. That is also why this is the gate's
+job and not a mod slot's: a routing drives one `ControlKey`, and two looks is
+every key at once.
+
 Two things it is still missing, both surfaced by pulling on "the stabs slider
 does not work":
 
-- **It does not travel with the look.** The gate lives in `localStorage` and
-  nowhere else — not in `?mod=`, not in a preset's routings, not in a saved
-  look. A link, a preset or a saved profile therefore drops the most visible
-  thing the bay does, and whoever opens it sees a still picture where the board
-  had been cutting four times a second. `useModSlots.ts` already carries the
-  reasoning for why it belongs in both — a stab train is part of the look in a
-  way a freeze is not — so what is owed is the schema change to `?mod=` and to
-  the preset routings, with readers that tolerate its absence the way `readStab`
-  already tolerates a junk entry.
+- **It does not travel with the look, and now there is more of it not to
+  travel.** The gate lives in `localStorage` and nowhere else — not in `?mod=`,
+  not in a preset's routings, not in a saved look. A link, a preset or a saved
+  profile therefore drops the most visible thing the bay does, and whoever opens
+  it sees a still picture where the board had been cutting four times a second.
+  `useModSlots.ts` already carries the reasoning for why it belongs in both — a
+  stab train is part of the look in a way a freeze is not — so what is owed is
+  the schema change to `?mod=` and to the preset routings, with readers that
+  tolerate its absence the way `readStab` already tolerates a junk entry.
+
+  The held-look pass raised the stakes and complicated the schema in the same
+  stroke. A gate whose far end is a look is not two numbers any more, it is two
+  numbers and a whole second board — so a link carrying one would roughly double
+  the query string, and a "look" someone shares is now genuinely two looks. The
+  shape to reach for is probably the same one the strip uses for a row: store
+  the far board as a diff against stock, since a held look is usually a handful
+  of controls off it and `writeProfileParams` already knows how to write that.
+  Storing a preset *name* is the tempting cheap version and it is wrong for the
+  same reason `Stab.to` is a board rather than a name — the look you hold is
+  usually one you dialed, not one somebody authored.
 - **No knob can reach it.** The row passes `sync` but no `midi`, so the one
   lever here described as "the kill switch a bender keeps a thumb on"
   (`signal/stab.ts`) is mouse-only, while the motion fader an inch away is a

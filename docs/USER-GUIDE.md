@@ -109,6 +109,20 @@ time, so the look gets poked into a clean picture rather than running flat out.
 Phosphor, the loops and the tape bin keep running through the flip, so a stab
 leaves a trail behind it.
 
+Clean is only the gate's default far end. **⧉ hold this look** parks the board
+you're on at the other side of it, and the gate cuts between that and whatever
+you dial next — two looks, hard-panned on the beat, no fade. Dial a look, hold
+it, dial the second one against it; the sliders always belong to the live one,
+and the held look is a copy nothing moves. The length row becomes a **share**
+while a look is held, because what you want held still across a tempo change is
+the split, not the milliseconds — 50 is even, and pushing it either way makes one
+look the state and the other the interruption. **× drop** puts the gate back to
+stabbing clean.
+
+There is no fade between two looks, and that is a limit rather than a taste
+call: the filter bank is redesigned whenever a filter control moves, so a
+crossfade would redesign it every frame where a cut redesigns it twice a cycle.
+
 **Sound** hangs off Receiver, because that's where audio is patched in. Bass
 lurches the frame, level tears line hold. Pick something under **♪** first or
 the box opens onto nothing.
