@@ -2,6 +2,32 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.26.3](https://github.com/cmdcolin/ntsc.js/compare/v0.26.2...v0.26.3) - 2026-08-12
+
+### Features
+- *(ui)* [`bcbbb38`](https://github.com/cmdcolin/ntsc.js/commit/bcbbb380e44a73255d1b5db16c0d6ac45c3727c9) a third roll, for what is moving rather than where it rests
+- *(ui)* [`8f9ce7a`](https://github.com/cmdcolin/ntsc.js/commit/8f9ce7ae0ef7f1f6baf7aaa9a5c39cdbceb1b1e5) the help dialog becomes an about box — guide, source, version
+
+### Fixes
+- *(ui)* [`459efb4`](https://github.com/cmdcolin/ntsc.js/commit/459efb4c18081cf31523eb5226f717c16b798824) a slot head says it is driving, and the name looks like the jump
+- *(ui)* [`418aa57`](https://github.com/cmdcolin/ntsc.js/commit/418aa579b011820211542e6f6400ef1b26d4bf1d) the open stage's box gets its top edge back
+- *(test)* [`d79d65e`](https://github.com/cmdcolin/ntsc.js/commit/d79d65e36f7a74aaebba69a02e5b9a3704d9767c) the vote-queue cap test was a timeout waiting to happen
+- *(test)* [`bcd7acb`](https://github.com/cmdcolin/ntsc.js/commit/bcd7acb573049516b647a83d269372bd270bc4de) panelshots can reach the teletype editor again, and one state at a time
+
+### Refactor
+- *(ui)* [`9d573d4`](https://github.com/cmdcolin/ntsc.js/commit/9d573d4801b156baea0504c0569a1e8000c7dc05) the runs go back to one word, and the card keeps the name
+- *(ui)* [`166bfbb`](https://github.com/cmdcolin/ntsc.js/commit/166bfbb252d39aab79a3a71bec0e923c76a47ac0) one rail, for every block that hangs off the thing above it
+- *(ui)* [`26da467`](https://github.com/cmdcolin/ntsc.js/commit/26da467add914e650c45df876bc76773648e8a78) one picker ladder for both decks, not two kept in step by hand
+- *(ui)* [`750dc30`](https://github.com/cmdcolin/ntsc.js/commit/750dc30e615839c298b56e8f0f5324c0c2982664) the frozen box a pad drags against is a hook, not a habit
+- *(ui)* [`7788165`](https://github.com/cmdcolin/ntsc.js/commit/778816529dd1566c51921cfdb69a7d2272ef9b88) the URL hook takes a session instead of restating one
+- *(gpu)* [`255127b`](https://github.com/cmdcolin/ntsc.js/commit/255127bffd5fe6e30407573976969f1cf7ae9dbf) one slot-texture descriptor, since both slots wanted the same one
+
+### Documentation
+- [`a766354`](https://github.com/cmdcolin/ntsc.js/commit/a76635412dd8fb3941dc1f975b20b21d57060fb5) building the pipelines costs 9ms, so the async version was never worth it
+
+### Tests
+- *(ui)* [`8d8c93f`](https://github.com/cmdcolin/ntsc.js/commit/8d8c93f6018732a3602ebc526f98476a757340e6) panelshots watches an open stage, and one bad state stops taking the suite with it
+
 ## [0.26.2](https://github.com/cmdcolin/ntsc.js/compare/v0.26.1...v0.26.2) - 2026-08-12
 
 ### Features
