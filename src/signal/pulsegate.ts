@@ -30,6 +30,21 @@ export interface PulsePlan {
   // pulse, so the one number a set wants to hold still — how hard the hit reads
   // — is the one that moves when you change the tempo.
   ms: number
+  // The pulse as a share of the cycle instead, where the rule above is the wrong
+  // one. Set, it wins outright and `ms` is left alone underneath, so a gate can
+  // be dialed either way round and come back to the length it had.
+  //
+  // The rule above holds for a pulse poked into a resting state — a stab into a
+  // clean picture, a flash through a dark screen. There the two sides of the
+  // cycle are not peers: one is the state, the other is the hit, and how hard
+  // the hit reads is what a set wants to hold still while the tempo moves.
+  //
+  // It is exactly wrong for a gate alternating between two ends of equal
+  // standing, which is what the stab becomes once its far end is a look rather
+  // than stock. There the thing to hold still is the *ratio* — half and half
+  // stays half and half at any tempo — and an absolute length would make an even
+  // flip drift into a stutter every time the clock changed.
+  duty?: number
 }
 
 export class PulseGate {
@@ -46,11 +61,16 @@ export class PulseGate {
       return true
     }
     const period = 1000 / plan.hz
+    // A share of the cycle where one is asked for, the absolute length
+    // otherwise. Resolved here rather than by the caller because the period is
+    // the gate's own number — a caller computing `duty * 1000 / hz` would be
+    // deriving it a second time, off a rate that may since have been clocked.
+    const width = plan.duty === undefined ? plan.ms : plan.duty * period
     const cycle = Math.floor(nowMs / period)
     if (cycle !== this.cycle) {
       this.cycle = cycle
       return true
     }
-    return nowMs % period < plan.ms
+    return nowMs % period < width
   }
 }

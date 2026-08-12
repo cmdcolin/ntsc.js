@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 
 import {
+  DEFAULT_DUTY,
   EMPTY_SLOT,
+  gatePlan,
   gateRate,
   normalizeSlots,
   readStab,
@@ -89,11 +91,20 @@ export function useModSlots(
   }, [engine, active])
 
   // Its own effect, and its own object each time: the engine reads the plan every
-  // frame and holds no state but the cycle count, so a fresh `{hz, ms}` is the
-  // whole update and dialing the length mid-run does not restart the train.
+  // frame and holds no state but the cycle count, so a fresh plan is the whole
+  // update and dialing the length mid-run does not restart the train.
   useEffect(() => {
-    engine?.setStab({ hz: stabHz, ms: stab.ms })
-  }, [engine, stabHz, stab.ms])
+    engine?.setStab(gatePlan(stab, stabHz))
+  }, [engine, stab, stabHz])
+
+  // The far board, in an effect of its own rather than folded into the one
+  // above: a held look is ~230 numbers that change when you hold one and never
+  // between, while the plan above changes on every drag of the rate row. Keyed
+  // on `stab.to` alone, so dialing the gate does not re-copy the board into the
+  // engine sixty times across a drag.
+  useEffect(() => {
+    engine?.setStabBoard(stab.to ?? null)
+  }, [engine, stab.to])
 
   // Coalesced: a depth or rate slider in the row editor calls this on every
   // pointer move, and a synchronous localStorage write per frame of a drag is
@@ -146,6 +157,33 @@ export function useModSlots(
     stab,
     stabHz,
     setStab: writeStab,
+    // Hold the board that is on screen at the far end of the gate.
+    //
+    // `getControls()` rather than anything React is holding, and that is the
+    // load-bearing choice: it hands back the *resting* board, which is the look
+    // you dialed in — not the one this instant's frame was rendered from, which
+    // is whatever the bay's waves and the gate itself were doing to it. Holding
+    // the rendered board would capture an LFO mid-swing and freeze it there, so
+    // the far end of every flip would be one arbitrary frame of a wobble.
+    //
+    // It arrives with a duty, because a hold is a request to flip and a flip
+    // dialed in milliseconds is the wrong number (see PulsePlan.duty). The
+    // length underneath is left alone, so dropping the look comes back to the
+    // stab length that was there before.
+    holdLook: () => {
+      const board = engine?.getControls()
+      if (board === undefined) return
+      writeStab({ ...stab, to: board, duty: stab.duty ?? DEFAULT_DUTY })
+    },
+    // Back to stabbing stock, keeping the rate and the length. The duty goes
+    // with the board — it is the flip's number, and leaving it behind would put
+    // the gate one reload away from a state readStab refuses to load.
+    dropLook: () => {
+      const next = { ...stab }
+      delete next.to
+      delete next.duty
+      writeStab(next)
+    },
     cycleStabSync: () => {
       const next = withNextStabSync(stab)
       writeStab(next)

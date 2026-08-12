@@ -1,17 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
+import { DEFAULT_CONTROLS } from '../controls'
 import { SLIDER_BY_KEY } from './controls'
 import { SYNC_DIVISIONS } from './midi'
 import {
   DEFAULT_STAB,
+  DUTY_MAX,
+  DUTY_MIN,
   EMPTY_SLOT,
   N_SLOTS,
   RATE_MAX,
   STAB_HZ_MAX,
   STAB_MS_MAX,
   bayLoad,
+  gateFlips,
+  gatePlan,
   gateRate,
   normalizeSlots,
+  readBoard,
   readStab,
   routingsToSlots,
   slotsToRoutings,
@@ -273,6 +279,87 @@ describe('what the bay is holding', () => {
     expect(bayLoad(bay(slot()), GATE).say).toBe(
       '1 slot patched, and the stab gate running',
     )
+  })
+
+  // The box on the map is the only thing pointing at either gate, so it has to
+  // name the one that is running: a board flipping between two full looks
+  // described as "the stab gate" is the drawing describing the older feature.
+  it('says which gate is running once a look is held', () => {
+    const flip = { ...GATE, to: DEFAULT_CONTROLS, duty: 0.5 }
+    expect(bayLoad(bay(), flip).say).toBe(
+      'the look flipping against a held one',
+    )
+    expect(bayLoad(bay(slot()), flip).say).toBe(
+      '1 slot patched, and the look flipping against a held one',
+    )
+    // Still one thing, however it is dialed — the gate holds no slot either way.
+    expect(bayLoad(bay(), flip).n).toBe(1)
+  })
+})
+
+describe('the look at the far end of the gate', () => {
+  // Stock is a legitimate far board, so `to: DEFAULT_CONTROLS` is a *flip* — the
+  // difference between it and a stab is that the flip's board is pinned where a
+  // stab's follows whatever stock becomes.
+  const held = { ...DEFAULT_CONTROLS, crtGrain: 0.42 }
+
+  it('reads a held look back as it was written', () => {
+    const written = { hz: 2, ms: 60, to: held, duty: 0.5 }
+    expect(readStab(JSON.parse(JSON.stringify(written)))).toEqual(written)
+  })
+
+  it('fills a held look forward from stock', () => {
+    // A look held by an older build, before some control existed. Left
+    // undefined it would reach the engine as a NaN uniform and take the picture
+    // out on the far half of every cycle.
+    const stored = readStab({ hz: 2, ms: 60, to: { crtGrain: 0.42 } })
+    expect(stored.to).toEqual(held)
+  })
+
+  it('drops junk in the held look rather than the look itself', () => {
+    const stored = readStab({
+      hz: 2,
+      ms: 60,
+      to: { crtGrain: 0.42, phosphor: 'green', notAControl: 7 },
+    })
+    expect(stored.to?.crtGrain).toBe(0.42)
+    expect(stored.to?.phosphor).toBe(DEFAULT_CONTROLS.phosphor)
+    expect(stored.to).not.toHaveProperty('notAControl')
+  })
+
+  it('keeps "no board" and "a board that is stock" apart', () => {
+    // readBoard hands back null for junk rather than stock, because stock is a
+    // valid far board: a corrupted entry that quietly became a working flip to
+    // clean would be a gate nobody asked for.
+    expect(readBoard('a look')).toBeNull()
+    expect(readBoard({})).toEqual(DEFAULT_CONTROLS)
+    expect('to' in readStab({ hz: 2, ms: 60, to: 'a look' })).toBe(false)
+  })
+
+  it('will not carry a duty with no look to flip to', () => {
+    // The state `gatePlan` refuses to build a plan from — a duty on a stab would
+    // make its length row read 60ms while the gate ran at half the cycle.
+    const stored = readStab({ hz: 2, ms: 60, duty: 0.5 })
+    expect('duty' in stored).toBe(false)
+    expect(gatePlan(stored, 2)).toEqual({ hz: 2, ms: 60 })
+  })
+
+  it('sends the duty to the engine only while a look is held', () => {
+    expect(gatePlan({ hz: 2, ms: 60, to: held, duty: 0.25 }, 4)).toEqual({
+      hz: 4,
+      ms: 60,
+      duty: 0.25,
+    })
+    // The length rides along underneath either way, so dropping the look comes
+    // back to the stab length that was there before.
+    expect(gatePlan({ hz: 2, ms: 60, to: held }, 4)).toEqual({ hz: 4, ms: 60 })
+    expect(gateFlips({ hz: 2, ms: 60 })).toBe(false)
+    expect(gateFlips({ hz: 2, ms: 60, to: held })).toBe(true)
+  })
+
+  it('clamps a stored duty into range', () => {
+    expect(readStab({ hz: 2, ms: 60, to: held, duty: 9 }).duty).toBe(DUTY_MAX)
+    expect(readStab({ hz: 2, ms: 60, to: held, duty: -1 }).duty).toBe(DUTY_MIN)
   })
 })
 

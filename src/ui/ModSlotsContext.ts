@@ -34,6 +34,13 @@ export interface ModSlotsApi {
   // lock, so the tempo moving carries the train with it.
   stabHz: number
   setStab: (stab: Stab) => void
+  // Hold the board on screen at the far end of the gate, turning the stab into a
+  // hard flip between two looks — and drop it again, which puts the gate back to
+  // stabbing stock. Verbs rather than `setStab({...stab, to})` from the row,
+  // because what gets captured is the engine's resting board and the bay is
+  // where the engine is reachable from (see useModSlots.holdLook).
+  holdLook: () => void
+  dropLook: () => void
   // Walk the stab rate through the clock divisions and back to free-running.
   cycleStabSync: () => void
   // The tempo a clock-locked slot is running against — MIDI clock, or the

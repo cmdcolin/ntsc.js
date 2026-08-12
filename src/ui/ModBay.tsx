@@ -4,7 +4,10 @@ import { cx } from './cx'
 import { SYNC_DIVISIONS } from './midi'
 import styles from './ModBay.module.css'
 import {
+  DEFAULT_DUTY,
   DEFAULT_STAB,
+  DUTY_MAX,
+  DUTY_MIN,
   MOD_SOURCES,
   RATE_MAX,
   RATE_MIN,
@@ -12,6 +15,7 @@ import {
   STAB_HZ_MAX,
   STAB_MS_MAX,
   STAB_MS_MIN,
+  gateFlips,
   slotRate,
 } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
@@ -26,17 +30,26 @@ import type { Tempo } from './useTempo'
 
 // The stab gate: the one thing in this section that is not a slot. It drives the
 // whole board rather than one control, so there is nothing to point at a target —
-// which is also why it needs no depth. Two numbers and the beat.
+// which is also why it needs no depth. Two numbers, the beat, and what is at the
+// far end of it.
 //
 // Directly under the tempo row because that is what it wants most: "twice a
 // second" is a musical statement, so the ♩ on the rate is the point rather than a
 // refinement, and the row that provides the beat is right above it.
+//
+// Every row here says one of two things depending on whether a look is held at
+// the far end, because the gate is genuinely two features and they want
+// different words and a different length. Written as one component rather than
+// two, so the state a hold puts the gate into cannot drift from the state a drop
+// takes it out of — and because the rate row is the same row either way.
 function StabRows() {
-  const { stab, stabHz, setStab, cycleStabSync, bpm } = useModSlotsApi()
+  const { stab, stabHz, setStab, cycleStabSync, holdLook, dropLook, bpm } =
+    useModSlotsApi()
+  const flips = gateFlips(stab)
   return (
     <>
       <Slider
-        label="stabs"
+        label={flips ? 'flips' : 'stabs'}
         unit="/s"
         min={0}
         max={STAB_HZ_MAX}
@@ -45,7 +58,11 @@ function StabRows() {
         // the same thing a slot's rate row shows. The dialed Hz stays underneath.
         value={stabHz}
         defaultValue={DEFAULT_STAB.hz}
-        help="Cuts the whole look out and pokes it back in, this many times a second — a clean picture with the fault stabbed into it, rather than the fault running continuously. 0 is off. What it does not do is fade: each stab is a hard cut to stock and back, so the picture between them is the clean signal, still carrying the phosphor trail and the feedback the last stab put there. The look itself is untouched — every slider stays where you left it, and so does where you are looking from. Lock it to the beat with ♩."
+        help={
+          flips
+            ? 'Cuts the whole board between the look you are dialing and the one you held, this many times a second. 0 is off. It does not fade: each side arrives as a hard cut, which is the only version of this the signal path can afford — a fade would redesign the filter bank every frame, where a flip does it twice a cycle. Everything with memory runs straight through the flip, so the phosphor trail and the feedback each side leaves are still there when the other one lands. Lock it to the beat with ♩.'
+            : 'Cuts the whole look out and pokes it back in, this many times a second — a clean picture with the fault stabbed into it, rather than the fault running continuously. 0 is off. What it does not do is fade: each stab is a hard cut to stock and back, so the picture between them is the clean signal, still carrying the phosphor trail and the feedback the last stab put there. The look itself is untouched — every slider stays where you left it, and so does where you are looking from. Lock it to the beat with ♩.'
+        }
         sync={{
           label:
             stab.syncDiv === undefined
@@ -59,7 +76,22 @@ function StabRows() {
       {/* Hidden while the gate is off rather than sitting there inert: with no
           stabs there is nothing for a length to be the length of, and this
           section already asks a lot of a first read. */}
-      {stab.hz === 0 ? null : (
+      {stab.hz === 0 ? null : flips ? (
+        /* A share of the cycle rather than a length in ms, because the two ends
+           of a flip are peers and what a set wants to hold still across a tempo
+           change is the ratio — PulsePlan.duty carries the whole argument. */
+        <Slider
+          label="live look's share"
+          unit="%"
+          min={DUTY_MIN * 100}
+          max={DUTY_MAX * 100}
+          step={1}
+          value={(stab.duty ?? DEFAULT_DUTY) * 100}
+          defaultValue={DEFAULT_DUTY * 100}
+          help="How much of each cycle sits on the look you are dialing, with the held one taking the rest. A share rather than a length, so dialing the rate or changing the tempo leaves the split where you put it: at 50 the two get equal time, and pushing it either way makes one look the state and the other the interruption — which at the far end is the same gesture as a stab, with your own look in place of clean."
+          onChange={pct => setStab({ ...stab, duty: pct / 100 })}
+        />
+      ) : (
         <Slider
           label="stab length"
           unit="ms"
@@ -72,6 +104,71 @@ function StabRows() {
           onChange={ms => setStab({ ...stab, ms })}
         />
       )}
+      <FarEnd
+        flips={flips}
+        // Whether it is actually cutting, which the sentence below has to know:
+        // a look can be held with the rate still at 0, and "flipping against a
+        // held look" over a still picture is the bay claiming something the
+        // screen plainly is not doing. The dialed rate rather than the resolved
+        // one, so the freeze reads as a freeze and not as a gate that was never
+        // set up — the strip above is where ❚❚ is explained and undone.
+        running={stab.hz > 0}
+        onHold={holdLook}
+        onDrop={dropLook}
+      />
+    </>
+  )
+}
+
+// What sits at the far end of the gate, and the one gesture that changes it.
+//
+// A button rather than a picker, and that is the design decision worth stating:
+// the look you want to flip against is almost always the one you were just
+// looking at, so the gesture is "hold this" — dial a look, hold it, dial the
+// other one against it. A dropdown could only ever offer what somebody else
+// authored, and every preset is reachable this way anyway, by clicking the chip
+// and then holding it.
+//
+// It reads as a statement about the gate rather than as a control, because that
+// is what it is: one line saying which of two things this gate is doing, with
+// the way to change it on the end of it.
+function FarEnd(props: {
+  flips: boolean
+  running: boolean
+  onHold: () => void
+  onDrop: () => void
+}) {
+  return (
+    <>
+      <div className={ui.hint}>
+        {!props.flips
+          ? 'The far end is stock, so each stab pokes a clean picture through. Hold a look there and the gate cuts between the two instead.'
+          : props.running
+            ? 'Cutting against a held look. The sliders are still the live one — the held look is a copy, and nothing you do here moves it.'
+            : 'A look is held at the far end, and the rate above is at 0 — set it and the board starts cutting between the two.'}
+      </div>
+      <div className={styles.farEnd}>
+        <button
+          className={ui.btn}
+          title={
+            props.flips
+              ? 'replace the held look with the one on screen now'
+              : 'hold the look on screen now at the far end of the gate — then dial a different one and the gate cuts between them'
+          }
+          onClick={props.onHold}
+        >
+          {props.flips ? '⧉ re-hold this look' : '⧉ hold this look'}
+        </button>
+        {!props.flips ? null : (
+          <button
+            className={cx(ui.btn, styles.dropHeld)}
+            title="drop the held look and go back to stabbing stock — the rate and the beat lock stay"
+            onClick={props.onDrop}
+          >
+            × drop
+          </button>
+        )}
+      </div>
     </>
   )
 }
@@ -198,9 +295,11 @@ export function ModBay(props: {
           same instruction on a bay holding nothing. What is left is the one
           thing in here that is not a routing. */}
       <div className={ui.hint}>
-        The stabs below are the one thing in the bay that drives the whole board
-        rather than one control: it cuts the look out and pokes it back in on
-        the beat, so the picture between stabs is the clean signal.
+        The gate below is the one thing in the bay that drives the whole board
+        rather than one control: it cuts between the look you are dialing and a
+        second one on the beat. That second one is stock until you hold a look
+        at the far end of it, so out of the box each cut pokes a clean picture
+        through.
       </div>
       {/* The beat every ♩ in the panel reads, at the top of the section whose
           rates are the ones most often locked to it. Here rather than in MIDI:

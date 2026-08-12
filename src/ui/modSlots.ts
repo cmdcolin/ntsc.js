@@ -7,12 +7,14 @@
 // any control row can claim a slot. All of those need the same rules, and none
 // of them should have to mount a section to get at them.
 
+import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { clamp } from '../math'
 import { SLIDER_BY_KEY } from './controls'
 import { SYNC_DIVISIONS } from './midi'
 
-import type { ControlKey, ModSlot } from '../controls'
+import type { ControlKey, Controls, ModSlot } from '../controls'
 import type { ModSource } from '../signal/modstate'
+import type { StabPlan } from '../signal/stab'
 
 // Eight rather than four: with a ∿ on every control row, a slot is claimed by
 // asking rather than by opening a dedicated panel, and four ran out in about a
@@ -115,6 +117,21 @@ export interface Stab {
   // second" is already a musical statement, so a stab train is the thing in this
   // panel most worth locking to the beat.
   syncDiv?: number
+  // The look at the far end of the gate, or absent for stock — which is what the
+  // gate has always flipped to, and what every session that never holds one
+  // gets. Held here rather than beside the saved looks because it is not a look
+  // you are keeping, it is one end of a gate: it has no name, it is not in the
+  // library, and dropping it puts the gate back to stabbing stock.
+  //
+  // A whole board rather than a preset name on purpose. What you want at the far
+  // end is usually the look you just had — clean is the special case, not the
+  // general one — and a name could only ever point at something authored.
+  to?: Controls
+  // The pulse as a share of the cycle rather than an absolute length, which is
+  // the right number for a flip and the wrong one for a stab — PulsePlan.duty
+  // carries the argument. Absent while the far end is stock, where `ms` is what
+  // the row shows and what the gate runs on.
+  duty?: number
 }
 
 // Off, at a length that reads as a hit rather than a flicker. 60ms is about four
@@ -126,6 +143,33 @@ export const DEFAULT_STAB: Stab = { hz: 0, ms: 60 }
 export const STAB_HZ_MAX = 12
 export const STAB_MS_MIN = 8
 export const STAB_MS_MAX = 400
+
+// The flip's share of the cycle, and where a fresh hold lands: half and half,
+// which is what "flip between two looks" means before you bias it either way.
+// Neither end goes to zero — a gate that spends none of its cycle at one end is
+// a gate that is off, and the rate row is where you say that.
+export const DUTY_MIN = 0.05
+export const DUTY_MAX = 0.95
+export const DEFAULT_DUTY = 0.5
+
+// Whether the gate is flipping between two looks rather than stabbing stock.
+// One predicate rather than `stab.to !== undefined` spelled out at each of the
+// six places that ask, because every one of them is asking the same question and
+// two of them phrase the answer for a human.
+export const gateFlips = (stab: Stab): boolean => stab.to !== undefined
+
+// The gate as the engine takes it: the resolved rate, and the length in whichever
+// of the two ways this gate is dialed. Built here rather than in the hook so the
+// one rule that matters — a duty only rides along while there is a look to flip
+// to — is a testable statement rather than a spread in an effect.
+//
+// A duty left on a gate whose look has been dropped would make the stab's length
+// row a lie: the row would read 60ms while the gate ran at half the cycle.
+export function gatePlan(stab: Stab, hz: number): StabPlan {
+  return gateFlips(stab) && stab.duty !== undefined
+    ? { hz, ms: stab.ms, duty: stab.duty }
+    : { hz, ms: stab.ms }
+}
 
 // What the bay is holding: the number the map's MODULATION box wears its amber
 // for, and the clause that says what the number counts.
@@ -160,6 +204,13 @@ export function bayLoad(slots: readonly UiSlot[], stab: Stab): BayLoad {
   const patched = slots.filter(s => s.target !== '').length
   const gate = stab.hz > 0
   const slotsSay = `${patched} slot${patched === 1 ? '' : 's'} patched`
+  // Which gate it is, because the two do visibly different things and the box on
+  // the map is the only thing pointing at either. "The stab gate running" over a
+  // board flipping between two full looks would be the drawing describing the
+  // feature this gate used to be.
+  const gateSay = gateFlips(stab)
+    ? 'the look flipping against a held one'
+    : 'the stab gate running'
   return {
     n: patched + (gate ? 1 : 0),
     say: !gate
@@ -167,8 +218,8 @@ export function bayLoad(slots: readonly UiSlot[], stab: Stab): BayLoad {
         ? ''
         : slotsSay
       : patched === 0
-        ? 'the stab gate running'
-        : `${slotsSay}, and the stab gate running`,
+        ? gateSay
+        : `${slotsSay}, and ${gateSay}`,
   }
 }
 
@@ -216,6 +267,35 @@ export function withNextStabSync(stab: Stab): Stab {
   return free
 }
 
+// A stored board, or null if it isn't one. Every key is taken from
+// CONTROL_KEYS and defaulted, so a look held before a control existed loads with
+// that control at stock rather than undefined — which would otherwise reach the
+// engine as a NaN uniform and take the picture out on the far half of every
+// cycle. Unknown keys in the stored object are dropped by construction.
+//
+// Null rather than DEFAULT_CONTROLS for junk, and the distinction is the point:
+// stock *is* a valid far board, so "this isn't a board" and "this board is
+// stock" have to stay different answers or a corrupted entry would silently
+// become a working flip to clean.
+export function readBoard(raw: unknown): Controls | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const board = { ...DEFAULT_CONTROLS }
+  for (const k of CONTROL_KEYS) {
+    const v = field(raw, k)
+    if (typeof v === 'number' && Number.isFinite(v)) board[k] = v
+  }
+  return board
+}
+
+// A stored duty, as the patch to spread — the same shape syncDivision hands
+// back, and for the same reason: "not flipping" has to stay an *absent* key
+// rather than an undefined one that survives a JSON round-trip.
+function storedDuty(v: unknown): { duty: number } | null {
+  return typeof v === 'number' && Number.isFinite(v)
+    ? { duty: clamp(v, DUTY_MIN, DUTY_MAX) }
+    : null
+}
+
 // A stored gate, or the default if it isn't one. Field-checked for the same
 // reason readSlot is: localStorage is an untrusted string, and a stored `null`
 // used to take the whole app down at mount.
@@ -223,6 +303,7 @@ export function readStab(raw: unknown): Stab {
   if (typeof raw !== 'object' || raw === null) return DEFAULT_STAB
   const hz = field(raw, 'hz')
   const ms = field(raw, 'ms')
+  const to = readBoard(field(raw, 'to'))
   return {
     hz:
       typeof hz === 'number' && Number.isFinite(hz)
@@ -233,6 +314,10 @@ export function readStab(raw: unknown): Stab {
         ? clamp(ms, STAB_MS_MIN, STAB_MS_MAX)
         : DEFAULT_STAB.ms,
     ...syncDivision(field(raw, 'syncDiv')),
+    // Both only where there is a look to flip to. A duty with no far board is
+    // the state `gatePlan` refuses to build a plan from, so letting one back in
+    // off storage would put that disagreement one reload away.
+    ...(to === null ? null : { to, ...storedDuty(field(raw, 'duty')) }),
   }
 }
 

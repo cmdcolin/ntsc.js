@@ -294,6 +294,12 @@ export class Engine implements EngineApi {
   // has never touched it pays one wall-clock read a frame.
   private stabGate = new StabGate()
   private stab: StabPlan = { hz: 0, ms: 0 }
+  // The board at the far end of that gate. Stock until a look is held there,
+  // which is what turns the stab into a hard flip between two looks — see
+  // `setStabBoard`, and signal/stab.ts for why a flip belongs to the gate rather
+  // than to the bay. Held as our own copy: React never mutates the object it
+  // hands over, and this is read on every gated frame for the life of the patch.
+  private stabBoard: Controls = DEFAULT_CONTROLS
   // What the current stab overwrote, so it can be handed back at the end of the
   // frame (savedBoard.ts). A clean frame saves up to two hundred keys and this
   // runs at frame rate on the thread that is also feeding the GPU, which is the
@@ -1992,6 +1998,19 @@ export class Engine implements EngineApi {
     this.stab = stab
   }
 
+  // The board the gate flips to. null is stock, which is what the gate has
+  // always done and what every session that never holds a look gets.
+  //
+  // Same contract as `setStab` above — written to, never read from, applied and
+  // undone inside one frame — with one addition that matters: this is the *only*
+  // board in the engine that is not the live one, so it is copied on the way in.
+  // Holding React's object would make a look someone held ten minutes ago
+  // vulnerable to anything that ever mutates state in place, and the failure
+  // would be a flip that quietly drifted toward the live board.
+  setStabBoard(board: Controls | null): void {
+    this.stabBoard = board === null ? DEFAULT_CONTROLS : { ...board }
+  }
+
   // Run a transition: break the controls a recipe names, fire `onCut` on the
   // frame the picture is least legible, and heal (signal/fault.ts, and
   // docs/EDITOR.md › _Transitions_ for what a transition is here).
@@ -2015,30 +2034,37 @@ export class Engine implements EngineApi {
     return this.dbgView
   }
 
-  // One frame of the stab gate (signal/stab.ts): on a clean frame, every control
-  // but the five in STOCK_HOLD is swapped for stock and handed back at the end of
-  // the frame. Deliberately *after* applyMod in `render`, so a clean frame is
-  // clean including whatever the LFOs were doing to it — at the far end of the
-  // gate the picture is stock and still, which is what the clean half has to be
-  // for the stab to read as a hit rather than as a change of setting.
+  // One frame of the stab gate (signal/stab.ts): on a gated frame, every control
+  // but the five in STOCK_HOLD is swapped for the far board and handed back at
+  // the end of the frame. Deliberately *after* applyMod in `render`, so a gated
+  // frame is the far board including whatever the LFOs were doing to it — at the
+  // far end of the gate the picture is that board and still, which is what the
+  // other half has to be for the flip to read as a hit rather than as a change
+  // of setting.
   //
-  // The waves still advance on a clean frame (applyMod ran), so the stabs land on
+  // The waves still advance on a gated frame (applyMod ran), so the stabs land on
   // a look that is drifting underneath rather than on the same frozen frame each
   // time.
+  //
+  // `stabBoard` is stock unless a look is held there, so the loop below is
+  // unchanged for every session that has never used the flip — including the
+  // skip, which is still "this key is already where it is going".
   private applyStab(): () => void {
-    const { clean, changed } = this.stabGate.step(this.stab, this.now())
+    const { far, changed } = this.stabGate.step(this.stab, this.now())
     // Only on the two edges of a cycle. Every frame inside one holds the same
     // values, so the bank designed on the way in is still the right bank —
-    // marking each clean frame instead is a FIR redesign at the frame rate, which
-    // is most of what this feature could cost and none of what it needs.
+    // marking each gated frame instead is a FIR redesign at the frame rate, which
+    // is most of what this feature could cost and none of what it needs. It is
+    // also the whole reason a *flip* between two looks is affordable where a
+    // fade between them would not be.
     if (changed) this.filtersDirty = true
-    if (!clean) return NOOP
+    if (!far) return NOOP
     this.stabSaved.begin()
     for (const k of CONTROL_KEYS) {
-      const stock = DEFAULT_CONTROLS[k]
-      if (this.controls[k] === stock || STOCK_HOLD.has(k)) continue
+      const to = this.stabBoard[k]
+      if (this.controls[k] === to || STOCK_HOLD.has(k)) continue
       this.stabSaved.save(this.controls, k)
-      this.controls[k] = stock
+      this.controls[k] = to
     }
     return this.restoreStab
   }

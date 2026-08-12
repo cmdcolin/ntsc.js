@@ -87,3 +87,24 @@ button.target:hover {
     padding: 6px 2px;
   }
 }
+
+/* What is at the far end of the gate: hold a look there, and drop it again.
+   A row of its own rather than two loose buttons, because the pair is one
+   statement — the drop only exists while something is held, so the row goes
+   from one button to two and the hold must not move when it does. */
+.farEnd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0 8px;
+}
+/* Same rule the slot's × follows: destructive, so quiet until pointed at.
+   Louder than that one only in that it carries a word — there is one of these
+   on screen at a time, where the bay can show eight ×s at once. */
+.dropHeld {
+  flex-shrink: 0;
+  color: var(--fg4);
+}
+.dropHeld:hover {
+  color: var(--bad);
+}

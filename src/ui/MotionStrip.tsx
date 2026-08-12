@@ -2,6 +2,7 @@ import { sliderFor } from './controls'
 import { useControlsApi } from './ControlsContext'
 import { cx } from './cx'
 import { MOTION } from './midi'
+import { gateFlips } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
 import styles from './MotionStrip.module.css'
 import { useHold } from './useHold'
@@ -116,8 +117,10 @@ export function MotionStrip(props: {
           !gated
             ? ''
             : stabHz === 0
-              ? 'the stab gate is dialed on and held still'
-              : `the whole look, stabbed in ${rate}× a second`,
+              ? 'the gate is dialed on and held still'
+              : gateFlips(stab)
+                ? `the whole board, flipping against a held look ${rate}× a second`
+                : `the whole look, stabbed in ${rate}× a second`,
           stilled.length === 0 ? '' : `held still: ${stilled.join(', ')}`,
           'click to filter the panel down to them',
         ]

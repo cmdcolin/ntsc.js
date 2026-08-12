@@ -180,6 +180,11 @@ export interface EngineApi {
   // written to, never read from, applied and undone inside one frame — so a rate
   // of 0 is off and nothing here ever reaches `getControls`.
   setStab: (stab: StabPlan) => void
+  // The board that gate flips to, or null for stock — which is what it has
+  // always flipped to and what a session that never holds a look gets. Held
+  // apart from `setStab` because a board is not a timing: the plan above is the
+  // train (and is shared with the strobe), this is what is at the far end of it.
+  setStabBoard: (board: Controls | null) => void
   // A transition, as a fault that resolves: break what the recipe names, swap
   // the source on the frame the picture is least legible, and heal onto it
   // (signal/fault.ts; docs/EDITOR.md › _Transitions_). Same contract as the two
