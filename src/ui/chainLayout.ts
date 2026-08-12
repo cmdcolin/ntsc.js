@@ -82,22 +82,27 @@ const MIN_BOX = 20
 
 // The same estimate for a run's label, which is a different number because it
 // is different type: 7.5px and lowercase against the boxes' 8px uppercase (see
-// .mapLoopLabel and .mapLabel). Measured in Firefox the same way CHAR was: the
-// three names cost 4.16, 4.01 and 3.84 units a character, so 4.3 clears the
-// widest by the margin CHAR keeps over its own.
+// .mapLoopLabel and .mapLabel).
 //
-// Only the names are measured against it. The fallbacks are what a run gets
-// when the name did not fit, and there is nothing below them to fall to — so a
-// short word that costs more per character than any name does ('camera', at
-// 4.51) is not this number's problem.
+// A flat average per character will not do here, where CHAR gets away with one.
+// A box is *sized* from its estimate, so being 20% over on one name only buys
+// that box padding; a run's label is sized by nothing and measured against a
+// gap it has to fit in, so the same 20% is the difference between a label
+// beside the head of the chain and the same label over the TAPE box. Measured
+// in Firefox, the labels run 3.78 to 4.51 units a character, and the whole of
+// that spread is one letter: 'm' is about twice the width of the average glyph
+// and 'camera' is a sixth m.
 //
-// Generous on purpose, and the asymmetry is why: overestimating moves a name to
-// the other side of its loop, or drops it to a short word, one layout earlier
-// than it had to — where underestimating writes it across a wire.
-const RUN_CHAR = 4.3
+// So count those two twice and the spread closes to 3.47-4.08, which 4.15
+// clears by the margin CHAR keeps over its own measurement. Still deliberately
+// over rather than under: over moves a label to the other side of its loop one
+// layout earlier than it had to, under writes it across a wire.
+const RUN_CHAR = 4.15
+const WIDE = /[mw]/g
 // Exported for the test that holds a label clear of the wires over it: it has
 // to measure what the layout measured, or it is checking a second estimate.
-export const runLabelWidth = (s: string) => s.length * RUN_CHAR
+export const runLabelWidth = (s: string) =>
+  (s.length + (s.toLowerCase().match(WIDE)?.length ?? 0)) * RUN_CHAR
 
 // Boxes are sized to what they say rather than to an equal share of the width.
 // That is what let a sixth box onto the row back when the trunk had six: at
@@ -212,16 +217,18 @@ const RETURNS: readonly ReturnSpec[] = [
 ]
 
 // What each run carries, off the one loop table, so the map cannot name a loop
-// something the panel does not call it: the stage's own name where the run has
-// the width for it, and the table's `short` where it does not. The miniature
-// draws both in lowercase, which is a CSS rule (.mapLoopLabel) rather than a
-// second spelling here — the boxes have upper-cased their names the same way
-// since the map was one row of five.
+// something the panel does not call it. `short` rather than the stage's whole
+// name: the miniature is 304 units wide with three runs stacked over the chain,
+// and each of the three is named for its own machine — so the machine is the
+// word that tells them apart and the rest is what the band they ride already
+// says. The card has room for the whole name and uses it.
 //
-// Both fall back to the placement key: a loop added to RETURNS and not to
+// Drawn in lowercase, which is a CSS rule (.mapLoopLabel) rather than a second
+// spelling here — the boxes have upper-cased their names the same way since the
+// map was one row of five.
+//
+// Falls back to the placement key: a loop added to RETURNS and not to
 // LOOP_STAGES draws its own name rather than a blank.
-const nameOf = (loop: LoopPlace): string =>
-  LOOP_STAGES.find(l => l.loop === loop)?.name ?? loop
 const shortOf = (loop: LoopPlace): string =>
   LOOP_STAGES.find(l => l.loop === loop)?.short ?? loop
 
@@ -443,8 +450,8 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
       : [{ x: edge + 5, anchor: 'start' as const }]
     return [{ ...r, from, to, places }]
   })
-  // How much clear width a name has where it wants to sit, and so which place
-  // it takes and which of its two forms.
+  // How much clear width a label has where it wants to sit, and so which of the
+  // places it is offered it takes.
   //
   // A run's verticals rise from the trunk to its own band, so they cross every
   // band below it and none above: what a label can collide with is the drops of
@@ -452,13 +459,14 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
   // the corner where its own run turns down. Nothing else on the drawing is up
   // here; the boxes start 7 units under the lowest band.
   //
-  // The tape loop is the one that needs this said, because it is the one whose
-  // label hangs off the end of a 30-unit run rather than riding a 200-unit one.
-  // On the full trunk the space to its left is the 39 units between the mixer
-  // and the camera return's drop into the head of the chain, and 'tape loop'
-  // takes 35 of them. A filter that shortens the trunk moves that drop in, and
-  // the label goes to the other side of the loop, or drops to 'tape', rather
-  // than write across it.
+  // Only the tape loop is ever offered a choice, and it is the one that needs
+  // one: its label hangs off the end of a 30-unit run rather than riding a
+  // 200-unit one, and the side it hangs off decides whether 'tape loop' lands
+  // over the gap at the head of the chain or over the TAPE box. On the full
+  // trunk the left side is the 39 units between the mixer and the camera
+  // return's drop, and the label takes 39 of them. A filter that shortens the
+  // trunk moves that drop in, and it goes to the other side rather than write
+  // across it.
   const room = (r: (typeof drawn)[number], spot: (typeof r.places)[number]) => {
     const drops = drawn.filter(o => o.y < r.y).flatMap(o => [o.from, o.to])
     if (spot.anchor === 'end')
@@ -469,22 +477,17 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
     return Math.min(...drops.filter(x => x > spot.x), wall) - spot.x
   }
   const returns = drawn.map(r => {
-    const full = nameOf(r.loop)
-    const want = runLabelWidth(full)
-    // The first place that holds the name, or — when none does, and the short
-    // form is what will be drawn — whichever has the most room for it. Never
-    // just the preferred one: on a row that has squeezed the mixer against the
-    // left edge, the left place is off the map rather than merely tight.
+    const name = shortOf(r.loop)
+    const want = runLabelWidth(name)
+    // The first place that holds the label, or the roomiest when none does.
+    // Never just the preferred one: on a row that has squeezed the mixer
+    // against the left edge, the left place is off the map rather than tight.
     const nameAt =
       r.places.find(spot => want <= room(r, spot)) ??
       r.places.reduce((best, spot) =>
         room(r, spot) > room(r, best) ? spot : best,
       )
-    return {
-      ...r,
-      nameAt,
-      name: want <= room(r, nameAt) ? full : shortOf(r.loop),
-    }
+    return { ...r, nameAt, name }
   })
   // The branch row, laid out left to right with a cursor: each box takes the
   // place its anchor asks for, and is pushed right if that would land it on the

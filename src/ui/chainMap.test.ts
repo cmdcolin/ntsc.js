@@ -16,7 +16,6 @@ import {
   DELAY_LOOP_STAGE,
   LOOP_STAGES,
   MIX_STAGE,
-  MIXER_LOOP_STAGE,
   MOD_STAGE,
   PHASE_ORDER,
   SOUND_JOIN,
@@ -352,31 +351,18 @@ describe('chain map geometry', () => {
     }
   })
 
-  // The map names a loop whatever the panel calls it. A run whose label came
-  // from anywhere but the loop table could go on saying 'camera' about a stage
-  // renamed to something else, and nothing renders wrong.
+  // The map names a loop whatever the panel calls it — its `short`, which is the
+  // machine the stage is named for. A run whose label came from anywhere but the
+  // loop table could go on saying 'camera' about a stage renamed to something
+  // else, and nothing renders wrong. Every subset, because a run only carries a
+  // label on the rows where it is drawn at all.
   it('names each run out of the loop table', () => {
-    const names = chainLayout(FULL).returns.map(r => r.name)
-    expect(names).toEqual(LOOP_STAGES.map(l => l.name))
-    for (const n of names) expect(n).not.toBe('')
-  })
-
-  // …until the name does not fit, which is the case the full row never shows.
-  // A filter can leave a two-box trunk, and then a return spans a fifth of the
-  // drawing while its name is unchanged — so the label is picked against the
-  // width it actually has and drops to the loop table's `short` when the name
-  // will not sit there. The failure this rules out is silent by construction:
-  // the text renders either way, over whatever it lands on.
-  it('cuts a run’s name down to fit the run it has', () => {
     const short = new Map(LOOP_STAGES.map(l => [l.loop, l.short]))
-    const tight = chainLayout([MIX_STAGE, 'Receiver'])
-    const mixer = tight.returns.find(r => r.loop === 'mixer')
-    if (mixer === undefined) throw new Error('no mixer return on a two-box row')
-    expect(mixer.name).toBe(short.get('mixer'))
-    // And the same run keeps its full name on the full row, or the rule above
-    // is just "always short" and nothing is being measured.
-    const full = chainLayout(FULL).returns.find(r => r.loop === 'mixer')
-    expect(full?.name).toBe(MIXER_LOOP_STAGE)
+    for (const names of subsets(FULL))
+      for (const r of chainLayout(names).returns) {
+        expect(r.name, r.loop).toBe(short.get(r.loop))
+        expect(r.name, r.loop).not.toBe('')
+      }
   })
 
   // The tape loop's name is the one with a side to pick, and the pick is not
@@ -392,7 +378,7 @@ describe('chain map geometry', () => {
     const box = boxes.find(b => b.name === 'Tape')
     if (tape === undefined || box === undefined) throw new Error('no tape run')
     expect(tape.name).toBe(DELAY_LOOP_STAGE)
-    expect(tape.nameAt.anchor).toBe('end')
+    expect(tape.nameAt.anchor).toBe('end') // set leftwards, away from the box
     expect(tape.nameAt.x).toBeLessThan(box.x - box.w / 2)
 
     // …and to the other side when a filter leaves no room on that one, rather
@@ -404,21 +390,19 @@ describe('chain map geometry', () => {
     expect(moved?.nameAt.x).toBeGreaterThan(0)
   })
 
-  // Whichever form and side it lands on, it has to clear the wires that cross
-  // its band. The runs drop their verticals from the trunk up to their own
-  // height, so a label can only ever collide with a run drawn *above* it — and
-  // the tape loop, whose name hangs off the end of a 30-unit run rather than
-  // riding a 200-unit one, is the one with nothing but that clearance between
-  // it and the next wire.
+  // Whichever side it lands on, a label has to clear the wires that cross its
+  // band. The runs drop their verticals from the trunk up to their own height,
+  // so a label can only ever collide with a run drawn *above* it — and the tape
+  // loop, whose name hangs off the end of a 30-unit run rather than riding a
+  // 200-unit one, is the one with nothing but that clearance between it and the
+  // next wire. It comes closest on the full row, where 'tape loop' takes 37 of
+  // the 39 units between the mixer and the camera return's drop.
+  //
+  // Over every subset rather than a few by hand. The tightest row turned out to
+  // be the full one — the rest of them are 5 units clear or better — which is
+  // the opposite of where hand-picked rows would have looked.
   it('keeps every run’s label clear of the wires over it', () => {
-    const rows = [
-      FULL,
-      // Tape filtered out, which is the widest row that still draws all three
-      [SOURCE_A_STAGE, MIX_STAGE, 'Receiver', 'Screen'],
-      [MIX_STAGE, 'Receiver', 'Screen'],
-      [MIX_STAGE, 'Receiver'],
-    ]
-    for (const names of rows) {
+    for (const names of subsets(FULL)) {
       const { returns } = chainLayout(names)
       for (const r of returns) {
         const w = runLabelWidth(r.name)

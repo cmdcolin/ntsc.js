@@ -169,14 +169,18 @@ export type LoopsLive = Record<LoopPlace, boolean>
 // generation a lap.
 export interface LoopStage {
   loop: LoopPlace
-  // What the panel calls the stage, what the map opens by name, and what both
-  // drawings write on the run — the miniature in lowercase, which is a CSS rule
-  // there and not a second spelling here (ChainMap.module.css).
+  // What the panel calls the stage, what the map opens by name, and what the
+  // full diagram writes on the run — which has the width for the whole of it,
+  // and a legend under it explaining what the loop does.
   name: string
-  // What the run says when it is too narrow for the name. A filter can shorten
-  // the trunk to two boxes, and then a return spans a fifth of the drawing —
-  // chainLayout measures the span it has and picks between the two, so a long
-  // name is never left lying across somebody else's wire.
+  // What the miniature writes on the run instead, in lowercase — which is a CSS
+  // rule there (ChainMap.module.css) rather than a second spelling here.
+  //
+  // The full name is right on the card and wordy on a 304-unit strip, where the
+  // run is one of three stacked over the chain and the band it rides has
+  // already said 'loop' by being the loop band. The word that is left is the
+  // machine, which is the thing being pointed at. A hover carries the whole
+  // name, and so does the heading you land on.
   short: string
   // The one-liner the run's hover and the stage's heading carry.
   blurb: string
@@ -227,9 +231,9 @@ export const LOOP_STAGES: readonly LoopStage[] = [
   {
     loop: 'camera',
     name: CAMERA_LOOP_STAGE,
-    // The machine, where the name has to give up its half about the physics.
-    // Each of the three is named for a different piece of gear, so the first
-    // word is the one that survives the cut.
+    // The machine. Each of the three is named for a different piece of gear,
+    // so the first word is the one that carries the difference and the rest of
+    // the name is what the loop band already says.
     short: 'Camera',
     blurb:
       'optical — a camera on the tube’s face, its picture mixed back in ahead of the encoder, plus the gun and glass it is pointed at',
@@ -248,11 +252,10 @@ export const LOOP_STAGES: readonly LoopStage[] = [
   {
     loop: 'tape',
     name: DELAY_LOOP_STAGE,
-    // The one fallback that is a word the drawing already uses for something
-    // else, and it is only reached on a row too narrow to hold 'tape loop' —
-    // by which point the run is a stub over a two-box chain and there is
-    // nothing better to say in 16 units. See DELAY_LOOP_STAGE.
-    short: 'Tape',
+    // The one that does not cut down to its first word, because that word is a
+    // box on the chain two columns along. It keeps both, which is also why the
+    // layout has a side to choose for it — see DELAY_LOOP_STAGE.
+    short: 'Tape loop',
     blurb:
       'mechanical — a second deck threaded with a loop of tape, patched across the bus: what goes round is re-recorded and ages a generation a lap',
     what: 'a second machine threaded with a loop of tape, patched across the bus rather than round the chain: a play head returns what was laid down a lap ago, a record head lays the sum back down, and whatever keeps circulating ages a generation every time round',
