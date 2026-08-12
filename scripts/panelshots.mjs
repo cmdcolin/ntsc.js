@@ -81,6 +81,24 @@ const STATES = [
     open: ['Sound into'],
   },
   {
+    name: 'stage',
+    height: 700,
+    what: 'an open stage — its rail, the lid across the head, and a group below',
+    // The one state that is not a fold, and the surface with the most CSS per
+    // pixel in the panel: a stage's box is drawn by three rules in two files
+    // and nothing else on screen looks like it. It got here the way it always
+    // does — the map is the only way in — and the boxes are SVG groups rather
+    // than buttons, so `textContent` on one runs its <title> into its label and
+    // the name has to be read off the <text> child. Uppercased in CSS and not
+    // in the DOM, which is why this matches "Tape" rather than "TAPE".
+    reach: () => {
+      const box = [...document.querySelectorAll('g[role="button"]')].find(
+        g => g.querySelector('text')?.textContent.trim() === 'Tape',
+      )
+      box?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    },
+  },
+  {
     name: 'help-dialog',
     dialog: true,
     what: 'the dialog card, its prose and heads, links, and a flush .btn row',
@@ -183,11 +201,25 @@ try {
       }, state.open)
       await new Promise(r => setTimeout(r, 900))
     }
+    // A step that throws is this state failing, not the run failing. These are
+    // navigation written against a UI that moves — a control changes shape and
+    // the line that reached for it throws in the page — and an uncaught one
+    // takes the whole suite down from wherever it happens to sit in the list,
+    // so the states after it are never shot and the ones before it never get
+    // reported. Recorded like any other miss instead, and the run carries on.
+    let reached = true
     for (const step of [state.reach, state.then]) {
       if (step === undefined) continue
-      await page.evaluate(step)
+      try {
+        await page.evaluate(step)
+      } catch (e) {
+        fails.push(`${state.name}: could not get to it — ${e.message}`)
+        reached = false
+        break
+      }
       await new Promise(r => setTimeout(r, 1200))
     }
+    if (!reached) continue
 
     // A dialog is in the top layer and centred, so it is measured rather than
     // clipped to the panel — and it is the whole subject of its own shot.
