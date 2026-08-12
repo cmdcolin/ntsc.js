@@ -484,6 +484,66 @@ await phase('stab', {}, async page => {
   )
 })
 
+// --- the motion roll: the one verb in the look bar that moves no slider ------
+//
+// Every claim here is one the unit tests are structurally blind to, because each
+// is about the app as a whole rather than about the roll: rollMod.test.ts can
+// say what a rolled bay contains, and only a running board can say that pressing
+// the button left the look alone and that the walk can take it back.
+await phase('motion roll', {}, async page => {
+  const { run, settle } = runner(page)
+
+  const before = await page.evaluate(() => window.vf.getControls())
+  const rolled = await run(`
+    const b = byPart('random motion')
+    press(b)
+    return b !== undefined`)
+  await settle(500)
+  const after = await run(`return {
+    strip: stripText(),
+    controls: window.vf.getControls(),
+  }`)
+  check(rolled === true, 'no "random motion" button in the look bar')
+  check(
+    after.strip === '2∿',
+    `a normal motion roll should cable two routings, the strip read ${after.strip}`,
+  )
+  // The promise on the button, and the reason it is a third roll rather than a
+  // mode of the nudge: a routing swings a control inside the engine's own frame
+  // and puts it back, so the resting board must come out of this identical.
+  const moved = Object.keys(before).filter(k => before[k] !== after.controls[k])
+  check(
+    moved.length === 0,
+    `the motion roll moved resting controls, which it must never do: ${moved.slice(0, 6).join(', ')}`,
+  )
+
+  // Twice, then back twice. This is the dedupe: the walk compares looks by their
+  // controls, which a motion roll does not touch, so without the bay in the test
+  // on this one path the second roll banks nothing and the first is the only one
+  // undo can reach.
+  await run(`press(byPart('random motion')); return 0`)
+  await settle(500)
+  const second = await run(`return stripText()`)
+  check(
+    second === '2∿',
+    `a second roll should leave two routings patched, the strip read ${second}`,
+  )
+  await run(`press(byText('undo')); return 0`)
+  await settle(500)
+  const back = await run(`return stripText()`)
+  check(
+    back === '2∿',
+    `one undo should land on the first roll's bay, the strip read ${back}`,
+  )
+  await run(`press(byText('undo')); return 0`)
+  await settle(500)
+  const empty = await run(`return stripText()`)
+  check(
+    empty === null || empty === '0∿',
+    `undoing both rolls should leave the bay as it started, the strip read ${empty}`,
+  )
+})
+
 // The panel renders in two documents, and only one of them has a picture in it.
 // Everything responsive in app.module.css describes the *shell* — a sidebar
 // beside or under a stage — and the popout is the panel alone in a window

@@ -35,6 +35,12 @@ export function LookBar(props: {
   onEndCompare: () => void
   onSurprise: () => void
   onMutate: (amount: MutateAmount) => void
+  // The third roll, and the only one that leaves every resting value alone: it
+  // re-cables the modulation bay. It belongs in this segmented set rather than
+  // in the bay's own stage — which is a box on the map, shut until you press it
+  // — because it is the same gesture as the two beside it and gets pressed the
+  // same way, repeatedly, while looking at the picture.
+  onRollMotion: (amount: MutateAmount) => void
   // How long the verbs in this row take to arrive, and the button that cycles
   // it. It belongs here rather than in a settings dialog because it changes what
   // every other button in the row *does*, and because the duration you want is a
@@ -94,11 +100,23 @@ export function LookBar(props: {
           random look
         </button>
         <button
-          className={cx(styles.btn, styles.pairRight)}
+          className={cx(styles.btn, styles.pairMid)}
           onClick={e => props.onMutate(mutateAmountFor(e))}
           title="keep this look and nudge every control randomly around where it sits, for a related variation (also happy accidents) — shift for a wilder roll, alt for a gentler one, ctrl (or cmd) for turbo, which throws most controls past anything a real set would do. The die on a stage heading nudges that stage alone"
         >
           random nudge
+        </button>
+        {/* Third rather than second, because the pair reads left to right by how
+            much of the look it disturbs — a whole new one, then a nudge to it —
+            and this one disturbs none of it: every slider stays exactly where it
+            is and what changes is what is moving them. Same modifier ladder as
+            its neighbour, so the keys mean one thing across the set. */}
+        <button
+          className={cx(styles.btn, styles.pairRight)}
+          onClick={e => props.onRollMotion(mutateAmountFor(e))}
+          title="keep every slider where it is and re-cable what is moving them: a fresh patch of LFOs, drift and sample-and-hold onto controls this look is actually using. It replaces what is in the modulation bay, and undo puts it back — shift for more and deeper, alt for a single slow one, ctrl (or cmd) for turbo"
+        >
+          random motion
         </button>
       </div>
       <MorphControl

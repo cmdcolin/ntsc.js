@@ -710,6 +710,7 @@ export function App() {
   const palette = paletteActions({
     onSurprise: mix.surprise,
     onMutate: mix.mutateLook,
+    onRollMotion: amount => mix.rollMotion(amount, { audioLive: audio.active }),
     onUndo: mix.undo,
     onRedo: mix.redo,
     slots: [eng.a, eng.b],
@@ -1115,6 +1116,13 @@ export function App() {
         onEndCompare={endCompare}
         onSurprise={mix.surprise}
         onMutate={mix.mutateLook}
+        // Whether the two audio followers are worth rolling: with nothing on
+        // the wire they are slots that will never move, which is the one way a
+        // roll can look like it did nothing. App is where that is known — the
+        // picker owns it, and the bay cannot see it.
+        onRollMotion={amount =>
+          mix.rollMotion(amount, { audioLive: audio.active })
+        }
         morphSeconds={morphSeconds}
         onSetMorph={s => setMorphStored(String(s))}
         morphStore={morphStore}

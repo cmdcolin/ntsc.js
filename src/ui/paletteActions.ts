@@ -64,9 +64,10 @@ const cueVerbs = (slot: AnySlotView): PaletteAction[] => {
 }
 
 export function paletteActions(o: {
-  // The two whole-board rolls and the walk back through them.
+  // The three whole-board rolls and the walk back through them.
   onSurprise: () => void
   onMutate: (amount: MutateAmount) => void
+  onRollMotion: (amount: MutateAmount) => void
   onUndo: () => void
   onRedo: () => void
   // Both decks, for the cue verbs above — as a list, so the pair cannot be
@@ -159,6 +160,25 @@ export function paletteActions(o: {
       blurb:
         'turbo: throw most controls past anything a real set would do — the wreck, not a variation',
       run: () => o.onMutate('turbo'),
+    },
+    // The motion roll, and the one row in this trio whose blurb has to say what
+    // it *doesn't* touch: "random" next to a look everybody has just spent ten
+    // minutes dialing in reads as a threat, and this one takes nothing away.
+    {
+      name: 'random motion',
+      blurb:
+        'keep every slider and re-cable what moves them — a fresh patch of LFOs and drift onto controls this look is using',
+      run: () => o.onRollMotion('normal'),
+    },
+    {
+      name: 'random motion, gentle',
+      blurb: 'one slow wobble on one control, and nothing else moving',
+      run: () => o.onRollMotion('gentle'),
+    },
+    {
+      name: 'random motion, wild',
+      blurb: 'three routings, faster and deeper — the board visibly hunting',
+      run: () => o.onRollMotion('wild'),
     },
     {
       name: 'vaporwave',

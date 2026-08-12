@@ -377,6 +377,31 @@ export function toEngineSlots(
   })
 }
 
+// Whether two bays are patched the same way, slot for slot — position
+// included, since position is identity here.
+//
+// The walk does not normally ask (`sameLook` in useMix compares controls and
+// says why), and this exists for the one gesture that changes the bay and
+// nothing else: a motion roll would otherwise be a step the walk could not tell
+// from no step at all, so pressing it twice would leave only the first roll
+// reachable.
+export function sameBay(a: readonly UiSlot[], b: readonly UiSlot[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((s, i) => {
+      const o = b[i]
+      return (
+        s.target === o.target &&
+        s.source === o.source &&
+        s.rateHz === o.rateHz &&
+        s.depth === o.depth &&
+        s.syncDiv === o.syncDiv &&
+        s.on === o.on
+      )
+    })
+  )
+}
+
 // A bay from a preset's or a link's routings: positional, padded, capped.
 export function routingsToSlots(mod: readonly ModRouting[]): UiSlot[] {
   return normalizeSlots(mod.slice(0, N_SLOTS))

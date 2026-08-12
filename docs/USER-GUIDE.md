@@ -14,6 +14,11 @@ of the way, stacking onto what's already there.
 - **random look** stacks a few presets into something new. **random nudge**
   keeps your look and jogs everything a little — `shift` for wilder, `alt` for
   gentler. Most of the good accidents come from here.
+- **random motion** is the one that changes nothing you can see standing still:
+  every slider stays put, and what gets re-cabled is the modulation bay — LFOs,
+  drift and sample-and-hold patched onto controls this look is actually using.
+  Same modifiers, and `ctrl` (or `cmd`) for a bay that hunts. It replaces what
+  was patched; `ctrl+z` puts it back.
 - **morph** sets how long a new look takes to arrive, from a frame to 8s. Rolls
   chain, so hitting random look every few seconds wanders continuously.
 - **undo** (`ctrl+z`) steps back through all of it.

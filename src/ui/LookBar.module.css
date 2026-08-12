@@ -47,11 +47,14 @@
   border-color: var(--border-faint);
   cursor: default;
 }
-/* The two rolls read as one widget with two modes rather than two more words in
-   a line of six: no gap, one shared edge, and only the outer corners rounded.
-   It costs the row nothing — the 4px gap it drops pays for the 1px the two
-   borders overlap by — and the die inside `shake` sits inside the button's own
-   line box, so the row does not grow a pixel taller either. */
+/* The rolls read as one widget with three modes rather than three more words in
+   a line of seven: no gaps, shared edges, and only the outer corners rounded.
+   Each join costs the row nothing — the 4px gap it drops pays for the 1px the
+   two borders overlap by — and nothing inside a segment is taller than its own
+   line box, so the row does not grow a pixel taller either. The third segment
+   is a third label's worth of width, which the row takes out of where it wraps:
+   `flex-wrap` is what has always caught that, and the verbs are what the space
+   is for (see the note on .btn above). */
 .pair {
   display: flex;
 }
@@ -67,6 +70,15 @@
 .pairLeft {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
+}
+/* The third roll joined the set (see LookBar.tsx), so the widget has a middle:
+   square at both ends, and the same -1px that makes the shared edges one line
+   rather than two. The pair's own comment above is now a set of three, and what
+   it says about cost still holds per seam — each join pays for its overlap with
+   the 4px gap it drops. */
+.pairMid {
+  margin-left: -1px;
+  border-radius: 0;
 }
 .pairRight {
   margin-left: -1px;

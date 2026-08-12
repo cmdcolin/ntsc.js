@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { DEFAULT_CONTROLS } from '../controls'
 import { MUTATE_SLIDERS } from './controls'
 import { EMPTY_HISTORY, record, stepBack, stepForward } from './history'
+import { sameBay } from './modSlots'
 import { morphTo } from './morph'
 import { MUTATE_AMOUNTS, mutate } from './mutate'
 import {
@@ -13,6 +14,7 @@ import {
   randomPresetMix,
   rollControls,
 } from './presets'
+import { rollBay } from './rollMod'
 
 import type { Controls } from '../controls'
 import type { GlidePlan } from '../signal/glide'
@@ -36,6 +38,21 @@ interface Look {
 // whose only difference is a routing would otherwise be indistinguishable from
 // no step at all, and every preset click would bank a duplicate entry.
 const sameLook = (a: Look, b: Look) => controlsEqual(a.controls, b.controls)
+
+// The same test with the bay counted, for the one verb that changes the bay and
+// leaves every resting value alone. Under `sameLook` a motion roll banks
+// nothing after the first — the controls have not moved, so the walk sees the
+// step it already has — and the second roll would be unreachable.
+//
+// Deliberately only on that path rather than replacing `sameLook`: the reason
+// the bay is out of the general test is recorded at it, and this is the
+// exception it describes rather than a change of mind about it. The cost is at
+// the seam — a preset clicked straight after a motion roll dedupes on controls
+// and takes the rolled bay out of the walk with it — which is the shape every
+// mixed comparator has and is cheaper than making every preset click carry a
+// bay comparison it has no use for.
+const sameLookAndBay = (a: Look, b: Look) =>
+  sameLook(a, b) && sameBay(a.slots, b.slots)
 
 // Stable empty weights, so a stale mix passes the same map every render.
 const NO_WEIGHTS: PresetWeights = new Map()
@@ -73,7 +90,13 @@ export function useMix(args: {
   // of them used to be.
   morphSeconds: number
   sourceBOn: boolean
-  mod: Pick<ModSlotsApi, 'slots' | 'setSlots' | 'setRoutings'>
+  // `master` and its setter are here for the motion roll alone — see the freeze
+  // it lifts there. The other verbs deliberately leave the amount where it is:
+  // a preset is a statement about the look and the freeze is a gesture over it.
+  mod: Pick<
+    ModSlotsApi,
+    'slots' | 'setSlots' | 'setRoutings' | 'master' | 'setMaster'
+  >
 }) {
   const { controls, getControls, writeControls, morphSeconds, mod } = args
   const [lastPreset, setLastPreset] = useState<string | null>(null)
@@ -269,6 +292,39 @@ export function useMix(args: {
     mutateLook: (amount: MutateAmount = 'normal') => {
       apply(mutate(getControls(), MUTATE_SLIDERS, MUTATE_AMOUNTS[amount]))
       setLastPreset(null)
+    },
+    // The third roll: what is *moving*, rather than where the board rests. See
+    // rollMod.ts for how a target and a depth are picked; what belongs here is
+    // what it does to everything else, which is almost nothing.
+    //
+    // Not through `apply`, and that is the point of it being its own verb: no
+    // resting value changes, so there is nothing to land and nothing to morph.
+    // The recipe survives for the same reason — a routing leaves the slider
+    // where it is, so the preset chips are still telling the truth about the
+    // look and `lastPreset` is still the preset it came from. This is the only
+    // roll in the row that can be pressed without losing what the fills say.
+    //
+    // `MUTATE_SLIDERS` rather than every control: a rolled routing must not
+    // reach the view, on the rule VIEW_KEYS is drawn for — and a modulated
+    // `timeScale` would present as the dead rendering step of ADR 0004.
+    rollMotion: (
+      amount: MutateAmount = 'normal',
+      opts: { audioLive?: boolean } = {},
+    ) => {
+      setHistory(h => record(h, banked(), sameLookAndBay))
+      mod.setSlots(
+        rollBay({
+          amount,
+          sliders: MUTATE_SLIDERS,
+          controls: getControls(),
+          audioLive: opts.audioLive === true,
+        }),
+      )
+      // The same rule a claim from a control row's ∿ follows, and this button
+      // needs it most: rolling motion onto a frozen bay would cable five slots,
+      // light five rows up as driven, and move nothing whatsoever. Asking for
+      // motion is unambiguous; the freeze is a gesture within a set.
+      if (mod.master === 0) mod.setMaster(1)
     },
     // One circuit back to stock, from its header. The row-level ↺ is the fine
     // move and "clean" is the whole board; between them sat the thing a session
