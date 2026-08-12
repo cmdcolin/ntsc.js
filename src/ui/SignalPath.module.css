@@ -58,11 +58,16 @@
    (.groupCard below, which is what the bench got and the spine never did) costs
    20px of a 304px column, and the panel's width is its scarcest thing — this
    costs 10. Where the rail stops is the stage's bottom edge, which the flow
-   never drew at all: the last group used to run straight into the MIDI section. */
+   never drew at all: the last group used to run straight into the MIDI section.
+
+   The colour is a variable because two rules draw this edge: the rail here, and
+   the lid across the head below. They are one line turning a corner, so they
+   are not allowed to drift apart. */
 .stageRow {
+  --stage-edge: color-mix(in srgb, var(--accent) 35%, transparent);
   margin: 8px 0 10px;
   padding: 0 0 6px 8px;
-  border-left: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-left: 2px solid var(--stage-edge);
 }
 .stageHead {
   display: flex;
@@ -97,8 +102,18 @@
      margin-top on the sticky element itself parks it that far down the
      scrollport, and the panel has no background of its own to fill the gap —
      rows would scroll through the sliver between the strip and the top edge. */
-  margin: 0 0 0 -8px;
+  margin: 0 0 0 -10px;
   padding: 3px 4px 3px 8px;
+  /* The lid, and the corner the rail turns into it. The strip was carrying the
+     top of the object on its fill alone, which from the outside is a box with
+     no top: the rail ran down out of a band that started from nothing. So the
+     head draws the edge itself, and the bleed is the full 10px (its own 2px
+     border, then the rail's 8px of padding) rather than 8 — that lands its left
+     border exactly over the rail below, same colour and same width, so the two
+     meet as a corner instead of stacking one inside the other. The text does
+     not move: the padding still puts it on the content edge. */
+  border-top: 2px solid var(--stage-edge);
+  border-left: 2px solid var(--stage-edge);
   border-bottom: 1px solid var(--border-faint);
   background: color-mix(in srgb, var(--accent) 9%, var(--panel-bg));
   /* And the panel's own ground painted above the strip, because a pinned one
