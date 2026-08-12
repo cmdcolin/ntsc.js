@@ -30,12 +30,26 @@ import type { StashSlot } from './fileStash'
 //     there, and a new source path cannot forget because forgetting would mean
 //     not calling the thing that also cancels its stale replies.
 
-export type SourcePrompt =
-  | 'library'
-  | 'browse'
-  | 'webcam'
-  | 'youtube'
-  | 'teletype'
+// The five picker entries that ask before they change anything. A list rather
+// than a bare union, so the picker's own ladder can test membership instead of
+// naming all five a second time — the same shape SOURCE_MODES has in
+// sources/modes.ts, and for the same reason: one place to add the sixth.
+export const SOURCE_PROMPTS = [
+  'library',
+  'browse',
+  'webcam',
+  'youtube',
+  'teletype',
+] as const
+
+export type SourcePrompt = (typeof SOURCE_PROMPTS)[number]
+
+// Whether picking this mode opens one of the dialogs above rather than putting a
+// picture up. Takes any mode either deck offers, because the answer is the same
+// on both: `webcam` is in A's union alone, and that is the whole of the
+// difference — B simply never asks the question.
+export const isPrompt = (mode: string): mode is SourcePrompt =>
+  (SOURCE_PROMPTS as readonly string[]).includes(mode)
 
 export function useSourcePrompt() {
   const [asking, setAsking] = useState<{

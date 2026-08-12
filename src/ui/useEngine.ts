@@ -50,7 +50,7 @@ import {
   parseSessionParams,
   urlName,
 } from './urlParams'
-import { useSourcePrompt } from './useSourcePrompt'
+import { isPrompt, useSourcePrompt } from './useSourcePrompt'
 import {
   armHead,
   dropHead,
@@ -66,7 +66,7 @@ import type { FrameStats } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
 import type { FrozenKind } from '../gpu/renderloop'
 import type { Rand } from '../rng'
-import type { SourceBMode, SourceMode } from '../sources/modes'
+import type { SharedMode, SourceBMode, SourceMode } from '../sources/modes'
 import type {
   OnProgress,
   PoolMode,
@@ -1020,6 +1020,20 @@ export function useEngine() {
     return fresh
   }
 
+  // A commit on whichever deck, for a mode both decks offer — which is every
+  // mode but A's `webcam` and B's `none`, and `SharedMode` is exactly that
+  // intersection. The two above stay separate because the mode is the one pair
+  // whose halves are genuinely different types (see the note on `onDeck`), so
+  // the branch cannot be lifted into a keyed setter; what it *can* be is written
+  // once here rather than at each of the six call sites that had it inline.
+  const commitOn = (
+    key: StashSlot,
+    mode: SharedMode,
+    name = '',
+    stash: 'drop' | 'keep' = 'drop',
+  ): (() => boolean) =>
+    key === 'a' ? commitA(mode, name, stash) : commitB(mode, name, stash)
+
   // The built-in sources either slot can show, picked by mode name alone since
   // both slots offer the same set. Four are synthesised on the spot; cat and
   // the bundled clips are files under public/, so cat lands a fetch later —
@@ -1244,7 +1258,7 @@ export function useEngine() {
   ) => {
     setError('')
     const slot = slotOf(key)
-    const fresh = key === 'a' ? commitA(mode) : commitB(mode)
+    const fresh = commitOn(key, mode)
     slot.setName('opening…')
     resolvePool(ref, downloading(slot, fresh)).then(
       picked => landPick(slot, picked, fresh),
@@ -1283,12 +1297,9 @@ export function useEngine() {
     // 'keep', because this is the one path whose caller writes the stash itself
     // — and the one that reopens *from* it, where dropping it would erase what
     // the reopen came from. See commitDeck.
-    if (key === 'a') commitA(mode, file.name, 'keep')
-    else commitB(mode, file.name, 'keep')
+    commitOn(key, mode, file.name, 'keep')
     showFile(slotOf(key), file)
   }
-  const adoptFileA = (file: File) => adoptInto('a', file, 'file')
-  const adoptFileB = (file: File) => adoptInto('b', file, 'file')
 
   // A clip off the shelf, into whichever deck the dialog was opened for. The
   // stash line is the only thing kept beyond the session — the library already
@@ -1437,19 +1448,14 @@ export function useEngine() {
     )
   }
 
-  const loadTeletype = (patch: Partial<TeletypeCard>) => {
+  // The teletype dialog's commit: put the deck on teletype and print the card.
+  // Unlike `retypeOn` below this is a source change, so it goes through
+  // `commitOn` and retires whatever the deck was holding.
+  const loadTeletypeOn = (key: StashSlot, patch: Partial<TeletypeCard>) => {
     if (engineRef.current) {
       setError('')
-      commitA('teletype')
-      printOn(slotA, patch)
-    }
-  }
-
-  const loadTeletypeB = (patch: Partial<TeletypeCard>) => {
-    if (engineRef.current) {
-      setError('')
-      commitB('teletype')
-      printOn(slotB, patch)
+      commitOn(key, 'teletype')
+      printOn(slotOf(key), patch)
     }
   }
 
@@ -1467,39 +1473,45 @@ export function useEngine() {
       printOn(slotOf(key), patch, true)
   }
 
-  const selectSource = (mode: SourceMode) => {
-    const current = engineRef.current
-    if (current) {
+  // Picking a source, on either deck. One ladder rather than two, because the
+  // question each rung asks is not per-deck: does this mode put a picture up
+  // now, or ask something first? Written out twice, the two had to be kept in
+  // step by hand and nothing caught a rung added to one and not the other —
+  // which is a mode that silently does nothing on B.
+  //
+  // What genuinely differs is which modes each deck offers, and the unions
+  // already say it: `webcam` is A's alone and `none` is B's alone, so the two
+  // rungs that name them cannot fire on the wrong deck even though the key does
+  // not narrow.
+  const selectOn = (key: StashSlot, mode: SourceMode | SourceBMode) => {
+    if (engineRef.current) {
       // Every source change starts here (file picks too — the file dialog is
       // only opened from this handler), so clear any stale failure banner once.
       setError('')
-      // For file, wait until a file is actually picked before touching state:
-      // cancelling the OS dialog then leaves the current source untouched.
       if (mode === 'file') {
-        pickFile('a', fileInputRef, adoptFileA)
-      } else if (mode === 'library') {
-        // Same deferral as the dialogs below: the shelf is a list until one of
-        // its rows is clicked, and closing it unpicked leaves A as it was.
-        prompt.ask('library', 'a')
-      } else if (mode === 'browse') {
-        prompt.ask('browse', 'a')
-      } else if (mode === 'webcam') {
-        // Defer stopVideo/setSourceMode until the user confirms in the dialog:
-        // cancelling then leaves the current source (and its permission) alone.
-        prompt.ask('webcam', 'a')
-      } else if (mode === 'youtube') {
-        // Same deferral: wait for a URL in the dialog before touching state.
-        prompt.ask('youtube', 'a')
-      } else if (mode === 'teletype') {
-        // And again: the card is whatever the dialog comes back with.
-        prompt.ask('teletype', 'a')
+        // For file, wait until a file is actually picked before touching state:
+        // cancelling the OS dialog then leaves the current source untouched.
+        pickFile(key, key === 'a' ? fileInputRef : fileInputBRef, file =>
+          adoptInto(key, file, 'file'),
+        )
+      } else if (isPrompt(mode)) {
+        // The same deferral for all five: the shelf is a list until one of its
+        // rows is clicked, the box is empty until a URL is typed, the card is
+        // whatever the dialog comes back with, and the camera is not asked for
+        // (nor its permission spent) until Continue. Backing out of any of them
+        // leaves the deck — and its source — exactly as it was.
+        prompt.ask(mode, key)
       } else if (mode === 'screen') {
         // No dialog of our own: the browser's picker *is* the confirmation, and
         // this handler still holds the click's transient activation, which
         // getDisplayMedia requires.
-        startScreen('a')
+        startScreen(key)
+      } else if (mode === 'none') {
+        // B going off, and only B: 'none' is not in A's union, so this is
+        // unreachable for A. Nothing to show, so it commits and stops.
+        commitB(mode)
       } else {
-        showGenerated(slotA, mode, commitA(mode))
+        showGenerated(slotOf(key), mode, commitOn(key, mode))
       }
     }
   }
@@ -1514,7 +1526,7 @@ export function useEngine() {
   // does, and the whole chain damages it identically. Picking *this* window is
   // worth knowing about: the tab re-shooting its own output is a real optical
   // feedback loop, drawn by the compositor instead of by fbMix.
-  const startScreen = (slot: 'a' | 'b') => {
+  const startScreen = (key: StashSlot) => {
     navigator.mediaDevices.getDisplayMedia({ video: true }).then(
       stream => {
         setError('')
@@ -1527,19 +1539,16 @@ export function useEngine() {
           track === undefined || track.label === ''
             ? (track?.getSettings().displaySurface ?? 'screen')
             : track.label
-        if (slot === 'a') {
-          commitA('screen', name)
-          // A share the user ended from the browser's own bar leaves the slot
-          // holding a frozen last frame. Snow is what a set with nothing on its
-          // input shows, and this app has no clearer way to say "the feed went".
-          playStream(slotA, stream, () => selectSource('tv static'))
-        } else {
-          commitB('screen', name)
-          // B is optional by nature, so its "the feed went" is off rather than
-          // snow: summing static into the composite would be a bigger change to
-          // the look than letting go of a share asks for.
-          playStream(slotB, stream, () => selectSourceB('none'))
-        }
+        commitOn(key, 'screen', name)
+        // A share the user ended from the browser's own bar leaves the slot
+        // holding a frozen last frame, so each deck says "the feed went" the way
+        // it can. A gets snow, which is what a set with nothing on its input
+        // shows and the clearest thing this app has to say. B is optional by
+        // nature, so B goes off instead: summing static into the composite would
+        // be a bigger change to the look than letting go of a share asks for.
+        playStream(slotOf(key), stream, () =>
+          key === 'a' ? selectOn('a', 'tv static') : selectOn('b', 'none'),
+        )
       },
       (e: unknown) => {
         // Cancelling the picker rejects too, and that is not a failure worth a
@@ -1600,17 +1609,10 @@ export function useEngine() {
 
   // The hidden <input> path, so a browser without the handle picker still loads
   // files — its pick carries no handle, so the stash falls back to a copy.
-  const onFile = (file: File | undefined) => {
+  const takeFileOn = (key: StashSlot, file: File | undefined) => {
     if (file && engineRef.current) {
-      adoptFileA(file)
-      keepFile('a', file, undefined)
-    }
-  }
-
-  const onFileB = (file: File | undefined) => {
-    if (file && engineRef.current) {
-      adoptFileB(file)
-      keepFile('b', file, undefined)
+      adoptInto(key, file, 'file')
+      keepFile(key, file, undefined)
     }
   }
 
@@ -1618,48 +1620,22 @@ export function useEngine() {
   const reopenFileB = () => reopenPending('b')
 
   // Both slots feed the clip through the same blob-backed <video> path as a
-  // picked file; only the mode bookkeeping differs, and B's enable flag.
-  const loadYouTube = (url: string) => {
-    const trimmed = url.trim()
-    if (engineRef.current && trimmed !== '') {
-      setError('')
-      const fresh = commitA('youtube')
-      downloadYouTube(slotA, trimmed, fresh, () => {})
-    }
-  }
-
-  const loadYouTubeB = (url: string) => {
+  // picked file. What differs is where a failed download leaves the deck: A
+  // stays on whatever it had, since it is still patched to something, while B
+  // goes off — an optional input that could not fetch its clip has nothing to
+  // sum, and leaving it enabled would mix a dead slot into the composite.
+  const loadYouTubeOn = (key: StashSlot, url: string) => {
     const current = engineRef.current
     const trimmed = url.trim()
     if (current && trimmed !== '') {
       setError('')
-      const fresh = commitB('youtube')
-      downloadYouTube(slotB, trimmed, fresh, () => {
-        setSourceMode(m => ({ ...m, b: 'none' }))
-        current.setSourceBEnabled(false)
+      const fresh = commitOn(key, 'youtube')
+      downloadYouTube(slotOf(key), trimmed, fresh, () => {
+        if (key === 'b') {
+          setSourceMode(m => ({ ...m, b: 'none' }))
+          current.setSourceBEnabled(false)
+        }
       })
-    }
-  }
-
-  const selectSourceB = (mode: SourceBMode) => {
-    const current = engineRef.current
-    if (current) {
-      setError('') // entry for every B change (incl. file dialog); clear once
-      if (mode === 'file') {
-        pickFile('b', fileInputBRef, adoptFileB)
-      } else if (mode === 'library') {
-        prompt.ask('library', 'b')
-      } else if (mode === 'browse') {
-        prompt.ask('browse', 'b')
-      } else if (mode === 'youtube') {
-        prompt.ask('youtube', 'b')
-      } else if (mode === 'teletype') {
-        prompt.ask('teletype', 'b')
-      } else if (mode === 'screen') {
-        startScreen('b')
-      } else {
-        showGenerated(slotB, mode, commitB(mode))
-      }
     }
   }
 
@@ -1748,7 +1724,7 @@ export function useEngine() {
     // is what makes the two writes independent, and it is not optional here.
     const src = params.src
     if (src === 'webcam') {
-      selectSource('webcam')
+      selectOn('a', 'webcam')
     } else if (src !== null) {
       // `beginLoad` rather than the `commit` pair the picker uses: what the link
       // says about the stash is decided below, once every param has been read
@@ -1815,8 +1791,8 @@ export function useEngine() {
     }
     setSpeed(restored)
     setReverb(params.vapor.reverb)
-    if (params.yt !== null) loadYouTube(params.yt)
-    if (params.ytb !== null) loadYouTubeB(params.ytb)
+    if (params.yt !== null) loadYouTubeOn('a', params.yt)
+    if (params.ytb !== null) loadYouTubeOn('b', params.ytb)
     // Boot only, and the reason `opts` exists at all. What follows is a question
     // about *last session's* file — reopen it, or let the link's own source
     // replace it — and mid-set there is no such question: a row that names no
@@ -2252,8 +2228,8 @@ export function useEngine() {
         engineRef.current = null
       }
     }
-    // Mount-once: creates the single engine and reads URL params. selectSource
-    // is stable enough for the one-shot ?src=webcam path; re-running on its
+    // Mount-once: creates the single engine and reads URL params. selectOn is
+    // stable enough for the one-shot ?src=webcam path; re-running on its
     // identity would tear down and rebuild the engine.
     // oxlint-disable-next-line react/exhaustive-deps
   }, [])
@@ -2296,16 +2272,16 @@ export function useEngine() {
       wrapCost: stall.a,
       mode: sourceMode.a,
       name: sourceName.a,
-      select: selectSource,
+      select: m => selectOn('a', m),
       live: live.a,
       teletype: card.a,
       retype: p => retypeOn('a', p),
-      loadTeletype,
+      loadTeletype: p => loadTeletypeOn('a', p),
       ytUrl: ytUrl.a,
-      loadYouTube,
+      loadYouTube: u => loadYouTubeOn('a', u),
       pendingFile: pending.a === null ? '' : pending.a.name,
       reopenFile: reopenFileA,
-      onFile,
+      onFile: f => takeFileOn('a', f),
       speed: speed.a,
       changeSpeed: r => changeSpeed('a', r),
       pick: pick.a,
@@ -2323,16 +2299,16 @@ export function useEngine() {
       wrapCost: stall.b,
       mode: sourceMode.b,
       name: sourceName.b,
-      select: selectSourceB,
+      select: m => selectOn('b', m),
       live: live.b,
       teletype: card.b,
       retype: p => retypeOn('b', p),
-      loadTeletype: loadTeletypeB,
+      loadTeletype: p => loadTeletypeOn('b', p),
       ytUrl: ytUrl.b,
-      loadYouTube: loadYouTubeB,
+      loadYouTube: u => loadYouTubeOn('b', u),
       pendingFile: pending.b === null ? '' : pending.b.name,
       reopenFile: reopenFileB,
-      onFile: onFileB,
+      onFile: f => takeFileOn('b', f),
       speed: speed.b,
       changeSpeed: r => changeSpeed('b', r),
       pick: pick.b,

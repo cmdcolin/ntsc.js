@@ -38,6 +38,16 @@ export const SOURCE_B_MODES = [
 export type SourceMode = (typeof SOURCE_MODES)[number]
 export type SourceBMode = (typeof SOURCE_B_MODES)[number]
 
+// A mode both decks offer: everything except A's `webcam` and B's `none`. The
+// two lists above stay the source of truth — this is their intersection, so
+// moving an entry into or out of one of them moves this with it rather than
+// leaving a third list to keep in step.
+//
+// It is what lets a source path take the deck as an argument instead of being
+// written out twice. A path that names a mode only one deck has cannot use it,
+// which is the right answer: those two really are per-deck.
+export type SharedMode = SourceMode & SourceBMode
+
 // Full labels shown inside the dropdowns so each option explains what it is.
 export const SOURCE_DESC: Record<SourceMode | SourceBMode, string> = {
   none: 'Off — no second source',
