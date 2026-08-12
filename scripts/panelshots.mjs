@@ -1,8 +1,9 @@
-// Visual regression for the control panel: seven states — five of the panel
-// and two dialogs — screenshotted and diffed against committed baselines.
+// Visual regression for the control panel: eight states — six of the panel and
+// two dialogs — screenshotted and diffed against committed baselines.
 //
 //   node scripts/panelshots.mjs            compare, exit 1 on drift
 //   node scripts/panelshots.mjs --update   rewrite the baselines
+//   node scripts/panelshots.mjs --only stage,input   just those states
 //   node scripts/panelshots.mjs --url http://localhost:5173
 //
 // Why this exists. The panel is ~1000 CSS declarations across 27 modules, and
@@ -34,6 +35,13 @@ import { dirname, join } from 'node:path'
 
 const UPDATE = process.argv.includes('--update')
 const argUrl = process.argv.indexOf('--url')
+// --only stage,input — the states to run, instead of all of them. Each state is
+// its own page load and this is a headed browser on somebody's actual screen,
+// so re-shooting the one surface you are working on should not cost the sweep.
+// It narrows what runs, never what is compared: a state left out is left alone,
+// baseline and all.
+const argOnly = process.argv.indexOf('--only')
+const ONLY = argOnly > 0 ? new Set(process.argv[argOnly + 1].split(',')) : null
 const PORT = 5198
 const SHOTS = join(dirname(import.meta.dirname), 'scripts', 'panelshots')
 
@@ -45,8 +53,14 @@ const CHANNEL_TOLERANCE = 6
 const MAX_MOVED = 0.002
 
 // Each state names what it is for, so a failure says which surface broke rather
-// than which number changed. `open` names sections to unfold; `reach` is a
-// function run in the page for anything a fold cannot get to.
+// than which number changed. `open` names sections to unfold, `stage` names a
+// box on the map to open, and `steps` is a list of functions run in the page,
+// in order, with a settle between each — for anything neither of those reaches.
+//
+// A list rather than the `reach`/`then` pair it grew out of, because the number
+// of doors between the panel at rest and a surface is a property of the app and
+// not of this harness: the teletype editor is three now that its picker lives
+// inside a stage, and a state that needed a third step could not say so.
 //
 // The last two are dialogs, and they are not an afterthought: the regression
 // that prompted all of this was a textarea inside one, and a suite of panel
@@ -90,51 +104,57 @@ const STATES = [
     // does — the map is the only way in — and the boxes are SVG groups rather
     // than buttons, so `textContent` on one runs its <title> into its label and
     // the name has to be read off the <text> child. Uppercased in CSS and not
-    // in the DOM, which is why this matches "Tape" rather than "TAPE".
-    reach: () => {
-      const box = [...document.querySelectorAll('g[role="button"]')].find(
-        g => g.querySelector('text')?.textContent.trim() === 'Tape',
-      )
-      box?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    },
+    // in the DOM, which is why this names "Tape" rather than "TAPE".
+    stage: 'Tape',
   },
   {
     name: 'help-dialog',
     dialog: true,
     what: 'the dialog card, its prose and heads, links, and a flush .btn row',
     // the wordmark is the help trigger
-    reach: () => {
-      document.querySelector('img[alt=""]')?.closest('button')?.click()
-    },
+    steps: [
+      () => {
+        document.querySelector('img[alt=""]')?.closest('button')?.click()
+      },
+    ],
   },
   {
     name: 'teletype-dialog',
     dialog: true,
     what: 'the skinned textarea, the tab pair, the mosaic chips and the tools',
-    // Two steps, because the card editor only exists once the source is one.
-    // React tracks the value on the node itself, so assigning through the
-    // prototype setter is what makes it see a real change — a plain
-    // `select.value = x` fires the event and changes nothing.
-    reach: () => {
-      // Not the first select on the page: the masthead's morph-duration
-      // picker is one too, and sits earlier in the DOM.
-      const s = [...document.querySelectorAll('select')].find(sel =>
-        [...sel.options].some(o => /teletype/i.test(o.textContent)),
-      )
-      const opt = [...s.options].find(o => /teletype/i.test(o.textContent))
-      const set = Object.getOwnPropertyDescriptor(
-        HTMLSelectElement.prototype,
-        'value',
-      ).set
-      set.call(s, opt.value)
-      s.dispatchEvent(new Event('change', { bubbles: true }))
-    },
-    then: () => {
-      const b = [...document.querySelectorAll('button')].find(b =>
-        /edit|card|type/i.test(b.title ?? ''),
-      )
-      b?.click()
-    },
+    // Three doors: the stage the picker lives in, the picker, then the editor.
+    //
+    // It was two, and the missing one is why this state stopped working. The
+    // source pickers moved inside the stages when the map became the way to
+    // everything, so the <select> below is not on the page until Source A is
+    // open — before that this reached for `s.options` on undefined, which took
+    // the whole run down with it rather than failing one state.
+    stage: 'Source A',
+    steps: [
+      // React tracks the value on the node itself, so assigning through the
+      // prototype setter is what makes it see a real change — a plain
+      // `select.value = x` fires the event and changes nothing.
+      () => {
+        // Not the first select on the page: the masthead's morph-duration
+        // picker is one too, and sits earlier in the DOM.
+        const s = [...document.querySelectorAll('select')].find(sel =>
+          [...sel.options].some(o => /teletype/i.test(o.textContent)),
+        )
+        const opt = [...s.options].find(o => /teletype/i.test(o.textContent))
+        const set = Object.getOwnPropertyDescriptor(
+          HTMLSelectElement.prototype,
+          'value',
+        ).set
+        set.call(s, opt.value)
+        s.dispatchEvent(new Event('change', { bubbles: true }))
+      },
+      () => {
+        const b = [...document.querySelectorAll('button')].find(b =>
+          /edit|card|type/i.test(b.title ?? ''),
+        )
+        b?.click()
+      },
+    ],
   },
 ]
 
@@ -177,6 +197,7 @@ try {
   await page.setViewport({ width: 1352, height: 950, deviceScaleFactor: 1 })
 
   for (const state of STATES) {
+    if (ONLY !== null && !ONLY.has(state.name)) continue
     // A fresh page per state. Sections remember whether they were open, so
     // reusing one would make each shot depend on the order of the ones before.
     await page.goto(base, { waitUntil: 'load' })
@@ -201,6 +222,25 @@ try {
       }, state.open)
       await new Promise(r => setTimeout(r, 900))
     }
+    // The map's boxes are SVG groups rather than buttons, so `textContent` on
+    // one runs its <title> into its label and the name has to come off the
+    // <text> child. Thrown rather than shrugged off, because a state that names
+    // a stage is a state whose whole subject is behind it.
+    if (state.stage !== undefined) {
+      try {
+        await page.evaluate(name => {
+          const box = [...document.querySelectorAll('g[role="button"]')].find(
+            g => g.querySelector('text')?.textContent.trim() === name,
+          )
+          if (box === undefined) throw new Error(`no ${name} box on the map`)
+          box.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        }, state.stage)
+      } catch (e) {
+        fails.push(`${state.name}: ${e.message}`)
+        continue
+      }
+      await new Promise(r => setTimeout(r, 900))
+    }
     // A step that throws is this state failing, not the run failing. These are
     // navigation written against a UI that moves — a control changes shape and
     // the line that reached for it throws in the page — and an uncaught one
@@ -208,8 +248,7 @@ try {
     // so the states after it are never shot and the ones before it never get
     // reported. Recorded like any other miss instead, and the run carries on.
     let reached = true
-    for (const step of [state.reach, state.then]) {
-      if (step === undefined) continue
+    for (const step of state.steps ?? []) {
       try {
         await page.evaluate(step)
       } catch (e) {
@@ -353,5 +392,11 @@ if (!UPDATE) {
   const n = readdirSync(SHOTS).filter(
     f => f.endsWith('.png') && !f.includes('.actual.'),
   ).length
-  console.log(`panelshots ok — ${n} baselines`)
+  // Says which of the two it is, because under --only "ok" means "the states
+  // you asked for" and a pass over one surface must not read as a clean sweep.
+  console.log(
+    ONLY === null
+      ? `panelshots ok — ${n} baselines`
+      : `panelshots ok — ${[...ONLY].join(', ')} (${n} baselines in all)`,
+  )
 }
