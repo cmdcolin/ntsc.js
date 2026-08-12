@@ -28,6 +28,7 @@ import {
   LOOP_STAGE_NAMES,
   MIX_STAGE,
   MOD_BLURB,
+  MOD_KEYWORDS,
   MOD_STAGE,
   PHASES,
   SOUND_STAGE,
@@ -830,6 +831,10 @@ export function App() {
       {
         name: MOD_STAGE,
         blurb: MOD_BLURB,
+        // The one free box a query can reach, because it is the one holding
+        // controls that live nowhere else — the deck's are all borrowed from
+        // stages already in the results. See `freeMatches`.
+        keywords: MOD_KEYWORDS,
         load: bay,
         body: () => (
           <ModBay

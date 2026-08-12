@@ -11,6 +11,7 @@ import {
   CAMERA_LOOP_STAGE,
   DECK_STAGE,
   MIX_STAGE,
+  MOD_KEYWORDS,
   MOD_STAGE,
   PHASE_ORDER,
   SOUND_STAGE,
@@ -26,10 +27,15 @@ const free: FreeStage[] = [
   {
     name: MOD_STAGE,
     blurb: 'the bay',
+    // The real list, not a stand-in: 'strobe' is the word the whole asymmetry
+    // below was worth building for, so a test that invented its own keywords
+    // would pass while the app kept hiding the gate.
+    keywords: MOD_KEYWORDS,
     load: { n: 2, say: '2 slots patched' },
     body: () => null,
   },
   {
+    // No keywords, deliberately — see the deck test below.
     name: DECK_STAGE,
     blurb: 'the deck',
     load: { n: 0, say: '' },
@@ -74,10 +80,58 @@ describe('the boxes on the map', () => {
     expect(c.anyStage).toBe(true)
   })
 
-  it('keeps the free boxes out while a query is live', () => {
+  it('keeps a free box out of a query it does not answer to', () => {
     const c = chain({ query: 'hue' })
     expect(names(c.branches)).not.toContain(MOD_STAGE)
     expect(names(c.branches)).not.toContain(DECK_STAGE)
+  })
+
+  // The regression this pass exists for. The bay holds the gate, its rate, the
+  // tempo and the split against a held look — none of which is in a group, on
+  // another stage, or in the palette's pool. So while the filter dropped this
+  // box, a query for the one word most people use for the gate found the beam's
+  // blanking strobe and the mixer loop's strobe hold and hid the third.
+  it('brings the bay back for a query it answers to', () => {
+    const c = chain({ query: 'strobe' })
+    expect(names(c.branches)).toContain(MOD_STAGE)
+    // …and the panel must not then print "nothing matches" over it.
+    expect(c.anyStage).toBe(true)
+    expect(c.blocked).toEqual([])
+  })
+
+  // The word on the row, not just the word in the list. Both spellings have to
+  // land: "stabs" is what the rate row is labelled and therefore what gets
+  // typed, and `freeMatches` asks whether a *keyword* contains the query — so
+  // the plural is the entry that has to be there and the singular falls out of
+  // it. A list holding only 'stab' passes every other test in this file.
+  it('answers to the word written on the row', () => {
+    for (const q of ['stab', 'stabs', 'tempo', 'flip'])
+      expect(names(chain({ query: q }).branches)).toContain(MOD_STAGE)
+  })
+
+  it('matches a searchable box on its blurb, the way a row matches on its help', () => {
+    expect(names(chain({ query: 'bay' }).branches)).toContain(MOD_STAGE)
+  })
+
+  // The asymmetry, and the reason keywords are an opt-in rather than an extra
+  // list bolted onto a name-and-blurb match. Every row the deck draws is
+  // borrowed from the stage that owns it, so those rows are already in the
+  // results under their own names — and its blurb names all of them, so a box
+  // matching on prose alone would match "wipe" and be a duplicate in the very
+  // query it matched. Declaring nothing, it stays out of every query, which is
+  // what both free boxes did before the bay needed to come back.
+  it('leaves a box that declares nothing out of every query', () => {
+    for (const q of ['strobe', 'tempo', 'wipe', 'tracking', 'deck'])
+      expect(names(chain({ query: q }).branches)).not.toContain(DECK_STAGE)
+  })
+
+  // `∿` asks which rows are wobbling. The bay is where routings are read as a
+  // set, but dropped on top of that answer it would bury the two rows that are
+  // actually moving under the surface that lists them.
+  it('leaves the free boxes out of the motion query', () => {
+    for (const q of ['∿', 'moving', 'lfo']) {
+      expect(names(chain({ query: q }).branches)).not.toContain(MOD_STAGE)
+    }
   })
 
   it('carries what a free box is holding as its own count and clause', () => {

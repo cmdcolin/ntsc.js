@@ -17,7 +17,7 @@ import {
   VIEW_JOIN,
   VIEW_STAGE,
 } from './controls'
-import { groupMatches } from './filter'
+import { freeMatches, groupMatches } from './filter'
 
 import type { Controls } from '../controls'
 import type { Group } from './controls'
@@ -53,6 +53,11 @@ export interface FreeStage {
   blurb: string
   load: StageLoad
   body: () => ReactNode
+  // The words a searcher would type for something this box holds and the blurb
+  // does not happen to use. Absent means the box never survives a query — see
+  // `freeMatches`, which is where the two boxes part company: the deck's rows
+  // are all borrowed and the bay's are not.
+  keywords?: readonly string[]
 }
 
 export interface PanelChain {
@@ -153,12 +158,17 @@ export function panelChain(o: {
   soundOn: boolean
   // Opens one group inside one stage: what a stage's `• N` jumps to.
   onOpenGroup: (stage: string, group: string) => void
-  // The boxes wired to nothing, in the order they sit on their own row. Out
-  // while a query is live, exactly as they were while they were sections of the
-  // sidebar: everything below the filter box is the result set, and neither
-  // holds a control the filter can reach — the bay's rows describe slots, and
-  // every row the deck draws is borrowed from a stage that is already in the
-  // results under its own name.
+  // The boxes wired to nothing, in the order they sit on their own row. Under a
+  // query each survives on its own keywords (`freeMatches`) rather than both
+  // dropping out — which is what they used to do, on the argument that neither
+  // holds a control the filter can reach.
+  //
+  // That was half true, and the false half was load-bearing. It holds for the
+  // deck, whose every row is borrowed from a stage already in the results under
+  // its own name. It never held for the bay: the gate, its rate, the tempo and
+  // the split against a held look are in no group and on no other stage, so the
+  // filter was hiding the only copy of them — and hiding it hardest for the word
+  // most people search this app for, since "strobe" is what the gate is.
   free: readonly FreeStage[]
 }): PanelChain {
   const { controls } = o
@@ -222,22 +232,22 @@ export function panelChain(o: {
         { ...(b.fed !== undefined && !fed[b.fed] ? inert(n) : n), ...wiring },
       ]
     }),
-    ...(o.query === ''
-      ? o.free.map((f): BranchNode => ({
-          ...node(f.name, f.blurb, []),
-          // What the box wears its amber for, and what that number counts —
-          // "controls off stock" being the wrong noun for either of these.
-          // Neither has groups, so `node` counts nothing and this is the whole
-          // of it.
-          touched: f.load.n,
-          touchedSay: f.load.say,
-          // No `onJumpTouched`: there is no group under these to jump to —
-          // opening one *is* arriving.
-          onJumpTouched: undefined,
-          body: f.body,
-          free: true,
-        }))
-      : []),
+    ...o.free
+      .filter(f => o.query === '' || freeMatches(f, o.query))
+      .map((f): BranchNode => ({
+        ...node(f.name, f.blurb, []),
+        // What the box wears its amber for, and what that number counts —
+        // "controls off stock" being the wrong noun for either of these.
+        // Neither has groups, so `node` counts nothing and this is the whole
+        // of it.
+        touched: f.load.n,
+        touchedSay: f.load.say,
+        // No `onJumpTouched`: there is no group under these to jump to —
+        // opening one *is* arriving.
+        onJumpTouched: undefined,
+        body: f.body,
+        free: true,
+      })),
   ]
 
   // Trunk, then loops, then branches — the order the panel lists them in, and

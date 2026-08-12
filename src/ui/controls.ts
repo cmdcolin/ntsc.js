@@ -3421,7 +3421,31 @@ export const VIEW_BLURB =
 // whole reason it moved: the map is where you go looking for a thing to open.
 export const MOD_STAGE = 'Modulation'
 export const MOD_BLURB =
-  'not the rig — the hand on the knobs: LFOs, drift, sample-and-hold and the audio envelope wiggling any control around wherever you left its slider, the beat they lock to, and the stab gate that cuts the whole look in and out. A slot is patched at the control it drives (press ∿ on any row); this is where the eight read as a bay'
+  'not the rig — the hand on the knobs: LFOs, drift, sample-and-hold and the audio envelope wiggling any control around wherever you left its slider, the beat they lock to, and the stab gate, which cuts the whole board between the look you are dialing and a second one — stock, or a look you held there. A slot is patched at the control it drives (press ∿ on any row); this is where the eight read as a bay'
+
+// What the bay answers to beyond its name and its blurb. Only the words a
+// searcher would actually type that the prose above does not already carry —
+// the blurb is matched in full, exactly as a slider's help text is.
+//
+// 'strobe' is the one this list exists for. It is what most people call the
+// gate, it is the app's third thing by that name (the beam's blanking strobe on
+// Screen, the mixer loop's strobe hold), and it is the only one of the three
+// that lives in no group — so before this it was the one word that found two
+// strobes and hid the one being asked for.
+// 'stabs' as well as 'stab', because the row is *labelled* "stabs" and the word
+// somebody types is the one they can see. `freeMatches` asks whether a keyword
+// contains the query, so the longer form has to be the one listed — a search for
+// "stabs" against the entry 'stab' finds nothing, which is the failure this list
+// is here to stop rather than an instance of it.
+export const MOD_KEYWORDS: readonly string[] = [
+  'strobe',
+  'stabs',
+  'tempo',
+  'bpm',
+  'wobble',
+  'flip',
+  'held look',
+]
 
 // The deck: the panel's second organization of controls it already has, filed by
 // the gesture that moves them instead of by the mechanism that breaks. See
