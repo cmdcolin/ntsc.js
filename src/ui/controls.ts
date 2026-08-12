@@ -140,11 +140,11 @@ export const FEED_B_CABLE_GROUP = 'Feed B · cable'
 // three groups has to be able to say so by name instead of guessing at a prefix.
 export const SYNTH_GROUP = 'Video synth (source)'
 
-// Each named for the physics that closes it, which is the one thing that tells
-// the three apart once more than one is running.
-export const CAMERA_LOOP_GROUP = 'Camera loop (optical)'
-export const MIXER_LOOP_GROUP = 'Mixer loop (electrical)'
-export const DELAY_LOOP_GROUP = 'Delay loop (mechanical)'
+// Each carries its stage's name plus the physics that closes it, which is the
+// one thing that tells the three apart once more than one is running.
+export const CAMERA_LOOP_GROUP = 'Camera feedback (optical)'
+export const MIXER_LOOP_GROUP = 'Mixer feedback (electrical)'
+export const DELAY_LOOP_GROUP = 'VHS tape loop (mechanical)'
 
 // Which of the three are actually carrying signal, so a drawing can show a
 // running loop rather than only the three that exist in principle. One shape
@@ -164,14 +164,19 @@ export type LoopsLive = Record<LoopPlace, boolean>
 // closes a loop is the only thing that tells one from another once more than
 // one is running. The camera loop is optical: it points at the tube's face, so
 // it can only do what a lens can. The mixer loop is electrical: it carries the
-// subcarrier round with it, so it does things optics cannot. The delay loop is
+// subcarrier round with it, so it does things optics cannot. The tape loop is
 // mechanical: it re-records what it returns, so what circulates ages a
 // generation a lap.
 export interface LoopStage {
   loop: LoopPlace
-  // What the panel calls the stage, and what the map opens by name.
+  // What the panel calls the stage, what the map opens by name, and what both
+  // drawings write on the run — the miniature in lowercase, which is a CSS rule
+  // there and not a second spelling here (ChainMap.module.css).
   name: string
-  // The word that rides the run on the miniature, where there is room for one.
+  // What the run says when it is too narrow for the name. A filter can shorten
+  // the trunk to two boxes, and then a return spans a fifth of the drawing —
+  // chainLayout measures the span it has and picks between the two, so a long
+  // name is never left lying across somebody else's wire.
   short: string
   // The one-liner the run's hover and the stage's heading carry.
   blurb: string
@@ -186,32 +191,43 @@ export interface LoopStage {
 // The three by name, for the surfaces that address one of them by identity —
 // written above the table and read out of it, so a rename lands in one place.
 //
-// The third is the delay loop, and it has been called two other things. 'Tape
-// loop' was the first and the worst: 'Tape' is already a stage of the trunk two
-// columns along — the deck this signal was played back on, dropouts and
-// timebase wander — so one word stood over two machines on one drawing, and the
-// run straddling Mix read as a wire that had missed the box it was named after.
+// Two of them say 'feedback' rather than 'loop', because 'loop' is the half of
+// the name the band they ride already says and 'feedback' is the thing a first
+// visit is looking for. Nobody arrives wondering where the loops are; they
+// arrive wanting the camera pointed at the screen.
 //
-// 'Loop bin' was the second, and it is borrowed from the wrong trade. A loop bin
-// is duplication gear: a spliced master spilled loose into an open bin, running
-// past a playback head to feed a bank of slave recorders. No record head, no
-// feedback. What is modelled here — a record head laying down the sum, a play
-// head returning it a lap later, the return recorded again — is a tape echo,
-// which in a video rig is a delay loop. The image the bin conjured was right and
-// the machine it named was not.
+// The third has been called three other things, and 'VHS tape loop' is the
+// first that says what the machine is. 'Tape loop' was the first try and it
+// collided: 'Tape' is already a stage of the trunk two columns along — the deck
+// this signal was played back on, dropouts and timebase wander — so one word
+// stood over two machines on one drawing, and the run straddling Mix read as a
+// wire that had missed the box it was named after. Qualifying it settles that,
+// and the two are told apart twice over on the miniature: the trunk box is
+// uppercase TAPE on the chain, the run is lowercase over it.
+//
+// 'Loop bin' was the second, and it is borrowed from the wrong trade — a loop
+// bin is duplication gear, a spliced master spilled loose into an open bin to
+// feed a bank of slave recorders, with no record head and no feedback at all.
+// 'Delay loop' was the third, and it named the effect instead of the machine:
+// accurate, and it left the drawing saying what a knob does where every other
+// box says what a thing is. What is modelled here is a second deck threaded
+// with a loop of tape, so that is what it is called.
 //
 // `loop` and every control key stay `tape` (LOOP_PLACES, `tapeMix`,
 // signal/tapeloop.ts): the collision was only ever in what the two are called,
 // and the signal path has one tape in it.
-export const CAMERA_LOOP_STAGE = 'Camera loop'
-export const MIXER_LOOP_STAGE = 'Mixer loop'
-export const DELAY_LOOP_STAGE = 'Delay loop'
+export const CAMERA_LOOP_STAGE = 'Camera feedback'
+export const MIXER_LOOP_STAGE = 'Mixer feedback'
+export const DELAY_LOOP_STAGE = 'VHS tape loop'
 
 export const LOOP_STAGES: readonly LoopStage[] = [
   {
     loop: 'camera',
     name: CAMERA_LOOP_STAGE,
-    short: 'camera',
+    // The machine, where the name has to give up its half about the physics.
+    // Each of the three is named for a different piece of gear, so the first
+    // word is the one that survives the cut.
+    short: 'Camera',
     blurb:
       'optical — a camera on the tube’s face, its picture mixed back in ahead of the encoder, plus the gun and glass it is pointed at',
     what: 'light rather than wire — a camera on the tube’s face, its picture mixed back into the input ahead of the encoder. It carries an image that has already been decoded and lit, so it can only do what a lens can: zoom, shift, defocus, cut a black level. Past unity gain it breeds structure on its own',
@@ -220,7 +236,7 @@ export const LOOP_STAGES: readonly LoopStage[] = [
   {
     loop: 'mixer',
     name: MIXER_LOOP_STAGE,
-    short: 'mixer',
+    short: 'Mixer',
     blurb:
       'electrical — the composite off the bus, crossfaded back against the live signal, subcarrier and all',
     what: 'the composite itself, patched off the bus into an input and crossfaded against the live signal. The subcarrier rides round with it, so each sample of cable delay spins fed-back hue 90° a generation and colour does things optics cannot',
@@ -229,9 +245,10 @@ export const LOOP_STAGES: readonly LoopStage[] = [
   {
     loop: 'tape',
     name: DELAY_LOOP_STAGE,
-    // The distinguishing word, like the other two — all three are loops, so
-    // that half of the name is what the band it rides already says.
-    short: 'delay',
+    // Two words rather than one, because the one is taken: 'tape' alone is the
+    // trunk box two columns along, which is the whole reason this stage stopped
+    // being called after it — see DELAY_LOOP_STAGE.
+    short: 'VHS tape',
     blurb:
       'mechanical — a second deck threaded with a loop of tape, patched across the bus: what goes round is re-recorded and ages a generation a lap',
     what: 'a second machine threaded with a loop of tape, patched across the bus rather than round the chain: a play head returns what was laid down a lap ago, a record head lays the sum back down, and whatever keeps circulating ages a generation every time round',

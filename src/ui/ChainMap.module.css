@@ -120,6 +120,11 @@
   fill: var(--fg3);
   font-size: 7.5px;
   letter-spacing: 0.02em;
+  /* The runs carry the same names the panel does, set down a register: the
+     boxes are the chain and shout, the loops are patched over it and murmur.
+     Cased here rather than in the loop table for the reason the boxes are
+     upper-cased here — one spelling, and the drawing decides how it is set. */
+  text-transform: lowercase;
   user-select: none;
   paint-order: stroke;
   stroke: var(--panel-bg);

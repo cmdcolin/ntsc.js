@@ -8,12 +8,14 @@ import {
   FREE_Y,
   LEAD,
   OUT,
+  runLabelWidth,
   W,
 } from './chainLayout'
 import {
   DECK_STAGE,
   LOOP_STAGES,
   MIX_STAGE,
+  MIXER_LOOP_STAGE,
   MOD_STAGE,
   PHASE_ORDER,
   SOUND_JOIN,
@@ -328,7 +330,7 @@ describe('chain map geometry', () => {
   // Each run carries its own name, and where the name sits is the half of that
   // which can go wrong silently: a name off the end of its run reads as a word
   // floating over the chain. Each long return starts its name just clear of the
-  // box it lands on and has run left to cover it; the delay loop sets its name
+  // box it lands on and has run left to cover it; the tape loop sets its name
   // outside its own little loop, clear of the knot of wires at the box top.
   it('puts each loop’s name on its own run', () => {
     const { boxes, returns } = chainLayout(FULL)
@@ -337,8 +339,8 @@ describe('chain map geometry', () => {
       if (box === undefined) throw new Error(`${r.loop}: no ${r.into} box`)
       if (r.self) {
         // set outside its own loop, and still on the map
-        expect(r.nameAt.x, r.loop).toBeLessThan(Math.min(r.from, r.to))
-        expect(r.nameAt.x, r.loop).toBeGreaterThan(0)
+        expect(r.nameAt.x, r.loop).toBeGreaterThan(Math.max(r.from, r.to))
+        expect(r.nameAt.x, r.loop).toBeLessThan(W)
       } else {
         // on its own horizontal span, and clear of the box it lands on
         const [lo, hi] = [Math.min(r.from, r.to), Math.max(r.from, r.to)]
@@ -354,7 +356,53 @@ describe('chain map geometry', () => {
   // renamed to something else, and nothing renders wrong.
   it('names each run out of the loop table', () => {
     const names = chainLayout(FULL).returns.map(r => r.name)
-    expect(names).toEqual(LOOP_STAGES.map(l => l.short))
+    expect(names).toEqual(LOOP_STAGES.map(l => l.name))
     for (const n of names) expect(n).not.toBe('')
+  })
+
+  // …until the name does not fit, which is the case the full row never shows.
+  // A filter can leave a two-box trunk, and then a return spans a fifth of the
+  // drawing while its name is unchanged — so the label is picked against the
+  // width it actually has and drops to the loop table's `short` when the name
+  // will not sit there. The failure this rules out is silent by construction:
+  // the text renders either way, over whatever it lands on.
+  it('cuts a run’s name down to fit the run it has', () => {
+    const short = new Map(LOOP_STAGES.map(l => [l.loop, l.short]))
+    const tight = chainLayout([MIX_STAGE, 'Receiver'])
+    const mixer = tight.returns.find(r => r.loop === 'mixer')
+    if (mixer === undefined) throw new Error('no mixer return on a two-box row')
+    expect(mixer.name).toBe(short.get('mixer'))
+    // And the same run keeps its full name on the full row, or the rule above
+    // is just "always short" and nothing is being measured.
+    const full = chainLayout(FULL).returns.find(r => r.loop === 'mixer')
+    expect(full?.name).toBe(MIXER_LOOP_STAGE)
+  })
+
+  // Whichever form it lands on has to clear the wires that cross its band. The
+  // runs drop their verticals from the trunk up to their own height, so a label
+  // can only ever collide with a run drawn *above* it — and the tape loop, whose
+  // name hangs off the end of a 30-unit run rather than riding a 200-unit one,
+  // is the one with nothing but that clearance between it and the next wire.
+  it('keeps every run’s label clear of the wires over it', () => {
+    const rows = [
+      FULL,
+      // Tape filtered out, which is the widest row that still draws all three
+      [SOURCE_A_STAGE, MIX_STAGE, 'Receiver', 'Screen'],
+      [MIX_STAGE, 'Receiver', 'Screen'],
+      [MIX_STAGE, 'Receiver'],
+    ]
+    for (const names of rows) {
+      const { returns } = chainLayout(names)
+      for (const r of returns) {
+        const end = r.nameAt.x + runLabelWidth(r.name)
+        expect(end, `${r.loop} on ${names.length}`).toBeLessThanOrEqual(W)
+        const over = returns
+          .filter(o => o.y < r.y)
+          .flatMap(o => [o.from, o.to])
+          .filter(x => x > r.nameAt.x)
+        for (const x of over)
+          expect(end, `${r.loop} into a run over it`).toBeLessThanOrEqual(x)
+      }
+    }
   })
 })

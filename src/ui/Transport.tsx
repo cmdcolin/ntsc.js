@@ -154,9 +154,9 @@ export function LoopTransport() {
     <div className={styles.deckRow}>
       <div
         className={styles.deckLabel}
-        title="the loop of tape threaded through the feedback path"
+        title="the loop of tape threaded through the feedback path — not the deck above it, which is what the incoming tape is played back on"
       >
-        delay loop
+        vhs tape loop
       </div>
       <div className={styles.stops}>
         <button

@@ -7,15 +7,18 @@ import {
   AUTOMAP_KEYS,
   B_GROUPS,
   CAMERA_LOOP_GROUP,
+  CAMERA_LOOP_STAGE,
   FEED_A_CABLE_GROUP,
   FEED_A_GROUP,
   FEED_B_CABLE_GROUP,
   FEED_B_GROUP,
   GROUPS,
   DELAY_LOOP_GROUP,
+  DELAY_LOOP_STAGE,
   LOOP_STAGE_NAMES,
   LOOP_STAGES,
   MIXER_LOOP_GROUP,
+  MIXER_LOOP_STAGE,
   MIX_STAGE,
   NEEDS,
   PHASE_ORDER,
@@ -185,14 +188,14 @@ describe('control tables', () => {
     // 'Feedback' header over all five. The tube face goes with the camera
     // because it is what the camera is pointed at — the mixer loop taps ahead
     // of the tube and never sees it.
-    expect(stageGroups('Camera loop').map(g => g.name)).toEqual([
+    expect(stageGroups(CAMERA_LOOP_STAGE).map(g => g.name)).toEqual([
       CAMERA_LOOP_GROUP,
       'Tube face (what the camera shoots)',
     ])
-    expect(stageGroups('Mixer loop').map(g => g.name)).toEqual([
+    expect(stageGroups(MIXER_LOOP_STAGE).map(g => g.name)).toEqual([
       MIXER_LOOP_GROUP,
     ])
-    expect(stageGroups('Delay loop').map(g => g.name)).toEqual([
+    expect(stageGroups(DELAY_LOOP_STAGE).map(g => g.name)).toEqual([
       DELAY_LOOP_GROUP,
       'Loop transport & heads',
     ])

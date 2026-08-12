@@ -1,4 +1,9 @@
-import { CAMERA_LOOP_STAGE, stageGroups } from './controls'
+import {
+  CAMERA_LOOP_STAGE,
+  DELAY_LOOP_STAGE,
+  MIXER_LOOP_STAGE,
+  stageGroups,
+} from './controls'
 import { usePersistedString } from './storage'
 
 // Which stage, and which group inside it, are unfolded — one of each, so the
@@ -25,13 +30,22 @@ const OPEN_PHASE_STORE = 'video_feedback_open_phase'
 // answers are the same, and the pair exists only to keep reading what older
 // sessions wrote.
 //
-// A stage that no longer exists is the case that still needs translating, and it
-// is stored state from before the split: 'Feedback' was one stage over three
-// loops, and it is now three. Left alone it comes back as a name nothing renders
-// and no box on the map opens — a session that returns to a panel showing
-// nothing, with no way to tell that from having closed it. The camera loop is
-// where it lands because it held the group 'Feedback' opened at first.
-const GONE: Readonly<Record<string, string>> = { Feedback: CAMERA_LOOP_STAGE }
+// A stage that no longer exists is the case that still needs translating. Left
+// alone it comes back as a name nothing renders and no box on the map opens — a
+// session that returns to a panel showing nothing, with no way to tell that from
+// having closed it.
+//
+// 'Feedback' is stored state from before the split: it was one stage over three
+// loops, and it is now three. The camera loop is where it lands because it held
+// the group 'Feedback' opened at first. The other three are the same three
+// stages under the names they were filed as before they were called after their
+// machines rather than after the fact that each is a loop (see LOOP_STAGES).
+const GONE: Readonly<Record<string, string>> = {
+  Feedback: CAMERA_LOOP_STAGE,
+  'Camera loop': CAMERA_LOOP_STAGE,
+  'Mixer loop': MIXER_LOOP_STAGE,
+  'Delay loop': DELAY_LOOP_STAGE,
+}
 
 export const openStageFrom = (stored: string | null): string | null =>
   stored === null || stored === '' ? null : (GONE[stored] ?? stored)

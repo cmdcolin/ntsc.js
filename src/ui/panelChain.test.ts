@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_CONTROLS } from '../controls'
 import {
+  CAMERA_LOOP_STAGE,
   DECK_STAGE,
   MIX_STAGE,
   MOD_STAGE,
@@ -120,7 +121,7 @@ describe('a query that reaches nothing on the trunk', () => {
   it('still finds a loop', () => {
     const c = chain({ query: 'vignette' })
     expect(c.nodes).toEqual([])
-    expect(names(c.loops)).toEqual(['Camera loop'])
+    expect(names(c.loops)).toEqual([CAMERA_LOOP_STAGE])
     expect(c.anyStage).toBe(true)
   })
 

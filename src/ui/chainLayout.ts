@@ -80,6 +80,21 @@ const PAD = 8
 // A short label still needs to read as a box rather than a dot on the wire.
 const MIN_BOX = 20
 
+// The same estimate for a run's label, which is a different number because it
+// is different type: 7.5px and lowercase against the boxes' 8px uppercase (see
+// .mapLoopLabel and .mapLabel). Measured in Firefox the same way CHAR was — the
+// three names cost 3.78 to 4.16 units a character and the shortest fallback,
+// 'Camera', costs 4.51, so 4.6 clears the widest of them by the margin CHAR
+// keeps over its own.
+//
+// Generous on purpose, and the asymmetry is why: overestimating drops a run to
+// its short name one layout earlier than it had to, which is a label that still
+// reads, while underestimating lays a name across somebody else's wire.
+const RUN_CHAR = 4.6
+// Exported for the test that holds a label clear of the wires over it: it has
+// to measure what the layout measured, or it is checking a second estimate.
+export const runLabelWidth = (s: string) => s.length * RUN_CHAR
+
 // Boxes are sized to what they say rather than to an equal share of the width.
 // That is what let a sixth box onto the row back when the trunk had six: at
 // equal columns RECEIVER got 38 units for 37 units of text while TAPE sat in
@@ -102,14 +117,14 @@ export const boxWidth = (name: string) =>
 //   mixer — electrical: `fbComposite` crossfades the bus against itself
 //     straight after the A/B sum, so it re-enters at Mix, and it taps at the
 //     Receiver because what goes round is the composite the decoder saw.
-//   delay loop — mechanical, and the one that taps nowhere: `tapePlay` returns
+//   tape loop — mechanical, and the one that taps nowhere: `tapePlay` returns
 //     onto the bus and `tapeRec` lays the sum back down at that same point, one
 //     pass later. So it is a tight loop *across* the mixer's output rather than
 //     a run around anything, which is why `self` is a field and not a special
 //     case — the filter rules below are different for a return whose two ends
-//     are one box. It read as a wire that had missed its box while it was
-//     called 'tape', there being a Tape box two along that it has nothing to do
-//     with; see DELAY_LOOP_STAGE for why the name moved and the key did not.
+//     are one box. Called after its tape and kept clear of the Tape box two
+//     along by the rest of its name; see DELAY_LOOP_STAGE for why the label
+//     carries 'VHS' and the key stays `tape`.
 //
 // Each is routed rather than swooped — up, back along its run, then straight
 // down into the stage it feeds, so the wire is vertical where the arrowhead
@@ -120,10 +135,10 @@ export const boxWidth = (name: string) =>
 // difference between them here, which is why the map used to be the one place
 // both were visible and still could not say which was which: a hover carried
 // the names, and a hover is an answer you have to already suspect the question
-// of. Each now carries its own name on its own run — `short`, off LOOP_STAGES,
-// because it has to ride a 304-unit drawing — and lights up while its own loop
-// is actually running, so "which loop is on" is answered here rather than by
-// opening a stage and reading three mixes.
+// of. Each now carries its own name on its own run — the stage's own name off
+// LOOP_STAGES, cut down to `short` on a run too narrow to hold it — and lights
+// up while its own loop is actually running, so "which loop is on" is answered
+// here rather than by opening a stage and reading three mixes.
 //
 // And each is the way into its own stage: a run is the box for a machine that
 // has no place on the trunk to draw one.
@@ -151,7 +166,7 @@ interface ReturnSpec {
 // on the row, and stacking a self loop's pair on its top edge beside the mixer
 // loop's single arrowhead put three verticals inside 16 units of a 24-unit box:
 // a knot rather than three wires. Straddling the box says the same thing better
-// — a machine patched *across* one node, which is what a delay loop is — and it
+// — a machine patched *across* one node, which is what a tape loop is — and it
 // leaves the mixer loop alone on the box top. Comfortably inside GAP, so the
 // ends stay on the runs either side and never reach the next box.
 const SELF_STRADDLE = 5
@@ -192,10 +207,17 @@ const RETURNS: readonly ReturnSpec[] = [
   },
 ]
 
-// The short word each run carries, off the one loop table, so the map cannot
-// name a loop something the panel does not call it. Falls back to the placement
-// key, which is the word the table's own `short` is: a loop added to RETURNS
-// and not to LOOP_STAGES draws its own name rather than a blank.
+// What each run carries, off the one loop table, so the map cannot name a loop
+// something the panel does not call it: the stage's own name where the run has
+// the width for it, and the table's `short` where it does not. The miniature
+// draws both in lowercase, which is a CSS rule (.mapLoopLabel) rather than a
+// second spelling here — the boxes have upper-cased their names the same way
+// since the map was one row of five.
+//
+// Both fall back to the placement key: a loop added to RETURNS and not to
+// LOOP_STAGES draws its own name rather than a blank.
+const nameOf = (loop: LoopPlace): string =>
+  LOOP_STAGES.find(l => l.loop === loop)?.name ?? loop
 const shortOf = (loop: LoopPlace): string =>
   LOOP_STAGES.find(l => l.loop === loop)?.short ?? loop
 
@@ -373,14 +395,14 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
       : [{ key: 'out', x0: boxes[last].x + boxes[last].w / 2, x1: W }]),
   ]
   // A return only reads as a return if it comes back from somewhere downstream
-  // of where it re-enters — except the delay loop, which taps the box it returns
+  // of where it re-enters — except the tape loop, which taps the box it returns
   // to and so is the one return whose two ends are the same. Both cases need
   // both of their stages on the row, which a filter can take away.
   //
   // A self loop's two ends are taken off the box's own edges rather than from a
   // fixed offset: a squeezed row narrows every box, and a pair pinned at ±8
   // while the box between them shrank to 14 would end up straddling nothing.
-  const returns = RETURNS.flatMap(r => {
+  const drawn = RETURNS.flatMap(r => {
     const tap = at(r.tap)
     const back = at(r.into)
     if (tap < 0 || back < 0 || (r.self ? tap !== back : tap <= back)) return []
@@ -392,16 +414,45 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
     // end of it — just clear of the box it lands on, so a name sits beside its
     // own arrowhead rather than somewhere along a span shared with two others.
     //
-    // The delay loop gets the other side of the box it straddles. Centred on its
+    // The tape loop gets the far side of the box it straddles. Centred on its
     // own run is the obvious place and the wrong one: that span is the box
     // itself, so the word comes down on top of the stage name and the two
-    // arrowheads either side of it. Set to the left of the loop instead it is
-    // clear of every wire and still at its own run's height.
+    // arrowheads either side of it. Beside the loop it is clear of every wire
+    // and still at its own run's height — and on the right rather than the
+    // left, which is where the room is: to the left the next thing along is the
+    // camera return's drop into the head of the chain, and a name that reaches
+    // it reads as that run's, which is the one mistake worth ruling out.
     const edge = boxes[back].x + boxes[back].w / 2
     const nameAt = r.self
-      ? { x: Math.min(from, to) - 4, anchor: 'end' as const }
+      ? { x: Math.max(from, to) + 4, anchor: 'start' as const }
       : { x: edge + 5, anchor: 'start' as const }
-    return [{ ...r, name: shortOf(r.loop), from, to, nameAt }]
+    return [{ ...r, from, to, nameAt }]
+  })
+  // How much clear width each name has, and so which of its two forms it gets.
+  //
+  // A run's verticals rise from the trunk to its own band, so they cross every
+  // band below it and none above: what a label can collide with is the drops of
+  // the runs *over* it, plus — for a return that reaches back across the map —
+  // the corner where its own run turns down. Nothing else on the drawing is up
+  // here; the boxes start 7 units under the lowest band.
+  //
+  // The tape loop is the one that needs this said, because it is the one whose
+  // label hangs off the end of a run 30 units long rather than riding one 200
+  // units long. On the full trunk it has the whole span to the receiver's drop
+  // and takes its name; on a filtered row that drop can land 40 units away, and
+  // it takes 'VHS tape' instead of writing across it.
+  const returns = drawn.map(r => {
+    const overhead = drawn
+      .filter(o => o.y < r.y)
+      .flatMap(o => [o.from, o.to])
+      .filter(x => x > r.nameAt.x)
+    const stop = Math.min(
+      ...overhead,
+      r.self ? W : Math.max(r.from, r.to) - r.turn,
+    )
+    const full = nameOf(r.loop)
+    const fits = runLabelWidth(full) <= stop - r.nameAt.x
+    return { ...r, name: fits ? full : shortOf(r.loop) }
   })
   // The branch row, laid out left to right with a cursor: each box takes the
   // place its anchor asks for, and is pushed right if that would land it on the
