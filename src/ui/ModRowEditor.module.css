@@ -1,10 +1,15 @@
 /* The modulation editor, expanded under the control row it belongs to. Set in
    from the left and ruled down that edge so it reads as belonging to the row
-   above rather than as the next control in the list. */
+   above rather than as the next control in the list.
+
+   The rail is the panel's, from the theme: an open stage draws the same mark
+   for the same reason, and on the spine this one is *inside* that one — an
+   editor's rail 8px in from a stage's. It was a hex a shade off it, which at
+   that distance reads as one of them being wrong rather than as two ranks. */
 .editor {
   margin: 2px 0 8px 8px;
   padding: 4px 0 4px 8px;
-  border-left: 2px solid #3a5a4a;
+  border-left: 2px solid var(--rail);
 }
 
 /* The editor's two verbs, on one line: hold still, and remove. */

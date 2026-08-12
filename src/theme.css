@@ -59,6 +59,16 @@
   /* below both: a hairline that only has to exist — a group card's outline, a
      subheading's rule, the edge of an empty slot */
   --border-faint: #2e2e38;
+  /* A rail down the left of a block that belongs to the thing above it: the
+     open stage on the spine (SignalPath.module.css, which turns the same colour
+     into a lid across the head) and the modulation editor that opens under a
+     control row. One recipe because the two are seen nested — the editor's rail
+     inside the stage's — and two greens a shade apart read as a mistake rather
+     than as two ranks. Mixed off --accent rather than set as a flat hex, which
+     is what the editor's was, and left translucent so it sits on whatever
+     ground it lands on: the panel's black beside a group's rows, the head
+     strip's own tint across the top of a stage. */
+  --rail: color-mix(in srgb, var(--accent) 35%, transparent);
   /* The app's ground, behind everything including the panel — which sets no
      background of its own and so is this colour wherever nothing else paints.
      A token rather than the two literals it was (app.module.css's .app and

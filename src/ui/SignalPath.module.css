@@ -60,14 +60,13 @@
    costs 10. Where the rail stops is the stage's bottom edge, which the flow
    never drew at all: the last group used to run straight into the MIDI section.
 
-   The colour is a variable because two rules draw this edge: the rail here, and
-   the lid across the head below. They are one line turning a corner, so they
-   are not allowed to drift apart. */
+   --rail is the theme's, not this file's: three rules draw this one line — the
+   rail here, and the lid and its corner across the head below — and the
+   modulation editor rules its own block with the same mark, one level in. */
 .stageRow {
-  --stage-edge: color-mix(in srgb, var(--accent) 35%, transparent);
   margin: 8px 0 10px;
   padding: 0 0 6px 8px;
-  border-left: 2px solid var(--stage-edge);
+  border-left: 2px solid var(--rail);
 }
 .stageHead {
   display: flex;
@@ -89,8 +88,8 @@
    Tinted with the same recipe the map tints the box you pressed with
    (ChainMap.module.css .mapNodeOn .mapBox). That shared colour is the link the
    accent on the name was carrying alone, and unlike the name it is still there
-   after you scroll. Bled back over the rail's padding so the strip reads as the
-   object's top edge rather than a band floating inside it.
+   after you scroll. What makes it the object's top edge rather than a band
+   floating inside one is the lid below — the fill alone never did it.
 
    z-index 1 is over the stage's own rows and under a slider's help card
    (Slider.module.css .helpPop, at 5), which has to keep opening on top. */
@@ -112,8 +111,8 @@
      border exactly over the rail below, same colour and same width, so the two
      meet as a corner instead of stacking one inside the other. The text does
      not move: the padding still puts it on the content edge. */
-  border-top: 2px solid var(--stage-edge);
-  border-left: 2px solid var(--stage-edge);
+  border-top: 2px solid var(--rail);
+  border-left: 2px solid var(--rail);
   border-bottom: 1px solid var(--border-faint);
   background: color-mix(in srgb, var(--accent) 9%, var(--panel-bg));
   /* And the panel's own ground painted above the strip, because a pinned one
