@@ -17,6 +17,7 @@ import {
   wipeEngaged,
 } from './deck'
 import styles from './Deck.module.css'
+import { useGrabRect } from './useGrabRect'
 
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 
@@ -57,7 +58,6 @@ export function TBar() {
   // controls object captured a second ago. Both halves of the store keep their
   // identity across a write, so the frame loop can hold onto it.
   const store = use(ControlStoreContext)
-  const [grab, setGrab] = useState<DOMRect | null>(null)
   const [takeIndex, setTakeIndex] = useState(1)
   const [taking, setTaking] = useState(false)
   const raf = useRef(0)
@@ -72,6 +72,9 @@ export function TBar() {
     cancelAnimationFrame(raf.current)
     setTaking(false)
   }
+
+  // A take is a hands-off gesture; touching the bar is taking it back.
+  const grab = useGrabRect((e, box) => throwTo(posFrom(e, box)), stopTake)
 
   // An auto-take is a machine running on its own, not a render to keep in sync
   // with one: it is started by the press, it reads the store and writes the
@@ -128,22 +131,7 @@ export function TBar() {
               ? 'the wipe lever — a pattern is armed, so the throw moves the boundary'
               : 'the crossfade — full A at the left, full B at the right'
           }
-          onPointerDown={e => {
-            // A take is a hands-off gesture; touching the bar is taking it back.
-            stopTake()
-            const box = e.currentTarget.getBoundingClientRect()
-            e.currentTarget.setPointerCapture(e.pointerId)
-            setGrab(box)
-            throwTo(posFrom(e, box))
-          }}
-          onPointerMove={e => {
-            if (grab !== null) throwTo(posFrom(e, grab))
-          }}
-          onPointerUp={e => {
-            e.currentTarget.releasePointerCapture(e.pointerId)
-            setGrab(null)
-          }}
-          onPointerCancel={() => setGrab(null)}
+          {...grab}
           onKeyDown={e => key(e)}
         >
           <div className={styles.trackFill} style={{ width: `${p * 100}%` }} />

@@ -1,11 +1,10 @@
-import { useState } from 'react'
-
 import { clamp01 } from '../math'
 import { useControls, useControlsApi } from './ControlsContext'
 import { cx } from './cx'
 import styles from './Deck.module.css'
 import { uvInRect } from './miniFrame'
 import mini from './MiniFrame.module.css'
+import { useGrabRect } from './useGrabRect'
 
 import type { KeyboardEvent, PointerEvent } from 'react'
 
@@ -34,12 +33,6 @@ const NUDGE = new Map([
 export function TrackingPad() {
   const controls = useControls()
   const { writeControls } = useControlsApi()
-  // The frame's box as it was when the drag started, and the whole gesture is
-  // measured against it — see uvInRect. The first press moves trackAmt off
-  // stock, which grows "This look" at the top of the panel and shoves this pad
-  // down the page; measuring live, the rest of the drag is aimed at a frame
-  // that is no longer there.
-  const [grab, setGrab] = useState<DOMRect | null>(null)
   const amt = controls.trackAmt
   const pos = controls.trackPos
 
@@ -53,6 +46,7 @@ export function TrackingPad() {
       trackPos: Number(v.toFixed(3)),
     })
   }
+  const grab = useGrabRect(set)
 
   const key = (e: KeyboardEvent<HTMLDivElement>) => {
     const step = NUDGE.get(e.key)
@@ -83,20 +77,7 @@ export function TrackingPad() {
         style={{ cursor: 'crosshair' }}
         tabIndex={0}
         title="drag down to the band, right to push the head off track · arrows move the band · alt+arrows push it off track"
-        onPointerDown={e => {
-          const box = e.currentTarget.getBoundingClientRect()
-          e.currentTarget.setPointerCapture(e.pointerId)
-          setGrab(box)
-          set(e, box)
-        }}
-        onPointerMove={e => {
-          if (grab !== null) set(e, grab)
-        }}
-        onPointerUp={e => {
-          e.currentTarget.releasePointerCapture(e.pointerId)
-          setGrab(null)
-        }}
-        onPointerCancel={() => setGrab(null)}
+        {...grab}
         onKeyDown={e => key(e)}
       >
         <div className={styles.band} style={band} />

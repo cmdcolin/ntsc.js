@@ -1,8 +1,7 @@
-import { useState } from 'react'
-
 import { cx } from './cx'
 import { WIPE_SHAPES, cqw, snapOffset, uvInRect } from './miniFrame'
 import styles from './MiniFrame.module.css'
+import { useGrabRect } from './useGrabRect'
 
 import type { PointerEvent } from 'react'
 
@@ -20,13 +19,6 @@ export function WipeFrame(props: {
   onFix: () => void
   onChange: (pos: number) => void
 }) {
-  // The frame's box as it was when the drag began, not as it is each move.
-  // Dragging the boundary takes wipePos off stock, which grows "This look" at
-  // the top of the panel and pushes this frame down the page — so re-measuring
-  // per pointermove measures it after it has moved out from under the pointer,
-  // and every pattern that reads `v` (vertical, box, diamond) skews as you
-  // drag. See uvInRect.
-  const [grab, setGrab] = useState<DOMRect | null>(null)
   const shape = WIPE_SHAPES.get(Math.round(props.mode))
   // The pointer sits on the wipe edge itself: whatever distance the pattern
   // reports under the cursor is the lever position that puts the boundary there.
@@ -37,6 +29,7 @@ export function WipeFrame(props: {
       props.onChange(Math.min(1, Math.max(0, p + snapOffset([p], !e.altKey))))
     }
   }
+  const grab = useGrabRect(set)
   return (
     <div className={styles.wrap}>
       <div
@@ -47,20 +40,7 @@ export function WipeFrame(props: {
             : 'drag the boundary · alt drags off the guides'
         }
         style={{ cursor: shape === undefined ? 'default' : 'crosshair' }}
-        onPointerDown={e => {
-          const box = e.currentTarget.getBoundingClientRect()
-          e.currentTarget.setPointerCapture(e.pointerId)
-          setGrab(box)
-          set(e, box)
-        }}
-        onPointerMove={e => {
-          if (grab !== null) set(e, grab)
-        }}
-        onPointerUp={e => {
-          e.currentTarget.releasePointerCapture(e.pointerId)
-          setGrab(null)
-        }}
-        onPointerCancel={() => setGrab(null)}
+        {...grab}
       >
         {shape === undefined ? null : (
           <div
