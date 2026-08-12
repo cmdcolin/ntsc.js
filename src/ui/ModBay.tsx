@@ -90,6 +90,14 @@ function StabRows() {
 // the module the control lives in, which is the same jump "This look"'s captions
 // make and for the same reason — a routing you cannot find the row for is a
 // wobble with no way to tune what it is wobbling.
+//
+// "driving" is in front of the name because the name alone does not say what
+// kind of thing it is. `bend amount — Deflection` reads as a slot caption unless
+// you already know the panel well enough to recognise a slider by name, which is
+// exactly the reader who most needs the bay to explain itself — and the row gave
+// them a bare noun phrase with no verb and no chrome. One dim word fixes the
+// half the styling cannot: the name is now the object of a sentence rather than
+// a heading over the rows below it.
 function SlotHead(props: {
   // 1-based, as the bay numbers its slots.
   n: number
@@ -114,6 +122,11 @@ function SlotHead(props: {
       <span className={styles.tag} title={`mod slot ${props.n}`}>
         {props.n}
       </span>
+      {/* Not a label for the row — a verb, so the name after it reads as the
+          control it names. Quiet enough (fg4, like every other word in the panel
+          that is grammar rather than a value) that a reader who already knows
+          what a slot head says skips straight over it to the name. */}
+      <span className={styles.driving}>driving</span>
       {group !== undefined && stage !== null && props.openStages.has(stage) ? (
         <button
           className={styles.target}

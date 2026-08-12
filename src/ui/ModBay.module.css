@@ -17,6 +17,17 @@
   font-weight: 700;
 }
 
+/* The verb in front of the name. Never shrinks and never wraps: the whole job
+   is to be read before the name, so an ellipsis lands on the name's own tail
+   (which the module half can afford to lose) rather than on the word that says
+   what kind of thing the name is. */
+.driving {
+  flex-shrink: 0;
+  color: var(--fg4);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
 /* What the slot drives, as "control — module". The name is the whole of the
    answer to "what is slot 3 doing", so it takes the width and the × beside it
    keeps its own: a long pair like "head switch noise — Tape heads" has to
@@ -32,12 +43,26 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Pressable at rest, not on hover. The name is a jump to the row it names, and
+   a jump nobody can see is a jump nobody takes — which is the same reason the
+   verb is there: both halves of "this is a control, and it is over there" were
+   being withheld until the pointer happened to cross the text.
+
+   Dotted rather than solid, and one step off the accent: it sits under prose in
+   a bay that already carries two real buttons per slot, so it has to read as a
+   name you can follow rather than as a third thing to press. `underline` on the
+   text-decoration line is what `bare` clears, so it is restated here. */
 button.target {
   cursor: pointer;
-}
-button.target:hover {
   color: var(--accent);
-  text-decoration: underline;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+/* The shorthand resets text-decoration-color to currentcolor, which is the whole
+   change under the pointer: the dotted hint fills in to a solid accent rule. */
+button.target:hover {
+  text-decoration: underline solid;
 }
 
 /* Hand the slot back. Quiet until pointed at, like every other destructive
