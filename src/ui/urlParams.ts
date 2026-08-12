@@ -255,18 +255,32 @@ export function parseSessionParams(search: string): SessionParams {
 // halves of one contract, and while they lived apart they drifted — ?srcb=
 // wrote only two of B's modes while the reader was happy to take four, so
 // sharing a link with B on static handed the reader bars.
+// Why each field is in here belongs *here* rather than beside whoever collects
+// it: what a link carries is a decision about the format, and the reader below
+// is who has to honour it. `useUrlState` takes this interface whole for the same
+// reason — a second hand-kept copy of this list was the drift above waiting to
+// happen again.
 export interface SessionState {
   controls: Controls
+  // What is moving, so a shared link carries the motion and not just the look.
   mod: readonly ModRouting[]
   sourceMode: SourceMode
   sourceBMode: SourceBMode
+  // The YouTube source URLs, so a refresh or shared link restores the clips.
+  // Audio-out isn't serialized: browsers block unmuted autoplay, so a restored
+  // clip must start muted and be un-muted by a click.
   ytUrlA: string
   ytUrlB: string
+  // Each slot's teletype card, so a shared link carries the words and the roll
+  // as well as the mode.
   teletypeA: TeletypeCard
   teletypeB: TeletypeCard
+  // The vaporwave look: each deck slowed down, and the room it plays in.
   speedA: number
   speedB: number
   reverb: number
+  // Each slot's cue point, so a shared link of a clip carries the loop that was
+  // marked on it as well as the clip itself.
   cueA: Cue | null
   cueB: Cue | null
 }

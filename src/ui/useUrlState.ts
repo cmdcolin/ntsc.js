@@ -1,39 +1,23 @@
-import { useCallback, useEffect } from 'react'
+import { useEffect } from 'react'
 
 import { reason } from './format'
 import { writeProfileParams, writeSessionParams } from './urlParams'
 
 import type { Controls } from '../controls'
-import type { SourceBMode, SourceMode } from '../sources/modes'
-import type { TeletypeCard } from '../sources/teletype'
-import type { Cue } from './cue'
-import type { ModRouting } from './modSlots'
+import type { SessionState } from './urlParams'
 
-interface UrlStateArgs {
-  controls: Controls
-  // What is moving, so a shared link carries the motion and not just the look.
-  mod: readonly ModRouting[]
+// The session, plus the three things that are about *mirroring* one rather than
+// about what a session is.
+//
+// Extending rather than restating: this used to be `SessionState`'s thirteen
+// fields written out a second time, which is the same shape as the drift
+// urlParams.ts records at the interface itself — the writer and the reader kept
+// apart until they disagreed. Adding a field to a link is now one edit there,
+// and this hook stops compiling until the caller supplies it.
+interface UrlStateArgs extends SessionState {
   // Gated on the engine existing: before it does, `controls` is the default
   // fallback and syncing would wipe the very params the loader is about to read.
   engineReady: boolean
-  sourceMode: SourceMode
-  sourceBMode: SourceBMode
-  // YouTube source URLs + vaporwave look, so a refresh or shared link restores
-  // the clips slowed down. Audio-out isn't serialized: browsers block unmuted
-  // autoplay, so a restored clip must start muted and be un-muted by a click.
-  ytUrlA: string
-  ytUrlB: string
-  // Each slot's teletype card, so a shared link carries the words and the roll
-  // as well as the mode.
-  teletypeA: TeletypeCard
-  teletypeB: TeletypeCard
-  speedA: number
-  speedB: number
-  reverb: number
-  // Each slot's cue point, so a shared link of a clip carries the loop that was
-  // marked on it as well as the clip itself.
-  cueA: Cue | null
-  cueB: Cue | null
   // Where a morph in flight is heading, or null when none is — the same
   // question `useMix.banked()` asks, and asked here for the same reason.
   //
@@ -60,81 +44,37 @@ const linkFor = (query: string) =>
 // restores it, and hands back a copy-to-clipboard action — plus the two halves
 // the saved-look library needs: the query string for the look on screen, and the
 // link for a query string it kept.
-export function useUrlState({
-  controls,
-  mod,
-  engineReady,
-  sourceMode,
-  sourceBMode,
-  ytUrlA,
-  ytUrlB,
-  teletypeA,
-  teletypeB,
-  speedA,
-  speedB,
-  reverb,
-  cueA,
-  cueB,
-  getGlideTarget,
-  onError,
-}: UrlStateArgs) {
+export function useUrlState(args: UrlStateArgs) {
+  // The session is the rest: whatever is left once the three above are taken
+  // off. Nothing here lists its fields, which is the point — the list lives at
+  // `SessionState` and this hook reads it by subtraction.
+  const { engineReady, getGlideTarget, onError, ...session } = args
   // The whole query-string rule lives in urlParams beside the parser that has
   // to read it back; what is left here is the browser half — which params are
   // already on the address bar, and where the link points.
-  const session = useCallback(
-    () => ({
-      controls,
-      mod,
-      sourceMode,
-      sourceBMode,
-      ytUrlA,
-      ytUrlB,
-      teletypeA,
-      teletypeB,
-      speedA,
-      speedB,
-      reverb,
-      cueA,
-      cueB,
-    }),
-    [
-      controls,
-      mod,
-      sourceMode,
-      sourceBMode,
-      ytUrlA,
-      ytUrlB,
-      teletypeA,
-      teletypeB,
-      speedA,
-      speedB,
-      reverb,
-      cueA,
-      cueB,
-    ],
-  )
-
-  const stateUrl = useCallback(
-    () =>
-      linkFor(
-        writeSessionParams(
-          new URLSearchParams(location.search),
-          session(),
-        ).toString(),
-      ),
-    [session],
+  const stateUrl = linkFor(
+    writeSessionParams(
+      new URLSearchParams(location.search),
+      session,
+    ).toString(),
   )
 
   // Keep the address bar current on every change (replaceState, so it doesn't
   // flood history). Trailing-debounced: a slider drag emits a move per frame,
   // and the browser rate-limits the history API — so coalesce to one write once
   // the value settles.
+  //
+  // The dependency is the finished URL rather than a memoized closure over the
+  // session's thirteen fields, and that is the better dep as well as the shorter
+  // one: a string compares by value, so a render that rebuilds `controls` into
+  // an identical board does not restart the debounce. Which also means no
+  // hand-written `useCallback` — the React Compiler holds the identity of
+  // everything above (see ARCHITECTURE.md › React Compiler is on).
   // An effect's cleanup return is conditional by nature (React's own documented pattern).
   // oxlint-disable-next-line typescript/consistent-return
   useEffect(() => {
     if (engineReady) {
-      const url = stateUrl()
-      const id = setTimeout(() => history.replaceState(null, '', url), 250)
+      const id = setTimeout(() => history.replaceState(null, '', stateUrl), 250)
       return () => clearTimeout(id)
     }
   }, [engineReady, stateUrl])
@@ -162,15 +102,15 @@ export function useUrlState({
     }
   }
 
-  const copyLink = () => writeClip(stateUrl())
+  const copyLink = () => writeClip(stateUrl)
 
   // What a saved look records — the same serialization, minus the params that
   // only make sense for the session that is running (see writeProfileParams).
   const profileQuery = () =>
     writeProfileParams(new URLSearchParams(location.search), {
-      ...session(),
+      ...session,
       // The destination when a morph is running, per `getGlideTarget` above.
-      controls: getGlideTarget() ?? controls,
+      controls: getGlideTarget() ?? session.controls,
     }).toString()
 
   const copyQuery = (query: string) => writeClip(linkFor(query))
