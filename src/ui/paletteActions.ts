@@ -118,9 +118,11 @@ export function paletteActions(o: {
   onAdvanced: () => void
   onAbout: () => void
 }): PaletteAction[] {
-  // A live query takes the two free boxes off the map — neither holds anything
-  // the filter can match — so a jump into one has to clear the box first, or it
-  // opens a stage that is not being drawn.
+  // A jump into a free box clears the filter first, or it can open a stage that
+  // is not being drawn. The deck is off the map under every query (it declares
+  // no keywords — see `freeMatches`), and the bay is off it under most: it
+  // answers to its own words and not to the one you happen to have typed. Either
+  // way the box has to be back on the map before a jump lands on it.
   const jump = (name: string) => () => {
     o.onFilter('')
     o.onOpenStage(name)
@@ -263,18 +265,25 @@ export function paletteActions(o: {
         'the whole chain as a diagram — both inputs, the mixer, both loops',
       run: o.onDiagram,
     },
-    // The one part of the app the palette and the filter box cannot otherwise
-    // reach. Both index GROUPS, and nothing in the bay is in GROUPS: a routing
-    // describes a slot rather than a knob on the rig, and the stab gate is
-    // deliberately not a control (see modSlots.ts for why making it one would
-    // put a slider for the whole board inside one stage of it). So the panel's
-    // most visible single effect — the entire look cut in and out on the beat —
-    // answered to no search at all, and now it is a box on the map you have to
-    // know to press. The blurb is where "stabs" is findable from.
+    // The one part of the app the palette cannot otherwise reach. It indexes
+    // GROUPS, and nothing in the bay is in GROUPS: a routing describes a slot
+    // rather than a knob on the rig, and the stab gate is deliberately not a
+    // control (see modSlots.ts for why making it one would put a slider for the
+    // whole board inside one stage of it). So the panel's most visible single
+    // effect — the entire board cut against a second look on the beat — answered
+    // to no search at all. This entry is where it is findable from.
+    //
+    // Which puts the whole burden on the blurb, since `score` has only the name
+    // and this string to match against. So it carries the words somebody types
+    // rather than the words the panel uses: **strobe** above all, because that is
+    // what most people call this and the app spends the name on two other things
+    // (the beam's blanking strobe, the mixer loop's strobe hold). The filter box
+    // answers the same query through MOD_KEYWORDS, and the two lists are meant to
+    // agree — a word worth adding to one is worth adding to the other.
     {
       name: 'modulation bay',
       blurb:
-        'the stab gate that cuts the whole look in and out on the beat, the tempo every ♩ locks to, and every LFO, drift and envelope you have patched',
+        'the stab gate that strobes the whole board in and out on the beat — against stock, or against a look you hold there, which flips between the two — plus the tempo every ♩ locks to, and every LFO, drift and envelope you have patched',
       run: jump(MOD_STAGE),
     },
     // The deck is reachable by search only in the same roundabout way: every row
