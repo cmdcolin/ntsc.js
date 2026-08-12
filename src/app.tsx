@@ -12,6 +12,7 @@ import styles from './app.module.css'
 import { DEFAULT_CONTROLS, atRest } from './controls'
 import { A_OPTIONS, B_OPTIONS } from './sources/modes'
 import { poolCaption } from './sources/pools'
+import { AboutDialog } from './ui/AboutDialog'
 import { AdvancedDialog } from './ui/AdvancedDialog'
 import { AppMenu, ShowMenuButton } from './ui/AppMenu'
 import { AudioHint, AudioInput } from './ui/AudioInput'
@@ -50,7 +51,6 @@ import {
   sliderMatches,
 } from './ui/filter'
 import { FpsMonitor } from './ui/FpsMonitor'
-import { HelpDialog } from './ui/HelpDialog'
 import { CrosshairIcon } from './ui/icons'
 import { LookBar } from './ui/LookBar'
 import { LookSection } from './ui/LookSection'
@@ -262,7 +262,7 @@ export function App() {
   const [fullscreen, setFullscreen] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showDiagram, setShowDiagram] = useState(false)
-  const [showHelp, setShowHelp] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
   const [comparing, setComparing] = useState(false)
   // Which tool a drag on the picture is. It used to be neither — the mode was
@@ -742,7 +742,7 @@ export function App() {
     onOpenStage: nav.jumpPhase,
     onDiagram: () => setShowDiagram(true),
     onAdvanced: () => setShowAdvanced(true),
-    onHelp: () => setShowHelp(true),
+    onAbout: () => setShowAbout(true),
   })
 
   const query = filter.trim().toLowerCase()
@@ -992,7 +992,7 @@ export function App() {
     onToggleFps: () => setShowFps(!showFps),
     onShowPalette: () => setShowPalette(true),
     onShowAdvanced: () => setShowAdvanced(true),
-    onShowHelp: () => setShowHelp(true),
+    onShowAbout: () => setShowAbout(true),
   }
 
   const panelBody = (
@@ -1005,7 +1005,7 @@ export function App() {
         {searching ? null : (
           <button
             className={styles.brand}
-            onClick={() => setShowHelp(true)}
+            onClick={() => setShowAbout(true)}
             title={`ntsc.js ${versionLabel} (${gitSha}) — what is this?`}
             aria-label="ntsc.js — what is this?"
           >
@@ -1602,7 +1602,7 @@ export function App() {
           onClose={() => setShowDiagram(false)}
         />
       ) : null}
-      {showHelp ? <HelpDialog onClose={() => setShowHelp(false)} /> : null}
+      {showAbout ? <AboutDialog onClose={() => setShowAbout(false)} /> : null}
       {showPalette ? (
         <CommandPalette
           controls={controls}

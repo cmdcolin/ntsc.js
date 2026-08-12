@@ -155,21 +155,3 @@
   color: var(--fg2);
   margin: 0 0 4px;
 }
-.helpHead {
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--accent);
-  margin: 0 0 4px;
-}
-.helpLogo {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin: 0 0 12px;
-}
-.helpList {
-  color: var(--fg);
-  margin: 0 0 12px;
-  padding-left: 18px;
-  line-height: var(--prose-lh);
-}

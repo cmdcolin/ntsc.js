@@ -68,7 +68,7 @@ export function AppMenu(props: {
   onToggleFps: () => void
   onShowPalette: () => void
   onShowAdvanced: () => void
-  onShowHelp: () => void
+  onShowAbout: () => void
   // Only the stage's copy has this: the bar being hidden is the one it is in,
   // and the masthead has no bar to hide.
   onHideBar?: () => void
@@ -193,10 +193,10 @@ export function AppMenu(props: {
           />
           <MenuItem
             icon="?"
-            label="help / about"
+            label="about"
             hint=""
             closes={id}
-            onClick={() => props.onShowHelp()}
+            onClick={() => props.onShowAbout()}
           />
           {onHideBar === undefined ? null : (
             <>

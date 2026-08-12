@@ -116,7 +116,7 @@ export function paletteActions(o: {
   onOpenStage: (name: string) => void
   onDiagram: () => void
   onAdvanced: () => void
-  onHelp: () => void
+  onAbout: () => void
 }): PaletteAction[] {
   // A live query takes the two free boxes off the map — neither holds anything
   // the filter can match — so a jump into one has to clear the box first, or it
@@ -293,9 +293,9 @@ export function paletteActions(o: {
       run: o.onAdvanced,
     },
     {
-      name: 'help',
-      blurb: 'what this is, and the keys',
-      run: o.onHelp,
+      name: 'about',
+      blurb: 'what this is, the user guide, the source, and the version',
+      run: o.onAbout,
     },
   ]
 }
