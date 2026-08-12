@@ -144,7 +144,7 @@ export const SYNTH_GROUP = 'Video synth (source)'
 // one thing that tells the three apart once more than one is running.
 export const CAMERA_LOOP_GROUP = 'Camera feedback (optical)'
 export const MIXER_LOOP_GROUP = 'Mixer feedback (electrical)'
-export const DELAY_LOOP_GROUP = 'VHS tape loop (mechanical)'
+export const DELAY_LOOP_GROUP = 'Tape loop (mechanical)'
 
 // Which of the three are actually carrying signal, so a drawing can show a
 // running loop rather than only the three that exist in principle. One shape
@@ -196,29 +196,32 @@ export interface LoopStage {
 // visit is looking for. Nobody arrives wondering where the loops are; they
 // arrive wanting the camera pointed at the screen.
 //
-// The third has been called three other things, and 'VHS tape loop' is the
-// first that says what the machine is. 'Tape loop' was the first try and it
-// collided: 'Tape' is already a stage of the trunk two columns along — the deck
-// this signal was played back on, dropouts and timebase wander — so one word
-// stood over two machines on one drawing, and the run straddling Mix read as a
-// wire that had missed the box it was named after. Qualifying it settles that,
-// and the two are told apart twice over on the miniature: the trunk box is
-// uppercase TAPE on the chain, the run is lowercase over it.
+// The third is 'Tape loop', which is what the machine is, and it is a name this
+// file has argued itself out of twice before. Both times the objection was the
+// same and it was about the drawing rather than the words: 'Tape' is a stage of
+// the trunk two columns along — the deck this signal was played back on,
+// dropouts and timebase wander — so 'tape loop' written near the TAPE box put
+// one word over two machines.
 //
-// 'Loop bin' was the second, and it is borrowed from the wrong trade — a loop
-// bin is duplication gear, a spliced master spilled loose into an open bin to
-// feed a bank of slave recorders, with no record head and no feedback at all.
-// 'Delay loop' was the third, and it named the effect instead of the machine:
-// accurate, and it left the drawing saying what a knob does where every other
-// box says what a thing is. What is modelled here is a second deck threaded
-// with a loop of tape, so that is what it is called.
+// That is a placement problem, and it is fixed where placement lives. The run's
+// name sits to the left of the loop it straddles (chainLayout), over the gap
+// between the head of the chain and the mixer, with the whole width of the
+// drawing between it and the box it used to be read against. The two names are
+// set apart as well as spaced apart: TAPE is upper-cased inside a box on the
+// chain, this is lower-case on a wire above it.
+//
+// The two names it took in the meantime were both worse. 'Loop bin' is borrowed
+// from the wrong trade — a loop bin is duplication gear, a spliced master
+// spilled loose into an open bin to feed a bank of slave recorders, with no
+// record head and no feedback at all. 'Delay loop' named the effect instead of
+// the machine: accurate, and it left the drawing saying what a knob does where
+// every other box says what a thing is.
 //
 // `loop` and every control key stay `tape` (LOOP_PLACES, `tapeMix`,
-// signal/tapeloop.ts): the collision was only ever in what the two are called,
-// and the signal path has one tape in it.
+// signal/tapeloop.ts), which they would have done under any of these.
 export const CAMERA_LOOP_STAGE = 'Camera feedback'
 export const MIXER_LOOP_STAGE = 'Mixer feedback'
-export const DELAY_LOOP_STAGE = 'VHS tape loop'
+export const DELAY_LOOP_STAGE = 'Tape loop'
 
 export const LOOP_STAGES: readonly LoopStage[] = [
   {
@@ -245,10 +248,11 @@ export const LOOP_STAGES: readonly LoopStage[] = [
   {
     loop: 'tape',
     name: DELAY_LOOP_STAGE,
-    // Two words rather than one, because the one is taken: 'tape' alone is the
-    // trunk box two columns along, which is the whole reason this stage stopped
-    // being called after it — see DELAY_LOOP_STAGE.
-    short: 'VHS tape',
+    // The one fallback that is a word the drawing already uses for something
+    // else, and it is only reached on a row too narrow to hold 'tape loop' —
+    // by which point the run is a stub over a two-box chain and there is
+    // nothing better to say in 16 units. See DELAY_LOOP_STAGE.
+    short: 'Tape',
     blurb:
       'mechanical — a second deck threaded with a loop of tape, patched across the bus: what goes round is re-recorded and ages a generation a lap',
     what: 'a second machine threaded with a loop of tape, patched across the bus rather than round the chain: a play head returns what was laid down a lap ago, a record head lays the sum back down, and whatever keeps circulating ages a generation every time round',

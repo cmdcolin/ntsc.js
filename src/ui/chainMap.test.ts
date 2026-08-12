@@ -13,6 +13,7 @@ import {
 } from './chainLayout'
 import {
   DECK_STAGE,
+  DELAY_LOOP_STAGE,
   LOOP_STAGES,
   MIX_STAGE,
   MIXER_LOOP_STAGE,
@@ -339,8 +340,8 @@ describe('chain map geometry', () => {
       if (box === undefined) throw new Error(`${r.loop}: no ${r.into} box`)
       if (r.self) {
         // set outside its own loop, and still on the map
-        expect(r.nameAt.x, r.loop).toBeGreaterThan(Math.max(r.from, r.to))
-        expect(r.nameAt.x, r.loop).toBeLessThan(W)
+        expect(r.nameAt.x, r.loop).toBeLessThan(Math.min(r.from, r.to))
+        expect(r.nameAt.x, r.loop).toBeGreaterThan(0)
       } else {
         // on its own horizontal span, and clear of the box it lands on
         const [lo, hi] = [Math.min(r.from, r.to), Math.max(r.from, r.to)]
@@ -378,11 +379,37 @@ describe('chain map geometry', () => {
     expect(full?.name).toBe(MIXER_LOOP_STAGE)
   })
 
-  // Whichever form it lands on has to clear the wires that cross its band. The
-  // runs drop their verticals from the trunk up to their own height, so a label
-  // can only ever collide with a run drawn *above* it — and the tape loop, whose
-  // name hangs off the end of a 30-unit run rather than riding a 200-unit one,
-  // is the one with nothing but that clearance between it and the next wire.
+  // The tape loop's name is the one with a side to pick, and the pick is not
+  // cosmetic: to the right of the box it straddles the label lands over the
+  // TAPE box, and 'tape loop' over a box marked TAPE is the collision the stage
+  // has been renamed twice to avoid (see DELAY_LOOP_STAGE). Left is over the
+  // gap between the head of the chain and the mixer, where nothing is called
+  // tape — so left whenever it fits, and the fit is the 39 units between the
+  // mixer and the camera return's drop.
+  it('sets the tape loop’s name away from the deck it is not', () => {
+    const { boxes, returns } = chainLayout(FULL)
+    const tape = returns.find(r => r.self)
+    const box = boxes.find(b => b.name === 'Tape')
+    if (tape === undefined || box === undefined) throw new Error('no tape run')
+    expect(tape.name).toBe(DELAY_LOOP_STAGE)
+    expect(tape.nameAt.anchor).toBe('end')
+    expect(tape.nameAt.x).toBeLessThan(box.x - box.w / 2)
+
+    // …and to the other side when a filter leaves no room on that one, rather
+    // than off the left edge of the drawing. TAPE is not on that row to be
+    // confused with, which is what makes the second choice the safe one.
+    const tight = chainLayout([MIX_STAGE, 'Receiver', 'Screen'])
+    const moved = tight.returns.find(r => r.self)
+    expect(moved?.nameAt.anchor).toBe('start')
+    expect(moved?.nameAt.x).toBeGreaterThan(0)
+  })
+
+  // Whichever form and side it lands on, it has to clear the wires that cross
+  // its band. The runs drop their verticals from the trunk up to their own
+  // height, so a label can only ever collide with a run drawn *above* it — and
+  // the tape loop, whose name hangs off the end of a 30-unit run rather than
+  // riding a 200-unit one, is the one with nothing but that clearance between
+  // it and the next wire.
   it('keeps every run’s label clear of the wires over it', () => {
     const rows = [
       FULL,
@@ -394,14 +421,19 @@ describe('chain map geometry', () => {
     for (const names of rows) {
       const { returns } = chainLayout(names)
       for (const r of returns) {
-        const end = r.nameAt.x + runLabelWidth(r.name)
-        expect(end, `${r.loop} on ${names.length}`).toBeLessThanOrEqual(W)
-        const over = returns
-          .filter(o => o.y < r.y)
-          .flatMap(o => [o.from, o.to])
-          .filter(x => x > r.nameAt.x)
-        for (const x of over)
-          expect(end, `${r.loop} into a run over it`).toBeLessThanOrEqual(x)
+        const w = runLabelWidth(r.name)
+        const [lo, hi] =
+          r.nameAt.anchor === 'end'
+            ? [r.nameAt.x - w, r.nameAt.x]
+            : [r.nameAt.x, r.nameAt.x + w]
+        const where = `${r.loop} on a ${names.length}-box row`
+        expect(lo, where).toBeGreaterThanOrEqual(0)
+        expect(hi, where).toBeLessThanOrEqual(W)
+        for (const above of returns.filter(o => o.y < r.y))
+          for (const x of [above.from, above.to])
+            expect(x < lo || x > hi, `${where}: crosses a wire at ${x}`).toBe(
+              true,
+            )
       }
     }
   })

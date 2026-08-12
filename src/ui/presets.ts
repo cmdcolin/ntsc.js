@@ -508,7 +508,7 @@ export const PRESETS: PresetDef[] = [
     // `name` is the MIDI-binding storage key and stays what it was written as:
     // renaming it would drop the bindings and saved boards already keyed to it.
     name: 'loopBin',
-    displayName: 'vhs tape loop',
+    displayName: 'tape loop',
     group: 'Feedback loops',
     blurb:
       'A loop of tape past three heads: the picture comes back on a beat, a generation older each lap.',

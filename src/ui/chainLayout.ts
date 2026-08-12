@@ -82,15 +82,19 @@ const MIN_BOX = 20
 
 // The same estimate for a run's label, which is a different number because it
 // is different type: 7.5px and lowercase against the boxes' 8px uppercase (see
-// .mapLoopLabel and .mapLabel). Measured in Firefox the same way CHAR was — the
-// three names cost 3.78 to 4.16 units a character and the shortest fallback,
-// 'Camera', costs 4.51, so 4.6 clears the widest of them by the margin CHAR
-// keeps over its own.
+// .mapLoopLabel and .mapLabel). Measured in Firefox the same way CHAR was: the
+// three names cost 4.16, 4.01 and 3.84 units a character, so 4.3 clears the
+// widest by the margin CHAR keeps over its own.
 //
-// Generous on purpose, and the asymmetry is why: overestimating drops a run to
-// its short name one layout earlier than it had to, which is a label that still
-// reads, while underestimating lays a name across somebody else's wire.
-const RUN_CHAR = 4.6
+// Only the names are measured against it. The fallbacks are what a run gets
+// when the name did not fit, and there is nothing below them to fall to — so a
+// short word that costs more per character than any name does ('camera', at
+// 4.51) is not this number's problem.
+//
+// Generous on purpose, and the asymmetry is why: overestimating moves a name to
+// the other side of its loop, or drops it to a short word, one layout earlier
+// than it had to — where underestimating writes it across a wire.
+const RUN_CHAR = 4.3
 // Exported for the test that holds a label clear of the wires over it: it has
 // to measure what the layout measured, or it is checking a second estimate.
 export const runLabelWidth = (s: string) => s.length * RUN_CHAR
@@ -122,9 +126,9 @@ export const boxWidth = (name: string) =>
 //     pass later. So it is a tight loop *across* the mixer's output rather than
 //     a run around anything, which is why `self` is a field and not a special
 //     case — the filter rules below are different for a return whose two ends
-//     are one box. Called after its tape and kept clear of the Tape box two
-//     along by the rest of its name; see DELAY_LOOP_STAGE for why the label
-//     carries 'VHS' and the key stays `tape`.
+//     are one box. Named after its tape, and kept clear of the Tape box two
+//     along by where its label is set rather than by what it is called — see
+//     DELAY_LOOP_STAGE, and the choice of side below.
 //
 // Each is routed rather than swooped — up, back along its run, then straight
 // down into the stage it feeds, so the wire is vertical where the arrowhead
@@ -414,21 +418,33 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
     // end of it — just clear of the box it lands on, so a name sits beside its
     // own arrowhead rather than somewhere along a span shared with two others.
     //
-    // The tape loop gets the far side of the box it straddles. Centred on its
-    // own run is the obvious place and the wrong one: that span is the box
-    // itself, so the word comes down on top of the stage name and the two
-    // arrowheads either side of it. Beside the loop it is clear of every wire
-    // and still at its own run's height — and on the right rather than the
-    // left, which is where the room is: to the left the next thing along is the
-    // camera return's drop into the head of the chain, and a name that reaches
-    // it reads as that run's, which is the one mistake worth ruling out.
+    // The tape loop's goes beside the box it straddles. Centred on its own run
+    // is the obvious place and the wrong one: that span is the box itself, so
+    // the word comes down on top of the stage name and the two arrowheads
+    // either side of it.
+    //
+    // Which side is not a matter of taste. To the right, over the run between
+    // the mixer and the deck, the label lands squarely above the TAPE box — and
+    // 'tape loop' over a box marked TAPE is two machines under one word, which
+    // is the collision this loop has been renamed twice to avoid. To the left
+    // it sits over the gap between the head of the chain and the mixer, with
+    // the width of the drawing between it and that box. So: left where there is
+    // room for the name, right when a filter has pushed the mixer up against
+    // the left edge and left none — and on that row TAPE has usually gone too.
+    // Where it *could* go, in order of preference. A long return has one place
+    // and no choice; the tape loop has a side to pick, and the loop below picks
+    // the first that holds the name.
     const edge = boxes[back].x + boxes[back].w / 2
-    const nameAt = r.self
-      ? { x: Math.max(from, to) + 4, anchor: 'start' as const }
-      : { x: edge + 5, anchor: 'start' as const }
-    return [{ ...r, from, to, nameAt }]
+    const places = r.self
+      ? [
+          { x: Math.min(from, to) - 4, anchor: 'end' as const },
+          { x: Math.max(from, to) + 4, anchor: 'start' as const },
+        ]
+      : [{ x: edge + 5, anchor: 'start' as const }]
+    return [{ ...r, from, to, places }]
   })
-  // How much clear width each name has, and so which of its two forms it gets.
+  // How much clear width a name has where it wants to sit, and so which place
+  // it takes and which of its two forms.
   //
   // A run's verticals rise from the trunk to its own band, so they cross every
   // band below it and none above: what a label can collide with is the drops of
@@ -437,22 +453,38 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
   // here; the boxes start 7 units under the lowest band.
   //
   // The tape loop is the one that needs this said, because it is the one whose
-  // label hangs off the end of a run 30 units long rather than riding one 200
-  // units long. On the full trunk it has the whole span to the receiver's drop
-  // and takes its name; on a filtered row that drop can land 40 units away, and
-  // it takes 'VHS tape' instead of writing across it.
+  // label hangs off the end of a 30-unit run rather than riding a 200-unit one.
+  // On the full trunk the space to its left is the 39 units between the mixer
+  // and the camera return's drop into the head of the chain, and 'tape loop'
+  // takes 35 of them. A filter that shortens the trunk moves that drop in, and
+  // the label goes to the other side of the loop, or drops to 'tape', rather
+  // than write across it.
+  const room = (r: (typeof drawn)[number], spot: (typeof r.places)[number]) => {
+    const drops = drawn.filter(o => o.y < r.y).flatMap(o => [o.from, o.to])
+    if (spot.anchor === 'end')
+      return spot.x - Math.max(...drops.filter(x => x < spot.x), 0)
+    // A long return's own corner is the other wall, and the nearer one: its
+    // name may reach along the run it is the name of and no further.
+    const wall = r.self ? W : Math.max(r.from, r.to) - r.turn
+    return Math.min(...drops.filter(x => x > spot.x), wall) - spot.x
+  }
   const returns = drawn.map(r => {
-    const overhead = drawn
-      .filter(o => o.y < r.y)
-      .flatMap(o => [o.from, o.to])
-      .filter(x => x > r.nameAt.x)
-    const stop = Math.min(
-      ...overhead,
-      r.self ? W : Math.max(r.from, r.to) - r.turn,
-    )
     const full = nameOf(r.loop)
-    const fits = runLabelWidth(full) <= stop - r.nameAt.x
-    return { ...r, name: fits ? full : shortOf(r.loop) }
+    const want = runLabelWidth(full)
+    // The first place that holds the name, or — when none does, and the short
+    // form is what will be drawn — whichever has the most room for it. Never
+    // just the preferred one: on a row that has squeezed the mixer against the
+    // left edge, the left place is off the map rather than merely tight.
+    const nameAt =
+      r.places.find(spot => want <= room(r, spot)) ??
+      r.places.reduce((best, spot) =>
+        room(r, spot) > room(r, best) ? spot : best,
+      )
+    return {
+      ...r,
+      nameAt,
+      name: want <= room(r, nameAt) ? full : shortOf(r.loop),
+    }
   })
   // The branch row, laid out left to right with a cursor: each box takes the
   // place its anchor asks for, and is pushed right if that would land it on the
