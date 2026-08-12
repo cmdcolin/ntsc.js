@@ -2,6 +2,18 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.26.2](https://github.com/cmdcolin/ntsc.js/compare/v0.26.1...v0.26.2) - 2026-08-12
+
+### Features
+- *(ui)* [`b146af0`](https://github.com/cmdcolin/ntsc.js/commit/b146af0b6ae480d738b413b0ac1d539d1b57886b) the runs say what the machine is, not that it is a loop
+
+### Fixes
+- *(ui)* [`a2e25b4`](https://github.com/cmdcolin/ntsc.js/commit/a2e25b4d37493106cda6b0a3b86433581bdfdb11) an open stage is one object, and it says which one while you scroll
+
+### Refactor
+- *(ui)* [`6f14427`](https://github.com/cmdcolin/ntsc.js/commit/6f14427e721f93693b53f77845ad6a1211629794) drop the spine's stage blurb, and let a folded group say how much
+- *(ui)* [`dbfc366`](https://github.com/cmdcolin/ntsc.js/commit/dbfc366f6851f762b4f4465f4b432a412471cc11) tape loop, and the label moves to where that name is free
+
 ## [0.26.1](https://github.com/cmdcolin/ntsc.js/compare/v0.26.0...v0.26.1) - 2026-08-11
 
 ### Features
