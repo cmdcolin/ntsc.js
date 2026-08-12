@@ -268,7 +268,10 @@ scheduler slow rAF delivery itself), trading rate the display was stepping
 anyway for a cadence that holds still; `auto` engages it from the loop's own
 interval spread and probes back on a backoff. Note before optimizing shaders
 here: three ALU micro-optimizations have measured exactly zero (the FIR passes
-are not ALU-bound), so ablate an upper bound first.
+are not ALU-bound), so ablate an upper bound first. The same rule caught a
+startup one: the constructor's 22 blocking `createComputePipeline` calls look
+like an obvious `createComputePipelineAsync` job and are worth 9 ms in total,
+while the async path measured far slower — see DEVELOPMENT.md.
 
 Almost everything is comfortably parallel. Two exceptions:
 

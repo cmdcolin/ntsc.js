@@ -413,6 +413,40 @@ in `under_down`/`channel` (verified pixel-exact first). A one-shot bake of
 `crt_face`'s grain field met the same fate earlier. Measure an ablation upper
 bound before building any optimization here.
 
+### Building the pipelines is not the startup cost, and async is worse
+
+The `Engine` constructor creates 22 compute pipelines with
+`createComputePipeline` — 22 blocking calls, on the main thread, paid again on
+every device rebuild. It looks like the obvious thing to hand to
+`createComputePipelineAsync` and a `Promise.all`, especially since
+`Engine.create` is already async.
+
+Measured on Firefox Nightly before writing any of it, by timing the block in
+place and then rebuilding the same 22 from the same sources two more ways in one
+page load:
+
+```
+PLBUILD n=22 sync=9.0ms syncWarm=2.0ms asyncParallel=396.0ms
+```
+
+**9 ms is the entire upper bound**, so the refactor — which means splitting
+construction in two, because the constructor consumes the pipelines to build the
+pass graph — could not have been worth it whatever the async path did. It is the
+ablation the section above asks for, and it took one browser run.
+
+The async number is the more interesting half and wants its caveat stated. 396
+ms is not 44× the _work_: that arm ran after boot, against a live render loop,
+and 396/22 ≈ 18 ms a pipeline is suspiciously close to one frame — so most of it
+is each promise settling a turn of the event loop later while the loop holds the
+thread. At startup there is no loop yet, so it would not be that bad. But
+`syncWarm` ran under the identical conditions and took 2 ms, so whatever the
+async path is waiting for, the synchronous one is not waiting for it. There is
+no version of this that wins 9 ms.
+
+Worth re-running if a future browser build changes how
+`createComputePipelineAsync` schedules; the scaffold is four lines of
+`performance.now()` around the block.
+
 ### Chrome
 
 WebGPU in Chrome on Linux needs flags:
