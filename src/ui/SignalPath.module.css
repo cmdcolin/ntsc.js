@@ -129,30 +129,9 @@
    rail here, and the lid and its corner across the head below — and the
    modulation editor rules its own block with the same mark, one level in. */
 .stageRow {
-  position: relative;
   margin: 8px 0 10px;
   padding: 0 0 6px 8px;
   border-left: 2px solid var(--rail);
-}
-/* The notch that ties this block to the box on the map it opened from. It sits
-   in .stageRow's own top margin, so it is a mark on the gap between the drawing
-   and the stage rather than something inside either — and it scrolls away with
-   the row, which is right: once the map is off the top there is nothing left
-   for it to point at, and a caret aimed at nothing is noise.
-
-   Positioned off .stageRow and not the sticky head below, which bleeds 10px to
-   the left of the column and would carry that offset into every percentage.
-   The row is the full column width and so is the map's svg, so one fraction
-   places both. */
-.stageCaret {
-  position: absolute;
-  top: -6px;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-bottom: 6px solid var(--rail);
 }
 .stageHead {
   display: flex;

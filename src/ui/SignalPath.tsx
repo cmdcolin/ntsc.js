@@ -1,6 +1,5 @@
 import { Fragment, useRef } from 'react'
 
-import { chainLayout, W } from './chainLayout'
 import { ChainMap } from './ChainMap'
 import { ControlGroup } from './ControlGroup'
 import { cx } from './cx'
@@ -304,21 +303,14 @@ export function SignalPath(props: {
   // The drawing takes the wired boxes; the chips take the rest.
   const wired = branches.filter(isWired)
   const free = branches.filter(isFree)
-  // Where a stage's box sits across the map, as a percentage — the map's svg is
-  // width:100% of the same column the stage rows are, so a box's x over W is a
-  // fraction of both. The same arithmetic ChainMap runs on the same inputs, so
-  // there is no second layout to disagree with the first, and it is pure
-  // function of two arrays.
-  const placed = chainLayout(
-    nodes.map(n => n.name),
-    wired,
-  )
-  const caretAt = (name: string): number | undefined => {
-    const box =
-      placed.boxes.find(b => b.name === name) ??
-      placed.branches.find(b => b.name === name)
-    return box === undefined ? undefined : (box.x / W) * 100
-  }
+  // No caret from the open stage's block up to the box it came from, though the
+  // shape of one is obvious and it was tried. Two things are in the way, and
+  // the second is the real one: the sticky head paints the panel's ground above
+  // itself (`box-shadow: 0 -14px 0`) and covers anything in the margin over it,
+  // and the free chips now sit between the drawing and the first stage — so a
+  // notch on the stage would be pointing at a chip rather than at a box. It
+  // wants the chips somewhere else first, and they are worth more where they
+  // are.
   // Trunk, then loops, then branches — the order the panel lists them in, and
   // the order the drawing reads in from the top: the returns ride over the
   // chain and the branches hang under it.
@@ -388,20 +380,6 @@ export function SignalPath(props: {
       <div className={styles.stages}>
         {shown.map(({ node, body }) => (
           <div key={node.name} className={styles.stageRow}>
-            {/* The notch under the box this stage came from. The link between
-                the two was carried by a shared tint alone — accent 14% on the
-                box, accent 9% on the strip — which is a real link and a faint
-                one: two washes of one hue, forty pixels apart, with a whole
-                drawing between them. A caret is the same claim made
-                structurally. Absent for a loop, which has a run rather than a
-                box, and for the free chips, which are their own row directly
-                above and need no pointing at. */}
-            {caretAt(node.name) === undefined ? null : (
-              <span
-                className={styles.stageCaret}
-                style={{ left: `${caretAt(node.name)}%` }}
-              />
-            )}
             <StageHead
               node={node}
               nameHint="click to fold this stage"
