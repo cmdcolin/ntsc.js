@@ -2,6 +2,16 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.26.5](https://github.com/cmdcolin/ntsc.js/compare/v0.26.4...v0.26.5) - 2026-08-13
+
+### Fixes
+- *(midi)* [`01e8627`](https://github.com/cmdcolin/ntsc.js/commit/01e8627b4b7aa4736d059e2eab3f58066af79655) a second grant would leak the timer that watches the clock
+
+### Refactor
+- *(ui)* [`be7195a`](https://github.com/cmdcolin/ntsc.js/commit/be7195ae5086a4174ce3f38a0eb8ac6301a5b655) one walk round the divisions, not one per thing that locks
+- *(gpu)* [`f424de0`](https://github.com/cmdcolin/ntsc.js/commit/f424de047ba4148f14cf98116cf0c6dc68916d6a) drop two guards that were answering answered questions
+- [`caf3270`](https://github.com/cmdcolin/ntsc.js/commit/caf32705a0edfa929dea18d702571be400d89939) stop exporting the 88 names nothing imports
+
 ## [0.26.4](https://github.com/cmdcolin/ntsc.js/compare/v0.26.3...v0.26.4) - 2026-08-13
 
 ### Features
