@@ -53,11 +53,18 @@ const GUTTER = 14
 const GAP = 14
 const MID_Y = 92
 const BRANCH_Y = 128
-// The free row, under the branches: the boxes nothing is wired to. Same
-// arrangement as the miniature's (chainLayout.ts, FREE_Y) and for the same
-// reason — parked among the wired boxes, a box with no wire has to be read as
-// deliberate against a row full of wires, and there is only ever one gap wide
-// enough to be that convincing. On a row of their own the emptiness is the row.
+// The free row, under the branches: the boxes nothing is wired to. Parked among
+// the wired boxes, a box with no wire has to be read as deliberate against a row
+// full of wires, and there is only ever one gap wide enough to be that
+// convincing. On a row of their own the emptiness is the row.
+//
+// The miniature used to carry the same row and no longer does — its free boxes
+// are chips under the drawing (SignalPath) — because at 304 units wide a row is
+// the scarcest thing it has, and 20 of them bought its boxes a hittable height.
+// This drawing is 180 tall with room to spare, and empty space it can actually
+// afford is the argument the chips were standing in for. The two differ on where
+// a free box sits; what must not differ is whether pressing one opens the stage,
+// and that lives in MapBox for both.
 const FREE_Y = 164
 const BOX_H = 22
 const HEAD = 3
