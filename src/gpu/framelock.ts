@@ -92,8 +92,11 @@ export class AutoLock {
     this.n += 1
     if (this.n < LOCK_WINDOW) return 1
     this.n = 0
-    // Judge the completed window on the spread of its own intervals.
-    const sorted = Array.from(this.dts).toSorted((a, b) => a - b)
+    // Judge the completed window on the spread of its own intervals. The
+    // typed array sorts numerically without a comparator — the boxing copy
+    // that used to sit here was only ever buying `Array`'s lexicographic
+    // default something to be talked out of.
+    const sorted = this.dts.toSorted()
     if (sorted[LOCK_P_HI] > sorted[LOCK_P_LO] * LOCK_SPREAD) {
       this.divisor = 2
       // A probe that failed doubles the wait; wavering that arrived on its

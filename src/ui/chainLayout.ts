@@ -399,8 +399,9 @@ export function chainLayout(names: string[], specs: WiredBranch[] = []) {
   // inside both clamps, and `fit` stays at 1. Neither clamp nor the squeeze has
   // fired since the trunk stopped being filtered.
   const spare = W - LEAD - OUT - total
-  const gap =
-    runs === 0 ? 0 : Math.max(GAP, Math.min(GAP_MAX, spare / Math.max(runs, 1)))
+  // The `runs === 0` arm is what keeps the division safe, so the guard the
+  // divisor used to carry as well was answering a question already answered.
+  const gap = runs === 0 ? 0 : Math.max(GAP, Math.min(GAP_MAX, spare / runs))
   // Never above 1: a box is only ever squeezed to fit the row, never stretched
   // to fill it. Growing one was the old bug — dividing the full width by a
   // filtered-down stage count drew a 280px bar where a miniature belongs.
