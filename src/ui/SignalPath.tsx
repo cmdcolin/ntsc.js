@@ -213,17 +213,17 @@ function StageHead(props: {
 // and each stage need a card, so they get one. It draws all three loops and
 // names them; what it still cannot carry is what any of them *do*, which is a
 // sentence per run and three sentences the band has no room for.
-function PathHead(props: { mapped: boolean; onShowDiagram: () => void }) {
+function PathHead(props: { onShowDiagram: () => void }) {
   return (
     <div className={styles.pathHead}>
       <span className={styles.pathTitle}>Signal path</span>
-      {/* Only where there is a map to click. A query can narrow the panel down
-          to a loop or a branch, and the map needs the trunk — every wire and
-          every box under it is placed off a trunk box — so it drops out and the
-          standing instruction would be pointing at nothing. */}
-      {props.mapped ? (
-        <span className={styles.pathHint}>click a stage</span>
-      ) : null}
+      {/* Unconditional, because the map is. This used to be asked of the trunk —
+          a query could narrow the panel to a loop or a branch, the map needs a
+          trunk to place every wire and box off, so it dropped out and the
+          standing instruction would have been pointing at nothing. A query dims
+          the trunk now instead of emptying it, so there is always a map under
+          this line and always a stage to click. */}
+      <span className={styles.pathHint}>click a stage</span>
       <button
         className={styles.pathDiagram}
         title="the whole path drawn large — both inputs, their feeds, the mixer, all three loops and where the sound joins, each one a way into its controls"
@@ -341,17 +341,17 @@ export function SignalPath(props: {
       body: stageBody(node, props.stageTop, !props.expandAll),
     }))
     .filter(({ body }) => hasBody(body))
-  // The map no longer empties: a query that matches nothing dims every box
-  // rather than removing them, so there is always a chain to head and always
-  // somewhere for app.tsx's "nothing matches" line to sit *under*. This used to
-  // bail out here, and the two bugs it was patched for either way — an empty
-  // spine drawing wires between boxes that aren't there, and a query for
-  // "vignette" or "bass" matching a loop or a branch while the trunk went
-  // blank — are both gone with the reshaping that caused them.
-  if (nodes.length === 0) return null
+  // No bail-out for an empty panel. The map no longer empties: a query that
+  // matches nothing dims every box rather than removing them, so there is always
+  // a chain to head and always somewhere for app.tsx's "nothing matches" line to
+  // sit *under*. This used to return null here, and the two bugs it was patched
+  // for either way — an empty spine drawing wires between boxes that aren't
+  // there, and a query for "vignette" or "bass" matching a loop or a branch
+  // while the trunk went blank — are both gone with the reshaping that caused
+  // them.
   return (
     <>
-      <PathHead mapped={nodes.length > 0} onShowDiagram={props.onShowDiagram} />
+      <PathHead onShowDiagram={props.onShowDiagram} />
       <ChainMap
         stages={nodes}
         branches={wired}
@@ -456,10 +456,7 @@ function Bench(props: {
   }
   return (
     <>
-      <PathHead
-        mapped={props.nodes.length > 0}
-        onShowDiagram={props.onShowDiagram}
-      />
+      <PathHead onShowDiagram={props.onShowDiagram} />
       <ChainMap
         stages={props.nodes}
         branches={props.wired}
