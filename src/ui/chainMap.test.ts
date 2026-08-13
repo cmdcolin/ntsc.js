@@ -25,13 +25,25 @@ import {
 import type { WiredBranch } from './chainLayout'
 import type { Phase } from './controls'
 
-// The map lays out however many stages a live filter has left standing, so its
-// geometry is a function of a subset — and every bug it has shipped has been in
-// that arithmetic rather than in the markup. An empty chain divided by zero and
-// wrote `NaN` into every attribute (the browser drops the element); a one-stage
-// chain divided by one and drew a 280px bar where a miniature should be.
-// Neither shows up in a test that renders the component and counts elements, so
-// the arithmetic is tested on its own.
+// Every bug this map has shipped has been in its arithmetic rather than in its
+// markup. An empty chain divided by zero and wrote `NaN` into every attribute
+// (the browser drops the element); a one-stage chain divided by one and drew a
+// 280px bar where a miniature should be. Neither shows up in a test that renders
+// the component and counts elements, so the arithmetic is tested on its own.
+//
+// The app hands over the whole trunk now and nothing else — a query dims the
+// boxes it missed rather than removing them (panelChain) — so the subset rows
+// swept below are shapes `chainLayout` still handles and the app no longer asks
+// for. They are swept anyway for two reasons. The properties they assert are
+// true of the full row too, and asserting them across every shape is what caught
+// the crowding cases nobody would have picked by hand: the tightest label
+// clearance on the map turned out to be on the full row, which is the opposite
+// of where a hand-written row would have looked. And they are what would keep
+// the arithmetic honest if the trunk were ever narrowed again.
+//
+// So: a failure here on a subset row is not a live bug in the app. It is the
+// arithmetic drifting away from a generality the module has decided to keep, and
+// the fix is the same either way.
 const FULL = [...PHASE_ORDER]
 
 // The two branches as the app hands them over: input B at the head of the row,
@@ -70,6 +82,72 @@ const numbers = (v: unknown): number[] =>
       : typeof v === 'object' && v !== null
         ? Object.values(v).flatMap(numbers)
         : []
+
+// The row the app actually draws, pinned. Everything else in this file sweeps
+// shapes `chainLayout` supports and nothing builds; this is the one the sidebar
+// renders every frame, and the numbers here are quoted in that module's comments
+// to explain which of its branches are live. Pinned so those comments are
+// checked rather than remembered — a change that moves the drawing has to come
+// through here and restate what it made true.
+describe('the row the app draws', () => {
+  const live = () => chainLayout(FULL, ALL)
+
+  it('leaves every box at the width its own label asks for', () => {
+    const l = live()
+    // Roomy, not squeezed: 196.6 of the 286 between the leads.
+    expect(l.fit).toBe(1)
+    // Spare over runs, inside both GAP and GAP_MAX rather than clamped to either.
+    expect(l.gap).toBeCloseTo(22.35, 6)
+    expect(
+      l.boxes.map(b => [b.name, +b.x.toFixed(1), +b.w.toFixed(1)]),
+    ).toEqual([
+      ['Source A', 33.6, 51.2],
+      ['Mix', 93.7, 24.2],
+      ['Tape', 142.9, 29.6],
+      ['Receiver', 205.7, 51.2],
+      ['Screen', 273.8, 40.4],
+    ])
+  })
+
+  // All three, every render — the map says three loops because the rig has
+  // three, and a query dims a run rather than stranding it.
+  it('draws all three returns', () => {
+    expect(live().returns.map(r => r.loop)).toEqual(['camera', 'mixer', 'tape'])
+  })
+
+  // The tape loop's label takes the left side with 1.6 units to spare, which is
+  // the tightest clearance anywhere on the map. If a change to the type or to
+  // the box widths eats those, this fails here rather than in a screenshot —
+  // and the label flips over the TAPE box, which is the collision the loop has
+  // been renamed twice to avoid.
+  it('holds the tape loop’s label on the left by 1.6 units', () => {
+    const tape = live().returns.find(r => r.self)
+    if (tape === undefined) throw new Error('no tape run')
+    expect(tape.nameAt.anchor).toBe('end')
+    const want = runLabelWidth(tape.name)
+    expect(want).toBeCloseTo(37.4, 1)
+    // The wall is the camera return's drop into the head of the chain.
+    const drop = live().returns.find(r => r.loop === 'camera')?.to ?? 0
+    expect(tape.nameAt.x - drop - want).toBeCloseTo(1.6, 1)
+  })
+
+  // The branch cursor never has to push on this row: each of the three takes
+  // the place its own anchor asks for.
+  it('places every branch where its anchor asks, unpushed', () => {
+    const l = live()
+    expect(l.branches.map(b => [b.name, +b.x.toFixed(1)])).toEqual([
+      [SOURCE_B_STAGE, 33.6],
+      [SOUND_STAGE, 205.7],
+      [VIEW_STAGE, 273.8],
+    ])
+    // B under the head of the trunk; the other two under the stage they meet.
+    expect(l.branches[0].x - l.branches[0].w / 2).toBeCloseTo(
+      l.boxes[0].x - l.boxes[0].w / 2,
+      6,
+    )
+    expect(l.branches[1].x).toBeCloseTo(l.centers[FULL.indexOf(SOUND_JOIN)], 6)
+  })
+})
 
 describe('chain map geometry', () => {
   it('draws the full chain across the whole width', () => {

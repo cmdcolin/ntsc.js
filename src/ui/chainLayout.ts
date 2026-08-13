@@ -10,13 +10,28 @@ import {
 import type { LoopPlace } from './controls'
 
 // The chain map's arithmetic, with none of its markup (see ChainMap.tsx for the
-// drawing). Its own module because a filter hands the map any subset of the
-// stages, and every bug it has shipped has been in this arithmetic rather than
-// in the elements: an empty chain divided the width by zero and wrote `NaN` into
-// every attribute, which the browser drops; a one-stage chain divided it by one
-// and drew a 280px bar where a miniature belongs. Neither is visible to a test
-// that renders the component and counts elements — both are one assertion away
-// from a function that returns numbers (chainMap.test.ts).
+// drawing). Its own module because every bug it has shipped has been in this
+// arithmetic rather than in the elements: an empty chain divided the width by
+// zero and wrote `NaN` into every attribute, which the browser drops; a
+// one-stage chain divided it by one and drew a 280px bar where a miniature
+// belongs. Neither is visible to a test that renders the component and counts
+// elements — both are one assertion away from a function that returns numbers
+// (chainMap.test.ts).
+//
+// **The app only ever asks for the whole trunk.** It used to hand over whatever
+// a live filter had left standing, which is where the two bugs above came from;
+// a query dims the boxes it did not reach now and removes none of them
+// (panelChain), and `PHASES.map` is the only thing that builds the list. So
+// every subset branch below — `fit` under 1, the gap clamps, the `at() < 0`
+// fallbacks, the cursor that pushes one branch off another, the tape loop's
+// choice of side — computes the same answer on every render today.
+//
+// It is kept general anyway, and that is a decision rather than an oversight:
+// the arithmetic is a few lines, the subset tests are what pin the live row's
+// proportions as well (a box is never stretched past its label on *any* row,
+// including this one), and the shape that made those bugs possible is a design
+// choice one commit could take back. What is not kept is a comment claiming the
+// filter still does it — see each of them below for which case is live.
 //
 // The svg stretches to its container, so every size here is really a ratio — but
 // the units are px at the sidebar's width, so the labels come out at the size
@@ -350,11 +365,11 @@ export function branchArrow(b: ChainBranch): {
 }
 
 // A branch's run: out of its box, along its own row, then up into the box above
-// the join. Degenerates to a straight riser when the join is directly above —
-// which is both what a 'join'-anchored branch normally wants and what a filter
-// that has dropped B's mixer leaves, the box directly above B being upstream of
-// everything left by definition. Routes left as well as right because a crowded
-// row can push a box past the stage it feeds.
+// the join. Degenerates to a straight riser when the join is directly above,
+// which is what a 'join'-anchored branch normally wants — the sound and the view
+// both take it. Routes left as well as right because a crowded row can push a
+// box past the stage it feeds; on the full trunk nothing is that crowded, and B
+// is the only branch that takes the routed arm at all.
 export function branchPath(b: ChainBranch) {
   const top = MID_Y + BOX_H / 2
   const right = b.x + b.w / 2
@@ -378,6 +393,11 @@ export function chainLayout(names: string[], specs: WiredBranch[] = []) {
   // and when there is not enough the gaps hold at GAP and every box is scaled
   // by the same factor. One of the two is always in play, so the drawing can
   // never run off the right edge however the estimate above lands.
+  //
+  // The five real stages ask for 196.6 of the 286 between the leads, so the
+  // trunk the app draws is the roomy case: 89.4 spare over 4 runs is a 22.35 gap,
+  // inside both clamps, and `fit` stays at 1. Neither clamp nor the squeeze has
+  // fired since the trunk stopped being filtered.
   const spare = W - LEAD - OUT - total
   const gap =
     runs === 0 ? 0 : Math.max(GAP, Math.min(GAP_MAX, spare / Math.max(runs, 1)))
@@ -414,7 +434,8 @@ export function chainLayout(names: string[], specs: WiredBranch[] = []) {
   // A return only reads as a return if it comes back from somewhere downstream
   // of where it re-enters — except the tape loop, which taps the box it returns
   // to and so is the one return whose two ends are the same. Both cases need
-  // both of their stages on the row, which a filter can take away.
+  // both of their stages on the row. On the trunk the app asks for, all three
+  // always have them; the guard is for the shorter rows only the tests build.
   //
   // A self loop's two ends are taken off the box's own edges rather than from a
   // fixed offset: a squeezed row narrows every box, and a pair pinned at ±8
@@ -470,9 +491,17 @@ export function chainLayout(names: string[], specs: WiredBranch[] = []) {
   // 200-unit one, and the side it hangs off decides whether 'tape loop' lands
   // over the gap at the head of the chain or over the TAPE box. On the full
   // trunk the left side is the 39 units between the mixer and the camera
-  // return's drop, and the label takes 39 of them. A filter that shortens the
-  // trunk moves that drop in, and it goes to the other side rather than write
-  // across it.
+  // return's drop, and the label takes 37.4 of them — so left is what it picks,
+  // every render, with 1.6 units to spare. A shorter trunk moves that drop in
+  // and it would go to the other side rather than write across it; nothing in
+  // the app builds one, so in practice this picks left and stops.
+  //
+  // Worth knowing what those 1.6 units do and do not buy. `want` is the estimate
+  // (RUN_CHAR), not the rendered text, so a platform whose system font runs wider
+  // than the estimate does not trip this and move the label — it overflows into
+  // the drop. The margin is against the *layout* being wrong, not the metrics.
+  // Widening RUN_CHAR is what guards the metrics, and it costs this label its
+  // left side the moment the estimate clears 39 units.
   const room = (r: (typeof drawn)[number], spot: (typeof r.places)[number]) => {
     const drops = drawn.filter(o => o.y < r.y).flatMap(o => [o.from, o.to])
     if (spot.anchor === 'end')
@@ -497,13 +526,15 @@ export function chainLayout(names: string[], specs: WiredBranch[] = []) {
   })
   // The branch row, laid out left to right with a cursor: each box takes the
   // place its anchor asks for, and is pushed right if that would land it on the
-  // box before it. Without the cursor a filter that leaves two stages standing
-  // draws both branches on top of each other — the same class of bug as the
-  // one-stage 280px bar, and just as invisible to a test that counts elements.
+  // box before it. Without the cursor a two-stage trunk draws both branches on
+  // top of each other — the same class of bug as the one-stage 280px bar, and
+  // just as invisible to a test that counts elements. On the full trunk the
+  // three anchors are 33.6 / 205.7 / 273.8 and the push never fires.
   //
-  // A branch whose join stage the filter dropped falls back to the last box:
+  // A branch whose join stage is not on the row falls back to the last box:
   // whatever is left, the sound still arrives inside the set, and a wire to a
-  // box that isn't there is a wire to nowhere.
+  // box that isn't there is a wire to nowhere. Also unreachable from the app —
+  // every join stage is always on the row.
   let edge = -Infinity
   const branches: ChainBranch[] =
     boxes.length === 0
