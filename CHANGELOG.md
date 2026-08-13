@@ -2,6 +2,31 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.26.4](https://github.com/cmdcolin/ntsc.js/compare/v0.26.3...v0.26.4) - 2026-08-13
+
+### Features
+- *(ui)* [`ddda289`](https://github.com/cmdcolin/ntsc.js/commit/ddda289f639b390d715411961fa3a16cc55b6aa0) the stab gate's far end can be a look you held
+- *(ui)* [`656d69b`](https://github.com/cmdcolin/ntsc.js/commit/656d69bd0467a250189bb573b99747934adf3804) the map holds still, and a query dims what it did not reach
+- *(ui)* [`807ce2e`](https://github.com/cmdcolin/ntsc.js/commit/807ce2e17f58a70054097482436300f19b4fbbb1) the map re-proportioned — 24px boxes, and the free row leaves the drawing
+
+### Fixes
+- *(ui)* [`3fb62a6`](https://github.com/cmdcolin/ntsc.js/commit/3fb62a6d718c5c4a26b7c6256537c63f102c1765) the filter can reach the modulation bay again
+- *(ui)* [`d1ef55a`](https://github.com/cmdcolin/ntsc.js/commit/d1ef55a015447ca84d378d678331a79ecd978fe6) ⌘K answers "strobe" with the gate that is one
+- *(ui)* [`9b3fcf4`](https://github.com/cmdcolin/ntsc.js/commit/9b3fcf44b9fd2be6474726ce4863247e039852a2) drop the caret from the open stage — it points at a chip, not a box
+
+### Refactor
+- *(ui)* [`4b76386`](https://github.com/cmdcolin/ntsc.js/commit/4b763865f584172e01d7ba0cbe1a6defa4fb2a85) the map is always there, so the head stops asking
+
+### Documentation
+- [`d1c1447`](https://github.com/cmdcolin/ntsc.js/commit/d1c1447890beac3e19cb9846c37b22450b56fee7) the gate's far end, in the guide and the backlog
+- *(ui)* [`ccf9470`](https://github.com/cmdcolin/ntsc.js/commit/ccf9470a5d06d2def0386fa97409d5e3eca23089) the card keeps the free row, and says why the miniature does not
+
+### Tests
+- *(ui)* [`e30afc8`](https://github.com/cmdcolin/ntsc.js/commit/e30afc8e913b58ea9212be7e068c3f55cc66d55d) pin the row the app actually draws, and say which branches are dead
+
+### Chores
+- *(ui)* [`f2c8848`](https://github.com/cmdcolin/ntsc.js/commit/f2c8848b59369b6b416df47e546c9e04344f0516) regen the panel baselines — the map's new proportions, and 20 commits of drift
+
 ## [0.26.3](https://github.com/cmdcolin/ntsc.js/compare/v0.26.2...v0.26.3) - 2026-08-12
 
 ### Features
