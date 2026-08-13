@@ -257,15 +257,25 @@ export function gateRate(
   return master === 0 ? 0 : stabRate(stab, bpm)
 }
 
-// Off → each division → off, the same cycle a slot's rate and a rate control row
-// walk. `hz` rides along untouched, so the dialed rate comes back at the end.
-export function withNextStabSync(stab: Stab): Stab {
-  const next = stab.syncDiv === undefined ? 0 : stab.syncDiv + 1
-  if (next < SYNC_DIVISIONS.length) return { ...stab, syncDiv: next }
-  const free = { ...stab }
+// Off → each division → off: the cycle the ♩ walks, wherever it is pressed.
+//
+// One definition rather than one per thing that carries a lock, on the rule
+// `math.ts` states about `wrap`: the step off the end of the list is where the
+// sign error hides, and a second copy is a second place for it to hide. The
+// two callers below name the shape they hand it, so the lock stays a field on
+// a slot and on a gate rather than becoming a type either has to know about.
+//
+// The dialed rate rides along untouched — `rateHz` on a slot, `hz` on the gate
+// — so it is what comes back at the end of the cycle.
+const withNextDivision = <T extends { syncDiv?: number }>(o: T): T => {
+  const next = o.syncDiv === undefined ? 0 : o.syncDiv + 1
+  if (next < SYNC_DIVISIONS.length) return { ...o, syncDiv: next }
+  const free = { ...o }
   delete free.syncDiv
   return free
 }
+
+export const withNextStabSync = (stab: Stab): Stab => withNextDivision(stab)
 
 // A stored board, or null if it isn't one. Every key is taken from
 // CONTROL_KEYS and defaulted, so a look held before a control existed loads with
@@ -367,16 +377,7 @@ export function slotRate(slot: UiSlot, bpm: number | null): number {
     : clamp(bpm / 60 / SYNC_DIVISIONS[div].beats, RATE_MIN, RATE_MAX)
 }
 
-// Off → each division → off, the same cycle the ♩ on a rate control row walks.
-// `rateHz` is deliberately untouched on the way through: it is what the slot
-// comes back to at the end of the cycle.
-export function withNextSync(slot: UiSlot): UiSlot {
-  const next = slot.syncDiv === undefined ? 0 : slot.syncDiv + 1
-  if (next < SYNC_DIVISIONS.length) return { ...slot, syncDiv: next }
-  const free = { ...slot }
-  delete free.syncDiv
-  return free
-}
+export const withNextSync = (slot: UiSlot): UiSlot => withNextDivision(slot)
 
 // One stored/pasted entry, or null if it isn't one. Field-checked rather than
 // trusted: `readArray` guards the parse, not the shape, and a stored `[null]`
