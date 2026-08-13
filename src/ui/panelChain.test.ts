@@ -62,6 +62,12 @@ const chain = (
   })
 
 const names = (nodes: { name: string }[]) => nodes.map(n => n.name)
+// The boxes a query actually reached. Every box is on the map whatever is in
+// the search field — the chain is what the map is for, and it used to be
+// re-laid-out around whatever survived — so "the filter did not find this" is
+// now a flag on a box that is still drawn, and that is what these read.
+const lit = (nodes: { name: string; dim?: boolean }[]) =>
+  names(nodes.filter(n => n.dim !== true))
 
 describe('the boxes on the map', () => {
   it('draws the whole chain with nothing filtered', () => {
@@ -82,8 +88,11 @@ describe('the boxes on the map', () => {
 
   it('keeps a free box out of a query it does not answer to', () => {
     const c = chain({ query: 'hue' })
-    expect(names(c.branches)).not.toContain(MOD_STAGE)
-    expect(names(c.branches)).not.toContain(DECK_STAGE)
+    expect(lit(c.branches)).not.toContain(MOD_STAGE)
+    expect(lit(c.branches)).not.toContain(DECK_STAGE)
+    // Still drawn, though — dimming is what "out of this query" looks like now,
+    // and a box that vanished would take a row of the drawing with it.
+    expect(names(c.branches)).toContain(MOD_STAGE)
   })
 
   // The regression this pass exists for. The bay holds the gate, its rate, the
@@ -122,7 +131,7 @@ describe('the boxes on the map', () => {
   // what both free boxes did before the bay needed to come back.
   it('leaves a box that declares nothing out of every query', () => {
     for (const q of ['strobe', 'tempo', 'wipe', 'tracking', 'deck'])
-      expect(names(chain({ query: q }).branches)).not.toContain(DECK_STAGE)
+      expect(lit(chain({ query: q }).branches)).not.toContain(DECK_STAGE)
   })
 
   // `∿` asks which rows are wobbling. The bay is where routings are read as a
@@ -130,8 +139,29 @@ describe('the boxes on the map', () => {
   // actually moving under the surface that lists them.
   it('leaves the free boxes out of the motion query', () => {
     for (const q of ['∿', 'moving', 'lfo']) {
-      expect(names(chain({ query: q }).branches)).not.toContain(MOD_STAGE)
+      expect(lit(chain({ query: q }).branches)).not.toContain(MOD_STAGE)
     }
+  })
+
+  // What a dimmed box is still allowed to say. A count on the map is a fact
+  // about the look — these controls are off stock — and the search field has no
+  // business editing it, so a box the query missed keeps the count it would
+  // have had. Built off the stage's whole group set for that reason: the
+  // matched set is empty by definition, and counting *that* would make every
+  // dimmed box read as untouched.
+  it('keeps a dimmed box’s count off its own stage, not the query', () => {
+    const moved = { ...DEFAULT_CONTROLS, chromaCoarse: 0.42 }
+    const on = chain({ controls: moved })
+    const off = chain({ query: 'zzzznothing', controls: moved })
+    const receiver = (c: ReturnType<typeof chain>) =>
+      c.nodes.find(n => n.name === 'Receiver')
+    expect(receiver(on)?.touched).toBeGreaterThan(0)
+    expect(receiver(off)?.dim).toBe(true)
+    expect(receiver(off)?.touched).toBe(receiver(on)?.touched)
+    // Its groups do go, though — a dimmed box lists nothing under the map, and
+    // that is the half `SignalPath` reads to decide what renders.
+    expect(receiver(off)?.groups).toEqual([])
+    expect(receiver(off)?.onJumpTouched).toBeUndefined()
   })
 
   it('carries what a free box is holding as its own count and clause', () => {
@@ -174,15 +204,20 @@ describe('a stage with nothing patched into it', () => {
 describe('a query that reaches nothing on the trunk', () => {
   it('still finds a loop', () => {
     const c = chain({ query: 'vignette' })
-    expect(c.nodes).toEqual([])
-    expect(names(c.loops)).toEqual([CAMERA_LOOP_STAGE])
+    expect(lit(c.nodes)).toEqual([])
+    expect(lit(c.loops)).toEqual([CAMERA_LOOP_STAGE])
     expect(c.anyStage).toBe(true)
+    // The trunk stays drawn under it. This is the half the old shape got wrong
+    // in the other direction: with nothing on the trunk matching, the map had
+    // no boxes to place anything off and drew nothing at all — so a query that
+    // found 37 controls came out as a blank where the chain had been.
+    expect(names(c.nodes)).toEqual([...PHASE_ORDER])
   })
 
   it('still finds a branch', () => {
     const c = chain({ query: 'bass' })
-    expect(c.nodes).toEqual([])
-    expect(names(c.branches)).toEqual([SOUND_STAGE])
+    expect(lit(c.nodes)).toEqual([])
+    expect(lit(c.branches)).toEqual([SOUND_STAGE])
     expect(c.anyStage).toBe(true)
   })
 
@@ -191,7 +226,7 @@ describe('a query that reaches nothing on the trunk', () => {
     // dead box is visible, but its groups are suppressed (stageBody), so there
     // is no result on screen and "nothing matches" is the honest line.
     const c = chain({ query: 'bass', soundOn: false })
-    expect(names(c.branches)).toEqual([SOUND_STAGE])
+    expect(lit(c.branches)).toEqual([SOUND_STAGE])
     expect(c.anyStage).toBe(false)
     // And says which box to press, rather than "nothing matches" over seven
     // controls that exist.
@@ -200,17 +235,27 @@ describe('a query that reaches nothing on the trunk', () => {
 
   it('reports nothing when the only trunk stage it found is inert', () => {
     const c = chain({ query: 'blended border along the wipe edge', bOn: false })
-    expect(names(c.nodes)).toEqual([MIX_STAGE])
+    expect(lit(c.nodes)).toEqual([MIX_STAGE])
     expect(c.anyStage).toBe(false)
     expect(c.blocked).toEqual([MIX_STAGE])
   })
 
   it('reports nothing for a query that reaches no stage at all', () => {
     const c = chain({ query: 'zzzznothing' })
-    expect(c.nodes).toEqual([])
-    expect(c.loops).toEqual([])
-    expect(c.branches).toEqual([])
+    expect(lit(c.nodes)).toEqual([])
+    expect(lit(c.loops)).toEqual([])
+    expect(lit(c.branches)).toEqual([])
     expect(c.anyStage).toBe(false)
+    expect(c.blocked).toEqual([])
+  })
+
+  // `blocked` names the boxes standing between the query and its result, and
+  // every box is on the map now — so an inert stage the query never reached
+  // must not be reported as one of them. B is unpatched here and 'vignette' is
+  // in the camera loop, which has nothing to do with it.
+  it('does not blame a dead box the query never reached', () => {
+    const c = chain({ query: 'zzzznothing', bOn: false, soundOn: false })
+    expect(names(c.nodes)).toEqual([...PHASE_ORDER])
     expect(c.blocked).toEqual([])
   })
 

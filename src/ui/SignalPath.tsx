@@ -230,9 +230,16 @@ export function SignalPath(props: {
   // Asked as "is there a picker" rather than "is there a key": a key present
   // with nothing behind it would open a box onto the empty stage it is drawn
   // inert for, which is the one outcome this is here to make impossible.
+  // `dim` is checked first and on its own. A stage the query missed has no
+  // groups left to show, but it can still have a picker keyed on its name — so
+  // without this, searching for "ghost" would leave SOURCE A pressable and open
+  // it onto its input picker alone, which is the stage answering a question
+  // nobody asked.
   const opensOn = <T extends PathNode>(n: T): MapNode<T> => ({
     ...n,
-    opens: n.off !== true || props.stageTop[n.name] !== undefined,
+    opens:
+      n.dim !== true &&
+      (n.off !== true || props.stageTop[n.name] !== undefined),
   })
   const nodes = props.nodes.map(opensOn)
   const branches = props.branches.map(opensOn)
@@ -266,16 +273,14 @@ export function SignalPath(props: {
       body: stageBody(node, props.stageTop, !props.expandAll),
     }))
     .filter(({ body }) => hasBody(body))
-  // A filter can leave the panel nothing at all, and then there is no door to
-  // put a header on — an empty spine used to come out as wires between boxes
-  // that aren't there, under a "0 controls, in the order the picture travels"
-  // heading sitting right above app.tsx's own "nothing matches" line.
-  //
-  // The trunk being empty is not that case, and used to be treated as it: 37 of
-  // the app's controls live in a loop and 26 on a branch, so a query for
-  // "vignette" or "bass" matched a stage the panel then declined to draw. The
-  // map is what needs the trunk, and it is what drops out (ChainMap).
-  if (nodes.length === 0 && shown.length === 0) return null
+  // The map no longer empties: a query that matches nothing dims every box
+  // rather than removing them, so there is always a chain to head and always
+  // somewhere for app.tsx's "nothing matches" line to sit *under*. This used to
+  // bail out here, and the two bugs it was patched for either way — an empty
+  // spine drawing wires between boxes that aren't there, and a query for
+  // "vignette" or "bass" matching a loop or a branch while the trunk went
+  // blank — are both gone with the reshaping that caused them.
+  if (nodes.length === 0) return null
   return (
     <>
       <PathHead mapped={nodes.length > 0} onShowDiagram={props.onShowDiagram} />

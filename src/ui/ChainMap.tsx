@@ -56,6 +56,12 @@ export interface ChainStage {
   off?: boolean
   // What to say instead of the blurb while it is off.
   offHint?: string
+  // A live filter did not reach this stage. Drawn faint and pressing it does
+  // nothing — it is on the map as context, so the chain still reads as a chain
+  // while a query narrows what is listed under it. Different from `off`, which
+  // is about the rig: an inert stage has nothing patched into it whatever is in
+  // the search box, and a dimmed one is a statement about the search box alone.
+  dim?: boolean
   // Whether pressing the box opens the stage. Not the negation of `off`: a
   // source branch with nothing patched in is drawn inert and still opens,
   // because the picker that ends the off state is the first thing inside it —
@@ -148,18 +154,23 @@ export function ChainMap(props: {
         const d = returnPath(r.from, r.to, top, r.y, r.turn)
         const open = props.open === node.name
         const live = props.live[r.loop]
+        const dim = node.dim === true
         // The same three things a box says, on a wire that has no fill to say
         // them with: idle, carrying an edit, open. `live` is the fourth and the
         // one only a loop has — its mix is off zero, so this machine is actually
         // running — and it outranks the amber, because "is it on" is the
         // question you ask of a loop and "have I touched it" is not.
-        const state = open
-          ? styles.mapReturnOn
-          : live
-            ? styles.mapReturnLive
-            : node.touched > 0
-              ? styles.mapReturnTouched
-              : undefined
+        // A dimmed run outranks all four: while a query is live, "the search did
+        // not reach this" is the only thing this run is on the drawing to say.
+        const state = dim
+          ? styles.mapReturnDim
+          : open
+            ? styles.mapReturnOn
+            : live
+              ? styles.mapReturnLive
+              : node.touched > 0
+                ? styles.mapReturnTouched
+                : undefined
         return (
           /* A run is a button, and for a loop it is the whole of the door: none
              of the three has a box on the trunk, because none of them is a stage
@@ -173,20 +184,25 @@ export function ChainMap(props: {
             blurb={node.blurb}
             live={live}
             touched={node.touched}
+            opens={!dim}
             pressHint={
-              !props.folds
-                ? ' — click for its controls'
-                : open
-                  ? ' — click to close'
-                  : ' — click to open'
+              dim
+                ? ''
+                : !props.folds
+                  ? ' — click for its controls'
+                  : open
+                    ? ' — click to close'
+                    : ' — click to open'
             }
             className={cx(
               styles.mapReturn,
-              styles.mapLoopBtn,
+              // Not a button while it is dim, so it takes neither the pointer
+              // nor the hover that would promise one.
+              !dim && styles.mapLoopBtn,
               r.optical && styles.mapReturnOptical,
               state,
             )}
-            expanded={props.folds ? open : undefined}
+            expanded={props.folds && !dim ? open : undefined}
             onOpen={() => props.onOpen(node.name)}
           >
             {/* The run is a 1px hairline and the target. 8 units of transparent
@@ -226,7 +242,10 @@ export function ChainMap(props: {
            space around it is the whole drawing. */
         <g
           key={branch.name}
-          className={cx(props.branches[i].off === true && styles.mapBranchOff)}
+          className={cx(
+            props.branches[i].off === true && styles.mapBranchOff,
+            props.branches[i].dim === true && styles.mapBranchDim,
+          )}
         >
           {branch.free ? null : (
             <>
@@ -311,6 +330,7 @@ function Node(props: {
 }) {
   const { stage } = props
   const off = stage.off === true
+  const dim = stage.dim === true
   // Only where a click can close a stage is this box a disclosure — see `folds`.
   const fold = props.folds && stage.opens
   return (
@@ -333,11 +353,15 @@ function Node(props: {
           : undefined
       }
       className={cx(
-        styles.mapNode,
+        // Dim replaces the idle rule rather than layering over it: it is not a
+        // shade of the four states below, it is the box saying the query went
+        // somewhere else. Only `free` still applies, because the dotted outline
+        // is about the rig and survives anything a search box does.
+        dim ? styles.mapNodeDim : styles.mapNode,
         props.free === true && styles.mapNodeFree,
-        off && styles.mapNodeOff,
-        !off && stage.touched > 0 && styles.mapNodeTouched,
-        props.open && styles.mapNodeOn,
+        !dim && off && styles.mapNodeOff,
+        !dim && !off && stage.touched > 0 && styles.mapNodeTouched,
+        !dim && props.open && styles.mapNodeOn,
       )}
       expanded={fold ? props.open : undefined}
       onOpen={() => props.onOpen(stage.name)}

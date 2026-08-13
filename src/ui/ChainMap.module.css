@@ -67,6 +67,17 @@
 .mapReturnLive {
   color: var(--accent);
 }
+/* A run the live query did not reach — the same statement .mapNodeDim makes,
+   on the three stages that have a wire instead of a box. Its label goes with
+   it: at --fg3 under a 0.3 fade the word is still the loudest thing left on an
+   otherwise faint run. */
+.mapReturnDim {
+  color: var(--border);
+  opacity: 0.3;
+}
+.mapReturnDim .mapLoopLabel {
+  fill: var(--fg3);
+}
 /* The loop whose stage is open. A box says this with a tinted fill; a hairline
    has no fill, so it says it by getting heavier — which is also the only state
    here that survives being the same colour as `live`, and a running loop you
@@ -138,6 +149,20 @@
 .mapLoopBtn:focus-visible .mapLoopLabel {
   fill: var(--fg);
 }
+/* A stage a live query did not reach. It stays on the map because the map is
+   the chain: a search for "ghost" is asking where in the chain that lives, and
+   the drawing used to answer by removing every box but the two that matched and
+   re-laying out the rest — which is the one shape that cannot answer it.
+
+   Faint rather than restyled, and it replaces the idle rule instead of layering
+   over it (see ChainMap's className): the four states below are about the rig
+   and the look, and this one is about the search box, so a dimmed box says that
+   and nothing else. No pointer and no hover, because there is nothing behind it
+   to open while the query stands. */
+.mapNodeDim {
+  color: var(--fg2);
+  opacity: 0.3;
+}
 .mapNode {
   color: var(--fg2);
   cursor: pointer;
@@ -192,6 +217,18 @@
 }
 .mapBranchOff .mapArrow {
   fill: var(--border-faint);
+}
+/* And the same for a branch the query missed: the box fades on its own class,
+   so without this its wire stays at full strength and the box reads as
+   disconnected rather than as out of scope. */
+.mapBranchDim {
+  opacity: 0.3;
+}
+/* The group above carries the fade for the whole run, box included, so the box
+   must not fade a second time inside it — 0.3 of 0.3 is not a dim box, it is a
+   box that has left the drawing. */
+.mapBranchDim .mapNodeDim {
+  opacity: 1;
 }
 .mapNode:hover .mapBox,
 .mapNodeTouched .mapBox,

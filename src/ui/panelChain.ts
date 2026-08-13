@@ -94,10 +94,30 @@ const inert = (node: PathNode): PathNode => ({
 })
 
 // Whether a node draws anything under its heading. A node a query left with no
-// groups is already dropped below, so what is left to ask is whether the ones
-// that remain can act on anything.
+// groups stays on the map now (see `dim`) rather than dropping out, so this asks
+// two things: that the query reached it at all, and that what it reached can act
+// on anything.
 const draws = (node: PathNode) =>
-  node.off !== true && (node.groups.length > 0 || node.body !== undefined)
+  node.off !== true &&
+  node.dim !== true &&
+  (node.groups.length > 0 || node.body !== undefined)
+
+// A stage the query did not reach. It stays on the map, because the map is the
+// chain and "where in the chain does `ghost` live" is a question three boxes and
+// two hundred units of empty wire cannot answer — but it is drawn dim, opens
+// nothing, and lists nothing under the map.
+//
+// Its count comes off the stage's *whole* group set rather than the matched one,
+// which is empty by definition. A dimmed box still says what it is holding, and
+// that is the half of the map a filter has no business editing: what you have
+// moved off stock is a fact about the look, not about the search box.
+const dimmed = (node: PathNode): PathNode => ({
+  ...node,
+  dim: true,
+  groups: [],
+  // Nothing under it to jump to — the count is a mark on a box you cannot open.
+  onJumpTouched: undefined,
+})
 
 // The two inputs and the view, which hang under the trunk rather than sitting on
 // it. One table because the three differ only in the fields here: matching the
@@ -105,8 +125,8 @@ const draws = (node: PathNode) =>
 // out when a query leaves them nothing were three copies of one rule.
 //
 // Each is still drawn while nothing is patched into it — a drawn, inert box is
-// the one thing on screen saying that input exists at all — so one goes only
-// when a live filter has left it no groups.
+// the one thing on screen saying that input exists at all — and a query that
+// misses one dims it rather than taking it off the row.
 const BRANCHES: readonly {
   name: string
   blurb: string
@@ -202,39 +222,48 @@ export function panelChain(o: {
   // controls needs a second signal, and unlike a branch there is no picker for
   // "a second signal" to offer — so its box is a statement about the chain
   // rather than a door (see PICKER_STAGES).
-  const nodes = PHASES.flatMap((phase): PathNode[] => {
+  // Every phase, every time: the trunk is what the whole drawing is placed off,
+  // and it used to be re-laid-out around whatever a query left standing. A stage
+  // the query missed is dimmed in place instead.
+  const nodes = PHASES.map((phase): PathNode => {
     const groups = matching(phase.groups)
-    if (groups.length === 0) return []
-    const n = node(phase.name, phase.blurb, groups)
-    return [phase.name === MIX_STAGE && !o.bOn ? inert(n) : n]
+    const miss = groups.length === 0
+    // Built off the full set when it is a miss, so the count on the box is the
+    // stage's own rather than the matched subset's zero.
+    const n = node(phase.name, phase.blurb, miss ? [...phase.groups] : groups)
+    const shown = miss ? dimmed(n) : n
+    return phase.name === MIX_STAGE && !o.bOn ? inert(shown) : shown
   })
 
   // The three loops, drawn over the trunk. Never inert: there is nothing to
   // patch into a loop and the chain under it is always carrying A, so unlike a
-  // branch a loop has no off state to draw. One drops out only when a live
-  // filter has left it nothing — and then its run goes too, because for a loop
-  // the run is the whole door.
-  const loops = LOOP_STAGES.flatMap((l): LoopNode[] => {
-    const groups = matching(loopGroups(l.loop))
-    return groups.length === 0
-      ? []
-      : [{ ...node(l.name, l.blurb, groups), loop: l.loop }]
+  // branch a loop has no off state to draw. A query it misses dims its run
+  // rather than taking it off the drawing — three runs is a fact about the rig,
+  // and a map that says two is wrong about the machine rather than quiet about
+  // the search.
+  const loops = LOOP_STAGES.map((l): LoopNode => {
+    const all = loopGroups(l.loop)
+    const groups = matching(all)
+    const miss = groups.length === 0
+    const n = node(l.name, l.blurb, miss ? all : groups)
+    return { ...(miss ? dimmed(n) : n), loop: l.loop }
   })
 
   const fed = { b: o.bOn, sound: o.soundOn }
   const branches: BranchNode[] = [
-    ...BRANCHES.flatMap((b): BranchNode[] => {
+    ...BRANCHES.map((b): BranchNode => {
       const groups = matching(b.groups)
-      if (groups.length === 0) return []
-      const n = node(b.name, b.blurb, groups)
+      const miss = groups.length === 0
+      const n = node(b.name, b.blurb, miss ? [...b.groups] : groups)
+      const shown = miss ? dimmed(n) : n
       const wiring = { join: b.join, under: b.under, dir: b.dir }
-      return [
-        { ...(b.fed !== undefined && !fed[b.fed] ? inert(n) : n), ...wiring },
-      ]
+      return {
+        ...(b.fed !== undefined && !fed[b.fed] ? inert(shown) : shown),
+        ...wiring,
+      }
     }),
-    ...o.free
-      .filter(f => o.query === '' || freeMatches(f, o.query))
-      .map((f): BranchNode => ({
+    ...o.free.map((f): BranchNode => {
+      const box: BranchNode = {
         ...node(f.name, f.blurb, []),
         // What the box wears its amber for, and what that number counts —
         // "controls off stock" being the wrong noun for either of these.
@@ -247,7 +276,14 @@ export function panelChain(o: {
         onJumpTouched: undefined,
         body: f.body,
         free: true,
-      })),
+      }
+      // `dimmed` would take the body with it, and these two *are* their bodies.
+      // Blanking the groups of a box that has none is the whole of what it does
+      // here, so the flag is set on its own.
+      return o.query === '' || freeMatches(f, o.query)
+        ? box
+        : { ...box, dim: true }
+    }),
   ]
 
   // Trunk, then loops, then branches — the order the panel lists them in, and
@@ -259,6 +295,11 @@ export function panelChain(o: {
     branches,
     loops,
     anyStage,
-    blocked: anyStage ? [] : all.filter(n => n.off === true).map(n => n.name),
+    // Only the stages the query actually reached. Every box is on the map now,
+    // so an inert one the query never touched would otherwise be reported as
+    // standing between you and your result when it has nothing to do with it.
+    blocked: anyStage
+      ? []
+      : all.filter(n => n.off === true && n.dim !== true).map(n => n.name),
   }
 }

@@ -127,8 +127,9 @@ export function MapBox(props: {
 
 // One feedback run drawn over the chain, which for a loop is the whole of the
 // door: none of the three is a stage the picture passes through, so none of them
-// has a box, and the wire is what you press. Always opens — a loop *is* a patch,
-// so unlike a branch it has no off state to be dead in.
+// has a box, and the wire is what you press. It has no *off* state — a loop is a
+// patch, so unlike a branch there is nothing to be unpatched from — but a live
+// query can still leave it with nothing to open, which is what `opens` is for.
 export function MapRun(props: {
   // The loop's own stage name, which is also what the run carries on its face.
   name: string
@@ -141,6 +142,10 @@ export function MapRun(props: {
   // What a press does, spelled out at the end of the hover text. The miniature
   // folds and the card does not, and that is the whole difference between them.
   pressHint: string
+  // Whether pressing it opens anything. Defaults to true, which is every case
+  // but one: a run the live filter did not reach is drawn as context and has no
+  // controls left behind it to show.
+  opens?: boolean
   className: string
   expanded?: boolean
   onOpen: () => void
@@ -149,7 +154,7 @@ export function MapRun(props: {
   const said = `${props.name} — ${props.blurb}${props.live ? ' — running' : ''}${countSay(props.touched)}`
   return (
     <MapPress
-      opens
+      opens={props.opens ?? true}
       label={`${said} — open its controls`}
       title={`${said}${props.pressHint}`}
       className={props.className}
