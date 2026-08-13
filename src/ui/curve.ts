@@ -100,7 +100,7 @@ export const synthToTravel = (v: number) =>
 // against it, so the two have to be the same number.
 export const TRAVEL_STEP = 0.002
 
-export interface FineSpan {
+interface FineSpan {
   min: number
   max: number
   step: number

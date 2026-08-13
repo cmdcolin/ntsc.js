@@ -61,7 +61,7 @@ import type {
 
 // Where a clip's bytes come from, and the only field that decides how clicking
 // its row opens it.
-export type ClipAt = 'disk' | PoolOrigin
+type ClipAt = 'disk' | PoolOrigin
 
 // One clip on the shelf.
 export interface Clip {
@@ -319,7 +319,7 @@ export const dropFolder = (lib: Library, id: string): Library => ({
 // one — only those can be rescanned or removed wholesale, so it is what the
 // heading's two buttons are drawn from, and it is null for the loose picks and
 // for the two remote groups.
-export interface ClipGroup {
+interface ClipGroup {
   id: string
   label: string
   folder: ClipFolder | null
@@ -573,7 +573,7 @@ export const saveLibrary = (lib: Library): void => writeJSON(KEY, lib)
 // the page — it opens, but the browser interposes a prompt, so the click has to
 // carry a gesture. `lost` is a shelf entry with no bytes behind it at all, which
 // is every entry on Firefox after a reload until something re-links it.
-export interface ClipAccess {
+interface ClipAccess {
   state: 'ready' | 'ask' | 'lost'
   open: (() => Promise<File>) | null
 }
@@ -699,7 +699,7 @@ export async function accessLibrary(
 // difference is the whole of what a caller has to do about it: a file on disk
 // may need a click to re-grant read, and a kept roll needs a request and never a
 // gesture — which makes it the one source that comes back on its own at load.
-export type ClipOpen =
+type ClipOpen =
   | {
       at: 'disk'
       name: string

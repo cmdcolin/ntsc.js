@@ -34,7 +34,7 @@ import type { StashSlot } from './fileStash'
 // than a bare union, so the picker's own ladder can test membership instead of
 // naming all five a second time — the same shape SOURCE_MODES has in
 // sources/modes.ts, and for the same reason: one place to add the sixth.
-export const SOURCE_PROMPTS = [
+const SOURCE_PROMPTS = [
   'library',
   'browse',
   'webcam',

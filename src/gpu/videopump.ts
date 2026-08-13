@@ -93,7 +93,7 @@ const bitmapFor = (
 // texture; slot B always arrives at raster size, pre-cropped. The pushExt
 // pair is the direct path: no bitmap was made, the element itself is handed
 // over for the engine to importExternalTexture this frame (see blit_ext.wgsl).
-export interface VideoFrameSink {
+interface VideoFrameSink {
   pushA: (f: PumpedFrame) => void
   pushB: (f: PumpedFrame) => void
   pushExtA: (el: HTMLVideoElement) => void

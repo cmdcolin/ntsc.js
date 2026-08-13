@@ -17,7 +17,7 @@ function isTextEntry(t: EventTarget | null): boolean {
 // where a missing copy is invisible — which is exactly how ⌘F, ⌘C and ⌘1 each
 // came to answer a bare-letter gesture. `takes` marks the ones that must beat
 // the browser's own reading of the chord.
-export type Shortcut =
+type Shortcut =
   | { do: 'escape' }
   | { do: 'palette' }
   | { do: 'saveProfile' }
@@ -49,7 +49,7 @@ export interface Keystroke {
 // preventDefault. Undo and redo are absent on purpose: they are suppressed only
 // when there is actually a step to take, so an exhausted walk still lets the
 // browser have the chord.
-export const TAKES_KEY: ReadonlySet<Shortcut['do']> = new Set<Shortcut['do']>([
+const TAKES_KEY: ReadonlySet<Shortcut['do']> = new Set<Shortcut['do']>([
   'palette',
   'saveProfile',
 ])

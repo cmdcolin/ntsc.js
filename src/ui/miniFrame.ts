@@ -2,7 +2,7 @@ import { clamp01 } from '../math'
 
 import type { CSSProperties } from 'react'
 
-export const MIN_SIZE = 0.1
+const MIN_SIZE = 0.1
 export const clampSize = (v: number) => Math.min(1, Math.max(MIN_SIZE, v))
 
 // Guides a drag settles onto: edges, center, thirds, quarters.
@@ -55,7 +55,7 @@ export const uvInRect = (r: DOMRect, clientX: number, clientY: number) => ({
   v: clamp01((clientY - r.top) / r.height),
 })
 
-export interface WipeShape {
+interface WipeShape {
   // Distance function from mix_b.wgsl: B wins where wipePos exceeds it, so the
   // value under the cursor IS the lever position that puts the edge there.
   pos: (u: number, v: number) => number

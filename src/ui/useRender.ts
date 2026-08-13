@@ -23,7 +23,7 @@ import type { RefObject } from 'react'
 // would be a file whose timing disagrees with what produced it.
 const FPS = 60
 
-export interface RenderApi {
+interface RenderApi {
   // 0..1 while a render is running, null when none is. One value rather than a
   // boolean and a number: "busy" is exactly "progress is not null", and two
   // fields is two chances for them to disagree.

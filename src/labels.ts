@@ -52,7 +52,7 @@ export const TAGS = [
 export type TagName = (typeof TAGS)[number]['name']
 
 const TAG_NAMES = new Set<string>(TAGS.map(t => t.name))
-export const isTagName = (v: unknown): v is TagName =>
+const isTagName = (v: unknown): v is TagName =>
   typeof v === 'string' && TAG_NAMES.has(v)
 
 // How cool, 1-5, committed with the left hand while the right hand tags.
@@ -70,10 +70,10 @@ export const COOL_KEYS = [
   { key: 'b', cool: 5, label: 'yes!' },
 ] as const
 
-export const COOL_MIN = 1
-export const COOL_MAX = 5
+const COOL_MIN = 1
+const COOL_MAX = 5
 
-export const isCool = (v: unknown): boolean =>
+const isCool = (v: unknown): boolean =>
   typeof v === 'number' && Number.isInteger(v) && v >= COOL_MIN && v <= COOL_MAX
 
 // How a rated look was arrived at.
@@ -89,15 +89,9 @@ export const isCool = (v: unknown): boolean =>
 // Best-effort classification, which is why the raw facts (`weights`, `preset`,
 // `query`) are all stored beside it — a disagreement between this label and those
 // is resolvable after the fact rather than lost.
-export const PROVENANCES = [
-  'surprise',
-  'preset',
-  'mutate',
-  'hand',
-  'compare',
-] as const
+const PROVENANCES = ['surprise', 'preset', 'mutate', 'hand', 'compare'] as const
 export type Provenance = (typeof PROVENANCES)[number]
-export const isProvenance = (v: unknown): v is Provenance =>
+const isProvenance = (v: unknown): v is Provenance =>
   typeof v === 'string' && PROVENANCES.some(p => p === v)
 
 // One rated look. Separate from a vote (which is about a *pair*) because it is a

@@ -8,7 +8,7 @@
 // explains it and is what fullscreen/pop-out fall back to since the panel isn't
 // there to show it — so it lives here rather than inside either of them.
 
-export interface SignalTap {
+interface SignalTap {
   value: number
   // For the dialog's picker, where there is room to say what it is.
   label: string

@@ -40,7 +40,7 @@ export type VoteSource = (typeof VOTE_SOURCE_NAMES)[number]
 // their own content into the comparison, and a moving source would mean the two
 // candidates saw different input frames — precisely the confound this page exists
 // to avoid.
-export const VOTE_SOURCES: Record<VoteSource, () => OffscreenCanvas> = {
+const VOTE_SOURCES: Record<VoteSource, () => OffscreenCanvas> = {
   bars: smpteBars,
   sweep,
 }

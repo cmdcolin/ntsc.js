@@ -57,7 +57,7 @@ export const coverFit43 = (
 // frame on the GPU — see blit_ext.wgsl.
 type Drawable = OffscreenCanvas | ImageBitmap
 
-export interface SourcesHost {
+interface SourcesHost {
   device: GPUDevice
   // Called when slot A's texture is replaced (a new source raster size), which
   // invalidates any bind group holding its view. Never fires during

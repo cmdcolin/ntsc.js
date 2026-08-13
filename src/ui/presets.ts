@@ -1519,7 +1519,7 @@ const PRESET_FULL: ReadonlyMap<PresetDef, Controls> = new Map(
 // A preset's full control-set. Falls back to resolving on the spot for a def
 // that isn't one of PRESETS' own — nothing hands one in today, and the map
 // lookup should not be the reason that stops working.
-export function fullControls(p: PresetDef): Controls {
+function fullControls(p: PresetDef): Controls {
   return PRESET_FULL.get(p) ?? presetControls(p.patch)
 }
 

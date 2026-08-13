@@ -7,13 +7,13 @@ export interface Gpu {
   format: GPUTextureFormat
 }
 
-export class WebGpuUnavailableError extends Error {}
+class WebGpuUnavailableError extends Error {}
 
 // Either kind of canvas. An OffscreenCanvas is what a worker-owned engine
 // presents to; on the main thread this is always an HTMLCanvasElement.
 export type RenderTarget = HTMLCanvasElement | OffscreenCanvas
 
-export type GpuPower = 'high-performance' | 'low-power'
+type GpuPower = 'high-performance' | 'low-power'
 
 // `?gpu=low-power` sends the session to the integrated chip. Two reasons to
 // want that, and neither is a preference about frame rate:
@@ -81,7 +81,7 @@ export function gpuDestroyAllowed(search: string = pageSearch()): boolean {
 // to end the tab's rendering step, and the next document inherits the damage — so
 // having done it once, the honest thing the app can say is "open a new tab".
 // Reachable only under `?gpudestroy=1`.
-export const TAB_GPU_RELEASE_LIMIT = 0
+const TAB_GPU_RELEASE_LIMIT = 0
 
 const GPU_SESSION_KEY = 'ntsc.gpuSessions'
 const GPU_RELEASE_KEY = 'ntsc.gpuReleases'

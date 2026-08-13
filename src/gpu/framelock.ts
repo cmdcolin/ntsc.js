@@ -23,9 +23,9 @@
 
 // Cadence is judged one window at a time.
 export const LOCK_WINDOW = 60
-export const LOCK_P_LO = 15
-export const LOCK_P_HI = 45
-export const LOCK_SPREAD = 1.5
+const LOCK_P_LO = 15
+const LOCK_P_HI = 45
+const LOCK_SPREAD = 1.5
 // How long to hold the lock before probing full rate again. Doubles on every
 // failed probe up to the cap, so a rig that is genuinely too slow settles into
 // a steady half rate with a brief wobble once a minute instead of flapping.
@@ -36,7 +36,7 @@ export const LOCK_PROBE_MS_MAX = 64000
 export const LOCK_GRACE = 30
 // An interval this long is a hidden tab or a stalled loop, not a slow frame;
 // judging it would engage the lock the moment the user tabs back.
-export const LOCK_GAP_MS = 250
+const LOCK_GAP_MS = 250
 // Startup grace is longer than a transition's: pipeline compiles and source
 // loading stutter the first seconds honestly, and locking on them would start
 // every session at half rate.

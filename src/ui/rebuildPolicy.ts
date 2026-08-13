@@ -20,7 +20,7 @@
 export const MAX_REBUILDS = 3
 export const REBUILD_WINDOW_MS = 60_000
 
-export type LossVerdict = 'rebuild' | 'give-up'
+type LossVerdict = 'rebuild' | 'give-up'
 
 export class RebuildPolicy {
   private count = 0

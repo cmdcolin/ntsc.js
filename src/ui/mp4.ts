@@ -184,7 +184,7 @@ export interface Sample {
   key: boolean
 }
 
-export interface Mp4Spec {
+interface Mp4Spec {
   width: number
   height: number
   // Frames per second, as a rational so 29.97 and 23.976 stay exact rather

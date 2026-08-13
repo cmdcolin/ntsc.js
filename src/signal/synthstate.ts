@@ -26,7 +26,7 @@ export interface SynthControls {
   synthBHz: number // oscillator B frequency
 }
 
-export interface SynthUniforms {
+interface SynthUniforms {
   synthPhaseA: number
   synthPerLineA: number
   synthPerSampleA: number

@@ -96,7 +96,7 @@ export const MAX_QUEUE_WAIT_MS = 500
 // work.
 export type FrozenKind = 'stalled' | 'cold'
 
-export interface RenderLoopHost {
+interface RenderLoopHost {
   // Narrowed to the completion probe the loop actually uses — a real GPUDevice
   // satisfies it, and the lifecycle tests don't have to fake the rest of one.
   device: { queue: Pick<GPUQueue, 'onSubmittedWorkDone'> }

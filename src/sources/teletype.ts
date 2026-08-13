@@ -487,7 +487,7 @@ export function dotGrid(
 // whole number of card pixels. Built once and kept, because a crawl re-blits it
 // thirty times a second and rasterising, thresholding and scaling the grid
 // again each time would be the entire cost of an otherwise cheap animation.
-export interface TeletypeBuild {
+interface TeletypeBuild {
   grid: OffscreenCanvas
   // Card pixels per dot, and the block's size once scaled by it.
   zoom: number

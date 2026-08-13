@@ -20,8 +20,8 @@ const NUDGE = new Map([
 // at 4/3 the rate the shader reads.
 const ASPECT = 3 / 4
 
-export const SIZE_MIN = 0.02
-export const SIZE_MAX = 2
+const SIZE_MIN = 0.02
+const SIZE_MAX = 2
 const clampSize = (v: number) => Math.min(SIZE_MAX, Math.max(SIZE_MIN, v))
 
 export interface Patch {

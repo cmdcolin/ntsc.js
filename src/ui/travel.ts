@@ -24,7 +24,7 @@ export type CurveName = 'magnifier' | 'persistence' | 'synth' | 'zero' | 'unity'
 // `step` is part of it because the fine curves are shaped against it — they
 // spread the control's own step grid over the travel rather than imposing a
 // shape of their own. See curve.ts.
-export interface TravelSpan {
+interface TravelSpan {
   min: number
   max: number
   step: number

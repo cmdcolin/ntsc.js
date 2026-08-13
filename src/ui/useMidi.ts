@@ -33,7 +33,7 @@ import type { RefObject } from 'react'
 // write. All of it lives in hooks built *after* this one — useMix needs the
 // write path this hook owns — so they are registered rather than passed in, and
 // a knob or a pad that arrives before they are is dropped rather than queued.
-export interface MidiSinks {
+interface MidiSinks {
   setMotion: (v: number) => void
   setPresetWeight: (name: string, w: number) => void
   // The three verbs a pad can fire, split by verb rather than handed over as an

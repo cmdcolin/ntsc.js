@@ -53,7 +53,7 @@ const clampTo = (t: number, duration: number): number =>
 // predicate returning `cue is Cue` proves only non-null, which left every caller
 // re-testing `cue.out !== null` to convince the compiler of the thing it had just
 // been told.
-export interface LoopingCue extends Cue {
+interface LoopingCue extends Cue {
   out: number
 }
 

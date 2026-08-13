@@ -7,7 +7,7 @@ import styles from './MiniFrame.module.css'
 
 import type { KeyboardEvent, PointerEvent } from 'react'
 
-export interface PipBox {
+interface PipBox {
   x: number
   y: number
   w: number

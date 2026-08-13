@@ -84,7 +84,7 @@ export type Phase = (typeof PHASE_ORDER)[number]
 // The three loops, as placements. A loop is not a division of the trunk — it is
 // a machine patched across it — so it is off the spine for the same reason the
 // two branches are, and its groups say which loop rather than which stage.
-export const LOOP_PLACES = ['camera', 'mixer', 'tape'] as const
+const LOOP_PLACES = ['camera', 'mixer', 'tape'] as const
 export type LoopPlace = (typeof LOOP_PLACES)[number]
 
 // Where a group lives in the panel — its single source of placement truth, so
@@ -108,7 +108,7 @@ export type LoopPlace = (typeof LOOP_PLACES)[number]
 // rule from the other side: it is a Phase, so it is always drawn, but with
 // nothing patched into B every control in it is inert and it opens onto
 // nothing — see PathNode.off.
-export type Placement = Phase | 'b' | 'audio' | 'view' | LoopPlace
+type Placement = Phase | 'b' | 'audio' | 'view' | LoopPlace
 
 export interface Group {
   name: string
@@ -167,7 +167,7 @@ export type LoopsLive = Record<LoopPlace, boolean>
 // subcarrier round with it, so it does things optics cannot. The tape loop is
 // mechanical: it re-records what it returns, so what circulates ages a
 // generation a lap.
-export interface LoopStage {
+interface LoopStage {
   loop: LoopPlace
   // What the panel calls the stage, what the map opens by name, and what the
   // full diagram writes on the run — which has the width for the whole of it,
@@ -3486,7 +3486,7 @@ export const DECK_BLURB =
 // builds its pickers in: adding a fourth picker there without adding it here is
 // then a compile error rather than a fourth box that draws inert and never
 // opens. The set is for the drawings, which hold a stage name as a plain string.
-export const PICKER_STAGE_NAMES = [
+const PICKER_STAGE_NAMES = [
   SOURCE_A_STAGE,
   SOURCE_B_STAGE,
   SOUND_STAGE,

@@ -85,7 +85,7 @@ export type ChainBranchStage = ChainStage & WiredBranch
 // re-enters is not the caller's to say — that is the pass graph's, and it is
 // written down once in chainLayout's RETURNS — so all this adds is which of the
 // three runs is this stage's.
-export interface ChainLoopStage extends ChainStage {
+interface ChainLoopStage extends ChainStage {
   loop: LoopPlace
 }
 

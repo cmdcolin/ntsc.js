@@ -80,7 +80,7 @@ const FALLBACK_BPM = 120
 
 // Everything the runner needs from the rest of the app, re-supplied on every
 // render because most of it changes identity that often.
-export interface StripDeps {
+interface StripDeps {
   // The same apply a link gets, minus the boot-only half — see
   // `useEngine.showSession`. What makes "a row is a query string" true rather
   // than nearly true.

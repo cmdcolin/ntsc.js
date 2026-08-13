@@ -87,7 +87,7 @@ export interface MixControls {
   wipeRateHz: number // auto-sweep rate (ping-pong)
 }
 
-export interface MixUniforms {
+interface MixUniforms {
   bShift0: number
   bShiftLine: number
   bPhase0: number

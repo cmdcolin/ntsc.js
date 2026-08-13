@@ -21,7 +21,7 @@ export const CLIP_IDS = [
   'clip-haunted-house',
   'clip-minnie-moocher',
 ] as const
-export type ClipId = (typeof CLIP_IDS)[number]
+type ClipId = (typeof CLIP_IDS)[number]
 
 interface BundledClip {
   label: string

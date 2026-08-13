@@ -263,7 +263,7 @@ export function returnPath(
 }
 
 // A box on the map: where it sits and how wide its own name made it.
-export interface ChainBox {
+interface ChainBox {
   name: string
   x: number
   w: number
@@ -326,7 +326,7 @@ export type BranchSpec = WiredBranch | FreeBox
 // A branch's box and the run out of it. Same routing vocabulary as the returns —
 // orthogonal with a rounded corner — so the wires that come from below read as
 // the same kind of thing as the two that come from above.
-export interface ChainBranch extends ChainBox {
+interface ChainBranch extends ChainBox {
   // Where the wire turns up into the trunk: the centre of the box it joins.
   join: number
   // Where the wire *into* this box starts. An input arrives from off the left

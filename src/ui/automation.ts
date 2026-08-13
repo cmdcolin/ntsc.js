@@ -37,7 +37,7 @@ import type { ControlKey, Controls } from '../controls'
 // `at` is the take's own frame — 0 is the frame recording started on, which
 // under a render is the frame `startTake` counts from, so the two numbers are
 // the same number by construction rather than by conversion.
-export interface AutoSet {
+interface AutoSet {
   kind: 'set'
   at: number
   key: ControlKey
@@ -48,7 +48,7 @@ export interface AutoSet {
 // the resolved look rather than as what produced it, because what produced it
 // is not always re-derivable — `blendPresets` over a weight map, a `mutate`
 // that drew from a generator this tape does not own — and the look is.
-export interface AutoApply {
+interface AutoApply {
   kind: 'apply'
   at: number
   controls: Controls
@@ -64,7 +64,7 @@ export interface AutoApply {
 // so one event at the frame it was asked for reproduces the whole travel. The
 // alternative — writing the tween's values on every frame — would be sixty
 // events a second saying what one event already says.
-export interface AutoGlide {
+interface AutoGlide {
   kind: 'glide'
   at: number
   to: Controls

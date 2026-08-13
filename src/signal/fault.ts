@@ -52,7 +52,7 @@ export interface FaultPlan {
   onCut: () => void
 }
 
-export interface FaultStep {
+interface FaultStep {
   peak: Partial<Controls>
   // 0..1. How far towards `peak` the board is this frame.
   depth: number

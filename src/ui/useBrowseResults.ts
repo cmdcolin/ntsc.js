@@ -28,7 +28,7 @@ import type { BrowseHit, PoolOrigin } from '../sources/pools'
 // results" — three booleans' worth of states for four that exist — and every
 // reader then has to decide which wins. A tagged union cannot: the dialog
 // switches on `status` and each branch has exactly the fields it draws.
-export type Browsing =
+type Browsing =
   // Nothing asked for yet, which is what the dialog opens on.
   | { status: 'idle' }
   | { status: 'busy' }

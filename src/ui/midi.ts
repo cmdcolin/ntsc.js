@@ -12,7 +12,7 @@ import type { TransitionName } from './transitions'
 
 // One CC source = a (channel, controller) pair. Channel is kept so two knobs
 // that share a controller number on different channels stay distinct.
-export interface MidiBinding {
+interface MidiBinding {
   channel: number
   controller: number
 }
@@ -58,7 +58,7 @@ export type BindingMap = Partial<Record<BindTarget, MidiBinding>>
 // MidiBinding with the field renamed: a note number and a controller number
 // index different message spaces, and sharing the type is how a map keyed by one
 // comes to be looked up with the other.
-export interface NoteBinding {
+interface NoteBinding {
   channel: number
   note: number
 }
@@ -240,7 +240,7 @@ export const DEVICE_PROFILES: DeviceProfile[] = [
 // the front row of knobs that is where it belongs.
 export const AUTOMAP_TARGETS: BindTarget[] = [MOTION, ...AUTOMAP_KEYS]
 
-export interface AutoMapResult {
+interface AutoMapResult {
   mapped: number
   total: number
 }
@@ -408,7 +408,7 @@ export interface MidiManager {
   destroy: () => void
 }
 
-export interface MidiCallbacks {
+interface MidiCallbacks {
   onControl: (target: BindTarget, value: number) => void
   onStatus: (status: MidiStatus) => void
   onBindings: (bindings: BindingMap) => void

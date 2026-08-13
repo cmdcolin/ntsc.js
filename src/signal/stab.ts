@@ -51,7 +51,7 @@ import type { PulsePlan } from './pulsegate'
 // it is still one frame) are stated on PulsePlan, which the strobe shares.
 export type StabPlan = PulsePlan
 
-export interface StabStep {
+interface StabStep {
   // Whether this frame renders the gate's far board rather than the look.
   // Called `far` rather than `clean` because stock is only its default end: with
   // a look held at the other side this frame is not clean, it is the other look.

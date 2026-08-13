@@ -49,7 +49,7 @@
 // One encoded frame, located in the file rather than copied out of it. Byte
 // ranges rather than slices because a whole clip's samples is the whole clip,
 // and the caller already holds those bytes.
-export interface DemuxedSample {
+interface DemuxedSample {
   offset: number
   size: number
   // **Two clocks, and they are not the same one.** `dts` is the order the

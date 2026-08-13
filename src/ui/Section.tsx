@@ -58,7 +58,7 @@ export function Accordion(props: {
   )
 }
 
-export type SectionHelpApi = { open: boolean; openSection: () => void }
+type SectionHelpApi = { open: boolean; openSection: () => void }
 
 export function Section(props: {
   title: string

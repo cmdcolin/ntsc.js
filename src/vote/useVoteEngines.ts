@@ -48,7 +48,7 @@ import type { RefObject } from 'react'
 // 640x480 rather than something smaller: dot crawl, grain and the chroma fringe on
 // an edge stop being legible much below this, and a vote cast on a look whose
 // texture was scaled away is a vote about its gross shape only.
-export const VOTE_CANVAS = { width: 640, height: 480 }
+const VOTE_CANVAS = { width: 640, height: 480 }
 
 export function useVoteEngines(
   refs: readonly [

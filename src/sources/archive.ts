@@ -261,7 +261,7 @@ export const archivePageUrl = (identifier: string): string =>
 // `PoolPick`: its url is the `/cors/` one, which plays but cannot be seeked
 // (the head of this file has the measurement), so it is a thing to *fetch*
 // rather than a thing to show.
-export interface Rendition {
+interface Rendition {
   url: string
   title: string
   page: string

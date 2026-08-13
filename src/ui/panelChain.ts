@@ -39,7 +39,7 @@ import type { ReactNode } from 'react'
 // What a box that is wired to nothing is holding — the modulation bay's patched
 // slots, the deck's engaged gestures. Neither is a count of controls off stock,
 // so the clause arrives finished from whoever counted it (bayLoad, deckLoad).
-export interface StageLoad {
+interface StageLoad {
   n: number
   say: string
 }
@@ -60,7 +60,7 @@ export interface FreeStage {
   keywords?: readonly string[]
 }
 
-export interface PanelChain {
+interface PanelChain {
   nodes: PathNode[]
   branches: BranchNode[]
   loops: LoopNode[]

@@ -42,7 +42,7 @@ import type { TransitionName } from './transitions'
 // string, and a captured row records the answer so the tray can draw a card
 // without parsing four hundred characters of query string per row per render.
 // The two cannot drift because `rowFill` is the only thing that ever writes it.
-export type RowFill =
+type RowFill =
   | { kind: 'clip' }
   | { kind: 'roll'; origin: PoolOrigin }
   | { kind: 'jitter'; amount: MutateAmount }
@@ -240,7 +240,7 @@ export interface Clock {
 // One thing the driver has to do, in the order returned. Everything a row can
 // ask for *except* the deferral below, which wraps a list of these rather than
 // being one of them.
-export type PlainEffect =
+type PlainEffect =
   // Put this session up: the source it names, the cue on it, and the look,
   // arriving over `seconds` (0 cuts).
   | { kind: 'session'; session: string; seconds: MorphSeconds }
@@ -415,7 +415,7 @@ export function fireEffects(
 
 // A clip to park before the cut that wants it: all a slot can act on, and all
 // `fireEffects` needs in order to put the ask in the right place in the step.
-export interface Lookahead {
+interface Lookahead {
   url: string
   start: number
 }
@@ -803,11 +803,7 @@ export function moveRow(strip: Strip, from: number, to: number): Strip {
 // Patch one row in place. Out-of-range is a no-op by construction, which is
 // what makes the two chip verbs below safe to call from a card whose index the
 // rundown may have shrunk past between the render and the click.
-export const patchRow = (
-  strip: Strip,
-  index: number,
-  patch: Partial<Row>,
-): Strip => ({
+const patchRow = (strip: Strip, index: number, patch: Partial<Row>): Strip => ({
   ...strip,
   rows: strip.rows.map((r, i) => (i === index ? { ...r, ...patch } : r)),
 })

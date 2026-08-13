@@ -23,7 +23,7 @@ import type { PulsePlan } from './pulsegate'
 
 // The flash is the pulse: `hz` at 0 is off, beam scanning normally, and `ms` is
 // how long the beam is let through per cycle.
-export type StrobePlan = PulsePlan
+type StrobePlan = PulsePlan
 
 export class StrobeGate {
   private gate = new PulseGate()

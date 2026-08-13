@@ -15,7 +15,7 @@ const TEMPO_STORE = 'video_feedback_tempo'
 // What asking for a beat with nothing to go on gets you. 120 rather than the
 // last-seen clock tempo: a number the ♩ can be reasoned about from beats the
 // alternative, which is a tempo restored from a session whose music is gone.
-export const DEFAULT_BPM = 120
+const DEFAULT_BPM = 120
 const BPM_MIN = 20
 const BPM_MAX = 300
 

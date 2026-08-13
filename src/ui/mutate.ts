@@ -19,7 +19,7 @@ import type { SliderDef } from './controls'
 // they use it: a stored amount read back off a strip row has to be narrowed
 // from `unknown`, and a list is something `.find` can narrow through where a
 // record's keys are only reachable by asserting.
-export const MUTATE_KEYS = ['gentle', 'normal', 'wild', 'turbo'] as const
+const MUTATE_KEYS = ['gentle', 'normal', 'wild', 'turbo'] as const
 export type MutateAmount = (typeof MUTATE_KEYS)[number]
 
 export const MUTATE_AMOUNTS: Record<MutateAmount, number> = {

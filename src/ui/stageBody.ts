@@ -40,7 +40,7 @@ export interface StageLike {
   body?: () => ReactNode
 }
 
-export interface StageBody {
+interface StageBody {
   // A thunk, not a node: only the stages on screen build their picker, which is
   // the same reason `groups` travels as data rather than as rendered sections.
   picker: (() => ReactNode) | undefined

@@ -217,10 +217,7 @@ function installVideo(
 }
 
 // A fresh element for the slot, configured and installed but not yet sourced.
-export function makeSlotVideo(
-  slot: VideoSlot,
-  kind: SlotKind,
-): HTMLVideoElement {
+function makeSlotVideo(slot: VideoSlot, kind: SlotKind): HTMLVideoElement {
   const v = configureVideo(slot)
   installVideo(slot, v, kind)
   return v

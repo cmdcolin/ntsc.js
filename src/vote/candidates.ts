@@ -71,7 +71,7 @@ export const ANCHOR_PRESETS = POOL.map(p => p.name)
 // comparisons are mix-vs-mix (which is what the model has to get good at) and
 // high enough that a few hundred votes carry enough anchored pairs to check
 // against.
-export const ANCHOR_RATE = 0.15
+const ANCHOR_RATE = 0.15
 
 // Two decimals. Weights are read by eye off the record during analysis, and a
 // float with seventeen digits of tail says nothing the second digit did not.

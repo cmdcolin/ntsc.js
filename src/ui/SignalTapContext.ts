@@ -6,7 +6,7 @@ import { createContext, use } from 'react'
 // from ControlsContext for the same reason ModSlotsContext is one — dbgView
 // lives on the engine, not in Controls, since it isn't part of the look a
 // preset or mutate should ever touch.
-export interface SignalTapApi {
+interface SignalTapApi {
   tap: number
   onTap: (v: number) => void
 }

@@ -52,7 +52,7 @@ export interface GlidePlan {
   holdKeys: ReadonlySet<ControlKey>
 }
 
-export interface GlideStep {
+interface GlideStep {
   // Still running, or landed on this frame (the frame that lands writes the
   // destination exactly — see apply).
   done: boolean

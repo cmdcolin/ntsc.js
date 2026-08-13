@@ -16,7 +16,7 @@ import { travelToValue, valueToTravel } from './curve'
 // is because a link still carries raw control values, so `?set=crtZoom:0.42`
 // and any saved look built back when the chip existed still land in the room
 // rather than being clamped to the glass.
-export const ZOOM_MIN = 0.25
+const ZOOM_MIN = 0.25
 export const ZOOM_MAX = 12
 
 export interface Lens {
@@ -69,7 +69,7 @@ export const pictureUv = (
 }
 
 // The point on the glass currently showing at a point in the picture.
-export const glassAt = (lens: Lens, u: number, v: number) => {
+const glassAt = (lens: Lens, u: number, v: number) => {
   const view = lensView(lens.zoom, lens.x, lens.y)
   const z = clampZoom(lens.zoom)
   return {

@@ -22,7 +22,7 @@
 // A run of lines that renders as one thing. A line opening with "- " starts an
 // item; a line that does not, inside a list, is that item continuing — so a
 // long bullet can be wrapped in the source without becoming two bullets.
-export type HelpBlock = { list: boolean; items: string[] }
+type HelpBlock = { list: boolean; items: string[] }
 
 export function helpBlocks(text: string): HelpBlock[] {
   const out: HelpBlock[] = []

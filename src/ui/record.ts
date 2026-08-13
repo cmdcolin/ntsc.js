@@ -37,7 +37,7 @@ const BITS_PER_PIXEL = 0.4
 const MIN_BITRATE = 16_000_000
 const MAX_BITRATE = 60_000_000
 
-export const bitrateFor = (w: number, h: number, fps: number): number =>
+const bitrateFor = (w: number, h: number, fps: number): number =>
   Math.min(MAX_BITRATE, Math.max(MIN_BITRATE, w * h * fps * BITS_PER_PIXEL))
 
 // How often a keyframe goes in. Two seconds is the usual compromise, and it is
@@ -45,7 +45,7 @@ export const bitrateFor = (w: number, h: number, fps: number): number =>
 // interval makes scrubbing coarse while a short one spends bitrate.
 const KEYFRAME_SECONDS = 2
 
-export interface RecorderSpec {
+interface RecorderSpec {
   width: number
   height: number
   fps: { num: number; den: number }

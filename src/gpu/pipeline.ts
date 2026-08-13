@@ -176,7 +176,7 @@ const texDesc = (usage: number): GPUTextureDescriptor => ({
   usage,
 })
 
-export interface EngineOptions {
+interface EngineOptions {
   // An audio graph to adopt rather than build. A media element binds to one
   // AudioContext for life, so an engine rebuilt under playing clips has to
   // inherit the graph they are already bound to — a fresh AudioContext could

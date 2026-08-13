@@ -14,7 +14,7 @@ import { valueNoise } from './noise'
 const N = SAMPLES_PER_LINE * LINES
 const TAU = 2 * Math.PI
 
-export interface RfUniforms {
+interface RfUniforms {
   rfAdjEps: number
   rfAdjTau: number
   rfAdjPhase: number

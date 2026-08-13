@@ -57,12 +57,12 @@ export interface AutomationTap {
 // What the tray draws from. Rebuilt only when one of the two answers changes —
 // a fresh object per call would spin `useSyncExternalStore` forever, and the
 // same trap `StripRunner.getDepth` documents.
-export interface AutomationState {
+interface AutomationState {
   rolling: boolean
   frames: number
 }
 
-export interface AutomationRunner {
+interface AutomationRunner {
   subscribe: (fn: () => void) => () => void
   getState: () => AutomationState
   getTape: () => Tape
