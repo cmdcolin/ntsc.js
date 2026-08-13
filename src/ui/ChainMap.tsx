@@ -14,7 +14,7 @@ import styles from './ChainMap.module.css'
 import { cx } from './cx'
 import { MapBox, MapRun } from './MapBox'
 
-import type { BranchSpec } from './chainLayout'
+import type { WiredBranch } from './chainLayout'
 import type { LoopPlace, LoopsLive } from './controls'
 
 // The chain in miniature at the head of the sidebar: a box per stage, wired
@@ -76,10 +76,10 @@ export interface ChainStage {
 }
 
 // A stage that hangs under the trunk, plus where its wire goes — the fields the
-// layout needs and a trunk stage has no use for. An intersection rather than an
-// `extends` because BranchSpec is a union now: a box either joins a stage or is
-// wired to nothing, and there is no interface that is both.
-export type ChainBranchStage = ChainStage & BranchSpec
+// layout needs and a trunk stage has no use for. `WiredBranch` and not the wider
+// `BranchSpec`: a box with nothing wired to it is not on this drawing at all
+// (see FreeBox), so the map cannot be handed one.
+export type ChainBranchStage = ChainStage & WiredBranch
 
 // A stage that hangs *over* the trunk, on its own return. Where it leaves and
 // re-enters is not the caller's to say — that is the pass graph's, and it is
@@ -140,11 +140,21 @@ export function ChainMap(props: {
           key={key}
           className={styles.mapWire}
           x1={x0}
+          // The lead-out stops short of the edge to leave room for its head.
+          x2={key === 'out' ? x1 - HEAD : x1}
           y1={MID_Y}
-          x2={x1}
           y2={MID_Y}
         />
       ))}
+      {/* Where the picture leaves. Every other wire on this drawing carries a
+          head that says which way it goes — both branches, all three returns —
+          and the trunk, whose direction is the whole premise, was relying on
+          left-to-right being read as a convention. The full card has always
+          drawn this one (SignalPathDialog); the miniature now agrees. */}
+      <path
+        className={styles.mapArrow}
+        d={`M${W - HEAD} ${MID_Y - HEAD}L${W} ${MID_Y}L${W - HEAD} ${MID_Y + HEAD}Z`}
+      />
       {returns.map(r => {
         const node = props.loops.find(l => l.loop === r.loop)
         // A filter can leave a loop with nothing to show. Its run goes with it:
@@ -237,9 +247,9 @@ export function ChainMap(props: {
            the only thing that differs between an input and the view, and it is
            the whole statement: one is fed into the chain, the other out of it.
 
-           A free box draws none of that, because none of it is true of it — see
-           FreeBox. It is on a row of its own below this one, where the empty
-           space around it is the whole drawing. */
+           Every box on this row has all of that, because every box in this
+           drawing is wired to something now — the ones that are not are chips
+           under it (SignalPath). */
         <g
           key={branch.name}
           className={cx(
@@ -247,25 +257,20 @@ export function ChainMap(props: {
             props.branches[i].dim === true && styles.mapBranchDim,
           )}
         >
-          {branch.free ? null : (
-            <>
-              <line
-                className={styles.mapWire}
-                x1={branch.stub}
-                y1={BRANCH_Y}
-                x2={branch.x - branch.w / 2}
-                y2={BRANCH_Y}
-              />
-              <path className={styles.mapWire} d={branchPath(branch)} />
-              <Arrow at={branchArrow(branch)} />
-            </>
-          )}
+          <line
+            className={styles.mapWire}
+            x1={branch.stub}
+            y1={BRANCH_Y}
+            x2={branch.x - branch.w / 2}
+            y2={BRANCH_Y}
+          />
+          <path className={styles.mapWire} d={branchPath(branch)} />
+          <Arrow at={branchArrow(branch)} />
           <Node
             stage={props.branches[i]}
             x={branch.x}
             y={branch.y}
             boxW={branch.w}
-            free={branch.free}
             open={props.open === branch.name}
             folds={props.folds}
             onOpen={props.onOpen}
@@ -317,11 +322,6 @@ function Node(props: {
   y: number
   boxW: number
   open: boolean
-  // Nothing is wired to this box (see BranchSpec.free). Drawn on a dotted
-  // outline so the gap around it reads as deliberate rather than as a wire the
-  // drawing forgot — and still a filled chip, because unlike the dashed inert
-  // boxes it is very much something to press.
-  free?: boolean
   // See ChainMap's `folds`: only where a click can close a stage is this box a
   // disclosure, and only there does it have an expanded state to report or a
   // second thing to say in its tooltip.
@@ -354,11 +354,9 @@ function Node(props: {
       }
       className={cx(
         // Dim replaces the idle rule rather than layering over it: it is not a
-        // shade of the four states below, it is the box saying the query went
-        // somewhere else. Only `free` still applies, because the dotted outline
-        // is about the rig and survives anything a search box does.
+        // shade of the three states below, it is the box saying the query went
+        // somewhere else.
         dim ? styles.mapNodeDim : styles.mapNode,
-        props.free === true && styles.mapNodeFree,
         !dim && off && styles.mapNodeOff,
         !dim && !off && stage.touched > 0 && styles.mapNodeTouched,
         !dim && props.open && styles.mapNodeOn,

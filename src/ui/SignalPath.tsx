@@ -1,12 +1,14 @@
 import { Fragment, useRef } from 'react'
 
+import { chainLayout, W } from './chainLayout'
 import { ChainMap } from './ChainMap'
 import { ControlGroup } from './ControlGroup'
+import { cx } from './cx'
 import { Accordion, NestedSections } from './Section'
 import styles from './SignalPath.module.css'
 import { hasBody, stageBody } from './stageBody'
 
-import type { BranchSpec } from './chainLayout'
+import type { BranchSpec, FreeBox, WiredBranch } from './chainLayout'
 import type { ChainStage } from './ChainMap'
 import type { Group, LoopPlace, LoopsLive } from './controls'
 import type { ReactNode } from 'react'
@@ -38,6 +40,64 @@ export interface PathNode extends Omit<ChainStage, 'opens'> {
 // either joins a stage or is wired to nothing (see FreeBox).
 export type BranchNode = PathNode & BranchSpec
 
+// One stage as the map takes it — the panel's node with that answer stamped on.
+type MapNode<T extends PathNode> = T & { opens: boolean }
+
+// Which of the two kinds a branch node is. The map draws the wired ones and the
+// panel draws the rest, so the split is made once, here, rather than by each of
+// them asking. Two predicates rather than one and a negation, because a negated
+// predicate narrows nothing.
+type WiredNode = MapNode<PathNode & WiredBranch>
+type FreeNode = MapNode<PathNode & FreeBox>
+const isWired = (n: MapNode<BranchNode>): n is WiredNode => n.free !== true
+const isFree = (n: MapNode<BranchNode>): n is FreeNode => n.free === true
+
+// The boxes nothing is wired to, under the drawing rather than in it. They were
+// parked in the gaps of the branch row, then given a row of their own below it,
+// and both were the same attempt: to say "no wire reaches this" with empty space
+// inside a picture made of wires, where it has to be read against every wire
+// around it. Out here the statement is structural, it costs the map the 20 units
+// that row took, and as HTML the two of them get real type and a real target
+// instead of 8px caps in a 22-unit box.
+function FreeChips(props: {
+  boxes: FreeNode[]
+  open: string | null
+  folds: boolean
+  onOpen: (name: string) => void
+}) {
+  if (props.boxes.length === 0) return null
+  return (
+    <div className={styles.freeRow}>
+      {props.boxes.map(node => {
+        const dim = node.dim === true
+        const on = props.open === node.name
+        return (
+          <button
+            key={node.name}
+            className={cx(
+              styles.freeChip,
+              node.touched > 0 && styles.freeChipTouched,
+              on && styles.freeChipOn,
+            )}
+            // Same sentence the boxes on the map carry, from the same parts.
+            title={`${node.name} — ${node.blurb}${node.touched === 0 ? '' : ` (${counted(node)})`}`}
+            aria-expanded={props.folds && !dim ? on : undefined}
+            // A query that missed it leaves nothing behind it to open, which is
+            // what the map's dimmed boxes say by not being pressable.
+            disabled={dim}
+            onClick={() => props.onOpen(node.name)}
+          >
+            {node.name}
+            {node.touched === 0 ? null : (
+              <span className={styles.freeChipCount}>• {node.touched}</span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // And for one that hangs over it: a loop, which is a machine patched across the
 // chain rather than a stage of it. Three of them, and each is reached by its own
 // return — the run *is* the box, because there is no point on the trunk to draw
@@ -46,9 +106,6 @@ export type BranchNode = PathNode & BranchSpec
 export interface LoopNode extends PathNode {
   loop: LoopPlace
 }
-
-// One stage as the map takes it — the panel's node with that answer stamped on.
-type MapNode<T extends PathNode> = T & { opens: boolean }
 
 // A stage's name, its off-stock count and its blurb. The two layouts below
 // render exactly this and differ only in what the two buttons *do*: on the
@@ -244,6 +301,24 @@ export function SignalPath(props: {
   const nodes = props.nodes.map(opensOn)
   const branches = props.branches.map(opensOn)
   const loops = props.loops.map(opensOn)
+  // The drawing takes the wired boxes; the chips take the rest.
+  const wired = branches.filter(isWired)
+  const free = branches.filter(isFree)
+  // Where a stage's box sits across the map, as a percentage — the map's svg is
+  // width:100% of the same column the stage rows are, so a box's x over W is a
+  // fraction of both. The same arithmetic ChainMap runs on the same inputs, so
+  // there is no second layout to disagree with the first, and it is pure
+  // function of two arrays.
+  const placed = chainLayout(
+    nodes.map(n => n.name),
+    wired,
+  )
+  const caretAt = (name: string): number | undefined => {
+    const box =
+      placed.boxes.find(b => b.name === name) ??
+      placed.branches.find(b => b.name === name)
+    return box === undefined ? undefined : (box.x / W) * 100
+  }
   // Trunk, then loops, then branches — the order the panel lists them in, and
   // the order the drawing reads in from the top: the returns ride over the
   // chain and the branches hang under it.
@@ -253,7 +328,8 @@ export function SignalPath(props: {
       <Bench
         nodes={nodes}
         openable={openable}
-        branches={branches}
+        wired={wired}
+        free={free}
         loops={loops}
         open={props.open}
         live={props.live}
@@ -286,7 +362,7 @@ export function SignalPath(props: {
       <PathHead mapped={nodes.length > 0} onShowDiagram={props.onShowDiagram} />
       <ChainMap
         stages={nodes}
-        branches={branches}
+        branches={wired}
         loops={loops}
         open={props.open}
         // The map is the fold here — except under a live filter, where a stage
@@ -295,6 +371,12 @@ export function SignalPath(props: {
         folds={!props.expandAll}
         live={props.live}
         onOpen={name => props.onOpen(name)}
+      />
+      <FreeChips
+        boxes={free}
+        open={props.open}
+        folds={!props.expandAll}
+        onOpen={props.onOpen}
       />
       {/* No empty state under the map. It used to carry a count of everything
           behind the boxes and a line about the order the picture travels in,
@@ -306,6 +388,20 @@ export function SignalPath(props: {
       <div className={styles.stages}>
         {shown.map(({ node, body }) => (
           <div key={node.name} className={styles.stageRow}>
+            {/* The notch under the box this stage came from. The link between
+                the two was carried by a shared tint alone — accent 14% on the
+                box, accent 9% on the strip — which is a real link and a faint
+                one: two washes of one hue, forty pixels apart, with a whole
+                drawing between them. A caret is the same claim made
+                structurally. Absent for a loop, which has a run rather than a
+                box, and for the free chips, which are their own row directly
+                above and need no pointing at. */}
+            {caretAt(node.name) === undefined ? null : (
+              <span
+                className={styles.stageCaret}
+                style={{ left: `${caretAt(node.name)}%` }}
+              />
+            )}
             <StageHead
               node={node}
               nameHint="click to fold this stage"
@@ -359,7 +455,8 @@ function Bench(props: {
   // The trunk plus whichever branches open — every stage the bench mounts a
   // heading and a set of cards for.
   openable: MapNode<PathNode>[]
-  branches: MapNode<BranchNode>[]
+  wired: WiredNode[]
+  free: FreeNode[]
   loops: MapNode<LoopNode>[]
   open: string | null
   live: LoopsLive
@@ -387,7 +484,7 @@ function Bench(props: {
       />
       <ChainMap
         stages={props.nodes}
-        branches={props.branches}
+        branches={props.wired}
         loops={props.loops}
         open={props.open}
         // Nothing folds on the bench: a click marks the stage and scrolls to it.
@@ -395,6 +492,12 @@ function Bench(props: {
         // do while a loop was a group inside somebody else's stage.
         folds={false}
         live={props.live}
+        onOpen={jump}
+      />
+      <FreeChips
+        boxes={props.free}
+        open={props.open}
+        folds={false}
         onOpen={jump}
       />
       <div className={styles.bench}>

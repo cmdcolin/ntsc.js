@@ -38,6 +38,71 @@
   color: var(--accent);
 }
 
+/* The boxes nothing is wired to, under the drawing instead of inside it. Two of
+   them — the modulation bay and the deck — and what either is patched into is
+   every control in every other box, which is a line to two hundred sliders and
+   therefore no line at all.
+
+   The drawing used to carry them on a row of their own, where the empty space
+   around them was supposed to say "no wire here". It never quite could: it is
+   empty space inside a picture made of wires, so it has to be read against them
+   rather than seen. Out here that is structural — they are not in the drawing —
+   and it hands the map back the 20 units that row cost, which is what paid for
+   a 22-unit box. */
+.freeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+/* Sized like the boxes above it and set like the panel, which is the pairing
+   that says "same kind of thing, not on the drawing": a chip's face is the map's
+   own --ctl-face, and its outline is the dotted one the free boxes used to wear
+   inside the svg. 26px tall, against the 24 a box on the map now gets. */
+.freeChip {
+  composes: bare from './ui.module.css';
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px dotted var(--border);
+  border-radius: 4px;
+  background: var(--ctl-face);
+  color: var(--fg2);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.freeChip:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: var(--ctl-bg-hover);
+  color: var(--fg);
+}
+.freeChip:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.freeChipTouched {
+  color: var(--edit);
+  border-color: color-mix(in srgb, var(--edit) 55%, transparent);
+}
+/* Open, tinted with the same recipe the map tints the box you pressed with
+   (ChainMap.module.css .mapNodeOn .mapBox) and the stage strip below repeats —
+   three surfaces, one mix, so "this is the one you are in" is the same colour
+   wherever you meet it. */
+.freeChipOn {
+  color: var(--accent);
+  border-style: solid;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--ctl-face));
+}
+.freeChipCount {
+  color: var(--edit);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 /* The stage the map has open: its name (click to fold), what it does, then its
    groups.
 
@@ -64,9 +129,30 @@
    rail here, and the lid and its corner across the head below — and the
    modulation editor rules its own block with the same mark, one level in. */
 .stageRow {
+  position: relative;
   margin: 8px 0 10px;
   padding: 0 0 6px 8px;
   border-left: 2px solid var(--rail);
+}
+/* The notch that ties this block to the box on the map it opened from. It sits
+   in .stageRow's own top margin, so it is a mark on the gap between the drawing
+   and the stage rather than something inside either — and it scrolls away with
+   the row, which is right: once the map is off the top there is nothing left
+   for it to point at, and a caret aimed at nothing is noise.
+
+   Positioned off .stageRow and not the sticky head below, which bleeds 10px to
+   the left of the column and would carry that offset into every percentage.
+   The row is the full column width and so is the map's svg, so one fraction
+   places both. */
+.stageCaret {
+  position: absolute;
+  top: -6px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 6px solid var(--rail);
 }
 .stageHead {
   display: flex;

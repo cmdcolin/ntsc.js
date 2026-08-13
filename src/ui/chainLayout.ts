@@ -30,10 +30,13 @@ export const W = 304
 // the same 18 that let the third loop in, so the miniature stops disagreeing
 // with the full diagram about how many there are.
 //
-// The 20 below that is the free row (FREE_Y), and it is bought back twice over:
-// each surface that moves onto it is a `<Section>` gone from the sidebar, and a
-// folded section costs more than a box does.
-export const H = 98
+// What used to sit under that is the free row, and it has left the drawing
+// altogether — see FreeBox.
+// Two units under the 98 it was, with boxes 37% taller inside it. The free row
+// paid for that: the boxes nothing is wired to are chips under the drawing now
+// (SignalPath), so FREE_Y's 20 units come back and the trunk and branch rows
+// spend them on being hittable.
+export const H = 96
 // Gap between boxes — the run each wire has to cross — and how far one opens
 // when a filter leaves the row with room to spare.
 export const GAP = 10
@@ -42,33 +45,35 @@ export const GAP_MAX = 26
 // fed and something delivered rather than a row of stages that begins nowhere.
 export const LEAD = 8
 export const OUT = 10
-export const MID_Y = 44
+export const MID_Y = 47
 // The branch row, under the trunk: input B at its head and the sound under the
 // receiver, both joining from below.
-export const BRANCH_Y = 68
-// The free row, under both: the boxes nothing is wired to (see FreeBox). They
-// used to be parked in the gaps of the branch row, which worked while there was
-// one of them and only because the gap it sat in was carefully chosen — the
-// modulation bay had to clear input B's run on one side and the sound's lead-in
-// on the other, and what was left between the wired boxes fitted exactly one
-// more. A second one packs that row to 10-unit gaps end to end, and the empty
-// space around a free box is the entire statement that it is not on the chain.
+export const BRANCH_Y = 81
+// Taller than the 13 the map shipped with, and than the 16 that replaced it: at
+// 16 units a box is 17.5 screen pixels at the sidebar's width, and a target is
+// meant to be 24. This is 22, which is 24px at 332 — and it is why MID_Y and
+// BRANCH_Y moved with it. See ChainMap.module.css for the other half.
 //
-// So they get a row of their own, where the emptiness is the row rather than a
-// gap that has to be found. It also states the thing the parking never could:
-// these are all the same kind of box, and none of them is the rig.
-export const FREE_Y = 88
-// Taller than the 13 the map shipped with: at that height a box was 14 screen
-// pixels of hairline outline, which is a legend, not something a first visit
-// reads as pressable. See ChainMap.module.css for the other half of that.
-export const BOX_H = 16
+// MID_Y moved by exactly the growth, so `MID_Y - BOX_H / 2` is still 36 and the
+// three runs above the chain are untouched: they still ride at 7/18/29 and
+// still drop 7 units onto the trunk. The band over the chain was never the part
+// short of room, and re-tuning it would have been change for its own sake.
+export const BOX_H = 22
 // Half-width of a wire's arrowhead.
 export const HEAD = 2.5
 // Corner radius on a routed wire.
 export const TURN = 4
 
-// What a label costs, per uppercase character at the map's 8px type. Measured
-// in Firefox against .mapLabel's own rules (system-ui, letter-spacing .02em):
+// What a label costs, per uppercase character. Still measured at 8px while the
+// labels are set at 9 (.mapLabel), and deliberately: raising it widens every
+// box, which walks the head of the chain to the right, which is the wall the
+// tape loop's label measures its lane against — so a purely typographic change
+// would have flipped that label onto the side with the TAPE box on it. The
+// estimate has room to absorb this. The widest real label runs 5.07 units a
+// character at 8px, so 5.70 at 9px, and 'RECEIVER' is 45.6 of the 51.2 its box
+// asks for — less breathing room than PAD promises and still not a squeeze.
+//
+// Measured in Firefox against .mapLabel's own rules (system-ui, .02em):
 // the widest real label averages 5.07 units a character and a lone 'A' costs
 // 5.28, so 5.4 buys slack on a platform whose system font is wider than this
 // one's. It only has to be *proportionally* right in any case — `fit` below
@@ -285,16 +290,22 @@ export interface WiredBranch {
 // type: the two fields a branch cannot do without are `join` and `under`, and
 // both are questions with no answer here. The bay used to carry a `join` that
 // meant "park under this one", which is a placement dressed up as a connection —
-// the kind of field the next reader has to be told twice is a lie. Free boxes
-// are laid out on their own row now (FREE_Y), centred as a group, so where one
-// sits is not a claim about anything.
+// the kind of field the next reader has to be told twice is a lie.
+//
+// These are not laid out here at all now. They were parked in the gaps of the
+// branch row, then given a row of their own under it, and both were the same
+// attempt: to say "nothing is wired to this" with empty space *inside* a
+// drawing of wires, where it has to be read against every wire around it. They
+// are chips under the drawing instead (SignalPath) — being outside the picture
+// is the statement, and it costs the map no row to make.
 export interface FreeBox {
   name: string
   free: true
 }
 
-// What the caller can hang under the trunk: something wired to a stage, or
-// something wired to nothing.
+// What the panel can hang under the trunk: something wired to a stage, or
+// something wired to nothing. Only the first kind reaches `chainLayout` — the
+// map is handed the wired ones and the panel draws the rest itself.
 export type BranchSpec = WiredBranch | FreeBox
 
 // A branch's box and the run out of it. Same routing vocabulary as the returns —
@@ -311,16 +322,11 @@ export interface ChainBranch extends ChainBox {
   // nothing.
   stub: number
   dir: 'in' | 'out'
-  // Which row it sits on — BRANCH_Y for a branch, FREE_Y for a free box. The
-  // drawing takes it from here rather than choosing between two constants of its
-  // own, so "which row is this on" is answered once, where the x it goes with is
-  // worked out.
+  // Which row it sits on. One row again now that the free boxes have left the
+  // drawing, but the drawing still reads it from here rather than reaching for
+  // BRANCH_Y itself — "which row is this on" is answered where the x it goes
+  // with is worked out.
   y: number
-  // Nothing is wired to this one: the three fields above are placeholders and
-  // the drawing must not use them. Off the layout rather than off the spec for
-  // the same reason — ChainMap reads the geometry it was handed, and pairing it
-  // back up with the spec by index to ask one question is how the two drift.
-  free: boolean
 }
 
 // Where a branch's arrowhead sits and which way it points, as a unit vector, so
@@ -363,7 +369,7 @@ export function branchPath(b: ChainBranch) {
 }
 
 // Every coordinate the map draws, worked out from the stage names alone.
-export function chainLayout(names: string[], specs: BranchSpec[] = []) {
+export function chainLayout(names: string[], specs: WiredBranch[] = []) {
   const asked = names.map(boxWidth)
   const total = asked.reduce((n, w) => n + w, 0)
   const runs = Math.max(names.length - 1, 0)
@@ -498,43 +504,11 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
   // A branch whose join stage the filter dropped falls back to the last box:
   // whatever is left, the sound still arrives inside the set, and a wire to a
   // box that isn't there is a wire to nowhere.
-  //
-  // The free row underneath needs none of that — nothing on it is anchored to
-  // anything — so it is laid out as one centred group instead: widths, the gaps
-  // between them, and the whole run placed in the middle of the drawing. Centred
-  // rather than walked from the left because there is no left to start at that
-  // would not read as an anchor, and a lone box (which is the usual case) then
-  // sits under the middle of the chain rather than under its head.
   let edge = -Infinity
-  const frees = specs.filter(s => s.free === true)
-  const freeW = frees.map(s => boxWidth(s.name) * fit)
-  const freeSpan =
-    freeW.reduce((n, w) => n + w, 0) + GAP * Math.max(freeW.length - 1, 0)
-  let freeCursor = (W - freeSpan) / 2
-  let freeAt = 0
   const branches: ChainBranch[] =
     boxes.length === 0
       ? []
       : specs.map(spec => {
-          if (spec.free === true) {
-            const w = freeW[freeAt++]
-            const x = freeCursor + w / 2
-            freeCursor += w + GAP
-            // join/stub/dir are the wired fields, and there is no honest value
-            // for them here. They collapse onto the box itself so that anything
-            // that draws them in spite of `free` draws a zero-length wire rather
-            // than a line to the left edge.
-            return {
-              name: spec.name,
-              x,
-              w,
-              join: x,
-              stub: x,
-              dir: 'in',
-              y: FREE_Y,
-              free: true,
-            }
-          }
           const w = boxWidth(spec.name) * fit
           const joinAt = at(spec.join)
           const target = joinAt >= 0 ? centers[joinAt] : centers[last]
@@ -556,7 +530,6 @@ export function chainLayout(names: string[], specs: BranchSpec[] = []) {
                   ? 0
                   : x - w / 2 - LEAD,
             y: BRANCH_Y,
-            free: false,
           }
         })
   return { width: W, boxes, centers, wires, returns, branches, gap, fit }

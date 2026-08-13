@@ -5,18 +5,15 @@ import {
   BRANCH_Y,
   branchArrow,
   chainLayout,
-  FREE_Y,
   LEAD,
   OUT,
   runLabelWidth,
   W,
 } from './chainLayout'
 import {
-  DECK_STAGE,
   DELAY_LOOP_STAGE,
   LOOP_STAGES,
   MIX_STAGE,
-  MOD_STAGE,
   PHASE_ORDER,
   SOUND_JOIN,
   SOUND_STAGE,
@@ -25,7 +22,7 @@ import {
   VIEW_STAGE,
 } from './controls'
 
-import type { BranchSpec } from './chainLayout'
+import type { WiredBranch } from './chainLayout'
 import type { Phase } from './controls'
 
 // The map lays out however many stages a live filter has left standing, so its
@@ -39,28 +36,24 @@ const FULL = [...PHASE_ORDER]
 
 // The two branches as the app hands them over: input B at the head of the row,
 // joining the mixer, and the sound under the receiver it is patched into.
-const B: BranchSpec = { name: SOURCE_B_STAGE, join: MIX_STAGE, under: 'head' }
-const SOUND: BranchSpec = {
+const B: WiredBranch = { name: SOURCE_B_STAGE, join: MIX_STAGE, under: 'head' }
+const SOUND: WiredBranch = {
   name: SOUND_STAGE,
   join: SOUND_JOIN,
   under: 'join',
 }
 // The view, which hangs off Screen and is fed by it rather than into it.
-const VIEW: BranchSpec = {
+const VIEW: WiredBranch = {
   name: VIEW_STAGE,
   join: 'Screen',
   under: 'join',
   dir: 'out',
 }
-// The two boxes nothing is wired to: no lead, no riser, no arrowhead, and — the
-// whole point of the type being a union — nowhere to join. They carry a name and
-// are laid out on a row of their own.
-const MOD: BranchSpec = { name: MOD_STAGE, free: true }
-const DECK: BranchSpec = { name: DECK_STAGE, free: true }
 const BOTH = [B, SOUND]
-const ALL = [B, MOD, DECK, SOUND, VIEW]
-const WIRED = [B, SOUND, VIEW]
-const FREE = [MOD, DECK]
+// Every box this drawing lays out. The two that are wired to nothing are not on
+// it at all now — they are chips under the map (SignalPath), which is why there
+// is no free row here to test.
+const ALL = [B, SOUND, VIEW]
 
 // Every non-empty subset of the five stages, in chain order — which is exactly
 // the set of shapes `groupMatches` can hand the map.
@@ -197,60 +190,15 @@ describe('chain map geometry', () => {
   // test that counts elements. Every subset, because the crowding only shows up
   // once the trunk is short enough that two joins land on one box.
   //
-  // Per row, because there are two now: a free box is on FREE_Y and can sit
-  // wherever it likes with respect to a branch, having no wire that could cross
-  // one. Walking all five in spec order would only be testing that the two rows
-  // happen to interleave, which is not a fact about anything.
   it('never lands one branch on top of another', () => {
     for (const names of subsets(FULL)) {
       const { branches } = chainLayout(names, ALL)
       expect(branches).toHaveLength(ALL.length)
-      for (const y of [BRANCH_Y, FREE_Y]) {
-        const row = branches.filter(b => b.y === y)
-        for (let i = 1; i < row.length; i++)
-          expect(row[i].x - row[i].w / 2).toBeGreaterThan(
-            row[i - 1].x + row[i - 1].w / 2,
-          )
-      }
-    }
-  })
-
-  // What makes a free box float is that nothing is drawn to it — but the first
-  // drawing of this parked it among the wired boxes, where "nothing is drawn to
-  // it" had to be read against a row full of wires. It cleared every *box* on
-  // that row and still came down squarely on input B's run to the mixer, which
-  // reads as B being patched through it; the fix was a hand-picked gap, and a
-  // second free box then had nowhere left to go.
-  //
-  // So the free boxes are a row of their own now, and what this pins is that
-  // they are on it: off BRANCH_Y entirely, so no gap has to be found and no wire
-  // on the row above can be crossed by one.
-  it('puts the free boxes on their own row, clear of every wire', () => {
-    const { branches } = chainLayout(FULL, ALL)
-    const free = branches.filter(b => b.free)
-    expect(free.map(b => b.name)).toEqual([MOD_STAGE, DECK_STAGE])
-    for (const box of free) expect(box.y).toBe(FREE_Y)
-    for (const box of branches.filter(b => !b.free))
-      expect(box.y).toBe(BRANCH_Y)
-    // And nothing to draw: the wired fields collapse onto the box, so anything
-    // that ignored `free` would draw a zero-length wire rather than a line
-    // reaching off to the left edge.
-    for (const box of free) {
-      expect(box.join).toBe(box.x)
-      expect(box.stub).toBe(box.x)
-    }
-  })
-
-  // Centred as a group rather than walked from the left, which is what says the
-  // row is not anchored to anything: one box sits under the middle of the chain
-  // instead of under its head, and a filter that drops one recentres the other
-  // rather than leaving a hole where it was.
-  it('centres the free row whatever is on it', () => {
-    for (const specs of [FREE, [MOD], [DECK], [...WIRED, ...FREE]]) {
-      const free = chainLayout(FULL, specs).branches.filter(b => b.free)
-      const left = Math.min(...free.map(b => b.x - b.w / 2))
-      const right = Math.max(...free.map(b => b.x + b.w / 2))
-      expect(left).toBeCloseTo(W - right, 6)
+      for (const b of branches) expect(b.y).toBe(BRANCH_Y)
+      for (let i = 1; i < branches.length; i++)
+        expect(branches[i].x - branches[i].w / 2).toBeGreaterThan(
+          branches[i - 1].x + branches[i - 1].w / 2,
+        )
     }
   })
 
