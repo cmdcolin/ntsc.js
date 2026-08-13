@@ -674,6 +674,15 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
         cb.onStatus('requesting')
         navigator.requestMIDIAccess().then(
           m => {
+            // Only the first grant wires anything up. `destroy` holds one
+            // timer and one listener, so a second grant would leak both — the
+            // interval outliving the whole session, since nothing is left
+            // pointing at it. Not reachable from the panel today (the button
+            // is gated on `idle`, and the auto-enable below leaves `requesting`
+            // behind before it can be pressed), which is exactly the kind of
+            // thing that stops being true when a second surface grows an
+            // enable of its own.
+            if (access !== null) return
             access = m
             writeString(ENABLED_KEY, '1')
             cb.onStatus('ready')
