@@ -3,6 +3,7 @@ import { createContext, use, useSyncExternalStore } from 'react'
 import { DEFAULT_CONTROLS } from '../controls'
 
 import type { ControlKey, Controls } from '../controls'
+import type { Store } from '../listeners'
 import type { FaultPlan } from '../signal/fault'
 import type { SliderDef } from './controls'
 import type { BindTarget } from './midi'
@@ -18,10 +19,7 @@ import type { MutateAmount } from './mutate'
 //
 // Both halves are stable across a write, so a component that subscribes to one
 // key hears about that key and nothing else.
-export interface ControlStore {
-  subscribe: (fn: () => void) => () => void
-  get: () => Controls
-}
+export type ControlStore = Store<Controls>
 
 // What the panel reads before the async engine exists. Also what a row rendered
 // outside a provider gets: a control row is worth drawing at its default rather

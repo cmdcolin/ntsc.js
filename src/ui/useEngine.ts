@@ -66,6 +66,7 @@ import {
 import type { FrameStats } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
 import type { FrozenKind } from '../gpu/renderloop'
+import type { Store } from '../listeners'
 import type { Rand } from '../rng'
 import type { SharedMode, SourceBMode, SourceMode } from '../sources/modes'
 import type {
@@ -232,14 +233,10 @@ const printOn = (
   printCard(slot, slot.card(), !live)
 }
 
-// The frame rate as useSyncExternalStore's pair, so the readout subscribes to it
-// alone. Declared here because this is what builds it; the same shape as
-// `ControlStore` and `MorphStore`, and for the same reason — a value that moves
-// on its own clock belongs to whichever component draws it, not to the app.
-export interface StatsStore {
-  subscribe: (fn: () => void) => () => void
-  get: () => FrameStats
-}
+// The frame rate as a `Store`, so the readout subscribes to it alone. Named
+// here because this is what builds it — a value that moves on its own clock
+// belongs to whichever component draws it, not to the app.
+export type StatsStore = Store<FrameStats>
 
 // useSyncExternalStore's pair for the window before an engine exists. The empty
 // reading is a module constant because a snapshot getter must return the same

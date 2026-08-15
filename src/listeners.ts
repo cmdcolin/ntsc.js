@@ -14,6 +14,22 @@
 // from a class the UI never constructs, and the strip publishes three from a
 // closure the engine has never heard of.
 
+// The pair a `useSyncExternalStore` consumer is handed: how to hear that
+// something changed, and how to read what there is now. Three of these are
+// published — the controls, a morph in flight, the frame rate — and each
+// declared the same two lines under a comment saying it was the same shape as
+// the others. Naming the shape is what lets those comments say the interesting
+// half instead: who listens, and on what clock.
+//
+// The rule every payload has to keep is `get`'s: it must answer with the *same
+// reference* while nothing has changed, because React compares snapshots by
+// identity. A primitive is the easiest kind to be right about (two equal
+// numbers are `===`), and an object one has to be replaced rather than mutated.
+export interface Store<T> {
+  subscribe: (fn: () => void) => () => void
+  get: () => T
+}
+
 export class Listeners {
   private readonly fns = new Set<() => void>()
 
