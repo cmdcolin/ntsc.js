@@ -51,7 +51,7 @@ const ARROWS: ReadonlyMap<string, { du: number; dv: number }> = new Map([
 // passes its own pair and scales the answer, since a nudge there is a fraction
 // of what is *in view* and has to walk the same visible distance whatever the
 // magnification.
-export const NUDGE_STEP = { fine: 0.005, coarse: 0.05 }
+const NUDGE_STEP = { fine: 0.005, coarse: 0.05 }
 
 export interface Nudge {
   du: number
