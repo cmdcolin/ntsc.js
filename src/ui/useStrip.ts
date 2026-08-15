@@ -95,6 +95,13 @@ interface StripDeps {
   rollOn: (origin: PoolOrigin, rand: Rand) => void
   // The next row's clip, loaded during this one — see `useEngine.prerollOn`.
   prerollOn: (url: string, start: number) => void
+  // Let go of it unspent. A lookahead is loaded for the *next* row of a running
+  // walk, so a walk that has ended has nothing left to spend it on — see the
+  // two call sites, which are the same two `track.pause` has and for the same
+  // reason. Without it the parked element is only ever retired by the following
+  // preroll, so a rundown stopped by hand left one `<video preload="auto">`
+  // holding its whole clip for the life of the page.
+  dropPreroll: () => void
   // Wait for the row that just fired to actually be on the deck. Used by the
   // offline walk and by nothing else — see `StripSink.settle` for why the live
   // one must not wait.
@@ -300,6 +307,14 @@ export function makeStripRunner(): StripRunner {
     emit(stripFns)
   }
 
+  // What a walk owns only while it is running. Both endings hand it back — a
+  // rundown running off its end, and a hand on stop — so the two say it once
+  // here rather than each remembering the list.
+  const ended = () => {
+    deps?.track.pause()
+    deps?.dropPreroll()
+  }
+
   // Every path that moves the walk goes through here, so no caller can move it
   // without the subscribers hearing about it or without the step being run.
   const land = (step: Step) => {
@@ -308,7 +323,7 @@ export function makeStripRunner(): StripRunner {
     // rule `stop()` follows, applied at the one other place a walk can end.
     // Here rather than in `advance`, which is pure and has no business knowing
     // there is a song.
-    if (!walking(walk)) deps?.track.pause()
+    if (!walking(walk)) ended()
     emit(walkFns)
     runStep(step, sink)
   }
@@ -340,7 +355,7 @@ export function makeStripRunner(): StripRunner {
     },
     stop: () => {
       walk = STOPPED
-      deps?.track.pause()
+      ended()
       // The transport is the one way a walk ends without a step replacing it,
       // so it is the one place that has to say so out loud: a transition still
       // healing when stop is pressed keeps healing, and the source swap it was

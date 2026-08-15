@@ -135,10 +135,12 @@ export function stopTyping(slot: VideoSlot): void {
 // **It deliberately leaves a parked preroll alone**, and the order of the load
 // paths is why: `commitDeck` stops the slot and *then* calls `playUrl`, so a
 // `stopSlot` that retired the next element would destroy it a line before the
-// cut it was loaded for. What bounds it instead is that there is one `next`
-// slot and `prerollUrl` clears it — so a preroll nobody spends is replaced by
-// the following one and retired with the deck (`dropPreroll`), rather than
-// accumulating.
+// cut it was loaded for. There is one `next` slot and `prerollUrl` clears it, so
+// prerolls cannot accumulate — but that bounds the count at one and does not
+// retire the last of them, which is why the walk that asked for a lookahead
+// hands it back when it ends (`useStrip`'s `ended`, and `useEngine.dropPrerollOn`
+// under it). Nothing here can do that job: this function has no way to tell a
+// source change from the load that is about to spend the element.
 export function stopSlot(slot: VideoSlot): void {
   stopTyping(slot)
   // The second read head goes first, and the order is load-bearing: it shares

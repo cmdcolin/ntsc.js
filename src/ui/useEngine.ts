@@ -54,6 +54,7 @@ import { isPrompt, useSourcePrompt } from './useSourcePrompt'
 import {
   armHead,
   dropHead,
+  dropPreroll,
   playStream,
   playUrl,
   prerollUrl,
@@ -1189,6 +1190,17 @@ export function useEngine() {
   // told about a version ago.
   const prerollOn = (url: string, start: number) => {
     void prerollUrl(slotA, url, start)
+  }
+
+  // Let go of a lookahead nobody is going to spend, which is what a walk ending
+  // means: there is no next row. `stopSlot` deliberately leaves a parked element
+  // alone — every load path opens with it and then calls `playUrl`, so retiring
+  // it there would destroy the element a line before the cut it was loaded for —
+  // so the walk that asked for one is the only thing that can say it is over.
+  // Otherwise the element is retired only by the *following* preroll, and a
+  // rundown stopped by hand holds a whole buffered clip until the page goes.
+  const dropPrerollOn = () => {
+    dropPreroll(slotA)
   }
 
   // A strip row's clip, onto deck A — the far end of `strip.RowClip`, and what
@@ -2352,6 +2364,7 @@ export function useEngine() {
     clipOn,
     rollOn,
     prerollOn,
+    dropPrerollOn,
     // What `+ row` records so the row can put this same clip up again. Deck A
     // alone is what a rundown captures, and the shape is the row's own — see
     // `strip.RowClip` for why an id rather than a url.

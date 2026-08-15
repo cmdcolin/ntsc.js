@@ -166,6 +166,7 @@ describe('makeStripRunner', () => {
     const faultTo = vi.fn()
     const rollOn = vi.fn()
     const prerollOn = vi.fn()
+    const dropPreroll = vi.fn()
     const clipOn = vi.fn()
     // Resolved, and counted: what the offline walk waits on. A live walk must
     // never reach it, which is one of the assertions below.
@@ -179,6 +180,7 @@ describe('makeStripRunner', () => {
       clipOn,
       rollOn,
       prerollOn,
+      dropPreroll,
       settleSources,
       getControls: () => DEFAULT_CONTROLS,
       writeControls,
@@ -196,6 +198,7 @@ describe('makeStripRunner', () => {
       faultTo,
       rollOn,
       prerollOn,
+      dropPreroll,
       writeControls,
       ensureTempo,
       track,
@@ -359,6 +362,42 @@ describe('makeStripRunner', () => {
       h.to(480)
       expect(h.runner.getWalk().row).toBe(1)
       expect(h.track.restart).not.toHaveBeenCalled()
+    })
+  })
+
+  // The lookahead is loaded for the *next* row, so a walk that has ended has
+  // nothing left to spend it on. Same two endings as the music above, because
+  // it is the same fact about a walk — and `stopSlot` cannot do this job, since
+  // every load path stops the slot a line before the `playUrl` that spends the
+  // element.
+  describe('the lookahead', () => {
+    it('lets go of it when the walk stops', () => {
+      const h = harness([row(), row({ id: 'r2' })])
+      h.runner.start()
+      expect(h.dropPreroll).not.toHaveBeenCalled()
+      h.runner.stop()
+      expect(h.dropPreroll).toHaveBeenCalled()
+    })
+
+    it('lets go of it when a strip that does not loop runs out', () => {
+      const h = harness([row(), row({ id: 'r2' })], { loop: false })
+      h.runner.start()
+      h.to(480)
+      h.dropPreroll.mockClear()
+      h.to(960)
+      expect(h.runner.getWalk().row).toBe(-1)
+      expect(h.dropPreroll).toHaveBeenCalled()
+    })
+
+    // A running walk keeps loading them, so nothing may be handed back while
+    // one is still going: the element retired here is the one the next cut is
+    // about to promote.
+    it('keeps it across a row boundary', () => {
+      const h = harness([row(), row({ id: 'r2' })])
+      h.runner.start()
+      h.to(480)
+      expect(h.runner.getWalk().row).toBe(1)
+      expect(h.dropPreroll).not.toHaveBeenCalled()
     })
   })
 
