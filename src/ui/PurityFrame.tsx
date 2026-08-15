@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { clamp01 } from '../math'
+import { clamp, clamp01 } from '../math'
 import { cx } from './cx'
 import { snapOffset, uvInRect } from './miniFrame'
 import styles from './MiniFrame.module.css'
@@ -22,7 +22,7 @@ const ASPECT = 3 / 4
 
 const SIZE_MIN = 0.02
 const SIZE_MAX = 2
-const clampSize = (v: number) => Math.min(SIZE_MAX, Math.max(SIZE_MIN, v))
+const clampSize = (v: number) => clamp(v, SIZE_MIN, SIZE_MAX)
 
 export interface Patch {
   x: number

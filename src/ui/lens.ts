@@ -3,7 +3,7 @@
 // mappings stacked: the 4:3 letterbox puts canvas pixels onto the picture, then
 // the lens puts the picture onto the glass.
 
-import { clamp01 } from '../math'
+import { clamp, clamp01 } from '../math'
 import { travelToValue, valueToTravel } from './curve'
 
 // Below 1x the camera pulls back off the set until the tube is a small object in
@@ -25,8 +25,7 @@ export interface Lens {
   y: number
 }
 
-export const clampZoom = (z: number) =>
-  Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z))
+export const clampZoom = (z: number) => clamp(z, ZOOM_MIN, ZOOM_MAX)
 
 // Magnification along a 0..1 track, 1x..ZOOM_MAX. Travel is spread over view
 // fraction rather than magnification (see curve.ts), so the fine control sits
@@ -50,7 +49,7 @@ export const lensView = (zoom: number, x: number, y: number) => {
   // Pulled back the lens holds the whole picture, so there is nothing to aim and
   // the centre is the middle — matching the shader, which pins it there.
   const size = Math.min(1, 1 / clampZoom(zoom))
-  const inset = (v: number) => Math.min(1 - size / 2, Math.max(size / 2, v))
+  const inset = (v: number) => clamp(v, size / 2, 1 - size / 2)
   return { size, x: inset(x), y: inset(y) }
 }
 

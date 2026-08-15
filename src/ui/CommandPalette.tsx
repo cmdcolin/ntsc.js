@@ -38,11 +38,14 @@ const MAX_RESULTS = 40
 // one, so typing "vhs" ranks the preset above the sliders that mention VHS.
 function score(query: string, name: string, prose: string): number {
   const i = name.toLowerCase().indexOf(query)
-  return i >= 0
-    ? 1000 - i
-    : prose.toLowerCase().includes(query)
-      ? 100 - Math.min(99, prose.toLowerCase().indexOf(query) / 8)
-      : -1
+  if (i >= 0) return 1000 - i
+  // One scan of the prose, not two. This runs over every preset, control and
+  // action on each keystroke, and the miss is the common case — so the branch
+  // that used to ask `includes` and then `indexOf` for the same answer was
+  // lowercasing and walking the help text twice for every row that did not
+  // match.
+  const j = prose.toLowerCase().indexOf(query)
+  return j >= 0 ? 100 - Math.min(99, j / 8) : -1
 }
 
 const itemName = (it: Item) =>

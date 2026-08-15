@@ -1,9 +1,9 @@
-import { clamp01 } from '../math'
+import { clamp, clamp01 } from '../math'
 
 import type { CSSProperties } from 'react'
 
 const MIN_SIZE = 0.1
-export const clampSize = (v: number) => Math.min(1, Math.max(MIN_SIZE, v))
+export const clampSize = (v: number) => clamp(v, MIN_SIZE, 1)
 
 // Guides a drag settles onto: edges, center, thirds, quarters.
 const GUIDES = [0, 0.25, 1 / 3, 0.5, 2 / 3, 0.75, 1]

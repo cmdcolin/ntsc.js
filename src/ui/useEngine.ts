@@ -590,7 +590,7 @@ export function useEngine() {
   // and its pitch snapping back for one lap, then again on the lap after.
   const changeSpeed = (key: StashSlot, rate: number) => {
     vaporRef.current.speed[key] = rate
-    setSpeed(prev => ({ ...prev, [key]: rate }))
+    setSpeed(onDeck(key, rate))
     const onAir = (key === 'a' ? videoRef : videoBRef).current
     const head = (key === 'a' ? headARef : headBRef).current
     for (const v of [onAir, head]) {

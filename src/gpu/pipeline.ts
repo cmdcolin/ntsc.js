@@ -1,4 +1,5 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS, STOCK_HOLD } from '../controls'
+import { clamp, clamp01, wrap } from '../math'
 import { rngFor } from '../rng'
 import { AudioState } from '../signal/audiostate'
 import {
@@ -131,7 +132,7 @@ const noiseGrainPx = (bwMHz: number): number =>
 // tilt would read as a noise-amount control with a side effect.
 const RHO = 1 / (2 * Math.sqrt(3))
 const noiseTiltWeights = (tilt: number): [number, number] => {
-  const t = Math.min(Math.max(tilt, 0), 1)
+  const t = clamp01(tilt)
   const norm = 1 / Math.sqrt((1 - t) ** 2 + t ** 2 + 2 * t * (1 - t) * RHO)
   return [(1 - t) * norm, t * norm]
 }
@@ -1763,7 +1764,7 @@ export class Engine implements EngineApi {
       // soundIre knob dials in deliberately arrives uninvited — same term,
       // two causes on one wire.
       soundIre: c.soundIre + 15 * Math.max(c.rfMistuneMHz, 0) ** 1.5,
-      rfSoften: Math.min(Math.max(-c.rfMistuneMHz, 0), 1),
+      rfSoften: clamp01(-c.rfMistuneMHz),
       rfIntermod: 0.22 * Math.max(c.rfMistuneMHz, 0),
       rfAdjIre: 18 * c.rfAdjacent,
       rfSnow: c.rfSnow,
@@ -2110,7 +2111,7 @@ export class Engine implements EngineApi {
       this.modSaved.save(this.controls, s.target)
       if (FILTER_KEYS.has(s.target)) this.modTouchedFilter = true
       const v = this.controls[s.target] + s.depth * (s.max - s.min) * vals[i]
-      this.controls[s.target] = Math.min(s.max, Math.max(s.min, v))
+      this.controls[s.target] = clamp(v, s.min, s.max)
     }
     if (this.modTouchedFilter) {
       this.filtersDirty = true
@@ -2189,8 +2190,10 @@ export class Engine implements EngineApi {
     }
     const fEff = hz * (1 + 0.25 * valueNoise((this.frame / 60) * 0.4, 3))
     this.impulseTrainStep = SAMPLE_RATE / fEff
-    const m = this.impulseTrainStep
-    this.impulseTrainPos = (((this.impulseTrainPos - N) % m) + m) % m
+    // Backwards by a raster, so `wrap` rather than `%`: the train runs the
+    // other way to the frame counter and JS `%` keeps the sign of the dividend
+    // (see math.ts, which exists for this one).
+    this.impulseTrainPos = wrap(this.impulseTrainPos - N, this.impulseTrainStep)
   }
 
   // Slow motion gates the whole simulation on a fractional accumulator: below
@@ -2372,7 +2375,7 @@ export class Engine implements EngineApi {
     // Each extra dub generation is an independent playback pass: its own gen
     // seed (decorrelating noise and dropouts) and a fresh time-base/phase
     // walk, staged now and copied over the live buffers between generations.
-    const gens = Math.min(Math.max(Math.round(c.dubGens), 1), MAX_GENS)
+    const gens = clamp(Math.round(c.dubGens), 1, MAX_GENS)
     const dv = new DataView(this.paramScratch)
     // Slot 0 is this frame's own params, staged so the loop below can put them
     // back before the receiver runs (see the restore after it).
