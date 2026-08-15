@@ -1,5 +1,5 @@
 import { readProfiles } from './savedProfiles'
-import { removeStored, writeString } from './storage'
+import { readStored, removeStored, writeString } from './storage'
 
 import type { RatingRecord } from '../labels'
 import type { CandidateRecord, VoteRecord } from '../vote/votes'
@@ -46,7 +46,7 @@ const CONFIG = {
 // worth fetching the SDK to go and look. Wrong in the harmless direction either
 // way: stale-true costs one wasted fetch, stale-false costs one click.
 const SIGNED_IN_HINT = 'ntsc.js_signed_in'
-export const wasSignedIn = () => localStorage.getItem(SIGNED_IN_HINT) === '1'
+export const wasSignedIn = () => readStored(SIGNED_IN_HINT) === '1'
 
 // What the panel needs to know about who is signed in. Deliberately not the
 // firebase User: that object carries tokens and a dozen methods, and the only

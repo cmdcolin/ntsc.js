@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { wasSignedIn } from './cloud'
 import { ALL_SLIDERS, sliderFor } from './controls'
 import {
   ACTIONS,
@@ -7,6 +8,7 @@ import {
   MOTION,
   actionLabel,
   controlOf,
+  createMidi,
   cueDeckOf,
   fireSlotOf,
   fireTarget,
@@ -189,5 +191,58 @@ describe('the auto-map spine', () => {
     })
     expect(new Set(controls).size).toBe(controls.length)
     expect(new Set(controls)).toEqual(new Set(ALL_SLIDERS.map(s => s.key)))
+  })
+})
+
+// A browser with storage switched off — Safari's "block all cookies", a
+// partitioned third-party frame — throws SecurityError from the `localStorage`
+// getter rather than merely answering null. Both readers below run from a
+// `useEffect` body, where a throw is raised during commit and takes the whole
+// tree down, so neither may touch the global directly (see ui/storage.ts).
+describe('a browser with storage switched off', () => {
+  const hostile = () => {
+    const had = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('SecurityError')
+      },
+    })
+    return () => {
+      if (had === undefined)
+        delete (globalThis as { localStorage?: unknown }).localStorage
+      else Object.defineProperty(globalThis, 'localStorage', had)
+    }
+  }
+
+  it('still builds the MIDI manager', () => {
+    const restore = hostile()
+    try {
+      expect(() =>
+        createMidi({
+          onControl: () => {},
+          onStatus: () => {},
+          onBindings: () => {},
+          onArmed: () => {},
+          onPickup: () => {},
+          onAction: () => {},
+          onNotes: () => {},
+          onArmedNote: () => {},
+          onLearn: () => {},
+          onTempo: () => {},
+        }),
+      ).not.toThrow()
+    } finally {
+      restore()
+    }
+  })
+
+  it('still answers the signed-in hint', () => {
+    const restore = hostile()
+    try {
+      expect(wasSignedIn()).toBe(false)
+    } finally {
+      restore()
+    }
   })
 })

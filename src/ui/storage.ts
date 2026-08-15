@@ -6,7 +6,14 @@ import { useState } from 'react'
 // global's getter. That lands in `useState(() => …)` at mount, which is the
 // precise crash the doc comment below is about, so the guard belongs under
 // every read and not only the parsed ones.
-function readStored(key: string): string | null {
+//
+// Exported for the two flags that are plain strings rather than JSON — the MIDI
+// opt-in and the signed-in hint — which read them outside a hook and so cannot
+// go through `usePersistedFlag`. They used to touch the global directly, which
+// is the one spelling of a read this module exists to stop: both run from an
+// effect body, and a SecurityError there is thrown during commit, so a browser
+// with storage switched off lost the whole tree rather than one flag.
+export function readStored(key: string): string | null {
   try {
     return localStorage.getItem(key)
   } catch {

@@ -2,7 +2,13 @@ import { CONTROL_KEYS } from '../controls'
 import { clamp } from '../math'
 import { AUTOMAP_KEYS, SLIDER_BY_KEY, sliderFor, snapToStep } from './controls'
 import { PRESETS, presetLabel } from './presets'
-import { readRecord, removeStored, writeJSON, writeString } from './storage'
+import {
+  readRecord,
+  readStored,
+  removeStored,
+  writeJSON,
+  writeString,
+} from './storage'
 import { TRANSITION_NAMES, TRANSITIONS } from './transitions'
 import { fromTravel } from './travel'
 
@@ -806,6 +812,6 @@ export function createMidi(cb: MidiCallbacks): MidiManager {
   // Already opted in on a previous visit, so reconnect rather than making the
   // user find the Advanced dialog again every reload. The browser has the
   // permission; nothing new is prompted.
-  if (localStorage.getItem(ENABLED_KEY) === '1') manager.enable()
+  if (readStored(ENABLED_KEY) === '1') manager.enable()
   return manager
 }
