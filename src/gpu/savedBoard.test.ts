@@ -17,7 +17,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_CONTROLS } from '../controls'
-import { SavedBoard } from './savedBoard'
+import { Overlay, SavedBoard } from './savedBoard'
+
+import type { ControlKey, Controls } from '../controls'
 
 const board = () => ({ ...DEFAULT_CONTROLS })
 
@@ -97,5 +99,85 @@ describe('SavedBoard', () => {
     c.fbMix = 0.33
     saved.restore(c)
     expect(c.fbMix).toBe(0.33)
+  })
+})
+
+// The layer on top of it, and the rule that is easiest to lose when it is
+// written out once per layer: **the restore has to mark the filter bank again.**
+// The bank was designed from the value this frame laid on, so the next frame —
+// possibly with the routing gone — has to start from the resting one. Two of the
+// three layers in `render()` did that and the third had no reason to, which is
+// the kind of difference a reader cannot tell from an oversight. Stated once
+// here instead.
+describe('Overlay', () => {
+  const layer = (c: Controls, keys: ControlKey[], onFilterMove: () => void) =>
+    new Overlay(c, new Set(keys), onFilterMove)
+
+  it('hands the board back and marks the bank at both ends', () => {
+    const c = board()
+    const rest = c.lumaMHz
+    let marks = 0
+    const l = layer(c, ['lumaMHz'], () => marks++)
+    l.begin()
+    l.write('lumaMHz', rest + 1)
+    const off = l.seal()
+    expect(c.lumaMHz).toBe(rest + 1)
+    expect(marks).toBe(1)
+    off()
+    expect(c.lumaMHz).toBe(rest)
+    expect(marks).toBe(2)
+  })
+
+  it('marks nothing when nothing it moved feeds a filter', () => {
+    const c = board()
+    let marks = 0
+    const l = layer(c, ['lumaMHz'], () => marks++)
+    l.begin()
+    l.write('fbMix', 0.9)
+    l.seal()()
+    expect(marks).toBe(0)
+    expect(c.fbMix).toBe(DEFAULT_CONTROLS.fbMix)
+  })
+
+  // `begin` clears the flag as well as the record: a frame whose routing has
+  // been unpatched must not go on marking the bank because the one before it did.
+  it('does not carry a mark into the next frame', () => {
+    const c = board()
+    let marks = 0
+    const l = layer(c, ['lumaMHz'], () => marks++)
+    l.begin()
+    l.write('lumaMHz', c.lumaMHz + 1)
+    l.seal()()
+    marks = 0
+    l.begin()
+    l.write('fbMix', 0.9)
+    l.seal()()
+    expect(marks).toBe(0)
+  })
+
+  // The stab layer's answer, and the one place the three disagree: it hands over
+  // a no-op, because the gate marks the bank on the two edges of its own cycle.
+  it('takes a no-op for a layer that marks the bank itself', () => {
+    const c = board()
+    const rest = c.lumaMHz
+    const l = layer(c, ['lumaMHz'], () => {})
+    l.begin()
+    l.write('lumaMHz', rest + 1)
+    l.seal()()
+    expect(c.lumaMHz).toBe(rest)
+  })
+
+  // Inherited from SavedBoard, and worth pinning through the layer as well: two
+  // routings on one control stack, and the earliest value saved is the one that
+  // lands.
+  it('round-trips a control two writes both drive', () => {
+    const c = board()
+    const rest = c.fbMix
+    const l = layer(c, [], () => {})
+    l.begin()
+    l.write('fbMix', rest + 0.1)
+    l.write('fbMix', c.fbMix + 0.15)
+    l.seal()()
+    expect(c.fbMix).toBe(rest)
   })
 })

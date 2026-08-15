@@ -46,3 +46,64 @@ export class SavedBoard {
     }
   }
 }
+
+// One layer over the live board for the length of a frame, and the way to take
+// it off again.
+//
+// `render()` lays on three of them — the modulation bay, the stab gate, and a
+// transition in flight — and they were three copies of the same five steps:
+// start a record, clear a flag, write through the record, mark the filter bank
+// if anything that moved feeds one, and hand back a bound restore that marks it
+// a second time. Written out three times, the interesting half is the part that
+// looks like boilerplate: **the restore has to mark the bank again**, because
+// the bank was designed from the modulated value this frame and the next frame
+// — possibly with the routing gone — has to start from the resting one. Two of
+// the three did that and the third had no reason to, which is exactly the kind
+// of difference a reader cannot tell from an oversight.
+//
+// The board is held rather than passed, which is what lets `restore` be one
+// bound field instead of a closure built per frame: `Engine.controls` is created
+// once and mutated in place for the life of the engine, so there is nothing to
+// go stale, and the layers run on the thread that is also feeding the GPU.
+//
+// What counts as a filter key is passed in rather than known here, and so is
+// what to do about one — the stab layer hands over a no-op, because it marks
+// the bank on the two edges of its cycle instead and a layer that swaps two
+// hundred keys would otherwise redesign the FIR bank at the frame rate.
+export class Overlay {
+  private readonly saved = new SavedBoard()
+  private moved = false
+
+  constructor(
+    private readonly controls: Controls,
+    private readonly filterKeys: ReadonlySet<ControlKey>,
+    private readonly onFilterMove: () => void,
+  ) {}
+
+  // Start this frame's layer. Cheap, and the point of the class: the record's
+  // arrays survive.
+  begin(): void {
+    this.saved.begin()
+    this.moved = false
+  }
+
+  // Lay one value over the board, remembering what was under it. Callers work
+  // out the value first — several read the control they are about to write.
+  write(key: ControlKey, value: number): void {
+    this.saved.save(this.controls, key)
+    if (this.filterKeys.has(key)) this.moved = true
+    this.controls[key] = value
+  }
+
+  // The layer is complete: mark what it moved, and hand back the way to take it
+  // off. Separate from `write` so that can run in a loop.
+  seal(): () => void {
+    if (this.moved) this.onFilterMove()
+    return this.restore
+  }
+
+  private readonly restore = (): void => {
+    this.saved.restore(this.controls)
+    if (this.moved) this.onFilterMove()
+  }
+}

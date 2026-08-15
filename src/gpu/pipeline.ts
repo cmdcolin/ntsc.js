@@ -52,7 +52,7 @@ import {
   packParams,
 } from './prelude'
 import { RenderLoop } from './renderloop'
-import { SavedBoard } from './savedBoard'
+import { Overlay } from './savedBoard'
 import blitExtSrc from './shaders/blit_ext.wgsl?raw'
 import channelSrc from './shaders/channel.wgsl?raw'
 import chromaExtractSrc from './shaders/chroma_extract.wgsl?raw'
@@ -282,14 +282,12 @@ export class Engine implements EngineApi {
   // and travels in presets and links like every other fault.
   private strobeGate = new StrobeGate()
   private modSlots: ModSlot[] = []
-  // What the bay overwrote this frame (savedBoard.ts) — reused frame to frame,
-  // because a patched bay runs on *every* frame, where the stab below only lands
-  // on the clean ones.
-  private readonly modSaved = new SavedBoard()
-  // Whether anything the bay moved this frame feeds a filter design, so the
-  // restore knows to mark them dirty a second time. Instance state rather than a
-  // local the restore closes over, which is the point of the bound field below.
-  private modTouchedFilter = false
+  // The bay's layer over the board (savedBoard.ts › Overlay) — reused frame to
+  // frame, because a patched bay runs on *every* frame, where the stab below
+  // only lands on the clean ones.
+  private readonly modLayer = new Overlay(this.controls, FILTER_KEYS, () => {
+    this.filtersDirty = true
+  })
   // The stab gate: the whole look poked into a clean picture for a few tens of
   // milliseconds at a time. Off until something sets a rate, so a session that
   // has never touched it pays one wall-clock read a frame.
@@ -301,19 +299,25 @@ export class Engine implements EngineApi {
   // than to the bay. Held as our own copy: React never mutates the object it
   // hands over, and this is read on every gated frame for the life of the patch.
   private stabBoard: Controls = DEFAULT_CONTROLS
-  // What the current stab overwrote, so it can be handed back at the end of the
-  // frame (savedBoard.ts). A clean frame saves up to two hundred keys and this
-  // runs at frame rate on the thread that is also feeding the GPU, which is the
-  // whole reason that record is reused rather than rebuilt.
-  private readonly stabSaved = new SavedBoard()
+  // The stab's layer, so it can be handed back at the end of the frame. A clean
+  // frame lays two hundred keys and this runs at frame rate on the thread that
+  // is also feeding the GPU, which is the whole reason the record is reused
+  // rather than rebuilt.
+  //
+  // It marks nothing, and that is the one place the three layers disagree:
+  // `applyStab` marks the bank on the two edges of a cycle and on no frame in
+  // between, because a layer that swaps the whole board and marked every filter
+  // key in it would be a FIR redesign at the frame rate.
+  private readonly stabLayer = new Overlay(this.controls, FILTER_KEYS, NOOP)
   // The transition in flight, or nothing — a few controls driven away from where
   // they rest and back, with one frame in the middle marked as the one to swap
   // the source on (signal/fault.ts). Written to and never read from, like the
   // bay and the stab beside it, and for the same reason: it is applied and
   // undone inside one frame, so it never reaches what React renders from.
   private readonly fault = new Fault()
-  private readonly faultSaved = new SavedBoard()
-  private faultTouchedFilter = false
+  private readonly faultLayer = new Overlay(this.controls, FILTER_KEYS, () => {
+    this.filtersDirty = true
+  })
   // bent-crystal demod LO phase error, accumulated per frame (radians)
   private scPhase = 0
   // picture-search crossing pattern phase, accumulated per frame (crossings)
@@ -2060,32 +2064,20 @@ export class Engine implements EngineApi {
     // fade between them would not be.
     if (changed) this.filtersDirty = true
     if (!far) return NOOP
-    this.stabSaved.begin()
+    this.stabLayer.begin()
     for (const k of CONTROL_KEYS) {
       const to = this.stabBoard[k]
       if (this.controls[k] === to || STOCK_HOLD.has(k)) continue
-      this.stabSaved.save(this.controls, k)
-      this.controls[k] = to
+      this.stabLayer.write(k, to)
     }
-    return this.restoreStab
+    return this.stabLayer.seal()
   }
 
-  // Handing the board back. A bound field rather than a closure returned from
-  // applyStab: it reads only instance state, so there is nothing to capture, and
-  // a fresh closure per clean frame is an allocation per frame on the thread
-  // feeding the GPU.
-  private readonly restoreStab = (): void => {
-    this.stabSaved.restore(this.controls)
-  }
-
-  // Lay the bay over the board for one frame, and hand back the way to undo it.
-  //
-  // Saved into two parallel arrays with a live length, and undone by a bound
-  // field, for the reason spelled out on `restoreStab` below — except that this
-  // one runs on every frame a routing exists rather than only on a clean one.
-  // The version this replaced built a fresh array of `[key, value]` pairs *and* a
-  // fresh closure over it per frame, which is one allocation per slot plus two,
-  // every frame, on the thread that is also feeding the GPU.
+  // Lay the bay over the board for one frame, and hand back the way to undo it
+  // (savedBoard.ts › Overlay, which is where the record and the bound restore
+  // live). Unlike the two layers beside it this one runs on every frame a
+  // routing exists rather than only on a gated one, which is what made the
+  // allocation per frame worth taking out.
   private applyMod(): () => void {
     // Advanced every frame, bay or no bay: with nothing patched this returns an
     // empty list, and the only work it does is letting an unclaimed trigger
@@ -2100,34 +2092,17 @@ export class Engine implements EngineApi {
       // otherwise be asked for again. The other six are functions of a phase.
       this.rand,
     )
-    this.modSaved.begin()
-    this.modTouchedFilter = false
+    this.modLayer.begin()
     if (this.modSlots.length === 0) return NOOP
     // Save-then-write in one pass, including where two routings drive the same
     // control — the second stacks on the first by design, and SavedBoard restores
     // backwards so the resting value is still the one that lands.
     for (let i = 0; i < this.modSlots.length; i++) {
       const s = this.modSlots[i]
-      this.modSaved.save(this.controls, s.target)
-      if (FILTER_KEYS.has(s.target)) this.modTouchedFilter = true
       const v = this.controls[s.target] + s.depth * (s.max - s.min) * vals[i]
-      this.controls[s.target] = clamp(v, s.min, s.max)
+      this.modLayer.write(s.target, clamp(v, s.min, s.max))
     }
-    if (this.modTouchedFilter) {
-      this.filtersDirty = true
-    }
-    return this.restoreMod
-  }
-
-  // Handing the board back, as `restoreStab` does — see the note there.
-  private readonly restoreMod = (): void => {
-    this.modSaved.restore(this.controls)
-    // The filters were rebuilt from the modulated value this frame; mark them
-    // again so the next frame — possibly with the slot removed — starts from the
-    // resting one.
-    if (this.modTouchedFilter) {
-      this.filtersDirty = true
-    }
+    return this.modLayer.seal()
   }
 
   // One frame of the transition in flight (signal/fault.ts): the few controls
@@ -2143,25 +2118,15 @@ export class Engine implements EngineApi {
   // discontinuity everywhere else.
   private applyFault(): () => void {
     const step = this.fault.step()
-    this.faultSaved.begin()
-    this.faultTouchedFilter = false
+    this.faultLayer.begin()
     if (step === null) return NOOP
     for (const k of CONTROL_KEYS) {
       const to = step.peak[k]
       if (to === undefined) continue
-      this.faultSaved.save(this.controls, k)
-      if (FILTER_KEYS.has(k)) this.faultTouchedFilter = true
       const from = this.controls[k]
-      this.controls[k] = from + (to - from) * step.depth
+      this.faultLayer.write(k, from + (to - from) * step.depth)
     }
-    if (this.faultTouchedFilter) this.filtersDirty = true
-    return this.restoreFault
-  }
-
-  // Handing the board back, as `restoreMod` does — see the note there.
-  private readonly restoreFault = (): void => {
-    this.faultSaved.restore(this.controls)
-    if (this.faultTouchedFilter) this.filtersDirty = true
+    return this.faultLayer.seal()
   }
 
   // Bent-crystal LO phase error keeps growing frame over frame; advance by
