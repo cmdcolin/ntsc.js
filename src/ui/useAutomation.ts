@@ -26,6 +26,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
+import { Listeners } from '../listeners'
 import { EMPTY_TAPE, playTape, push, takeSeconds } from './automation'
 import { morphTo } from './morph'
 
@@ -101,12 +102,12 @@ export function makeAutomationRunner(): AutomationRunner {
   // stamp means anything.
   let from: number | null = null
   let state: AutomationState = { rolling: false, frames: 0 }
-  const listeners = new Set<() => void>()
+  const listeners = new Listeners()
 
   const publish = (next: AutomationState) => {
     if (next.rolling === state.rolling && next.frames === state.frames) return
     state = next
-    for (const fn of listeners) fn()
+    listeners.emit()
   }
 
   // The stamp, and the whole of what makes an event belong to a take. `null`
@@ -115,12 +116,7 @@ export function makeAutomationRunner(): AutomationRunner {
   const at = (): number | null => (from === null ? null : frameNo() - from)
 
   return {
-    subscribe: fn => {
-      listeners.add(fn)
-      return () => {
-        listeners.delete(fn)
-      }
-    },
+    subscribe: listeners.subscribe,
     getState: () => state,
     getTape: () => tape,
     setFrameNo: fn => {

@@ -33,6 +33,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 
+import { Listeners } from '../listeners'
 import { randomSeed } from '../rng'
 import { EMPTY_HISTORY, record, stepBack, stepForward } from './history'
 import { MUTATE_AMOUNTS, mutate } from './mutate'
@@ -178,18 +179,6 @@ export interface StripRunner {
   offlineWalk: () => (frame: number) => void | Promise<void>
 }
 
-// Subscribe/unsubscribe, and fan-out. At module scope because they capture
-// nothing — three sets in the runner below want the same two lines each.
-const subscriberFor = (set: Set<() => void>) => (fn: () => void) => {
-  set.add(fn)
-  return () => {
-    set.delete(fn)
-  }
-}
-const emit = (set: Set<() => void>) => {
-  for (const fn of set) fn()
-}
-
 export function makeStripRunner(): StripRunner {
   // Read once, here rather than in a mount effect: this is called from
   // `useState`'s initialiser, which runs exactly once, so there is nothing an
@@ -210,9 +199,9 @@ export function makeStripRunner(): StripRunner {
   let past = EMPTY_HISTORY as History<Strip>
   let depth = { undo: false, redo: false }
 
-  const stripFns = new Set<() => void>()
-  const walkFns = new Set<() => void>()
-  const frameFns = new Set<() => void>()
+  const stripFns = new Listeners()
+  const walkFns = new Listeners()
+  const frameFns = new Listeners()
 
   // The tempo both walks measure their holds against. Its own function because
   // the offline walk wants the number and not the whole live clock — under a
@@ -304,7 +293,7 @@ export function makeStripRunner(): StripRunner {
     const undo = past.past.length > 0
     const redo = past.future.length > 0
     if (undo !== depth.undo || redo !== depth.redo) depth = { undo, redo }
-    emit(stripFns)
+    stripFns.emit()
   }
 
   // What a walk owns only while it is running. Both endings hand it back — a
@@ -324,16 +313,16 @@ export function makeStripRunner(): StripRunner {
     // Here rather than in `advance`, which is pure and has no business knowing
     // there is a song.
     if (!walking(walk)) ended()
-    emit(walkFns)
+    walkFns.emit()
     runStep(step, sink)
   }
 
   return {
-    subscribeStrip: subscriberFor(stripFns),
+    subscribeStrip: stripFns.subscribe,
     getStrip: () => strip,
-    subscribeWalk: subscriberFor(walkFns),
+    subscribeWalk: walkFns.subscribe,
     getWalk: () => walk,
-    subscribeProgress: subscriberFor(frameFns),
+    subscribeProgress: frameFns.subscribe,
     getProgress: () => holdProgress(walk, clock()),
     setDeps: next => {
       deps = next
@@ -342,7 +331,7 @@ export function makeStripRunner(): StripRunner {
       // The progress readers first, and unconditionally: they move every frame
       // whether or not a boundary was crossed, and they are the reason this is
       // a rAF loop rather than a timer set to the next boundary.
-      emit(frameFns)
+      frameFns.emit()
       const step = advance(strip, walk, clock())
       if (step !== null) land(step)
     },
@@ -362,7 +351,7 @@ export function makeStripRunner(): StripRunner {
       // holding does not land. Stop that stopped the walk and the music and
       // then cut anyway was the plainest version of this bug.
       supersede()
-      emit(walkFns)
+      walkFns.emit()
     },
     // A hand on a row. Fires whether or not the walk is running, which is what
     // makes the rundown a bank of scenes as well as a sequence — the design's

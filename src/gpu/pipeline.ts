@@ -1,4 +1,5 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS, STOCK_HOLD } from '../controls'
+import { Listeners } from '../listeners'
 import { clamp, clamp01, wrap } from '../math'
 import { rngFor } from '../rng'
 import { AudioState } from '../signal/audiostate'
@@ -191,11 +192,11 @@ export class Engine implements EngineApi {
   // React reads this immutable snapshot via useSyncExternalStore; it's refreshed
   // from `controls` on every write so the UI and the render loop never drift.
   private snapshot: Controls = { ...DEFAULT_CONTROLS }
-  private controlListeners = new Set<() => void>()
+  private readonly controlListeners = new Listeners()
   // Kept apart from the above — see subscribeGlide for why the two cadences
   // cannot share a notify.
-  private glideListeners = new Set<() => void>()
-  private statsListeners = new Set<() => void>()
+  private readonly glideListeners = new Listeners()
+  private readonly statsListeners = new Listeners()
   // The last window the loop reported. Held as one object that is replaced
   // rather than mutated, because it is a useSyncExternalStore snapshot: React
   // compares by identity, so a mutated object would look like no change.
@@ -1007,7 +1008,7 @@ export class Engine implements EngineApi {
       render: () => this.render(),
       onStats: s => {
         this.statsSnapshot = s
-        for (const fn of this.statsListeners) fn()
+        this.statsListeners.emit()
         this.onStats(s)
       },
       lockDiv: () => this.lockDivLive,
@@ -1067,12 +1068,7 @@ export class Engine implements EngineApi {
 
   // useSyncExternalStore wiring: a single write path keeps React and the render
   // loop in sync, replacing the hand-mirrored `values` copy in the UI.
-  readonly subscribeControls = (fn: () => void): (() => void) => {
-    this.controlListeners.add(fn)
-    return () => {
-      this.controlListeners.delete(fn)
-    }
-  }
+  readonly subscribeControls = this.controlListeners.subscribe
 
   // What every rate in the signal path measures itself against.
   //
@@ -1124,7 +1120,7 @@ export class Engine implements EngineApi {
       return
     }
     this.notifyFrame = requestAnimationFrame(this.flushNotify)
-    for (const fn of this.controlListeners) fn()
+    this.controlListeners.emit()
   }
 
   private readonly flushNotify = (): void => {
@@ -1171,12 +1167,7 @@ export class Engine implements EngineApi {
   // morph runs. Nothing that moves at the frame rate can be published through
   // it. This one is heard only by the readout in the look bar — one button — so
   // it fires every frame and stays honest.
-  readonly subscribeGlide = (fn: () => void): (() => void) => {
-    this.glideListeners.add(fn)
-    return () => {
-      this.glideListeners.delete(fn)
-    }
-  }
+  readonly subscribeGlide = this.glideListeners.subscribe
 
   // How far along a morph is, 0..1, or null if none is running. A primitive on
   // purpose: useSyncExternalStore compares snapshots by identity, and two equal
@@ -1185,7 +1176,7 @@ export class Engine implements EngineApi {
     this.glide.running ? this.glide.progress : null
 
   private notifyGlide(): void {
-    for (const fn of this.glideListeners) fn()
+    this.glideListeners.emit()
   }
 
   // The frame rate as a store, for the same reason the morph is one: the loop
@@ -1199,12 +1190,7 @@ export class Engine implements EngineApi {
   // drives two engines from its own handler, and panelcheck.mjs reads the field
   // off `window.vf`. A store answers "what is the rate now", a callback answers
   // "tell me when" — the two pages want different ones.
-  readonly subscribeStats = (fn: () => void): (() => void) => {
-    this.statsListeners.add(fn)
-    return () => {
-      this.statsListeners.delete(fn)
-    }
-  }
+  readonly subscribeStats = this.statsListeners.subscribe
 
   readonly getStats = (): FrameStats => this.statsSnapshot
 
