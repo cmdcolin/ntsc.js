@@ -2,6 +2,24 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.27.0](https://github.com/cmdcolin/ntsc.js/compare/v0.26.5...v0.27.0) - 2026-08-15
+
+### Fixes
+- *(ui)* [`6638e56`](https://github.com/cmdcolin/ntsc.js/commit/6638e561e24873b53013a83621a2b786128d7332) two reads of localStorage that a blocked store turns into a blank app
+- *(ui)* [`2ac3d0c`](https://github.com/cmdcolin/ntsc.js/commit/2ac3d0c7634c0aa6559290c34b072863ec3c2a84) the lookahead nobody spends is now handed back when the walk ends
+
+### Refactor
+- [`54fb718`](https://github.com/cmdcolin/ntsc.js/commit/54fb7186e84ae312b765cbd90a6e40e05410dab6) eight private copies of clamp and one of wrap, back onto math.ts
+- *(gpu)* [`4426bba`](https://github.com/cmdcolin/ntsc.js/commit/4426bba0e4730c964d38492221a56da4ece0401d) three copies of 'lay a layer over the board' become one
+- [`092885a`](https://github.com/cmdcolin/ntsc.js/commit/092885a68eb1aaf1819944dcf07566a116975e64) seven copies of a store's notify half become one Listeners
+- [`e080ed9`](https://github.com/cmdcolin/ntsc.js/commit/e080ed9e21c5524446468215fce7a1aa2d1eef61) name the read half too — ControlStore, MorphStore, StatsStore are Store<T>
+- *(ui)* [`80db44b`](https://github.com/cmdcolin/ntsc.js/commit/80db44bed7d6ccd5fb09f8468af0150e928099a5) four miniatures, one arrow-key decode
+- *(ui)* [`21c5b87`](https://github.com/cmdcolin/ntsc.js/commit/21c5b87aac3ae6d194c4d569c92a21be871b2cb5) NUDGE_STEP is the default, not API
+
+### Documentation
+- *(ui)* [`71f27de`](https://github.com/cmdcolin/ntsc.js/commit/71f27de5463216130d9c3c3f60f78093647832e0) the deck refs stay flat, and now say what indexing them costs
+- [`2cd1cc6`](https://github.com/cmdcolin/ntsc.js/commit/2cd1cc664a72ce8246359e33657d2046944ce336) listeners.ts header describes both halves, not one
+
 ## [0.26.5](https://github.com/cmdcolin/ntsc.js/compare/v0.26.4...v0.26.5) - 2026-08-13
 
 ### Fixes
