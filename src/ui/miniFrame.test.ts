@@ -1,6 +1,64 @@
 import { describe, expect, it } from 'vitest'
 
-import { WIPE_SHAPES, resizeAxis, snapOffset } from './miniFrame'
+import { WIPE_SHAPES, nudgeFor, resizeAxis, snapOffset } from './miniFrame'
+
+// The keyboard half of a miniature, and the reason it is one function: four
+// frames take this gesture, a miniature is the only way to reach the sliders it
+// hides, and a family where alt resizes on three pads and does nothing on the
+// fourth is a family nobody learns.
+describe('nudgeFor', () => {
+  const press = (key: string, mod: { shift?: boolean; alt?: boolean } = {}) => {
+    let prevented = false
+    const n = nudgeFor({
+      key,
+      shiftKey: mod.shift === true,
+      altKey: mod.alt === true,
+      preventDefault: () => {
+        prevented = true
+      },
+    })
+    return { n, prevented }
+  }
+
+  it('turns each arrow into its own direction', () => {
+    expect(press('ArrowLeft').n).toMatchObject({ du: -1, dv: 0 })
+    expect(press('ArrowRight').n).toMatchObject({ du: 1, dv: 0 })
+    expect(press('ArrowUp').n).toMatchObject({ du: 0, dv: -1 })
+    expect(press('ArrowDown').n).toMatchObject({ du: 0, dv: 1 })
+  })
+
+  it('goes further with shift', () => {
+    expect(press('ArrowRight').n?.d).toBeCloseTo(0.005)
+    expect(press('ArrowRight', { shift: true }).n?.d).toBeCloseTo(0.05)
+  })
+
+  it('reads alt as the frame’s other quantity', () => {
+    expect(press('ArrowRight').n?.resize).toBe(false)
+    expect(press('ArrowRight', { alt: true }).n?.resize).toBe(true)
+  })
+
+  // The half that is a side effect on purpose: an arrow the frame claims must
+  // not also scroll the panel out from under it.
+  it('consumes the keys it claims and leaves the rest alone', () => {
+    expect(press('ArrowUp').prevented).toBe(true)
+    const other = press('Enter')
+    expect(other.n).toBe(null)
+    expect(other.prevented).toBe(false)
+  })
+
+  // The magnifier's, which walks a fraction of what is in view rather than of
+  // the picture.
+  it('takes a caller’s own pair of steps', () => {
+    const step = { fine: 0.05, coarse: 0.25 }
+    const at = (shiftKey: boolean) =>
+      nudgeFor(
+        { key: 'ArrowLeft', shiftKey, altKey: false, preventDefault: () => {} },
+        step,
+      )?.d
+    expect(at(false)).toBeCloseTo(0.05)
+    expect(at(true)).toBeCloseTo(0.25)
+  })
+})
 
 describe('resizeAxis', () => {
   it('pins the opposite edge', () => {

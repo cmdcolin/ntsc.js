@@ -2,18 +2,15 @@ import { useState } from 'react'
 
 import { clamp01 } from '../math'
 import { boxToLens, lensView } from './lens'
-import { snapOffset, uvInRect } from './miniFrame'
+import { nudgeFor, snapOffset, uvInRect } from './miniFrame'
 import styles from './MiniFrame.module.css'
 
 import type { Lens } from './lens'
 import type { KeyboardEvent, PointerEvent } from 'react'
 
-const NUDGE = new Map([
-  ['ArrowLeft', { du: -1, dv: 0 }],
-  ['ArrowRight', { du: 1, dv: 0 }],
-  ['ArrowUp', { du: 0, dv: -1 }],
-  ['ArrowDown', { du: 0, dv: 1 }],
-])
+// Nudges as a fraction of the view rather than of the picture — see the key
+// handler below.
+const VIEW_STEP = { fine: 0.05, coarse: 0.25 }
 
 // Shorter than this is a stray click, not a box: a 1% box would slam straight
 // to maximum magnification. Same reasoning as MIN_BOX on the stage, in the same
@@ -76,15 +73,16 @@ export function MagnifierFrame(props: {
       y: clamp01(p.v + snapOffset([p.v], snap)),
     })
   const key = (e: KeyboardEvent<HTMLDivElement>) => {
-    const step = NUDGE.get(e.key)
-    if (step !== undefined) {
-      e.preventDefault()
-      // A nudge is a fraction of what is in view, so it walks the same visible
-      // distance whatever the magnification.
-      const d = (e.shiftKey ? 0.25 : 0.05) * view.size
+    // Its own pair, because a nudge here is a fraction of what is *in view* and
+    // has to walk the same visible distance whatever the magnification. Alt is
+    // unclaimed: there is no second quantity to aim at — the box drag is what
+    // sets the zoom.
+    const n = nudgeFor(e, VIEW_STEP)
+    if (n !== null) {
+      const d = n.d * view.size
       props.onChange({
-        x: clamp01(view.x + step.du * d),
-        y: clamp01(view.y + step.dv * d),
+        x: clamp01(view.x + n.du * d),
+        y: clamp01(view.y + n.dv * d),
       })
     }
   }

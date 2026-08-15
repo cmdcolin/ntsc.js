@@ -2,21 +2,11 @@ import { clamp01 } from '../math'
 import { useControls, useControlsApi } from './ControlsContext'
 import { cx } from './cx'
 import styles from './Deck.module.css'
-import { uvInRect } from './miniFrame'
+import { nudgeFor, uvInRect } from './miniFrame'
 import mini from './MiniFrame.module.css'
 import { useGrabRect } from './useGrabRect'
 
 import type { KeyboardEvent, PointerEvent } from 'react'
-
-// Arrows walk the band, alt+arrows push the head off track — the same split
-// PipFrame and PurityFrame use, so a pad in this family is always reachable
-// without a pointer.
-const NUDGE = new Map([
-  ['ArrowLeft', { du: -1, dv: 0 }],
-  ['ArrowRight', { du: 1, dv: 0 }],
-  ['ArrowUp', { du: 0, dv: -1 }],
-  ['ArrowDown', { du: 0, dv: 1 }],
-])
 
 // The tracking control, as the two-axis gesture it always was.
 //
@@ -48,15 +38,16 @@ export function TrackingPad() {
   }
   const grab = useGrabRect(set)
 
+  // Arrows walk the band, alt+arrows push the head off track — the same split
+  // PipFrame and PurityFrame use, so a pad in this family is always reachable
+  // without a pointer.
   const key = (e: KeyboardEvent<HTMLDivElement>) => {
-    const step = NUDGE.get(e.key)
-    if (step !== undefined) {
-      e.preventDefault()
-      const d = e.shiftKey ? 0.05 : 0.005
+    const n = nudgeFor(e)
+    if (n !== null) {
       writeControls(
-        e.altKey
-          ? { ...controls, trackAmt: clamp01(amt + step.du * d * 2) }
-          : { ...controls, trackPos: clamp01(pos + step.dv * d) },
+        n.resize
+          ? { ...controls, trackAmt: clamp01(amt + n.du * n.d * 2) }
+          : { ...controls, trackPos: clamp01(pos + n.dv * n.d) },
       )
     }
   }

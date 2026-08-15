@@ -2,17 +2,10 @@ import { useState } from 'react'
 
 import { clamp, clamp01 } from '../math'
 import { cx } from './cx'
-import { snapOffset, uvInRect } from './miniFrame'
+import { nudgeFor, snapOffset, uvInRect } from './miniFrame'
 import styles from './MiniFrame.module.css'
 
 import type { KeyboardEvent, PointerEvent } from 'react'
-
-const NUDGE = new Map([
-  ['ArrowLeft', { du: -1, dv: 0 }],
-  ['ArrowRight', { du: 1, dv: 0 }],
-  ['ArrowUp', { du: 0, dv: -1 }],
-  ['ArrowDown', { du: 0, dv: 1 }],
-])
 
 // The patch radius is a fraction of picture *height* (see crt_face.wgsl), and
 // the miniature is 4:3, so a horizontal distance in frame widths converts by
@@ -81,18 +74,16 @@ export function PurityFrame(props: {
     const p = uvInRect(box, e.clientX, e.clientY)
     props.onChange({ x, y, size: clampSize(Math.abs(p.u - x) / ASPECT) })
   }
+  // alt+arrows size it, matching PipFrame's window — the geometry stays
+  // reachable without a pointer, which is the whole reason the three sliders can
+  // go behind the reveal rather than staying on show.
   const key = (e: KeyboardEvent<HTMLDivElement>) => {
-    const step = NUDGE.get(e.key)
-    if (step !== undefined) {
-      e.preventDefault()
-      const d = e.shiftKey ? 0.05 : 0.005
-      // alt+arrows size it, matching PipFrame's window — the geometry stays
-      // reachable without a pointer, which is the whole reason the three sliders
-      // can go behind the reveal rather than staying on show.
+    const n = nudgeFor(e)
+    if (n !== null) {
       props.onChange(
-        e.altKey
-          ? { x, y, size: clampSize(size + step.du * d * 4) }
-          : { x: clamp01(x + step.du * d), y: clamp01(y + step.dv * d), size },
+        n.resize
+          ? { x, y, size: clampSize(size + n.du * n.d * 4) }
+          : { x: clamp01(x + n.du * n.d), y: clamp01(y + n.dv * n.d), size },
       )
     }
   }

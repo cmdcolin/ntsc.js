@@ -27,6 +27,69 @@ export const snapOffset = (points: number[], on: boolean) => {
   return best
 }
 
+// --- the keyboard half of a miniature -----------------------------------
+//
+// Four of these frames take the same gesture — the PiP window, the magnifier,
+// the purity patch, the tracking pad — and each spelled out the same map and
+// the same three lines: is this an arrow, how far does shift make it go, and is
+// alt aiming at the frame's *other* quantity. What differs between them is only
+// what each writes with the answer, which is the half that has to stay in the
+// component.
+//
+// It matters that the four agree. A miniature is the second writer of controls
+// that already have sliders, so the keyboard is the only way to reach the ones
+// the frame hides — and a family where alt resizes on three pads and does
+// nothing on the fourth is a family nobody learns.
+const ARROWS: ReadonlyMap<string, { du: number; dv: number }> = new Map([
+  ['ArrowLeft', { du: -1, dv: 0 }],
+  ['ArrowRight', { du: 1, dv: 0 }],
+  ['ArrowUp', { du: 0, dv: -1 }],
+  ['ArrowDown', { du: 0, dv: 1 }],
+])
+
+// A fine step and shift's coarse one, in the frame's own 0..1. The magnifier
+// passes its own pair and scales the answer, since a nudge there is a fraction
+// of what is *in view* and has to walk the same visible distance whatever the
+// magnification.
+export const NUDGE_STEP = { fine: 0.005, coarse: 0.05 }
+
+export interface Nudge {
+  du: number
+  dv: number
+  // How far to go, already resolved against shift.
+  d: number
+  // Alt: the press is aimed at the frame's second quantity — the window's size,
+  // the patch radius, how far the head is off track — rather than at where the
+  // thing sits.
+  resize: boolean
+}
+
+// One press, or null for a key the frame does not claim.
+//
+// It consumes the ones it does claim, which is why it takes the event rather
+// than the key: every caller called `preventDefault` on exactly this condition,
+// and an arrow that scrolled the panel out from under an open miniature is what
+// that line is there to stop. Structural rather than React's `KeyboardEvent`, so
+// this module stays testable with an object literal.
+export function nudgeFor(
+  e: {
+    key: string
+    shiftKey: boolean
+    altKey: boolean
+    preventDefault: () => void
+  },
+  step: { fine: number; coarse: number } = NUDGE_STEP,
+): Nudge | null {
+  const arrow = ARROWS.get(e.key)
+  if (arrow === undefined) return null
+  e.preventDefault()
+  return {
+    ...arrow,
+    d: e.shiftKey ? step.coarse : step.fine,
+    resize: e.altKey,
+  }
+}
+
 // Move one edge to `edge` while its opposite stays pinned, in the center/size
 // parameters the shader actually reads. s picks which edge moves (-1 or 1).
 export const resizeAxis = (

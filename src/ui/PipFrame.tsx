@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { clamp01 } from '../math'
 import { cx } from './cx'
-import { clampSize, cqw, resizeAxis, snapOffset } from './miniFrame'
+import { clampSize, cqw, nudgeFor, resizeAxis, snapOffset } from './miniFrame'
 import styles from './MiniFrame.module.css'
 
 import type { KeyboardEvent, PointerEvent } from 'react'
@@ -45,13 +45,6 @@ const CURSORS: Record<string, string> = {
   '-1,0': 'ew-resize',
   '1,0': 'ew-resize',
 }
-const NUDGE = new Map([
-  ['ArrowLeft', { du: -1, dv: 0 }],
-  ['ArrowRight', { du: 1, dv: 0 }],
-  ['ArrowUp', { du: 0, dv: -1 }],
-  ['ArrowDown', { du: 0, dv: 1 }],
-])
-
 export function PipFrame(props: {
   box: PipBox
   // The matte border and edge softness the compositor actually draws, so the
@@ -160,19 +153,17 @@ export function PipFrame(props: {
   // Arrows walk the window, alt+arrows size it — the geometry stays reachable
   // without a pointer now that the four sliders are gone.
   const key = (e: KeyboardEvent<HTMLDivElement>) => {
-    const step = NUDGE.get(e.key)
-    if (step !== undefined) {
-      e.preventDefault()
-      const d = e.shiftKey ? 0.05 : 0.005
+    const n = nudgeFor(e)
+    if (n !== null) {
       props.onChange(
-        e.altKey
+        n.resize
           ? {
               x,
               y,
-              w: clampSize(w + step.du * d * 2),
-              h: clampSize(h + step.dv * d * 2),
+              w: clampSize(w + n.du * n.d * 2),
+              h: clampSize(h + n.dv * n.d * 2),
             }
-          : { x: clamp01(x + step.du * d), y: clamp01(y + step.dv * d), w, h },
+          : { x: clamp01(x + n.du * n.d), y: clamp01(y + n.dv * n.d), w, h },
       )
     }
   }
