@@ -1,34 +1,33 @@
-// The other half of a `useSyncExternalStore` pair: who to tell, and telling
-// them. The `get` half is always specific to what is being published; this half
-// never is.
+// Publishing a value React can subscribe to, both halves of it.
 //
-// Seven of them run — the engine's controls, its morph and its frame rate; the
-// rundown, the walk, and the walk's per-frame progress; the automation tape —
-// and they were seven copies of the same two operations in three spellings:
-// class fields with the notify loop written out at each site, a pair of module
-// helpers over a bare `Set`, and a closure over one. None of them was wrong and
-// all of them were the same four lines.
+// Seven publishers run here — the engine's controls, its morph and its frame
+// rate; the rundown, the walk and the walk's per-frame progress; the automation
+// tape — and none of them shared anything. The notify half was written three
+// different ways (class fields with the loop spelled out at each site, a pair of
+// module helpers over a bare `Set`, and a closure over one), and the read half
+// was declared three times identically, each under a comment saying it was the
+// same shape as the other two.
 //
 // At the root rather than under `gpu/` or `ui/` for the reason `math.ts` gives:
 // both layers want it and neither owns it. The engine publishes three of these
-// from a class the UI never constructs, and the strip publishes three from a
-// closure the engine has never heard of.
+// from a class the UI never constructs; the strip publishes three from a closure
+// the engine has never heard of.
 
-// The pair a `useSyncExternalStore` consumer is handed: how to hear that
-// something changed, and how to read what there is now. Three of these are
-// published — the controls, a morph in flight, the frame rate — and each
-// declared the same two lines under a comment saying it was the same shape as
-// the others. Naming the shape is what lets those comments say the interesting
-// half instead: who listens, and on what clock.
+// What a consumer is handed: how to hear that something changed, and how to read
+// what there is now.
 //
-// The rule every payload has to keep is `get`'s: it must answer with the *same
-// reference* while nothing has changed, because React compares snapshots by
-// identity. A primitive is the easiest kind to be right about (two equal
-// numbers are `===`), and an object one has to be replaced rather than mutated.
+// The rule every payload has to keep is `get`'s — it must answer with the *same
+// reference* while nothing has changed, because `useSyncExternalStore` compares
+// snapshots by identity and a getter that builds its answer re-renders forever.
+// A primitive is the easiest kind to be right about (two equal numbers are
+// `===`); an object has to be replaced rather than mutated.
 export interface Store<T> {
   subscribe: (fn: () => void) => () => void
   get: () => T
 }
+
+// The notify half. Always the same, whatever is being published — which is the
+// whole of why it is here.
 
 export class Listeners {
   private readonly fns = new Set<() => void>()
