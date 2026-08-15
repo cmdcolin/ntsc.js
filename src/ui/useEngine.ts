@@ -315,6 +315,23 @@ const onDeck =
 export function useEngine() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<EngineApi | null>(null)
+  // These stay flat `…A`/`…B` pairs, and it is the one place in this file where
+  // that is the right answer rather than the one `onDeck` below argues against.
+  // Gathering them into a `{a: {video, typer, next, head}, b: {…}}` record and
+  // indexing with the deck letter — which is what every piece of paired *state*
+  // here does — costs `useEngine` its memoization outright:
+  //
+  //     React Compiler could not optimize 1:
+  //       src/ui/useEngine.ts   This value cannot be modified
+  //
+  // A record whose fields are refs is a value the compiler will not reason
+  // about, and the bail-out is silent — measured with `pnpm compiler`, which is
+  // the only thing that reports it. oxlint says so too, in its own way: the
+  // playhead poll below loses `videoRef`'s stability and grows an
+  // `exhaustive-deps` warning for `deck.a.video`. `App` builds ~200 control rows
+  // off this hook, so the cost is all of them reconciling on writes that touched
+  // none of them, which is far more than eight ternaries are worth. `makeSlot`
+  // takes the letter alone for the same reason.
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const videoBRef = useRef<HTMLVideoElement | null>(null)
   // The teletype reveal each slot may have in flight, retired by stopSlot.
