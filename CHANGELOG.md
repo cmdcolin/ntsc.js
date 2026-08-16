@@ -2,6 +2,27 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.28.0](https://github.com/cmdcolin/ntsc.js/compare/v0.27.0...v0.28.0) - 2026-08-16
+
+### Features
+- *(ui)* [`9cdbe29`](https://github.com/cmdcolin/ntsc.js/commit/9cdbe2908d0f6cbdcfe38ce67ba44c2274ad2e30) the shelf measures a clip rather than waiting to be told
+- *(ui)* [`9f34d3d`](https://github.com/cmdcolin/ntsc.js/commit/9f34d3d7e76197576f97025517ef6a2ae2b01049) a rundown of clips plays at its clips' lengths, and ⎙ renders all of it
+- *(ui)* [`da6eead`](https://github.com/cmdcolin/ntsc.js/commit/da6eead6d8017ec5a6c9703f81d052c850d67270) ⎙ says which of four lengths it is about to render
+- *(audio)* [`2473e4c`](https://github.com/cmdcolin/ntsc.js/commit/2473e4c4134cc9c35a21fc03b19f05448b19be88) intercarrier buzz — the picture arriving on the audio line
+- *(ui)* [`5951491`](https://github.com/cmdcolin/ntsc.js/commit/5951491c33c46b87b02dbc1df17c708c2b93aaba) a rundown of shelf clips prerolls, so its cuts are swaps
+
+### Fixes
+- *(ui)* [`92faf86`](https://github.com/cmdcolin/ntsc.js/commit/92faf86999ec6e8ce0de2fae27315af6dc7dcbbc) a row with no clip key fired a clip effect at nothing
+- *(audio)* [`1d460d7`](https://github.com/cmdcolin/ntsc.js/commit/1d460d7dff1d3772145cb8d86b321f550026d70b) the buzz is deaf to the roll, and a harness that says so
+- *(ui)* [`0d2e2c0`](https://github.com/cmdcolin/ntsc.js/commit/0d2e2c05e6222f29f2483fa8016dc9c5abadebf6) the clip preroll's try/catch cost useEngine its memoization
+- *(ui)* [`324b735`](https://github.com/cmdcolin/ntsc.js/commit/324b735f147b649db2ccff34a9dc5fb1b0118a4c) a still must not be prerolled, and a measurement is not an edit
+- *(ui)* [`e2e107d`](https://github.com/cmdcolin/ntsc.js/commit/e2e107df3ed0cd873c71e808a38221eacac95eaf) a lookahead that resolves late must not park after its moment
+
+### Documentation
+- *(ui)* [`8dfaa05`](https://github.com/cmdcolin/ntsc.js/commit/8dfaa051383e6fa742902cf061153689c29a312b) preroll's "two that can be named" was missing the ordinary one
+- *(ideas)* [`489574b`](https://github.com/cmdcolin/ntsc.js/commit/489574bae7bddc366f67b736a63341ce49ff4393) why the buzz detector still runs on the main thread
+- *(ui)* [`a71eaf1`](https://github.com/cmdcolin/ntsc.js/commit/a71eaf1cbf31c3aabf54f4f541e2f412034c9c42) the three faults an async lookahead introduced
+
 ## [0.27.0](https://github.com/cmdcolin/ntsc.js/compare/v0.26.5...v0.27.0) - 2026-08-15
 
 ### Fixes
