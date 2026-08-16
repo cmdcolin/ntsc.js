@@ -72,6 +72,9 @@ const HARNESSES = [
   { name: 'composecheck', args: [`${origin}/`] },
   { name: 'panelcheck', args: [`${origin}/`] },
   { name: 'midicheck', args: [`${origin}/`] },
+  // Muted through a Firefox pref rather than by leaving the node unconnected,
+  // because the connection is half of what it is checking.
+  { name: 'buzzsound', args: [`${origin}/`] },
   { name: 'pixelcheck', args: ['--url', `${origin}/`] },
   // These two serve themselves; see the note above.
   { name: 'demuxcheck', args: [] },

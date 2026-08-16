@@ -127,12 +127,17 @@ recovers the 4.5 MHz beat between the picture and sound carriers, and a limiter
 that cannot keep video crosstalk off it hands you the picture as audio: the
 vertical interval as a 60 Hz buzz, line structure as a whine, snow as hiss.
 
-It is a tap on the real composite rather than a synthesised noise, so every
-fault above arrives already in the right relationship to what you can see.
-Bright scenes buzz louder because peak white overmodulates. A rolling picture
-slides the buzz in pitch. Hum bars beat against it. A head switch clicks on the
-line it damages. Fine tuning frees the carrier and makes the weave and the buzz
-worse together, because they are one leak seen from two ends.
+It is a tap on the real composite rather than a synthesised noise, so the faults
+above arrive already in the right relationship to what you can see. Bright
+scenes buzz louder because peak white overmodulates. Hum bars beat against the
+field rate. A head switch clicks on the line it damages. Fine tuning frees the
+carrier and makes the weave and the buzz worse together, because they are one
+leak seen from two ends.
+
+The tap sits ahead of the receiver, which is where a real set's sound detector
+sits too, so it hears the signal domain and nothing the receiver does after it.
+A rolling picture over a steady buzz is the audible form of that: the roll is
+the receiver's vertical oscillator, downstream of anything the sound can reach.
 
 ## The rig
 

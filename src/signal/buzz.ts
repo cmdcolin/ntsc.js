@@ -6,11 +6,20 @@
 // everything below turns that into something a speaker can play.
 //
 // The point of tapping the real waveform rather than synthesising a buzz is
-// that every fault upstream arrives free and in the right relationship: a roll
-// slides the buzz in pitch because the vertical interval is passing the tap at
-// the wrong rate, a bright scene buzzes louder because peak white really does
-// overmodulate, hum bars beat against it at 60 Hz, and a head switch clicks on
-// the line it damages. None of that is drawn.
+// that the faults arrive free and in the right relationship: a bright scene
+// buzzes louder because peak white really does overmodulate, hum bars beat
+// against the field rate, a head switch clicks on the line it damages, snow
+// hisses. None of that is drawn.
+//
+// **The tap is ahead of the receiver, so it hears the signal domain and is deaf
+// to the other two** — the three-domain distinction in `ARCHITECTURE.md`,
+// arriving in the sound. A rolling picture does not slide the buzz in pitch,
+// which is the tempting thing to assume: the roll is `timing[V_PHASE]`, written
+// by `sync` and consumed by `decode`, both downstream of here. A real set is
+// the same way round — the sound detector taps the signal, not the yoke — so a
+// picture rolling over a steady buzz is correct and not a missed connection.
+// What does move the buzz is anything that changes the *signal's* timing, which
+// here means the rate fields are rendered at: `timeScale` lowers the pitch.
 //
 // **Nothing here may reach AudioState's analyser.** That analyser fills
 // `audioBuf`, which FMs the sound carrier in `channel.wgsl` — the carrier this

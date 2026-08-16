@@ -1879,7 +1879,7 @@ export const GROUPS: Group[] = [
         step: 0.01,
         unit: '',
         fine: true,
-        help: 'The same leak heard instead of seen — this one comes out of your speakers. The sound detector recovers the 4.5 MHz beat between the picture and sound carriers, and a limiter that cannot keep the picture off it hands you the video as audio: the vertical interval as a 60 Hz buzz, line structure as a whine, and every fault above riding along. Bright scenes buzz louder because peak white really does overmodulate, a rolling picture slides the buzz in pitch, and snow hisses. Fine tuning adds to it, the same way it adds to the weave.',
+        help: 'The same leak heard instead of seen — this one comes out of your speakers. The sound detector recovers the 4.5 MHz beat between the picture and sound carriers, and a limiter that cannot keep the picture off it hands you the video as audio: the vertical interval as a 60 Hz buzz, line structure as a whine, and the faults above riding along. Bright scenes buzz louder because peak white really does overmodulate, snow hisses, a head switch clicks. Fine tuning adds to it the same way it adds to the weave. The detector taps the signal and not the tube, so a rolling picture leaves the buzz where it is — the roll happens after the sound has already been taken off.',
       },
     ],
   },
