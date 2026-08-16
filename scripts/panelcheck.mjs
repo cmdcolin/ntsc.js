@@ -112,9 +112,16 @@ const HELPERS = `
   // carries a rate too ("0∿ 4/s"), which the count-only pattern above misses.
   const stripText = () => [...document.querySelectorAll('button')]
     .map(b => b.textContent ?? '').find(t => t.includes('∿')) ?? null
-  // A box on the chain map, by the name it opens.
+  // A box on the chain map, by the name it opens — or, for the two boxes no
+  // wire reaches, the chip under the drawing, which is where they went when the
+  // free row left the map (SignalPath › FreeChips). Both open a stage and the
+  // caller means the stage, so the fallback belongs here rather than at each
+  // press: without it every check that opens the bay silently pressed nothing.
+  const freeChip = name => [...document.querySelectorAll('button')]
+    .find(b => b.title.startsWith(name + ' —'))
   const stage = name => [...document.querySelectorAll('svg[aria-label="signal chain"] g[role=button]')]
     .find(g => (g.getAttribute('aria-label') ?? '').startsWith(name))
+    ?? freeChip(name)
   // A slider row by its visible label — the row's own <label for>, which is the
   // one handle on it that isn't a hashed class name.
   const rowFor = name => [...document.querySelectorAll('input[type=range]')]
@@ -175,12 +182,14 @@ await phase('filter', { seed: OLD_BAY }, async page => {
       door: document.body.innerText.includes('click a stage'),
       saidSo: document.body.innerText.includes('nothing matches'),
     }`)
-  check(!empty.chain, 'a query matching nothing still drew the chain map')
+  // The map stays under a query that reaches nothing, and dims rather than
+  // empties. That is the reshaping the NaN bug below was patched around twice:
+  // an empty spine drew wires between boxes that were not there, so the fix was
+  // to remove the map — and the fix to *that* was to stop it emptying, which is
+  // what makes the standing "click a stage" line true at all times.
+  check(empty.chain, 'the map dropped out under a query that matched nothing')
   check(empty.nan.length === 0, `NaN attributes on the map: ${empty.nan}`)
-  // The instruction lives on the map's heading now rather than in the empty
-  // state below it, so this covers both: with nothing to open, the whole
-  // section — heading included — is gone.
-  check(!empty.door, 'the "click a stage" cue showed with no stage to open')
+  check(empty.door, 'the "click a stage" cue went missing over a live map')
   check(empty.saidSo, 'nothing said the query matched nothing')
 
   // The filter box takes focus on mount and must never take it again: with the
@@ -224,36 +233,42 @@ await phase('filter', { seed: OLD_BAY }, async page => {
       .map(g => g.getAttribute('aria-label') ?? '')
       .filter(l => !l.endsWith('open its controls'))
       .map(l => l.split(' — ')[0]),
+    free: ['Modulation', 'Deck'].filter(n => freeChip(n) !== undefined),
   }`)
   check(
     cleared.chain,
     'the chain map did not come back when the filter cleared',
   )
-  // Ten boxes that open: the five trunk stages, the three that hang under them
-  // — input B, the sound and the view, none of which is a Phase — and the two
-  // that hang off nothing at all, drawn on a free row below the branches: the
-  // modulation bay and the deck. B is on out of the box so the mixer opens too;
-  // the sound is *not* picked and its box still opens, because its picker is the
-  // first thing inside it and patching one in is the whole reason to press it.
-  // Mix is the one box that can stop opening — with B off it holds nothing but
-  // controls that cannot act and there is no picker for "a second signal" — and
-  // then this count drops to nine.
+  // Eight boxes that open: the five trunk stages, and the three that hang under
+  // them — input B, the sound and the view, none of which is a Phase. B is on
+  // out of the box so the mixer opens too; the sound is *not* picked and its box
+  // still opens, because its picker is the first thing inside it and patching
+  // one in is the whole reason to press it. Mix is the one box that can stop
+  // opening — with B off it holds nothing but controls that cannot act and there
+  // is no picker for "a second signal" — and then this count drops to seven.
   //
   // It said six trunk stages and nine boxes while there were five and eight,
   // which is the shape of a count that has been wrong since the FEEDBACK box
-  // came off the trunk: the number was right, the reason was not, and the two
-  // came back into agreement by accident when the bay arrived on the map.
+  // came off the trunk. Ten while there were eight is the same drift again: the
+  // bay and the deck have not been *on* the map since the free row left the
+  // drawing, and a count that includes them is counting a picture from before.
   check(
-    cleared.stages.length === 10,
+    cleared.stages.length === 8,
     `the map came back with ${cleared.stages.length} stages: ${cleared.stages}`,
   )
   // The two inputs are peers on the map, and the mixer is a box of its own. All
   // three were one box called Mix hanging off a wire tagged 'B'.
-  for (const name of ['Source A', 'Source B', 'Mix', 'Modulation'])
+  for (const name of ['Source A', 'Source B', 'Mix'])
     check(
       cleared.stages.includes(name),
       `${name} is missing from the map: ${cleared.stages}`,
     )
+  // The two nothing is wired to are still doors, out here as chips — the panel's
+  // most reached-for stage among them.
+  check(
+    cleared.free.length === 2,
+    `the free chips under the map came back as ${cleared.free}`,
+  )
 })
 
 // --- a routing can be held still from its own row ---------------------------
@@ -603,7 +618,13 @@ await phase('reset', {}, async page => {
     const b = byText('reset')
     press(b)
     return b !== undefined`)
-  await settle(600)
+  // Long enough for the morph to land. Every verb in this row arrives however
+  // the morph select says looks arrive, and a fresh profile has never set one,
+  // so the default is a 1s travel rather than the cut this used to assume. Read
+  // at 600ms the board was six controls short of stock — the ones whose step is
+  // finest against their span, which are the last to round onto their
+  // destination — and that reads exactly like a reset that missed them.
+  await settle(1600)
   const after = await run(`return {
     strip: stripText(),
     gate: window.vf?.stab?.hz ?? null,
@@ -620,17 +641,27 @@ await phase('reset', {}, async page => {
     `the reset moved the magnifier from ${aimed} to ${after.controls.crtZoom} — where you are looking is not part of the look`,
   )
   const off = Object.keys(after.controls).filter(
-    k => k !== 'crtZoom' && after.controls[k] !== stock[k],
+    k => k !== 'crtZoom' && k !== 'bGain' && after.controls[k] !== stock[k],
   )
   check(
     off.length === 0,
     `the reset left controls off stock: ${off.slice(0, 6).join(', ')}`,
   )
+  // The one control a bare load is deliberately off stock on: it arrives with B
+  // summed into the composite so the mixer is visibly doing something
+  // (controls.ts › LANDING_LOOK), and that is kept out of DEFAULT_CONTROLS
+  // precisely because clean and hold-to-compare both mean stock. So the board
+  // the app booted on is not the board a reset lands on, and the difference is
+  // this control going *to* stock rather than back to where it started.
+  check(
+    after.controls.bGain === 0,
+    `the reset left the landing look's B gain at ${after.controls.bGain} rather than taking it to stock`,
+  )
 
   // One step, not three: everything the button wiped comes back together, which
   // is the whole reason the gate rides the walk with the bay.
   await run(`press(byText('undo')); return 0`)
-  await settle(600)
+  await settle(1600)
   const back = await run(`return {
     strip: stripText(),
     gate: window.vf?.stab?.hz ?? null,
