@@ -44,6 +44,7 @@ import {
   duplicateRow,
   fire,
   holdProgress,
+  learnClipSeconds,
   loadStrip,
   moveRow,
   removeRow,
@@ -51,6 +52,7 @@ import {
   saveStrip,
   start,
   stepArrive,
+  stripSeconds,
   stepTransition,
   stepHold,
   walking,
@@ -440,6 +442,13 @@ export interface StripApi {
   // Step this row through the shelf and back to a plain cut — the other half of
   // "how it arrives", and the one that breaks the picture rather than the look.
   cycleTransition: (index: number) => void
+  // Tell every row holding this clip how long it runs. Keyed on the shelf id
+  // because the answer is a fact about the clip rather than about one row — see
+  // `strip.learnClipSeconds`.
+  learnClipSeconds: (clipId: string, seconds: number) => void
+  // How long one lap of the rundown runs, or 0 when it cannot be said. What ⎙
+  // renders, and the number a card's width will want.
+  seconds: number
   setLoop: (on: boolean) => void
   // A new seed: the same rundown, different rolls and different drifts. The one
   // gesture that says "give me another take of this".
@@ -511,6 +520,8 @@ export function useStrip(deps: StripDeps): StripApi {
       cycleHold: (index: number) => edit(s => stepHold(s, index)),
       cycleArrive: (index: number) => edit(s => stepArrive(s, index)),
       cycleTransition: (index: number) => edit(s => stepTransition(s, index)),
+      learnClipSeconds: (clipId: string, seconds: number) =>
+        edit(s => learnClipSeconds(s, clipId, seconds)),
       setLoop: (on: boolean) => edit(s => ({ ...s, loop: on })),
       reseed: () => edit(s => ({ ...s, seed: randomSeed() })),
     }),
@@ -519,6 +530,16 @@ export function useStrip(deps: StripDeps): StripApi {
 
   return {
     strip,
+    // Derived at render rather than kept beside the rundown, on the same rule
+    // the row index above follows: two pieces of state for one fact is how they
+    // drift. It is a walk over the rows and arithmetic per row, on a list that
+    // changes when a hand edits it — nothing like frame rate.
+    //
+    // The tempo is read here rather than inside the runner because it is what
+    // this render is holding: a rundown of bar-counted holds is a different
+    // length at 90bpm than at 140, and the number under the ⎙ has to say which
+    // one it is now.
+    seconds: stripSeconds(strip, { bpm: deps.bpm ?? FALLBACK_BPM, fps: FPS }),
     row: walk.row,
     running,
     progress: runner.getProgress,

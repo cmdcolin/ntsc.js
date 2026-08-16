@@ -521,22 +521,6 @@ export function App() {
     eng.setError,
   )
 
-  // How long ⎙ renders for, in priority order and each entry for its own
-  // reason.
-  //
-  // A recorded take wins outright: it is a performance that happened, of a
-  // length somebody chose by pressing ● and then ■, and replaying thirty
-  // seconds of it into a three-minute render would be two and a half minutes of
-  // a board nobody is touching. Then the song, because a piece cut to one is as
-  // long as it. Then ten seconds — long enough to be a take, short enough to be
-  // a try.
-  const takeLength =
-    auto.seconds > 0
-      ? auto.seconds
-      : audio.track.loaded && audio.duration > 0
-        ? audio.duration
-        : 10
-
   const strip = useStrip({
     showSession: eng.showSession,
     faultTo: eng.faultTo,
@@ -555,6 +539,40 @@ export function App() {
     frameNo: useCallback(() => engineRef.current?.frameNo() ?? 0, [engineRef]),
     track: audio.track,
   })
+
+  // How long ⎙ renders for, in priority order and each entry for its own
+  // reason.
+  //
+  // A recorded take wins outright: it is a performance that happened, of a
+  // length somebody chose by pressing ● and then ■, and replaying thirty
+  // seconds of it into a three-minute render would be two and a half minutes of
+  // a board nobody is touching. Then the song, because a piece cut to one is as
+  // long as it.
+  //
+  // **Then the rundown itself**, which is where a ten-second default used to
+  // be, and the gap it leaves is the one that made ⎙ look broken on the thing
+  // the tray is for: eight clips laid out back to back, no music picked and
+  // nothing recorded, rendered ten seconds — two rows of a three-minute piece,
+  // and no way to tell from the button that it was going to.
+  //
+  // Below the song rather than above it, deliberately. A rundown cut to a track
+  // is as long as the track: the walk's holds are bars, the song is what they
+  // are bars *of*, and where the two disagree the piece is the one somebody
+  // chose. Above it only when there is no song at all — which is exactly when
+  // the rundown is the only statement of length in the room.
+  //
+  // Ten seconds is still the floor, for the board with no rundown, no song and
+  // no tape behind it: long enough to be a take, short enough to be a try. A
+  // rundown answers 0 when it holds a row that waits for a hand, so an
+  // open-ended piece lands here too rather than on a guess (`strip.stripSeconds`).
+  const takeLength =
+    auto.seconds > 0
+      ? auto.seconds
+      : audio.track.loaded && audio.duration > 0
+        ? audio.duration
+        : strip.seconds > 0
+          ? strip.seconds
+          : 10
 
   const profiles = useSavedProfiles()
 
@@ -1564,14 +1582,31 @@ export function App() {
           onAddRow={
             fullscreen
               ? undefined
-              : clip =>
+              : clip => {
                   strip.addRow(profileQuery(), {
-                    // No runtime: this clip has never been on a deck, so
-                    // nothing here has ever read its duration. Its `'clip'`
-                    // hold falls back to a bar count until it is played —
-                    // see `strip.RowClip.seconds`.
-                    clip: { id: clip.id, name: clip.name, seconds: 0 },
+                    clip: {
+                      id: clip.id,
+                      name: clip.name,
+                      // Whatever the shelf knows, which is the answer outright
+                      // for a clip that has been auditioned or added before.
+                      seconds: clip.seconds,
+                    },
                   })
+                  // And otherwise measure it, which is a header read rather
+                  // than a load — the row is already in the tray by the time
+                  // this is asked, and gains its length a moment later.
+                  //
+                  // The row is not what gets patched: `learnClipSeconds` keys
+                  // on the shelf id, so pressing ＋ twice on one clip teaches
+                  // both rows from one measurement. A clip the shelf cannot
+                  // open, and every kept roll, answers 0 and keeps the bar
+                  // count — see `useClipLibrary.measure`.
+                  if (clip.seconds === 0) {
+                    void clips
+                      .measure(clip)
+                      .then(seconds => strip.learnClipSeconds(clip.id, seconds))
+                  }
+                }
           }
           onForgetClip={clips.forgetClip}
           onForgetFolder={clips.forgetFolder}

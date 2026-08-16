@@ -531,6 +531,66 @@ export function advance(strip: Strip, walk: Walk, clock: Clock): Step | null {
   return land(strip, 0, walk.lap + 1, clock)
 }
 
+// How long one lap of the rundown runs, in seconds, or 0 for "cannot say".
+//
+// Lap zero's numbers exactly: the same `seedFor` and the same `holdFrames` that
+// `land` will draw when the walk gets there, so this is the length the take
+// *will* be rather than an estimate of it. A drifted hold therefore reads the
+// same here as it plays, and reseeding changes both together.
+//
+// **A row that waits for a hand makes the whole thing unanswerable**, and 0 is
+// how it says so rather than skipping the row or guessing a bar count. A
+// rundown that stops until somebody presses something has no length, and a
+// render told otherwise would cut off wherever the guess ran out — which reads
+// as the render being broken rather than as the rundown being open-ended.
+//
+// One lap whether or not the strip loops: a loop is a set going round, and what
+// a take is is the piece.
+export function stripSeconds(
+  strip: Strip,
+  tempo: { bpm: number; fps: number },
+): number {
+  let frames = 0
+  for (const [i, row] of strip.rows.entries()) {
+    const clock = { frame: 0, bpm: tempo.bpm, fps: tempo.fps }
+    const held = holdFrames(
+      row.hold,
+      clock,
+      seedFor(strip.seed, i, 0),
+      rowRuntime(row),
+    )
+    if (held === null) return 0
+    frames += held
+  }
+  return frames / tempo.fps
+}
+
+// Tell every row holding this clip how long it runs.
+//
+// Keyed on the shelf id rather than on a row, because the answer is a fact
+// about the clip: a rundown that uses one clip three times learns it three
+// times over from one measurement, and a duplicate made before the probe landed
+// is not left behind.
+//
+// **Only the rows that do not know**, so a measurement arriving late cannot
+// overwrite what a deck read off the picture itself. The two agree when both
+// are right, and when they do not the deck was there and this was not.
+export const learnClipSeconds = (
+  strip: Strip,
+  clipId: string,
+  seconds: number,
+): Strip =>
+  seconds <= 0
+    ? strip
+    : {
+        ...strip,
+        rows: strip.rows.map(row =>
+          row.clip === null || row.clip.id !== clipId || row.clip.seconds > 0
+            ? row
+            : { ...row, clip: { ...row.clip, seconds } },
+        ),
+      }
+
 // How far through its hold the current row is, 0..1, or null when there is
 // nothing to draw — stopped, or holding for a hand. For the row card's fill.
 export function holdProgress(walk: Walk, clock: Clock): number | null {

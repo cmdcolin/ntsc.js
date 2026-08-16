@@ -24,6 +24,7 @@ import {
   holdFrames,
   holdLabel,
   holdProgress,
+  learnClipSeconds,
   moveRow,
   nextRow,
   prerollFor,
@@ -37,6 +38,7 @@ import {
   stepArrive,
   stepHold,
   stepTransition,
+  stripSeconds,
   transitionLabel,
   walking,
 } from './strip'
@@ -568,6 +570,123 @@ describe("a hold of 'clip'", () => {
     })
     expect(withClip.rows[0].hold).toEqual(CLIP_HOLD)
     expect(addRow(EMPTY_STRIP, 'set=').rows[0].hold).toEqual(DEFAULT_HOLD)
+  })
+})
+
+// What ⎙ renders, and the number that used to be ten seconds however long the
+// piece was.
+describe('how long a rundown runs', () => {
+  const TEMPO = { bpm: 120, fps: 60 }
+
+  it('is the sum of the holds', () => {
+    const s = strip([
+      row({ id: 'a', hold: { bars: 4, drift: 0 } }),
+      row({ id: 'b', hold: { bars: 2, drift: 0 } }),
+    ])
+    expect(stripSeconds(s, TEMPO)).toBe(12)
+  })
+
+  it('counts a clip row as its picture', () => {
+    const s = strip([
+      row({
+        id: 'a',
+        hold: { bars: 'clip', drift: 0 },
+        clip: { id: 'c1', name: 'a.mp4', seconds: 7 },
+      }),
+    ])
+    expect(stripSeconds(s, TEMPO)).toBe(7)
+  })
+
+  // The whole of why the ＋ measures. A rundown of clips nobody had played was
+  // eight bar counts wearing the word "clip", and this is that state.
+  it('falls back to a bar count for a clip of unknown length', () => {
+    const s = strip([
+      row({
+        id: 'a',
+        hold: { bars: 'clip', drift: 0 },
+        clip: { id: 'c1', name: 'a.mp4', seconds: 0 },
+      }),
+    ])
+    expect(stripSeconds(s, TEMPO)).toBe(8)
+  })
+
+  // Open-ended rather than long: a row that waits for a hand has no length, so
+  // neither does the rundown holding it, and a render told otherwise would cut
+  // off wherever the guess ran out.
+  it('cannot say when a row waits for a hand', () => {
+    const s = strip([
+      row({ id: 'a', hold: { bars: 4, drift: 0 } }),
+      row({ id: 'b', hold: { bars: null, drift: 0 } }),
+    ])
+    expect(stripSeconds(s, TEMPO)).toBe(0)
+    expect(stripSeconds(EMPTY_STRIP, TEMPO)).toBe(0)
+  })
+
+  // Bar-counted holds are bars, so the answer moves with the tempo — which is
+  // why the tray reads it per render rather than storing it.
+  it('follows the tempo', () => {
+    const s = strip([row({ hold: { bars: 4, drift: 0 } })])
+    expect(stripSeconds(s, { bpm: 60, fps: 60 })).toBe(16)
+  })
+
+  // Lap zero's numbers exactly, drift included: the length reported is the
+  // length that will play, and reseeding moves both together.
+  it('is the length the walk will actually draw', () => {
+    const s = strip([row({ hold: { bars: 4, drift: MAX_DRIFT } })])
+    const walked = start(s, CLOCK(0))
+    expect(stripSeconds(s, TEMPO)).toBe((walked.walk.frames ?? 0) / 60)
+    expect(stripSeconds({ ...s, seed: 7 }, TEMPO)).not.toBe(
+      stripSeconds({ ...s, seed: 99 }, TEMPO),
+    )
+  })
+
+  // One lap. A loop is a set going round; the piece is what gets rendered.
+  it('does not multiply by the loop', () => {
+    const s = strip([row({ hold: { bars: 4, drift: 0 } })])
+    expect(stripSeconds({ ...s, loop: false }, TEMPO)).toBe(
+      stripSeconds({ ...s, loop: true }, TEMPO),
+    )
+  })
+})
+
+describe('learning how long a clip is', () => {
+  const unmeasured = (id: string, clip: string) =>
+    row({ id, clip: { id: clip, name: `${clip}.mp4`, seconds: 0 } })
+
+  // Keyed on the clip, not the row: pressing ＋ twice on one clip teaches both
+  // rows from one measurement, and so does a duplicate made before it landed.
+  it('teaches every row holding that clip', () => {
+    const s = strip([
+      unmeasured('a', 'c1'),
+      unmeasured('b', 'c2'),
+      unmeasured('c', 'c1'),
+    ])
+    const known = learnClipSeconds(s, 'c1', 12)
+    expect(known.rows.map(r => r.clip?.seconds)).toEqual([12, 0, 12])
+  })
+
+  // A probe resolves after the click that started it, and a deck may have read
+  // the real duration in between. The one that was there wins.
+  it('does not overwrite a length something already knew', () => {
+    const s = strip([row({ clip: { id: 'c1', name: 'a.mp4', seconds: 30 } })])
+    expect(learnClipSeconds(s, 'c1', 12).rows[0].clip?.seconds).toBe(30)
+  })
+
+  it('a clip that could not be measured changes nothing', () => {
+    const s = strip([unmeasured('a', 'c1')])
+    expect(learnClipSeconds(s, 'c1', 0)).toBe(s)
+    expect(learnClipSeconds(s, 'nobody', 12).rows[0].clip?.seconds).toBe(0)
+  })
+
+  // The point of the whole exercise: a row added off the shelf holds for its
+  // picture once the measurement lands, where before it held for four bars.
+  it('turns a bar-count fallback into the clip’s own length', () => {
+    const added = addRow(EMPTY_STRIP, 'set=', {
+      clip: { id: 'c1', name: 'a.mp4', seconds: 0 },
+    })
+    const tempo = { bpm: 120, fps: 60 }
+    expect(stripSeconds(added, tempo)).toBe(8)
+    expect(stripSeconds(learnClipSeconds(added, 'c1', 3), tempo)).toBe(3)
   })
 })
 
