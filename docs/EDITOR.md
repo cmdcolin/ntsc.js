@@ -543,13 +543,55 @@ Four things worth keeping.
   landing first calls `dropPreroll` and destroys the element the cut was about
   to promote. The effect order is right and only the clock is not, which is the
   same inversion _Landed: between rows_ records, arriving by a different door.
-- **Disk clips only, and the decline is stated rather than silent.** A kept roll
-  resolves through an archive request that downloads whole, so prerolling one
-  speculatively spends a file's worth of network on a row that may never arrive
-  — and the cut would ask again regardless, since `showRef` has its own way in
-  and no url to agree on. A grant that died with the last page load needs a
-  gesture, and a walk is a timer with none. Both keep the cut they had, which is
-  the contract every preroll here already has.
+- **Disk video only, and the declines are stated rather than silent.** A kept
+  roll resolves through an archive request that downloads whole, so prerolling
+  one speculatively spends a file's worth of network on a row that may never
+  arrive — and the cut would ask again regardless, since `showRef` has its own
+  way in and no url to agree on. A grant that died with the last page load needs
+  a gesture, and a walk is a timer with none. Both keep the cut they had, which
+  is the contract every preroll here already has.
+
+  **A still is refused for a sharper reason, and it is the invariant the fast
+  path above rests on.** A preroll parks a `<video>`, which cannot play a JPEG —
+  but `prerollUrl` writes its parked record _before_ awaiting the metadata that
+  will fail, so while an image does not load there is an entry claiming to hold
+  that clip. A cut landing in that window promotes an element that will never
+  show a picture, where the ordinary path would have handed the file to
+  `showImage`. The refusal reads `Clip.kind` off the shelf entry, so it costs no
+  file, no grant and no decoder.
+
+#### And three faults that only a re-read found
+
+Worth recording together, because none of them is visible in a passing build and
+all three are the same shape: **something that resolves late, landing in a world
+that has moved.**
+
+- **A late park outlives the walk that asked for it.** The url preroll never
+  needed a guard — it parks synchronously, so a following preroll and a walk
+  ending both run after it in order. A shelf clip parks two awaits later, so a
+  rundown stopped in that window ran `dropPrerollOn`, found nothing to drop, and
+  got a `<video preload="auto">` holding a whole clip for the life of the page:
+  precisely the leak that function exists to prevent, reintroduced by making its
+  subject asynchronous. A hand firing another row is the same fault with a
+  different ending — the older resolve parks a clip that is no longer next,
+  which is worse than parking none, since the cut then finds a mismatch and
+  loads cold having spent the bar fetching something nobody wanted. A token
+  taken when the ask was made fixes both, and it is `useStrip`'s `epoch` over a
+  pending cut arriving somewhere else: what goes out of date is the _decision_.
+- **A measured duration is not an edit.** It lands from a probe the ＋ started,
+  after the hand has let go, and it went through the funnel that banks undo. So
+  one press of undo took back the measurement rather than the row — leaving it
+  there with its hold snapped from the clip's own length back to a bar count,
+  which reads as undo being broken rather than as there having been two steps.
+  `install` was already separate from banking for exactly this distinction; undo
+  and redo had simply been its only callers.
+- **And the compiler gate caught two shapes in one feature**, which is twice as
+  many as the rest of the app has needed: an `await` inside a `try`, and a
+  variable reassigned from a callback that runs after the render. Both make
+  React Compiler drop `useEngine` whole, and nothing else in the build says so.
+  The rule worth carrying forward is that **adding an async step to a hook is
+  where this bites** — every one of these three came from turning a synchronous
+  answer into a resolved one.
 
 What that leaves is smaller than the entry it closes, and IDEAS.md says so:
 removing the seek removed the _dropout_, and the join is now a hard splice
