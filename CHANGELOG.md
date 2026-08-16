@@ -2,6 +2,18 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.28.1](https://github.com/cmdcolin/ntsc.js/compare/v0.28.0...v0.28.1) - 2026-08-16
+
+### Features
+- *(ui)* [`745bcfd`](https://github.com/cmdcolin/ntsc.js/commit/745bcfd19d6ab540a40a0a16dae8c73bec6c5d61) a reset in the look bar, and a gate that rides the walk
+
+### Fixes
+- *(ui)* [`9e232e7`](https://github.com/cmdcolin/ntsc.js/commit/9e232e7f6a44b3cf6e8c5ccd811bcb226a378d0d) a roll must not start a strobe
+- *(ui)* [`ca8b13c`](https://github.com/cmdcolin/ntsc.js/commit/ca8b13c98c230e6cd924fd20608543d4f011f807) a motion roll must not cable a shut gate
+
+### Tests
+- [`102615d`](https://github.com/cmdcolin/ntsc.js/commit/102615d7289d5dfb06359dddb2f59b515dcc1c93) panelcheck had been red since the map was reshaped
+
 ## [0.28.0](https://github.com/cmdcolin/ntsc.js/compare/v0.27.0...v0.28.0) - 2026-08-16
 
 ### Features
