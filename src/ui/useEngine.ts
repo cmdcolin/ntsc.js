@@ -1226,20 +1226,28 @@ export function useEngine() {
   // rides along on the `Preroll`, so when the cut resolves the same clip
   // `loadClip` opens it under this url rather than minting a second one, and
   // `playUrl` recognises the element it is already holding.
+  // `.then`/`.catch` rather than `await` in a `try`, which is the shape this
+  // was first written in: React Compiler declines a whole hook containing a
+  // conditional inside a `try` block, and `pnpm compiler` is what said so — the
+  // memoization would have gone silently otherwise, on the file that can least
+  // afford it. `useEngine` is not a component, but the rule is the hook's.
   const prerollClipOn = (id: string, start: number) => {
-    void (async () => {
-      try {
-        const open = await openClipById(id)
-        if (open === null || open.at !== 'disk' || open.needsGesture) return
-        const file = await open.open()
-        await prerollUrl(slotA, URL.createObjectURL(file), start, id)
-      } catch (e: unknown) {
+    void openClipById(id)
+      .then(open =>
+        open === null || open.at !== 'disk' || open.needsGesture
+          ? undefined
+          : open
+              .open()
+              .then(file =>
+                prerollUrl(slotA, URL.createObjectURL(file), start, id),
+              ),
+      )
+      .catch((e: unknown) => {
         // Logged rather than shown, on `prerollOn`'s rule one function up: a
         // preroll that fails costs the cut what it used to cost, and there is
         // nothing for a user to do about it.
         debugLog('DEBUG preroll failed', reason(e))
-      }
-    })()
+      })
   }
 
   // Let go of a lookahead nobody is going to spend, which is what a walk ending
