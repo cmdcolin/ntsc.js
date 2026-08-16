@@ -22,7 +22,7 @@
 import { DEFAULT_CONTROLS } from '../controls'
 import { clamp } from '../math'
 import { EMPTY_SLOT, N_SLOTS, RATE_MAX, RATE_MIN } from './modSlots'
-import { MUTATE_AMOUNTS } from './mutate'
+import { MUTATE_AMOUNTS, ROLL_NEVER_STARTS } from './mutate'
 import { PRESETS } from './presets'
 
 import type { ControlKey, Controls } from '../controls'
@@ -171,8 +171,15 @@ export function depthBudget(def: SliderDef): number {
 //   to its steps: a routing on one slides between modes on thresholds, which is
 //   a switch flipping rather than a fault breathing. Only at turbo, where the
 //   wreck is the point.
+//
+//   A control the jitter never starts (`ROLL_NEVER_STARTS`) is off the list
+//   while it rests at 0, at every amount: an LFO swings its target either side
+//   of where it sits, so a slot cabled onto a stopped strobe starts one on its
+//   first upswing — the same full-field flash the jitter is kept away from,
+//   arriving on the button next to it.
 function weightFor(def: SliderDef, controls: Controls, enums: boolean): number {
   if (def.choices !== undefined) return enums ? 0.5 : 0
+  if (ROLL_NEVER_STARTS.has(def.key) && controls[def.key] === 0) return 0
   const authored = AUTHORED_DEPTH.has(def.key) ? 6 : 1
   const live = controls[def.key] !== DEFAULT_CONTROLS[def.key] ? 3 : 1
   const trim = def.fine === true ? 0.35 : 1

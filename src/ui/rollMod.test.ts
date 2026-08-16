@@ -59,6 +59,25 @@ describe('rollBay', () => {
     }
   })
 
+  // The rule the jitter follows, asserted here for the same reason: a slot
+  // cabled onto a stopped strobe starts one on its first upswing, and any rate
+  // it lands on cuts the beam for most of every cycle.
+  it('never starts a strobe on a look that has none', () => {
+    for (const bay of rolls(200, { amount: 'turbo' })) {
+      for (const s of patched(bay)) expect(s.target).not.toBe('strobeHz')
+    }
+  })
+
+  it('will drive a strobe that is already running', () => {
+    const targets = new Set(
+      rolls(200, {
+        amount: 'turbo',
+        controls: { ...DEFAULT_CONTROLS, strobeHz: 3.5 },
+      }).flatMap(bay => patched(bay).map(s => s.target)),
+    )
+    expect(targets.has('strobeHz')).toBe(true)
+  })
+
   it('never rolls a source that would sit there doing nothing', () => {
     for (const bay of rolls(200, { amount: 'turbo' })) {
       for (const s of patched(bay)) {

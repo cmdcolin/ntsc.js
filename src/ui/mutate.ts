@@ -1,6 +1,6 @@
 import { snapToStep } from './controls'
 
-import type { Controls } from '../controls'
+import type { ControlKey, Controls } from '../controls'
 import type { SliderDef } from './controls'
 
 // How hard a jitter lands, as a fraction of each slider's range. `normal` is
@@ -49,6 +49,20 @@ export function mutateAmountFor(e: {
   return 'normal'
 }
 
+// Controls a roll may vary but must never switch on from rest.
+//
+// `strobeHz` at 0 is a picture. A hair above it the beam-blanking gate is held
+// on, and the flash length is absolute rather than a share of the cycle — 40ms
+// at stock — so *every* rate a roll can reach leaves the tube dark for around
+// 95% of the time (signal/strobe.ts, and the measurement in DEVELOPMENT.md's
+// screening notes). That is not a variation on the look: it hides whatever else
+// the roll did behind a full-field flash a few times a second, and a few times a
+// second is the band where a photosensitive viewer pays for it. The rule the
+// button needs is therefore narrow — a roll never *starts* a strobe. Rolled off
+// a look that is already strobing it is a control like any other, which is why
+// this is a set of keys and a test against rest rather than another VIEW_KEYS.
+export const ROLL_NEVER_STARTS = new Set<ControlKey>(['strobeHz'])
+
 // Nudge every control by a random fraction of its own slider range — the
 // bender's hand brushing all the pots at once. Jittering *around* the current
 // look rather than picking fresh-random values keeps sync, colour, and geometry
@@ -62,7 +76,11 @@ export function mutate(
 ): Controls {
   const next = { ...controls }
   for (const s of sliders) {
+    // Drawn before the skip below, not inside the branch: a seeded jitter has
+    // to roll the same look whatever it is rolled off, and a draw that only
+    // sometimes happens shifts every control after it.
     const jitter = (rand() * 2 - 1) * amt * (s.max - s.min)
+    if (ROLL_NEVER_STARTS.has(s.key) && controls[s.key] === 0) continue
     // snapToStep lands mode-select controls (step 1) on whole integers rather
     // than a fractional index no shader branch expects.
     next[s.key] = snapToStep(s, controls[s.key] + jitter)

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_CONTROLS } from '../controls'
+import { rngFor } from '../rng'
 import { GROUPS } from './controls'
 import { mutate } from './mutate'
 
@@ -30,6 +31,35 @@ describe('mutate', () => {
     const b = mutate(input, SLIDERS, 0.2, () => 0.3)
     expect(a).toEqual(b)
     expect(input).toEqual(DEFAULT_CONTROLS)
+  })
+
+  // The button's own bug: any rate a roll could reach cuts the beam for ~95% of
+  // every cycle, so half of all presses replaced the look with a flashing black
+  // screen. Off zero it is a control like any other.
+  it('never starts a strobe on a look that has none', () => {
+    for (const rand of [() => 0, () => 1, () => 0.5, () => 0.9]) {
+      expect(mutate(DEFAULT_CONTROLS, SLIDERS, 0.6, rand).strobeHz).toBe(0)
+    }
+  })
+
+  it('still jitters a strobe that is already running', () => {
+    const on = { ...DEFAULT_CONTROLS, strobeHz: 3.5 }
+    expect(mutate(on, SLIDERS, 0.12, () => 1).strobeHz).toBeGreaterThan(3.5)
+  })
+
+  // Skipping a control must not skip its draw, or a control's roll would depend
+  // on what every control before it was resting at.
+  it('rolls the rest of the look the same whether the strobe is skipped or not', () => {
+    const off = mutate(DEFAULT_CONTROLS, SLIDERS, 0.12, rngFor(7))
+    const on = mutate(
+      { ...DEFAULT_CONTROLS, strobeHz: 3.5 },
+      SLIDERS,
+      0.12,
+      rngFor(7),
+    )
+    for (const s of SLIDERS.filter(d => d.key !== 'strobeHz')) {
+      expect(on[s.key], s.key).toBe(off[s.key])
+    }
   })
 
   it('jitters around the current look, never more than the amount times range', () => {
