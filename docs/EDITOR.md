@@ -488,6 +488,10 @@ Four things worth knowing about how it landed.
   the case with no boundary cost to save in the first place. `prerollFor`
   resolves the two that can be named: an explicit `?vurl`, and a bundled clip
   id, which is a url on the slot's side of the boundary.
+
+  **The list of three was wrong, and the missing case was the ordinary one** —
+  see _Landed: and the rows it was actually built for_ below.
+
 - **`stopSlot` deliberately leaves a parked element alone.** The load paths stop
   the slot and _then_ call `playUrl`, so a `stopSlot` that retired the next
   element would destroy it a line before the cut it was loaded for. What bounds
@@ -497,6 +501,55 @@ Both things filed as waiting on this have landed: **transitions between rows**
 is written up below, and **the second read head** the crossfade was filed under
 is IDEAS.md › _Landed: the second read head_ — which took the mechanism from
 here and not the field, for the reason above.
+
+#### Landed: and the rows it was actually built for
+
+Preroll shipped reaching a `?vurl` and a bundled clip id, and the bullet above
+called that "the two that can be named" against three that cannot. There is a
+fourth, it is neither, and it is what every ordinary rundown of footage is made
+of: **a row that names a shelf clip**. `prerollFor` read the session string,
+`writeProfileParams` drops the source modes a url cannot carry, and so a rundown
+built by pressing ＋ down the shelf prerolled nothing whatsoever. Every cut paid
+the cold price on exactly the rows this section exists for, and a transition
+between two of them had one live picture where the whole mechanism needs two.
+
+The same shape of miss as the row that could not name its clip, one layer down,
+and found the same way — by asking what the shipped thing does with the gesture
+the document opens by asking for, rather than what the design says it supports.
+
+Four things worth keeping.
+
+- **A url cannot identify a file off the shelf**, and this is the part that had
+  to be built rather than wired. `URL.createObjectURL` mints a fresh string
+  every call, so one `File` opened twice is two urls and `playUrl`'s identity
+  match can never fire. Every other source names itself the same way twice and
+  gets the promotion for free; a shelf clip would have loaded from scratch
+  beside an element already holding the picture, which is preroll paying its
+  whole cost and buying nothing. So a `Preroll` records the shelf id it was
+  parked under and `prerolledClip` answers which url to open it as.
+  `prerollcheck.mjs` asserts the url instability outright, because it is a
+  browser fact and the entire mechanism turns on it.
+- **The row's own clip is asked before its session**, on the rule `stepEffects`
+  already follows. A row's session carries whatever was on the board when it was
+  captured, so reading it first would park the wrong picture — and worse than
+  parking nothing, park it under the id the cut is about to ask for, where the
+  promotion would match and put up a clip nobody chose.
+- **The cut spends the preroll before it awaits anything**, and that is a
+  correctness fix rather than a saving. A parked element is open, decoded and
+  sitting at the in-point, so the caption, the clip mark and the stash line are
+  all the cut has left — an id and a name, never a `File`. Resolved through the
+  shelf instead, this row's promotion and the next row's lookahead both opened
+  with the same IndexedDB read, and whichever settled first won: a lookahead
+  landing first calls `dropPreroll` and destroys the element the cut was about
+  to promote. The effect order is right and only the clock is not, which is the
+  same inversion _Landed: between rows_ records, arriving by a different door.
+- **Disk clips only, and the decline is stated rather than silent.** A kept roll
+  resolves through an archive request that downloads whole, so prerolling one
+  speculatively spends a file's worth of network on a row that may never arrive
+  — and the cut would ask again regardless, since `showRef` has its own way in
+  and no url to agree on. A grant that died with the last page load needs a
+  gesture, and a walk is a timer with none. Both keep the cut they had, which is
+  the contract every preroll here already has.
 
 What that leaves is smaller than the entry it closes, and IDEAS.md says so:
 removing the seek removed the _dropout_, and the join is now a hard splice
@@ -1749,6 +1802,15 @@ one, after seven numbered steps about deterministic clocks and demuxers, and the
 one thing in it that was not cosmetic was filed as its last bullet. The pattern
 is now twice in this document: what was hard and what was necessary are two
 different lists, and this one keeps sorting by the first.
+
+**Three times**, and the third came out of the same read of the same gesture:
+preroll reached a `?vurl` and a bundled clip and not the shelf clip an ordinary
+rundown is made of, so every cut in one was cold and every transition in one had
+a single live picture. Written up under _Performance: the boundary is the only
+cost_ › _Landed: and the rows it was actually built for_. All three — the row
+that could not name its clip, the clip whose length nobody had measured, and the
+cut that could not spend a preroll — were invisible from inside the design and
+obvious the moment somebody laid out eight clips and pressed play.
 
 Three things this list deliberately does not carry, all of them wants rather
 than needs. **Cutting to the track's clock** rather than starting with it — the
