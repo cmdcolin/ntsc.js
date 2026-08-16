@@ -1871,6 +1871,16 @@ export const GROUPS: Group[] = [
         fine: true,
         help: 'The 4.5 MHz intercarrier sound leaking past the trap that is supposed to remove it. Lays a fine herringbone of interference over the picture — sound buzz you can see.',
       },
+      {
+        key: 'buzzLevel',
+        label: 'sound buzz',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        fine: true,
+        help: 'The same leak heard instead of seen — this one comes out of your speakers. The sound detector recovers the 4.5 MHz beat between the picture and sound carriers, and a limiter that cannot keep the picture off it hands you the video as audio: the vertical interval as a 60 Hz buzz, line structure as a whine, and every fault above riding along. Bright scenes buzz louder because peak white really does overmodulate, a rolling picture slides the buzz in pitch, and snow hisses. Fine tuning adds to it, the same way it adds to the weave.',
+      },
     ],
   },
   {

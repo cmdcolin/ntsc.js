@@ -102,6 +102,10 @@ export const DEFAULT_CONTROLS = {
   impulseMains: 0, // dimmer lock: random hits bunch into two bands riding the hum
   strikeRate: 0, // big multi-line strikes per second (lightning / arcing breaker)
   soundIre: 0,
+  // The same leak heard rather than seen: video crosstalk the sound detector's
+  // limiter fails to keep off the 4.5 MHz beat. CPU-side only — it reaches the
+  // speakers, not the uniform block (src/signal/buzz.ts).
+  buzzLevel: 0,
   // RF front end: the tuner between the cable and the detector
   rfAdjacent: 0, // adjacent-channel leak through the IF trap (carrier beats, not a picture)
   rfMistuneMHz: 0, // fine tuning error: + frees the sound carrier, - slides down the Nyquist slope

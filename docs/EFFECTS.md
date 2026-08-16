@@ -120,6 +120,20 @@ That last one turns the tint 15,734 times a second. The reference lives in the
 receiver, so the colour bands stay on the glass while a rolling picture slides
 through them.
 
+## Intercarrier buzz — the traffic the other way
+
+**Sound buzz** is the only effect here you listen to. The sound detector
+recovers the 4.5 MHz beat between the picture and sound carriers, and a limiter
+that cannot keep video crosstalk off it hands you the picture as audio: the
+vertical interval as a 60 Hz buzz, line structure as a whine, snow as hiss.
+
+It is a tap on the real composite rather than a synthesised noise, so every
+fault above arrives already in the right relationship to what you can see.
+Bright scenes buzz louder because peak white overmodulates. A rolling picture
+slides the buzz in pitch. Hum bars beat against it. A head switch clicks on the
+line it damages. Fine tuning frees the carrier and makes the weave and the buzz
+worse together, because they are one leak seen from two ends.
+
 ## The rig
 
 - **Modulation** — any control can run on an LFO, random walk, noise,

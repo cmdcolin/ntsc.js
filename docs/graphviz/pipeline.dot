@@ -112,6 +112,12 @@ digraph ntsc_js {
   enhancer [passes="enhancer" fillcolor="@OUT@" style="rounded,filled,dashed"
             label="enhancer — outboard box\nsharpening · pulse clamp · sync restamp\n525 lines, one thread each"];
 
+  // The one pass whose output leaves the GPU: read back to the sound detector
+  // rather than handed to another pass, which is why nothing downstream of it
+  // draws an edge.
+  buzzTap [passes="buzzTap" fillcolor="@OUT@" style="rounded,filled,dashed"
+           label="buzzTap\nintercarrier buzz — video onto the audio line\n525 lines, one thread each"];
+
   // ---- receiver ------------------------------------------------------------
   subgraph cluster_rx {
     label="  ③  Receiver — decode the damaged signal  ";
@@ -175,6 +181,7 @@ digraph ntsc_js {
   decode -> crtFace [label="  outTex"];
   crtFace -> present [label="  faceTex"];
   enhancer -> storePrev [label="  compA — the same waveform\l  the receiver locked to\l"];
+  enhancer -> buzzTap [label="  compA" constraint=false];
 
   // ---- feedback loops (one frame of delay) ---------------------------------
   storePrev -> fbComposite [label="  compPrev\l  next frame\l" style=dashed

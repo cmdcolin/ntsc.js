@@ -13,6 +13,7 @@
 // waveform traced onto the picture. `hit` is an onset envelope, not a level, so
 // it punches on each kick instead of riding the bassline.
 
+import { BuzzOut } from './buzz'
 import { LINES } from './constants'
 
 // Quietest input the auto-gain will still normalize against. Below this it
@@ -80,6 +81,12 @@ export class AudioState {
   // to the speakers. Independent: enabling the mic no longer silences the clips.
   private input: AudioNode | null = null
   private routed: HTMLMediaElement[] = []
+  // The return path — the picture arriving on the audio line. It lives here
+  // rather than beside the engine because this object owns the context every
+  // node in the page has to share, and because the rule keeping it off the
+  // analyser is this object's to enforce. See `pushBuzz`.
+  private buzz: BuzzOut | null = null
+  private closed = false
   level = 0
   hit = 0
 
@@ -177,6 +184,29 @@ export class AudioState {
     }
   }
 
+  // Video crosstalk out to the speakers, one measurement pair per line. Builds
+  // the graph on first use, so the buzz works with no input source picked at
+  // all — a set buzzes at whatever is on screen, and nothing about that needs a
+  // microphone. The slider that raises `drive` is the user gesture the context
+  // needs to leave suspended.
+  //
+  // BuzzOut connects to `ctx.destination` and to nothing else, deliberately.
+  // Routing it into `analyser` would put it into `data`, which FMs the very
+  // sound carrier the tap measures: video → audio → video, with gain.
+  //
+  // The `closed` guard is not belt and braces: this is the one caller that
+  // arrives from a promise rather than a call stack — the GPU readback lands
+  // whenever it lands — so it is the one that can turn up after teardown, and
+  // `ensureGraph` would answer by building a whole new AudioContext for an
+  // engine that no longer exists.
+  pushBuzz(tap: Float32Array, drive: number): void {
+    if (drive > 0 && !this.closed) {
+      const g = this.ensureGraph()
+      this.buzz ??= new BuzzOut(g.ctx)
+      this.buzz.push(tap, drive)
+    }
+  }
+
   setReverbMix(reverb: number): void {
     if (this.graph !== null) this.graph.wet.gain.value = reverb
   }
@@ -217,7 +247,10 @@ export class AudioState {
   // an engine torn down with the mic live (a hot reload, or the component
   // unmounting) left the browser recording into a graph no one was reading.
   close(): void {
+    this.closed = true
     this.disconnect()
+    this.buzz?.close()
+    this.buzz = null
     void this.graph?.ctx.close()
     this.graph = null
     // Every source belonged to the closed context, so none can be reused; a

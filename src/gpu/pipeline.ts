@@ -41,6 +41,7 @@ import { StabGate } from '../signal/stab'
 import { StrobeGate } from '../signal/strobe'
 import { SynthState } from '../signal/synthstate'
 import { TapeState, tapeRecording } from '../signal/tapeloop'
+import { BuzzRead } from './buzzread'
 import { gpuPowerFromSearch, initGpu, releaseGpu } from './context'
 import { debugOn, pageSearch } from './env'
 import { aFeedOn, bFeedOn, bOn, bWaveOn, FEEDS } from './feedgates'
@@ -55,6 +56,7 @@ import {
 import { RenderLoop } from './renderloop'
 import { Overlay } from './savedBoard'
 import blitExtSrc from './shaders/blit_ext.wgsl?raw'
+import buzzTapSrc from './shaders/buzz_tap.wgsl?raw'
 import channelSrc from './shaders/channel.wgsl?raw'
 import chromaExtractSrc from './shaders/chroma_extract.wgsl?raw'
 import composeSrc from './shaders/compose.wgsl?raw'
@@ -387,6 +389,8 @@ export class Engine implements EngineApi {
   private timingBuf: GPUBuffer
   private syncMeasureBuf: GPUBuffer
   private audioBuf: GPUBuffer
+  private buzzBuf: GPUBuffer
+  private buzzRead: BuzzRead
   // Phosphor state, ping-ponged: decode reads the light the screen is holding
   // out of one and writes the new state into the other, so its lateral scatter
   // sees settled neighbours rather than a buffer mid-overwrite.
@@ -506,6 +510,10 @@ export class Engine implements EngineApi {
     this.syncMeasureBuf = storage(LINES * 16)
     // one audio sample per line, uploaded each frame
     this.audioBuf = storage(LINES * 4)
+    // and the traffic in the other direction: one (mean, deviation) pair per
+    // line, read back to the sound detector (buzz_tap.wgsl, signal/buzz.ts)
+    this.buzzBuf = storage(LINES * 8, GPUBufferUsage.COPY_SRC)
+    this.buzzRead = new BuzzRead(d, LINES * 8)
     // Phosphor persistence state: the light still on the glass, as linear-light
     // half floats — two u32 per pixel, RG then B. Not the rgba8 this used to be;
     // see the store's note in decode.wgsl for why an 8-bit encoded tail freezes
@@ -576,6 +584,7 @@ export class Engine implements EngineApi {
     const timebasePl = compute(timebaseSrc)
     const enhancerPl = compute(enhancerSrc)
     const syncMeasurePl = compute(syncMeasureSrc)
+    const buzzTapPl = compute(buzzTapSrc)
     const syncPl = compute(syncSrc)
     const lineAnalyzePl = compute(lineAnalyzeSrc)
     const decodePl = compute(decodeSrc)
@@ -920,6 +929,16 @@ export class Engine implements EngineApi {
           c.enhDroopUs > 0 ||
           (c.enhPeakMHz > 0 && c.enhPeakBoost > 0) ||
           c.enhSync > 0,
+      ),
+      // The sound detector's tap, reading the same waveform sync is about to
+      // lock to. Gated hard: it is the app's only steady-state readback, so a
+      // listener who has not asked for buzz pays nothing for it.
+      pass(
+        'buzzTap',
+        buzzTapPl,
+        [{ buffer: this.compA }, { buffer: this.buzzBuf }],
+        perRow,
+        () => this.buzzDrive() > 0,
       ),
       pass(
         'syncMeasure',
@@ -1405,8 +1424,19 @@ export class Engine implements EngineApi {
       this.timingBuf,
       this.syncMeasureBuf,
       this.audioBuf,
+      this.buzzBuf,
       ...this.persistBufs,
     ]
+  }
+
+  // How hard the picture is pushing on the sound. The slider is the limiter's
+  // own failure and stands alone — a well-tuned set still buzzes on peak white
+  // — while mistuning frees the carrier and makes it worse, which is the same
+  // term `uniformValues` folds into `soundIre` for the visible half. One cause,
+  // two symptoms, one knob moving both.
+  private buzzDrive(): number {
+    const c = this.controls
+    return Math.min(1.5, c.buzzLevel + 0.6 * Math.max(c.rfMistuneMHz, 0))
   }
 
   private allTexs(): GPUTexture[] {
@@ -1440,6 +1470,9 @@ export class Engine implements EngineApi {
       this.onFrozen = NOOP
       for (const b of this.allBufs()) b.destroy()
       for (const t of this.allTexs()) t.destroy()
+      // Its staging buffers are not in allBufs — they are the readback's own,
+      // and one of them is usually mapped or mid-map when this runs.
+      this.buzzRead.destroy()
       this.pump.destroy()
       this.sources.destroy()
       // The audio graph is not the device's, so nothing above releases it — and
@@ -2413,6 +2446,8 @@ export class Engine implements EngineApi {
     // the phosphor state buffers.
     this.decodePass.bg = this.decodeBgs[this.frame % 2]
     for (const p of this.postPasses) run(p)
+    const buzz = this.buzzDrive()
+    if (buzz > 0) this.buzzRead.copy(enc, this.buzzBuf)
 
     this.presentPass(enc)
 
@@ -2421,6 +2456,15 @@ export class Engine implements EngineApi {
       d.pushErrorScope('internal')
     }
     d.queue.submit([enc.finish()])
+    // After the submit that carries the copy, and never awaited: the map lands
+    // a frame or two from now and the audio ring is built to glide over the
+    // gap. The drive is read again on arrival rather than captured above, so
+    // letting go of the slider stops the sound on the next frame instead of
+    // playing out whatever was already in flight.
+    if (buzz > 0)
+      this.buzzRead.flush(tap =>
+        this.audioState.pushBuzz(tap, this.buzzDrive()),
+      )
     if (this.frame < 3) {
       const f = this.frame
       void d

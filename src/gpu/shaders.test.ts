@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 
 import { PRELUDE } from './prelude'
 import blitExt from './shaders/blit_ext.wgsl?raw'
+import buzzTap from './shaders/buzz_tap.wgsl?raw'
 import channel from './shaders/channel.wgsl?raw'
 import chromaExtract from './shaders/chroma_extract.wgsl?raw'
 import compose from './shaders/compose.wgsl?raw'
@@ -40,6 +41,7 @@ import { join } from 'node:path'
 
 const SHADERS: Record<string, string> = {
   blit_ext: blitExt,
+  buzz_tap: buzzTap,
   channel,
   chroma_extract: chromaExtract,
   compose,

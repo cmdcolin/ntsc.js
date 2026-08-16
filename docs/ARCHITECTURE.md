@@ -48,7 +48,7 @@ One frame, driven by `Engine.render()` in `src/gpu/pipeline.ts`:
 ```
 prePasses    compose → encodeYuv → encodeComposite → [feedA] → [composeB → encodeYuvB → encodeChromaB → encodeCompositeB → feedB → mixB] → [fbComposite] → [tapePlay → tapeRec]
 loopPasses   chromaExtract → [underDown] → channel → timebase     (× dubGens, ≤ 4)
-postPasses   [enhancer] → syncMeasure → sync → lineAnalyze → decode → crtFace → [storePrev]
+postPasses   [enhancer] → [buzzTap] → syncMeasure → sync → lineAnalyze → decode → crtFace → [storePrev]
 present      render pass to the swap chain
 ```
 
@@ -151,6 +151,13 @@ fault through `timing[]` will spin hue that should have stayed put.
 - **`syncMeasureBuf`** — one `vec4f` per line from `sync_measure`:
   `(sync edge or −1000, sync depth, mean beam load, broad-pulse flag)`.
 - **`audioBuf`** — one float per line, the audio waveform at line rate.
+- **`buzzBuf`** — one `vec2f` per line from `buzz_tap`: the line's mean
+  composite level and the RMS of its within-line deviation, both IRE. The
+  traffic in the opposite direction to `audioBuf`, and the app's **only
+  steady-state GPU→CPU readback** — `gpu/buzzread.ts` maps it through a pool of
+  three staging buffers and skips the frame when none is free, because the sound
+  side can glide over a gap and the render loop cannot afford to wait. Gated on
+  the buzz being audible at all, so an idle listener pays nothing.
 - **`tapeBuf`** — the delay loop, `TAPE_FRAMES` (120) composite frames as f16
   pairs packed into `u32`, two seconds at 60 fps for 109 MiB. It is a _medium_,
   not a frame store: `tapeRec` writes the slot `frame % TAPE_FRAMES` and
