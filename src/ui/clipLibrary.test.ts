@@ -15,6 +15,7 @@ import {
   filterLibrary,
   groupPicked,
   hasPick,
+  learnSeconds,
   libraryGroups,
   matchPicked,
   readLibrary,
@@ -488,6 +489,79 @@ describe('readLibrary', () => {
     expect(got.seq).toBe(14)
     const grown = addClips(got, '', [{ name: 'b.mp4', size: 0 }])
     expect(grown.added[0].clip.id).toBe('c15')
+  })
+})
+
+// A shelf entry that knows how long its clip runs, which is what makes a
+// rundown of clips play at the lengths of its pictures rather than at a bar
+// count somebody guessed.
+describe('how long a clip runs', () => {
+  const stored = (seconds: unknown) =>
+    readLibrary({
+      clips: [
+        {
+          id: 'c1',
+          name: 'a.mp4',
+          folder: '',
+          kind: 'video',
+          size: 1,
+          at: 'disk',
+          ref: '',
+          seconds,
+        },
+      ],
+      seq: 1,
+    }).clips[0]
+
+  it('arrives unmeasured, because measuring costs opening the file', () => {
+    const added = addClips(EMPTY_LIBRARY, '', [{ name: 'a.mp4', size: 1 }])
+    expect(added.lib.clips[0].seconds).toBe(0)
+    // And a kept roll stays that way: measuring one means downloading the
+    // whole file, so it keeps the bar-count fallback.
+    expect(addPick(EMPTY_LIBRARY, ident, 'a clip').clip.seconds).toBe(0)
+  })
+
+  it('round-trips', () => {
+    expect(stored(12.5).seconds).toBe(12.5)
+  })
+
+  // An entry written before the field existed is not a broken entry — it is an
+  // ordinary one nobody has measured, which is the state a fresh one is in.
+  it('reads an older entry as unmeasured rather than dropping it', () => {
+    const got = readLibrary({
+      clips: [
+        {
+          id: 'c1',
+          name: 'a.mp4',
+          folder: '',
+          kind: 'video',
+          size: 1,
+          at: 'disk',
+          ref: '',
+        },
+      ],
+      seq: 1,
+    })
+    expect(got.clips.map(c => c.seconds)).toEqual([0])
+  })
+
+  // `duration` reads NaN before metadata lands and Infinity on a stream, and
+  // either one through `holdFrames` is a row that never ends.
+  it('refuses anything that is not a real length', () => {
+    for (const bad of [0, -3, 'ages', null, Infinity, NaN])
+      expect(stored(bad).seconds).toBe(0)
+  })
+
+  it('is learned once and then left alone', () => {
+    const lib = addClips(EMPTY_LIBRARY, '', [{ name: 'a.mp4', size: 1 }]).lib
+    const known = learnSeconds(lib, 'c1', 12)
+    expect(known.clips[0].seconds).toBe(12)
+    // A second measurement does not overwrite the first, and a shelf with
+    // nothing to learn is the same object — this list is React state, and a new
+    // one re-renders every row on it.
+    expect(learnSeconds(known, 'c1', 30)).toBe(known)
+    expect(learnSeconds(lib, 'c1', 0)).toBe(lib)
+    expect(learnSeconds(lib, 'nobody', 12)).toBe(lib)
   })
 })
 

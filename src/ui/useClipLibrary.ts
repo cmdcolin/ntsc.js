@@ -9,12 +9,14 @@ import {
   clipRef,
   hasPick,
   keepPick,
+  learnSeconds,
   loadLibrary,
   removeClip,
   removeFolder,
   saveLibrary,
   syncFolder,
 } from './clipLibrary'
+import { probeDuration } from './duration'
 import { reason } from './format'
 import { canPickFolder, canPickHandle } from './fsAccess'
 
@@ -166,10 +168,64 @@ export function useClipLibrary(
     } else {
       setNote('')
       how.open().then(
-        file => load(slot, file, clip),
+        file => {
+          load(slot, file, clip)
+          // And learn how long it is on the way past, since the bytes are open
+          // and the browser is about to read this header anyway. Auditioning a
+          // clip and then adding it is the ordinary order, so this is usually
+          // what makes the ＋ instant rather than a probe of its own.
+          if (clip.seconds === 0) {
+            void probeDuration(file).then(seconds => {
+              if (seconds > 0) remember(clip.id, seconds)
+            })
+          }
+        },
         (e: unknown) => setNote(`${clip.name}: ${reason(e)}`),
       )
     }
+  }
+
+  // Write a measured duration down in both places it has to land: the stored
+  // shelf, and this render's copy of it.
+  //
+  // Through `loadLibrary()` rather than the `lib` in hand, because a probe
+  // resolves a moment after the click that started it and the shelf may have
+  // been edited in between — saving a snapshot taken before that edit would
+  // quietly undo it. `learnSeconds` is pure and only ever fills a blank, so
+  // applying it to the stored list and to the state list separately cannot make
+  // the two disagree.
+  const remember = (id: string, seconds: number) => {
+    saveLibrary(learnSeconds(loadLibrary(), id, seconds))
+    setLib(prev => learnSeconds(prev, id, seconds))
+  }
+
+  // How long a clip runs, measuring it if nobody has yet.
+  //
+  // What wants it is a rundown: a row's `'clip'` hold is as long as its
+  // picture, and until this existed the only thing that had ever read a
+  // `duration` was a deck with the clip already playing on it — so a rundown
+  // built by pressing ＋ down the shelf held every row for a bar count instead.
+  //
+  // **0 for a kept roll**, and deliberately: a remote clip has no bytes here,
+  // and `sources/pool.ts` downloads whole, so measuring one would mean fetching
+  // the entire file to read its header. That row keeps the bar-count fallback,
+  // which is the same answer it had before and an honest one — the shelf knows
+  // a title and where to ask for it, and neither says how long it is.
+  //
+  // The click that calls this is the gesture a lapsed grant needs, which is why
+  // it opens the clip the way `play` does rather than awaiting anything first.
+  const measure = (clip: Clip): Promise<number> => {
+    if (clip.seconds > 0) return Promise.resolve(clip.seconds)
+    const how = access.clips.get(clip.id)
+    if (how === undefined || how.open === null) return Promise.resolve(0)
+    return how
+      .open()
+      .then(probeDuration)
+      .then(seconds => {
+        if (seconds > 0) remember(clip.id, seconds)
+        return seconds
+      })
+      .catch(() => 0)
   }
 
   // Keep a pick, or take it off again — the ★ under a caption and the browser's
@@ -205,6 +261,7 @@ export function useClipLibrary(
     adopt,
     rescan,
     play,
+    measure,
     keep,
     kept: (ref: PoolRef) => hasPick(lib, ref),
     forgetClip,

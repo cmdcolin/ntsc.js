@@ -82,6 +82,22 @@ export interface Clip {
   // Remote only: the Commons page title ("File:x.webm") or the archive.org
   // identifier that re-resolves this clip. '' on disk.
   ref: string
+  // How long it runs, in seconds, or 0 for "nobody has asked yet".
+  //
+  // **Not read when the clip is added**, which is the whole reason it can be 0.
+  // A duration is in the file rather than in its directory entry, so measuring
+  // one costs opening it — and `addClips` is handed `{name, size}` precisely
+  // because a folder scan that called `getFile()` per entry is what makes
+  // shelving a hundred clips slow. So this is filled in on demand, by the first
+  // thing that needs the number, and kept because the second thing should not
+  // pay again.
+  //
+  // What needs it is a rundown: a row's `'clip'` hold is as long as the picture
+  // runs, and a clip added straight off the shelf has never been on a deck for
+  // anything to have read `duration` off. Without this the hold fell back to a
+  // bar count, so eight clips of eight different lengths played for eight
+  // identical bars — docs/EDITOR.md › _What to do next_ § 8.
+  seconds: number
 }
 
 // A remote clip, as the thing that can be asked for again. Null for a clip on
@@ -183,7 +199,7 @@ export function addClips(
     }
     seq += 1
     seen.add(key)
-    const clip: Clip = { id: `c${seq}`, ...draft, kind }
+    const clip: Clip = { id: `c${seq}`, ...draft, kind, seconds: 0 }
     clips.push(clip)
     added.push({ clip, at })
   }
@@ -232,6 +248,7 @@ export function addPick(
     id: `c${seq}`,
     ...draft,
     kind: ref.kind === 'photo' ? 'image' : 'video',
+    seconds: 0,
   }
   // Newest first among the remote entries, because a star is a thing you do to
   // what is on screen right now and the one you just kept is the one you are
@@ -303,6 +320,25 @@ export function syncFolder(
     dropped: grown.dropped,
   }
 }
+
+// Write down how long a clip runs, once something has measured it.
+//
+// The same rundown-side rule `strip.learnClipSeconds` follows and for the same
+// reason: only an entry that does not know, so a probe that lands late cannot
+// overwrite an answer read off the file itself. Identity-stable when there is
+// nothing to learn, because the shelf is React state and a new list is a
+// re-render of every row on it.
+export const learnSeconds = (
+  lib: Library,
+  id: string,
+  seconds: number,
+): Library =>
+  seconds > 0 && lib.clips.some(c => c.id === id && c.seconds === 0)
+    ? {
+        ...lib,
+        clips: lib.clips.map(c => (c.id === id ? { ...c, seconds } : c)),
+      }
+    : lib
 
 export const dropClip = (lib: Library, id: string): Library => ({
   ...lib,
@@ -485,6 +521,16 @@ function readClip(raw: unknown): Clip | undefined {
   const ref = 'ref' in raw ? raw.ref : ''
   const where: ClipAt | undefined =
     at === 'disk' || at === 'commons' || at === 'archive' ? at : undefined
+  // No fallback and no rejection: an entry written before this field existed is
+  // an ordinary shelf entry that nobody has measured, which is the same state a
+  // fresh one is in. Finite and positive or nothing, for `RowClip.seconds`'
+  // reason — a `duration` of NaN or Infinity through `holdFrames` is a row that
+  // never ends.
+  const stored = 'seconds' in raw ? raw.seconds : undefined
+  const seconds =
+    typeof stored === 'number' && Number.isFinite(stored) && stored > 0
+      ? stored
+      : 0
   return typeof id === 'string' &&
     id !== '' &&
     typeof name === 'string' &&
@@ -496,7 +542,7 @@ function readClip(raw: unknown): Clip | undefined {
     where !== undefined &&
     typeof ref === 'string' &&
     (where === 'disk' || ref !== '')
-    ? { id, name, folder, kind, size, at: where, ref }
+    ? { id, name, folder, kind, size, at: where, ref, seconds }
     : undefined
 }
 
