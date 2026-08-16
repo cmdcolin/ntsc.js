@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_CONTROLS } from '../controls'
 import { rngFor } from '../rng'
-import { MUTATE_SLIDERS, SLIDER_BY_KEY, VIEW_KEYS, sliderFor } from './controls'
+import {
+  MUTATE_SLIDERS,
+  NEEDS,
+  SLIDER_BY_KEY,
+  VIEW_KEYS,
+  sliderFor,
+} from './controls'
 import { EMPTY_SLOT, N_SLOTS, RATE_MAX, RATE_MIN } from './modSlots'
 import { AUTHORED_DEPTH, depthBudget, rollBay } from './rollMod'
 
@@ -169,6 +175,37 @@ describe('rollBay', () => {
       patched(bay).filter(s => s.target === 'fbMix' || s.target === 'fbGain'),
     ).length
     expect(hits).toBeGreaterThan(flat)
+  })
+
+  // The rule the ∿ on every control row already follows: a gate shut means the
+  // control addresses nothing, so a slot spent there is patched, named, and
+  // invisible.
+  it('never cables a control whose gate is shut', () => {
+    for (const controls of [
+      DEFAULT_CONTROLS,
+      { ...DEFAULT_CONTROLS, fbMix: 0.7 },
+    ])
+      for (const bay of rolls(200, { amount: 'turbo', controls })) {
+        for (const s of patched(bay)) {
+          const need = NEEDS[s.target]
+          if (need !== undefined) expect(need.ok(controls[need.key])).toBe(true)
+        }
+      }
+  })
+
+  it('cables one whose gate the look has opened', () => {
+    // `fbZoom` is inert with the loop mix at 0 and live above it, which is the
+    // pair of runs that says the gate is what decided, not the weighting.
+    const targets = (controls: Controls) =>
+      new Set(
+        rolls(200, { amount: 'wild', controls }).flatMap(bay =>
+          patched(bay).map(s => s.target),
+        ),
+      )
+    expect(targets(DEFAULT_CONTROLS).has('fbZoom')).toBe(false)
+    expect(targets({ ...DEFAULT_CONTROLS, fbMix: 0.5 }).has('fbZoom')).toBe(
+      true,
+    )
   })
 
   it('is the same roll for the same seed', () => {

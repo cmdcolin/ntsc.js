@@ -21,6 +21,7 @@
 
 import { DEFAULT_CONTROLS } from '../controls'
 import { clamp } from '../math'
+import { NEEDS } from './controls'
 import { EMPTY_SLOT, N_SLOTS, RATE_MAX, RATE_MIN } from './modSlots'
 import { MUTATE_AMOUNTS, ROLL_NEVER_STARTS } from './mutate'
 import { PRESETS } from './presets'
@@ -177,7 +178,22 @@ export function depthBudget(def: SliderDef): number {
 //   of where it sits, so a slot cabled onto a stopped strobe starts one on its
 //   first upswing — the same full-field flash the jitter is kept away from,
 //   arriving on the button next to it.
+//
+//   A control behind a shut gate (`NEEDS`) is never picked, at any amount and
+//   whatever else it has going for it. The 3× above says a control off its
+//   resting value is probably in circuit, which is a guess; a gate is the app's
+//   own statement that this control addresses nothing until another one opens
+//   its path, and the ∿ on every row already refuses to claim a slot on one for
+//   exactly this reason. Without it a roll spent slots on tape wow with the tape
+//   path bypassed — patched, named on its row, and moving nothing — and spent
+//   them *first*, since a hand-tuned depth is worth six draws whether or not the
+//   circuit it was tuned in is switched on. On a stock board it takes 69 of the
+//   210 targets out of the hat.
 function weightFor(def: SliderDef, controls: Controls, enums: boolean): number {
+  // First, and above the turbo exemption below it: a wreck is still a wreck you
+  // can see, and a mode stepped behind a shut gate is not.
+  const need = NEEDS[def.key]
+  if (need !== undefined && !need.ok(controls[need.key])) return 0
   if (def.choices !== undefined) return enums ? 0.5 : 0
   if (ROLL_NEVER_STARTS.has(def.key) && controls[def.key] === 0) return 0
   const authored = AUTHORED_DEPTH.has(def.key) ? 6 : 1
