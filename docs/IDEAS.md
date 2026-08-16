@@ -523,9 +523,9 @@ the freeze, the same rule a claim and a restart in the bay already follow, and
 `panelcheck.mjs` drives every state the row can be in.
 
 Shipped since: **the far end takes a held look**, which turns the same gate into
-a hard flip between two looks — `⧉ hold this look` parks the resting board at the
-other side and the length row becomes a duty, because the two ends of a flip are
-peers where a stab's are not. Worth knowing for anything built near it: the
+a hard flip between two looks — `⧉ hold this look` parks the resting board at
+the other side and the length row becomes a duty, because the two ends of a flip
+are peers where a stab's are not. Worth knowing for anything built near it: the
 _hard_ flip is the affordable one and a crossfade is not, since the filter bank
 is redesigned whenever a filter control moves — a cut pays that on the two edges
 of a cycle, a fade would pay it every frame. That is also why this is the gate's
@@ -552,9 +552,10 @@ does not work":
   shape to reach for is probably the same one the strip uses for a row: store
   the far board as a diff against stock, since a held look is usually a handful
   of controls off it and `writeProfileParams` already knows how to write that.
-  Storing a preset *name* is the tempting cheap version and it is wrong for the
+  Storing a preset _name_ is the tempting cheap version and it is wrong for the
   same reason `Stab.to` is a board rather than a name — the look you hold is
   usually one you dialed, not one somebody authored.
+
 - **No knob can reach it.** The row passes `sync` but no `midi`, so the one
   lever here described as "the kill switch a bender keeps a thumb on"
   (`signal/stab.ts`) is mouse-only, while the motion fader an inch away is a
@@ -802,6 +803,50 @@ this section. 11 ms is one frame, which is a click rather than a dropout, and
 fading the gain across the join is the standard fix for exactly that. It was
 worth almost nothing against a half-second hole; against what is left it is the
 whole of the remainder.
+
+## Intercarrier buzz — taking the detector off the main thread
+
+`signal/buzz.ts`'s `detect` runs on the main thread, inside the callback
+`gpu/buzzread.ts` gets back from `mapAsync`. Measured with the slider up: 20.0
+µs for the 525-line DC-block/hiss/tanh loop and 1.7 µs for the copy that gets
+transferred — about 25 µs a frame once the `postMessage` is counted, or 0.13% of
+a 60 fps budget. Nothing at all at `buzzLevel` 0, since the pass, the copy and
+the readback are gated on it together.
+
+**The part worth moving is the part that cannot move.** The `GPUDevice` belongs
+to the main thread, `mapAsync` resolves on whichever thread owns the buffer, and
+`getMappedRange` hands back an `ArrayBuffer` the browser detaches on unmap — so
+nothing can forward it to a worker or a worklet. What is left on the main thread
+is the callback, a memcpy and a `postMessage`: roughly 2 µs of the 25. Moving
+the device itself means reopening [0003](adr/0003-delete-the-worker-engine.md),
+and "an unimplemented audio path" was already on that decision's list of costs.
+
+Two routes, if anyone revisits this.
+
+- **`detect` into the worklet.** Send the raw `(mean, dev)` pairs rather than
+  finished samples — 4.2 KB instead of 2.1 KB — and do the arithmetic on the
+  audio thread. Simple, and it puts a 20 µs loop on the thread with the hardest
+  deadline in the app: 0.75% of a 2.67 ms quantum at 48 kHz, once every six
+  quanta or so. Safe, and still the worse of the two.
+- **`detect` onto the GPU.** `sync.wgsl` already carries the pattern for a
+  serial recurrence — it dispatches `[1, 1]` and walks all 525 lines in one
+  thread to run the PLL — so a `buzz_detect` pass would sit beside it: the DC
+  blocker's state in two persistent slots, `pcg`/`gauss` for the hiss, and
+  `tanh` is a WGSL builtin anyway. The readback then carries finished audio,
+  which halves it, and both threads are left holding only the handoff.
+
+The GPU route costs the tests, which is the reason it has not simply been done.
+`signal/buzz.spec.ts` makes six behavioural assertions on `detect` — that it
+rejects the standing level a picture sits at, that the vertical interval comes
+back as the buzz, that brightness orders the loudness, that no drive setting
+reaches full scale — and in WGSL each of those becomes a shader naga typechecks
+and nothing exercises.
+
+**What would decide this is a number nobody has.** The 25 µs above is the JS
+only. `mapAsync`'s own main-thread cost inside Firefox — syncing with the GPU
+process — is unmeasured, and it is the half that stays put however the other
+half moves. A `performance` measure around the flush and one `buzzsound` run
+would settle whether the rest is worth chasing.
 
 ## In flight — preset screening, round 2
 
