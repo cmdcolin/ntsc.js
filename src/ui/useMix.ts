@@ -3,14 +3,13 @@ import { useState } from 'react'
 import { DEFAULT_CONTROLS } from '../controls'
 import { MUTATE_SLIDERS } from './controls'
 import { EMPTY_HISTORY, record, stepBack, stepForward } from './history'
-import { sameBay } from './modSlots'
+import { DEFAULT_STAB, sameBay, sameGate } from './modSlots'
 import { morphTo } from './morph'
 import { MUTATE_AMOUNTS, mutate } from './mutate'
 import {
   blendMod,
   blendPresets,
   controlsEqual,
-  presetControls,
   randomPresetMix,
   rollControls,
 } from './presets'
@@ -20,17 +19,20 @@ import type { Controls } from '../controls'
 import type { GlidePlan } from '../signal/glide'
 import type { SliderDef } from './controls'
 import type { History } from './history'
-import type { UiSlot } from './modSlots'
+import type { Stab, UiSlot } from './modSlots'
 import type { ModSlotsApi } from './ModSlotsContext'
 import type { MutateAmount } from './mutate'
 import type { PresetWeights } from './presets'
 
-// A whole look: where the controls rest, and what is moving them. Both, because
-// undoing a preset that started an LFO has to stop the LFO too — otherwise the
-// step back leaves the previous look with the new one's motion running on it.
+// A whole look: where the controls rest, what is moving them, and the gate
+// cutting the board in and out. All three, because undoing a preset that started
+// an LFO has to stop the LFO too — otherwise the step back leaves the previous
+// look with the new one's motion running on it — and because `reset` stops the
+// stab gate, which is the one verb that can take a gate off the board.
 interface Look {
   controls: Controls
   slots: readonly UiSlot[]
+  stab: Stab
 }
 
 // Two looks are the same look when the controls match. The bay is deliberately
@@ -53,6 +55,12 @@ const sameLook = (a: Look, b: Look) => controlsEqual(a.controls, b.controls)
 // bay comparison it has no use for.
 const sameLookAndBay = (a: Look, b: Look) =>
   sameLook(a, b) && sameBay(a.slots, b.slots)
+
+// Everything a reset wipes, for the verb that wipes all of it: the gate counts
+// here and nowhere else, since a board already at stock with the gate running is
+// still a board the reset changes.
+const sameBoard = (a: Look, b: Look) =>
+  sameLookAndBay(a, b) && sameGate(a.stab, b.stab)
 
 // Stable empty weights, so a stale mix passes the same map every render.
 const NO_WEIGHTS: PresetWeights = new Map()
@@ -93,9 +101,17 @@ export function useMix(args: {
   // `master` and its setter are here for the motion roll alone — see the freeze
   // it lifts there. The other verbs deliberately leave the amount where it is:
   // a preset is a statement about the look and the freeze is a gesture over it.
+  // The gate is the other way round — a stab train is part of the look, so it
+  // rides the walk with the slots and `reset` stops it.
   mod: Pick<
     ModSlotsApi,
-    'slots' | 'setSlots' | 'setRoutings' | 'master' | 'setMaster'
+    | 'slots'
+    | 'setSlots'
+    | 'setRoutings'
+    | 'master'
+    | 'setMaster'
+    | 'stab'
+    | 'setStab'
   >
 }) {
   const { controls, getControls, writeControls, morphSeconds, mod } = args
@@ -132,6 +148,7 @@ export function useMix(args: {
   const banked = (): Look => ({
     controls: args.getGlideTarget() ?? getControls(),
     slots: mod.slots,
+    stab: mod.stab,
   })
 
   // Where a look arrives. At `cut` this is the write it always was; at any other
@@ -188,7 +205,36 @@ export function useMix(args: {
       setHistory(out.history)
       land(out.value.controls)
       mod.setSlots(out.value.slots)
+      mod.setStab(out.value.stab)
     }
+  }
+
+  // Stock, and nothing running: the controls, the recipe, the bay and the gate.
+  // Without the step it records, which its two callers each own — the button
+  // banks one, and the "clean" chip is already inside `applyPreset`'s.
+  //
+  // The gate is the part a reset used to leave behind, and it was the loudest
+  // thing it could leave: the chip put every slider back to stock and the board
+  // carried on cutting to it several times a second, so the one verb that
+  // promises a still picture was the one verb that could not deliver it.
+  //
+  // The motion amount stays where it is, deliberately — with the bay empty there
+  // is nothing left for it to scale, and a freeze is a gesture within a set
+  // rather than a setting the board holds (the same rule the motion roll and a
+  // fresh claim follow, from the other side).
+  const toStock = () => {
+    // A roll of nothing at all, which is what stock is — and it goes through
+    // `rollControls` for the rule that function owns: the view comes back from
+    // where you are looking rather than from the destination. A reset was the
+    // last way left in the app to lose a magnifier you had aimed, and it only
+    // did it at `morph: cut`, since every other duration holds the view keys
+    // back (`morphTo`) — so what the button did to your view depended on a
+    // setting about how long looks take to arrive.
+    land(rollControls(NO_WEIGHTS, getControls()))
+    setMix({ base: DEFAULT_CONTROLS, weights: new Map() })
+    mod.setRoutings([])
+    mod.setStab(DEFAULT_STAB)
+    setLastPreset('clean')
   }
 
   return {
@@ -213,12 +259,10 @@ export function useMix(args: {
       // so the ordinary mouse path still banks exactly one step.
       setHistory(h => record(h, banked(), sameLook))
       if (Object.keys(patch).length === 0) {
-        // "clean" (the only empty patch) is the reset: wipe the mix to defaults
-        // — and stillness is part of that, so this is the one place a preset
-        // asserts an empty bay rather than staying silent about motion.
-        land(presetControls(patch))
-        setMix({ base: DEFAULT_CONTROLS, weights: new Map() })
-        mod.setRoutings([])
+        // "clean" is the only empty patch, and it is the reset — the same one
+        // the look bar's button presses, so the chip and the button cannot come
+        // to mean two different amounts of stock.
+        toStock()
       } else {
         // Clicking tops the preset up to full without clearing partials already
         // dialed in — the same as dragging its slider to 100%.
@@ -325,6 +369,19 @@ export function useMix(args: {
       // light five rows up as driven, and move nothing whatsoever. Asking for
       // motion is unambiguous; the freeze is a gesture within a set.
       if (mod.master === 0) mod.setMaster(1)
+    },
+    // The whole board back to stock, from the look bar. The same verb as the
+    // "clean" chip, up where it can be reached without opening a section and
+    // finding one chip among seventy — which is the reason a session that had
+    // wandered somewhere unusable used to reload the page, and a reload throws
+    // away the walk that could have taken it back.
+    //
+    // Undoable like everything else the bar does, and the gate is why the walk
+    // now banks one: a reset is the only gesture that stops a stab train, so
+    // without it in the step, ctrl+z came back to the look with the gate gone.
+    reset: () => {
+      setHistory(h => record(h, banked(), sameBoard))
+      toStock()
     },
     // One circuit back to stock, from its header. The row-level ↺ is the fine
     // move and "clean" is the whole board; between them sat the thing a session

@@ -24,6 +24,7 @@ const actions = () => {
     onSurprise: noop,
     onMutate: noop,
     onRollMotion: noop,
+    onReset: noop,
     onUndo: noop,
     onRedo: noop,
     slots: [] as readonly AnySlotView[],

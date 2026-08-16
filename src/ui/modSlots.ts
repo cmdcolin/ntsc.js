@@ -471,6 +471,25 @@ export function toEngineSlots(
 // nothing else: a motion roll would otherwise be a step the walk could not tell
 // from no step at all, so pressing it twice would leave only the first roll
 // reachable.
+// Whether two gates are dialed the same way. Sibling of `sameBay`, asked by the
+// same walk and for the same reason — the reset is a gesture that stops the
+// gate, so a walk that could not tell two gates apart would step back onto a
+// board with the stab silently gone.
+//
+// `to` by reference, which is exact here rather than lax: the held board is a
+// snapshot taken once by `holdLook` and never edited, so two gates share one
+// only by being the same hold. Comparing all ~230 values instead would answer
+// the same question at every entry in the walk.
+export function sameGate(a: Stab, b: Stab): boolean {
+  return (
+    a.hz === b.hz &&
+    a.ms === b.ms &&
+    a.syncDiv === b.syncDiv &&
+    a.duty === b.duty &&
+    a.to === b.to
+  )
+}
+
 export function sameBay(a: readonly UiSlot[], b: readonly UiSlot[]): boolean {
   return (
     a.length === b.length &&

@@ -544,6 +544,104 @@ await phase('motion roll', {}, async page => {
   )
 })
 
+// --- reset: the one verb that has to reach every part of a look at once ------
+//
+// Three stores answer to it — the engine's controls, React's bay, and the gate —
+// and no unit test can see all three at the same time. What it must leave alone
+// is here for the same reason: the magnifier is a control like any other to
+// everything below the look bar, and only a running app can say the button did
+// not move it.
+await phase('reset', {}, async page => {
+  const { run, settle } = runner(page)
+
+  // What the app boots on with no link and no stored look, which is what stock
+  // means — read from the running engine rather than imported, so this compares
+  // against the board the user would actually be handed.
+  const stock = await page.evaluate(() => window.vf.getControls())
+
+  // Aimed by hand, through the row rather than through the engine: the reset
+  // reads the board React holds, so a write that skipped it would be testing
+  // nothing. Its own travel is curved, so the midpoint of the input is asked for
+  // and whatever came back is what has to survive.
+  await run(`press(byTitle('filter the controls')); return 0`)
+  await settle(300)
+  await page.type('input[type="search"]', 'magnifier')
+  await settle(600)
+  await run(`
+    const row = rowFor('magnifier')
+    if (row !== undefined) setRange(row, (Number(row.min) + Number(row.max)) / 2)
+    return 0`)
+  await settle(400)
+  await run(`press(byTitle('clear the filter')); return 0`)
+  await settle(400)
+  const aimed = await page.evaluate(() => window.vf.getControls().crtZoom)
+  check(
+    aimed !== stock.crtZoom,
+    'could not move the magnifier off stock, so nothing below says the reset left it alone',
+  )
+
+  await run(`press(byPart('random nudge')); return 0`)
+  await settle(300)
+  await run(`press(byPart('random motion')); return 0`)
+  await settle(300)
+  await run(`press(stage('Modulation')); return 0`)
+  await settle(700)
+  await run(`setRange(rowFor('stabs'), 4); return 0`)
+  await settle(400)
+
+  const wrecked = await run(`return {
+    strip: stripText(),
+    gate: window.vf?.stab?.hz ?? null,
+  }`)
+  check(
+    wrecked.strip === '2∿ 4/s',
+    `the board should be rolled and stabbing before the reset, the strip read "${wrecked.strip}"`,
+  )
+  check(wrecked.gate === 4, `the gate is at ${wrecked.gate}, not 4`)
+
+  const pressed = await run(`
+    const b = byText('reset')
+    press(b)
+    return b !== undefined`)
+  await settle(600)
+  const after = await run(`return {
+    strip: stripText(),
+    gate: window.vf?.stab?.hz ?? null,
+    controls: window.vf.getControls(),
+  }`)
+  check(pressed === true, 'no "reset" button in the look bar')
+  check(
+    after.strip === null || after.strip === '0∿',
+    `the reset left the bay reading "${after.strip}"`,
+  )
+  check(after.gate === 0, `the reset left the gate running at ${after.gate}`)
+  check(
+    after.controls.crtZoom === aimed,
+    `the reset moved the magnifier from ${aimed} to ${after.controls.crtZoom} — where you are looking is not part of the look`,
+  )
+  const off = Object.keys(after.controls).filter(
+    k => k !== 'crtZoom' && after.controls[k] !== stock[k],
+  )
+  check(
+    off.length === 0,
+    `the reset left controls off stock: ${off.slice(0, 6).join(', ')}`,
+  )
+
+  // One step, not three: everything the button wiped comes back together, which
+  // is the whole reason the gate rides the walk with the bay.
+  await run(`press(byText('undo')); return 0`)
+  await settle(600)
+  const back = await run(`return {
+    strip: stripText(),
+    gate: window.vf?.stab?.hz ?? null,
+  }`)
+  check(
+    back.strip === '2∿ 4/s',
+    `one undo should bring the whole look back, the strip read "${back.strip}"`,
+  )
+  check(back.gate === 4, `undo left the gate at ${back.gate} rather than 4`)
+})
+
 // The panel renders in two documents, and only one of them has a picture in it.
 // Everything responsive in app.module.css describes the *shell* — a sidebar
 // beside or under a stage — and the popout is the panel alone in a window

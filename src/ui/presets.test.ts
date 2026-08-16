@@ -14,6 +14,16 @@ import {
   rollControls,
 } from './presets'
 
+// `useMix.applyPreset` reads an empty patch as "this click is the reset" and
+// wipes the bay and the stab gate on it. A second preset written with an empty
+// patch would silently become a second reset button.
+describe('the empty patch', () => {
+  it('belongs to "clean" and to nothing else', () => {
+    const empty = PRESETS.filter(p => Object.keys(p.patch).length === 0)
+    expect(empty.map(p => p.name)).toEqual(['clean'])
+  })
+})
+
 describe('blendPresets', () => {
   it('at full weight over defaults, reproduces the preset exactly', () => {
     for (const p of PRESETS) {
@@ -281,6 +291,15 @@ describe('rollControls', () => {
       for (const key of VIEW_KEYS)
         expect(out[key], `${p.name} ${key}`).toBe(framed[key])
     }
+  })
+
+  // What the reset lands on, and the reason it goes through here rather than
+  // writing DEFAULT_CONTROLS: no recipe at all is stock everywhere but the
+  // view, which stays where the viewer aimed it.
+  it('is stock under an empty recipe, view apart', () => {
+    const framed = { ...DEFAULT_CONTROLS, crtZoom: 2, timeScale: 0.5 }
+    expect(rollControls(new Map(), framed)).toEqual(framed)
+    expect(rollControls(new Map(), DEFAULT_CONTROLS)).toEqual(DEFAULT_CONTROLS)
   })
 
   // Everything that is not the view still arrives, or the pin would be a way of

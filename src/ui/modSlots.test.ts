@@ -20,6 +20,7 @@ import {
   readBoard,
   readStab,
   routingsToSlots,
+  sameGate,
   slotsToRoutings,
   stabRate,
   toEngineSlots,
@@ -413,6 +414,23 @@ describe('the stab gate', () => {
     // start a gate that is switched off, or setting a tempo would turn the
     // whole board's cutting on by itself.
     expect(stabRate({ hz: 0, ms: 60, syncDiv: 0 }, 174)).toBe(0)
+  })
+
+  // What the walk asks before banking a reset: without it, resetting a board
+  // that is already at stock banks nothing and the gate stops with no way back.
+  it('tells two gates apart on every number a reset would wipe', () => {
+    const gate: Stab = { hz: 2, ms: 60 }
+    expect(sameGate(gate, { ...gate })).toBe(true)
+    expect(sameGate(gate, DEFAULT_STAB)).toBe(false)
+    expect(sameGate(gate, { ...gate, ms: 61 })).toBe(false)
+    expect(sameGate(gate, { ...gate, syncDiv: 2 })).toBe(false)
+    expect(sameGate(gate, { ...gate, duty: 0.5 })).toBe(false)
+    // A held board is one snapshot, so two gates hold the same look only by
+    // being the same hold — and dropping it is a difference like any other.
+    const held = { ...gate, to: DEFAULT_CONTROLS, duty: 0.5 }
+    expect(sameGate(held, { ...held })).toBe(true)
+    expect(sameGate(held, { ...held, to: { ...DEFAULT_CONTROLS } })).toBe(false)
+    expect(sameGate(held, gate)).toBe(false)
   })
 
   it('walks the divisions and back to free-running, keeping the dialed rate', () => {

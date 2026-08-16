@@ -736,6 +736,7 @@ export function App() {
     onSurprise: mix.surprise,
     onMutate: mix.mutateLook,
     onRollMotion: amount => mix.rollMotion(amount, { audioLive: audio.active }),
+    onReset: mix.reset,
     onUndo: mix.undo,
     onRedo: mix.redo,
     slots: [eng.a, eng.b],
@@ -1171,6 +1172,7 @@ export function App() {
             onSignIn={profiles.signIn}
           />
         }
+        onReset={mix.reset}
         canUndo={mix.canUndo}
         onUndo={mix.undo}
         canRedo={mix.canRedo}

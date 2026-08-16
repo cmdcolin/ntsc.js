@@ -64,10 +64,12 @@ const cueVerbs = (slot: AnySlotView): PaletteAction[] => {
 }
 
 export function paletteActions(o: {
-  // The three whole-board rolls and the walk back through them.
+  // The three whole-board rolls, the way back to stock, and the walk back
+  // through them.
   onSurprise: () => void
   onMutate: (amount: MutateAmount) => void
   onRollMotion: (amount: MutateAmount) => void
+  onReset: () => void
   onUndo: () => void
   onRedo: () => void
   // Both decks, for the cue verbs above — as a list, so the pair cannot be
@@ -207,6 +209,16 @@ export function paletteActions(o: {
       run: o.roll.keep,
     },
     ...o.slots.flatMap(cueVerbs),
+    // The palette already indexes the "clean" preset, and that is the row this
+    // one does not duplicate: nobody searches for the chip's name when the board
+    // is a wreck, they type what they want to happen. Same verb, the words a
+    // hand reaches for.
+    {
+      name: 'reset',
+      blurb:
+        'the whole board back to stock — every control, the modulation bay and the stab gate, undoable',
+      run: o.onReset,
+    },
     {
       name: 'undo',
       blurb: 'step back through the looks you have been through',

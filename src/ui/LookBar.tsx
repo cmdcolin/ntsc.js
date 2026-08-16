@@ -59,6 +59,12 @@ export function LookBar(props: {
   // segmented pair, then tag it — and before the buttons that walk the history,
   // which stay the row's tail.
   tags: ReactNode
+  // The whole board back to stock. Among the take-back verbs rather than beside
+  // `compare` — which is the other button in this row about the clean signal —
+  // because what it has in common with undo is what a hand reaching for it
+  // wants: out of here. Compare is a look at stock with your finger down, and
+  // seating a wipe next to a preview is how a held gesture becomes a lost look.
+  onReset: () => void
   canUndo: boolean
   onUndo: () => void
   canRedo: boolean
@@ -126,6 +132,13 @@ export function LookBar(props: {
         onStop={props.onStopMorph}
       />
       {props.tags}
+      <button
+        className={styles.btn}
+        onClick={props.onReset}
+        title="put the whole board back to stock: every control, the modulation bay and the stab gate — the same as the “clean” chip. Your sources and where you are looking stay as they are, and ctrl+z takes the look back"
+      >
+        reset
+      </button>
       <button
         className={cx(styles.btn, !props.canUndo && styles.btnOff)}
         onClick={props.onUndo}

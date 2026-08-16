@@ -10,7 +10,10 @@ of the way, stacking onto what's already there.
 
 - **This look** lists everything you're off stock on, as real sliders. Drag one
   and you're editing the preset; **↺** puts one piece back.
-- **clean** resets, and holding `c` previews the clean signal.
+- **reset** puts the whole board back to stock — every control, the modulation
+  bay and the stab gate — and `ctrl+z` takes the look back. The **clean** chip
+  is the same verb; holding `c` previews the clean signal without changing
+  anything.
 - **random look** stacks a few presets into something new. **random nudge**
   keeps your look and jogs everything a little — `shift` for wilder, `alt` for
   gentler. Most of the good accidents come from here.
@@ -115,9 +118,9 @@ you dial next — two looks, hard-panned on the beat, no fade. Dial a look, hold
 it, dial the second one against it; the sliders always belong to the live one,
 and the held look is a copy nothing moves. The length row becomes a **share**
 while a look is held, because what you want held still across a tempo change is
-the split, not the milliseconds — 50 is even, and pushing it either way makes one
-look the state and the other the interruption. **× drop** puts the gate back to
-stabbing clean.
+the split, not the milliseconds — 50 is even, and pushing it either way makes
+one look the state and the other the interruption. **× drop** puts the gate back
+to stabbing clean.
 
 There is no fade between two looks, and that is a limit rather than a taste
 call: the filter bank is redesigned whenever a filter control moves, so a
