@@ -98,6 +98,9 @@ interface StripDeps {
   rollOn: (origin: PoolOrigin, rand: Rand) => void
   // The next row's clip, loaded during this one — see `useEngine.prerollOn`.
   prerollOn: (url: string, start: number) => void
+  // And the same for a next row that names a shelf clip, which a url cannot
+  // reach — see `useEngine.prerollClipOn`.
+  prerollClipOn: (id: string, start: number) => void
   // Let go of it unspent. A lookahead is loaded for the *next* row of a running
   // walk, so a walk that has ended has nothing left to spend it on — see the
   // two call sites, which are the same two `track.pause` has and for the same
@@ -272,6 +275,7 @@ export function makeStripRunner(): StripRunner {
     settle: () => deps?.settleSources() ?? Promise.resolve(),
     // `at` rather than `start`, which is the walk's own verb imported above.
     preroll: (url, at) => deps?.prerollOn(url, at),
+    prerollClip: (id, at) => deps?.prerollClipOn(id, at),
     jitter: (amount, rand) => {
       if (deps === null) return
       deps.writeControls(

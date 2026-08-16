@@ -21,6 +21,7 @@ function fakeSink() {
   const rolls: { origin: PoolOrigin; rand: Rand }[] = []
   const jitters: { amount: MutateAmount; rand: Rand }[] = []
   const prerolls: { url: string; start: number }[] = []
+  const clipPrerolls: { id: string; start: number }[] = []
   // The cut is kept rather than called, which is the whole point of the shape:
   // a fake sink that ran it immediately could not tell "at the cut" from "when
   // the row fired", and that difference is the entire feature.
@@ -53,6 +54,10 @@ function fakeSink() {
       prerolls.push({ url, start })
       order.push('preroll')
     },
+    prerollClip: (id, start) => {
+      clipPrerolls.push({ id, start })
+      order.push('prerollClip')
+    },
     // Counted apart from `order`, which is the *effect* sequence: a settle is
     // not something a row asked for, it is the driver deciding to wait, and
     // folding it in would make every assertion about effect order read as
@@ -68,6 +73,7 @@ function fakeSink() {
     rolls,
     jitters,
     prerolls,
+    clipPrerolls,
     faults,
     clips,
     order,
@@ -166,6 +172,7 @@ describe('makeStripRunner', () => {
     const faultTo = vi.fn()
     const rollOn = vi.fn()
     const prerollOn = vi.fn()
+    const prerollClipOn = vi.fn()
     const dropPreroll = vi.fn()
     const clipOn = vi.fn()
     // Resolved, and counted: what the offline walk waits on. A live walk must
@@ -180,6 +187,7 @@ describe('makeStripRunner', () => {
       clipOn,
       rollOn,
       prerollOn,
+      prerollClipOn,
       dropPreroll,
       settleSources,
       getControls: () => DEFAULT_CONTROLS,
@@ -198,6 +206,7 @@ describe('makeStripRunner', () => {
       faultTo,
       rollOn,
       prerollOn,
+      prerollClipOn,
       dropPreroll,
       writeControls,
       ensureTempo,
@@ -635,6 +644,25 @@ describe('makeStripRunner', () => {
   it('and asks for nothing when the next row has no clip to load', () => {
     const h = harness([row({ id: 'a' }), row({ id: 'b' })])
     h.runner.start()
+    expect(h.prerollOn).not.toHaveBeenCalled()
+    expect(h.prerollClipOn).not.toHaveBeenCalled()
+  })
+
+  // The rundown the shelf's ＋ actually builds, and the one that used to preroll
+  // nothing at all: a row's clip is the source a session cannot carry, so the
+  // lookahead reads the session, found nothing, and every cut between two clips
+  // paid the cold price on exactly the rows preroll exists for.
+  it('loads the next row’s shelf clip, which no url could name', () => {
+    const h = harness([
+      row({ id: 'a' }),
+      row({
+        id: 'b',
+        session: 'cuea=3,9',
+        clip: { id: 'c7', name: 'surf.mp4', seconds: 30 },
+      }),
+    ])
+    h.runner.start()
+    expect(h.prerollClipOn).toHaveBeenCalledWith('c7', 3)
     expect(h.prerollOn).not.toHaveBeenCalled()
   })
 

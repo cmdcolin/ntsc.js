@@ -62,6 +62,21 @@ export type SlotKind = 'none' | 'clip' | 'stream'
 export interface Preroll {
   url: string
   el: HTMLVideoElement
+  // Which shelf entry this is, or '' when it was parked from a url alone.
+  //
+  // **A url cannot identify a file off the shelf**, which is the whole reason
+  // this field exists. `URL.createObjectURL` mints a fresh string every call, so
+  // the same File opened twice is two urls and the `url` match above would never
+  // fire — a shelf clip prerolled under one and asked for under another loaded
+  // from scratch every time, which is preroll doing the work and none of the
+  // saving. Every other source names itself the same way twice and needs
+  // nothing here.
+  //
+  // The id rather than the File for the reason the shelf gives everywhere else:
+  // an identity is what survives, and holding the bytes' handle in a slot would
+  // put the library's lifetime inside the DOM's. `prerolledClip` is how the
+  // caller asks which url to open it under.
+  clip: string
 }
 
 export interface VideoSlot {
@@ -248,11 +263,15 @@ export async function prerollUrl(
   slot: VideoSlot,
   url: string,
   start: number,
+  // Which shelf entry this url is a rendering of, when it is one — see
+  // `Preroll.clip`. Defaulted so every caller that has no shelf entry in hand
+  // stays a three-argument call.
+  clip = '',
 ): Promise<void> {
   // The one that makes depth 1 structural: a second preroll retires the first.
   dropPreroll(slot)
   const v = configureVideo(slot)
-  const parked: Preroll = { url, el: v }
+  const parked: Preroll = { url, el: v, clip }
   slot.next.current = parked
   // `auto` rather than the default: the whole point is to have the bytes and
   // the first frames before they are wanted, which is exactly what the browser
@@ -475,6 +494,22 @@ export function playUrl(slot: VideoSlot, url: string): void {
     installVideo(slot, v, 'clip')
   }
   roll(slot, v)
+}
+
+// Which url this slot has a shelf clip parked under, or null for "nothing
+// parked for that clip".
+//
+// The one thing a caller has to ask before opening a shelf clip, and the
+// smallest question that closes the gap `Preroll.clip` describes: opening the
+// File again would mint a second url and load from scratch beside an element
+// already holding the picture. Asking this first means the cut opens it under
+// the url the preroll used, so `playUrl` recognises it and the swap is a swap.
+//
+// A url rather than a boolean, so there is exactly one way to spend a preroll —
+// `playUrl` — and no second promotion path to keep in step with it.
+export function prerolledClip(slot: VideoSlot, id: string): string | null {
+  const parked = slot.next.current
+  return parked !== null && id !== '' && parked.clip === id ? parked.url : null
 }
 
 // Point the slot at a live capture stream (webcam, an RCA grabber, or a shared

@@ -271,6 +271,22 @@ type PlainEffect =
   // whose source cannot be named ahead of time — a pool, which is a search
   // rather than a file — simply produces no such effect.
   | { kind: 'preroll'; url: string; start: number }
+  // The same thing for the row that names a shelf clip, which is every row an
+  // ordinary rundown of footage is made of and the one shape the effect above
+  // cannot express.
+  //
+  // **An id, not a url, for the reason `RowClip` gives** — a url is a rendering
+  // and a shelf entry is the identity — and the consequence is the whole reason
+  // this is a second variant rather than an argument. Resolving an id is async
+  // and may touch a disk handle, so it cannot be done in `prerollFor`, which is
+  // pure. The sink resolves; the walk only says which clip.
+  //
+  // Without it a rundown built the way the shelf's ＋ builds one prerolled
+  // nothing at all: `prerollFor` read the session, `writeProfileParams` drops
+  // the source modes a url cannot carry, and so every cut between two clips
+  // paid the cold price — on exactly the rows preroll was built for. Worse for
+  // a transition row, which needs both clips live at once and had one.
+  | { kind: 'prerollClip'; id: string; start: number }
 
 // What the driver is handed. Either a row's step outright, or that same step
 // behind a named fault (EDITOR.md › _Transitions_): break the picture, and do
@@ -395,7 +411,7 @@ function stepEffects(
   } else if (row.fill.kind === 'jitter') {
     out.push({ kind: 'jitter', amount: row.fill.amount, seed })
   }
-  if (ahead !== null) out.push({ kind: 'preroll', ...ahead })
+  if (ahead !== null) out.push(ahead)
   return out
 }
 
@@ -424,33 +440,44 @@ export function fireEffects(
     : [{ kind: 'fault', transition, atCut: step }]
 }
 
-// A clip to park before the cut that wants it: all a slot can act on, and all
-// `fireEffects` needs in order to put the ask in the right place in the step.
-interface Lookahead {
-  url: string
-  start: number
-}
+// A clip to park before the cut that wants it, in the two ways a row can name
+// one ahead of time — and `fireEffects` needs neither of them to be anything
+// but a value it can put in the right place in the step.
+//
+// The two effect variants themselves rather than a shape of their own: what a
+// lookahead *is* is the ask, and a second type restating `{url, start}` beside
+// `{id, start}` would be one more place for the pair to drift.
+type Lookahead = Extract<PlainEffect, { kind: 'preroll' | 'prerollClip' }>
 
 // The clip a row will want, when it wants one that can be named in advance.
 //
-// Two sources answer, and they are the two a row can carry a *file* for: an
-// explicit `?vurl`, and a bundled clip named by `?src=clip-…`, which is an id
-// this side already resolves to a url. Everything else answers null and means
-// it: a pool is a search rather than a file (nothing to load until it is
-// rolled), a still needs no element, and a look-only row leaves the deck where
-// it is — which is the case preroll exists to make free, since it is the one
-// with no boundary cost at all.
+// Three sources answer, and they are the three a row can carry a *file* for: a
+// shelf clip, an explicit `?vurl`, and a bundled clip named by `?src=clip-…`,
+// which is an id this side already resolves to a url. Everything else answers
+// null and means it: a pool is a search rather than a file (nothing to load
+// until it is rolled), a still needs no element, and a look-only row leaves the
+// deck where it is — which is the case preroll exists to make free, since it is
+// the one with no boundary cost at all.
+//
+// **The shelf clip is asked first**, on the same rule `stepEffects` follows one
+// screen up: a row that names one *is* that clip, and its session may well
+// carry a `?src=` from whatever was on the board when it was captured. Reading
+// the session first would park the wrong picture — and, worse than parking
+// nothing, park it under the id the cut is about to ask for, so the promotion
+// would find a match and put up a clip nobody chose.
 //
 // `start` comes off the row's own cue, because a row is "this stretch of this
 // clip" and parking the element anywhere else would leave the promotion with a
 // seek to do on the frame it was supposed to be a cut.
 export function prerollFor(row: Row): Lookahead | null {
   const q = new URLSearchParams(row.session)
+  const start = parseCue(q.get('cuea'))?.in ?? 0
+  if (row.clip) return { kind: 'prerollClip', id: row.clip.id, start }
   const src = q.get('src')
   const url =
     q.get('vurl') ?? (src !== null && isClipId(src) ? clipUrl(src) : null)
   if (url === null) return null
-  return { url, start: parseCue(q.get('cuea'))?.in ?? 0 }
+  return { kind: 'preroll', url, start }
 }
 
 // Which row a walk will reach next, or null when there is not one — the end of

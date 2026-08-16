@@ -96,6 +96,15 @@ export interface StripSink {
   // on it, and a preroll that does not finish in time is a cut that pays the
   // price it paid before this existed.
   preroll: (url: string, start: number) => void
+  // The same, for the next row's *shelf* clip — which is what an ordinary
+  // rundown of footage is made of, and the one a url cannot name.
+  //
+  // Its own verb rather than a resolve in front of `preroll`, because the
+  // resolve is the part that cannot happen on this side: an id becomes bytes
+  // through a disk handle, a copy in the origin's file system, or an archive
+  // request, and `advance` is pure. Same fire-and-forget contract — a shelf that
+  // cannot open the clip quietly declines, and the cut pays what it used to.
+  prerollClip: (id: string, start: number) => void
   // Wait for whatever the verbs above asked the browser for to actually be on
   // the deck. **Optional, and the live sink deliberately does not have one.**
   //
@@ -145,6 +154,9 @@ export function runEffect(effect: Effect, sink: StripSink): void {
       break
     case 'preroll':
       sink.preroll(effect.url, effect.start)
+      break
+    case 'prerollClip':
+      sink.prerollClip(effect.id, effect.start)
       break
   }
 }

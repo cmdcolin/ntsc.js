@@ -142,6 +142,93 @@ check(
   `${warm.ms.toFixed(1)}ms warm vs ${cold.ms.toFixed(1)}ms cold`,
 )
 
+// --- and the same cut for a clip off the shelf --------------------------------
+//
+// The arms above preroll a *url*, which is what a `?vurl` row and a bundled clip
+// are. A shelf clip is neither, and it is what an ordinary rundown of footage is
+// made of — so this asks the one question that decides whether preroll reaches
+// it at all: **is the url stable?**
+//
+// It is not, and that is a browser fact rather than a design choice.
+// `URL.createObjectURL` mints a fresh string per call, so the File a preroll
+// opens and the File a cut opens are two urls for one file, and `playUrl`'s
+// identity match — which every other source satisfies for free — can never fire.
+// Every cut between two shelf clips therefore loaded from scratch beside an
+// element already holding the picture: preroll paying its whole cost and buying
+// nothing. `Preroll.clip` is the identity that survives that, and `prerolledClip`
+// is how a cut asks which url to open under.
+//
+// A Blob rather than a picked File, deliberately: what is under test is the
+// url minting and the promotion, and a real disk handle would drag the shelf's
+// IndexedDB and a permission prompt into a harness that is timing a cut.
+const shelfCut = await page.evaluate(async () => {
+  const { playUrl, prerollUrl, prerolledClip, stopSlot, dropPreroll } =
+    await import('/src/ui/videoSlot.ts')
+  const ref = { current: null }
+  const next = { current: null }
+  const slot = {
+    id: 'a',
+    ref,
+    next,
+    head: { current: null },
+    typer: { current: null },
+    rate: () => 1,
+    attach: () => {},
+    setImage: () => {},
+    setNoise: () => {},
+    setLive: () => {},
+    setYtUrl: () => {},
+    setName: () => {},
+    card: () => null,
+    setCard: () => {},
+    onError: () => {},
+    clearCue: () => {},
+    release: () => {},
+    adopt: () => {},
+  }
+  const file = new File(
+    [await (await fetch('/test.mp4')).arrayBuffer()],
+    'shelf.mp4',
+    { type: 'video/mp4' },
+  )
+  // The fact the whole mechanism turns on, asserted rather than assumed.
+  const twice = [URL.createObjectURL(file), URL.createObjectURL(file)]
+  for (const u of twice) URL.revokeObjectURL(u)
+
+  await prerollUrl(slot, URL.createObjectURL(file), 0, 'c7')
+  const parkedEl = next.current?.el ?? null
+  // What the cut asks before it opens anything — the whole of the addition.
+  const under = prerolledClip(slot, 'c7')
+  const wrongClip = prerolledClip(slot, 'c9')
+  playUrl(slot, under ?? URL.createObjectURL(file))
+  await new Promise(resolve => {
+    if (ref.current.readyState >= 2) return resolve()
+    ref.current.addEventListener('loadeddata', () => resolve(), { once: true })
+  })
+  const swapped = parkedEl !== null && ref.current === parkedEl
+  stopSlot(slot)
+  dropPreroll(slot)
+  return { sameUrl: twice[0] === twice[1], under, wrongClip, swapped }
+})
+
+check(
+  'one file opened twice is two urls, so a url cannot identify a shelf clip',
+  shelfCut.sameUrl === false,
+)
+check(
+  'a preroll records which shelf clip it parked',
+  typeof shelfCut.under === 'string' && shelfCut.under.startsWith('blob:'),
+  `answered ${String(shelfCut.under)}`,
+)
+check(
+  'and answers nothing for a clip it is not holding',
+  shelfCut.wrongClip === null,
+)
+check(
+  'so a shelf clip’s cut promotes the parked element too',
+  shelfCut.swapped === true,
+)
+
 check('no page errors', errors.length === 0, errors.join(' | '))
 await browser.close()
 console.log(fail.length === 0 ? '\npreroll ok' : `\n${fail.length} failed`)

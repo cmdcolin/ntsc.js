@@ -57,6 +57,7 @@ import {
   dropPreroll,
   playStream,
   playUrl,
+  prerolledClip,
   prerollUrl,
   promoteHead,
   stopSlot,
@@ -1206,6 +1207,41 @@ export function useEngine() {
     void prerollUrl(slotA, url, start)
   }
 
+  // The same lookahead for the next row's *shelf* clip, which is what an
+  // ordinary rundown of footage is made of — and what, until this existed,
+  // prerolled nothing: `prerollFor` could only read the session, and a shelf
+  // clip is precisely the source a session cannot carry. So every cut between
+  // two clips paid the cold price on exactly the rows preroll was built for,
+  // and a transition between them had one live picture where it needs two.
+  //
+  // **Disk only, and it declines the rest in silence.** A kept roll resolves
+  // through an archive request that downloads whole (`sources/pool.ts`), so
+  // prerolling one speculatively spends a file's worth of network on a row that
+  // may never arrive — and the cut would ask for it again, since `showRef` has
+  // its own path in and no url to agree on. A grant that died with the last page
+  // load needs a gesture and a walk is a timer with none. Both keep the cut they
+  // had, which is the contract every preroll here already has.
+  //
+  // Parked *under a url that is kept*, which is the whole mechanism: the id
+  // rides along on the `Preroll`, so when the cut resolves the same clip
+  // `loadClip` opens it under this url rather than minting a second one, and
+  // `playUrl` recognises the element it is already holding.
+  const prerollClipOn = (id: string, start: number) => {
+    void (async () => {
+      try {
+        const open = await openClipById(id)
+        if (open === null || open.at !== 'disk' || open.needsGesture) return
+        const file = await open.open()
+        await prerollUrl(slotA, URL.createObjectURL(file), start, id)
+      } catch (e: unknown) {
+        // Logged rather than shown, on `prerollOn`'s rule one function up: a
+        // preroll that fails costs the cut what it used to cost, and there is
+        // nothing for a user to do about it.
+        debugLog('DEBUG preroll failed', reason(e))
+      }
+    })()
+  }
+
   // Let go of a lookahead nobody is going to spend, which is what a walk ending
   // means: there is no next row. `stopSlot` deliberately leaves a parked element
   // alone — every load path opens with it and then calls `playUrl`, so retiring
@@ -1239,6 +1275,42 @@ export function useEngine() {
   //     on its own, and it is honest about it rather than silently leaving the
   //     last row's picture up.
   const clipOn = (id: string, name: string) => {
+    // **The preroll, spent before anything is awaited**, which is two things at
+    // once and the second is not an optimisation.
+    //
+    // A parked element is already open, already decoded and already sitting at
+    // the row's in-point, so everything `openClipById` would go and find out is
+    // something this deck no longer needs: the bytes are on screen the moment
+    // the element is installed, and what is left — the caption, the deck's clip
+    // mark, the stash line — is bookkeeping that wants an id and a name and
+    // never a `File`. So the cut is synchronous, which is what preroll was for.
+    //
+    // And it removes a race that the effect order alone could not. The
+    // lookahead is fired last precisely so this row's promotion happens before
+    // the next row's preroll retires the element (`stepEffects`), and that
+    // reasoning holds only while the promotion is *synchronous*. Resolved
+    // through the shelf, both this and `prerollClipOn` open with the same
+    // IndexedDB read and the same permission query, and whichever settled first
+    // won — a lookahead landing first calls `dropPreroll` and destroys the very
+    // element this cut was about to promote. Nothing above the two would show
+    // it: the effect list is right, and only the clock is not. It is the same
+    // inversion the transition write-up records, arriving by a different door.
+    const parked = prerolledClip(slotA, id)
+    if (parked !== null) {
+      setError('')
+      // The row's own name rather than the file's, which for a disk clip is the
+      // same string — the shelf stores "the file name on disk" — and is the only
+      // one in hand without opening anything.
+      commitOn('a', 'library', name, 'keep')
+      playUrl(slotA, parked)
+      // After the commit, which clears it. Same order `loadClip` is in, for the
+      // same reason.
+      markClip('a', { id, name, seconds: 0 })
+      stashClip('a', { id, name }).catch((e: unknown) =>
+        debugLog('DEBUG stash failed', reason(e)),
+      )
+      return
+    }
     openClipById(id).then(
       open => {
         if (open === null) {
@@ -1308,9 +1380,16 @@ export function useEngine() {
 
   // A picked (or reopened) file into a slot: stills decode, everything else
   // plays from a blob url.
-  const showFile = (slot: VideoSlot, file: File) => {
+  //
+  // `as` is the url to open it under, for the one caller that has to care: a
+  // shelf clip already parked by a preroll was minted a url when it was parked,
+  // and `URL.createObjectURL` hands back a fresh string every call — so minting
+  // a second one here is what made the promotion miss and every cut between two
+  // shelf clips pay the cold price. Everything else lets this mint its own,
+  // because nothing else has a url it has to agree with.
+  const showFile = (slot: VideoSlot, file: File, as?: string) => {
     if (file.type.startsWith('image/')) showImage(slot, file)
-    else playUrl(slot, URL.createObjectURL(file))
+    else playUrl(slot, as ?? URL.createObjectURL(file))
   }
 
   // A file becomes the slot's source: the same steps whether it was just
@@ -1319,12 +1398,17 @@ export function useEngine() {
   // library has to land on the library — the caption under the picker reopens
   // whatever the mode names, and a shelf clip that read as `file` would offer
   // the OS dialog where the shelf belongs.
-  const adoptInto = (key: StashSlot, file: File, mode: 'file' | 'library') => {
+  const adoptInto = (
+    key: StashSlot,
+    file: File,
+    mode: 'file' | 'library',
+    as?: string,
+  ) => {
     // 'keep', because this is the one path whose caller writes the stash itself
     // — and the one that reopens *from* it, where dropping it would erase what
     // the reopen came from. See commitDeck.
     commitOn(key, mode, file.name, 'keep')
-    showFile(slotOf(key), file)
+    showFile(slotOf(key), file, as)
   }
 
   // A clip off the shelf, into whichever deck the dialog was opened for. The
@@ -1337,7 +1421,16 @@ export function useEngine() {
     clip: { id: string; name: string },
   ) => {
     setError('')
-    adoptInto(key, file, 'library')
+    // Under the url a preroll already parked it as, when there is one. Asked
+    // here rather than at the two call sites so a click on the shelf spends a
+    // preroll exactly as a rundown's cut does — the same rule `playUrl` states
+    // for every other source, arriving at the one that could not reach it.
+    adoptInto(
+      key,
+      file,
+      'library',
+      prerolledClip(slotOf(key), clip.id) ?? undefined,
+    )
     // After `adoptInto`, which goes through `commitDeck` and clears this — the
     // same order `stashClip` below is in, and for the same reason.
     markClip(key, { id: clip.id, name: clip.name, seconds: 0 })
@@ -2378,6 +2471,7 @@ export function useEngine() {
     clipOn,
     rollOn,
     prerollOn,
+    prerollClipOn,
     dropPrerollOn,
     // What `+ row` records so the row can put this same clip up again. Deck A
     // alone is what a rundown captures, and the shape is the row's own — see

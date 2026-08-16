@@ -1139,6 +1139,7 @@ describe('what a row loads ahead', () => {
 
   it('names an explicit clip url, with the row’s in-point', () => {
     expect(prerollFor(row({ session: `vurl=${CLIP}&cuea=12.5` }))).toEqual({
+      kind: 'preroll',
       url: CLIP,
       start: 12.5,
     })
@@ -1149,8 +1150,39 @@ describe('what a row loads ahead', () => {
   // be handed the one thing it can act on.
   it('resolves a bundled clip id to the url the slot would load', () => {
     const got = prerollFor(row({ session: 'src=clip-popeye' }))
-    expect(got?.url).toContain('popeye')
-    expect(got?.start).toBe(0)
+    expect(got).toMatchObject({ kind: 'preroll', start: 0 })
+    expect(got?.kind === 'preroll' && got.url).toContain('popeye')
+  })
+
+  // A shelf clip is the source a session cannot carry, so it is named by id and
+  // resolved by the sink — the whole reason the effect has a second variant.
+  // Without this every cut in a rundown of footage was cold, which is the case
+  // preroll was built for.
+  it('names a shelf clip by id, with the row’s in-point', () => {
+    expect(
+      prerollFor(
+        row({
+          session: 'cuea=3,9',
+          clip: { id: 'c7', name: 'surf.mp4', seconds: 30 },
+        }),
+      ),
+    ).toEqual({ kind: 'prerollClip', id: 'c7', start: 3 })
+  })
+
+  // The shelf clip wins, on the rule the step already follows: a row that names
+  // one *is* that clip, and its session carries whatever was on the board when
+  // it was captured. Parking the session's picture under the id the cut is
+  // about to ask for would be worse than parking nothing — the promotion would
+  // match and put up a clip nobody chose.
+  it('prefers the row’s own clip over whatever its session names', () => {
+    expect(
+      prerollFor(
+        row({
+          session: `vurl=${CLIP}`,
+          clip: { id: 'c7', name: 'surf.mp4', seconds: 30 },
+        }),
+      ),
+    ).toEqual({ kind: 'prerollClip', id: 'c7', start: 0 })
   })
 
   // The three that cannot be named ahead of time, and the reason each one is

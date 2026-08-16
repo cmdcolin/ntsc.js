@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { armHead, dropHead, promoteHead, stopSlot } from './videoSlot'
+import {
+  armHead,
+  dropHead,
+  prerolledClip,
+  promoteHead,
+  stopSlot,
+} from './videoSlot'
 
 import type { VideoSlot } from './videoSlot'
 
@@ -100,6 +106,40 @@ const makeSlot = (live: FakeVideo | null, head: FakeVideo | null = null) => {
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
+})
+
+// Which url a parked shelf clip is holding — the question the cut has to ask
+// before it opens one, and the whole of why a preroll records the id.
+//
+// `URL.createObjectURL` mints a fresh string per call, so a File opened twice is
+// two urls and `playUrl`'s match could never fire on a shelf clip. Every cut
+// between two of them loaded from scratch beside an element already holding the
+// picture — preroll paying its whole cost and buying nothing.
+describe('prerolledClip', () => {
+  const parked = (clip: string) => {
+    const { slot } = makeSlot(videoEl())
+    slot.next.current = { url: 'blob:parked', el: videoEl(), clip }
+    return slot
+  }
+
+  it('answers the url the clip was parked under', () => {
+    expect(prerolledClip(parked('c7'), 'c7')).toBe('blob:parked')
+  })
+
+  // A rundown edited mid-bar can ask for a different clip than the boundary
+  // looked ahead to, which is the same reason the url match exists at all.
+  it('answers nothing for a different clip, or for none parked', () => {
+    expect(prerolledClip(parked('c7'), 'c9')).toBeNull()
+    const { slot } = makeSlot(videoEl())
+    expect(prerolledClip(slot, 'c7')).toBeNull()
+  })
+
+  // An element parked from a plain url carries no shelf identity, and a caller
+  // asking about a clip with no id must not match it — '' is "not a shelf clip"
+  // on both sides, and matching two of those would promote the wrong picture.
+  it('never matches an empty id against a url-only preroll', () => {
+    expect(prerolledClip(parked(''), '')).toBeNull()
+  })
 })
 
 describe('promoteHead', () => {

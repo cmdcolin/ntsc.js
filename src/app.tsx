@@ -528,6 +528,7 @@ export function App() {
     clipOn: eng.clipOn,
     rollOn: eng.rollOn,
     prerollOn: eng.prerollOn,
+    prerollClipOn: eng.prerollClipOn,
     dropPreroll: eng.dropPrerollOn,
     settleSources: eng.settleSources,
     getControls: controlStore.get,
