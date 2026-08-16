@@ -1203,7 +1203,39 @@ export function useEngine() {
   // cut loads exactly as it did before this existed. Failing loudly would be
   // reporting a fault the user has no way to act on and would not have been
   // told about a version ago.
+  // Which lookahead is still the current one.
+  //
+  // The url preroll below never needed this, because it parks synchronously:
+  // every way of superseding it — a following preroll, a walk ending — runs
+  // after it, in order, and `prerollUrl`'s one-field rule does the rest.
+  // Resolving a *shelf* clip breaks that, because the park lands after two
+  // awaits and the world moves in between, in two ways that both bite:
+  //
+  //   - a walk stopped in that window has already run `dropPrerollOn` and found
+  //     nothing to drop, so the late park leaves a `<video preload="auto">`
+  //     holding a whole clip for the life of the page — which is the exact leak
+  //     `dropPrerollOn` was added to prevent;
+  //   - a hand firing another row asks for a different lookahead, and the older
+  //     resolve landing second parks the clip that is no longer next. Depth
+  //     stays 1 and the element is simply the wrong one, which is worse than
+  //     none: the cut that follows finds a mismatch and loads cold anyway,
+  //     having spent the bar loading something nobody wanted.
+  //
+  // Same shape as `useStrip`'s `epoch` over a pending cut, and for the same
+  // reason: what goes out of date is the *decision*, and only a number taken
+  // when it was made can say so.
+  //
+  // A ref rather than the plain `let` that `epoch` is, and the difference is
+  // where the two live rather than a preference. `epoch` sits inside
+  // `makeStripRunner`, a plain object outside React; this is a hook body, and a
+  // variable reassigned from a callback that runs after the render made React
+  // Compiler drop `useEngine` entirely. `pnpm compiler` is the only thing that
+  // would have said so.
+  const lookahead = useRef(0)
+  const nextLookahead = () => (lookahead.current += 1)
+
   const prerollOn = (url: string, start: number) => {
+    nextLookahead()
     void prerollUrl(slotA, url, start)
   }
 
@@ -1247,6 +1279,7 @@ export function useEngine() {
   // memoization would have gone silently otherwise, on the file that can least
   // afford it. `useEngine` is not a component, but the rule is the hook's.
   const prerollClipOn = (id: string, start: number) => {
+    const mine = nextLookahead()
     void openClipById(id)
       .then(open =>
         open === null ||
@@ -1254,11 +1287,15 @@ export function useEngine() {
         open.needsGesture ||
         open.kind !== 'video'
           ? undefined
-          : open
-              .open()
-              .then(file =>
-                prerollUrl(slotA, URL.createObjectURL(file), start, id),
-              ),
+          : open.open().then(file =>
+              // Checked here rather than only at the top, because this is
+              // where the time went: opening a handle is the slow half, and
+              // the whole point of the token is that the answer can have
+              // changed while it was out.
+              mine === lookahead.current
+                ? prerollUrl(slotA, URL.createObjectURL(file), start, id)
+                : undefined,
+            ),
       )
       .catch((e: unknown) => {
         // Logged rather than shown, on `prerollOn`'s rule one function up: a
@@ -1276,6 +1313,10 @@ export function useEngine() {
   // Otherwise the element is retired only by the *following* preroll, and a
   // rundown stopped by hand holds a whole buffered clip until the page goes.
   const dropPrerollOn = () => {
+    // Before the drop, so a clip still resolving when the walk ended finds its
+    // token stale and never parks — otherwise there is nothing here to drop
+    // yet, and the leak this function exists to prevent lands a moment later.
+    nextLookahead()
     dropPreroll(slotA)
   }
 

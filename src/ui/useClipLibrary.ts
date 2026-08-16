@@ -220,8 +220,19 @@ export function useClipLibrary(
   // since the 0 it comes back with is indistinguishable from "not asked yet"
   // and so is never written down.
   //
+  // **It will ask for a lapsed grant, where `prerollClipOn` declines to**, and
+  // the two are right to differ. A preroll is speculative — it runs off a timer,
+  // for a row that may never arrive, and a browser prompt raised by a walk is
+  // one nobody asked for. This runs inside a click on the clip itself, and the
+  // alternative is worse than a prompt: on Chromium every shelf entry is `ask`
+  // after a reload, so declining here would silently hand back a bar count for
+  // every row added in a fresh session, which is the whole bug this exists to
+  // fix. A folder is one grant for everything under it, so the ordinary shape
+  // of a shelf makes it one prompt rather than one per ＋.
+  //
   // The click that calls this is the gesture a lapsed grant needs, which is why
-  // it opens the clip the way `play` does rather than awaiting anything first.
+  // it opens the clip the way `play` does rather than awaiting anything first —
+  // and why the caller must not await anything before calling it either.
   const measure = (clip: Clip): Promise<number> => {
     if (clip.seconds > 0 || clip.kind !== 'video')
       return Promise.resolve(clip.seconds)
