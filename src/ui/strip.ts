@@ -376,7 +376,18 @@ function stepEffects(
   // puts a picture up has to land on top of it rather than under it. A session
   // carrying `?src=` for a row that also names a shelf clip would otherwise
   // decide the deck, and the row's own clip is the more specific answer.
-  if (row.clip !== null) {
+  // Truthiness rather than `!== null`, for the reason `fireEffects` gives one
+  // function down about the transition beside it: a row can be built by hand —
+  // a harness, a test, an object literal that never went through `readRow` —
+  // and **`undefined` is not `null`**. Tested against null alone, a row with no
+  // `clip` key at all took this branch and read `.id` off nothing, which killed
+  // the walk mid-take. `scripts/rendercheck.mjs` builds its rundown exactly that
+  // way and had been dying on its last arm ever since a row could name a clip.
+  //
+  // The same mistake twice in one function is worth naming as a pattern rather
+  // than fixing quietly: every field a hand-built row can omit needs the check
+  // that treats absent and empty alike, and only `readRow` guarantees otherwise.
+  if (row.clip) {
     out.push({ kind: 'clip', id: row.clip.id, name: row.clip.name })
   }
   if (row.fill.kind === 'roll') {

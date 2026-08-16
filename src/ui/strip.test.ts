@@ -276,6 +276,15 @@ describe('fireEffects', () => {
     expect(fireEffects(bare, 1)[0]).toMatchObject({ kind: 'session' })
   })
 
+  // The same mistake, one field along, and it went further than the first: a
+  // row with no `clip` key read `.id` off nothing and killed the walk. It is
+  // exactly how `rendercheck.mjs` builds a rundown, which is why its last arm
+  // had been dying since a row could name a clip at all.
+  it('names no clip when the clip is missing rather than null', () => {
+    const bare = { ...row(), clip: undefined } as unknown as Row
+    expect(fireEffects(bare, 1).map(e => e.kind)).toEqual(['session'])
+  })
+
   it('and when it names something this build’s shelf does not have', () => {
     const odd = row({ arrive: { seconds: 1, transition: 'dissolve' as never } })
     expect(fireEffects(odd, 1)[0]).toMatchObject({ kind: 'session' })
