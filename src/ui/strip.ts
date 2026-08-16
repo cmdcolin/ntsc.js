@@ -613,21 +613,27 @@ export function stripSeconds(
 // **Only the rows that do not know**, so a measurement arriving late cannot
 // overwrite what a deck read off the picture itself. The two agree when both
 // are right, and when they do not the deck was there and this was not.
-export const learnClipSeconds = (
+// **The same rundown back when there is nothing to learn**, which the caller
+// leans on rather than merely benefits from: this lands from a probe nobody
+// asked for, so a new object per measurement would persist the strip, re-render
+// the tray and — before `useStrip` stopped banking it — put an undo step
+// between a hand and the row it had just added.
+export function learnClipSeconds(
   strip: Strip,
   clipId: string,
   seconds: number,
-): Strip =>
-  seconds <= 0
-    ? strip
-    : {
-        ...strip,
-        rows: strip.rows.map(row =>
-          row.clip === null || row.clip.id !== clipId || row.clip.seconds > 0
-            ? row
-            : { ...row, clip: { ...row.clip, seconds } },
-        ),
-      }
+): Strip {
+  if (seconds <= 0) return strip
+  let changed = false
+  const rows = strip.rows.map(row => {
+    if (row.clip === null || row.clip.id !== clipId || row.clip.seconds > 0) {
+      return row
+    }
+    changed = true
+    return { ...row, clip: { ...row.clip, seconds } }
+  })
+  return changed ? { ...strip, rows } : strip
+}
 
 // How far through its hold the current row is, 0..1, or null when there is
 // nothing to draw — stopped, or holding for a hand. For the row card's fill.

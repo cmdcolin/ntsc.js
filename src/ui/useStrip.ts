@@ -159,6 +159,10 @@ export interface StripRunner {
   stop: () => void
   fireRow: (index: number) => void
   setStrip: (next: Strip) => void
+  // A measured clip length, into every row holding that clip. Its own verb
+  // rather than a `setStrip` because it must not bank an undo step — nobody
+  // performed it. See the implementation.
+  learnClipSeconds: (clipId: string, seconds: number) => void
   // How deep the walk goes either way, as a *snapshot* rather than two
   // predicates — and that distinction is load-bearing rather than stylistic.
   //
@@ -376,6 +380,22 @@ export function makeStripRunner(): StripRunner {
       past = record(past, strip, (a, b) => a === b)
       install(next)
     },
+    // **Installed and not banked**, which is the one place that distinction has
+    // to be made deliberately rather than inherited from `setStrip`.
+    //
+    // Nobody did this. It is a measurement landing a moment after the ＋ that
+    // asked for it, so putting it on the undo stack costs a hand two presses to
+    // take back one gesture — and the state in between is a row that snaps from
+    // its own length back to a bar count, which reads as the undo being broken
+    // rather than as there having been two steps. `install` is separate from
+    // banking for exactly this reason; undo and redo were simply the only
+    // callers until now.
+    learnClipSeconds: (clipId, seconds) => {
+      const next = learnClipSeconds(strip, clipId, seconds)
+      // Identity, so a probe answering what the rundown already knew does not
+      // persist it or wake the tray — see the pure function.
+      if (next !== strip) install(next)
+    },
     // The offline half of _One walk, two clocks_: a second walk over the
     // rundown as it stands, on a clock the caller drives (`stripRun.offlineWalk`
     // says what that means). Built here rather than by the render because the
@@ -524,8 +544,6 @@ export function useStrip(deps: StripDeps): StripApi {
       cycleHold: (index: number) => edit(s => stepHold(s, index)),
       cycleArrive: (index: number) => edit(s => stepArrive(s, index)),
       cycleTransition: (index: number) => edit(s => stepTransition(s, index)),
-      learnClipSeconds: (clipId: string, seconds: number) =>
-        edit(s => learnClipSeconds(s, clipId, seconds)),
       setLoop: (on: boolean) => edit(s => ({ ...s, loop: on })),
       reseed: () => edit(s => ({ ...s, seed: randomSeed() })),
     }),
@@ -556,6 +574,7 @@ export function useStrip(deps: StripDeps): StripApi {
     undo: runner.undo,
     redo: runner.redo,
     offlineWalk: runner.offlineWalk,
+    learnClipSeconds: runner.learnClipSeconds,
     ...verbs,
   }
 }

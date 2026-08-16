@@ -1214,13 +1214,28 @@ export function useEngine() {
   // two clips paid the cold price on exactly the rows preroll was built for,
   // and a transition between them had one live picture where it needs two.
   //
-  // **Disk only, and it declines the rest in silence.** A kept roll resolves
-  // through an archive request that downloads whole (`sources/pool.ts`), so
-  // prerolling one speculatively spends a file's worth of network on a row that
-  // may never arrive — and the cut would ask for it again, since `showRef` has
-  // its own path in and no url to agree on. A grant that died with the last page
-  // load needs a gesture and a walk is a timer with none. Both keep the cut they
-  // had, which is the contract every preroll here already has.
+  // **Disk video only, and it declines the rest in silence.** A kept roll
+  // resolves through an archive request that downloads whole
+  // (`sources/pool.ts`), so prerolling one speculatively spends a file's worth
+  // of network on a row that may never arrive — and the cut would ask for it
+  // again, since `showRef` has its own path in and no url to agree on. A grant
+  // that died with the last page load needs a gesture and a walk is a timer with
+  // none. Both keep the cut they had, which is the contract every preroll here
+  // already has.
+  //
+  // **A still is refused for a sharper reason than waste, and this is the
+  // invariant `clipOn`'s fast path rests on.** A preroll parks a `<video>`,
+  // which cannot play a JPEG — but `prerollUrl` writes the parked record
+  // *before* it awaits the metadata that will fail, so for as long as the load
+  // takes there is an entry claiming to hold this clip. A cut landing in that
+  // window promotes an element that will never show a picture, where the
+  // ordinary path would have handed the file to `showImage`. So the parked
+  // record can only ever be footage, and the fast path is free to promote what
+  // it finds without asking what kind of file it came from.
+  //
+  // Asked of the shelf entry rather than of the bytes, so the refusal costs no
+  // disk read, no grant and no decoder — the answer is `Clip.kind`, which the
+  // shelf worked out from the name when the file was added.
   //
   // Parked *under a url that is kept*, which is the whole mechanism: the id
   // rides along on the `Preroll`, so when the cut resolves the same clip
@@ -1234,7 +1249,10 @@ export function useEngine() {
   const prerollClipOn = (id: string, start: number) => {
     void openClipById(id)
       .then(open =>
-        open === null || open.at !== 'disk' || open.needsGesture
+        open === null ||
+        open.at !== 'disk' ||
+        open.needsGesture ||
+        open.kind !== 'video'
           ? undefined
           : open
               .open()
@@ -1303,6 +1321,12 @@ export function useEngine() {
     // element this cut was about to promote. Nothing above the two would show
     // it: the effect list is right, and only the clock is not. It is the same
     // inversion the transition write-up records, arriving by a different door.
+    //
+    // **It promotes without asking what kind of file this is**, which is safe
+    // only because `prerollClipOn` refuses to park a still — see the invariant
+    // stated there. `showFile` is the branch that would otherwise decide, and
+    // there is no file here to decide from: that is the saving, and it is also
+    // why the guard has to live at the parking end rather than this one.
     const parked = prerolledClip(slotA, id)
     if (parked !== null) {
       setError('')

@@ -174,7 +174,7 @@ export function useClipLibrary(
           // and the browser is about to read this header anyway. Auditioning a
           // clip and then adding it is the ordinary order, so this is usually
           // what makes the ＋ instant rather than a probe of its own.
-          if (clip.seconds === 0) {
+          if (clip.seconds === 0 && clip.kind === 'video') {
             void probeDuration(file).then(seconds => {
               if (seconds > 0) remember(clip.id, seconds)
             })
@@ -212,10 +212,19 @@ export function useClipLibrary(
   // which is the same answer it had before and an honest one — the shelf knows
   // a title and where to ask for it, and neither says how long it is.
   //
+  // **And 0 for a still**, which is not a failure to measure but the right
+  // answer: an image has no length, so its row holds for a bar count the way a
+  // look-only row does. Refused here rather than left to answer 0 the slow way,
+  // because the slow way opens the file, hands it to a `<video>` that cannot
+  // decode it and waits for the error — a round trip per ＋ press, every time,
+  // since the 0 it comes back with is indistinguishable from "not asked yet"
+  // and so is never written down.
+  //
   // The click that calls this is the gesture a lapsed grant needs, which is why
   // it opens the clip the way `play` does rather than awaiting anything first.
   const measure = (clip: Clip): Promise<number> => {
-    if (clip.seconds > 0) return Promise.resolve(clip.seconds)
+    if (clip.seconds > 0 || clip.kind !== 'video')
+      return Promise.resolve(clip.seconds)
     const how = access.clips.get(clip.id)
     if (how === undefined || how.open === null) return Promise.resolve(0)
     return how

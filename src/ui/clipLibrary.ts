@@ -750,6 +750,17 @@ type ClipOpen =
       at: 'disk'
       name: string
       needsGesture: boolean
+      // Whether this is footage or a still, off the shelf entry rather than off
+      // the bytes — so a caller that only wants one of the two can say no
+      // *before* it opens a file, a grant, or a decoder.
+      //
+      // `prerollOn`'s reason for wanting it is the sharp one: a preroll parks a
+      // `<video>`, a `<video>` cannot play a JPEG, and the parked record is
+      // written before the element has had a chance to fail. So a still parked
+      // this way is a trap rather than merely a waste — a cut landing in that
+      // window promotes an element that will never show a picture, where the
+      // ordinary path would have decoded the image.
+      kind: Clip['kind']
       open: () => Promise<File>
     }
   | { at: 'pool'; name: string; ref: PoolRef }
@@ -768,6 +779,7 @@ export async function openClipById(id: string): Promise<ClipOpen | null> {
         at: 'disk',
         name: clip.name,
         needsGesture: access.state === 'ask',
+        kind: clip.kind,
         open: access.open,
       }
 }

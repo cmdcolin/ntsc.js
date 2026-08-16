@@ -438,6 +438,36 @@ describe('makeStripRunner', () => {
       expect(h.runner.getStrip().rows).toHaveLength(1)
     })
 
+    // A measured clip length is not an edit — it lands from a probe the ＋
+    // started, a moment after the hand let go. Banked, one press of undo takes
+    // back the measurement instead of the row, leaving it sitting there with
+    // its hold snapped from the clip's own length to a bar count: two presses
+    // to undo one gesture, and a first press that reads as undo being broken.
+    it('does not bank a clip length nobody asked for', () => {
+      const h = harness([
+        row({ id: 'a', clip: { id: 'c7', name: 'surf.mp4', seconds: 0 } }),
+      ])
+      const before = h.runner.getDepth()
+      h.runner.learnClipSeconds('c7', 12)
+      expect(h.runner.getStrip().rows[0].clip?.seconds).toBe(12)
+      expect(h.runner.getDepth()).toEqual(before)
+      h.runner.undo()
+      // Straight past it, to the rundown as it was before the row existed.
+      expect(h.runner.getStrip().rows).toHaveLength(0)
+    })
+
+    // And it does not wake the readers when it has nothing to say, which is
+    // what a probe answering a length the rundown already had comes back with.
+    it('is a no-op for a clip no row is waiting on', () => {
+      const h = harness([
+        row({ id: 'a', clip: { id: 'c7', name: 'surf.mp4', seconds: 30 } }),
+      ])
+      const before = h.runner.getStrip()
+      h.runner.learnClipSeconds('c7', 12)
+      h.runner.learnClipSeconds('c9', 12)
+      expect(h.runner.getStrip()).toBe(before)
+    })
+
     // One press has to come back in one press. Banking inside undo as well as
     // inside the edit is how that turns into two.
     it('does not bank the step it is undoing', () => {
