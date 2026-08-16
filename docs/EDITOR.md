@@ -1019,6 +1019,11 @@ neither was obvious from the design.
   the number a proportional width should be drawn from — so the open question in
   the rest of this entry is no longer "proportional to what".
 
+  **And the number is now there to draw from**, which it was not when this was
+  written: a clip added off the shelf had never been measured, so most cards in
+  a rundown of clips would have come out proportional to a fallback. See
+  _Landed: the number the rest of step 8 is drawn in_.
+
   Every card is the same width, so a strip cannot be read for its rhythm —
   sixteen bars and one look the same size. Cards sized by hold would say more
   than any chip does. Cheap, and deliberately not done yet: proportional widths
@@ -1697,11 +1702,53 @@ entries were on neither list until somebody sat down with the thing.
    - **Trim handles**, which _Deliberately not this_ used to rule out and no
      longer does. The cue pair they set already exists and `rowRuntime` already
      reads it, so this is a gesture over a field rather than a new field.
-   - **And a duration for a clip nobody has played.** A clip added straight off
-     the shelf has never been on a deck, so nothing has read its `duration` and
-     its `'clip'` hold falls back to a bar count. Both halves of this step want
-     the same fix — a width and a trim are both drawn in seconds — so it is one
-     job rather than a caveat on two.
+   - ~~**And a duration for a clip nobody has played.**~~ **Landed**, and it was
+     the half of this step that was not cosmetic — see below.
+
+#### Landed: the number the rest of step 8 is drawn in
+
+A clip added straight off the shelf had never been on a deck, so nothing had
+ever read its `duration` and its `'clip'` hold fell back to a bar count. Filed
+above as the fourth bullet of a step about how the tray _reads_, which
+understated it: the ＋ down the shelf is the gesture this document opens by
+asking for, and every rundown built with it played eight clips of eight
+different lengths for eight identical bars. A hold saying `whole clip` and
+meaning `4 bars` is the same shape of fault as the row that could not name its
+clip — nothing inconsistent, a field simply absent, and absence is what a
+checklist cannot see.
+
+`clipLibrary.Clip.seconds` is the answer, and three things about where it came
+from are worth keeping.
+
+- **Measured on demand, not at add time**, and that is forced rather than
+  chosen. A duration is in the file; `addClips` is handed `{name, size}`
+  precisely because a folder scan calling `getFile()` per entry is what makes
+  shelving a hundred clips slow. So the probe runs when something needs the
+  number and the shelf keeps it, which makes the second ask free and the
+  hundredth clip cost nothing until somebody uses it.
+- **A `<video>` at `preload='metadata'`, not `mp4demux.ts`** — which parses a
+  real movie header, is exact, and was the obvious reach. It answers for mp4
+  alone, where the shelf holds whatever the browser plays, so an exact probe
+  would have left the same fallback in place on webm off Commons and every mov
+  on disk. The `duration.ts` header carries the argument.
+- **A kept roll stays unmeasured**, and says so rather than trying. `pool.ts`
+  downloads whole, so reading one header means fetching the entire file — the
+  bar count is the honest answer for a clip the shelf knows only as a title.
+
+**And ⎙ now renders the rundown's own length**, which was on neither list and is
+the same number one layer out. `stripSeconds` sums lap zero's holds with lap
+zero's seeds, so what the button says is what will play, drift included. It sits
+below the song and above the ten-second floor: a rundown cut to a track is as
+long as the track, and where there is no track the rundown is the only statement
+of length in the room. What that replaces is the case that made the export look
+broken on exactly the thing the tray is for — eight clips back to back, no music
+picked, rendered ten seconds, with nothing on the button to say it was going to.
+
+The reversal worth recording is the order. This step was filed as the cosmetic
+one, after seven numbered steps about deterministic clocks and demuxers, and the
+one thing in it that was not cosmetic was filed as its last bullet. The pattern
+is now twice in this document: what was hard and what was necessary are two
+different lists, and this one keeps sorting by the first.
 
 Three things this list deliberately does not carry, all of them wants rather
 than needs. **Cutting to the track's clock** rather than starting with it — the
@@ -1712,7 +1759,9 @@ rather than as a row of equal boxes; cheap, but it wants a decision about what
 the tray is when a piece is four minutes long. And **a render range** — though
 this one is now half answered by accident: ⎙ renders a recorded take's own
 length, so ● and ■ are a range chosen by hand. What is still not there is a
-range over a rundown nobody performed.
+range over a rundown nobody performed — which is a smaller want than it was,
+since the whole of such a rundown is now what ⎙ offers rather than ten seconds
+of it.
 
 What used to be listed here as blocking the live half was step 1 —
 `useCapture.ts` on `captureStream()` plus `MediaRecorder`, timestamped by wall

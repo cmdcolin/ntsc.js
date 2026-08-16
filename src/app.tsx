@@ -121,6 +121,7 @@ import type { Lens } from './ui/lens'
 import type { SavedProfile } from './ui/savedProfiles'
 import type { AnySlotView } from './ui/slotView'
 import type { PickSlot } from './ui/SourceSlot'
+import type { RenderFrom } from './ui/StripTray'
 import type { LookContext } from './ui/useLookLabels'
 import type { SourcePrompt } from './ui/useSourcePrompt'
 import type { ReactNode } from 'react'
@@ -565,14 +566,17 @@ export function App() {
   // no tape behind it: long enough to be a take, short enough to be a try. A
   // rundown answers 0 when it holds a row that waits for a hand, so an
   // open-ended piece lands here too rather than on a guess (`strip.stripSeconds`).
-  const takeLength =
+  // One value rather than a length and a flag: the button has to say which of
+  // the four it is showing, and two fields is two chances for the number and
+  // the sentence under it to disagree.
+  const take: { seconds: number; from: RenderFrom } =
     auto.seconds > 0
-      ? auto.seconds
+      ? { seconds: auto.seconds, from: 'take' }
       : audio.track.loaded && audio.duration > 0
-        ? audio.duration
+        ? { seconds: audio.duration, from: 'track' }
         : strip.seconds > 0
-          ? strip.seconds
-          : 10
+          ? { seconds: strip.seconds, from: 'rundown' }
+          : { seconds: 10, from: 'default' }
 
   const profiles = useSavedProfiles()
 
@@ -1452,8 +1456,8 @@ export function App() {
               }}
               render={{
                 progress: render.progress,
-                seconds: takeLength,
-                automated: auto.seconds > 0,
+                seconds: take.seconds,
+                from: take.from,
                 start: () => {
                   // **A render is not a performance**, so it takes the walk
                   // away from the tray rather than running beside it. The live
@@ -1471,7 +1475,7 @@ export function App() {
                   const walk = strip.offlineWalk()
                   const play = auto.replay()
                   render.render(
-                    takeLength,
+                    take.seconds,
                     // The rundown's seed, so ⟳ reseed gives a different take of
                     // the same piece and rendering twice without it gives the
                     // same one.

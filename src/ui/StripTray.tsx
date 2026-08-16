@@ -49,6 +49,21 @@ const DRAG_SLOP = 5
 // direction; understating a whole take to nothing is not.
 const secs = (n: number): string => `${Math.ceil(n)}s`
 
+// What the ⎙ button says it is about to render the length of. A table rather
+// than a nested ternary because the four cases are four sentences and the
+// track's name only appears in one of them — and because `default` is the one
+// worth writing a full sentence for: it is the only branch where the number on
+// the button was chosen by nothing at all, so it is the only one that has to
+// say what would change it.
+export type RenderFrom = 'take' | 'track' | 'rundown' | 'default'
+
+const RENDER_FROM: Record<RenderFrom, (track: string) => string> = {
+  take: () => ' — the recorded take, hands and all',
+  track: track => ` — the length of ${track}`,
+  rundown: () => ' — the whole rundown, at the lengths its rows hold for',
+  default: () => ' — lay out a rundown or pick a track and it renders that',
+}
+
 export function StripTray(props: {
   // Takes the jitter amount for a shake row, or nothing for an ordinary
   // capture. The tray cannot build a session string itself — that needs the
@@ -59,15 +74,21 @@ export function StripTray(props: {
   // where you decide you want a track, and the panel's own picker is four
   // sections down behind a fold.
   track: { name: string; onPick: () => void }
-  // The offline render. `seconds` is how long a take would be — a recorded
-  // performance's length first, then the loaded track's, since a piece cut to a
-  // song is as long as the song, and a default under both. `automated` says
-  // which of those it came from, and is the only thing that tells a hand its
-  // gestures are going to be in the file.
+  // The offline render. `seconds` is how long a take would be, and `from` is
+  // which of the four answers it came from — a recorded performance's length
+  // first, then the loaded track's (a piece cut to a song is as long as the
+  // song), then the rundown's own, and a default under all three.
+  //
+  // Named rather than inferred from the other props, because the button has to
+  // say what it is about to render the length *of* and it cannot work that out:
+  // a tray with a track picked and a rundown laid out has two lengths in it and
+  // one of them is the answer. The tooltip said "pick a track and it renders
+  // the length of the song" for as long as there was nothing else it could be,
+  // which stopped being true the day the rundown could answer.
   render: {
     progress: number | null
     seconds: number
-    automated: boolean
+    from: RenderFrom
     start: () => void
     cancel: () => void
   }
@@ -250,13 +271,7 @@ export function StripTray(props: {
               <button
                 className={cx(ui.btn, styles.readout)}
                 onClick={props.render.start}
-                title={`render ${secs(props.render.seconds)} to a constant-framerate MP4${
-                  props.render.automated
-                    ? ' — the recorded take, hands and all'
-                    : props.track.name === ''
-                      ? ' — pick a track and it renders the length of the song'
-                      : ` — the length of ${props.track.name}`
-                }`}
+                title={`render ${secs(props.render.seconds)} to a constant-framerate MP4${RENDER_FROM[props.render.from](props.track.name)}`}
               >
                 ⎙ render {secs(props.render.seconds)}
               </button>
