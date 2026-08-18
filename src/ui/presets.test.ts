@@ -58,6 +58,40 @@ describe('blendPresets', () => {
     expect(blendPresets(worn, new Map([['mixerLoop', 1]])).noiseIre).toBe(8.5)
   })
 
+  // Retention does not add: two phosphors in front of each other hold light as
+  // long as the slower one. Summed, a lead at 0.9 with a quarter of a follower
+  // on top ran off the end of the dial — the top of that track is half a minute
+  // of smear over whatever else the roll had just stacked up.
+  it('takes the longest hold rather than summing two phosphors', () => {
+    const both = blendPresets(
+      DEFAULT_CONTROLS,
+      new Map([
+        ['stuckTape', 1],
+        ['roundTube', 0.25],
+      ]),
+    )
+    expect(both.phosphor).toBe(0.9)
+    // The rest of what those two bring still stacks, this trim included —
+    // 0.15 stock plus a quarter of the follower's 0.05, on a 0.01 grid.
+    expect(both.phosphorBleed).toBe(0.16)
+  })
+
+  it('lets a follower carry the hold when the lead brought none', () => {
+    const mixed = blendPresets(
+      DEFAULT_CONTROLS,
+      new Map([
+        ['broadcast', 1],
+        ['greenTerminal', 0.5],
+      ]),
+    )
+    expect(mixed.phosphor).toBeCloseTo(0.495, 4)
+  })
+
+  it('keeps a hold the board already had, rather than adding to it', () => {
+    const held = presetControls({ phosphor: 0.99 })
+    expect(blendPresets(held, new Map([['stuckTape', 1]])).phosphor).toBe(0.99)
+  })
+
   it('picks one mode rather than averaging enum controls', () => {
     const mixed = blendPresets(
       DEFAULT_CONTROLS,

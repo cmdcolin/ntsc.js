@@ -1639,6 +1639,27 @@ export const ENUM_KEYS: ReadonlySet<ControlKey> = new Set<ControlKey>(
   [...SLIDER_BY_KEY.values()].filter(s => s.choices).map(s => s.key),
 )
 
+// Controls that hold rather than add. Retention is a rate, not an amount: put
+// two phosphors together and the light stays as long as the slower one, it does
+// not stay longer than either. Summing them says otherwise, and the value is
+// geometric in what you see — 0.9 is a tenth of a second, 0.99 a second and a
+// half, 0.9995 half a minute — so a lead at 0.9 with a quarter of a follower on
+// top lands off the end of the dial on a smear that never clears. That was the
+// roll covering its own work: over 4000 rolls, 2.9% came out past *every* preset
+// that contributed and 2.9% pinned to the top of the track.
+//
+// So the longest hold wins and the rest abstain, as they do for a mode. A
+// follower is still heard — at a quarter weight it is a quarter of a hold, which
+// only wins if the lead brought none — and a tube coated for seconds of
+// afterglow stays something you pick rather than something a roll stumbles into.
+// Derived from the curve rather than named, because the curve is the same
+// statement: this value is not linear in what it does.
+const HOLD_KEYS: ReadonlySet<ControlKey> = new Set<ControlKey>(
+  [...SLIDER_BY_KEY.values()]
+    .filter(s => s.curve === 'persistence')
+    .map(s => s.key),
+)
+
 // Snap a summed value back onto its slider's range and grid, so a mix lands on
 // values the UI can actually show and `matchPreset` can compare exactly.
 function quantize(key: ControlKey, v: number): number {
@@ -1672,6 +1693,7 @@ export function blendMod(weights: PresetWeights): ModRouting[] | null {
 
 // Presets mix by summing their departures from default onto `baseline`, so
 // dialing in two faults accumulates both instead of the later one winning.
+// ENUM_KEYS and HOLD_KEYS are the two exceptions, each for its own reason.
 // Weight 1 on a single preset over the default baseline reproduces
 // `presetControls(patch)` exactly, which is what keeps `matchPreset` honest.
 export function blendPresets(
@@ -1692,14 +1714,25 @@ export function blendPresets(
     const moved = active.filter(a => a.full[k] !== DEFAULT_CONTROLS[k])
     if (moved.length > 0) {
       // `active` is heaviest-first, so the leading mover wins the enum keys.
+      // A hold key takes whichever mover reaches furthest instead, starting
+      // from what the board already holds.
+      const from = DEFAULT_CONTROLS[k]
       out[k] = ENUM_KEYS.has(k)
         ? moved[0].full[k]
         : quantize(
             k,
-            moved.reduce(
-              (acc, a) => acc + a.w * (a.full[k] - DEFAULT_CONTROLS[k]),
-              baseline[k],
-            ),
+            HOLD_KEYS.has(k)
+              ? moved
+                  .map(a => from + a.w * (a.full[k] - from))
+                  .reduce(
+                    (acc, v) =>
+                      Math.abs(v - from) > Math.abs(acc - from) ? v : acc,
+                    baseline[k],
+                  )
+              : moved.reduce(
+                  (acc, a) => acc + a.w * (a.full[k] - from),
+                  baseline[k],
+                ),
           )
     }
   }

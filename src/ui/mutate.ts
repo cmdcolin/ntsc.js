@@ -1,4 +1,5 @@
 import { snapToStep } from './controls'
+import { fromTravel, toTravel } from './travel'
 
 import type { ControlKey, Controls } from '../controls'
 import type { SliderDef } from './controls'
@@ -63,11 +64,19 @@ export function mutateAmountFor(e: {
 // this is a set of keys and a test against rest rather than another VIEW_KEYS.
 export const ROLL_NEVER_STARTS = new Set<ControlKey>(['strobeHz'])
 
-// Nudge every control by a random fraction of its own slider range — the
+// Nudge every control by a random fraction of its own slider *travel* — the
 // bender's hand brushing all the pots at once. Jittering *around* the current
 // look rather than picking fresh-random values keeps sync, colour, and geometry
 // roughly intact, so the result reads as a variation worth keeping instead of
 // the black-screen mush a full randomize usually collapses to.
+//
+// Travel rather than value, which is the same thing on the linear majority and
+// not remotely the same on a curved control. Phosphor persistence is the worst
+// of them: the value is geometric in the trail it gives, so a 0.12 jitter off a
+// look sitting at 0.9 — a tenth of a second of afterglow — hit the top of the
+// dial and half a minute of smear on about one press in twelve, wiping out
+// whatever else the roll had just done. On the track those are a third of the
+// travel apart, and a nudge moves the hold by a ratio the way the slider does.
 export function mutate(
   controls: Controls,
   sliders: readonly SliderDef[],
@@ -79,11 +88,15 @@ export function mutate(
     // Drawn before the skip below, not inside the branch: a seeded jitter has
     // to roll the same look whatever it is rolled off, and a draw that only
     // sometimes happens shifts every control after it.
-    const jitter = (rand() * 2 - 1) * amt * (s.max - s.min)
+    const jitter = (rand() * 2 - 1) * amt
     if (ROLL_NEVER_STARTS.has(s.key) && controls[s.key] === 0) continue
     // snapToStep lands mode-select controls (step 1) on whole integers rather
-    // than a fractional index no shader branch expects.
-    next[s.key] = snapToStep(s, controls[s.key] + jitter)
+    // than a fractional index no shader branch expects, and clamps a jitter
+    // that ran off either end of the track.
+    next[s.key] = snapToStep(
+      s,
+      fromTravel(s, toTravel(s, controls[s.key]) + jitter),
+    )
   }
   return next
 }

@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_CONTROLS } from '../controls'
 import { rngFor } from '../rng'
-import { GROUPS } from './controls'
+import { GROUPS, snapToStep } from './controls'
 import { mutate } from './mutate'
+import { toTravel } from './travel'
 
 const SLIDERS = GROUPS.flatMap(g => g.sliders)
 
@@ -62,14 +63,44 @@ describe('mutate', () => {
     }
   })
 
-  it('jitters around the current look, never more than the amount times range', () => {
+  it('jitters around the current look, never more than the amount of travel', () => {
     const out = mutate(DEFAULT_CONTROLS, SLIDERS, 0.12, () => 0.9)
     for (const s of SLIDERS) {
-      const bound = 0.12 * (s.max - s.min) + s.step
+      const moved = Math.abs(
+        toTravel(s, out[s.key]) - toTravel(s, DEFAULT_CONTROLS[s.key]),
+      )
+      // The snap back onto the step grid is worth up to a step, which on a
+      // curved control is worth more travel the flatter the track is there.
+      const grid = Math.abs(
+        toTravel(s, snapToStep(s, DEFAULT_CONTROLS[s.key] + s.step)) -
+          toTravel(s, DEFAULT_CONTROLS[s.key]),
+      )
+      expect(moved, s.key).toBeLessThanOrEqual(0.12 + grid)
+    }
+  })
+
+  // The nudge used to jitter the raw value, which on the persistence track is
+  // not the control anyone is holding: 0.9 is a tenth of a second of afterglow
+  // and 0.9995 is half a minute, and a 0.12 jitter crossed that whole distance.
+  // One press in twelve off a look with any hold at all came back a smear that
+  // never cleared, over whatever else the roll had done.
+  it('moves a phosphor hold by a ratio rather than across the whole dial', () => {
+    const held = { ...DEFAULT_CONTROLS, phosphor: 0.9 }
+    for (const rand of [() => 0, () => 0.5, () => 1]) {
+      const out = mutate(held, SLIDERS, 0.12, rand).phosphor
+      expect(out).toBeGreaterThan(0.7)
+      expect(out).toBeLessThan(0.97)
+    }
+  })
+
+  // It may still introduce one — a nudge that can only deepen what is already
+  // there is a poorer nudge — but the bottom of the track is short holds, so
+  // what it introduces is a smear of a couple of fields.
+  it('cannot nudge a look with no hold into a long one', () => {
+    for (const rand of [() => 0.9, () => 1]) {
       expect(
-        Math.abs(out[s.key] - DEFAULT_CONTROLS[s.key]),
-        s.key,
-      ).toBeLessThanOrEqual(bound)
+        mutate(DEFAULT_CONTROLS, SLIDERS, 0.12, rand).phosphor,
+      ).toBeLessThan(0.65)
     }
   })
 })
