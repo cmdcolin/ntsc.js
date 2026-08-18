@@ -16,6 +16,8 @@
 import { BuzzOut } from './buzz'
 import { LINES } from './constants'
 
+import type { Rand } from '../rng'
+
 // Quietest input the auto-gain will still normalize against. Below this it
 // stops chasing the signal down, so silence stays silent.
 const PEAK_FLOOR = 0.05
@@ -46,12 +48,56 @@ export function stepHit(s: HitState, low: number): HitState {
   }
 }
 
-// The analysis context and the nodes that live as long as it does.
+// How long the hall rings for, how long before its tail arrives, and where the
+// tail stops being bright. The pre-delay and the damping are what keep the dry
+// audible underneath: an undelayed full-band wash lands on the transient it is
+// supposed to be following, and a track heard through one reads as further away
+// — quieter — however much energy the mix knob is actually adding.
+const TAIL_SECONDS = 2.5
+const TAIL_PREDELAY = 0.025
+const TAIL_DAMP_HZ = 5000
+
+// Both levels glide rather than jump: a slider drag writes a gain per pointer
+// event, and stepped gain on a live signal zippers.
+const LEVEL_RAMP = 0.02
+
+const ramp = (g: GainNode, value: number, at: number): void => {
+  g.gain.setTargetAtTime(value, at, LEVEL_RAMP)
+}
+
+// A decaying-noise hall tail at unit energy per channel, so the send's gain is
+// the whole level story: at mix 1 the tail comes back about as loud as what fed
+// it, and the dry it is added to never moves.
+//
+// Unit energy is why the convolver runs with `normalize = false`. The browser's
+// own normalization holds the *impulse response* to a fixed RMS, and for 2.5 s
+// of dense wash that lands the return well under the dry and smeared across
+// seconds — so winding the mix up added almost no level while burying the direct
+// sound in noise, which is the "reverb turns the volume down" this replaced.
+export function hallTail(
+  out: Float32Array,
+  rand: Rand = Math.random,
+): Float32Array {
+  let energy = 0
+  for (let i = 0; i < out.length; i++) {
+    const v = (rand() * 2 - 1) * (1 - i / out.length) ** 3
+    out[i] = v
+    energy += v * v
+  }
+  const scale = energy > 0 ? 1 / Math.sqrt(energy) : 0
+  for (let i = 0; i < out.length; i++) out[i] *= scale
+  return out
+}
+
+// The analysis context and the nodes that live as long as it does. `dry` and
+// `send` are parallel: the reverb is a send, not a crossfade, so the tail only
+// ever adds and how much direct sound sits under it is `dry`'s own question.
 interface Graph {
   ctx: AudioContext
   analyser: AnalyserNode
+  dry: GainNode
+  send: DelayNode
   wet: GainNode
-  convolver: ConvolverNode
 }
 
 export class AudioState {
@@ -103,11 +149,24 @@ export class AudioState {
       analyser.fftSize = 2048
       this.scratch = new Float32Array(analyser.fftSize)
       this.spectrum = new Float32Array(analyser.frequencyBinCount)
-      const wet = ctx.createGain()
+      const dry = ctx.createGain()
+      dry.connect(ctx.destination)
+      const send = ctx.createDelay()
+      send.delayTime.value = TAIL_PREDELAY
+      const damp = ctx.createBiquadFilter()
+      damp.type = 'lowpass'
+      damp.frequency.value = TAIL_DAMP_HZ
       const convolver = ctx.createConvolver()
+      convolver.normalize = false
       convolver.buffer = this.impulse(ctx)
-      convolver.connect(wet).connect(ctx.destination)
-      this.graph = { ctx, analyser, wet, convolver }
+      const wet = ctx.createGain()
+      wet.gain.value = 0
+      send
+        .connect(damp)
+        .connect(convolver)
+        .connect(wet)
+        .connect(ctx.destination)
+      this.graph = { ctx, analyser, dry, send, wet }
     }
     // Browsers hand back a suspended context unless creation is tied to a user
     // gesture; the enable button is one, but autoplay policies still vary, so
@@ -151,16 +210,15 @@ export class AudioState {
     this.input = src
   }
 
-  // A short decaying-noise impulse — a plausible hall tail for the reverb send.
+  // Two independent tails, so the hall is wider than the source rather than a
+  // mono copy of it sitting on top.
   private impulse(ctx: AudioContext): AudioBuffer {
-    const len = Math.floor(ctx.sampleRate * 2.5)
-    const buf = ctx.createBuffer(2, len, ctx.sampleRate)
-    for (let ch = 0; ch < 2; ch++) {
-      const d = buf.getChannelData(ch)
-      for (let i = 0; i < len; i++) {
-        d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3
-      }
-    }
+    const buf = ctx.createBuffer(
+      2,
+      Math.floor(ctx.sampleRate * TAIL_SECONDS),
+      ctx.sampleRate,
+    )
+    for (let ch = 0; ch < 2; ch++) hallTail(buf.getChannelData(ch))
     return buf
   }
 
@@ -169,18 +227,26 @@ export class AudioState {
   // them while leaving every source cached, since an element cannot be adopted
   // twice. Only the previously routed sources are touched, so this never cuts
   // the mic or a picked file out from under itself.
-  routeMedia(els: HTMLMediaElement[], reverb: number): void {
+  routeMedia(
+    els: HTMLMediaElement[],
+    mix: { dry: number; reverb: number },
+  ): void {
     if (els.length > 0 || this.graph !== null) {
       const g = this.ensureGraph()
       for (const el of this.routed) this.mediaSources.get(el)?.disconnect()
       this.routed = [...els]
       for (const el of els) {
         const src = this.sourceFor(g, el)
-        src.connect(g.ctx.destination)
+        src.connect(g.dry)
+        // Ahead of the dry fader, deliberately: pulling the direct sound back to
+        // sit the clip in the room must not also pull back what the sound does
+        // to the picture. The analyser drives sync and deflection, and that is
+        // not a listening level.
         src.connect(g.analyser)
-        src.connect(g.convolver)
+        src.connect(g.send)
       }
-      g.wet.gain.value = reverb
+      this.setDryLevel(mix.dry)
+      this.setReverbMix(mix.reverb)
     }
   }
 
@@ -207,8 +273,17 @@ export class AudioState {
     }
   }
 
+  // How much direct sound the clips are heard at, with the tail unchanged
+  // underneath. Wind this down against a raised mix and the clip moves into the
+  // next room; leave it at 1 and the reverb is pure addition.
+  setDryLevel(level: number): void {
+    const g = this.graph
+    if (g !== null) ramp(g.dry, level, g.ctx.currentTime)
+  }
+
   setReverbMix(reverb: number): void {
-    if (this.graph !== null) this.graph.wet.gain.value = reverb
+    const g = this.graph
+    if (g !== null) ramp(g.wet, reverb, g.ctx.currentTime)
   }
 
   // Drop an element's source when its <video> is retired for good (a new clip

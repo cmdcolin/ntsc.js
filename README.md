@@ -1,30 +1,27 @@
 # ntsc.js
 
-A TV you can break on purpose. The picture is encoded into a real NTSC waveform,
-damaged the way tape, cable and a tired receiver damage one, then decoded with
-the mistakes still in. Nothing here draws an artifact — you break something
-upstream and watch what falls out.
 
-Real-time in the browser, on WebGPU compute shaders.
+### Live app!
 
-### [**Try it live →**](https://cmdcolin.github.io/ntsc.js/)
+https://cmdcolin.github.io/ntsc.js/
 
-Requires a WebGPU-enabled browser.
+## Screenshot
+
 
 [![A photo dubbed to VHS: rainbow chroma noise banding across the frame, torn lines, and the picture bending through a tracking band](img/screenshot.jpg)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo-v2.mp4)
 
-## What's in it
+## Features
 
-- Every stage of the path, with the hardware fault behind each control: the
-  wiring, the tape and RF, the receiver, the screen.
-- Three feedback loops — a camera at the monitor, the mixer patched into itself,
-  and a tape loop with up to four playback heads.
-- Two sources, summed dirty or genlocked, with wipes and a chroma keyer.
-- Any slider can run on an LFO, random walk, Lorenz attractor or live audio.
-- MIDI learn and automap, with soft takeover and clock-locked rates.
-- Record to webm or stills, or pop the controls into a second window and point
-  OBS at the picture.
-- The whole board fits in a URL, so a link is a patch. Works on a phone.
+- True composite signal emulation using WebGPU compute shaders. Requires WebGPU!
+- Multiple types of feedback loops including mixer-patched-into-itself feedback, point-camera-at-monitor feedback, and vhs tape loop
+- Allows dirty or genlocked video mixing of two sources, with wipes and a chroma keyer.
+- Insane number of effects, and slider can run on a modulator (LFO, random walk, etc).
+- Allows connection to MIDI controller with WebMIDI to twist different knobs (chrome only, firefox nightly too)
+- Randomizer buttons that morph between settings over N seconds
+- Record to webm or screenshot stills
+- Popout the controls into a second window and cast the other screen in a projector or OBS screen recorder
+- The whole board fits in a URL, so a link is a patch
+- Insanely, it works on a phone. Tested on Android Pixel
 
 ## Run
 
@@ -33,15 +30,17 @@ pnpm install
 pnpm dev
 ```
 
-Running locally adds a **YouTube…** source the hosted demo doesn't have.
+Fun bonus: If you are running this locally, it adds a **YouTube…** source that works with yt-dlp and lets you video mix with youtube videos on the fly. 
 
 ## Docs
 
-### [Read the docs site →](https://cmdcolin.github.io/ntsc.js/guide/)
-
-[Getting started](docs/GETTING-STARTED.md) · [User guide](docs/USER-GUIDE.md) ·
-[Effects](docs/EFFECTS.md) · [How it works](docs/HOW-IT-WORKS.md) — the code ·
-[MIDI](docs/MIDI.md) · [Comparison](docs/COMPARISON.md)
+- [Main docs website](https://cmdcolin.github.io/ntsc.js/guide/)
+- [Getting started](docs/GETTING-STARTED.md)
+- [User guide](docs/USER-GUIDE.md) ·
+- [Effects](docs/EFFECTS.md)
+- [How it works](docs/HOW-IT-WORKS.md)
+- [MIDI](docs/MIDI.md)
+- [Comparison with other tools](docs/COMPARISON.md)
 
 ---
 

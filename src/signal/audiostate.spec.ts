@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { stepHit } from './audiostate'
+import { rngFor } from '../rng'
+import { hallTail, stepHit } from './audiostate'
 
 import type { HitState } from './audiostate'
 
@@ -44,5 +45,44 @@ describe('bass onset envelope', () => {
   it('never exceeds its clamp', () => {
     const s = run([0, 1000])
     expect(s.hit).toBeLessThanOrEqual(1.5)
+  })
+})
+
+describe('hall tail', () => {
+  const energy = (a: Float32Array) => a.reduce((sum, v) => sum + v * v, 0)
+
+  it('carries unit energy, whatever its length', () => {
+    for (const len of [1000, 110250]) {
+      const tail = hallTail(new Float32Array(len), rngFor(7))
+      expect(energy(tail)).toBeCloseTo(1, 5)
+    }
+  })
+
+  // The level claim the mix knob rests on: a send at gain 1 returns about as
+  // much as it was given, so winding it up adds to the dry instead of washing
+  // it out. White in, white through a unit-energy tail, out at the same RMS.
+  it('returns what it is given, at gain 1', () => {
+    const tail = hallTail(new Float32Array(2048), rngFor(11))
+    const rand = rngFor(3)
+    const dry = Float32Array.from({ length: 8192 }, () => rand() * 2 - 1)
+    let wetEnergy = 0
+    for (let i = tail.length; i < dry.length; i++) {
+      let acc = 0
+      for (let k = 0; k < tail.length; k++) acc += tail[k] * dry[i - k]
+      wetEnergy += acc * acc
+    }
+    const span = dry.length - tail.length
+    expect(Math.sqrt(wetEnergy / span)).toBeCloseTo(
+      Math.sqrt(energy(dry) / dry.length),
+      1,
+    )
+  })
+
+  it('decays', () => {
+    const tail = hallTail(new Float32Array(4096), rngFor(5))
+    const half = tail.length / 2
+    expect(energy(tail.subarray(half))).toBeLessThan(
+      energy(tail.subarray(0, half)) / 10,
+    )
   })
 })

@@ -28,13 +28,21 @@ import type { Cue } from './cue'
 import type { ModRouting } from './modSlots'
 
 // Vaporwave playback defaults, shared with the rows that now carry these —
-// speed under each source's own transport at the head of its stage, reverb
-// under the audio picker — so each slider's reset point matches the initial
-// state.
-// VAPORWAVE_SPEED is the one-click look, run from the command palette.
+// speed under each source's own transport at the head of its stage, dry and
+// reverb under the audio picker — so each slider's reset point matches the
+// initial state.
+//
+// Dry starts at unity because the tail is a send: a clip is heard whole until
+// someone decides otherwise, and the reverb slider on its own only ever adds.
+// Pulling dry back is how the clip moves off the front of the room instead.
+//
+// VAPORWAVE_SPEED and VAPORWAVE_DRY are the one-click look, run from the
+// command palette — slowed, and heard from the doorway.
 export const SPEED_DEFAULT = 1
 export const REVERB_DEFAULT = 0.3
+export const DRY_DEFAULT = 1
 export const VAPORWAVE_SPEED = 0.66
+export const VAPORWAVE_DRY = 0.7
 
 // The generated sources a link can name. `bars` is the default and `file` /
 // `youtube` carry their own url params, so neither ever appears as ?src=.
@@ -92,7 +100,7 @@ export interface SessionParams {
   // `?boil` alone is a card too: the stock words, moving.
   card: TeletypeCard | null
   cardb: TeletypeCard | null
-  vapor: { speedA: number; speedB: number; reverb: number }
+  vapor: { speedA: number; speedB: number; reverb: number; dry: number }
   // Each slot's cue point, and the loop on it if there was one. Carried because
   // the loop is half of what a link of a clip is *of* — "this two seconds of this
   // file" is the thing being shared, and a link that restored the clip and lost
@@ -236,6 +244,7 @@ export function parseSessionParams(search: string): SessionParams {
       speedA: num('speeda', SPEED_DEFAULT),
       speedB: num('speedb', SPEED_DEFAULT),
       reverb: num('reverb', REVERB_DEFAULT),
+      dry: num('dry', DRY_DEFAULT),
     },
     cueA: parseCue(q.get('cuea')),
     cueB: parseCue(q.get('cueb')),
@@ -275,10 +284,12 @@ export interface SessionState {
   // as well as the mode.
   teletypeA: TeletypeCard
   teletypeB: TeletypeCard
-  // The vaporwave look: each deck slowed down, and the room it plays in.
+  // The vaporwave look: each deck slowed down, the room it plays in, and how
+  // much of the clip itself is heard in front of that room.
   speedA: number
   speedB: number
   reverb: number
+  dry: number
   // Each slot's cue point, so a shared link of a clip carries the loop that was
   // marked on it as well as the clip itself.
   cueA: Cue | null
@@ -361,6 +372,7 @@ export function writeSessionParams(
   put('cuea', state.cueA !== null, formatCue(state.cueA))
   put('cueb', state.cueB !== null, formatCue(state.cueB))
   put('reverb', state.reverb !== REVERB_DEFAULT, short(state.reverb))
+  put('dry', state.dry !== DRY_DEFAULT, short(state.dry))
   return q
 }
 

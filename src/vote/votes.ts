@@ -1,6 +1,7 @@
 import { TELETYPE_DEFAULT } from '../sources/teletype'
 import { readArray, writeJSON } from '../ui/storage'
 import {
+  DRY_DEFAULT,
   REVERB_DEFAULT,
   SPEED_DEFAULT,
   writeSessionParams,
@@ -136,6 +137,7 @@ export function candidateRecord(recipe: Recipe): CandidateRecord {
     speedA: SPEED_DEFAULT,
     speedB: SPEED_DEFAULT,
     reverb: REVERB_DEFAULT,
+    dry: DRY_DEFAULT,
   })
   return {
     v: RECORD_VERSION,

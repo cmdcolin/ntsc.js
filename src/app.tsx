@@ -486,6 +486,7 @@ export function App() {
     speedA: eng.a.speed,
     speedB: eng.b.speed,
     reverb: eng.reverb,
+    dry: eng.dry,
     cueA: eng.a.cue,
     cueB: eng.b.cue,
     getGlideTarget,
@@ -959,6 +960,8 @@ export function App() {
           duration={audio.duration}
           reverb={eng.reverb}
           onReverb={eng.changeReverb}
+          dry={eng.dry}
+          onDry={eng.changeDry}
           onSelect={audio.select}
           onSeek={audio.seek}
         />

@@ -7,6 +7,7 @@ import { ALL_SLIDERS, sliderFor } from './controls'
 import { mutate } from './mutate'
 import { PRESETS, presetControls } from './presets'
 import {
+  DRY_DEFAULT,
   REVERB_DEFAULT,
   SPEED_DEFAULT,
   parseSessionParams,
@@ -29,6 +30,7 @@ describe('session params', () => {
       speedA: SPEED_DEFAULT,
       speedB: SPEED_DEFAULT,
       reverb: REVERB_DEFAULT,
+      dry: DRY_DEFAULT,
     })
   })
 
@@ -123,11 +125,12 @@ describe('session params', () => {
   })
 
   it('falls back on unreadable playback numbers', () => {
-    const p = parseSessionParams('?speeda=0.66&speedb=oops&reverb=0.8')
+    const p = parseSessionParams('?speeda=0.66&speedb=oops&reverb=0.8&dry=nope')
     expect(p.vapor).toEqual({
       speedA: 0.66,
       speedB: SPEED_DEFAULT,
       reverb: 0.8,
+      dry: DRY_DEFAULT,
     })
   })
 
@@ -204,6 +207,7 @@ const state = (over: Partial<SessionState> = {}): SessionState => ({
   speedA: SPEED_DEFAULT,
   speedB: SPEED_DEFAULT,
   reverb: REVERB_DEFAULT,
+  dry: DRY_DEFAULT,
   cueA: null,
   cueB: null,
   ...over,
@@ -294,8 +298,15 @@ describe('session round trip', () => {
   })
 
   it('returns the playback settings', () => {
-    const back = roundTrip(state({ speedA: 0.66, speedB: 1.5, reverb: 0.8 }))
-    expect(back.vapor).toEqual({ speedA: 0.66, speedB: 1.5, reverb: 0.8 })
+    const back = roundTrip(
+      state({ speedA: 0.66, speedB: 1.5, reverb: 0.8, dry: 0.4 }),
+    )
+    expect(back.vapor).toEqual({
+      speedA: 0.66,
+      speedB: 1.5,
+      reverb: 0.8,
+      dry: 0.4,
+    })
   })
 
   // A cue rides with the clip it was marked on, so a shared link of "this two

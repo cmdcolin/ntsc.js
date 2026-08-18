@@ -44,8 +44,10 @@ import { RebuildPolicy } from './rebuildPolicy'
 import { printCard } from './teletypeSlot'
 import { faultPlan, transitionOf } from './transitions'
 import {
+  DRY_DEFAULT,
   REVERB_DEFAULT,
   SPEED_DEFAULT,
+  VAPORWAVE_DRY,
   VAPORWAVE_SPEED,
   parseSessionParams,
   urlName,
@@ -475,8 +477,8 @@ export function useEngine() {
     b: TELETYPE_DEFAULT,
   })
   const cardRef = useRef({ a: TELETYPE_DEFAULT, b: TELETYPE_DEFAULT })
-  // Vaporwave playback: per-slot rate (pitch drops with it) and the reverb wet
-  // mix on the tail the clips are heard through. `live` tracks what kind of
+  // Vaporwave playback: per-slot rate (pitch drops with it) and how much of the
+  // reverb tail is added to the clips. `live` tracks what kind of
   // <video> each slot currently holds — only a clip has a rate to change
   // (see SlotKind).
   // One record rather than a useState each, so the rate can be changed by key.
@@ -486,6 +488,7 @@ export function useEngine() {
   // re-routing on a source change reads, and it is a ref for the same reason the
   // rest of the vapor config is.
   const [reverb, setReverb] = useState(REVERB_DEFAULT)
+  const [dry, setDry] = useState(DRY_DEFAULT)
   const [live, setLiveState] = useState<{ a: SlotKind; b: SlotKind }>({
     a: 'none',
     b: 'none',
@@ -528,6 +531,7 @@ export function useEngine() {
     speed: { a: SPEED_DEFAULT, b: SPEED_DEFAULT },
     playAudio: false,
     reverb: REVERB_DEFAULT,
+    dry: DRY_DEFAULT,
   })
   // What each slot is showing, for the rebuild after a lost device. A ref rather
   // than state because nothing renders it and the rebuild path reads it from a
@@ -584,9 +588,10 @@ export function useEngine() {
   }
 
   // Adopt the live video slots into the audio graph (or none, muting them all,
-  // when off) at the given reverb mix. Explicit args, so callers that also flip
-  // a setting pass the new value rather than reading stale state.
-  const routeAudio = (on: boolean, mix: number) => {
+  // when off) at whatever levels the mirror holds. Off the mirror rather than
+  // the state above, because a caller that flips a setting and re-routes in the
+  // same click would read the pre-click value out of state.
+  const routeAudio = (on: boolean) => {
     const els: HTMLVideoElement[] = []
     for (const v of [videoRef.current, videoBRef.current]) {
       if (v !== null) {
@@ -594,7 +599,7 @@ export function useEngine() {
         if (on) els.push(v)
       }
     }
-    engineRef.current?.audioState.routeMedia(els, mix)
+    engineRef.current?.audioState.routeMedia(els, vaporRef.current)
   }
 
   // `defaultPlaybackRate` as well as `playbackRate`, or loading the next src
@@ -623,26 +628,33 @@ export function useEngine() {
   // button of its own inside Vaporwave — two switches onto one wire, which the
   // panel could not then answer "is sound driving this" from, because either one
   // could be the reason and neither knew about the other.
-  // Through the mirror rather than the `reverb` state, because the preset dials
-  // in a mix and then asks the picker to switch this on within the same click:
-  // the state read here would still be the pre-preset value, and routeMedia
-  // writes the wet gain, so it would undo the mix changeReverb just set.
+  // The mirror is written before the call for the reason routeAudio gives: the
+  // preset dials in levels and then asks the picker to switch this on within the
+  // same click, and routeMedia writes both gains — off stale state it would undo
+  // what changeReverb and changeDry had just set.
   const setVideoAudio = (on: boolean) => {
     vaporRef.current.playAudio = on
-    routeAudio(on, vaporRef.current.reverb)
+    routeAudio(on)
   }
   const changeReverb = (mix: number) => {
     vaporRef.current.reverb = mix
     setReverb(mix)
     engineRef.current?.audioState.setReverbMix(mix)
   }
-  // The vaporwave preset: slow both slots and dial in reverb. Switching the
-  // clip's audio on is the caller's job — that is the audio picker's state now,
-  // and this hook has no way to move it.
+  const changeDry = (level: number) => {
+    vaporRef.current.dry = level
+    setDry(level)
+    engineRef.current?.audioState.setDryLevel(level)
+  }
+  // The vaporwave preset: slow both slots, dial in reverb, and pull the direct
+  // sound back so the clip is heard from inside the room rather than in front of
+  // it. Switching the clip's audio on is the caller's job — that is the audio
+  // picker's state now, and this hook has no way to move it.
   const applyVaporwave = () => {
     changeSpeed('a', VAPORWAVE_SPEED)
     changeSpeed('b', VAPORWAVE_SPEED)
     changeReverb(REVERB_DEFAULT)
+    changeDry(VAPORWAVE_DRY)
   }
 
   // Follow both playheads while either slot holds a clip. 10 Hz, like the audio
@@ -765,8 +777,7 @@ export function useEngine() {
   // The two slots, as data. Everything below that touches a <video> goes
   // through one of these, so the A and B paths are the same code reading a
   // different letter rather than two near-copies drifting apart.
-  const adopt = () =>
-    routeAudio(vaporRef.current.playAudio, vaporRef.current.reverb)
+  const adopt = () => routeAudio(vaporRef.current.playAudio)
   // Every source that reaches a slot passes through the three setters below, so
   // that is where the "what is on this slot" record is kept — one write per
   // source change, and no path can set a source without leaving one behind.
@@ -1979,10 +1990,12 @@ export function useEngine() {
     vaporRef.current = {
       speed: restored,
       reverb: params.vapor.reverb,
+      dry: params.vapor.dry,
       playAudio: false,
     }
     setSpeed(restored)
     setReverb(params.vapor.reverb)
+    setDry(params.vapor.dry)
     if (params.yt !== null) loadYouTubeOn('a', params.yt)
     if (params.ytb !== null) loadYouTubeOn('b', params.ytb)
     // Boot only, and the reason `opts` exists at all. What follows is a question
@@ -2571,8 +2584,10 @@ export function useEngine() {
     // a row that does nothing has to admit it.
     rollable: isPoolMode(sourceMode.a) || isPoolMode(sourceMode.b),
     reverb,
+    dry,
     setVideoAudio,
     changeReverb,
+    changeDry,
     applyVaporwave,
   }
 }

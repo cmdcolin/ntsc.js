@@ -4,7 +4,7 @@ import { Scrub } from './Scrub'
 import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
 import ui from './ui.module.css'
-import { REVERB_DEFAULT } from './urlParams'
+import { DRY_DEFAULT, REVERB_DEFAULT } from './urlParams'
 import { AUDIO_DESC, AUDIO_MODES } from './useAudio'
 
 import type { AudioState } from '../signal/audiostate'
@@ -34,14 +34,22 @@ export function AudioInput(props: {
   audioState: AudioState | null
   time: number
   duration: number
-  // The wet mix on the tail the clips are heard through, shown only while they
-  // are the input. Not a general audio control: routeMedia is the only path that
-  // reaches the convolver, so a mic or a picked file has no send to trim, and a
-  // reverb slider over either would be a knob that does nothing. It lived in
-  // Vaporwave, where it was filed under the sound it makes rather than under the
-  // thing it processes.
+  // How much tail is added to the clips, shown only while they are the input.
+  // A send: the dry stays where it was and this only ever adds, so winding it up
+  // does not trade the track away for the room. Not a general audio control:
+  // routeMedia is the only path that reaches the convolver, so a mic or a picked
+  // file has no send to trim, and a reverb slider over either would be a knob
+  // that does nothing. It lived in Vaporwave, where it was filed under the sound
+  // it makes rather than under the thing it processes.
   reverb: number
   onReverb: (v: number) => void
+  // How much of the clip itself is heard in front of that tail. The pair is a
+  // send and a fader, not one crossfade: reverb alone adds a room to a clip that
+  // stays where it is, and this is the separate decision to stand further back
+  // from it. Only the speakers are downstream — the analyser that drives sync
+  // and deflection is tapped ahead of the fader.
+  dry: number
+  onDry: (v: number) => void
   onSelect: (mode: AudioMode) => void
   onSeek: (time: number) => void
 }) {
@@ -69,16 +77,28 @@ export function AudioInput(props: {
         />
       )}
       {props.mode === 'video' ? (
-        <Slider
-          label="reverb"
-          unit=""
-          min={0}
-          max={1}
-          step={0.01}
-          value={props.reverb}
-          defaultValue={REVERB_DEFAULT}
-          onChange={props.onReverb}
-        />
+        <>
+          <Slider
+            label="dry"
+            unit=""
+            min={0}
+            max={1}
+            step={0.01}
+            value={props.dry}
+            defaultValue={DRY_DEFAULT}
+            onChange={props.onDry}
+          />
+          <Slider
+            label="reverb"
+            unit=""
+            min={0}
+            max={1}
+            step={0.01}
+            value={props.reverb}
+            defaultValue={REVERB_DEFAULT}
+            onChange={props.onReverb}
+          />
+        </>
       ) : null}
     </>
   )
