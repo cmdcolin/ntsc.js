@@ -2,6 +2,15 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.28.4](https://github.com/cmdcolin/ntsc.js/compare/v0.28.3...v0.28.4) - 2026-08-18
+
+### Features
+- *(ui)* [`aa50de2`](https://github.com/cmdcolin/ntsc.js/commit/aa50de2d719299bdd5f39d561c096c76da0db719) three more shapes of roll, and a nudge that is one again
+
+### Fixes
+- *(ui)* [`a8a071f`](https://github.com/cmdcolin/ntsc.js/commit/a8a071fe6f1068ab57447f4cf9edcee60a6e6d7d) a rated roll stops filing itself as hand-made
+- *(ui)* [`f75dd0b`](https://github.com/cmdcolin/ntsc.js/commit/f75dd0b57e29c8e7d188b3fadb7fd77d4c2a0139) a rated roll stops filing itself as hand-made
+
 ## [0.28.3](https://github.com/cmdcolin/ntsc.js/compare/v0.28.2...v0.28.3) - 2026-08-18
 
 ### Features
