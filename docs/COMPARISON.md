@@ -12,6 +12,8 @@ All free and open source unless noted.
 | Render a file at above-NTSC resolution                       | **ntsc-rs**                                    |
 | Play the signal live — knobs, MIDI, audio-reactive, feedback | **ntsc.js** (this project)                     |
 | Try it in ten seconds with nothing installed                 | **ntsc.js** — [live demo][demo]                |
+| Mix four channels live, and reorder the effect chain         | **BENDR**                                      |
+| A wide glitch palette — pixel sort, datamosh, scan processor | **BENDR**                                      |
 | Composite artifacts inside a game emulator                   | **Blargg's `nes_ntsc` / `snes_ntsc`**          |
 | A CRT _screen_ look over anything                            | **RetroArch CRT shaders**                      |
 | The reference implementation to read or build on             | **composite-video-simulator**                  |
@@ -27,6 +29,22 @@ All free and open source unless noted.
   version, and AE/Premiere/OpenFX plugins, so it works in Resolve, Vegas,
   HitFilm and Natron. CPU-side Rust, multithreaded and SIMD, and **not locked to
   the NTSC raster** — two advantages this project does not have.
+- **[BENDR](https://github.com/clickysteve/bendr)** — the other live browser
+  instrument in this space, and the one to reach for when the job is a
+  performance rather than a signal. It is a circuit-bent video processor: four
+  channels, each with its own source and its own effect chain, meeting in two
+  mix buses and a master, with the chain **reorderable** so melting before the
+  tape stage and melting after it are different patches. Its palette is much
+  wider than this project's — pixel sorting, an 8-point DCT, a datamosh built on
+  real WebCodecs encode/decode, PNG-filter corruption, kaleido, a
+  geometry-drawn scan processor, and a lens/glass/panel model of what the
+  picture is watched *through* — plus scopes, an offline MP4 render and a
+  performance recorder. It ships as one self-contained HTML file that runs from
+  `file://` with the network off, which is a genuinely nice property this
+  project does not have. The difference in approach is where the composite model
+  sits: BENDR treats it as one stage among many and reaches its artifacts by the
+  shortest route, while ntsc.js builds the waveform first and lets them fall
+  out. Both are real answers — they buy different things.
 - **ntscQT** — the Python predecessor in the same line, and one of ntsc-rs's
   sources. Still works, slower, not real-time. Mostly of historical interest.
 - **[composite-video-simulator](https://github.com/joncampbell123/composite-video-simulator)**
