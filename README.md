@@ -21,6 +21,7 @@ https://cmdcolin.github.io/ntsc.js/
 - Record to webm or screenshot stills
 - Popout the controls into a second window and cast the other screen in a projector or OBS screen recorder
 - The whole board fits in a URL, so a link is a patch
+- Let's the video static bleed into the audio, just like the olden days
 - Insanely, it works on a phone. Tested on Android Pixel
 
 ## Run

@@ -11,6 +11,7 @@ import {
   matchPreset,
   presetControls,
   randomPresetMix,
+  randomSinglePreset,
   rollControls,
 } from './presets'
 
@@ -324,6 +325,36 @@ describe('randomPresetMix', () => {
   // again — the seeded sampler in vote/candidates.ts wants this shape.
   it('is reproducible from its generator', () => {
     const draw = () => randomPresetMix(true, seq([0.11, 0.42, 0.73, 0.28, 0.9]))
+    expect([...draw().entries()]).toEqual([...draw().entries()])
+  })
+})
+
+describe('randomSinglePreset', () => {
+  // The whole difference from the mix above, and the only thing this roll
+  // promises: one authored look, at the strength it was authored at.
+  it('draws exactly one preset, whole', () => {
+    for (let s = 0; s < 300; s++) {
+      const roll = [...randomSinglePreset(true).entries()]
+      expect(roll.length).toBe(1)
+      expect(roll[0][1]).toBe(1)
+      expect(PRESETS.some(p => p.name === roll[0][0])).toBe(true)
+    }
+  })
+
+  // 'clean' is the reset. A random button that lands on it now and then is a
+  // random button that occasionally wipes your board and calls it a look.
+  it('never draws the empty patch, and drops A/B without a second source', () => {
+    for (let s = 0; s < 300; s++) {
+      const group = (on: boolean) =>
+        PRESETS.find(p => p.name === [...randomSinglePreset(on).keys()][0])
+          ?.group
+      expect(group(true)).not.toBe('Clean')
+      expect(group(false)).not.toBe('A/B mixing')
+    }
+  })
+
+  it('is reproducible from its generator', () => {
+    const draw = () => randomSinglePreset(true, seq([0.11, 0.42, 0.73]))
     expect([...draw().entries()]).toEqual([...draw().entries()])
   })
 })

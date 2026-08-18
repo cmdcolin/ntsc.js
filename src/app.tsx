@@ -735,7 +735,10 @@ export function App() {
   // which handler each row is wired to.
   const palette = paletteActions({
     onSurprise: mix.surprise,
+    onSurpriseOne: mix.surpriseOne,
     onMutate: mix.mutateLook,
+    onSpike: mix.spikeLook,
+    onCross: mix.crossLook,
     onRollMotion: amount => mix.rollMotion(amount, { audioLive: audio.active }),
     onReset: mix.reset,
     onUndo: mix.undo,
@@ -1149,6 +1152,9 @@ export function App() {
         onEndCompare={endCompare}
         onSurprise={mix.surprise}
         onMutate={mix.mutateLook}
+        onSurpriseOne={mix.surpriseOne}
+        onSpike={mix.spikeLook}
+        onCross={mix.crossLook}
         // Whether the two audio followers are worth rolling: with nothing on
         // the wire they are slots that will never move, which is the one way a
         // roll can look like it did nothing. App is where that is known — the

@@ -24,9 +24,10 @@ on Linux). There's nothing to install.
 3. **Give it your own footage.** Open Source A at the head of the signal path
    and pick a file, a webcam, a screen share, or a random clip out of Wikimedia
    Commons or archive.org.
-4. **Hit random nudge** a few times. It keeps the look you have and jogs every
-   control a little, which is where most of the good accidents come from.
-   `ctrl+z` takes any of it back.
+4. **Hit random nudge** a few times. It keeps the look you have and jogs it —
+   everything already doing something, plus a few controls that weren't — which
+   is where most of the good accidents come from. `ctrl+z` takes any of it back,
+   and **more…** beside it holds three other shapes of roll.
 
 When you find something worth keeping, hit **⧉ copy link**. The whole board
 lives in the URL, so a link is a patch.

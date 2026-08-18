@@ -19,11 +19,16 @@ export function MenuItem(props: {
   label: string
   hint: string
   closes?: string
+  // What the row does, for a menu whose labels are two words and whose rows do
+  // something to the whole board. A hint is a shortcut and has a column of its
+  // own; this is the sentence that will not fit in it.
+  title?: string
   onClick: () => void
 }) {
   return (
     <button
       className={styles.menuItem}
+      title={props.title}
       popoverTarget={props.closes}
       popoverTargetAction={props.closes === undefined ? undefined : 'hide'}
       onClick={() => props.onClick()}

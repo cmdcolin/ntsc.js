@@ -15,13 +15,21 @@ of the way, stacking onto what's already there.
   is the same verb; holding `c` previews the clean signal without changing
   anything.
 - **random look** stacks a few presets into something new. **random nudge**
-  keeps your look and jogs everything a little — `shift` for wilder, `alt` for
-  gentler. Most of the good accidents come from here.
+  keeps your look and jogs it — every control that is already doing something,
+  plus a few that weren't — `shift` for wilder, `alt` for gentler. Most of the
+  good accidents come from here.
 - **random motion** is the one that changes nothing you can see standing still:
   every slider stays put, and what gets re-cabled is the modulation bay — LFOs,
   drift and sample-and-hold patched onto controls this look is actually using.
   Same modifiers, and `ctrl` (or `cmd`) for a bay that hunts. It replaces what
   was patched; `ctrl+z` puts it back.
+- **more…** holds three rolls of a different shape, for when neither of those is
+  the question you're asking. **random preset** draws one of the authored looks
+  whole, at the strength it was tuned at — nothing stacked on it. **random
+  fault** throws a couple of controls a long way and touches nothing else, so
+  the accident is one thing you can see, name and take back. **random cross**
+  keeps some circuits of the look you have — the tape, the tube, the sync,
+  whichever way it falls — and lets a fresh roll answer for the rest.
 - **morph** sets how long a new look takes to arrive, from a frame to 8s. Rolls
   chain, so hitting random look every few seconds wanders continuously.
 - **undo** (`ctrl+z`) steps back through all of it.

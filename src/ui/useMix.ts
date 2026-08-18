@@ -1,16 +1,23 @@
 import { useState } from 'react'
 
 import { DEFAULT_CONTROLS } from '../controls'
-import { MUTATE_SLIDERS } from './controls'
+import { MUTATE_CIRCUITS, MUTATE_SLIDERS } from './controls'
 import { EMPTY_HISTORY, record, stepBack, stepForward } from './history'
 import { DEFAULT_STAB, sameBay, sameGate } from './modSlots'
 import { morphTo } from './morph'
-import { MUTATE_AMOUNTS, mutate } from './mutate'
+import {
+  MUTATE_AMOUNTS,
+  SPIKE_TARGETS,
+  crossover,
+  mutate,
+  spike,
+} from './mutate'
 import {
   blendMod,
   blendPresets,
   controlsEqual,
   randomPresetMix,
+  randomSinglePreset,
   rollControls,
 } from './presets'
 import { rollBay } from './rollMod'
@@ -171,6 +178,28 @@ export function useMix(args: {
     land(next)
   }
 
+  // A rolled recipe onto the board: the look, the chips that explain it, and
+  // the motion it asks for. Shared by the two whole-look rolls, which differ
+  // only in the recipe they hand over — a stack of presets, or one of them.
+  //
+  // Where you are looking is yours, not part of the roll (`rollControls`) —
+  // same rule mutate follows, and the same one the `?surprise` boot path
+  // follows in useEngine. A roll that drew a view preset otherwise moved the
+  // magnifier: 'nose against the glass' puts you up against the grain, and
+  // 'across the room' (since removed) pulled the picture back into a little set
+  // in a dark room. Either reads as the app having done something wrong rather
+  // than as a new look.
+  const landRecipe = (next: PresetWeights, preset: string | null) => {
+    apply(rollControls(next, getControls()))
+    setMix({ base: DEFAULT_CONTROLS, weights: next })
+    // A roll is a whole look, motion included — and a roll that lands on a
+    // preset with no opinion about motion leaves what was patched running,
+    // which is the same rule a click follows.
+    const rolledMod = blendMod(next)
+    if (rolledMod !== null) mod.setRoutings(rolledMod)
+    setLastPreset(preset)
+  }
+
   // One preset's weight written onto a baseline. `base`/`from` are passed in
   // rather than read from `mix` because the MIDI path rebaselines and writes in
   // the same call, and a second setMix would only be the one that landed.
@@ -316,21 +345,33 @@ export function useMix(args: {
     // button down at 8s and the look wanders continuously through the space
     // between the authored presets, which is where the ones worth keeping are.
     surprise: () => {
-      const next = randomPresetMix(args.sourceBOn)
-      // Where you are looking is yours, not part of the roll — same rule
-      // mutate follows, and the same one the `?surprise` boot path follows in
-      // useEngine. A roll that drew a view preset otherwise moved the
-      // magnifier: 'nose against the glass' puts you up against the grain, and
-      // 'across the room' (since removed) pulled the picture back into a little
-      // set in a dark room. Either reads as the app having done something wrong
-      // rather than as a new look.
-      apply(rollControls(next, getControls()))
-      setMix({ base: DEFAULT_CONTROLS, weights: next })
-      // A roll is a whole look, motion included — and a roll that lands on a
-      // preset with no opinion about motion leaves what was patched running,
-      // which is the same rule a click follows.
-      const rolledMod = blendMod(next)
-      if (rolledMod !== null) mod.setRoutings(rolledMod)
+      landRecipe(randomPresetMix(args.sourceBOn), null)
+    },
+    // The same landing, one authored preset in it. `lastPreset` is the name
+    // rather than null because here it is true: the board *is* that preset, so
+    // the chip lights up as its own and the caption says which look you are
+    // looking at — which is most of what this roll is for.
+    surpriseOne: () => {
+      const next = randomSinglePreset(args.sourceBOn)
+      landRecipe(next, next.keys().next().value ?? null)
+    },
+    // Sparse and hard, where `mutateLook` is dense and soft. See `spike`.
+    spikeLook: (amount: MutateAmount = 'normal') => {
+      apply(spike(getControls(), MUTATE_SLIDERS, SPIKE_TARGETS[amount]))
+      setLastPreset(null)
+    },
+    // The look on the board crossed with a fresh roll, circuit by circuit.
+    //
+    // Not through `landRecipe`, and it must not be: only some of the recipe
+    // landed, so the chips would be describing presets whose controls are not
+    // on the board. The fills read empty by themselves once the live controls
+    // disagree with the mix, and leaving `mix` alone is what says the honest
+    // thing — there is no recipe for this look, because it is half of one and
+    // half of whatever you had.
+    crossLook: () => {
+      const recipe = randomPresetMix(args.sourceBOn)
+      const from = getControls()
+      apply(crossover(from, rollControls(recipe, from), MUTATE_CIRCUITS))
       setLastPreset(null)
     },
     mutateLook: (amount: MutateAmount = 'normal') => {
@@ -396,11 +437,19 @@ export function useMix(args: {
     // The same roll aimed at one group, from its header. Jittering all ~120
     // controls answers "give me something else"; this answers "keep this look
     // and shake one circuit", which is how a patch actually gets dialed in.
+    //
+    // Every slider in the circuit, resting or not (`wake: 1`) — the opposite of
+    // what the bar's nudge does, and for the reason it does it: the bar is
+    // rolling the whole rig and has to leave most of it alone to stay a nudge,
+    // where pressing the die on a stage names that stage. One sitting at stock
+    // would otherwise take the press and do nothing at all.
     mutateGroup: (
       sliders: readonly SliderDef[],
       amount: MutateAmount = 'normal',
     ) => {
-      apply(mutate(getControls(), sliders, MUTATE_AMOUNTS[amount]))
+      apply(
+        mutate(getControls(), sliders, MUTATE_AMOUNTS[amount], Math.random, 1),
+      )
       setLastPreset(null)
     },
   }

@@ -4,6 +4,7 @@ import { cx } from './cx'
 import styles from './LookBar.module.css'
 import { MORPH_LABELS, MORPH_SECONDS } from './morph'
 import { mutateAmountFor } from './mutate'
+import { MenuItem, Popover } from './Popover'
 
 import type { MorphSeconds, MorphStore } from './morph'
 import type { MutateAmount } from './mutate'
@@ -41,6 +42,14 @@ export function LookBar(props: {
   // — because it is the same gesture as the two beside it and gets pressed the
   // same way, repeatedly, while looking at the picture.
   onRollMotion: (amount: MutateAmount) => void
+  // The three rolls that did not earn a word in the row. Each is a different
+  // *shape* of random rather than a different amount of the ones above — see
+  // the menu at the foot of this file for what each is for — and they are
+  // behind the set's `⋯` because the row has no width left for a fourth word
+  // and the segmented three are the ones a session reaches for by reflex.
+  onSurpriseOne: () => void
+  onSpike: (amount: MutateAmount) => void
+  onCross: () => void
   // How long the verbs in this row take to arrive, and the button that cycles
   // it. It belongs here rather than in a settings dialog because it changes what
   // every other button in the row *does*, and because the duration you want is a
@@ -118,12 +127,17 @@ export function LookBar(props: {
             is and what changes is what is moving them. Same modifier ladder as
             its neighbour, so the keys mean one thing across the set. */}
         <button
-          className={cx(styles.btn, styles.pairRight)}
+          className={cx(styles.btn, styles.pairMid)}
           onClick={e => props.onRollMotion(mutateAmountFor(e))}
           title="keep every slider where it is and re-cable what is moving them: a fresh patch of LFOs, drift and sample-and-hold onto controls this look is actually using. It replaces what is in the modulation bay, and undo puts it back — shift for more and deeper, alt for a single slow one, ctrl (or cmd) for turbo"
         >
           random motion
         </button>
+        <RollsMenu
+          onSurpriseOne={props.onSurpriseOne}
+          onSpike={props.onSpike}
+          onCross={props.onCross}
+        />
       </div>
       <MorphControl
         morphSeconds={props.morphSeconds}
@@ -160,6 +174,71 @@ export function LookBar(props: {
         </button>
       ) : null}
     </div>
+  )
+}
+
+// The rolls that did not fit the row, in the row's own segmented set.
+//
+// A menu rather than three more modifiers on the buttons beside it, because the
+// ladder those carry (shift, alt, ctrl) says *how hard* and none of these is a
+// harder or softer version of anything. A preset drawn whole, two controls
+// thrown a long way, and this look crossed with a fresh one are three different
+// answers to "give me something else", and which one is wanted depends on how
+// attached you are to what is on screen — which is what the order here is: the
+// roll that keeps least of your look at the top, the one that keeps most at the
+// foot.
+//
+// A glyph rather than a fourth word, and the row's width is the whole reason:
+// the three labels next to it come to 190px of a 332px row, and `more…` on the
+// end took it past 332 — which `.pair` cannot wrap, so instead every one of the
+// four squeezed and broke its label over two lines. `⋯` costs 26px, keeps the
+// set on one line, and is the glyph the masthead's own menu already wears.
+function RollsMenu(props: {
+  onSurpriseOne: () => void
+  onSpike: (amount: MutateAmount) => void
+  onCross: () => void
+}) {
+  return (
+    <Popover
+      trigger={attrs => (
+        <button
+          {...attrs}
+          className={cx(styles.btn, styles.pairRight)}
+          title="three more rolls: one authored preset whole, a couple of controls thrown hard, or this look crossed with a fresh one"
+        >
+          ⋯
+        </button>
+      )}
+    >
+      {id => (
+        <>
+          <MenuItem
+            icon="◆"
+            label="random preset"
+            hint=""
+            title="one of the authored looks, whole and at full strength — no stacking and no jitter, so what you get is what somebody tuned. The chip lights up to say which"
+            closes={id}
+            onClick={props.onSurpriseOne}
+          />
+          <MenuItem
+            icon="↯"
+            label="random fault"
+            hint=""
+            title="throw a couple of controls a long way and touch nothing else: one fault you can see, name and take back, on a look otherwise exactly as you left it"
+            closes={id}
+            onClick={() => props.onSpike('normal')}
+          />
+          <MenuItem
+            icon="⤫"
+            label="random cross"
+            hint=""
+            title="keep some circuits of this look — the tape, the tube, whichever way it falls — and let a fresh roll answer for the rest"
+            closes={id}
+            onClick={props.onCross}
+          />
+        </>
+      )}
+    </Popover>
   )
 }
 

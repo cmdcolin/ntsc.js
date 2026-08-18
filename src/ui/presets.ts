@@ -1628,6 +1628,31 @@ export function randomPresetMix(
   return weights
 }
 
+// One authored look, whole and undiluted — the roll that stacks nothing.
+//
+// `randomPresetMix` answers "something I have not seen", and pays for it by
+// putting a look together that nobody designed. This answers the other half of
+// what a random button is for: show me one of the things somebody sat down and
+// tuned, and let me see it at the strength it was tuned at. It is the chip
+// nobody scrolls to — seventy of them behind a fold, and a session reaches for
+// the same six.
+//
+// The group is drawn first and the preset out of it second, which is not the
+// same as drawing uniformly from the presets: the families are wildly different
+// sizes, and a flat draw would spend most of a session inside whichever one has
+// the most entries this month.
+export function randomSinglePreset(
+  sourceBOn: boolean,
+  rand: () => number = Math.random,
+): PresetWeights {
+  const pool = PRESETS.filter(
+    p => p.group !== 'Clean' && (sourceBOn || p.group !== 'A/B mixing'),
+  )
+  const group = shuffled([...new Set(pool.map(p => p.group))], rand)[0]
+  const lead = pool.filter(p => p.group === group)
+  return new Map([[lead[randomIndex(lead.length, rand)].name, 1]])
+}
+
 // Controls holding a mode rather than a quantity: halfway between phosphor 0
 // and 3 is not phosphor 1.5, it is a tube nobody asked for. The heaviest
 // preset that moves one of these off its default picks the mode outright.

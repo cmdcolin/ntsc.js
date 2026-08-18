@@ -69,6 +69,14 @@ export function paletteActions(o: {
   onSurprise: () => void
   onMutate: (amount: MutateAmount) => void
   onRollMotion: (amount: MutateAmount) => void
+  // The three behind the row's `more…`, each a different shape of random rather
+  // than a different amount of the three above. They belong in this list more
+  // than most: a menu inside a segmented button is the least discoverable thing
+  // in the panel, and these are verbs somebody will look for by typing what
+  // they want to happen.
+  onSurpriseOne: () => void
+  onSpike: (amount: MutateAmount) => void
+  onCross: () => void
   onReset: () => void
   onUndo: () => void
   onRedo: () => void
@@ -139,6 +147,12 @@ export function paletteActions(o: {
       run: o.onSurprise,
     },
     {
+      name: 'random preset',
+      blurb:
+        'one of the authored looks whole, at full strength — nothing stacked on it and nothing jittered',
+      run: o.onSurpriseOne,
+    },
+    {
       name: 'random nudge',
       blurb: 'mutate: jitter every control around the current look',
       run: () => o.onMutate('normal'),
@@ -164,6 +178,32 @@ export function paletteActions(o: {
       blurb:
         'turbo: throw most controls past anything a real set would do — the wreck, not a variation',
       run: () => o.onMutate('turbo'),
+    },
+    // The sparse roll, next to the dense one it is the opposite of. Its blurb
+    // carries "accident" and "glitch" because that is what somebody types when
+    // they want this rather than the nudge: a change big enough to see and
+    // narrow enough to point at.
+    {
+      name: 'random fault',
+      blurb:
+        'throw a couple of controls a long way and leave everything else alone — one accident, one glitch, on the look you have',
+      run: () => o.onSpike('normal'),
+    },
+    {
+      name: 'random fault, gentle',
+      blurb: 'one control thrown, and nothing else moved at all',
+      run: () => o.onSpike('gentle'),
+    },
+    {
+      name: 'random fault, wild',
+      blurb: 'four controls thrown at once — several faults meeting',
+      run: () => o.onSpike('wild'),
+    },
+    {
+      name: 'random cross',
+      blurb:
+        'keep some circuits of this look — the tape, the tube, the sync, whichever way it falls — and let a fresh roll answer for the rest',
+      run: o.onCross,
     },
     // The motion roll, and the one row in this trio whose blurb has to say what
     // it *doesn't* touch: "random" next to a look everybody has just spent ten
