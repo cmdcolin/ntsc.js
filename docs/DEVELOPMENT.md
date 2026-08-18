@@ -405,11 +405,12 @@ stable, convincing, wrong number:
   cancels it by grabbing two consecutive frames per arm and taking the better
   alignment.
 
-Two ALU micro-optimizations were implemented, measured dead flat, and reverted —
-the FIR passes are not ALU-bound on this hardware, so arithmetic saved there
-rides idle slots: the filter bank as a uniform buffer (vec4-packed for the
-constant cache) and a Chebyshev recurrence replacing the heterodyne phasor walk
-in `under_down`/`channel` (verified pixel-exact first). A one-shot bake of
+Two ALU micro-optimizations were implemented, measured dead flat, and reverted
+([ADR 0007](adr/0007-the-fir-passes-are-not-alu-bound.md)) — the FIR passes are
+not ALU-bound on this hardware, so arithmetic saved there rides idle slots: the
+filter bank as a uniform buffer (vec4-packed for the constant cache) and a
+Chebyshev recurrence replacing the heterodyne phasor walk in
+`under_down`/`channel` (verified pixel-exact first). A one-shot bake of
 `crt_face`'s grain field met the same fate earlier. Measure an ablation upper
 bound before building any optimization here.
 

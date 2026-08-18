@@ -15,6 +15,11 @@ The measurement protocol, the harnesses and the traps are in
 [`DEVELOPMENT.md`](DEVELOPMENT.md) › Measuring performance. This page is what
 the measurements decided.
 
+Every millisecond quoted below was taken on the dev box — a WX 3200 under
+Firefox Nightly / Linux — best-of over interleaved runs, in August 2026. They
+are one machine on one day: read them for their ratios and their signs, not
+their third digit, and re-derive rather than cite one before building on it.
+
 ## The rule: ablate before you optimize
 
 Delete the thing and measure the frame without it. That number is the upper
@@ -31,7 +36,10 @@ measured **exactly flat**:
 
 All three were reverted. The FIR passes are not ALU-bound on this hardware, so
 arithmetic saved inside them rides in idle slots. Nothing about that is knowable
-from reading the shader.
+from reading the shader, which is why it is
+[ADR 0007](adr/0007-the-fir-passes-are-not-alu-bound.md) rather than a comment:
+the record carries what the three arms did not preserve, and what to measure
+before trying a fourth.
 
 The same rule caught a startup one before it was written. The `Engine`
 constructor makes a couple of dozen blocking `createComputePipeline` calls,
@@ -463,5 +471,6 @@ serial pass.
   buffer layouts, adding a control end to end
 - [`DEVELOPMENT.md`](DEVELOPMENT.md) — the harnesses, the traps they have hit,
   and the performance-measurement protocol these numbers come from
-- [`adr/`](adr/) — the decisions where the obvious thing is wrong for a
-  non-obvious reason
+- [ADR 0007](adr/0007-the-fir-passes-are-not-alu-bound.md) — why the rule at the
+  top of this page is a rule, and [`adr/`](adr/) for the rest of the decisions
+  where the obvious thing is wrong for a non-obvious reason
