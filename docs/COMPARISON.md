@@ -1,8 +1,8 @@
 # Choosing an analog-video tool
 
 Several good tools make video look like it went through composite, tape and a
-CRT. They mostly solve the same premise for different jobs — this page is for
-finding the right one quickly, including when that is not this one.
+CRT, and they mostly differ in the job they are for. This page points at the
+right one quickly, including when that is not this one.
 
 All free and open source unless noted.
 
@@ -23,49 +23,59 @@ All free and open source unless noted.
 
 ## The tools
 
-- **[ntsc-rs](https://github.com/ntsc-rs/ntsc-rs)** — the closest relative, and
-  the one to reach for when the work lives in a timeline. Same premise (simulate
-  the signal path, don't draw the look), shipped as a standalone app, a browser
-  version, and AE/Premiere/OpenFX plugins, so it works in Resolve, Vegas,
-  HitFilm and Natron. CPU-side Rust, multithreaded and SIMD, and **not locked to
-  the NTSC raster** — two advantages this project does not have.
-- **[BENDR](https://github.com/clickysteve/bendr)** — the other live browser
-  instrument in this space, and the one to reach for when the job is a
-  performance rather than a signal. It is a circuit-bent video processor: four
-  channels, each with its own source and its own effect chain, meeting in two
-  mix buses and a master, with the chain **reorderable** so melting before the
-  tape stage and melting after it are different patches. Its palette is much
-  wider than this project's — pixel sorting, an 8-point DCT, a datamosh built on
-  real WebCodecs encode/decode, PNG-filter corruption, kaleido, a
-  geometry-drawn scan processor, and a lens/glass/panel model of what the
-  picture is watched *through* — plus scopes, an offline MP4 render and a
-  performance recorder. It ships as one self-contained HTML file that runs from
-  `file://` with the network off, which is a genuinely nice property this
-  project does not have. The difference in approach is where the composite model
-  sits: BENDR treats it as one stage among many and reaches its artifacts by the
-  shortest route, while ntsc.js builds the waveform first and lets them fall
-  out. Both are real answers — they buy different things.
-- **ntscQT** — the Python predecessor in the same line, and one of ntsc-rs's
-  sources. Still works, slower, not real-time. Mostly of historical interest.
-- **[composite-video-simulator](https://github.com/joncampbell123/composite-video-simulator)**
-  — the C reference codec much of this lineage traces back to, including this
-  project's. Something to read rather than an app to use.
-- **Blargg's `nes_ntsc` / `snes_ntsc` and RetroArch CRT shaders** — a related
-  but distinct problem. Blargg's filters model composite artifacts for one
-  console's output, fast and accurate for that narrow case; the RetroArch
-  shaders (`crt-royale`, `crt-guest-advanced`) model the **display**: mask,
-  scanlines, phosphor, geometry, glow. For games on a period TV, that pairing is
-  the mature answer.
-- **Hardware** — LZX Industries and the Eurorack video scene make the real
-  thing. Nothing in software substitutes for it; this project reaches in its
-  direction from the opposite side. Priced like hardware.
+### ntsc-rs
+
+[ntsc-rs](https://github.com/ntsc-rs/ntsc-rs) is the closest relative, and the
+one for work that lives in a timeline. Same premise — simulate the path, don't
+draw the look. It ships standalone, in a browser, and as AE / Premiere / OpenFX
+plugins, so Resolve, Vegas, HitFilm and Natron all reach it. Rust on the CPU,
+and not locked to the NTSC raster: two advantages this project does not have.
+
+### BENDR
+
+[BENDR](https://github.com/clickysteve/bendr) is the other live browser
+instrument, for when the job is a performance rather than a signal. Four
+channels, each with its own source and effects, meet in two mix buses and a
+master, and the chain reorders, so melting before the tape stage and melting
+after it are different patches. The palette is wider than this project's: pixel
+sort, a DCT, a datamosh on real WebCodecs encode and decode, a geometry-drawn
+scan processor, a lens-and-glass model of what the picture is watched through,
+scopes, an offline MP4 render — all in one HTML file that runs from `file://`
+with the network off. BENDR treats the composite model as one stage among many;
+ntsc.js builds the waveform first and lets the artifacts fall out. Two answers,
+not a ranking.
+
+### ntscQT
+
+The Python predecessor, and one of ntsc-rs's sources. Slower and not real-time,
+so mostly of historical interest now.
+
+### composite-video-simulator
+
+[The C reference](https://github.com/joncampbell123/composite-video-simulator)
+much of this lineage traces back to, this project included. Something to read
+rather than an app to use.
+
+### Blargg's filters and the RetroArch CRT shaders
+
+A related but distinct problem. `nes_ntsc` and `snes_ntsc` model composite
+artifacts for one console's output, fast and accurate for that case; the
+RetroArch shaders (`crt-royale`, `crt-guest-advanced`) model the display — mask,
+scanlines, phosphor, geometry, glow. For games on a period TV, that pair is the
+mature answer.
+
+### Hardware
+
+LZX Industries and the Eurorack video scene make the real thing, priced like
+hardware. Nothing in software substitutes for it; this project reaches toward it
+from the other side.
 
 ## Where ntsc.js fits
 
-It is a **live instrument** rather than a file processor, and that follows from
-how it is built: the whole signal path stays resident on the GPU as compute
-shaders, so changing a control is a uniform-buffer write rather than a
-re-render. What that budget buys:
+ntsc.js is a **live instrument** rather than a file processor, and that follows
+from how it is built: the signal path stays resident on the GPU as compute
+shaders, so a control change is a uniform-buffer write, not a re-render. That
+buys:
 
 - **A control for every stage** of the path — wiring, tape, RF, the receiver and
   the screen
