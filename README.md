@@ -36,7 +36,7 @@ Fun bonus: If you are running this locally, it adds a **YouTube…** source that
 
 - [Main docs website](https://cmdcolin.github.io/ntsc.js/guide/)
 - [Getting started](docs/GETTING-STARTED.md)
-- [User guide](docs/USER-GUIDE.md) ·
+- [User guide](docs/USER-GUIDE.md)
 - [Effects](docs/EFFECTS.md)
 - [How it works](docs/HOW-IT-WORKS.md)
 - [MIDI](docs/MIDI.md)
