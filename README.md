@@ -13,16 +13,17 @@ https://cmdcolin.github.io/ntsc.js/
 ## Features
 
 - True composite signal emulation using WebGPU compute shaders. Requires WebGPU!
-- Multiple types of feedback loops including mixer-patched-into-itself feedback, point-camera-at-monitor feedback, and vhs tape loop
-- Allows dirty or genlocked video mixing of two sources, with wipes and a chroma keyer.
-- Insane number of effects, and slider can run on a modulator (LFO, random walk, etc).
-- Allows connection to MIDI controller with WebMIDI to twist different knobs (chrome only, firefox nightly too)
-- Randomizer buttons that morph between settings over N seconds
-- Record to webm or screenshot stills
-- Popout the controls into a second window and cast the other screen in a projector or OBS screen recorder
-- The whole board fits in a URL, so a link is a patch
-- Let's the video static bleed into the audio, just like the olden days
-- Insanely, it works on a phone. Tested on Android Pixel
+- Multiple types of feedback loops mixer feedback, camera feedback, and vhs tape loop
+- Allows dirty or genlocked video mixing of two sources, with wipes and a chroma keyer
+- Insane number of effects, and slider can run on a modulator (LFO, random walk, etc)
+- Use MIDI controller via WebMIDI to twist knobs and settings (works in Chrome, Firefox nightly)
+- Easy randomize buttons that morph between settings over N seconds
+- Popout the controls into a second window to cast the other screen/projector
+- Record a take, or line up clips in a rundown and render it offline
+- The whole board fits in a URL, so you can link to patches
+- Allows bleeding the video signal into the audio channel for the noise heads
+- Works on mobile (tested on Google Pixel)
+- ...[much more](docs/EFFECTS.md)
 
 ## Run
 

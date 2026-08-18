@@ -4,6 +4,11 @@ Several good tools make video look like it went through composite, tape and a
 CRT, and they mostly differ in the job they are for. This page points at the
 right one quickly, including when that is not this one.
 
+- That look on a clip in your edit → **ntsc-rs**
+- Four sources, a mixer, and every kind of glitch → **BENDR**
+- Games on a period TV → **Blargg's filters and the RetroArch CRT shaders**
+- One signal, bent live, its faults interacting → **ntsc.js**, this one
+
 All free and open source unless noted.
 
 ## The tools
@@ -13,30 +18,29 @@ All free and open source unless noted.
 [ntsc-rs](https://github.com/ntsc-rs/ntsc-rs) has a very similar premise —
 simulate the path, don't draw the look. It ships standalone, in a browser, and
 as AE / Premiere / OpenFX plugins, so Resolve, Vegas, HitFilm and Natron all
-reach it. Rust on the CPU, and not locked to the NTSC raster: two advantages
-this project does not have.
+reach it. Multithreaded, SIMD-accelerated Rust on the CPU, and it runs in real
+time well above NTSC resolution — two advantages this project does not have. If
+what you want is this look on a clip in an edit, that is the one to reach for:
+ntsc.js has no plugin and is not going to have one ([EDITOR.md](EDITOR.md)).
 
 ### BENDR
 
-[BENDR](https://github.com/clickysteve/bendr) is another live browser tool and
-the difference is where each one works. BENDR works on the picture with chroma
-bleed, rainbow fringing, dot crawl and ringing are each an effect with its own
-slider, and the sync faults are drawn on top, line by line. Nothing has to be a
-signal for that to look right, which is what lets its stages be reordered
-freely.
+[BENDR](https://github.com/clickysteve/bendr) is the closest neighbour — another
+live browser tool, and a much broader one: four channels, a reorderable chain on
+each, three mix buses, keys and wipes, all in one self-contained HTML file that
+a phone will run. It works on the picture. Chroma bleed, rainbow fringing, dot
+crawl and ringing are each an effect with its own slider, and the sync faults
+are drawn on top, line by line. Nothing has to be a signal for that to look
+right, which is what lets the stages reorder freely.
 
-ntsc.js builds the signal instead. A picture becomes an actual composite
-waveform — sync pulses, colour burst, colour carried on the subcarrier the way a
-real encoder carries it, and effects damages and glitch out that waveform. Dot
-crawl and rainbow fringing are then leftovers of a decoder that could not
-separate colour from brightness cleanly: nobody draws them, and they change
-whenever anything upstream does.
-
-Both work, and they buy different things. BENDR buys reach — four channels, a
-reorderable chain on each, three mix buses, keys and wipes, all in one
-self-contained HTML file a phone will run. ntsc.js buys interaction: every fault
-lands on the same signal, so they affect each other without being wired
-together.
+ntsc.js has no dot-crawl slider, because it builds the signal instead. A picture
+becomes an actual composite waveform — sync pulses, colour burst, colour carried
+on the subcarrier the way a real encoder carries it. The model damages that
+waveform, and a model of a TV has to lock to it and decode it back. Dot crawl
+and rainbow fringing are then leftovers of a decoder that could not separate
+colour from brightness cleanly: nobody draws them, and they change whenever
+anything upstream does. That is the trade — far narrower, and every fault lands
+on the same signal, so they affect each other without being wired together.
 
 ### ntscQT
 
@@ -81,14 +85,15 @@ not a re-render. That buys:
   hold, the waveform into the deflection coils
 - **Live input** — webcam (so an RCA capture dongle works), or a shared window,
   tab or display
+- **A file out** — a take renders offline, faster than real time, to
+  constant-framerate H.264 an editor will conform
 - **No install, and a link carries the look**
 
 ### What it does not do
 
-- **No plugin, and no timeline.** The strip is a rundown, not an NLE timeline —
-  deliberately ([EDITOR.md](EDITOR.md)). What crosses the boundary is a file: a
-  take renders offline to constant-framerate H.264 an editor will conform, video
-  only.
+- **No plugin, and no timeline.** The strip is a rundown, not an NLE timeline,
+  and none of this becomes a plugin for somebody else's — both deliberate
+  ([EDITOR.md](EDITOR.md)). A rendered take carries no audio track either.
 - **The raster is fixed** at 910×525 samples, 754×480 active, so a 4K source is
   sampled down to NTSC resolution.
 - **A take is only reproducible from clips.** Offline renders of one take come
@@ -98,6 +103,6 @@ not a re-render. That buys:
 - **The model is progressive** 525/60 rather than interlaced at field rate, the
   largest remaining authenticity gap ([ARCHITECTURE.md](ARCHITECTURE.md)).
 
-<sub>Written from the other projects' own documentation, not from benchmarks run
-here — nothing above is a performance claim about anyone else's code. If
+<sub>Written from the other projects' own documentation and source, not from
+benchmarks run here — nothing above is a performance claim about anyone else's code. If
 something is out of date or unfair, please open an issue.</sub>
