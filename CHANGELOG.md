@@ -2,6 +2,24 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.28.3](https://github.com/cmdcolin/ntsc.js/compare/v0.28.2...v0.28.3) - 2026-08-18
+
+### Features
+- *(audio)* [`b299dbc`](https://github.com/cmdcolin/ntsc.js/commit/b299dbce6f2644aece7818c89c4b5fc3eb565405) the tail adds to the clips, and the dry gets a fader of its own
+- *(ui)* [`de5f2bb`](https://github.com/cmdcolin/ntsc.js/commit/de5f2bbd1313f21b2479a94aea8ff194f821d0a3) a morph crosses a control along its track
+
+### Fixes
+- *(ui)* [`714343e`](https://github.com/cmdcolin/ntsc.js/commit/714343e5fbab9909f8b1fbee1462754c579513ac) a roll stops stumbling into a smear that never clears
+- *(ui)* [`5d9fd8f`](https://github.com/cmdcolin/ntsc.js/commit/5d9fd8fb9e8f0db50766c4e910f43c85daded885) random look stops starting a strobe
+- *(ui)* [`01a3ae1`](https://github.com/cmdcolin/ntsc.js/commit/01a3ae1ee92e1a9af4540b45ef114b25ef55c7ad) drop the Popeye bundled clip
+
+### Documentation
+- [`ef5efbb`](https://github.com/cmdcolin/ntsc.js/commit/ef5efbbfa8bcc19dd8dc054ce51fe890a21c0a89) add BENDR to the comparison page
+- [`72b2c2f`](https://github.com/cmdcolin/ntsc.js/commit/72b2c2f1a3e87dd4b41f4238bd3c935b4e45e1cb) the comparison page gives each tool its own subsection
+
+### Other Changes
+- [`6aa0123`](https://github.com/cmdcolin/ntsc.js/commit/6aa0123290c723afc93d72eec6aa82de9be03df1) Stray dot
+
 ## [0.28.2](https://github.com/cmdcolin/ntsc.js/compare/v0.28.1...v0.28.2) - 2026-08-18
 
 ### Documentation
