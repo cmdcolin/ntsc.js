@@ -262,6 +262,10 @@ fps stays at 60 until the budget is already gone.
 
 ## Performance shape
 
+[`OPTIMIZATIONS.md`](OPTIMIZATIONS.md) is the long form of this section — why
+the path is gated, tiled, tiered and packed the way it is, with what measured
+each one and what was tried and reverted.
+
 Where the frame time goes (see `DEVELOPMENT.md` › Measuring performance for the
 protocol and the current numbers): every built-in preset fits comfortably in a
 60 Hz budget on the dev box; the settings that genuinely cost are dub
