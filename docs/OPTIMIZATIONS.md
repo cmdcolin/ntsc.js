@@ -6,10 +6,10 @@ version of what a pass is.
 
 One frame is 477,750 f32 samples (910 × 525) through up to twenty-five compute
 dispatches, sixty times a second, and six of those passes are FIR filters 33 to
-55 taps wide. That budget is the reason for everything below. On the dev
-box's WX 3200 every built-in preset lands **3.3–5.4 ms** against a 3.3 ms
-always-on floor, so the headroom exists — but it exists because the expensive
-things are gated, tiled, tiered, or not dispatched at all.
+55 taps wide. That budget is the reason for everything below. On the dev box's
+WX 3200 every built-in preset lands **3.3–5.4 ms** against a 3.3 ms always-on
+floor, so the headroom exists — but it exists because the expensive things are
+gated, tiled, tiered, or not dispatched at all.
 
 The measurement protocol, the harnesses and the traps are in
 [`DEVELOPMENT.md`](DEVELOPMENT.md) › Measuring performance. This page is what
@@ -30,8 +30,8 @@ measured **exactly flat**:
 - a one-shot bake of `crt_face`'s grain field.
 
 All three were reverted. The FIR passes are not ALU-bound on this hardware, so
-arithmetic saved inside them rides in idle slots. Nothing about that is
-knowable from reading the shader.
+arithmetic saved inside them rides in idle slots. Nothing about that is knowable
+from reading the shader.
 
 The same rule caught a startup one before it was written. The `Engine`
 constructor makes a couple of dozen blocking `createComputePipeline` calls,
@@ -132,24 +132,23 @@ care in the shader gets around it.
 
 **Sharing a deviate that is expensive to draw.** Snow is one Gaussian deviate
 per sample, and the 1-2-1 band-limit over it reads each neighbour's deviate —
-every thread's neighbour is some other thread's centre, so generating
-per-thread draws each deviate three times. `gauss()` is Box-Muller, two hashes
-plus a log and a cos, which makes that the most expensive redundancy in the
-pass. `channel` and `feed` both stage `TILE_WG + 2` of them instead. The
-quadrature arm for `channel`'s Rician envelope detector is staged only while
-`rfSnow` is on.
+every thread's neighbour is some other thread's centre, so generating per-thread
+draws each deviate three times. `gauss()` is Box-Muller, two hashes plus a log
+and a cos, which makes that the most expensive redundancy in the pass. `channel`
+and `feed` both stage `TILE_WG + 2` of them instead. The quadrature arm for
+`channel`'s Rician envelope detector is staged only while `rfSnow` is on.
 
-**Hoisting a per-workgroup constant out of a per-sample loop.**
-`fb_composite`'s resonance is a network — one set of component values, not a
-different one per sample — so its 33 taps and its normalizer are functions of
-two controls alone. Building them inside the tap loop cost 33 `cos` and 33
-`exp` at every one of the raster's 477,750 samples to arrive at the same 34
-numbers each time. One thread designs the filter and everyone else reads plain
-coefficients: **66 transcendentals per workgroup rather than per sample**, worth
-3.22 → 3.06 ms/frame. The summation order is untouched, so this is not an
-approximation — `pixdiff` reads max 0 over 200 frames of a live sub-unity loop,
-which is the strictest check available on that pass because a one-bit error
-would compound every lap.
+**Hoisting a per-workgroup constant out of a per-sample loop.** `fb_composite`'s
+resonance is a network — one set of component values, not a different one per
+sample — so its 33 taps and its normalizer are functions of two controls alone.
+Building them inside the tap loop cost 33 `cos` and 33 `exp` at every one of the
+raster's 477,750 samples to arrive at the same 34 numbers each time. One thread
+designs the filter and everyone else reads plain coefficients: **66
+transcendentals per workgroup rather than per sample**, worth 3.22 → 3.06
+ms/frame. The summation order is untouched, so this is not an approximation —
+`pixdiff` reads max 0 over 200 frames of a live sub-unity loop, which is the
+strictest check available on that pass because a one-bit error would compound
+every lap.
 
 Hoisting into workgroup memory sets one trap, and it is a correctness trap
 rather than a performance one: **the predicate sits ahead of the bounds
@@ -216,9 +215,9 @@ Packing writes into one reused `ArrayBuffer` scratch and issues one
 `writeBuffer` per frame.
 
 Dub generations are where that pays off. Each extra generation is an independent
-playback pass needing its own gen seed and its own time-base walk, and the
-frame stages all of them up front into `genParamsBuf`, then moves them into the
-live buffer between generations with `copyBufferToBuffer` — on the GPU timeline,
+playback pass needing its own gen seed and its own time-base walk, and the frame
+stages all of them up front into `genParamsBuf`, then moves them into the live
+buffer between generations with `copyBufferToBuffer` — on the GPU timeline,
 inside the same command encoder, rather than re-encoding or waiting. Only one
 `u32` differs between slots, patched at `GEN_OFFSET`. The frame's own params sit
 in slot 0 and get copied back before the receiver runs, because the loop
@@ -288,10 +287,11 @@ result by that difference. That is the bargain, stated where the step is.
 
 ## The one serial pass
 
-`sync.wgsl` is `workgroup_size(1,1,1)`: a single thread running two 525-iteration
-loops, the PLL flywheel and the HV sag. It has to be serial — each line's value
-depends on the previous line's — and `sync_measure` already scanned the waveform
-in parallel, so this thread only runs the recurrences over those measurements.
+`sync.wgsl` is `workgroup_size(1,1,1)`: a single thread running two
+525-iteration loops, the PLL flywheel and the HV sag. It has to be serial — each
+line's value depends on the previous line's — and `sync_measure` already scanned
+the waveform in parallel, so this thread only runs the recurrences over those
+measurements.
 
 It is latency on one thread rather than GPU throughput, and it measures fine at
 60 fps, but it is the one pass in the app that cannot scale. A third per-line
@@ -359,8 +359,8 @@ rediscovery. rAF delivers catch-up callbacks milliseconds apart after a stall,
 so any floor trusting the fastest interval reads every normal frame after one as
 a miss; a percentile floor fails the other way, reading a window where most
 frames miss as steady-slow. What survived is judging each window on **the spread
-of its own intervals**: p75 against p25 × 1.5. A loop keeping any rate shows
-p75 ≈ p25, and a loop wavering between vsync steps shows p75 near double p25,
+of its own intervals**: p75 against p25 × 1.5. A loop keeping any rate shows p75
+≈ p25, and a loop wavering between vsync steps shows p75 near double p25,
 because a skipped vsync doubles the interval. The spread is the stutter the eye
 objects to, and it needs no absolute refresh estimate, so 48, 60 and 144 Hz
 panels all work. A window that is slow but **steady** deliberately does not
@@ -395,11 +395,11 @@ writes to the canvas directly, so live per-frame state reaches the overlays as
   static border carries. Measure this with `page.metrics()` deltas
   (`RecalcStyleDuration`, `ScriptDuration`), not fps — the loop is vsync-capped,
   so fps stays at 60 until the budget is already gone.
-- **React Compiler is on**, so don't hand-write `useMemo`/`useCallback`.
-  The ref-during-render pattern is exactly what the compiler refuses, which
-  costs that component its memoization — so every bail-out is recorded in
-  `KNOWN` in `scripts/compilercheck.mjs` with whose fault it is, and
-  `pnpm compiler` fails on any that is not on the list.
+- **React Compiler is on**, so don't hand-write `useMemo`/`useCallback`. The
+  ref-during-render pattern is exactly what the compiler refuses, which costs
+  that component its memoization — so every bail-out is recorded in `KNOWN` in
+  `scripts/compilercheck.mjs` with whose fault it is, and `pnpm compiler` fails
+  on any that is not on the list.
 
 ### The main thread is the one feeding the GPU
 
@@ -440,19 +440,22 @@ touching anything that creates, releases or tears down a device.
 
 ## What is left
 
-- **Interlace.** The model is 525 lines at 60 fps, i.e. progressive; real NTSC
-  is interlaced at field rate with a half-line offset, which is why vertical
-  roll steps a whole frame at a time. That is an authenticity gap rather than a
-  performance one, but it is the largest thing this raster does not do.
-- **Per-pixel horizontal scaling.** H size, linearity and pincushion all want to
-  displace within a row, which the shared decode tile forbids. The staging has
-  to be restructured first.
-- **A third per-line recurrence** would want a parallel prefix scan rather than
-  a third loop in the one serial pass.
+The backlog lives in [`IDEAS.md`](IDEAS.md) rather than here, and two of its
+entries are shaped by this page. **Interlace** is the raster restructure, with
+its own section there — including what field-rate timing would do to
+`dropoutComp`'s 1H delay, which is not obvious from the timing alone.
+**Intra-line geometry** — `hSize`, `hLin`, pincushion, and the stair-stepping of
+a `round()`ed bend — sits under the deflection follow-ons, blocked on decode's
+staging for the reason above.
 
-Already measured and **not** worth revisiting without new hardware or a new
-browser build: the three ALU micro-optimizations at the top, 256-wide FIR
-workgroups, and asynchronous pipeline creation.
+What this page owns is the other direction: what has already been measured and
+is **not** worth revisiting without new hardware or a new browser build — the
+three ALU micro-optimizations at the top, 256-wide FIR workgroups, and
+asynchronous pipeline creation.
+
+One constraint rather than an idea, since nothing is asking for it yet: a third
+per-line recurrence wants a parallel prefix scan, not a third loop in the one
+serial pass.
 
 ## Further reading
 
