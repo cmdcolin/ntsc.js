@@ -92,6 +92,30 @@ describe('blendPresets', () => {
     expect(blendPresets(held, new Map([['stuckTape', 1]])).phosphor).toBe(0.99)
   })
 
+  it('never starts a strobe on a board that has none', () => {
+    // Every rate a roll can reach cuts the beam for ~95% of each cycle, so a
+    // roll that starts one hides everything else it just did behind a
+    // full-field flash a few times a second — and random nudge already refuses
+    // to. This was the hole: the preset roll could pick the strobed tube as a
+    // lead at 3.5 Hz or scale it down to 0.9 as a follower, on 3% of presses.
+    for (const w of [1, 0.5, 0.25]) {
+      const rolled = rollControls(
+        new Map([['strobedTube', w]]),
+        DEFAULT_CONTROLS,
+      )
+      expect(rolled.strobeHz).toBe(0)
+      // The rest of that tube is a look, and it still arrives.
+      expect(rolled.phosphor).toBeGreaterThan(0)
+    }
+  })
+
+  it('leaves a strobe alone on a board that is already running one', () => {
+    const strobing = presetControls({ strobeHz: 2 })
+    expect(rollControls(new Map([['strobedTube', 1]]), strobing).strobeHz).toBe(
+      3.5,
+    )
+  })
+
   it('picks one mode rather than averaging enum controls', () => {
     const mixed = blendPresets(
       DEFAULT_CONTROLS,

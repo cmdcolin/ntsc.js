@@ -1,6 +1,7 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { randomIndex } from '../rng'
 import { SLIDER_BY_KEY, VIEW_KEYS, snapToStep } from './controls'
+import { ROLL_NEVER_STARTS } from './mutate'
 
 import type { ControlKey, Controls } from '../controls'
 import type { ModRouting } from './modSlots'
@@ -1739,8 +1740,9 @@ export function blendPresets(
   return out
 }
 
-// The board a roll means: the recipe over stock, with the view controls taken
-// back from `view` instead of from the recipe.
+// The board a roll means: the recipe over stock, with the view controls — and a
+// strobe the board was not already running — taken back from `view` instead of
+// from the recipe.
 //
 // One function because there are two roll paths — the button in `useMix` and
 // `?surprise` on boot in `useEngine` — and they are one verb that has to reach
@@ -1756,5 +1758,12 @@ export function blendPresets(
 export function rollControls(weights: PresetWeights, view: Controls): Controls {
   const out = blendPresets(DEFAULT_CONTROLS, weights)
   for (const key of VIEW_KEYS) out[key] = view[key]
+  // The same rule the jitter follows, and for the reason spelled out where the
+  // set is defined: a roll never *starts* a strobe. It was only half a rule —
+  // random nudge would not begin one, but random look picked the strobed tube
+  // as a lead or a follower on 3% of presses, one in thirty-three, and handed
+  // back a full-field flash at 0.9 to 3.5 Hz over whatever else it had rolled.
+  // The chip is still there to click, which is a choice somebody made.
+  for (const key of ROLL_NEVER_STARTS) if (view[key] === 0) out[key] = 0
   return out
 }

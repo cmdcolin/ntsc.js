@@ -62,6 +62,11 @@ export function mutateAmountFor(e: {
 // button needs is therefore narrow — a roll never *starts* a strobe. Rolled off
 // a look that is already strobing it is a control like any other, which is why
 // this is a set of keys and a test against rest rather than another VIEW_KEYS.
+//
+// All three rolls read it: the jitter below, the bay (`rollMod`, which will not
+// patch modulation onto a control it may not start) and the preset roll
+// (`rollControls`), which used to be the hole in it — random look picked the
+// strobed tube on 3% of presses and started one anyway.
 export const ROLL_NEVER_STARTS = new Set<ControlKey>(['strobeHz'])
 
 // Nudge every control by a random fraction of its own slider *travel* — the
