@@ -2,6 +2,16 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.28.2](https://github.com/cmdcolin/ntsc.js/compare/v0.28.1...v0.28.2) - 2026-08-18
+
+### Documentation
+- [`07ac3af`](https://github.com/cmdcolin/ntsc.js/commit/07ac3afa95cb39829c3c2862431696a55c9650ad) an optimizations page for the techniques the frame budget is made of
+- [`d53467f`](https://github.com/cmdcolin/ntsc.js/commit/d53467f6c62db4d9ac1d47cf00a7840cf590da84) correct the workgroup-memory section, and the main-thread costs it missed
+- *(adr)* [`151c3e9`](https://github.com/cmdcolin/ntsc.js/commit/151c3e97fe26faf5128f03287ab252d49159646f) the FIR passes are not ALU-bound, so ablate before optimizing
+
+### Tests
+- [`af72bdb`](https://github.com/cmdcolin/ntsc.js/commit/af72bdb21e287d77a4dbf27e702da642d62470d3) pin the countable claims in OPTIMIZATIONS.md to the code
+
 ## [0.28.1](https://github.com/cmdcolin/ntsc.js/compare/v0.28.0...v0.28.1) - 2026-08-16
 
 ### Features
