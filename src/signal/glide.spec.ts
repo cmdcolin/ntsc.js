@@ -18,6 +18,7 @@ const plan = (to: Controls, over: Partial<GlidePlan> = {}): GlidePlan => ({
   seconds: 1,
   switchKeys: new Set<ControlKey>(['phosphor']),
   holdKeys: new Set<ControlKey>(['crtZoom']),
+  tracks: new Map(),
   ...over,
 })
 
@@ -84,6 +85,47 @@ describe('Glide', () => {
     const after = at(new Glide(COARSE), { ...DEFAULT_CONTROLS }, plan(to), 0.6)
     expect(before.phosphor).toBe(DEFAULT_CONTROLS.phosphor)
     expect(after.phosphor).toBe(3)
+  })
+
+  // A control whose value is not linear in what it does: the plan hands over the
+  // track, and the morph crosses it the way a hand on the slider would rather
+  // than the way the raw number would.
+  it('travels a tracked key along its track, not its value', () => {
+    const track = {
+      toTravel: (v: number) => Math.sqrt(v / 100),
+      fromTravel: (t: number) => 100 * t * t,
+    }
+    const tracked = plan(set({ noiseIre: 100 }), {
+      tracks: new Map([['noiseIre' as ControlKey, track]]),
+    })
+    const half = at(new Glide(COARSE), { ...DEFAULT_CONTROLS }, tracked, 0.5)
+    expect(half.noiseIre).toBeCloseTo(25, 5)
+  })
+
+  it('lands a tracked key on the destination exactly', () => {
+    // The landing frame assigns rather than evaluating the path, and it has to
+    // stay that way here: a round trip through a curve is not bit-identical, and
+    // matchPreset compares exactly.
+    const g = new Glide(COARSE)
+    const to = set({ noiseIre: 7.3 })
+    const live = { ...DEFAULT_CONTROLS }
+    g.start(
+      live,
+      plan(to, {
+        tracks: new Map([
+          [
+            'noiseIre' as ControlKey,
+            {
+              toTravel: (v: number) => Math.log(v + 1),
+              fromTravel: (t: number) => Math.exp(t) - 1,
+            },
+          ],
+        ]),
+      }),
+      0,
+    )
+    g.apply(live, 1000)
+    expect(live.noiseIre).toBe(7.3)
   })
 
   it('never moves a held key', () => {

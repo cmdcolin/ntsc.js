@@ -36,6 +36,14 @@ const COARSE_STEPS = 32
 // rest, so the whole thing reads as one movement.
 const ease = (t: number): number => t * t * (3 - 2 * t)
 
+// How one control's value sits on the track its slider presents. Handed in per
+// key rather than worked out here, for the reason the key sets below are: the
+// curves and the schema that names them live in the UI layer.
+export interface Track {
+  toTravel: (v: number) => number
+  fromTravel: (t: number) => number
+}
+
 // Where the board is going, and what each control is allowed to do on the way.
 export interface GlidePlan {
   to: Controls
@@ -50,6 +58,18 @@ export interface GlidePlan {
   // mutate already follow — so a morph never flies the magnifier across the
   // picture on its way to a new look.
   holdKeys: ReadonlySet<ControlKey>
+  // The controls whose value is not linear in what it does, and the track each
+  // one is read through. A morph exists to walk the path rather than to arrive,
+  // and on a curved control the straight line in value is not that path: from
+  // stock to a radar tube's 0.9925, linear spends nine tenths of the morph
+  // between no trail and a tenth of a second of one, then crosses the whole
+  // distance from there to five seconds of afterglow in the last breath. The
+  // same is true of every detune (the crawl either side of lock is the first
+  // thousandth of the span) and of the synth oscillators (five decades, and
+  // each of them a different instrument). Travelling the track instead spends
+  // the morph the way the slider spends its length. Keys absent from the map
+  // travel their value, which is what the linear majority want.
+  tracks: ReadonlyMap<ControlKey, Track>
 }
 
 interface GlideStep {
@@ -78,6 +98,12 @@ export class Glide {
   private travel: ControlKey[] = []
   private coarse: ControlKey[] = []
   private switching: ControlKey[] = []
+  // Both ends of a curved key's journey, in travel, resolved once at the start:
+  // the curves solve a constant by bisection and this runs every frame.
+  private tracked = new Map<
+    ControlKey,
+    { a: number; b: number; value: (t: number) => number }
+  >()
   private startMs = 0
   private notch = -1
   private t = 0
@@ -118,6 +144,31 @@ export class Glide {
       k => !plan.switchKeys.has(k) && this.coarseKeys.has(k),
     )
     this.switching = moved.filter(k => plan.switchKeys.has(k))
+    this.tracked = new Map(
+      [...this.travel, ...this.coarse].flatMap(k => {
+        const track = plan.tracks.get(k)
+        return track === undefined
+          ? []
+          : [
+              [
+                k,
+                {
+                  a: track.toTravel(from[k]),
+                  b: track.toTravel(plan.to[k]),
+                  value: track.fromTravel,
+                },
+              ] as const,
+            ]
+      }),
+    )
+  }
+
+  // Where a control sits `e` of the way through, along its track if it has one.
+  private at(k: ControlKey, from: Controls, to: Controls, e: number): number {
+    const track = this.tracked.get(k)
+    return track === undefined
+      ? from[k] + (to[k] - from[k]) * e
+      : track.value(track.a + (track.b - track.a) * e)
   }
 
   stop(): void {
@@ -126,6 +177,7 @@ export class Glide {
     this.travel = []
     this.coarse = []
     this.switching = []
+    this.tracked.clear()
     this.t = 0
   }
 
@@ -162,7 +214,7 @@ export class Glide {
     }
     const e = ease(raw)
     for (const k of this.travel) {
-      controls[k] = from[k] + (plan.to[k] - from[k]) * e
+      controls[k] = this.at(k, from, plan.to, e)
     }
     // Modes cut at the midpoint. Nothing hides that, and nothing should: it is
     // the honest rendering of "there is no half-phosphor", and on a busy morph
@@ -179,7 +231,7 @@ export class Glide {
     this.notch = notch
     const ce = notch / COARSE_STEPS
     for (const k of this.coarse) {
-      controls[k] = from[k] + (plan.to[k] - from[k]) * ce
+      controls[k] = this.at(k, from, plan.to, ce)
     }
     return { done: false, coarseMoved: this.coarse.length > 0 }
   }

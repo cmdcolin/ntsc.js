@@ -1,14 +1,15 @@
 // How long a look takes to arrive, and the rules that turn a destination into a
 // morph. The travelling itself is the engine's (signal/glide.ts) — this is the
-// UI's half: the durations offered, and the two sets of keys that need slider
+// UI's half: the durations offered, and the three rules that need slider
 // metadata to work out.
 
-import { VIEW_KEYS } from './controls'
+import { SLIDER_BY_KEY, VIEW_KEYS } from './controls'
 import { ENUM_KEYS } from './presets'
+import { fromTravel, toTravel } from './travel'
 
-import type { Controls } from '../controls'
+import type { ControlKey, Controls } from '../controls'
 import type { Store } from '../listeners'
-import type { GlidePlan } from '../signal/glide'
+import type { GlidePlan, Track } from '../signal/glide'
 
 // Off first, because a cut is a legitimate choice and the one every gesture used
 // to make: a preset chip that took four seconds to land would be the wrong
@@ -53,14 +54,30 @@ export const MORPH_LABEL_CHARS = Math.max(
 export const parseMorph = (raw: string | null): MorphSeconds =>
   MORPH_SECONDS.find(s => String(s) === raw) ?? 1
 
-// A destination plus the two rules that need the slider schema: modes cut at the
-// midpoint because there is no half-phosphor, and the view never moves because
-// where you are looking is not part of the look. Both sets are the ones the mix
-// and mutate already use, deliberately — a morph to a look should touch exactly
-// what landing on that look would have touched.
+// The curved controls and the track each is read through, so a morph crosses a
+// control the way a hand on its slider would. Built here rather than in the
+// glide because the curve is slider metadata; built once because the shape of a
+// track is a fact about the control, not about any one morph.
+const TRACKS: ReadonlyMap<ControlKey, Track> = new Map(
+  [...SLIDER_BY_KEY.values()]
+    .filter(s => s.curve !== undefined)
+    .map(s => [
+      s.key,
+      { toTravel: v => toTravel(s, v), fromTravel: t => fromTravel(s, t) },
+    ]),
+)
+
+// A destination plus the three rules that need the slider schema: modes cut at
+// the midpoint because there is no half-phosphor, curved controls travel their
+// track rather than their value, and the view never moves because where you are
+// looking is not part of the look. All three are what the mix and mutate
+// already use, deliberately — a morph to a look should touch exactly what
+// landing on that look would have touched, and get there the way the same
+// gesture by hand would.
 export const morphTo = (to: Controls, seconds: number): GlidePlan => ({
   to,
   seconds,
   switchKeys: ENUM_KEYS,
   holdKeys: VIEW_KEYS,
+  tracks: TRACKS,
 })
