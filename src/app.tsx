@@ -601,12 +601,10 @@ export function App() {
     query: profileQuery(),
     weights: Object.fromEntries(mix.weights),
     preset: mix.lastPreset,
-    provenance:
-      mix.lastPreset !== null
-        ? 'preset'
-        : mix.weights.size > 0
-          ? 'surprise'
-          : 'hand',
+    // Read off the gesture that put this look on the board rather than inferred
+    // from what it left behind — see useMix. The inference here filed every
+    // roll that clears the recipe (the nudge, the fault, the cross) as `hand`.
+    provenance: mix.provenance,
     source: eng.a.mode,
   })
   // `landLook` rather than a plain write: a recall is the same gesture as a

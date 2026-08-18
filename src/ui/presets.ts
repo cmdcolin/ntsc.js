@@ -1641,12 +1641,22 @@ export function randomPresetMix(
 // same as drawing uniformly from the presets: the families are wildly different
 // sizes, and a flat draw would spend most of a session inside whichever one has
 // the most entries this month.
+// `avoid` is the preset already on the board, dropped from the draw: with nine
+// families a repeat comes up often enough to read as the button not having
+// fired, and this is the one roll where you can tell — the chip that lights up
+// is the same one that was lit. Dropped before the group is picked, so a family
+// of one that is the excluded preset takes itself out of the draw rather than
+// leaving an empty group to be picked from.
 export function randomSinglePreset(
   sourceBOn: boolean,
   rand: () => number = Math.random,
+  avoid: string | null = null,
 ): PresetWeights {
   const pool = PRESETS.filter(
-    p => p.group !== 'Clean' && (sourceBOn || p.group !== 'A/B mixing'),
+    p =>
+      p.group !== 'Clean' &&
+      p.name !== avoid &&
+      (sourceBOn || p.group !== 'A/B mixing'),
   )
   const group = shuffled([...new Set(pool.map(p => p.group))], rand)[0]
   const lead = pool.filter(p => p.group === group)

@@ -204,6 +204,9 @@ function RollsMenu(props: {
         <button
           {...attrs}
           className={cx(styles.btn, styles.pairRight)}
+          // The label is a glyph, so the name a screen reader reads has to come
+          // from here — the same pairing the masthead's ⋮ carries.
+          aria-label="more rolls"
           title="three more rolls: one authored preset whole, a couple of controls thrown hard, or this look crossed with a fresh one"
         >
           ⋯

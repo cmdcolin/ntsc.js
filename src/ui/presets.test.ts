@@ -357,6 +357,28 @@ describe('randomSinglePreset', () => {
     const draw = () => randomSinglePreset(true, seq([0.11, 0.42, 0.73]))
     expect([...draw().entries()]).toEqual([...draw().entries()])
   })
+
+  // The one roll where a repeat is visible: the chip that lights up is the same
+  // chip that was already lit, which reads as a button that did not fire.
+  it('never draws the preset that is already on the board', () => {
+    let held = 'vhs'
+    for (let s = 0; s < 400; s++) {
+      const drawn = [...randomSinglePreset(true, Math.random, held).keys()][0]
+      expect(drawn).not.toBe(held)
+      held = drawn
+    }
+  })
+
+  // Whichever preset is excluded — including one that is the only member of its
+  // family, which has to take the family out of the draw rather than leave an
+  // empty group for the pick to land in.
+  it('still draws a whole look whatever it is told to avoid', () => {
+    for (const p of PRESETS) {
+      const roll = randomSinglePreset(true, Math.random, p.name)
+      expect(roll.size, p.name).toBe(1)
+      expect([...roll.values()], p.name).toEqual([1])
+    }
+  })
 })
 
 describe('rollControls', () => {
