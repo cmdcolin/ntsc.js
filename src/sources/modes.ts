@@ -58,7 +58,6 @@ export const SOURCE_DESC: Record<SourceMode | SourceBMode, string> = {
   synth: 'Video synth — oscillators patched into the input',
   cat: 'Tama station master — bundled photo, no file to pick',
   'clip-test': CLIPS['clip-test'].label,
-  'clip-popeye': CLIPS['clip-popeye'].label,
   'clip-haunted-house': CLIPS['clip-haunted-house'].label,
   'clip-minnie-moocher': CLIPS['clip-minnie-moocher'].label,
   'wiki-random':
@@ -102,7 +101,6 @@ export const SOURCE_KIND: Record<SourceMode | SourceBMode, SourceKind> = {
   synth: 'pattern',
   cat: 'bundled',
   'clip-test': 'bundled',
-  'clip-popeye': 'bundled',
   'clip-haunted-house': 'bundled',
   'clip-minnie-moocher': 'bundled',
   'wiki-random': 'pool',

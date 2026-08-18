@@ -200,7 +200,14 @@ const drive = async (deck, modes) => {
 
 // A: the generated sources, a bundled clip (the <video> path), and the bundled
 // photo — which is the async branch, the one that reads the load token.
-await drive('a', ['sweep', 'tv static', 'cat', 'clip-popeye', 'synth', 'bars'])
+await drive('a', [
+  'sweep',
+  'tv static',
+  'cat',
+  'clip-haunted-house',
+  'synth',
+  'bars',
+])
 
 // B, including the one mode that means "stop summing". The enable is derived
 // from the mode rather than set per caller, so 'none' is what proves it.

@@ -10,14 +10,13 @@
 //
 // - "The Haunted House" (Disney, 1929) — public domain since its 95-year
 //   term expired Jan 1 2025.
-// - "Minnie the Moocher" (Fleischer Studios, 1932) and "Popeye the Sailor"
-//   (Fleischer Studios, 1933) — public domain via non-renewal.
+// - "Minnie the Moocher" (Fleischer Studios, 1932) — public domain via
+//   non-renewal.
 
 const S3_BASE = 'https://cmdcolinphotos.s3.amazonaws.com/phosphene/sources/'
 
 export const CLIP_IDS = [
   'clip-test',
-  'clip-popeye',
   'clip-haunted-house',
   'clip-minnie-moocher',
 ] as const
@@ -32,10 +31,6 @@ export const CLIPS: Record<ClipId, BundledClip> = {
   'clip-test': {
     label: 'Test pattern — bars, timecode, motion',
     url: `${import.meta.env.BASE_URL}test.mp4`,
-  },
-  'clip-popeye': {
-    label: 'Popeye the Sailor (1933, public domain)',
-    url: `${S3_BASE}example-popeye.mp4`,
   },
   'clip-haunted-house': {
     label: 'The Haunted House (1929, public domain)',

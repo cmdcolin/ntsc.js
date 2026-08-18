@@ -1149,9 +1149,9 @@ describe('what a row loads ahead', () => {
   // other, and the row stores the id — so resolving it here is what lets a slot
   // be handed the one thing it can act on.
   it('resolves a bundled clip id to the url the slot would load', () => {
-    const got = prerollFor(row({ session: 'src=clip-popeye' }))
+    const got = prerollFor(row({ session: 'src=clip-haunted-house' }))
     expect(got).toMatchObject({ kind: 'preroll', start: 0 })
-    expect(got?.kind === 'preroll' && got.url).toContain('popeye')
+    expect(got?.kind === 'preroll' && got.url).toContain('haunted-house')
   })
 
   // A shelf clip is the source a session cannot carry, so it is named by id and
