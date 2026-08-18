@@ -4,9 +4,9 @@ Why the render path looks the way it does. [`ARCHITECTURE.md`](ARCHITECTURE.md)
 draws the path itself, and [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md) is the one-page
 version of what a pass is.
 
-One frame is 477,750 f32 samples (910 × 525) through roughly twenty compute
-dispatches, sixty times a second, and several of those passes are FIR filters
-tens of taps wide. That budget is the reason for everything below. On the dev
+One frame is 477,750 f32 samples (910 × 525) through up to twenty-five compute
+dispatches, sixty times a second, and six of those passes are FIR filters 33 to
+55 taps wide. That budget is the reason for everything below. On the dev
 box's WX 3200 every built-in preset lands **3.3–5.4 ms** against a 3.3 ms
 always-on floor, so the headroom exists — but it exists because the expensive
 things are gated, tiled, tiered, or not dispatched at all.
@@ -34,8 +34,9 @@ arithmetic saved inside them rides in idle slots. Nothing about that is
 knowable from reading the shader.
 
 The same rule caught a startup one before it was written. The `Engine`
-constructor makes 22 blocking `createComputePipeline` calls, which looks like an
-obvious `createComputePipelineAsync` job. Timed in place first:
+constructor makes a couple of dozen blocking `createComputePipeline` calls,
+which looks like an obvious `createComputePipelineAsync` job. Timed in place
+first, at 22 pipelines:
 
 ```
 PLBUILD n=22 sync=9.0ms syncWarm=2.0ms asyncParallel=396.0ms
@@ -104,33 +105,24 @@ per tap. The loop is unrolled by four into a `vec4f` accumulator; the odd tail
 uses `select` rather than a dynamic vector index, which would spill the
 accumulator to scratch for the sake of up to three iterations.
 
-`crt_face`'s disk taps went the other way, from computed to tabulated: golden-
-angle direction × radius plus the beam gaussian weight, hoisted into constant
-tables. Computing them in the loop cost a `cos`/`sin`/`sqrt`/`exp` per tap —
-about 64 transcendentals per pixel, and the single most expensive thing in the
-pass.
+## Workgroup memory does four different jobs here
 
-## Tiled FIRs: one storage read per sample, not per tap
+Nine shaders stage something in `var<workgroup>` before they barrier, and it is
+worth knowing which of four things each one is doing, because the reason decides
+what may change.
 
-Five passes are wide FIR filters, and the naive form reads storage once per tap
-per output. Instead, each `TILE_WG` (64) thread workgroup stages its own span
-plus a **32-sample halo per side** into workgroup memory, barriers once, and
-filters out of shared memory. Symmetric kernels up to 65 taps fit inside the
-halo.
+**Halo tiling, so a FIR reads storage once per sample rather than once per
+tap.** Six passes filter the waveform (`encode_composite`, `encode_chroma_b`,
+`chroma_extract`, `under_down`, `channel`, `decode`), and each stages its own
+64-sample span plus a **32-sample halo per side**, barriers once, and filters
+out of shared memory. The kernels in the bank run 33 to 55 taps, comfortably
+inside the 65 a 32-sample halo allows.
 
-The width was measured rather than assumed. Staging costs
+The 64-thread width was measured rather than assumed. Staging costs
 `(TILE_WG + 64) / TILE_WG` loads per output, so wider workgroups re-stage less —
 but 64 and 128 land within noise of each other and **256 is ~8% slower**. The
 halo traffic is not the bottleneck, so the width stays where scheduling
 granularity likes it.
-
-`channel` stages four tiles, and the last two are the interesting ones. Snow is
-one Gaussian deviate per sample, and the 1-2-1 kernel over it reads each
-neighbour's deviate — every thread's neighbour is some other thread's centre, so
-generating per-thread draws each deviate three times. `gauss()` is Box-Muller,
-two hashes plus a log and a cos, which makes that the most expensive redundancy
-in the pass; staging `TILE_WG + 2` deviates removes it. The quadrature arm for
-the Rician envelope detector is staged only while `rfSnow` is on.
 
 **This is where the row-uniform invariant comes from.** `decode` stages a
 contiguous span of one raster row, so a horizontal offset applies to the whole
@@ -138,9 +130,55 @@ workgroup or it reads outside the halo. Per-pixel horizontal scaling — H size,
 linearity, pincushion — needs the staging restructured first, and no amount of
 care in the shader gets around it.
 
-The random fields are hashed from the global sample index rather than carried as
-state, which is what lets overlapping halos, Y/C-delayed reads and the staged
-tile all agree on the same deviate for the same sample without communicating.
+**Sharing a deviate that is expensive to draw.** Snow is one Gaussian deviate
+per sample, and the 1-2-1 band-limit over it reads each neighbour's deviate —
+every thread's neighbour is some other thread's centre, so generating
+per-thread draws each deviate three times. `gauss()` is Box-Muller, two hashes
+plus a log and a cos, which makes that the most expensive redundancy in the
+pass. `channel` and `feed` both stage `TILE_WG + 2` of them instead. The
+quadrature arm for `channel`'s Rician envelope detector is staged only while
+`rfSnow` is on.
+
+**Hoisting a per-workgroup constant out of a per-sample loop.**
+`fb_composite`'s resonance is a network — one set of component values, not a
+different one per sample — so its 33 taps and its normalizer are functions of
+two controls alone. Building them inside the tap loop cost 33 `cos` and 33
+`exp` at every one of the raster's 477,750 samples to arrive at the same 34
+numbers each time. One thread designs the filter and everyone else reads plain
+coefficients: **66 transcendentals per workgroup rather than per sample**, worth
+3.22 → 3.06 ms/frame. The summation order is untouched, so this is not an
+approximation — `pixdiff` reads max 0 over 200 frames of a live sub-unity loop,
+which is the strictest check available on that pass because a one-bit error
+would compound every lap.
+
+Hoisting into workgroup memory sets one trap, and it is a correctness trap
+rather than a performance one: **the predicate sits ahead of the bounds
+return**, since every invocation in the workgroup has to reach the barrier and
+910 samples do not divide by 64.
+
+`crt_face`'s disk taps are the same move made at compile time: golden-angle
+direction × radius plus the beam gaussian weight, tabulated as constants.
+Computing them in the tap loop cost a `cos`/`sin`/`sqrt`/`exp` apiece — about 64
+transcendentals per pixel, and the single most expensive thing in that pass.
+
+**Sharing an overlapping history window.** `line_analyze`'s chroma AGC lag walks
+an RC window up to 97 lines deep, and consecutive rows walk almost the same one
+— so measuring per consumer re-gated the same burst up to 97 times over. A
+workgroup of 64 rows needs 64 + span measurements between them, which is two or
+three gates per thread instead of ninety-seven, and the staged count follows the
+span rather than the ceiling. The RC weights stage the same way for the same
+reason: they are a function of `k` and the time constant, identical for every
+row in the frame. The gate and the summation order are unchanged, so `pixdiff`
+reads max 0 here too.
+
+`line_analyze` is also the one place here where the win is **latency on an idle
+GPU** rather than throughput: 525 threads in 9 workgroups is a narrow dispatch,
+so the redundancy was never competing for occupancy.
+
+The random fields underneath all of this are hashed from the global sample index
+rather than carried as state, which is what lets overlapping halos, Y/C-delayed
+reads and the staged tile all agree on the same deviate for the same sample
+without communicating.
 
 ## Filters are designed on the CPU, and rebuilt as rarely as possible
 
@@ -362,6 +400,25 @@ writes to the canvas directly, so live per-frame state reaches the overlays as
   costs that component its memoization — so every bail-out is recorded in
   `KNOWN` in `scripts/compilercheck.mjs` with whose fault it is, and
   `pnpm compiler` fails on any that is not on the list.
+
+### The main thread is the one feeding the GPU
+
+Re-rendering is not the only thing that competes with the render loop. Anything
+per-frame on this thread does, including work that never touches React, so the
+per-frame path avoids allocating and the drag paths coalesce their writes:
+
+- **`glide` writes into `controls` in place** rather than returning a look. It
+  runs every frame, and a fresh two-hundred-key object per frame is pure churn —
+  the engine's controls are where the values have to end up anyway.
+- **`emit()` walks its listener set live** rather than over a defensive copy.
+  Three of these fire on the frame path, where a copy per notify is an
+  allocation per frame. Unsubscribing during a notify is safe regardless: `Set`
+  iteration skips an entry deleted before it is reached.
+- **Storage and history writes are debounced out of the drag.** A slider drag
+  emits a move per pointer event, so the URL mirror coalesces to one
+  `replaceState` once the value settles (the browser rate-limits the history API
+  anyway), and the modulation bay defers its `localStorage` write — a
+  synchronous one per frame of a drag is paid on the thread feeding the GPU.
 
 ## Devices are created freely and never destroyed
 
