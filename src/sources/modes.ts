@@ -175,11 +175,14 @@ export function sourceOptions<T extends SourceMode | SourceBMode>(
 // — including the one build-time subtraction: the YouTube option is backed by
 // the dev-only yt-dlp bridge, so a production build has no /yt endpoint to
 // offer it against.
-const A_MODES = import.meta.env.DEV
-  ? SOURCE_MODES
-  : SOURCE_MODES.filter(m => m !== 'youtube')
-const B_MODES = import.meta.env.DEV
-  ? SOURCE_B_MODES
-  : SOURCE_B_MODES.filter(m => m !== 'youtube')
+// The same two lists minus that subtraction: what a production build actually
+// offers. Named and exported because two things want it and neither is a
+// picker — the docs generator, which describes what ships rather than what a
+// dev server happens to have, and the test that holds the two in step.
+export const SHIPPED_MODES = SOURCE_MODES.filter(m => m !== 'youtube')
+export const SHIPPED_B_MODES = SOURCE_B_MODES.filter(m => m !== 'youtube')
+
+const A_MODES = import.meta.env.DEV ? SOURCE_MODES : SHIPPED_MODES
+const B_MODES = import.meta.env.DEV ? SOURCE_B_MODES : SHIPPED_B_MODES
 export const A_OPTIONS = sourceOptions(A_MODES)
 export const B_OPTIONS = sourceOptions(B_MODES)

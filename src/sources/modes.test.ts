@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  SHIPPED_B_MODES,
+  SHIPPED_MODES,
   SOURCE_B_MODES,
   SOURCE_DESC,
   SOURCE_KIND,
@@ -104,5 +106,31 @@ describe('the pool tables', () => {
     const origins = POOL_MODES.map(m => MODE_ORIGIN[m])
     expect(new Set(origins).size).toBe(POOL_MODES.length)
     expect(Object.keys(POOL_MODE_FOR).toSorted()).toEqual(origins.toSorted())
+  })
+})
+
+// The shipped lists feed docs/EFFECTS.md (scripts/gen-effects.mjs), so a mode
+// added to a picker and forgotten here would ship a page that under-describes
+// the app — the same class of drift the generated page exists to end. The
+// webcam assertion is the one the hand-written page actually got wrong: it said
+// either deck takes one.
+describe('the shipped mode lists', () => {
+  it('are the full lists minus the dev-only YouTube bridge', () => {
+    expect(SHIPPED_MODES).toEqual(SOURCE_MODES.filter(m => m !== 'youtube'))
+    expect(SHIPPED_B_MODES).toEqual(SOURCE_B_MODES.filter(m => m !== 'youtube'))
+  })
+
+  it('differ by the camera on A and the off switch on B', () => {
+    const onlyA = SHIPPED_MODES.filter(m => !SHIPPED_B_MODES.includes(m))
+    const onlyB = SHIPPED_B_MODES.filter(m => !SHIPPED_MODES.includes(m))
+
+    expect(onlyA).toEqual(['webcam'])
+    expect(onlyB).toEqual(['none'])
+  })
+
+  it('describe every mode they offer, since the page prints the description', () => {
+    for (const mode of SHIPPED_MODES) {
+      expect(SOURCE_DESC[mode]).toBeTruthy()
+    }
   })
 })

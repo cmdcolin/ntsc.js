@@ -184,6 +184,6 @@ OBS at the picture window for anything you care about.
 
 ---
 
-[Effects & features](EFFECTS.md) — everything it can break ·
-[How it works](HOW-IT-WORKS.md) — the code · [MIDI](MIDI.md) — setting up a
-controller
+[Features](FEATURES.md) — everything it can break · [Effects](EFFECTS.md) —
+every control · [How it works](HOW-IT-WORKS.md) — the code · [MIDI](MIDI.md) —
+setting up a controller

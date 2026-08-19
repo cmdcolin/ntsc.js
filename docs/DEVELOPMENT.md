@@ -1105,7 +1105,9 @@ the other GPU" wants answering without a rebuild.
   control end to end
 - [`OPTIMIZATIONS.md`](OPTIMIZATIONS.md) — what the measurements below decided:
   the gating, tiling, tiering and packing the frame budget is made of
-- [`EFFECTS.md`](EFFECTS.md) — the map of what it can break, stage by stage
+- [`FEATURES.md`](FEATURES.md) — the map of what it can break, stage by stage
+- [`EFFECTS.md`](EFFECTS.md) — every control, **generated** by
+  `scripts/gen-effects.mjs`; edit `src/ui/controls.ts` and run `pnpm effects`
 - [`EDITOR.md`](EDITOR.md) — the strip, glitch transitions, and the export an
   editor can conform: design for work not yet built
 - [`adr/`](adr/) — the decisions where the obvious thing is wrong for a

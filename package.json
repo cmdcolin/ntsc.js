@@ -43,6 +43,8 @@
     "docshots": "node scripts/docshots.mjs",
     "callout": "node scripts/callout.mjs",
     "guide": "node scripts/build-guide.mjs",
+    "effects": "node scripts/gen-effects.mjs",
+    "effects:check": "node scripts/gen-effects.mjs --check",
     "guide:check": "node scripts/build-guide.mjs && node scripts/guidecheck.mjs",
     "firebase-deploy": "firebase deploy --only firestore:rules",
     "test:rules": "firebase emulators:exec --only firestore --project ntscjs-rules-test \"vitest run firestoreRules\"",
@@ -54,6 +56,9 @@
     "*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}": [
       "oxlint --fix --no-error-on-unmatched-pattern",
       "oxfmt"
+    ],
+    "src/{ui/controls.ts,sources/modes.ts}": [
+      "node scripts/gen-effects.mjs && git add docs/EFFECTS.md"
     ]
   },
   "dependencies": {

@@ -57,7 +57,8 @@ where it stops returning your picture and starts breeding its own.
 ## Where next
 
 - [User guide](USER-GUIDE.md) — sources, feedback, modulation, saving, scopes
-- [Effects & features](EFFECTS.md) — everything it can break
+- [Features](FEATURES.md) — the tour of everything it can break
+- [Effects](EFFECTS.md) — every control, generated from the app's own table
 - [How it works](HOW-IT-WORKS.md) — the code: one array and a chain of GPU
   shaders
 - [MIDI](MIDI.md) — setting up a controller

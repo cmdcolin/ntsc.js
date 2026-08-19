@@ -26,7 +26,7 @@ the tube, **mixer** patches the composite waveform back in electrically, and
 **tape loop** sends it round a second machine a generation older each lap.
 
 Details in [How it works](docs/HOW-IT-WORKS.md), fault by fault in
-[Effects](docs/EFFECTS.md).
+[Features](docs/FEATURES.md).
 
 ## Features
 
@@ -45,7 +45,7 @@ Details in [How it works](docs/HOW-IT-WORKS.md), fault by fault in
 - Easy-to-use "randomize" buttons that morph between settings over multiple
   seconds
 - Bleeds video into the audio channel, so you can hear the picture
-- ...[much more](docs/EFFECTS.md)
+- ...[much more](docs/FEATURES.md)
 
 ## Video sources
 
@@ -110,7 +110,8 @@ OSC is the piece that is missing.
 - [Main docs website](https://cmdcolin.github.io/ntsc.js/guide/)
 - [Getting started](docs/GETTING-STARTED.md)
 - [User guide](docs/USER-GUIDE.md)
-- [Effects](docs/EFFECTS.md)
+- [Features](docs/FEATURES.md)
+- [Effects](docs/EFFECTS.md) — every control, generated
 - [How it works](docs/HOW-IT-WORKS.md)
 - [MIDI](docs/MIDI.md)
 - [Comparison with other tools](docs/COMPARISON.md)
@@ -125,10 +126,7 @@ idea behind the glitches.
 This app is inspired by my old 2010s era experiments alligator clipping yellow
 composite video cables together in my basement and posting tumblr gifs.
 
-
-
 ## Cool demos
 
-
-- Camera feedback + static https://cmdcolin.github.io/ntsc.js/?set=chromaGain%3A1.3%2ChvSagUs%3A2.1%2ChvRing%3A0.61%2Cabl%3A0.24%2ClumaMHz%3A3.2%2ClumaPeak%3A2.4%2CnoiseIre%3A2.5%2Cagc%3A0.18%2CcolorUnderMix%3A1%2CfmOverdev%3A0.72%2CfmStreakUs%3A0.45%2CfbMix%3A0.9%2CfbGain%3A1.059%2CfbFocus%3A0%2CfbVign%3A0.73%2CfbBlack%3A0%2CfbKnee%3A0.42%2CcrtBloom%3A0.23%2CcrtZoomX%3A0.7143%2CcrtZoomY%3A0.314&mod=vFreqHz%3Asmooth%3A0.08%3A0.0049%2CfbGain%3Asmooth%3A0.24%3A0.06&src=vhs+static
-
+- Camera feedback + static
+  https://cmdcolin.github.io/ntsc.js/?set=chromaGain%3A1.3%2ChvSagUs%3A2.1%2ChvRing%3A0.61%2Cabl%3A0.24%2ClumaMHz%3A3.2%2ClumaPeak%3A2.4%2CnoiseIre%3A2.5%2Cagc%3A0.18%2CcolorUnderMix%3A1%2CfmOverdev%3A0.72%2CfmStreakUs%3A0.45%2CfbMix%3A0.9%2CfbGain%3A1.059%2CfbFocus%3A0%2CfbVign%3A0.73%2CfbBlack%3A0%2CfbKnee%3A0.42%2CcrtBloom%3A0.23%2CcrtZoomX%3A0.7143%2CcrtZoomY%3A0.314&mod=vFreqHz%3Asmooth%3A0.08%3A0.0049%2CfbGain%3Asmooth%3A0.24%3A0.06&src=vhs+static
