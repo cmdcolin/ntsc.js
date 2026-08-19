@@ -2,6 +2,26 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.28.8](https://github.com/cmdcolin/ntsc.js/compare/v0.28.7...v0.28.8) - 2026-08-19
+
+### Fixes
+- *(ui)* [`1c6b2e9`](https://github.com/cmdcolin/ntsc.js/commit/1c6b2e90c13b05b350b96fa91f5403242d86303b) the motion count says what pressing it will show, and `/` opens the filter
+
+### Refactor
+- *(ui)* [`119625c`](https://github.com/cmdcolin/ntsc.js/commit/119625cb3cb0a7bc07cc8de36a6f5848e5701817) draw the free boxes in the map, not beside it
+
+### Documentation
+- [`674a9c8`](https://github.com/cmdcolin/ntsc.js/commit/674a9c89748f681fba1393bbcdbb5a4e29734580) a FAQ for the integration questions
+- *(ui)* [`1070698`](https://github.com/cmdcolin/ntsc.js/commit/107069822c6489841e59d3faa82fe5db5c902c41) the two drawings carry the same free row again
+- [`656e9f7`](https://github.com/cmdcolin/ntsc.js/commit/656e9f79dc093b5027ad96543fc62f534ce5dbb5) recapture the two figures the map's new shape moved
+- [`4ea76e2`](https://github.com/cmdcolin/ntsc.js/commit/4ea76e29da8278f79a9087754a74ae286df13658) lead the readme's signal path with the boxed window shot
+- [`b15f02f`](https://github.com/cmdcolin/ntsc.js/commit/b15f02f27d270f292279e934ebbd8dc9f11871bf) put the three FAQ answers in the readme
+- [`6de305c`](https://github.com/cmdcolin/ntsc.js/commit/6de305c9a4b362559da786c0dd0ae007cad06ef5) correct the user guide against the source
+- [`7f3f4a8`](https://github.com/cmdcolin/ntsc.js/commit/7f3f4a8694a4027845ec1425650aa4aa0fd74ec9) one figure for the signal path, composed rather than captured
+
+### Style
+- [`281b7aa`](https://github.com/cmdcolin/ntsc.js/commit/281b7aa5c380790d252240d22ba10c9f197e11e4) run oxfmt over the readme
+
 ## [0.28.7](https://github.com/cmdcolin/ntsc.js/compare/v0.28.6...v0.28.7) - 2026-08-19
 
 ### Fixes
