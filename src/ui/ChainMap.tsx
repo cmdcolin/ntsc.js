@@ -255,9 +255,8 @@ export function ChainMap(props: {
            the only thing that differs between an input and the view, and it is
            the whole statement: one is fed into the chain, the other out of it.
 
-           Every box on this row has all of that, because every box in this
-           drawing is wired to something now — the ones that are not are chips
-           under it (SignalPath). */
+           Every box on *this* row has all of that. The two that are wired to
+           nothing have none of it, which is what the free row below is for. */
         <g
           key={branch.name}
           className={cx(

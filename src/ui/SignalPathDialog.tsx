@@ -58,13 +58,14 @@ const BRANCH_Y = 128
 // full of wires, and there is only ever one gap wide enough to be that
 // convincing. On a row of their own the emptiness is the row.
 //
-// The miniature used to carry the same row and no longer does — its free boxes
-// are chips under the drawing (SignalPath) — because at 304 units wide a row is
-// the scarcest thing it has, and 20 of them bought its boxes a hittable height.
-// This drawing is 180 tall with room to spare, and empty space it can actually
-// afford is the argument the chips were standing in for. The two differ on where
-// a free box sits; what must not differ is whether pressing one opens the stage,
-// and that lives in MapBox for both.
+// The miniature carries the same row, at its own scale (chainLayout's FREE_Y).
+// It went without one for a while — the two boxes were html chips under the svg,
+// because at 304 units wide a row is the scarcest thing that drawing has, and 20
+// of them bought its boxes a hittable height — and what brought the row back is
+// that a chip is set in the panel's type inside a picture set in the map's. This
+// drawing never had that problem: 180 units tall, with the room to say it the
+// way it is said here. What must not differ between the two is whether pressing
+// a box opens the stage, and that lives in MapBox for both.
 const FREE_Y = 164
 const BOX_H = 22
 const HEAD = 3
