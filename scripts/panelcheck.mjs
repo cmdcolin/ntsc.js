@@ -263,6 +263,55 @@ await phase('filter', { seed: OLD_BAY }, async page => {
   // The two nothing is wired to are doors like any other box — the panel's most
   // reached-for stage among them.
   check(cleared.free.length === 2, `the free row came back as ${cleared.free}`)
+
+  // An open stage's head paints the panel's ground above itself, so a strip
+  // pinned to the top of the scroller doesn't leave a window onto the rows
+  // sliding behind it. That band is drawn at rest too, where there is nothing
+  // to hide and something to hit: at 14px over an 8px margin it reached 6px up
+  // into the map, and the free row clears the bottom of the drawing by 4 — so
+  // opening any stage cut the bottom edge off MODULATION and DECK. The lid and
+  // the gap are one value now (SignalPath.module.css --stage-lid), and this is
+  // the measurement that says so.
+  await run(`press(stage('Modulation')); return 0`)
+  await settle(400)
+  const lid = await run(`
+    const head = [...document.querySelectorAll('div')]
+      .find(d => getComputedStyle(d).position === 'sticky')
+    const box = stage('Modulation')?.querySelector('rect')
+    if (head === undefined || box == null) return null
+    const px = getComputedStyle(head).boxShadow.split(' ').filter(t => t.endsWith('px'))
+    const dy = parseFloat(px[1] ?? 'NaN')
+    const cs = getComputedStyle(head)
+    const r = head.getBoundingClientRect()
+    const name = head.querySelector('button').getBoundingClientRect()
+    const pad = n => parseFloat(cs.getPropertyValue(n))
+    return {
+      dy,
+      lid: r.top + dy,
+      box: box.getBoundingClientRect().bottom,
+      over: name.top - r.top - pad('border-top-width') - pad('padding-top'),
+      under: r.bottom - pad('padding-bottom') - name.bottom,
+    }`)
+  check(lid !== null, 'pressing MODULATION on the map opened no stage')
+  if (lid !== null) {
+    check(
+      lid.dy < 0,
+      `the stage head lost its lid: box-shadow offset ${lid.dy}`,
+    )
+    check(
+      lid.lid >= lid.box - 0.5,
+      `the open stage's lid reaches ${(lid.box - lid.lid).toFixed(1)}px over the map's free row`,
+    )
+    // And the name sits in the middle of the strip. The row is as tall as the ×
+    // at the end of it, and while the row itself aligned on the baseline every
+    // pixel of that difference hung under the text — the name against the top
+    // edge with 4px of nothing below it. The baseline it shares with its count
+    // is one level in now (.stageTitle), which leaves the row free to centre.
+    check(
+      Math.abs(lid.over - lid.under) <= 1,
+      `the stage name sits ${lid.over.toFixed(1)}px under the strip's top edge and ${lid.under.toFixed(1)}px over its bottom`,
+    )
+  }
 })
 
 // --- a routing can be held still from its own row ---------------------------

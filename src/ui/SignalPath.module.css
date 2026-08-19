@@ -64,15 +64,36 @@
    rail here, and the lid and its corner across the head below — and the
    modulation editor rules its own block with the same mark, one level in. */
 .stageRow {
-  margin: 8px 0 10px;
+  /* How far the head below paints the panel's ground above itself, and the gap
+     kept clear for it to land in. One value, because a lid taller than the gap
+     covers whatever the panel drew above the stage: at 14px over an 8px margin
+     it reached 6px into the map, and the free row's boxes — which clear the
+     bottom of the drawing by 4 — lost their bottom edge to it. */
+  --stage-lid: 14px;
+  margin: var(--stage-lid) 0 10px;
   padding: 0 0 6px 8px;
   border-left: 2px solid var(--rail);
 }
+/* The heading row: the stage's name with its count, and the way out at the far
+   end. It centres, and the baseline that pairs the name with its count is one
+   level in (.stageTitle) — a row that does both at once cannot. Aligned on the
+   baseline the row is as tall as its tallest item, which is the × at 22px, and
+   every pixel of the difference hangs *under* the text: the name sat against
+   the top edge of the strip with 4px of nothing below it. */
 .stageHead {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 8px 0 2px;
+}
+/* The name and its count as one object. The count is smaller type and sits on
+   the name's baseline — centring the two against each other instead would lift
+   it off, which is the alignment the row above used to get for free. */
+.stageTitle {
   display: flex;
   align-items: baseline;
   gap: 2px;
-  margin: 8px 0 2px;
+  min-width: 0;
 }
 /* The same heading as a strip, on the spine only — the bench renders StageHead
    in .benchStage, where its groups are grid siblings outside the box and there
@@ -123,8 +144,10 @@
      peeking over the stage name. A negative `top` would close it on this engine
      and tuck the strip under the edge on one that pins at 0; this is right
      either way, and invisible at rest, because whatever is above the strip is
-     the panel's background in every state. */
-  box-shadow: 0 -14px 0 var(--app-bg);
+     the panel's background in every state. It is the stage's own --stage-lid, so
+     the margin above the stage grows with it and the band cannot reach past it
+     into the map. */
+  box-shadow: 0 calc(-1 * var(--stage-lid)) 0 var(--app-bg);
 }
 /* The stage outranks the group headers under it, so it has to win on size as
    well as color — at 10px it was the smallest thing on screen while naming the
@@ -187,9 +210,8 @@
   composes: bare from './ui.module.css';
   margin-left: auto;
   flex-shrink: 0;
-  /* square, so the glyph is centred rather than sitting on the name's baseline
-     — the row is baseline-aligned, and a taller box hangs below it otherwise */
-  align-self: center;
+  /* square, and the row centres it — a glyph sitting on the name's baseline is
+     not a button you can aim at */
   display: flex;
   align-items: center;
   justify-content: center;

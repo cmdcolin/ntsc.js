@@ -111,31 +111,36 @@ function StageHead(props: {
   return (
     <>
       <div className={styles.stageHead}>
-        <button
-          className={styles.stageName}
-          title={`${node.blurb} — ${props.nameHint}`}
-          // Only where the name folds: the heading of a stage that is rendered
-          // because it is open, so it is a disclosure that is always expanded.
-          // On the bench and under a filter it is a heading, and claiming an
-          // expanded state there would announce a fold that isn't there.
-          aria-expanded={props.onClose === undefined ? undefined : true}
-          onClick={props.onName}
-        >
-          {node.name}
-        </button>
-        {node.touched === 0 ? null : props.onCount === undefined ? (
-          <span className={styles.phaseCount} title={counted(node)}>
-            • {node.touched}
-          </span>
-        ) : (
+        {/* The name and its count are one thing on one baseline — see
+            .stageTitle, and the × beside them for why the row that holds them
+            cannot be the thing setting that baseline. */}
+        <span className={styles.stageTitle}>
           <button
-            className={styles.phaseDot}
-            title={`${counted(node)} — ${props.countHint}`}
-            onClick={props.onCount}
+            className={styles.stageName}
+            title={`${node.blurb} — ${props.nameHint}`}
+            // Only where the name folds: the heading of a stage that is rendered
+            // because it is open, so it is a disclosure that is always expanded.
+            // On the bench and under a filter it is a heading, and claiming an
+            // expanded state there would announce a fold that isn't there.
+            aria-expanded={props.onClose === undefined ? undefined : true}
+            onClick={props.onName}
           >
-            • {node.touched}
+            {node.name}
           </button>
-        )}
+          {node.touched === 0 ? null : props.onCount === undefined ? (
+            <span className={styles.phaseCount} title={counted(node)}>
+              • {node.touched}
+            </span>
+          ) : (
+            <button
+              className={styles.phaseDot}
+              title={`${counted(node)} — ${props.countHint}`}
+              onClick={props.onCount}
+            >
+              • {node.touched}
+            </button>
+          )}
+        </span>
         {props.onClose === undefined ? null : (
           <button
             className={styles.stageClose}
