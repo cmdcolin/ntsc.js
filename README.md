@@ -83,6 +83,32 @@ pnpm dev
 Fun bonus: If you are running this locally, it adds a **YouTube…** source that
 works with yt-dlp and lets you video mix with youtube videos on the fly.
 
+## FAQ
+
+Short versions; the arguments behind them are in [the full FAQ](docs/FAQ.md).
+
+### Why isn't this an After Effects / Premiere / Resolve plugin?
+
+No plugin API speaks WebGPU — OFX and Adobe's SDK are CUDA, OpenCL and Metal —
+and the feedback loops make frame N a function of every frame before it, so
+scrubbing a timeline is wrong by construction. For this look on a clip in an
+edit, [ntsc-rs](https://github.com/ntsc-rs/ntsc-rs) shares the premise and
+already ships those plugins.
+
+### How do I get a result into an edit then?
+
+Open the **strip** tray along the bottom and press **⎙ render**. It writes a
+constant-framerate H.264 MP4 that Resolve and Premiere conform straight off the
+header. **●** records a live performance first, and ⎙ replays it into the
+render.
+
+### Can I patch it into Max/MSP, Jitter or TouchDesigner?
+
+Most of it works now with no code: MIDI CC and clock over a virtual port, audio
+in through a loopback device picked as the microphone, a Jitter render in as a
+webcam through Syphon, and the picture back out through an OBS browser source.
+OSC is the piece that is missing.
+
 ## Docs
 
 - [Main docs website](https://cmdcolin.github.io/ntsc.js/guide/)
