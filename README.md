@@ -1,22 +1,24 @@
 # ntsc.js
 
-
 ### Live app!
 
 https://cmdcolin.github.io/ntsc.js/
 
 ## Screenshot
 
-
 [![A photo dubbed to VHS: rainbow chroma noise banding across the frame, torn lines, and the picture bending through a tracking band](img/screenshot.jpg)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo-v2.mp4)
 
 ## Features
 
-- True composite signal emulation using WebGPU compute shaders. Requires WebGPU!
-- Multiple types of feedback loops mixer feedback, camera feedback, and vhs tape loop
-- Allows dirty or genlocked video mixing of two sources, with wipes and a chroma keyer
-- Insane number of effects, and slider can run on a modulator (LFO, random walk, etc)
-- Use MIDI controller via WebMIDI to twist knobs and settings (works in Chrome, Firefox nightly)
+- True composite signal emulation using WebGPU compute shaders
+- Multiple types of feedback loops mixer feedback, camera feedback, and VHS tape
+  loop
+- Allows dirty or genlocked video mixing of two sources, with wipes and a chroma
+  keyer
+- Insane number of effects, and slider can run on a modulator (LFO, random walk,
+  etc)
+- Use MIDI controller via WebMIDI to twist knobs and settings (works in Chrome,
+  Firefox nightly)
 - Easy randomize buttons that morph between settings over N seconds
 - Popout the controls into a second window to cast the other screen/projector
 - Record a take, or line up clips in a rundown and render it offline
@@ -32,7 +34,8 @@ pnpm install
 pnpm dev
 ```
 
-Fun bonus: If you are running this locally, it adds a **YouTube…** source that works with yt-dlp and lets you video mix with youtube videos on the fly. 
+Fun bonus: If you are running this locally, it adds a **YouTube…** source that
+works with yt-dlp and lets you video mix with youtube videos on the fly.
 
 ## Docs
 

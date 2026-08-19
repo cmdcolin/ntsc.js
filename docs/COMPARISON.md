@@ -8,8 +8,7 @@ right one quickly, including when that is not this one.
 - Four sources, a mixer, and every kind of glitch → **BENDR**
 - Games on a period TV → **Blargg's filters and the RetroArch CRT shaders**
 - One signal, bent live, its faults interacting → **ntsc.js**, this one
-
-All free and open source unless noted.
+- A real tape, decoded rather than simulated → **vhs-decode**
 
 ## The tools
 
@@ -53,6 +52,16 @@ so mostly of historical interest now.
 much of this lineage traces back to, this project included. Something to read
 rather than an app to use.
 
+### vhs-decode / ld-decode
+
+[vhs-decode](https://github.com/oyvindln/vhs-decode) runs the other way. It taps
+the RF straight off a working deck's head amp, captures it with a CX card or a
+Domesday Duplicator, and decodes the tape in software — VHS, SVHS, U-Matic,
+Betamax, Video8 and more — out to timebase-corrected luma and chroma files.
+Nothing about it is synthesised, so with the tape and the hardware in hand, that
+is where a real signal comes from, and where a claim made here can be checked
+against one.
+
 ### Blargg's filters and the RetroArch CRT shaders
 
 A related but distinct problem. `nes_ntsc` and `snes_ntsc` model composite
@@ -91,8 +100,8 @@ not a re-render. That buys:
 
 ### What it does not do
 
-- **No plugin, and no timeline.** The strip is a rundown, not an NLE timeline,
-  and none of this becomes a plugin for somebody else's — both deliberate
+- **No plugin, and no timeline.** Clips line up in a rundown, not on an NLE
+  timeline, and none of this becomes a plugin for somebody else's — deliberately
   ([EDITOR.md](EDITOR.md)). A rendered take carries no audio track either.
 - **The raster is fixed** at 910×525 samples, 754×480 active, so a 4K source is
   sampled down to NTSC resolution.
@@ -103,6 +112,7 @@ not a re-render. That buys:
 - **The model is progressive** 525/60 rather than interlaced at field rate, the
   largest remaining authenticity gap ([ARCHITECTURE.md](ARCHITECTURE.md)).
 
-<sub>Written from the other projects' own documentation and source, not from
-benchmarks run here — nothing above is a performance claim about anyone else's code. If
-something is out of date or unfair, please open an issue.</sub>
+<sub>All free and open source, except the hardware. Written from the other
+projects' own documentation and source, not from benchmarks run here — nothing
+above is a performance claim about anyone else's code. If something is out of
+date or unfair, please open an issue.</sub>
