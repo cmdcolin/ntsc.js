@@ -1,4 +1,4 @@
-import { clamp, clamp01 } from '../math'
+import { clamp, clamp01 } from '../core/math'
 
 import type { CSSProperties } from 'react'
 

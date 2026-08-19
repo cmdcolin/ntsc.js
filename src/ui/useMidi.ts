@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { CONTROL_KEYS } from '../controls'
+import { CONTROL_KEYS } from '../core/controls'
 import {
   controlOf,
   createMidi,
@@ -11,8 +11,8 @@ import {
   presetOf,
 } from './midi'
 
-import type { ControlKey, Controls } from '../controls'
-import type { EngineApi } from '../gpu/engineapi'
+import type { ControlKey, Controls } from '../core/controls'
+import type { EngineApi } from '../core/gpu/engineapi'
 import type {
   ActionTarget,
   BindingMap,

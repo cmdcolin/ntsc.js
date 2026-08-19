@@ -26,12 +26,12 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
-import { Listeners } from '../listeners'
+import { Listeners } from '../core/listeners'
 import { EMPTY_TAPE, playTape, push, takeSeconds } from './automation'
 import { morphTo } from './morph'
 
-import type { ControlKey, Controls } from '../controls'
-import type { EngineApi } from '../gpu/engineapi'
+import type { ControlKey, Controls } from '../core/controls'
+import type { EngineApi } from '../core/gpu/engineapi'
 import type { AutoEvent, AutoSink, Tape } from './automation'
 import type { RefObject } from 'react'
 

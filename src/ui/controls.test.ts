@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CONTROL_KEYS, STOCK_HOLD } from '../controls'
+import { CONTROL_KEYS, STOCK_HOLD } from '../core/controls'
 import {
   ALL_SLIDERS,
   AUDIO_GROUPS,
@@ -36,7 +36,7 @@ import {
 import { formatValue } from './format'
 import { TRAVEL_STEP } from './travel'
 
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 
 describe('control tables', () => {
   // sliderFor is total because of this: every control reaches the panel, and

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import { offlineWalk, runEffect, runStep } from './stripRun'
 import { makeStripRunner } from './useStrip'
 
-import type { Rand } from '../rng'
+import type { Rand } from '../core/rng'
 import type { PoolOrigin } from '../sources/pools'
 import type { MutateAmount } from './mutate'
 import type { Row, Strip } from './strip'

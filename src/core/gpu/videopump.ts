@@ -16,8 +16,6 @@ import { ACTIVE_HEIGHT, ACTIVE_WIDTH } from '../signal/constants'
 // Long edge capped, aspect preserved — see MAX_SRC_EDGE in sources.ts.
 import { coverFit43, fitSrc } from './sources'
 
-import type { FramePull } from '../ui/framePull'
-
 // 'low' rather than a nicer filter on purpose: it is what a 2D canvas used for
 // drawImage (imageSmoothingQuality defaults to 'low'), so the picture that
 // reaches the raster is the one this path always produced. The signal chain
@@ -158,6 +156,29 @@ const WRAP_WINDOW = 8
 // back to `start`, and `end - start` is the lap it has to be back inside — which
 // is the deadline that decides whether keeping a head is worth anything at all.
 export type Relay = (start: number, end: number) => HTMLVideoElement | null
+
+// A clip a take can step frame by frame, as the pump needs it. Declared here
+// rather than where one is built, because the shape is what this file depends
+// on and the decoder behind it is the app's business — `ui/framePull.ts` holds
+// the WebCodecs implementation and the measurements that chose it.
+export interface FramePull {
+  // The frame shown at `seconds` on the clip's own timeline. **Ownership passes
+  // to the caller**, which must `close()` it — a `VideoFrame` holds a decoded
+  // picture and a decoder that runs out of them stalls rather than failing.
+  //
+  // Null means there is no frame there: before the first, past the last, or a
+  // decoder that has given up. A render treats that the way it treats a clip
+  // that has not loaded — it renders what is on the slot already — rather than
+  // as an error, because a rundown that runs a row past its clip's end is an
+  // ordinary thing for a rundown to do.
+  frameAt: (seconds: number) => Promise<VideoFrame | null>
+  // The clip's own length, so a caller can decide what running off the end
+  // means without having to demux it a second time.
+  duration: number
+  codedWidth: number
+  codedHeight: number
+  close: () => void
+}
 
 // Where a slot's frames come from while a take is running, given the url the
 // element is on. Null for a source that cannot be pulled from — a webcam, a

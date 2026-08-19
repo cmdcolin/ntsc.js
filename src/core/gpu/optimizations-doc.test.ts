@@ -29,9 +29,9 @@ import { readdirSync, readFileSync } from 'node:fs'
 const flat = (text: string) => text.replaceAll(/\s+/g, ' ')
 const doc = flat(readFileSync('docs/OPTIMIZATIONS.md', 'utf8'))
 const architecture = readFileSync('docs/ARCHITECTURE.md', 'utf8')
-const pipeline = readFileSync('src/gpu/pipeline.ts', 'utf8')
+const pipeline = readFileSync('src/core/gpu/pipeline.ts', 'utf8')
 
-const SHADERS = 'src/gpu/shaders'
+const SHADERS = 'src/core/gpu/shaders'
 const shader = (name: string) => readFileSync(`${SHADERS}/${name}`, 'utf8')
 const shaderNames = readdirSync(SHADERS).filter(f => f.endsWith('.wgsl'))
 
@@ -129,12 +129,12 @@ test('the doc names exactly the controls that rebuild the filter bank', () => {
 })
 
 test('the doc quotes the readback pool depth', () => {
-  const pool = privateConst('src/gpu/buzzread.ts', 'POOL')
+  const pool = privateConst('src/core/gpu/buzzread.ts', 'POOL')
   expect(doc).toContain(`a pool of ${word(pool)}`)
 })
 
 test('the doc quotes the morph step count and the tape ring depth', () => {
-  const steps = privateConst('src/signal/glide.ts', 'COARSE_STEPS')
+  const steps = privateConst('src/core/signal/glide.ts', 'COARSE_STEPS')
   expect(doc).toContain(`\`COARSE_STEPS\` (${steps})`)
   expect(doc).toContain(`${TAPE_FRAMES}-frame loop`)
 })

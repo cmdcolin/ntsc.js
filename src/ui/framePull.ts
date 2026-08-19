@@ -51,6 +51,7 @@
 
 import { demuxMp4 } from './mp4demux'
 
+import type { FramePull } from '../core/gpu/videopump'
 import type { DemuxedTrack } from './mp4demux'
 
 // How many decoded frames to keep. Sized for the access pattern rather than for
@@ -96,25 +97,6 @@ const FEED_DEPTH = 8
 // bounds the compressed bytes this module allocates, because those are the ones
 // it can be wrong about.
 const MAX_PULL_BYTES = 192 * 1024 * 1024
-
-export interface FramePull {
-  // The frame shown at `seconds` on the clip's own timeline. **Ownership passes
-  // to the caller**, which must `close()` it — a `VideoFrame` holds a decoded
-  // picture and a decoder that runs out of them stalls rather than failing.
-  //
-  // Null means there is no frame there: before the first, past the last, or a
-  // decoder that has given up. A render treats that the way it treats a clip
-  // that has not loaded — it renders what is on the slot already — rather than
-  // as an error, because a rundown that runs a row past its clip's end is an
-  // ordinary thing for a rundown to do.
-  frameAt: (seconds: number) => Promise<VideoFrame | null>
-  // The clip's own length, so a caller can decide what running off the end
-  // means without having to demux it a second time.
-  duration: number
-  codedWidth: number
-  codedHeight: number
-  close: () => void
-}
 
 // Open a clip for stepping. Null when the file is one this cannot pull from —
 // not an MP4, a codec with no config string, an edit list that is not a shift,

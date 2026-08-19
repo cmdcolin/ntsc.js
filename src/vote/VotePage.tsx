@@ -6,7 +6,7 @@ import { useVoteEngines } from './useVoteEngines'
 import { useVoting } from './useVoting'
 import styles from './vote.module.css'
 
-import type { EngineApi } from '../gpu/engineapi'
+import type { EngineApi } from '../core/gpu/engineapi'
 import type { CloudUser } from '../ui/cloud'
 import type { VoteSource } from './prepare'
 import type { Choice } from './votes'

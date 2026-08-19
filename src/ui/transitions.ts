@@ -18,8 +18,8 @@
 // fault big enough to be unpleasant at the wrong duration — so the peaks below
 // are chosen to be worth pressing rather than to show the range.
 
-import type { Controls } from '../controls'
-import type { FaultPlan } from '../signal/fault'
+import type { Controls } from '../core/controls'
+import type { FaultPlan } from '../core/signal/fault'
 
 export const TRANSITION_NAMES = [
   'tracking',

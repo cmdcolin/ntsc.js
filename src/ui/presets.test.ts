@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
+import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../core/controls'
 import { SLIDER_BY_KEY, VIEW_KEYS } from './controls'
 import { RATE_MAX, RATE_MIN, modSource } from './modSlots'
 import {
@@ -15,7 +15,7 @@ import {
   rollControls,
 } from './presets'
 
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 
 // `useMix.applyPreset` reads an empty patch as "this click is the reset" and
 // wipes the bay and the stab gate on it. A second preset written with an empty

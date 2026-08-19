@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CONTROL_KEYS, DEFAULT_CONTROLS, LANDING_LOOK } from '../controls'
+import { CONTROL_KEYS, DEFAULT_CONTROLS, LANDING_LOOK } from '../core/controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { TELETYPE_DEFAULT, TELETYPE_MAX } from '../sources/teletype'
 import { ALL_SLIDERS, sliderFor } from './controls'
@@ -16,7 +16,7 @@ import {
   writeSessionParams,
 } from './urlParams'
 
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 import type { SessionState } from './urlParams'
 
 const vhs = PRESETS.find(p => p.name === 'vhs')

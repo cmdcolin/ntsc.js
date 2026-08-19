@@ -1,9 +1,9 @@
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import { smpteBars, sweep } from '../sources/pattern'
 import { routingsToSlots, toEngineSlots } from '../ui/modSlots'
 import { recipeControls, recipeMod, samplePair } from './candidates'
 
-import type { EngineApi } from '../gpu/engineapi'
+import type { EngineApi } from '../core/gpu/engineapi'
 import type { Recipe } from './candidates'
 
 // Putting a pair of candidates on the two engines, live.

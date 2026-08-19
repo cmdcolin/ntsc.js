@@ -35,11 +35,11 @@
 // and the condition above is finally met — the machinery for waiting is built,
 // and only the load is outside it.
 
-import { rngFor } from '../rng'
+import { rngFor } from '../core/rng'
 import { STOPPED, advance, start } from './strip'
 import { parseSessionParams } from './urlParams'
 
-import type { Rand } from '../rng'
+import type { Rand } from '../core/rng'
 import type { PoolOrigin } from '../sources/pools'
 import type { MutateAmount } from './mutate'
 import type { Effect, Step, Strip } from './strip'

@@ -27,10 +27,10 @@
 // The pools stay because a channel is a one-click gesture mid-set and a dialog
 // is not.
 
-import { pickOne, randomIndex } from '../rng'
+import { pickOne, randomIndex } from '../core/rng'
 import { BROWSE_LIMIT, isRecord, num, rotate, str } from './pool'
 
-import type { Rand } from '../rng'
+import type { Rand } from '../core/rng'
 import type { BrowseHit, PickKind, PoolPick, PoolRef } from './pool'
 
 const API = 'https://commons.wikimedia.org/w/api.php'

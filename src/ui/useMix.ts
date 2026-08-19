@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import { MUTATE_CIRCUITS, MUTATE_SLIDERS } from './controls'
 import { EMPTY_HISTORY, record, stepBack, stepForward } from './history'
 import { DEFAULT_STAB, sameBay, sameGate } from './modSlots'
@@ -22,9 +22,9 @@ import {
 } from './presets'
 import { rollBay } from './rollMod'
 
-import type { Controls } from '../controls'
+import type { Controls } from '../core/controls'
+import type { GlidePlan } from '../core/signal/glide'
 import type { Provenance } from '../labels'
-import type { GlidePlan } from '../signal/glide'
 import type { SliderDef } from './controls'
 import type { History } from './history'
 import type { Stab, UiSlot } from './modSlots'

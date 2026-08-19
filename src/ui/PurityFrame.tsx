@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { clamp, clamp01 } from '../math'
+import { clamp, clamp01 } from '../core/math'
 import { cx } from './cx'
 import { nudgeFor, snapOffset, uvInRect } from './miniFrame'
 import styles from './MiniFrame.module.css'

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { rngFor } from '../rng'
+import { rngFor } from '../core/rng'
 import {
   COMMONS_POOLS,
   choosePick,

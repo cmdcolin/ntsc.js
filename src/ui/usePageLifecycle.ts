@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 
-import { trace } from '../gpu/trace'
+import { trace } from '../core/gpu/trace'
 
-import type { EngineApi } from '../gpu/engineapi'
+import type { EngineApi } from '../core/gpu/engineapi'
 import type { RefObject } from 'react'
 
 // The browser can stop delivering rAF around tab hide/show, fullscreen exit, and

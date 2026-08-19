@@ -7,7 +7,7 @@ import ui from './ui.module.css'
 import { DRY_DEFAULT, REVERB_DEFAULT } from './urlParams'
 import { AUDIO_DESC, AUDIO_MODES } from './useAudio'
 
-import type { AudioState } from '../signal/audiostate'
+import type { AudioState } from '../core/signal/audiostate'
 import type { AudioMode } from './useAudio'
 
 const OPTIONS = AUDIO_MODES.map(m => ({ value: m, label: AUDIO_DESC[m] }))

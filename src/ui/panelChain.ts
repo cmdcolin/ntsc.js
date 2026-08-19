@@ -1,4 +1,4 @@
-import { atRest } from '../controls'
+import { atRest } from '../core/controls'
 import {
   AUDIO_GROUPS,
   B_GROUPS,
@@ -19,7 +19,7 @@ import {
 } from './controls'
 import { filterActive, freeMatches, groupMatches } from './filter'
 
-import type { Controls } from '../controls'
+import type { Controls } from '../core/controls'
 import type { Group } from './controls'
 import type { Filter, IsRouted } from './filter'
 import type { BranchNode, LoopNode, PathNode } from './SignalPath'

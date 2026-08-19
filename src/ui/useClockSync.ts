@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { SYNCABLE_KEYS, SYNC_DIVISIONS, omit, syncedValue } from './midi'
 import { readRecord, writeJSON } from './storage'
 
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 
 // Which rate controls are clock-locked, and to which SYNC_DIVISIONS index.
 type SyncMap = Partial<Record<ControlKey, number>>

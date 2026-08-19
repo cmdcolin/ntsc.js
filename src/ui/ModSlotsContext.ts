@@ -1,6 +1,6 @@
 import { createContext, use } from 'react'
 
-import type { ModSlot, ModTarget } from '../controls'
+import type { ModSlot, ModTarget } from '../core/controls'
 import type { ModRouting, Stab, UiSlot } from './modSlots'
 
 // The modulation bay, read by anything that needs to know what is moving: the

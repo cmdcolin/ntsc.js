@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { randomSeed } from '../rng'
+import { randomSeed } from '../core/rng'
 import { putCandidate, putVotes } from '../ui/cloud'
 import { DEVELOP_MS, FLUSH_MS, flushEngines, showPair } from './prepare'
 import {
@@ -11,7 +11,7 @@ import {
   voteRecord,
 } from './votes'
 
-import type { EngineApi } from '../gpu/engineapi'
+import type { EngineApi } from '../core/gpu/engineapi'
 import type { LivePair, VoteSource } from './prepare'
 import type { Choice } from './votes'
 

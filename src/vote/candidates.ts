@@ -1,9 +1,9 @@
-import { DEFAULT_CONTROLS } from '../controls'
-import { randomIndex, rngFor } from '../rng'
+import { DEFAULT_CONTROLS } from '../core/controls'
+import { randomIndex, rngFor } from '../core/rng'
 import { VIEW_KEYS } from '../ui/controls'
 import { PRESETS, blendMod, blendPresets, randomPresetMix } from '../ui/presets'
 
-import type { Controls } from '../controls'
+import type { Controls } from '../core/controls'
 import type { ModRouting } from '../ui/modSlots'
 import type { PresetWeights } from '../ui/presets'
 

@@ -8,7 +8,7 @@ import {
   VIEW_STAGE,
 } from './controls'
 
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 import type { Group } from './controls'
 
 // Where a control lives, for the surfaces that gather rows *out* of the chain

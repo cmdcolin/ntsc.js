@@ -11,7 +11,7 @@
 // Both directions are exact inverses, so a value round-trips through the track
 // without creeping.
 
-import { clamp01 } from '../math'
+import { clamp01 } from '../core/math'
 
 export const travelToValue = (min: number, max: number, t: number) =>
   1 / ((1 - t) / min + t / max)

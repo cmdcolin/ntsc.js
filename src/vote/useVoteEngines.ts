@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 
-import { Engine } from '../gpu/pipeline'
-import { AudioState } from '../signal/audiostate'
+import { Engine } from '../core/gpu/pipeline'
+import { AudioState } from '../core/signal/audiostate'
 
-import type { EngineApi } from '../gpu/engineapi'
+import type { EngineApi } from '../core/gpu/engineapi'
 import type { RefObject } from 'react'
 
 // Two engines, on two canvases, so both candidates in a pair are live at once.

@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { reason } from './format'
 import { writeProfileParams, writeSessionParams } from './urlParams'
 
-import type { Controls } from '../controls'
+import type { Controls } from '../core/controls'
 import type { SessionState } from './urlParams'
 
 // The session, plus the three things that are about *mirroring* one rather than

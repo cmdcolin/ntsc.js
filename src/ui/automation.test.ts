@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import { EMPTY_TAPE, playTape, push, runAuto, takeSeconds } from './automation'
 import { makeAutomationRunner } from './useAutomation'
 
-import type { Controls } from '../controls'
+import type { Controls } from '../core/controls'
 import type { AutoEvent, AutoSink, Tape } from './automation'
 
 // A sink that writes down what it was asked for, the same shape and for the

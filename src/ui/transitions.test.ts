@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import { sliderFor } from './controls'
 import {
   TRANSITION_NAMES,
@@ -9,7 +9,7 @@ import {
   transitionOf,
 } from './transitions'
 
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 
 const keysOf = (peak: object) => Object.keys(peak) as ControlKey[]
 

@@ -28,7 +28,7 @@
 
 import { startRecording } from './record'
 
-import type { EngineApi } from '../gpu/engineapi'
+import type { EngineApi } from '../core/gpu/engineapi'
 
 // How often the render yields to the browser. Every frame would halve the
 // throughput on a macrotask hop; never would freeze the tab for the length of

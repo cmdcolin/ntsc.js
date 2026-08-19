@@ -1,10 +1,10 @@
 import { createContext, use, useSyncExternalStore } from 'react'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 
-import type { ControlKey, Controls } from '../controls'
-import type { Store } from '../listeners'
-import type { FaultPlan } from '../signal/fault'
+import type { ControlKey, Controls } from '../core/controls'
+import type { Store } from '../core/listeners'
+import type { FaultPlan } from '../core/signal/fault'
 import type { SliderDef } from './controls'
 import type { BindTarget } from './midi'
 import type { MutateAmount } from './mutate'

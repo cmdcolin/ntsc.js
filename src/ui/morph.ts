@@ -7,9 +7,9 @@ import { SLIDER_BY_KEY, VIEW_KEYS } from './controls'
 import { ENUM_KEYS } from './presets'
 import { fromTravel, toTravel } from './travel'
 
-import type { ControlKey, Controls } from '../controls'
-import type { Store } from '../listeners'
-import type { GlidePlan, Track } from '../signal/glide'
+import type { ControlKey, Controls } from '../core/controls'
+import type { Store } from '../core/listeners'
+import type { GlidePlan, Track } from '../core/signal/glide'
 
 // Off first, because a cut is a legitimate choice and the one every gesture used
 // to make: a preset chip that took four seconds to land would be the wrong

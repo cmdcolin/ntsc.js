@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import {
   gpuAtRisk,
   gpuBuilds,
   gpuReleases,
   outOfGpuBudget,
-} from '../gpu/context'
-import { debugLog } from '../gpu/env'
-import { Engine } from '../gpu/pipeline'
-import { MAX_SRC_EDGE } from '../gpu/sources'
-import { reportPreviousTrace, trace } from '../gpu/trace'
+} from '../core/gpu/context'
+import { debugLog } from '../core/gpu/env'
+import { Engine } from '../core/gpu/pipeline'
+import { MAX_SRC_EDGE } from '../core/gpu/sources'
+import { reportPreviousTrace, trace } from '../core/gpu/trace'
 import { clipUrl, isClipId } from '../sources/clips'
 import { smpteBars, sweep } from '../sources/pattern'
 import {
@@ -66,11 +66,11 @@ import {
   stopTyping,
 } from './videoSlot'
 
-import type { FrameStats } from '../controls'
-import type { EngineApi } from '../gpu/engineapi'
-import type { FrozenKind } from '../gpu/renderloop'
-import type { Store } from '../listeners'
-import type { Rand } from '../rng'
+import type { FrameStats } from '../core/controls'
+import type { EngineApi } from '../core/gpu/engineapi'
+import type { FrozenKind } from '../core/gpu/renderloop'
+import type { Store } from '../core/listeners'
+import type { Rand } from '../core/rng'
 import type { SharedMode, SourceBMode, SourceMode } from '../sources/modes'
 import type {
   OnProgress,

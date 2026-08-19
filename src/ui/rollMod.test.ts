@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
-import { rngFor } from '../rng'
+import { DEFAULT_CONTROLS } from '../core/controls'
+import { rngFor } from '../core/rng'
 import {
   MUTATE_SLIDERS,
   NEEDS,
@@ -12,7 +12,7 @@ import {
 import { EMPTY_SLOT, N_SLOTS, RATE_MAX, RATE_MIN } from './modSlots'
 import { AUTHORED_DEPTH, depthBudget, rollBay } from './rollMod'
 
-import type { ControlKey, Controls } from '../controls'
+import type { ControlKey, Controls } from '../core/controls'
 import type { UiSlot } from './modSlots'
 import type { MutateAmount } from './mutate'
 import type { RollBayArgs } from './rollMod'

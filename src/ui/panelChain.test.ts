@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import {
   CAMERA_LOOP_STAGE,
   DECK_STAGE,
@@ -20,7 +20,7 @@ import {
 } from './controls'
 import { panelChain } from './panelChain'
 
-import type { Controls } from '../controls'
+import type { Controls } from '../core/controls'
 import type { FreeStage } from './panelChain'
 
 const free: FreeStage[] = [

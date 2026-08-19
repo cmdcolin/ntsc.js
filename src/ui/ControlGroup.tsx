@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { DEFAULT_CONTROLS, atRest } from '../controls'
+import { DEFAULT_CONTROLS, atRest } from '../core/controls'
 import styles from './ControlGroup.module.css'
 import { GROUPS, NEEDS, sliderFor } from './controls'
 import {
@@ -26,7 +26,7 @@ import { useSignalTapApi } from './SignalTapContext'
 import { Rack, Slider } from './Slider'
 import { WipeFrame } from './WipeFrame'
 
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 import type { Group, SliderDef, SliderNeed } from './controls'
 import type { ControlsApi } from './ControlsContext'
 import type { ReactElement } from 'react'

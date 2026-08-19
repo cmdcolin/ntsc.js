@@ -1,9 +1,9 @@
-import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
-import { randomIndex } from '../rng'
+import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../core/controls'
+import { randomIndex } from '../core/rng'
 import { SLIDER_BY_KEY, VIEW_KEYS, snapToStep } from './controls'
 import { ROLL_NEVER_STARTS } from './mutate'
 
-import type { ControlKey, Controls } from '../controls'
+import type { ControlKey, Controls } from '../core/controls'
 import type { ModRouting } from './modSlots'
 
 export interface PresetDef {

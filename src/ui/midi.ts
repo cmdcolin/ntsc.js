@@ -1,5 +1,5 @@
-import { CONTROL_KEYS } from '../controls'
-import { clamp } from '../math'
+import { CONTROL_KEYS } from '../core/controls'
+import { clamp } from '../core/math'
 import { AUTOMAP_KEYS, SLIDER_BY_KEY, sliderFor, snapToStep } from './controls'
 import { PRESETS, presetLabel } from './presets'
 import {
@@ -12,7 +12,7 @@ import {
 import { TRANSITION_NAMES, TRANSITIONS } from './transitions'
 import { fromTravel } from './travel'
 
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 import type { SliderDef } from './controls'
 import type { TransitionName } from './transitions'
 

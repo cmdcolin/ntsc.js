@@ -15,8 +15,8 @@ import {
 import { readArray, readJSON, writeJSONSoon } from './storage'
 import { parseSessionParams } from './urlParams'
 
-import type { ModTarget } from '../controls'
-import type { EngineApi } from '../gpu/engineapi'
+import type { ModTarget } from '../core/controls'
+import type { EngineApi } from '../core/gpu/engineapi'
 import type { Stab, UiSlot } from './modSlots'
 import type { ModSlotsApi } from './ModSlotsContext'
 import type { Tempo } from './useTempo'

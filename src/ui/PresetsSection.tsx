@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 
-import { clamp01 } from '../math'
+import { clamp01 } from '../core/math'
 import { cx } from './cx'
 import { Dialog } from './Dialog'
 import { BulbIcon } from './icons'
@@ -11,7 +11,7 @@ import { usePersistedFlag } from './storage'
 import ui from './ui.module.css'
 import { useRecentPresets } from './useRecentPresets'
 
-import type { Controls } from '../controls'
+import type { Controls } from '../core/controls'
 import type { PresetDef, PresetWeights } from './presets'
 import type { CSSProperties } from 'react'
 

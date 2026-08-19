@@ -29,7 +29,7 @@
 // rather than a rule to remember: a row reaches the engine through
 // `useEngine.showSession`, and the tap sits on the write path App owns.
 
-import type { ControlKey, Controls } from '../controls'
+import type { ControlKey, Controls } from '../core/controls'
 
 // One thing a hand did. Three variants, matching the three ways a look reaches
 // the engine from outside the strip.

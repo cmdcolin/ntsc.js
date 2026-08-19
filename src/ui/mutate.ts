@@ -1,9 +1,9 @@
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import { snapToStep } from './controls'
 import { fromTravel, toTravel } from './travel'
 
-import type { ControlKey, Controls } from '../controls'
-import type { Rand } from '../rng'
+import type { ControlKey, Controls } from '../core/controls'
+import type { Rand } from '../core/rng'
 import type { SliderDef } from './controls'
 
 // How hard a jitter lands, as a fraction of each slider's range. `normal` is

@@ -43,7 +43,7 @@
 // rather than whenever it eventually finishes, because the wraps that land in
 // between are the ones that would pay for it. See `promoteHead`.
 
-import { debugLog } from '../gpu/env'
+import { debugLog } from '../core/gpu/env'
 
 import type { TeletypeCard } from '../sources/teletype'
 

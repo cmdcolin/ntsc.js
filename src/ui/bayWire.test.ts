@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { driveAt, driveSlots } from '../signal/modstate'
+import { driveAt, driveSlots } from '../core/signal/modstate'
 import {
   BAY_TARGETS,
   EMPTY_SLOT,
@@ -14,7 +14,7 @@ import {
   toEngineSlots,
 } from './modSlots'
 
-import type { ModSlot } from '../controls'
+import type { ModSlot } from '../core/controls'
 import type { UiSlot } from './modSlots'
 
 // A wire landed on another wire: one routing driving how far or how fast a

@@ -7,9 +7,9 @@
 // decisions about the *signal path*, so they are testable statements rather
 // than something buried in a pointer handler.
 
-import { clamp01 } from '../math'
+import { clamp01 } from '../core/math'
 
-import type { Controls } from '../controls'
+import type { Controls } from '../core/controls'
 
 // A wipe pattern is selected, so the mixer's transition is a wipe rather than a
 // dissolve. Rounded because wipeMode is an enum riding on a float uniform, and

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import type { EngineApi } from '../gpu/engineapi'
+import type { EngineApi } from '../core/gpu/engineapi'
 
 export const AUDIO_MODES = ['off', 'mic', 'file', 'video'] as const
 export type AudioMode = (typeof AUDIO_MODES)[number]

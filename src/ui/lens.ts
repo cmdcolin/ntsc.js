@@ -3,7 +3,7 @@
 // mappings stacked: the 4:3 letterbox puts canvas pixels onto the picture, then
 // the lens puts the picture onto the glass.
 
-import { clamp, clamp01 } from '../math'
+import { clamp, clamp01 } from '../core/math'
 import { travelToValue, valueToTravel } from './curve'
 
 // Below 1x the camera pulls back off the set until the tube is a small object in

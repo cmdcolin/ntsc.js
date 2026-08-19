@@ -62,6 +62,54 @@
       }
     },
     {
+      // **`src/core` is the signal path, and it does not know the app exists.**
+      // Everything under it — the pass graph, the WGSL, the per-frame CPU state,
+      // the control schema — runs against a canvas and a `Controls` object, which
+      // is why `src/vote` can stand up its own engines without touching a line of
+      // the panel. This rule is what keeps that true: an import reaching back out
+      // is how the boundary would go, one convenience at a time.
+      //
+      // Type-only imports are restricted too, deliberately. The one violation
+      // this rule was written over was `import type { FramePull }` in
+      // `gpu/videopump.ts` — free at runtime, and still an inversion, since the
+      // pump is what decides *when* a frame is wanted and the app is what decides
+      // where one comes from. The fix was to declare the shape the pump depends
+      // on next to its other injected seams and let `ui/framePull.ts` satisfy it.
+      // Do that rather than adding an exception.
+      "files": ["src/core/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "../ui/*",
+                  "../../ui/*",
+                  "../sources/*",
+                  "../../sources/*",
+                  "../vote/*",
+                  "../../vote/*",
+                  "../app",
+                  "../../app",
+                  "../labels",
+                  "../../labels",
+                  "../version",
+                  "../../version",
+                  "react",
+                  "react-dom",
+                  "react-dom/*",
+                  "firebase",
+                  "firebase/*"
+                ],
+                "message": "src/core must not import from the app. Declare the shape core needs inside core and let the app satisfy it."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["src/ui/fileStash.ts"],
       "rules": {
         // IndexedDB's request/transaction objects are one-shot: assigning

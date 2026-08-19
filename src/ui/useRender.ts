@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react'
 import { fileName, save } from './download'
 import { renderTake, RenderCancelled } from './render'
 
-import type { EngineApi } from '../gpu/engineapi'
+import type { EngineApi } from '../core/gpu/engineapi'
 import type { RefObject } from 'react'
 
 // The offline render, as something a button can press.

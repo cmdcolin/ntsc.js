@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import { SLIDER_BY_KEY } from './controls'
 import { SYNC_DIVISIONS } from './midi'
 import {

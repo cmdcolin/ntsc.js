@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs'
 //
 // Reading pipeline.ts as text rather than importing it keeps this a unit test:
 // constructing an Engine needs a GPUDevice, which vitest has no adapter for.
-const source = readFileSync('src/gpu/pipeline.ts', 'utf8')
+const source = readFileSync('src/core/gpu/pipeline.ts', 'utf8')
 const dot = readFileSync('docs/graphviz/pipeline.dot', 'utf8')
 const architecture = readFileSync('docs/ARCHITECTURE.md', 'utf8')
 

@@ -33,8 +33,8 @@ import {
   useSyncExternalStore,
 } from 'react'
 
-import { Listeners } from '../listeners'
-import { randomSeed } from '../rng'
+import { Listeners } from '../core/listeners'
+import { randomSeed } from '../core/rng'
 import { EMPTY_HISTORY, record, stepBack, stepForward } from './history'
 import { MUTATE_AMOUNTS, mutate } from './mutate'
 import {
@@ -59,8 +59,8 @@ import {
 } from './strip'
 import { offlineWalk, runStep } from './stripRun'
 
-import type { Controls } from '../controls'
-import type { Rand } from '../rng'
+import type { Controls } from '../core/controls'
+import type { Rand } from '../core/rng'
 import type { PoolOrigin } from '../sources/pools'
 import type { SliderDef } from './controls'
 import type { History } from './history'

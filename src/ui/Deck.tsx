@@ -13,7 +13,7 @@ import { TrackingPad } from './TrackingPad'
 import { LoopTransport, TapeTransport } from './Transport'
 import { useHold } from './useHold'
 
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 import type { SliderDef } from './controls'
 import type { ReactNode } from 'react'
 

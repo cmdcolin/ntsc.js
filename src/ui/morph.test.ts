@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
-import { Glide } from '../signal/glide'
+import { DEFAULT_CONTROLS } from '../core/controls'
+import { Glide } from '../core/signal/glide'
 import { morphTo } from './morph'
 
-import type { ControlKey, Controls } from '../controls'
+import type { ControlKey, Controls } from '../core/controls'
 
 const NO_COARSE: ReadonlySet<ControlKey> = new Set<ControlKey>()
 

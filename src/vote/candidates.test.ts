@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import { ALL_SLIDERS, VIEW_KEYS } from '../ui/controls'
 import { PRESETS } from '../ui/presets'
 import {

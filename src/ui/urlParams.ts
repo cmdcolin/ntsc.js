@@ -6,7 +6,7 @@
 // It is also what `scripts/shot.mjs` and every verification harness drive the
 // app with, so a silent change here breaks them with no test to say so.
 
-import { CONTROL_KEYS, DEFAULT_CONTROLS, LANDING_LOOK } from '../controls'
+import { CONTROL_KEYS, DEFAULT_CONTROLS, LANDING_LOOK } from '../core/controls'
 import { SOURCE_B_MODES, SOURCE_MODES } from '../sources/modes'
 import { TELETYPE_DEFAULT, clampCardText } from '../sources/teletype'
 import { SLIDER_BY_KEY } from './controls'
@@ -21,7 +21,7 @@ import {
 } from './modSlots'
 import { PRESETS, presetControls } from './presets'
 
-import type { Controls } from '../controls'
+import type { Controls } from '../core/controls'
 import type { SourceBMode, SourceMode } from '../sources/modes'
 import type { TeletypeCard } from '../sources/teletype'
 import type { Cue } from './cue'

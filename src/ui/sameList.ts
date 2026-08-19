@@ -1,4 +1,4 @@
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 import type { SliderDef } from './controls'
 
 // Derived lists, handed back with the identity they had the last time the same

@@ -1,5 +1,5 @@
-import { DEFAULT_CONTROLS } from '../controls'
-import { clamp01 } from '../math'
+import { DEFAULT_CONTROLS } from '../core/controls'
+import { clamp01 } from '../core/math'
 import { sliderFor } from './controls'
 import { useControlValue, useControlsApi } from './ControlsContext'
 import { cx } from './cx'

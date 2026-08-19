@@ -27,10 +27,10 @@
 // seek landing in 50ms. That is what the byte caps below are really capping: the
 // wait before the clip appears.
 
-import { randomIndex } from '../rng'
+import { randomIndex } from '../core/rng'
 import { BROWSE_LIMIT, isRecord, num, rotate, str } from './pool'
 
-import type { Rand } from '../rng'
+import type { Rand } from '../core/rng'
 import type { BrowseHit, OnProgress, PoolPick } from './pool'
 
 const SEARCH = 'https://archive.org/advancedsearch.php'

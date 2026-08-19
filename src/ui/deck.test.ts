@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import {
   barInert,
   barPosition,
@@ -10,7 +10,7 @@ import {
   wipeEngaged,
 } from './deck'
 
-import type { Controls } from '../controls'
+import type { Controls } from '../core/controls'
 
 const at = (over: Partial<Controls>): Controls => ({
   ...DEFAULT_CONTROLS,

@@ -10,7 +10,7 @@ import {
   sliderMatches,
 } from './filter'
 
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 import type { Group } from './controls'
 import type { Filter } from './filter'
 

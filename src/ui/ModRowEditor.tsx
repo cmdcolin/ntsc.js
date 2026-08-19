@@ -1,4 +1,4 @@
-import { PASS_THROUGH } from '../signal/modstate'
+import { PASS_THROUGH } from '../core/signal/modstate'
 import { sliderFor } from './controls'
 import { useControlValue } from './ControlsContext'
 import { cx } from './cx'
@@ -19,7 +19,7 @@ import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
 import ui from './ui.module.css'
 
-import type { ControlKey, ModTarget } from '../controls'
+import type { ControlKey, ModTarget } from '../core/controls'
 
 // Whether the wobble is running into the end of the control's own range.
 //

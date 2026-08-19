@@ -12,7 +12,7 @@
 // did it" is a value a test can assert on. Every bug this file could have is
 // then a wrong list rather than a wrong picture.
 
-import { randomSeed, rngFor } from '../rng'
+import { randomSeed, rngFor } from '../core/rng'
 import { clipUrl, isClipId } from '../sources/clips'
 import { SOURCE_DESC, SOURCE_MODES } from '../sources/modes'
 import { MODE_ORIGIN, isPoolMode } from '../sources/pools'

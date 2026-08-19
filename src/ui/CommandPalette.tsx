@@ -9,7 +9,7 @@ import { PRESETS, presetLabel } from './presets'
 import { fromTravel, toTravel } from './travel'
 import { useModalDialog } from './useModalDialog'
 
-import type { ControlKey, Controls } from '../controls'
+import type { ControlKey, Controls } from '../core/controls'
 import type { SliderDef } from './controls'
 import type { PresetDef } from './presets'
 import type { KeyboardEvent } from 'react'

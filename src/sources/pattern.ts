@@ -1,7 +1,7 @@
 // SMPTE color bars: the validation instrument. 75% bars, castellation strip,
 // and a PLUGE-ish bottom row. Drawn at raster resolution.
 
-import { ACTIVE_HEIGHT, ACTIVE_WIDTH } from '../signal/constants'
+import { ACTIVE_HEIGHT, ACTIVE_WIDTH } from '../core/signal/constants'
 
 // Multiburst-style sweep: frequency gratings at known MHz plus a luma ramp.
 // The bandwidth sliders should visibly erase gratings above their cutoff.

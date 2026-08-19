@@ -1,4 +1,4 @@
-import type { ControlKey } from '../controls'
+import type { ControlKey } from '../core/controls'
 import type { CurveName } from './travel'
 
 export interface SliderDef {

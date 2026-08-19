@@ -1,4 +1,4 @@
-import { atRest } from '../controls'
+import { atRest } from '../core/controls'
 import {
   DECK_BLURB,
   DECK_STAGE,
@@ -27,7 +27,7 @@ import { fitCaption } from './patched'
 import styles from './SignalPathDialog.module.css'
 import ui from './ui.module.css'
 
-import type { Controls } from '../controls'
+import type { Controls } from '../core/controls'
 import type { LoopsLive } from './controls'
 import type { DeckLoad } from './deck'
 import type { BayLoad } from './modSlots'

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
-import { rngFor } from '../rng'
+import { DEFAULT_CONTROLS } from '../core/controls'
+import { rngFor } from '../core/rng'
 import { GROUPS, snapToStep } from './controls'
 import { crossover, mutate, spike } from './mutate'
 import { toTravel } from './travel'

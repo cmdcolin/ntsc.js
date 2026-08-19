@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { clamp01 } from '../math'
+import { clamp01 } from '../core/math'
 import { boxToLens, lensView } from './lens'
 import { nudgeFor, snapOffset, uvInRect } from './miniFrame'
 import styles from './MiniFrame.module.css'

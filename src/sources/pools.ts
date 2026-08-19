@@ -28,7 +28,7 @@ import {
   rollCommons,
 } from './commons'
 
-import type { Rand } from '../rng'
+import type { Rand } from '../core/rng'
 import type {
   BrowseHit,
   OnProgress,

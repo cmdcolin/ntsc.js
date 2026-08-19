@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTROLS } from '../controls'
+import { DEFAULT_CONTROLS } from '../core/controls'
 import { parseSessionParams } from '../ui/urlParams'
 import { recipeControls, recipeId, sampleRecipe } from './candidates'
 import {

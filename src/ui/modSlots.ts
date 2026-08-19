@@ -7,8 +7,8 @@
 // any control row can claim a slot. All of those need the same rules, and none
 // of them should have to mount a section to get at them.
 
-import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
-import { clamp } from '../math'
+import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../core/controls'
+import { clamp } from '../core/math'
 import { SLIDER_BY_KEY, sliderFor } from './controls'
 import { SYNC_DIVISIONS } from './midi'
 
@@ -18,9 +18,9 @@ import type {
   Controls,
   ModSlot,
   ModTarget,
-} from '../controls'
-import type { ModSource } from '../signal/modstate'
-import type { StabPlan } from '../signal/stab'
+} from '../core/controls'
+import type { ModSource } from '../core/signal/modstate'
+import type { StabPlan } from '../core/signal/stab'
 
 // Eight rather than four: with a ∿ on every control row, a slot is claimed by
 // asking rather than by opening a dedicated panel, and four ran out in about a

@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import { cx } from './cx'
 import styles from './Meter.module.css'
 
-import type { AudioState } from '../signal/audiostate'
+import type { AudioState } from '../core/signal/audiostate'
 
 // Level bar for audio onsets, green until it is loud and red near clipping. The
 // track carries the gradient at full size and an unlit mask eats back from the

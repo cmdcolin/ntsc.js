@@ -19,16 +19,16 @@
 // derived per target, from what the slider definition already says about
 // itself, and the hand-tuned answer wins wherever somebody has written one.
 
-import { DEFAULT_CONTROLS } from '../controls'
-import { clamp } from '../math'
+import { DEFAULT_CONTROLS } from '../core/controls'
+import { clamp } from '../core/math'
 import { NEEDS } from './controls'
 import { isBayKey, EMPTY_SLOT, N_SLOTS, RATE_MAX, RATE_MIN } from './modSlots'
 import { MUTATE_AMOUNTS, ROLL_NEVER_STARTS } from './mutate'
 import { PRESETS } from './presets'
 
-import type { ControlKey, Controls } from '../controls'
-import type { Rand } from '../rng'
-import type { ModSource } from '../signal/modstate'
+import type { ControlKey, Controls } from '../core/controls'
+import type { Rand } from '../core/rng'
+import type { ModSource } from '../core/signal/modstate'
 import type { SliderDef } from './controls'
 import type { UiSlot } from './modSlots'
 import type { ModRouting } from './modSlots'

@@ -5,7 +5,7 @@ import { clampZoom, panLens, pictureUv, zoomToBox } from './lens'
 import styles from './Stage.module.css'
 import ui from './ui.module.css'
 
-import type { FrozenKind } from '../gpu/renderloop'
+import type { FrozenKind } from '../core/gpu/renderloop'
 import type { Lens } from './lens'
 import type { PointerEvent, ReactNode, RefObject } from 'react'
 

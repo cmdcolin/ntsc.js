@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { PASS_THROUGH } from '../signal/modstate'
+import { PASS_THROUGH } from '../core/signal/modstate'
 import { cx } from './cx'
 import { SYNC_DIVISIONS } from './midi'
 import styles from './ModBay.module.css'
@@ -30,7 +30,7 @@ import { Slider } from './Slider'
 import { TempoRow } from './TempoRow'
 import ui from './ui.module.css'
 
-import type { BayField, ModTarget } from '../controls'
+import type { BayField, ModTarget } from '../core/controls'
 import type { UiSlot } from './modSlots'
 import type { Tempo } from './useTempo'
 

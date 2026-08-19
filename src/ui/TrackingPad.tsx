@@ -1,4 +1,4 @@
-import { clamp01 } from '../math'
+import { clamp01 } from '../core/math'
 import { useControls, useControlsApi } from './ControlsContext'
 import { cx } from './cx'
 import styles from './Deck.module.css'
