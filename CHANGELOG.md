@@ -2,7 +2,14 @@
 
 All notable changes to ntsc.js are documented here.
 
-## [0.28.5](https://github.com/cmdcolin/ntsc.js/compare/v0.28.4...v0.28.5) - 2026-08-19
+## [0.28.6](https://github.com/cmdcolin/ntsc.js/compare/v0.28.4...v0.28.6) - 2026-08-19
+
+### Refactor
+- *(ui)* [`acf61b5`](https://github.com/cmdcolin/ntsc.js/commit/acf61b58a8a07ffffc428badbc35d1ba81604cb0) one shuttle ring, not one per surface
+- *(ui)* [`4f9a42c`](https://github.com/cmdcolin/ntsc.js/commit/4f9a42c59720b19dd9f16b810c17572b6c469c9b) shuttle strip is a native range input
+
+### Documentation
+- [`b6e3829`](https://github.com/cmdcolin/ntsc.js/commit/b6e3829fc41d3bda8719a3b70ce5e00fc79e116d) tighten the user guide
 
 ### Style
 - [`e83c5c1`](https://github.com/cmdcolin/ntsc.js/commit/e83c5c16b29765980d812367eb37fff9f938d7ae) run oxfmt over README.md and docs/COMPARISON.md
