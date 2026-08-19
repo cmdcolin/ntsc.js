@@ -43,6 +43,10 @@ const PAGES = [
   // where one of them is the better answer. Reader-facing: it is the page
   // someone arriving from a search wants before any of the others.
   { file: 'docs/COMPARISON.md', out: 'comparison.html', nav: 'Comparison' },
+  // The integration questions: why there is no NLE plugin, how a take reaches
+  // an edit anyway, and what already routes into Max or TouchDesigner. Last in
+  // the nav because it answers questions the other pages raise.
+  { file: 'docs/FAQ.md', out: 'faq.html', nav: 'FAQ' },
   // ARCHITECTURE.md is deliberately not here. It is contributor material, and
   // a reader's nav is the wrong place for it; the part of it a reader wants —
   // the signal path and the three domains — is in HOW-IT-WORKS.md, and links to
@@ -62,6 +66,7 @@ const LINKS = new Map([
   ['EFFECTS.md', 'effects.html'],
   ['MIDI.md', 'midi.html'],
   ['COMPARISON.md', 'comparison.html'],
+  ['FAQ.md', 'faq.html'],
 ])
 
 const slug = text =>
@@ -119,7 +124,7 @@ const rewriteLink = (href, dir) => {
     ? href
     : page !== undefined
       ? page + anchor
-      : REPO + posix.normalize(posix.join(dir, path))
+      : REPO + posix.normalize(posix.join(dir, path)) + anchor
 }
 const defaultLinkOpen =
   md.renderer.rules.link_open ??

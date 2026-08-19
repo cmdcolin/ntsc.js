@@ -20,7 +20,7 @@ as AE / Premiere / OpenFX plugins, so Resolve, Vegas, HitFilm and Natron all
 reach it. Multithreaded, SIMD-accelerated Rust on the CPU, and it runs in real
 time well above NTSC resolution — two advantages this project does not have. If
 what you want is this look on a clip in an edit, that is the one to reach for:
-ntsc.js has no plugin and is not going to have one ([EDITOR.md](EDITOR.md)).
+ntsc.js has no plugin and is not going to have one ([FAQ.md](FAQ.md)).
 
 ### BENDR
 

@@ -82,6 +82,7 @@ works with yt-dlp and lets you video mix with youtube videos on the fly.
 - [How it works](docs/HOW-IT-WORKS.md)
 - [MIDI](docs/MIDI.md)
 - [Comparison with other tools](docs/COMPARISON.md)
+- [FAQ](docs/FAQ.md)
 
 ---
 
