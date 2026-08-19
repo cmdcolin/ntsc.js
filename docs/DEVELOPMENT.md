@@ -794,8 +794,8 @@ dies partway through resumes with `--missing` rather than starting over.
 ## Documentation screenshots
 
 Every figure in [`GETTING-STARTED.md`](GETTING-STARTED.md) and
-[`USER-GUIDE.md`](USER-GUIDE.md) is captured from the running app, so they can't
-quietly drift from the UI:
+[`USER-GUIDE.md`](USER-GUIDE.md), plus the README's `signal-path` crop, is
+captured from the running app, so they can't quietly drift from the UI:
 
 ```
 pnpm docshots                    # all of them, into docs/img/
@@ -811,8 +811,10 @@ Shots are declared in
 actions that put the app in the state being documented, and the red callouts
 drawn over the result. Callouts and crops resolve against live elements at
 capture time, so nothing is a hand-measured pixel offset. Captures run at 2x, as
-JPEG. The runner refuses to save a dead-black frame or one with the stage's
-error banner up, and leaves a shot alone when its pixels didn't change.
+JPEG — or as PNG when a shot is UI rather than picture, where the text is worth
+the bytes (`signal-path`). The runner refuses to save a dead-black frame or one
+with the stage's error banner up, and leaves a shot alone when its pixels didn't
+change.
 
 **The bar for adding a figure is high, and it used to be lower.** There were
 twelve UI shots, each a full window with a red box round a 300px strip (the
