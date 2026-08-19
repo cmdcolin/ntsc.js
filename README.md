@@ -14,6 +14,10 @@ https://cmdcolin.github.io/ntsc.js/
 nearly every control in the app is behind one of its boxes — click a stage and
 that stage's controls open underneath it.
 
+![The app window with the signal path map boxed in red at the head of the sidebar, the picture filling the rest of the frame](docs/img/chain.jpg)
+
+Close up, it is the whole chain in 304 pixels:
+
 ![The signal path map at the top of the app sidebar: SOURCE A and SOURCE B into MIX, then TAPE, RECEIVER and SCREEN, with camera, tape loop and mixer returns arching back over the trunk, SOUND and VIEW hanging below, and MODULATION and DECK on a row of their own with no wire reaching them](docs/img/signal-path.png)
 
 The boxes are in the order the picture actually travels, and that is what the
@@ -98,3 +102,11 @@ idea behind the glitches.
 
 This app is inspired by my old 2010s era experiments alligator clipping yellow
 composite video cables together in my basement and posting tumblr gifs.
+
+
+
+## Cool demos
+
+
+- Camera feedback + static https://cmdcolin.github.io/ntsc.js/?set=chromaGain%3A1.3%2ChvSagUs%3A2.1%2ChvRing%3A0.61%2Cabl%3A0.24%2ClumaMHz%3A3.2%2ClumaPeak%3A2.4%2CnoiseIre%3A2.5%2Cagc%3A0.18%2CcolorUnderMix%3A1%2CfmOverdev%3A0.72%2CfmStreakUs%3A0.45%2CfbMix%3A0.9%2CfbGain%3A1.059%2CfbFocus%3A0%2CfbVign%3A0.73%2CfbBlack%3A0%2CfbKnee%3A0.42%2CcrtBloom%3A0.23%2CcrtZoomX%3A0.7143%2CcrtZoomY%3A0.314&mod=vFreqHz%3Asmooth%3A0.08%3A0.0049%2CfbGain%3Asmooth%3A0.24%3A0.06&src=vhs+static
+
