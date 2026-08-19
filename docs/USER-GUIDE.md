@@ -13,19 +13,19 @@ Click a preset to jump to it; drag it sideways to blend it part-way in.
   clean without changing anything.
 - **random look** stacks a few presets into something new. **random nudge**
   keeps your look and jogs it — everything already doing something, plus a few
-  controls that weren't. `shift` for wilder, `alt` for gentler. Most good
-  accidents start here.
+  controls that weren't. `shift` for wilder, `alt` for gentler, `ctrl`/`cmd` for
+  a wreck. Most good accidents start here.
 - **random motion** leaves every slider where it is and re-patches the
   modulation bay instead — LFOs, drift and sample-and-hold onto controls this
-  look uses. Same modifiers, plus `ctrl`/`cmd` for a bay that hunts. `ctrl+z`
+  look uses. Same modifiers, `ctrl`/`cmd` cabling a bay that hunts. `ctrl+z`
   restores what it replaced.
 - **more…** holds three other rolls. **random preset** draws one authored look
   whole, at its tuned strength. **random fault** throws a couple of controls a
   long way and leaves the rest alone, so the accident is one thing you can name
   and take back. **random cross** keeps some circuits of your look — tape, tube,
   sync — and rerolls the rest.
-- **morph** sets how long a new look takes to arrive, a frame to 8s. Rolls
-  chain, so rolling every few seconds wanders continuously.
+- **morph** sets how long a new look takes to arrive — cut, 1s, 4s, 8s or 30s.
+  Rolls chain, so rolling every few seconds wanders continuously.
 - **undo** (`ctrl+z`) steps back through all of it.
 
 ## Sources
@@ -33,8 +33,8 @@ Click a preset to jump to it; drag it sideways to blend it part-way in.
 Pick each source at the head of its stage: **A** on SOURCE A, **B** on SOURCE B,
 sound on SOUND.
 
-- **A** takes bars, sweep, snow, the bundled photo, a file, or a webcam — an RCA
-  capture dongle is how real gear gets in.
+- **A** takes bars, sweep, snow, the bundled photo, a file, a shared screen, or
+  a webcam — an RCA capture dongle is how real gear gets in.
 - **Clips…** is a shelf of files you've opened before, folders included.
   **Public archives** rolls one from Wikimedia Commons or archive.org;
   **Browse…** searches both in a thumbnail grid.
@@ -63,8 +63,9 @@ trunk are the feedback loops — camera, mixer, tape — each its own button.
 
 **DECK** and **MODULATION** sit below the chain because they patch into the
 controls, not the signal. MODULATION is the hand you set running and leave. DECK
-is the hand on it now: transitions, both tape transports, the tracking knob, the
-hold that stops the frame dead — one surface for a take instead of four stages.
+is the hand on it now: the transition lever and its wipes, the DVE inset, both
+tape transports, the tracking knob, the hold that stops the frame dead — one
+surface for a take instead of four stages.
 
 Inside a stage: **• 10** counts what you've moved, amber means off stock, **↺**
 reverts, **⋮** is the wiring (pin, start an LFO, learn a MIDI knob), and
@@ -111,10 +112,10 @@ running. The top of **MODULATION** is the tempo: type or tap a BPM, then lock
 any rate to it. MIDI clock takes over whenever something sends it — see
 [MIDI.md](MIDI.md).
 
-**stabs** flip the board back to clean for a few tens of milliseconds at a time,
-so the look pokes into a clean picture instead of running flat out. Phosphor,
-the loops and the tape bin keep running through the flip, so a stab leaves a
-trail.
+**stabs** flip the board back to clean in bursts — 60ms by default, and anywhere
+from 8 to 400 — so the look pokes into a clean picture instead of running flat
+out. Phosphor, the loops and the tape bin keep running through the flip, so a
+stab leaves a trail.
 
 Clean is only the gate's default far end. **⧉ hold this look** parks the current
 board at that end, and the gate cuts between it and whatever you dial next — two
