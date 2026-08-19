@@ -160,18 +160,18 @@ OBS at the picture window for anything you care about.
 
 ## Keyboard
 
-| Key                     | Does                                                |
-| ----------------------- | --------------------------------------------------- |
-| `ctrl/⌘+k`              | command palette                                     |
-| `c` (hold)              | preview the clean signal                            |
-| `r` / `s`               | record a clip / save a still                        |
-| `f`                     | fullscreen                                          |
-| `i`                     | cue a clip · press again to loop from there         |
-| `o`                     | stab back to the cue · `+shift` for source B        |
-| `t`                     | strike every one-shot envelope in the bay           |
-| `1`–`9` / `shift+1`–`9` | recall / overwrite one of your first nine saves     |
-| `ctrl/⌘+z`              | step back a look · `+shift` steps forward again     |
-| `esc`                   | close a dialog, cancel a MIDI arm, clear the filter |
+| Key                     | Does                                                                |
+| ----------------------- | ------------------------------------------------------------------- |
+| `ctrl/⌘+k`              | command palette                                                     |
+| `c` (hold)              | preview the clean signal                                            |
+| `r` / `s`               | record a clip / save a still                                        |
+| `f`                     | fullscreen                                                          |
+| `i`                     | cue a clip · press again to loop from there · `+shift` for source B |
+| `o`                     | stab back to the cue · `+shift` for source B                        |
+| `t`                     | strike every one-shot envelope in the bay                           |
+| `1`–`9` / `shift+1`–`9` | recall / overwrite one of your first nine saves                     |
+| `ctrl/⌘+z`              | step back a look · `+shift` or `ctrl/⌘+y` steps forward again       |
+| `esc`                   | close a dialog, cancel a MIDI arm, clear the filter                 |
 
 ---
 
