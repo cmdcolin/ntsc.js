@@ -821,6 +821,15 @@ if (freeze) {
   console.log(`froze ${liveUrls.size} shot(s) into ${file}`)
 }
 writeManifest()
+// The README's figure is composed from `chain` and `signal-path`, so a run that
+// retook either one leaves it a shot behind the app.
+if (shots.some(s => s.name === 'chain' || s.name === 'signal-path')) {
+  try {
+    execFileSync('node', ['scripts/callout.mjs'], { stdio: 'inherit' })
+  } catch {
+    failed.push('callout')
+  }
+}
 rmSync(tmpDir, { recursive: true, force: true })
 if (server !== null) process.kill(-server.pid)
 console.log(

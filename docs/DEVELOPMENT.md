@@ -794,8 +794,9 @@ dies partway through resumes with `--missing` rather than starting over.
 ## Documentation screenshots
 
 Every figure in [`GETTING-STARTED.md`](GETTING-STARTED.md) and
-[`USER-GUIDE.md`](USER-GUIDE.md), plus the README's `signal-path` crop, is
-captured from the running app, so they can't quietly drift from the UI:
+[`USER-GUIDE.md`](USER-GUIDE.md), plus the two shots behind the README's
+signal-path figure, is captured from the running app, so they can't quietly
+drift from the UI:
 
 ```
 pnpm docshots                    # all of them, into docs/img/
@@ -815,6 +816,20 @@ JPEG — or as PNG when a shot is UI rather than picture, where the text is wort
 the bytes (`signal-path`). The runner refuses to save a dead-black frame or one
 with the stage's error banner up, and leaves a shot alone when its pixels didn't
 change.
+
+The README's signal-path figure is composed rather than captured: `chain` (the
+window, map boxed in red) with `signal-path` (the same map, cropped and
+readable) inset over the picture, and a wedge drawn between the two so they read
+as one thing at two scales. [`../scripts/callout.mjs`](../scripts/callout.mjs)
+is the whole recipe — one ImageMagick pipeline — and `pnpm docshots` runs it
+after retaking either source so the figure can't outlive them:
+
+```
+pnpm callout                     # recompose docs/img/signal-path-callout.jpg
+```
+
+It finds the red box by its color rather than by a measured rect, so the inset
+and the wedge follow the box wherever the panel moves it.
 
 **The bar for adding a figure is high, and it used to be lower.** There were
 twelve UI shots, each a full window with a red box round a 300px strip (the

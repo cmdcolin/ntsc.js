@@ -153,8 +153,8 @@ export const SPECS = [
   // you where to look for it.
   boxed(MAP, { name: 'chain' }),
   // The same map cropped out of the panel instead of boxed inside a window —
-  // the README's figure, where the job is not "here is where it sits" but "this
-  // is what you reach for". At that size the boxes are readable, and the header
+  // the inset in the README's figure (`callout.mjs` composes the two), where
+  // the job is not "here is where it sits" but "this is what you reach for". At that size the boxes are readable, and the header
   // line comes with the crop, so "Signal path · click a stage" captions it
   // without a caption. The map's own bounds are the whole figure now that the
   // free row is back inside the drawing.

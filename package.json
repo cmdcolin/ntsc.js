@@ -41,6 +41,7 @@
     "maj": "node scripts/push.mjs major",
     "logo": "node scripts/logo.mjs",
     "docshots": "node scripts/docshots.mjs",
+    "callout": "node scripts/callout.mjs",
     "guide": "node scripts/build-guide.mjs",
     "guide:check": "node scripts/build-guide.mjs && node scripts/guidecheck.mjs",
     "firebase-deploy": "firebase deploy --only firestore:rules",
