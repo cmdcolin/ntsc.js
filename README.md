@@ -10,23 +10,38 @@ https://cmdcolin.github.io/ntsc.js/
 
 ## Features
 
-- True composite signal emulation in WebGPU compute shaders
-- Three feedback loops: camera, mixer, and VHS tape
-- Dirty video mix or genlocked A/B, with wipes, a PiP inset, and a chroma keyer
-- Huge fault range, cable faults to tape dropouts to receiver misadjustment
-- Audio-reactive: feed it music and bass shakes vertical hold, level tears the picture
-- Two independent decks: kill one source's sync and the picture snaps to the other
-- Sources: webcam, screen share, video synth, teletype, Commons/archive.org
-- Up to four tape/dub generations, each compounding its own noise
-- Any slider can run on a modulator: LFO, random walk, Lorenz, audio, S&H
-- Drives from a MIDI controller via WebMIDI, with learn and auto-map
-- Randomize buttons morph between settings over N seconds
-- Pops controls into a second window for a second screen or projector
-- Records a take, or lines up a rundown and renders it offline
+- True composite signal emulation in WebGPU compute shaders. This is the headline feature!
+- Dirty video mix or genlocked (clean) video mixing of two sources
+- Video feedback effects including hardware mixer, camera style, and vhs tape loop
+- Lots of 'faults' like loose cable, bad receiver, inverted polarity, bad ground, etc.
+- Audio-reactive: feed it music and bass shakes vertical hold of the image, etc.
+- All settings can be modulated (e.g. with LFO, random walk, sample and hold, etc)
+- Allows using MIDI controller via WebMIDI, map different knobs to settings of interest
+- Easy-to-use "randomize" buttons that morph between settings over multiple seconds
 - Bleeds video into the audio channel, so you can hear the picture
-- The whole board mirrors to the URL, so a link is a patch
-- Works on mobile (tested on Google Pixel)
 - ...[much more](docs/EFFECTS.md)
+
+## Video sources
+
+There are two 'sources' A and B and you can mix them together like a video mixer, and you get to choose what to load into each
+
+- NTSC color bars/Video sweep test signals
+- VHS static or TV static
+- MP4 videos or still-frame picture from your computer/phone
+- Webcam/screenshare
+- Teletype style text overlay (includes 'mspaint style' feature to draw blocky text)
+- Load random video from archive.org or wiki
+- Basic video synth
+
+## Other random features
+
+- Pops controls into a second window for a second screen or projector
+- Records the video live, or render it offline
+- The whole board mirrors to the URL, so a link is a patch
+
+and it works on mobile! tested on Google Pixel with Chrome
+
+
 
 ## Run
 

@@ -221,49 +221,30 @@
   align-items: center;
 }
 
-/* The shuttle ring, flattened. Geometric in speed, so the fill grows out of the
-   pause detent in whichever direction the tape is running — which is the one
-   thing a strip can say that a number cannot. */
+/* The shuttle ring, flattened — the panel's own control track in the deck's
+   box, rather than a second drawing of one.
+
+   It was a bordered 14px trough with a 3px hairline thumb and a fill that grew
+   out of the pause detent, which put a third track language in a column that
+   already had two. Three things came with dropping it. The thumb is the
+   panel's 12px handle, so it can be seen and hit. The fill runs from the
+   default out to the value like every other row, so a ring sitting at play —
+   which is where both of these rest — paints nothing, instead of a band that
+   read as "engaged" in the one language the panel uses for "you moved this".
+   And the tick at the default *is* the play detent, because play is the stock
+   setting: the mark the ring needed was already being drawn.
+
+   Pause keeps its snap and loses its tick. On the tape deck the `0` key sits
+   6px to the left and says it in a word; on the loop bin's forward-only ring
+   pause is the left stop, and a mark on a stop is noise (see .redline). */
 .shuttle {
-  position: relative;
+  composes: track from './ui.module.css';
   flex: 1;
   min-width: 44px;
   height: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--ctl-radius);
-  background: var(--ctl-face);
-  cursor: ew-resize;
-  touch-action: none;
-  overflow: hidden;
 }
 .shuttleOff {
   opacity: 0.4;
-  cursor: default;
-}
-.shuttleFill {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-}
-.shuttleThumb {
-  position: absolute;
-  top: -1px;
-  bottom: -1px;
-  width: 3px;
-  margin-left: -1px;
-  background: var(--accent);
-  pointer-events: none;
-}
-/* play, and (on a bipolar ring) pause: the two speeds worth being able to hit
-   exactly, marked so they can be aimed for rather than hunted */
-.detent {
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  width: 1px;
-  background: var(--border-hover);
-  pointer-events: none;
 }
 
 /* ── the miniatures ────────────────────────────────────────────────────────
@@ -348,7 +329,10 @@
   .deckBtn {
     padding: 8px 10px;
   }
+  /* --thumb-size carries into both engines' rules and re-centres the webkit one
+     on its own, the same way a control row grows its handle */
   .shuttle {
+    --thumb-size: 20px;
     height: 22px;
   }
   .track {

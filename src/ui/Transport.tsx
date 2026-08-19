@@ -1,14 +1,14 @@
-import { useState } from 'react'
-
+import { DEFAULT_CONTROLS } from '../controls'
+import { clamp01 } from '../math'
 import { sliderFor } from './controls'
 import { useControlValue, useControlsApi } from './ControlsContext'
 import { cx } from './cx'
 import { LOOP_TRANSPORT, SHUTTLE_STOPS } from './deck'
 import styles from './Deck.module.css'
-import { fromTravel, toTravel } from './travel'
+import { fromTravel, toTravel, TRAVEL_STEP } from './travel'
 
 import type { SliderDef } from './controls'
-import type { PointerEvent } from 'react'
+import type { CSSProperties } from 'react'
 
 // The two rows the strips below throw, read off the schema rather than restated
 // here. A span is all the curve needs (min, max, step, curve), so taking the
@@ -25,6 +25,15 @@ const LOOP_SPAN: SliderDef = sliderFor('tapeShuttle')
 // hands that four pixels. Bipolar or not according to the span it is given: the
 // delay loop's transport carries its own direction switch, so its ring runs
 // forwards only, and the tape deck's does not, so its ring is signed.
+//
+// A range input, not a div with pointer handlers. That was ~50 lines of
+// capture, a DOMRect frozen at the press, and a hand-drawn fill and thumb — and
+// none of it reachable from a keyboard, which the lever and the pads beside it
+// both were. The frozen box in particular was working around a problem the
+// browser does not have: it existed because the first nudge takes the speed off
+// stock, which grows "This look" at the top of the panel and shoves every row
+// below it, so a gesture measured against clientX aimed at a strip that had
+// moved. A range input tracks its own thumb and never notices.
 function ShuttleStrip(props: {
   span: SliderDef
   value: number
@@ -32,63 +41,45 @@ function ShuttleStrip(props: {
   title: string
   onChange: (v: number) => void
 }) {
-  // Frozen at the press, like the pads and the lever: the first nudge takes the
-  // speed off stock, which grows "This look" at the top of the panel and moves
-  // every row below it.
-  const [grab, setGrab] = useState<DOMRect | null>(null)
-  const t = toTravel(props.span, props.value)
-  // Where the throw sits along the drawn strip, and where zero is on it.
-  const frac = t
-  const zero = toTravel(props.span, 0)
-
-  const set = (e: PointerEvent<HTMLDivElement>, box: DOMRect) => {
-    const x = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width))
-    const v = fromTravel(props.span, x)
-    // Detents at pause and play, the two speeds worth being able to hit
-    // exactly: a ring you cannot park on play is a ring that never gives the
-    // picture back.
-    const snapped = [0, 1, -1].find(d => Math.abs(v - d) < 0.12)
-    props.onChange(snapped ?? Number(v.toFixed(2)))
+  // Where the fill runs from and to: the row's stock — play, on both of these —
+  // out to where the ring is set, which is the panel's reading of every other
+  // track. The tick that marks the default is the play detent for free.
+  const pct = (v: number) => clamp01(toTravel(props.span, v)) * 100
+  const at = pct(props.value)
+  const def = pct(DEFAULT_CONTROLS[props.span.key])
+  const fill: CSSProperties & Record<'--lo' | '--hi' | '--def', string> = {
+    '--lo': `${Math.min(at, def)}%`,
+    '--hi': `${Math.max(at, def)}%`,
+    '--def': `${def}%`,
   }
-
   return (
-    <div
+    <input
+      type="range"
       className={cx(styles.shuttle, props.disabled && styles.shuttleOff)}
+      style={fill}
       title={props.title}
-      onPointerDown={e => {
-        if (props.disabled) return
-        const box = e.currentTarget.getBoundingClientRect()
-        e.currentTarget.setPointerCapture(e.pointerId)
-        setGrab(box)
-        set(e, box)
+      aria-label={props.span.label}
+      // The travel is what the input rides, so what it would announce is a
+      // 0..1 fraction. The speed is the honest reading, and the one the number
+      // beside the strip shows.
+      aria-valuetext={`${props.value}x`}
+      disabled={props.disabled}
+      min={0}
+      max={1}
+      step={TRAVEL_STEP}
+      value={toTravel(props.span, props.value)}
+      // Back to play, which is the only stop on here the picture survives.
+      onDoubleClick={() => props.onChange(DEFAULT_CONTROLS[props.span.key])}
+      onChange={e => {
+        const v = fromTravel(props.span, Number(e.target.value))
+        // Detents at pause and play, the two speeds worth being able to hit
+        // exactly: a ring you cannot park on play is a ring that never gives
+        // the picture back. Only pause needs the help now — play is the stock
+        // value, so the double-click above lands on it too.
+        const snapped = [0, 1, -1].find(d => Math.abs(v - d) < 0.12)
+        props.onChange(snapped ?? Number(v.toFixed(2)))
       }}
-      onPointerMove={e => {
-        if (grab !== null && !props.disabled) set(e, grab)
-      }}
-      onPointerUp={e => {
-        e.currentTarget.releasePointerCapture(e.pointerId)
-        setGrab(null)
-      }}
-      onPointerCancel={() => setGrab(null)}
-    >
-      {/* Play speed, marked on the strip rather than left to be found: it is the
-          only setting on here at which the head follows one track. */}
-      <div
-        className={styles.detent}
-        style={{ left: `${toTravel(props.span, 1) * 100}%` }}
-      />
-      {zero > 0 ? (
-        <div className={styles.detent} style={{ left: `${zero * 100}%` }} />
-      ) : null}
-      <div
-        className={styles.shuttleFill}
-        style={{
-          left: `${Math.min(frac, zero) * 100}%`,
-          width: `${Math.abs(frac - zero) * 100}%`,
-        }}
-      />
-      <div className={styles.shuttleThumb} style={{ left: `${frac * 100}%` }} />
-    </div>
+    />
   )
 }
 

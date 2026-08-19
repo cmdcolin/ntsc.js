@@ -119,6 +119,36 @@
     border: none;
     background: #b8b8c8;
   }
+
+  /* What a *control* track is painted with, as against the scrubber's own: fill
+     from the default out to the thumb, with a faint tick left at the default.
+     The caller sets --lo/--hi/--def; the box (width, height, how it sits in its
+     row) stays theirs too, because a slider row and a shuttle strip want
+     different ones.
+
+     Hoisted out of the control row when the deck's strips stopped drawing their
+     own track. Distance-from-stock is the panel's one reading of a filled
+     track — amber says "you moved this", and a painted track says how far — and
+     a second surface reimplementing it is how the deck ended up with two strips
+     that filled from an end and read as engaged while sitting at stock. */
+  .track {
+    composes: range;
+    --track-bg:
+      linear-gradient(
+        to right,
+        transparent calc(var(--def) - 1px),
+        #55555f calc(var(--def) - 1px),
+        #55555f calc(var(--def) + 1px),
+        transparent calc(var(--def) + 1px)
+      ),
+      linear-gradient(
+        to right,
+        #31313c var(--lo),
+        var(--ctl-on-bg) var(--lo),
+        var(--ctl-on-bg) var(--hi),
+        #31313c var(--hi)
+      );
+  }
 }
 
 /* buttons */
