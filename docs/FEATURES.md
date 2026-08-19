@@ -32,19 +32,32 @@ other, and the geometry snaps between two pictures.
 
 ## Feedback loops
 
-Three, and they differ in what goes round.
+Three, and they differ in what goes round — each in the app's own words, since
+the chain map opens every one of them with the same description:
 
-**Camera feedback** — the lit tube face sent back optically. It carries an image
-that has already been decoded and lit, so it can only do what a lens can.
+<!-- generated:loops — from LOOP_STAGES in src/ui/controls.ts, via scripts/docgen.mjs -->
 
-**Mixer feedback** — the composite waveform patched into itself. The subcarrier
-goes round with it, which is why the delay doubles as a hue rotation and each
-generation lands further round the wheel.
+**Camera feedback**: light rather than wire — a camera on the tube’s face, its
+picture mixed back into the input ahead of the encoder. It carries an image that
+has already been decoded and lit, so it can only do what a lens can: zoom,
+shift, defocus, cut a black level. Past unity gain it breeds structure on its
+own.
 
-**Tape loop** — a second machine threaded with a loop of tape, patched across
-the bus rather than round the chain. Not the Tape stage below, which is the deck
-this signal was played back on. The return gets recorded again, so repeats decay
-by generation loss rather than by a fader, and chroma dies first.
+**Mixer feedback**: the composite itself, patched off the bus into an input and
+crossfaded against the live signal. The subcarrier rides round with it, so each
+sample of cable delay spins fed-back hue 90° a generation and colour does things
+optics cannot.
+
+**Tape loop**: a second machine threaded with a loop of tape, patched across the
+bus rather than round the chain: a play head returns what was laid down a lap
+ago, a record head lays the sum back down, and whatever keeps circulating ages a
+generation every time round.
+
+<!-- /generated:loops -->
+
+The tape loop is the one to keep straight: it is not the Tape stage below, which
+is the deck this signal was played back on. Its return gets recorded again, so
+repeats decay by generation loss rather than by a fader, and chroma dies first.
 
 ## A/B mix
 

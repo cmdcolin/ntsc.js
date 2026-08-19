@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs'
 // noticed the doc and the code disagreeing.
 //
 // The sibling page, docs/EFFECTS.md, solved this by not being written at all —
-// scripts/gen-effects.mjs emits it from the control table. This page cannot go
+// scripts/docgen.mjs emits it from the control table. This page cannot go
 // the same way: it is an argued tour of how to *drive* the app, and prose that
 // makes a point does not come out of a table. So the countable claims inside
 // the prose are pinned instead, which is the same bargain

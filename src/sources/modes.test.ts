@@ -109,7 +109,7 @@ describe('the pool tables', () => {
   })
 })
 
-// The shipped lists feed docs/EFFECTS.md (scripts/gen-effects.mjs), so a mode
+// The shipped lists feed docs/EFFECTS.md (scripts/docgen.mjs), so a mode
 // added to a picker and forgotten here would ship a page that under-describes
 // the app — the same class of drift the generated page exists to end. The
 // webcam assertion is the one the hand-written page actually got wrong: it said

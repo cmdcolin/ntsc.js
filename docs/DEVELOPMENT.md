@@ -1105,10 +1105,12 @@ the other GPU" wants answering without a rebuild.
   control end to end
 - [`OPTIMIZATIONS.md`](OPTIMIZATIONS.md) — what the measurements below decided:
   the gating, tiling, tiering and packing the frame budget is made of
-- [`FEATURES.md`](FEATURES.md) — the map of what it can break, stage by stage
+- [`FEATURES.md`](FEATURES.md) — the map of what it can break, stage by stage.
+  Hand-written apart from the feedback-loop block, which `scripts/docgen.mjs`
+  fills from `LOOP_STAGES`, so the tour and the chain map cannot disagree
 - [`EFFECTS.md`](EFFECTS.md) — every control, **generated** by
-  `scripts/gen-effects.mjs`. Edit `src/ui/controls.ts`, not the page, then run
-  `pnpm effects`. `pnpm build` runs `--check` and fails on a stale copy, so CI
+  `scripts/docgen.mjs`. Edit `src/ui/controls.ts`, not the page, then run
+  `pnpm docgen`. `pnpm build` runs `--check` and fails on a stale copy, so CI
   catches a forgotten regeneration; a pre-commit hook cannot, because
   lint-staged only stages the files its own patterns matched
 - [`EDITOR.md`](EDITOR.md) — the strip, glitch transitions, and the export an
