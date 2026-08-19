@@ -1,80 +1,70 @@
 # User guide
 
-The rest of the app, once [Getting started](GETTING-STARTED.md) has you rolling
-presets.
+Everything past [Getting started](GETTING-STARTED.md).
 
 ## Presets and looks
 
-Click a preset and the board jumps to it. Drag it sideways and it goes in part
-of the way, stacking onto what's already there.
+Click a preset to jump to it; drag it sideways to blend it part-way in.
 
-- **This look** lists everything you're off stock on, as real sliders. Drag one
-  and you're editing the preset; **↺** puts one piece back.
-- **reset** puts the whole board back to stock — every control, the modulation
-  bay and the stab gate — and `ctrl+z` takes the look back. The **clean** chip
-  is the same verb; holding `c` previews the clean signal without changing
-  anything.
+- **This look** lists every control you're off stock on, as sliders. Drag to
+  edit, **↺** to revert one.
+- **reset** puts everything back to stock — controls, modulation bay, stab gate
+  — and `ctrl+z` undoes it. **clean** is the same verb; hold `c` to preview
+  clean without changing anything.
 - **random look** stacks a few presets into something new. **random nudge**
-  keeps your look and jogs it — every control that is already doing something,
-  plus a few that weren't — `shift` for wilder, `alt` for gentler. Most of the
-  good accidents come from here.
-- **random motion** is the one that changes nothing you can see standing still:
-  every slider stays put, and what gets re-cabled is the modulation bay — LFOs,
-  drift and sample-and-hold patched onto controls this look is actually using.
-  Same modifiers, and `ctrl` (or `cmd`) for a bay that hunts. It replaces what
-  was patched; `ctrl+z` puts it back.
-- **more…** holds three rolls of a different shape, for when neither of those is
-  the question you're asking. **random preset** draws one of the authored looks
-  whole, at the strength it was tuned at — nothing stacked on it. **random
-  fault** throws a couple of controls a long way and touches nothing else, so
-  the accident is one thing you can see, name and take back. **random cross**
-  keeps some circuits of the look you have — the tape, the tube, the sync,
-  whichever way it falls — and lets a fresh roll answer for the rest.
-- **morph** sets how long a new look takes to arrive, from a frame to 8s. Rolls
-  chain, so hitting random look every few seconds wanders continuously.
+  keeps your look and jogs it — everything already doing something, plus a few
+  controls that weren't. `shift` for wilder, `alt` for gentler. Most good
+  accidents start here.
+- **random motion** leaves every slider where it is and re-patches the
+  modulation bay instead — LFOs, drift and sample-and-hold onto controls this
+  look uses. Same modifiers, plus `ctrl`/`cmd` for a bay that hunts. `ctrl+z`
+  restores what it replaced.
+- **more…** holds three other rolls. **random preset** draws one authored look
+  whole, at its tuned strength. **random fault** throws a couple of controls a
+  long way and leaves the rest alone, so the accident is one thing you can name
+  and take back. **random cross** keeps some circuits of your look — tape, tube,
+  sync — and rerolls the rest.
+- **morph** sets how long a new look takes to arrive, a frame to 8s. Rolls
+  chain, so rolling every few seconds wanders continuously.
 - **undo** (`ctrl+z`) steps back through all of it.
 
 ## Sources
 
-Each source is picked at the head of its own stage: **A** on SOURCE A, **B** on
-SOURCE B, sound on SOUND.
+Pick each source at the head of its stage: **A** on SOURCE A, **B** on SOURCE B,
+sound on SOUND.
 
-- **A** takes bars, sweep, snow, the bundled photo, a file, or a webcam — which
-  is also how an RCA capture dongle gets real gear in here.
+- **A** takes bars, sweep, snow, the bundled photo, a file, or a webcam — an RCA
+  capture dongle is how real gear gets in.
 - **Clips…** is a shelf of files you've opened before, folders included.
-  **Public archives** rolls one out of Wikimedia Commons or archive.org, and
-  **Browse…** searches both with a thumbnail grid.
-- **Video synth** is two oscillators and a colorizer with no input. Frequency is
-  the whole knob: on a multiple of line rate you get standing bars, a few hertz
-  off they lean and creep, at 3.58 MHz it lands on the subcarrier and comes back
-  as flat colour.
-- **Teletype…** prints what you type onto a dot-matrix card, and **draw** paints
-  on the same page. The dither shades are worth a try — a dither is exactly what
-  dot crawl and chroma bleed feed on.
+  **Public archives** rolls one from Wikimedia Commons or archive.org;
+  **Browse…** searches both in a thumbnail grid.
+- **Video synth** is two oscillators and a colorizer, no input. Frequency is the
+  whole knob: on a multiple of line rate you get standing bars, a few hertz off
+  they lean and creep, at 3.58 MHz it lands on the subcarrier and comes back as
+  flat colour.
+- **Teletype…** prints what you type onto a dot-matrix card; **draw** paints on
+  the same page. Try the dither shades — dot crawl and chroma bleed feed on
+  dither.
 - **B** is a second source, deliberately not genlocked, so it beats and tears
   against A. Its controls are in **Mix**.
 - **♪** is audio in, and does nothing until you turn up a knob in **Sound**.
 
-Anything with a timeline gets a **cue** button: press to mark, press again to
-loop, a third time to drop it. **⇤** stabs back to the cue without waiting for
-the lap, which is a stutter you play by hand. `i` and `o` do the same from the
-keyboard, `shift` puts them on B.
+Anything with a timeline gets a **cue** button: press to mark, again to loop, a
+third time to drop it. **⇤** stabs back to the cue without waiting for the lap.
+`i` and `o` do the same from the keyboard, `shift` puts them on B.
 
 ## Working down the chain
 
 ![The app window, the chain map at the head of the sidebar boxed in red](img/chain.jpg)
 
-The map at the top of the sidebar is the whole signal path, and every box on it
-is a button. Amber marks a stage you've moved something in. The three wires
-arcing over the trunk are the feedback loops — camera, mixer and tape — and each
-is its own button.
+The map at the top of the sidebar is the signal path, and every box is a button.
+Amber marks a stage you've moved something in. The three wires arcing over the
+trunk are the feedback loops — camera, mixer, tape — each its own button.
 
-**DECK** and **MODULATION** sit apart, below the chain, because they patch into
-the controls rather than the signal. MODULATION is the hand you set running and
-leave. DECK is the hand that's on it now: transitions, both tape transports, the
-tracking knob, the hold that stops the frame dead — gathered by the gesture that
-moves them rather than by where the fault happens, so a take is one surface
-instead of four stages.
+**DECK** and **MODULATION** sit below the chain because they patch into the
+controls, not the signal. MODULATION is the hand you set running and leave. DECK
+is the hand on it now: transitions, both tape transports, the tracking knob, the
+hold that stops the frame dead — one surface for a take instead of four stages.
 
 Inside a stage: **• 10** counts what you've moved, amber means off stock, **↺**
 reverts, **⋮** is the wiring (pin, start an LFO, learn a MIDI knob), and
@@ -83,13 +73,12 @@ reverts, **⋮** is the wiring (pin, start an LFO, learn a MIDI knob), and
 ![The app window with a slider's help card open, boxed in red](img/slider-help.jpg)
 
 **?** on any slider explains the fault it models rather than what you'll see.
-The look is emergent, so knowing the cause is what tells you how two controls
-will combine.
+The look is emergent, so the cause is what tells you how two controls combine.
 
 The loops are the exception to working left to right: they take the picture off
-the end and put it back at the front, so they compound whatever else is going
-on. Here's a camera aimed a hair off-axis from its monitor, over a tape that's
-dropping out underneath:
+the end and put it back at the front, compounding everything else. Here's a
+camera aimed a hair off-axis from its monitor, over a tape dropping out
+underneath:
 
 <video
   controls muted loop playsinline
@@ -98,45 +87,43 @@ dropping out underneath:
 
 ## Finding a control
 
-The filter box narrows the panel and `ctrl+k` opens a palette over presets,
-controls and actions at once. Both search the help text, so you can hunt down an
+The filter box narrows the panel; `ctrl+k` opens a palette over presets,
+controls and actions at once. Both search the help text, so you can hunt an
 artifact without knowing which knob makes it.
 
 ## Making it move
 
 **∿ on any control row** sets that control wobbling — LFO, random walk, noise,
-sample-and-hold, a Lorenz attractor, the audio level or its hits, or a one-shot
-envelope you strike by hand or from a MIDI note. Depth is a fraction of that
-control's own range and the slider stays put, since it's the centre the motion
-happens around. That's why a preset or a link still holds the look.
+sample-and-hold, a Lorenz attractor, audio level or its hits, or a one-shot
+envelope you strike by hand or from a MIDI note. Depth is a fraction of the
+control's range, and the slider stays put as the centre the motion happens
+around, which is why a preset or a link still holds the look.
 
-Once anything is moving, a **motion** strip appears with one amount over every
-routing and a freeze. At the top of **MODULATION** is the tempo: type a BPM or
-tap it in, then lock any rate to it. MIDI clock takes over whenever something is
-sending it — see [MIDI.md](MIDI.md).
+Once anything moves, a **motion** strip appears with one amount over every
+routing, and a freeze. The top of **MODULATION** is the tempo: type or tap a
+BPM, then lock any rate to it. MIDI clock takes over whenever something sends it
+— see [MIDI.md](MIDI.md).
 
-**stabs** flip the whole board back to clean for a few tens of milliseconds at a
-time, so the look gets poked into a clean picture rather than running flat out.
-Phosphor, the loops and the tape bin keep running through the flip, so a stab
-leaves a trail behind it.
+**stabs** flip the board back to clean for a few tens of milliseconds at a time,
+so the look pokes into a clean picture instead of running flat out. Phosphor,
+the loops and the tape bin keep running through the flip, so a stab leaves a
+trail.
 
-Clean is only the gate's default far end. **⧉ hold this look** parks the board
-you're on at the other side of it, and the gate cuts between that and whatever
-you dial next — two looks, hard-panned on the beat, no fade. Dial a look, hold
-it, dial the second one against it; the sliders always belong to the live one,
-and the held look is a copy nothing moves. The length row becomes a **share**
-while a look is held, because what you want held still across a tempo change is
-the split, not the milliseconds — 50 is even, and pushing it either way makes
-one look the state and the other the interruption. **× drop** puts the gate back
-to stabbing clean.
+Clean is only the gate's default far end. **⧉ hold this look** parks the current
+board at that end, and the gate cuts between it and whatever you dial next — two
+looks, hard-panned on the beat, no fade. The sliders belong to the live look;
+the held one is a copy nothing moves. While a look is held the length row
+becomes a **share**, so a tempo change holds the split, not the milliseconds: 50
+is even, and pushing it either way makes one look the state and the other the
+interruption. **× drop** returns the gate to stabbing clean.
 
-There is no fade between two looks, and that is a limit rather than a taste
-call: the filter bank is redesigned whenever a filter control moves, so a
-crossfade would redesign it every frame where a cut redesigns it twice a cycle.
+Two looks never crossfade. A moving filter control redesigns the filter bank, so
+a crossfade would redesign it every frame where a cut redesigns it twice a
+cycle.
 
-**Sound** hangs off Receiver, because that's where audio is patched in. Bass
-lurches the frame, level tears line hold. Pick something under **♪** first or
-the box opens onto nothing.
+**Sound** hangs off Receiver, where audio patches in. Bass lurches the frame,
+level tears line hold. Pick something under **♪** first or the box opens onto
+nothing.
 
 ## Keeping what you find
 
@@ -151,25 +138,25 @@ records a clip.
 ## Looking closer
 
 Drag a box on the picture to zoom, double-click to reset. The magnifier is part
-of the display, so it magnifies the lit tube face along with the picture: scan
-lines, mask and all.
+of the display, so it magnifies the lit tube face too — scan lines, mask and
+all.
 
-To watch the signal instead, **signal tap** in the View group steps through the
-composite waveform, luma, chroma energy, burst state, the scope, and back.
-Whichever tap is live is named on the ☰ button, so a screen full of waveform
-never looks like a fault.
+To watch the signal itself, **signal tap** in the View group steps through the
+composite waveform, luma, chroma energy, burst state, the scope, and back. The
+live tap is named on the ☰ button, so a screen full of waveform never looks
+like a fault.
 
 **scope** is the one to reach for first. It lays a single line out left to
 right, sync tip and burst included, against an IRE graticule. Sync depth, setup,
-the AGC pumping and a burst that has stopped being 40 IRE are all readable there
-rather than inferred. Turning a knob and watching the waveform change shape is
-the fastest way to understand it.
+AGC pumping and a burst that has stopped being 40 IRE are readable there rather
+than inferred — turning a knob and watching the waveform is the fastest way to
+understand it.
 
 ## Getting it out
 
 The ☰ menu has stills, recording, fullscreen, and **pop out controls**, which
-moves the panel to a second window and gives the picture the whole screen. For
-anything you care about, point OBS at the picture window.
+moves the panel to a second window and gives the picture the whole screen. Point
+OBS at the picture window for anything you care about.
 
 ## Keyboard
 

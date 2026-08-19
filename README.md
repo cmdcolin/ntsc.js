@@ -12,8 +12,10 @@ https://cmdcolin.github.io/ntsc.js/
 
 - True composite signal emulation in WebGPU compute shaders
 - Three feedback loops: camera, mixer, and VHS tape
-- Dirty video mix or genlocked A/B, with wipes, ring mod, and a chroma keyer
+- Dirty video mix or genlocked A/B, with wipes, a PiP inset, and a chroma keyer
 - Huge fault range, cable faults to tape dropouts to receiver misadjustment
+- Audio-reactive: feed it music and bass shakes vertical hold, level tears the picture
+- Two independent decks: kill one source's sync and the picture snaps to the other
 - Sources: webcam, screen share, video synth, teletype, Commons/archive.org
 - Up to four tape/dub generations, each compounding its own noise
 - Any slider can run on a modulator: LFO, random walk, Lorenz, audio, S&H
