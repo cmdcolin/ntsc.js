@@ -35,11 +35,11 @@ and declined. The findings are in order of how fast each one kills it, and the
 last is the one that would still stand if the first two were solved.
 
 **There is no "the shaders" to port.** The WGSL is about a third of the
-simulator. Against twenty-four shaders sit `src/core/signal/`'s per-frame CPU state
-(`LineState`, `MixState`, `TapeState`, `RfState`, `SynthState`, `AudioState`,
-and the FIR bank, redesigned CPU-side whenever one of the filter five moves) and
-`src/core/gpu/`'s pass graph, uniform packing and buffer management. `PARAM_DEFS` is
-228 fields, `DEFAULT_CONTROLS` 234 keys, and several buffers are _state_ rather
+simulator. Against twenty-four shaders sit `src/core/signal/`'s per-frame CPU
+state (`LineState`, `MixState`, `TapeState`, `RfState`, `SynthState`,
+`AudioState`, and the FIR bank, redesigned CPU-side whenever one of the filter
+five moves) and `src/core/gpu/`'s pass graph, uniform packing and buffer
+management. `PARAM_DEFS` is 228 fields, `DEFAULT_CONTROLS` 234 keys, and several buffers are _state_ rather
 than scratch — `timingBuf[525..532]`, `persistBufs`, `tapeBuf`, `storePrev`.
 Lifting the shaders alone lifts nothing that runs.
 
