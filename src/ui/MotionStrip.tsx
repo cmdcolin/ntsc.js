@@ -44,8 +44,16 @@ export function MotionStrip(props: {
   // Everything the bay holds, split by whether it is running. The strip stands
   // as long as anything is *patched* — park every routing and the master fader
   // would otherwise vanish along with the count that is the one way to find the
-  // parked rows again — but it counts only what is moving, because that is the
-  // question `N∿` is answering.
+  // parked rows again.
+  //
+  // Both numbers are drawn, and that is the fix for a button that used to lie
+  // about its own result set: `N∿` counts what is moving, because that is the
+  // question it is answering, but pressing it narrows the panel to everything
+  // *patched* (`isRouted` in App, which matches a slot's target and asks nothing
+  // about whether it is running) — so a strip reading `2∿` opened a list of
+  // four. The parked ones ride along as a dim `+M` rather than being folded into
+  // the count, since "two things are moving" and "four rows are about to appear"
+  // are both true and neither is the other.
   const driven: string[] = []
   const stilled: string[] = []
   for (const s of slots) {
@@ -129,8 +137,8 @@ export function MotionStrip(props: {
                 : `the whole look, stabbed in ${rate}× a second`,
           stilled.length === 0 ? '' : `held still: ${stilled.join(', ')}`,
           props.moving
-            ? 'showing only these — click to show the whole panel again'
-            : 'click to narrow the panel down to them',
+            ? 'showing every patched row, held ones included — click to show the whole panel again'
+            : 'click to narrow the panel down to every patched row, held ones included',
         ]
           .filter(s => s !== '')
           .join(' — ')}
@@ -140,9 +148,11 @@ export function MotionStrip(props: {
             because ∿ is the mark every routed row wears, and there is no second
             glyph in this panel that would say "the whole board, cut in and out"
             to someone who had not already been told. "2/s" needs no key. */}
-        {gated && stabHz > 0
-          ? `${driven.length}∿ ${rate}/s`
-          : `${driven.length}∿`}
+        {`${driven.length}∿`}
+        {stilled.length === 0 ? null : (
+          <span className={styles.parked}>{`+${stilled.length}`}</span>
+        )}
+        {gated && stabHz > 0 ? ` ${rate}/s` : null}
       </button>
       {api.midiReady ? (
         <button

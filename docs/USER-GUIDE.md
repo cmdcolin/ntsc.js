@@ -88,9 +88,9 @@ underneath:
 
 ## Finding a control
 
-The filter box narrows the panel; `ctrl+k` opens a palette over presets,
-controls and actions at once. Both search the help text, so you can hunt an
-artifact without knowing which knob makes it.
+The filter box narrows the panel — `/` opens it and puts the caret in it;
+`ctrl+k` opens a palette over presets, controls and actions at once. Both search
+the help text, so you can hunt an artifact without knowing which knob makes it.
 
 The **∿** on the modulation strip is the second half of the filter and a switch
 rather than a word: it narrows the panel to the controls the bay is driving,
@@ -171,6 +171,7 @@ OBS at the picture window for anything you care about.
 | Key                     | Does                                                                |
 | ----------------------- | ------------------------------------------------------------------- |
 | `ctrl/⌘+k`              | command palette                                                     |
+| `/`                     | filter the controls                                                 |
 | `c` (hold)              | preview the clean signal                                            |
 | `r` / `s`               | record a clip / save a still                                        |
 | `f`                     | fullscreen                                                          |

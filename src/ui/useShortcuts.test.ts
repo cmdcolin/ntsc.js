@@ -33,6 +33,7 @@ const press = (key: string, over: Partial<Keystroke> = {}): Keystroke => ({
 
 // Every bare-key gesture the app binds, with what it should do untouched.
 const BARE: [string, string][] = [
+  ['/', 'search'],
   ['f', 'fullscreen'],
   ['c', 'compare'],
   ['r', 'record'],
@@ -111,6 +112,15 @@ describe('what a keystroke means', () => {
     expect(resolveShortcut(press('Escape', { typing: true }))?.do).toBe(
       'escape',
     )
+  })
+
+  // `/` is the panel's find, and the two guards above are what make it safe to
+  // bind: the browser keeps ⌘F, and a `/` typed into the filter box stays a
+  // slash rather than reopening the box under the caret.
+  it('gives the filter box a key of its own', () => {
+    expect(resolveShortcut(press('/'))?.do).toBe('search')
+    expect(resolveShortcut(press('/', { typing: true }))).toBeNull()
+    expect(resolveShortcut(press('/', { ctrlKey: true }))).toBeNull()
   })
 
   it('matches letters whatever the shift/caps state', () => {

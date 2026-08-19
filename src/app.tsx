@@ -290,6 +290,14 @@ export function App() {
   // out from under a filter that is still narrowing the panel — which is what
   // a bare `searchOpen` did the moment anything else took focus.
   const [searchOpen, setSearchOpen] = useState(false)
+  // `/` has to reach a box that is already standing — `autoFocus` fires on mount
+  // and nowhere else, so a filter left up while you dragged a slider would take
+  // the key and do nothing visible with it.
+  const filterBox = useRef<HTMLInputElement>(null)
+  const openSearch = () => {
+    setSearchOpen(true)
+    filterBox.current?.focus()
+  }
   // The three ways the filter moves from outside the box. Together here because
   // each has to speak for both halves of it: a mode the ✕ leaves standing is a
   // panel still narrowed by something with nothing on screen explaining it.
@@ -686,6 +694,7 @@ export function App() {
     // escaping a search has no business also losing your place in the chain.
     // Not on the bench, where every stage is mounted and the open one is a mark
     // on the map rather than a thing on screen to back out of.
+    onSearch: openSearch,
     onEscape: () => {
       const mode =
         filter !== '' ||
@@ -1113,6 +1122,7 @@ export function App() {
               </button>
             ) : null}
             <input
+              ref={filterBox}
               className={styles.filter}
               type="search"
               // Mounted by the ⌕, so the press that opened it is also the press
@@ -1162,9 +1172,9 @@ export function App() {
           {searching ? null : (
             <button
               className={ui.chromeBtn}
-              title="filter the controls — artifact words work: rainbow, ghost, tear, roll (⌘K jumps to one by name)"
+              title="filter the controls (/) — artifact words work: rainbow, ghost, tear, roll (⌘K jumps to one by name)"
               aria-label="filter the controls"
-              onClick={() => setSearchOpen(true)}
+              onClick={openSearch}
             >
               ⌕
             </button>

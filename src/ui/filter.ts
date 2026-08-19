@@ -40,7 +40,7 @@ export const useFilter = () => use(FilterContext)
 // word: typing "lfo" stopped finding the help text explaining what an LFO does
 // here. The strip's ∿ button and the palette's "show what is moving" are the
 // mode now, so the words go back to being words.
-export const MOVING_MARK = '∿'
+const MOVING_MARK = '∿'
 
 export const isMovingMark = (text: string) => text === MOVING_MARK
 

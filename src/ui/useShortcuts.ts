@@ -19,6 +19,7 @@ function isTextEntry(t: EventTarget | null): boolean {
 // the browser's own reading of the chord.
 type Shortcut =
   | { do: 'escape' }
+  | { do: 'search' }
   | { do: 'palette' }
   | { do: 'saveProfile' }
   | { do: 'undo' }
@@ -52,6 +53,10 @@ export interface Keystroke {
 const TAKES_KEY: ReadonlySet<Shortcut['do']> = new Set<Shortcut['do']>([
   'palette',
   'saveProfile',
+  // Firefox reads a bare `/` as quick-find, which is the same gesture aimed at
+  // the wrong haystack: it searches the rendered page, so it hits the labels of
+  // rows already on screen and never the help text the panel's own box matches.
+  'search',
 ])
 
 export function resolveShortcut(e: Keystroke): Shortcut | null {
@@ -77,6 +82,10 @@ export function resolveShortcut(e: Keystroke): Shortcut | null {
   // may answer to it: ⌘F is find, ⌘C is copy, ⌘1 picks a tab. One guard for all
   // of them — the per-branch copies this replaced were each missed somewhere.
   if (e.typing || mod) return null
+  // The panel's own find. `/` rather than ⌘F, which past the guard above belongs
+  // to the browser — and the filter box was the one door in the sidebar with no
+  // key at all, reachable only by clicking the ⌕.
+  if (key === '/') return { do: 'search' }
   if (key === 'f') return { do: 'fullscreen' }
   if (key === 'c') return e.repeat ? null : { do: 'compare' }
   if (key === 'r') return e.repeat ? null : { do: 'record' }
@@ -109,6 +118,10 @@ export function resolveShortcut(e: Keystroke): Shortcut | null {
 
 interface Handlers {
   onEscape: () => void
+  // Opens the filter box and puts the caret in it, whether or not it was already
+  // showing — the box outlives the focus that opened it, so `/` has to be able
+  // to reach one standing open behind a slider you just dragged.
+  onSearch: () => void
   onPalette: () => void
   onUndo: () => void
   canUndo: boolean
@@ -166,6 +179,9 @@ export function useShortcuts(popout: Window | null, handlers: Handlers) {
       switch (hit.do) {
         case 'escape':
           h.onEscape()
+          break
+        case 'search':
+          h.onSearch()
           break
         case 'palette':
           h.onPalette()

@@ -74,6 +74,14 @@
 .count:hover {
   color: var(--mod);
 }
+/* The routings that are patched but parked, riding along behind the count of
+   the ones that are running. Its own colour rather than an inherited one, so it
+   stays quiet while the button is lit — they are rows the press will show, not
+   rows that are moving, and the count in front of it is the louder fact. */
+.parked {
+  color: var(--fg4);
+}
+
 /* Pressed, and it stays pressed: the panel is narrowed for as long as this is
    lit, and the count is the only thing on screen that says which of the two
    things narrowing it did — the box beside it holds the words. Hover included,
