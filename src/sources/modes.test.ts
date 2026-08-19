@@ -120,12 +120,16 @@ describe('the shipped mode lists', () => {
     expect(SHIPPED_B_MODES).toEqual(SOURCE_B_MODES.filter(m => m !== 'youtube'))
   })
 
+  // Widened to string before the diff: the two lists are closed unions with no
+  // member in common at the type level, so `includes` on either rejects the
+  // other's entries outright — which is the answer to a question nobody asked
+  // here, since the point is to compare them as data.
   it('differ by the camera on A and the off switch on B', () => {
-    const onlyA = SHIPPED_MODES.filter(m => !SHIPPED_B_MODES.includes(m))
-    const onlyB = SHIPPED_B_MODES.filter(m => !SHIPPED_MODES.includes(m))
+    const a: string[] = [...SHIPPED_MODES]
+    const b: string[] = [...SHIPPED_B_MODES]
 
-    expect(onlyA).toEqual(['webcam'])
-    expect(onlyB).toEqual(['none'])
+    expect(a.filter(m => !b.includes(m))).toEqual(['webcam'])
+    expect(b.filter(m => !a.includes(m))).toEqual(['none'])
   })
 
   it('describe every mode they offer, since the page prints the description', () => {

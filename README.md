@@ -16,11 +16,8 @@ that stage's controls open underneath it.
 
 ![The app window with the signal path map boxed in red at the head of the sidebar and enlarged over the picture: SOURCE A and SOURCE B into MIX, then TAPE, RECEIVER and SCREEN, with camera, tape loop and mixer returns arching back over the trunk, SOUND and VIEW hanging below, and MODULATION and DECK on a row of their own with no wire reaching them](docs/img/signal-path-callout.jpg)
 
-The boxes are in the order the picture actually travels, and that is what the
-app does with it: build an NTSC composite waveform, damage the waveform, hand it
-to a receiver that decodes it slightly wrong. So dot crawl, rainbows, tearing
-and hue drift fall out of the mechanism rather than being painted on — and two
-faults compound instead of stacking, because both are acting on the same signal.
+So all the rainbows, video tearing
+and chaos are a result of the video signal mechanism rather than being painted on.
 The dashed returns are the three feedback loops: **camera** is a lens pointed at
 the tube, **mixer** patches the composite waveform back in electrically, and
 **tape loop** sends it round a second machine a generation older each lap.
