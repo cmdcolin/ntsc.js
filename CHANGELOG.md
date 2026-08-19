@@ -2,6 +2,21 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.28.10](https://github.com/cmdcolin/ntsc.js/compare/v0.28.9...v0.28.10) - 2026-08-19
+
+### Fixes
+- *(ui)* [`2abafc3`](https://github.com/cmdcolin/ntsc.js/commit/2abafc34727228b9d86ddad8da9c21f82f9e2c0e) the open stage's head stops painting over the map
+
+### Refactor
+- [`5a6526b`](https://github.com/cmdcolin/ntsc.js/commit/5a6526b3266c5524cb58be9480de66441f194093) put the signal path under src/core, and hold the boundary in lint
+
+### Documentation
+- [`cfb00a9`](https://github.com/cmdcolin/ntsc.js/commit/cfb00a90990f10c4a42df28d95d4736c5c0871c2) name the core/app split and the paths that moved with it
+- [`c79b02e`](https://github.com/cmdcolin/ntsc.js/commit/c79b02e2fb95a0c18974f3aaf4ed0d805c70e3fd) rewrap the paragraphs the longer core paths pushed past 80 columns
+
+### Tests
+- *(ui)* [`54464e9`](https://github.com/cmdcolin/ntsc.js/commit/54464e9d87d6a18882c5f225a7faab6df237f76b) panelcheck can find the strip once a routing is held
+
 ## [0.28.9](https://github.com/cmdcolin/ntsc.js/compare/v0.28.8...v0.28.9) - 2026-08-19
 
 ### Features
