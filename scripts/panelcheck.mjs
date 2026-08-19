@@ -106,12 +106,18 @@ const HELPERS = `
     .find(b => b.title.startsWith(p))
   const press = el => el?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
   const chain = () => document.querySelector('svg[aria-label="signal chain"]')
+  // The modulation strip's count. Anchored at the head and open at the tail:
+  // the button reads its driven count, then a "+N" for anything held still, then
+  // the gate's rate if one is running — so an exact match found it only on a
+  // board where neither had happened, and every check that held a routing then
+  // read the count off a button it could no longer find. The digits before the
+  // ∿ are what separate it from the badge every routed row wears.
   const strip = () => [...document.querySelectorAll('button')]
-    .find(b => /^\\d+∿$/.test(b.textContent ?? ''))
-  // The same button as strip(), however it reads: with the stab gate running it
-  // carries a rate too ("0∿ 4/s"), which the count-only pattern above misses.
-  const stripText = () => [...document.querySelectorAll('button')]
-    .map(b => b.textContent ?? '').find(t => t.includes('∿')) ?? null
+    .find(b => /^\\d+∿/.test(b.textContent ?? ''))
+  // What the strip reads, whole — the count, anything held, the gate's rate —
+  // for the checks that assert on the sentence rather than on the count at the
+  // head of it.
+  const stripText = () => strip()?.textContent ?? null
   // A box on the chain map, by the name it opens. Every box is in the drawing
   // again, the two no wire reaches included: they spent a while as chips under
   // it and this needed a fallback to find them, without which every check that
@@ -329,7 +335,7 @@ await phase('hold', { seed: OLD_BAY }, async page => {
         : getComputedStyle(badge).textDecorationLine.includes('line-through'),
     }`)
   check(
-    parked.strip === '0∿',
+    parked.strip?.startsWith('0∿') === true,
     `holding one routing left the count at ${parked.strip}`,
   )
   check(
@@ -353,7 +359,7 @@ await phase(
     const { run, settle } = runner(page)
     const back = await run(`return { strip: strip()?.textContent ?? null }`)
     check(
-      back.strip === '0∿',
+      back.strip?.startsWith('0∿') === true,
       `?mod= cleared the hold on load — strip read ${back.strip}`,
     )
 
@@ -365,7 +371,7 @@ await phase(
       `return { strip: strip()?.textContent ?? null }`,
     )
     check(
-      restarted.strip === '1∿',
+      restarted.strip?.startsWith('1∿') === true,
       `restarting a held routing left the count at ${restarted.strip}`,
     )
 
