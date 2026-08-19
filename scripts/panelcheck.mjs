@@ -112,16 +112,12 @@ const HELPERS = `
   // carries a rate too ("0∿ 4/s"), which the count-only pattern above misses.
   const stripText = () => [...document.querySelectorAll('button')]
     .map(b => b.textContent ?? '').find(t => t.includes('∿')) ?? null
-  // A box on the chain map, by the name it opens — or, for the two boxes no
-  // wire reaches, the chip under the drawing, which is where they went when the
-  // free row left the map (SignalPath › FreeChips). Both open a stage and the
-  // caller means the stage, so the fallback belongs here rather than at each
-  // press: without it every check that opens the bay silently pressed nothing.
-  const freeChip = name => [...document.querySelectorAll('button')]
-    .find(b => b.title.startsWith(name + ' —'))
+  // A box on the chain map, by the name it opens. Every box is in the drawing
+  // again, the two no wire reaches included: they spent a while as chips under
+  // it and this needed a fallback to find them, without which every check that
+  // opened the bay silently pressed nothing.
   const stage = name => [...document.querySelectorAll('svg[aria-label="signal chain"] g[role=button]')]
     .find(g => (g.getAttribute('aria-label') ?? '').startsWith(name))
-    ?? freeChip(name)
   // A slider row by its visible label — the row's own <label for>, which is the
   // one handle on it that isn't a hashed class name.
   const rowFor = name => [...document.querySelectorAll('input[type=range]')]
@@ -233,27 +229,28 @@ await phase('filter', { seed: OLD_BAY }, async page => {
       .map(g => g.getAttribute('aria-label') ?? '')
       .filter(l => !l.endsWith('open its controls'))
       .map(l => l.split(' — ')[0]),
-    free: ['Modulation', 'Deck'].filter(n => freeChip(n) !== undefined),
+    free: ['Modulation', 'Deck'].filter(n => stage(n) !== undefined),
   }`)
   check(
     cleared.chain,
     'the chain map did not come back when the filter cleared',
   )
-  // Eight boxes that open: the five trunk stages, and the three that hang under
-  // them — input B, the sound and the view, none of which is a Phase. B is on
-  // out of the box so the mixer opens too; the sound is *not* picked and its box
-  // still opens, because its picker is the first thing inside it and patching
-  // one in is the whole reason to press it. Mix is the one box that can stop
-  // opening — with B off it holds nothing but controls that cannot act and there
-  // is no picker for "a second signal" — and then this count drops to seven.
+  // Ten boxes that open: the five trunk stages, the three that hang under them
+  // — input B, the sound and the view, none of which is a Phase — and the two
+  // on the free row, which are back in the drawing. B is on out of the box so
+  // the mixer opens too; the sound is *not* picked and its box still opens,
+  // because its picker is the first thing inside it and patching one in is the
+  // whole reason to press it. Mix is the one box that can stop opening — with B
+  // off it holds nothing but controls that cannot act and there is no picker for
+  // "a second signal" — and then this count drops to nine.
   //
-  // It said six trunk stages and nine boxes while there were five and eight,
-  // which is the shape of a count that has been wrong since the FEEDBACK box
-  // came off the trunk. Ten while there were eight is the same drift again: the
-  // bay and the deck have not been *on* the map since the free row left the
-  // drawing, and a count that includes them is counting a picture from before.
+  // This count has been wrong twice, both times by describing a picture the map
+  // had moved on from: six trunk stages and nine boxes after the FEEDBACK box
+  // came off the trunk, then ten while the bay and the deck were chips outside
+  // the drawing. It is ten again for the opposite reason, so check what the map
+  // draws rather than adjusting the number.
   check(
-    cleared.stages.length === 8,
+    cleared.stages.length === 10,
     `the map came back with ${cleared.stages.length} stages: ${cleared.stages}`,
   )
   // The two inputs are peers on the map, and the mixer is a box of its own. All
@@ -263,12 +260,9 @@ await phase('filter', { seed: OLD_BAY }, async page => {
       cleared.stages.includes(name),
       `${name} is missing from the map: ${cleared.stages}`,
     )
-  // The two nothing is wired to are still doors, out here as chips — the panel's
-  // most reached-for stage among them.
-  check(
-    cleared.free.length === 2,
-    `the free chips under the map came back as ${cleared.free}`,
-  )
+  // The two nothing is wired to are doors like any other box — the panel's most
+  // reached-for stage among them.
+  check(cleared.free.length === 2, `the free row came back as ${cleared.free}`)
 })
 
 // --- a routing can be held still from its own row ---------------------------

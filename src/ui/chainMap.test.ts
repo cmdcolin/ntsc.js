@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  BOX_H,
   boxWidth,
   BRANCH_Y,
   branchArrow,
   chainLayout,
+  FREE_Y,
+  freeRow,
+  GAP,
+  H,
   LEAD,
   OUT,
   runLabelWidth,
@@ -446,5 +451,39 @@ describe('chain map geometry', () => {
             )
       }
     }
+  })
+})
+
+// The free row is the one row with no wires on it, so nothing here is about
+// clearance — it is about the row fitting, and about a box being at least as
+// wide as what it says. `freeRow` runs no fit pass, there being nothing on the
+// row to crowd it, which is exactly why the fit is worth asserting: if a third
+// box or a longer name ever overflows the drawing, this is what says so.
+describe('the free row', () => {
+  const FREE = ['Modulation', 'Deck']
+
+  it('fits inside the drawing', () => {
+    const boxes = freeRow(FREE)
+    expect(boxes[0].x - boxes[0].w / 2).toBeGreaterThanOrEqual(0)
+    const last = boxes[boxes.length - 1]
+    expect(last.x + last.w / 2).toBeLessThanOrEqual(W)
+  })
+
+  it('never draws a box narrower than its label', () => {
+    for (const box of freeRow(FREE))
+      expect(box.w, box.name).toBeGreaterThanOrEqual(boxWidth(box.name))
+  })
+
+  it('leaves the row’s own gap between boxes', () => {
+    const [a, b] = freeRow(FREE)
+    expect(b.x - b.w / 2 - (a.x + a.w / 2)).toBe(GAP)
+  })
+
+  // The row sits under the branches and inside the viewBox, which is the pair
+  // of facts H had to grow for — the map is 34 units taller than it was, and
+  // this is what stops a box being drawn past its bottom edge.
+  it('sits clear of the branch row and inside the height', () => {
+    expect(FREE_Y - BOX_H / 2).toBeGreaterThan(BRANCH_Y + BOX_H / 2)
+    expect(FREE_Y + BOX_H / 2).toBeLessThanOrEqual(H)
   })
 })

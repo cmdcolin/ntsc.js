@@ -45,13 +45,13 @@ export const W = 304
 // the same 18 that let the third loop in, so the miniature stops disagreeing
 // with the full diagram about how many there are.
 //
-// What used to sit under that is the free row, and it has left the drawing
-// altogether — see FreeBox.
-// Two units under the 98 it was, with boxes 37% taller inside it. The free row
-// paid for that: the boxes nothing is wired to are chips under the drawing now
-// (SignalPath), so FREE_Y's 20 units come back and the trunk and branch rows
-// spend them on being hittable.
-export const H = 96
+// Under the branches is the free row, which left the drawing for a while and is
+// back — see FREE_Y. It went out to buy the trunk and branch rows a hittable
+// box height (16 units to 22), and what paid for it the second time is that the
+// row of html chips it became cost the panel about as much height as the row
+// costs the svg, while being the one thing in the map's own picture set to the
+// panel's type rather than the map's. One drawing, one scale.
+export const H = 130
 // Gap between boxes — the run each wire has to cross — and how far one opens
 // when a filter leaves the row with room to spare.
 export const GAP = 10
@@ -64,6 +64,13 @@ export const MID_Y = 47
 // The branch row, under the trunk: input B at its head and the sound under the
 // receiver, both joining from below.
 export const BRANCH_Y = 81
+// The free row, under the branches: the boxes nothing is wired to. Same 34
+// units below its neighbour that the branch row sits below the trunk, so the
+// three rows are one rhythm and the gap under the last wire is not read as the
+// drawing having ended. Nothing is drawn to these boxes and nothing needs to
+// be: on a row of their own with no wire on it, the emptiness is the row — the
+// argument the full card has always made (SignalPathDialog's own FREE_Y).
+export const FREE_Y = 115
 // Taller than the 13 the map shipped with, and than the 16 that replaced it: at
 // 16 units a box is 17.5 screen pixels at the sidebar's width, and a target is
 // meant to be 24. This is 22, which is 24px at 332 — and it is why MID_Y and
@@ -307,21 +314,37 @@ export interface WiredBranch {
 // meant "park under this one", which is a placement dressed up as a connection —
 // the kind of field the next reader has to be told twice is a lie.
 //
-// These are not laid out here at all now. They were parked in the gaps of the
-// branch row, then given a row of their own under it, and both were the same
-// attempt: to say "nothing is wired to this" with empty space *inside* a
-// drawing of wires, where it has to be read against every wire around it. They
-// are chips under the drawing instead (SignalPath) — being outside the picture
-// is the statement, and it costs the map no row to make.
+// Parking one in the gaps of the branch row is what does not work: there, a box
+// with no wire has to be read against every wire around it, and the gap has to
+// be wide enough to be convincingly deliberate. On a row of its own the
+// emptiness is the row, which is why `freeRow` below places them there and why
+// the full card does the same.
 export interface FreeBox {
   name: string
   free: true
 }
 
 // What the panel can hang under the trunk: something wired to a stage, or
-// something wired to nothing. Only the first kind reaches `chainLayout` — the
-// map is handed the wired ones and the panel draws the rest itself.
+// something wired to nothing. Both reach the map — the wired ones through
+// `chainLayout`, which has wires to route, and the free ones through `freeRow`,
+// which has none.
 export type BranchSpec = WiredBranch | FreeBox
+
+// The free row: boxes wide enough for their labels, left to right from the
+// trunk's own left edge, with the row's gap between them. No fit pass and no
+// stretching — this row is two short boxes in a 304-unit width, so the crowding
+// the trunk has to be scaled out of cannot arise here. If it ever does (a third
+// box, a longer name), it overflows visibly rather than silently, which is the
+// failure worth having.
+export const freeRow = (names: string[]): ChainBox[] => {
+  let x = LEAD
+  return names.map(name => {
+    const w = boxWidth(name)
+    const box = { name, x: x + w / 2, w }
+    x += w + GAP
+    return box
+  })
+}
 
 // A branch's box and the run out of it. Same routing vocabulary as the returns —
 // orthogonal with a rounded corner — so the wires that come from below read as

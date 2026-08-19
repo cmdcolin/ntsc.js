@@ -201,6 +201,16 @@
   stroke: currentColor;
   stroke-dasharray: 2 2;
 }
+/* A box on the free row: nothing is drawn to it, so its outline is dotted the
+   way the full card dots the same two boxes (SignalPathDialog .nodeFree).
+   Tighter than the `2 2` an inert box wears above, and the difference is the
+   whole point of having two marks — dashed is a stage drawn absent, dotted is a
+   stage no wire arrives at, and this one is as pressable as anything on the
+   trunk. It layers over the state rules rather than replacing them: a free box
+   still goes amber for an edit and accent while it is open. */
+.mapFree .mapBox {
+  stroke-dasharray: 1 1.5;
+}
 /* The whole B run — its lead-in and the wire up into the trunk — goes with the
    node, so an unpatched input reads as one dim thing rather than a dim box on
    live wiring. */
@@ -229,11 +239,10 @@
 }
 /* svg user units, which are px at the sidebar's width. 9 rather than 8: the box
    under it is 22 units now instead of 16, and 8px caps in a 22-unit box is a
-   label rattling around in a target. The free chips under the map read the same
-   token, so a box and a chip are set at one size. */
+   label rattling around in a target. */
 .mapLabel {
   fill: currentColor;
-  font-size: var(--fs-map);
+  font-size: 9px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   /* the box is the target, and a drag that starts on a label should not select

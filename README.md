@@ -14,7 +14,7 @@ https://cmdcolin.github.io/ntsc.js/
 nearly every control in the app is behind one of its boxes — click a stage and
 that stage's controls open underneath it.
 
-![The signal path map at the top of the app sidebar: SOURCE A and SOURCE B into MIX, then TAPE, RECEIVER and SCREEN, with camera, tape loop and mixer returns arching back over the trunk, SOUND and VIEW hanging below, and MODULATION and DECK beside them](docs/img/signal-path.png)
+![The signal path map at the top of the app sidebar: SOURCE A and SOURCE B into MIX, then TAPE, RECEIVER and SCREEN, with camera, tape loop and mixer returns arching back over the trunk, SOUND and VIEW hanging below, and MODULATION and DECK on a row of their own with no wire reaching them](docs/img/signal-path.png)
 
 The boxes are in the order the picture actually travels, and that is what the app
 does with it: build an NTSC composite waveform, damage the waveform, hand it to a

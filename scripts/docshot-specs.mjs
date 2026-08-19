@@ -156,22 +156,14 @@ export const SPECS = [
   // the README's figure, where the job is not "here is where it sits" but "this
   // is what you reach for". At that size the boxes are readable, and the header
   // line comes with the crop, so "Signal path · click a stage" captions it
-  // without a caption. The free chips are in frame too: they open like any other
-  // stage, and cropping them off would draw a path that stops a row short of
-  // itself.
+  // without a caption. The map's own bounds are the whole figure now that the
+  // free row is back inside the drawing.
   {
     ...WINDOW,
     format: 'png',
     name: 'signal-path',
     params: WILD,
-    crop: {
-      union: [
-        { selector: 'div[class*="pathHead"]' },
-        MAP,
-        { selector: 'div[class*="freeRow"]' },
-      ],
-      pad: 14,
-    },
+    crop: { union: [{ selector: 'div[class*="pathHead"]' }, MAP], pad: 14 },
   },
   // Ten boxed-UI shots stood here: presets, preset-mix, input, signal-path,
   // filter, palette, motion, audio, menu, magnifier, scope, advanced. They went
