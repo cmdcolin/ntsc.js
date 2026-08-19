@@ -274,7 +274,7 @@ export async function initGpu(
   // oxlint-disable-next-line typescript/no-unnecessary-condition
   if (!navigator.gpu) {
     throw new WebGpuUnavailableError(
-      'This browser has no WebGPU support. Try a recent Chrome, Edge, or Firefox.',
+      'This browser has no WebGPU support. We do unfortunately require it we utilize WebGPU compute shaders to emulate the composite video signal. Try a recent Chrome, Edge, or Firefox, including their nightly builds, and/or look up how to enable it on your computer',
     )
   }
   // The cheapest device is the one this tab already has. An engine being replaced
