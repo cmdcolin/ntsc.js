@@ -371,11 +371,43 @@ export interface FrameStats {
   lock: number
 }
 
+// Which of a routing's own two knobs a wire can be clipped onto: how far it
+// swings, or how fast. The two things a hand does to a wobble it is already
+// listening to.
+export type BayField = 'depth' | 'rate'
+
+// One end of a wire landed on another wire. `slot` is the driven routing's
+// position in the bay, which is its identity everywhere else too — ModState
+// keys phase by it, so a bay reordered under a link still drives what the link
+// named.
+export interface BayLink {
+  slot: number
+  field: BayField
+}
+
+// The bay's own knobs as modulation targets, in the same key space the
+// controls are in, so one routing is one `target` whichever kind of thing it
+// drives. Eight slots is N_SLOTS (ui/modSlots.ts), pinned by modSlots.test.ts —
+// the literal digits are here because a template type over `number` would let
+// `bayDepth99` past the parser that repairs a stored bay.
+export type BayKey =
+  | `bayDepth${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`
+  | `bayRate${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`
+
+// Anything a routing can be pointed at.
+export type ModTarget = ControlKey | BayKey
+
 // A modulation routing: `source`/`rateHz` drive an oscillator in ModState;
-// depth is a fraction of the target control's slider span [min, max]. Supplied
-// by the UI (which owns the slider ranges) via setModSlots.
-export interface ModSlot extends ModWave {
-  target: ControlKey
+// depth is a fraction of the target's span [min, max]. Supplied by the UI
+// (which owns the slider ranges) via setModSlots.
+//
+// Two kinds, told apart by `bay`. One drives a control and lands on the frame's
+// uniform through the mod layer; one drives another routing's depth or rate and
+// lands on the bay itself, a frame later — see Engine.applyMod for why a frame.
+export type ModSlot = ModSlotBase &
+  ({ target: ControlKey; bay?: undefined } | { target: BayKey; bay: BayLink })
+
+interface ModSlotBase extends ModWave {
   depth: number
   min: number
   max: number

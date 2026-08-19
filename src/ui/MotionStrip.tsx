@@ -1,8 +1,7 @@
-import { sliderFor } from './controls'
 import { useControlsApi } from './ControlsContext'
 import { cx } from './cx'
 import { MOTION } from './midi'
-import { gateFlips } from './modSlots'
+import { gateFlips, targetLabel } from './modSlots'
 import { useModSlotsApi } from './ModSlotsContext'
 import styles from './MotionStrip.module.css'
 import { useHold } from './useHold'
@@ -58,7 +57,7 @@ export function MotionStrip(props: {
   const stilled: string[] = []
   for (const s of slots) {
     if (s.target === '' || s.depth === 0) continue
-    const label = sliderFor(s.target).label
+    const label = targetLabel(s.target)
     if (s.on) driven.push(label)
     else stilled.push(label)
   }

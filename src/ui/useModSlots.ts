@@ -15,7 +15,7 @@ import {
 import { readArray, readJSON, writeJSONSoon } from './storage'
 import { parseSessionParams } from './urlParams'
 
-import type { ControlKey } from '../controls'
+import type { ModTarget } from '../controls'
 import type { EngineApi } from '../gpu/engineapi'
 import type { Stab, UiSlot } from './modSlots'
 import type { ModSlotsApi } from './ModSlotsContext'
@@ -114,7 +114,7 @@ export function useModSlots(
     setSlotsState(next)
   }
 
-  const indexFor = (key: ControlKey) => slots.findIndex(s => s.target === key)
+  const indexFor = (key: ModTarget) => slots.findIndex(s => s.target === key)
 
   // Dragged too — the motion amount is a fader, not a toggle.
   const writeMaster = (v: number) => {

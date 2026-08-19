@@ -1,6 +1,6 @@
 import { createContext, use } from 'react'
 
-import type { ControlKey, ModSlot } from '../controls'
+import type { ModSlot, ModTarget } from '../controls'
 import type { ModRouting, Stab, UiSlot } from './modSlots'
 
 // The modulation bay, read by anything that needs to know what is moving: the
@@ -54,7 +54,7 @@ export interface ModSlotsApi {
   // section addresses a slot by position, and a control row only knows the
   // control it is. Cycling a lock on gives the session a tempo if it has none.
   cycleSlotSync: (i: number) => void
-  cycleSyncForKey: (key: ControlKey) => void
+  cycleSyncForKey: (key: ModTarget) => void
   // Whole-bay restore, positions kept, so undo resumes phases rather than
   // reseeding them.
   setSlots: (next: readonly UiSlot[]) => void
@@ -63,13 +63,13 @@ export interface ModSlotsApi {
   // The slot driving this control, if one is. Duplicate targets are possible
   // (the section can point two slots at one control) — this addresses the
   // first, which is the one the row's ∿ then edits.
-  modFor: (key: ControlKey) => UiSlot | null
+  modFor: (key: ModTarget) => UiSlot | null
   // Patch the slot driving `key` in place (so its phase carries), or claim the
   // first free one. With every slot busy and none of them this control's, it is
   // a no-op: the row gates on `slots` and says who is holding them rather than
   // silently evicting someone else's routing. null clears.
   setSlotForKey: (
-    key: ControlKey,
+    key: ModTarget,
     routing: Omit<ModRouting, 'target'> | null,
   ) => void
   // Strike a one-shot envelope: slot `i`, or every routing patched to a trigger
@@ -82,7 +82,7 @@ export interface ModSlotsApi {
   // The one-click "off" a set needs: `setSlotForKey(key, null)` is the other
   // kind of off — it hands the slot back and the patch with it. A no-op when
   // nothing is driving the control.
-  setSlotOn: (key: ControlKey, on: boolean) => void
+  setSlotOn: (key: ModTarget, on: boolean) => void
 }
 
 export const ModSlotsContext = createContext<ModSlotsApi | null>(null)

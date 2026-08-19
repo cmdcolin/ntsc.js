@@ -5,6 +5,9 @@ import { cx } from './cx'
 import { SYNC_DIVISIONS } from './midi'
 import styles from './ModRowEditor.module.css'
 import {
+  bayDef,
+  isBayKey,
+  targetLabel,
   EMPTY_SLOT,
   MOD_SOURCES,
   RATE_MAX,
@@ -16,7 +19,34 @@ import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
 import ui from './ui.module.css'
 
-import type { ControlKey } from '../controls'
+import type { ControlKey, ModTarget } from '../controls'
+
+// Whether the wobble is running into the end of the control's own range.
+//
+// The engine adds the wave to the resting value and clamps, so a bipolar LFO
+// around a slider already parked at one end spends half its cycle pinned
+// against it. That reads as "the wobble is broken" unless something says
+// otherwise; the fix is to move the slider, so the note says which way.
+//
+// Its own component because it is the one thing in this editor that reads the
+// board: a bay knob has no resting value in the control store, and a hook must
+// not be the thing that decides whether the subject is a control at all.
+function ClippedNote(props: { controlKey: ControlKey; swing: number }) {
+  const rest = useControlValue(props.controlKey)
+  const def = sliderFor(props.controlKey)
+  const clipped =
+    rest - props.swing < def.min
+      ? 'bottom'
+      : rest + props.swing > def.max
+        ? 'top'
+        : null
+  return clipped === null ? null : (
+    <div className={ui.hint}>
+      “{def.label}” is resting at the {clipped} of its range, so the swing only
+      goes one way — move the slider toward the middle for a full wobble.
+    </div>
+  )
+}
 
 // What is driving one control, edited under its own row. An inline expansion
 // rather than a popover: it has no positioning to get wrong, it works in the
@@ -24,19 +54,20 @@ import type { ControlKey } from '../controls'
 // panel. The `needs` note under a gated row is the same shape, so the panel
 // already reads this way.
 export function ModRowEditor(props: {
-  controlKey: ControlKey
+  // A control's key, or one of the bay's own knobs — a wire clipped onto
+  // another wire (modSlots.ts › BAY_TARGETS). The editor is the same either
+  // way, which is the point of the bay knobs being in the same key space: what
+  // drives a routing is set up where what drives a control is.
+  controlKey: ModTarget
   // Folds the editor away once there is nothing left to edit — the row owns
   // that flag, and remove is the one action here that ends the editor's subject.
   onDone: () => void
 }) {
   const { slots, bpm, modFor, setSlotForKey, setSlotOn, cycleSyncForKey } =
     useModSlotsApi()
-  // Above the early returns below, because it is a hook. The one control this
-  // editor is about, so it subscribes to that key rather than to the whole set.
-  const rest = useControlValue(props.controlKey)
   const key = props.controlKey
   const slot = modFor(key)
-  const def = sliderFor(key)
+  const def = isBayKey(key) ? bayDef(key) : sliderFor(key)
 
   if (slot === null) {
     // Nothing drives this control and the bay has room, so the claim was never
@@ -55,7 +86,7 @@ export function ModRowEditor(props: {
           all {slots.length} modulation slots are busy — free one in the
           MODULATION box on the map, or press ∿ on{' '}
           {slots
-            .flatMap(s => (s.target === '' ? [] : [sliderFor(s.target).label]))
+            .flatMap(s => (s.target === '' ? [] : [targetLabel(s.target)]))
             .join(', ')}{' '}
           to take it back.
         </div>
@@ -63,21 +94,7 @@ export function ModRowEditor(props: {
     )
   }
 
-  // The engine adds the wave to the resting value and clamps to the control's
-  // range, so a bipolar LFO around a slider already parked at one end spends
-  // half its cycle pinned against it. That reads as "the wobble is broken"
-  // unless something says otherwise; the fix is to move the slider, so the note
-  // says which way. The audio followers are exempt — they only ever push one
-  // way, which is what they are for.
   const swing = slot.depth * (def.max - def.min)
-  const clipped =
-    PASS_THROUGH.has(slot.source) || swing === 0
-      ? null
-      : rest - swing < def.min
-        ? 'down'
-        : rest + swing > def.max
-          ? 'up'
-          : null
 
   return (
     <div className={styles.editor}>
@@ -135,13 +152,8 @@ export function ModRowEditor(props: {
         help="How far the wobble swings this control, as a fraction of its own slider range. The slider itself stays put — it is the centre the motion happens around, which is why a preset or a link still holds the look."
         onChange={depth => setSlotForKey(key, { ...slot, depth })}
       />
-      {clipped === null ? null : (
-        <div className={ui.hint}>
-          “{def.label}” is resting at the{' '}
-          {clipped === 'down' ? 'bottom' : 'top'} of its range, so the swing
-          only goes one way — move the slider toward the middle for a full
-          wobble.
-        </div>
+      {isBayKey(key) || PASS_THROUGH.has(slot.source) || swing === 0 ? null : (
+        <ClippedNote controlKey={key} swing={swing} />
       )}
       {/* The two kinds of off, side by side, which is the only place they are
           legible as a pair: hold it still and it comes back exactly as it is set

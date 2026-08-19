@@ -6,6 +6,8 @@
 
 import { Lorenz, valueNoise } from './noise'
 
+import type { ModSlot } from '../controls'
+
 export type ModSource =
   | 'sine'
   | 'triangle'
@@ -53,6 +55,41 @@ interface WaveState {
   // from there. Held per routing like every other running quantity, so arming
   // and disarming a slot does not lose an envelope in flight.
   env: number
+}
+
+// Where a wire-on-wire drive is kept between frames: `slot * 2` for a depth,
+// `slot * 2 + 1` for a rate, both in the driven knob's own units. A Map so the
+// engine needs no constant for how many slots the panel offers, and so an
+// unpatched bay is one `size` check rather than a swept array.
+export const driveAt = (slot: number, field: 'depth' | 'rate'): number =>
+  slot * 2 + (field === 'depth' ? 0 : 1)
+
+// This frame's bay, with last frame's drive folded into the knobs it landed on.
+//
+// Hands the list straight back when nothing drove anything, which is every
+// session that has not reached for a wire — the copy is the frame path's only
+// allocation here, so it is worth the check rather than mapping unconditionally.
+export function driveSlots(
+  slots: readonly ModSlot[],
+  drive: ReadonlyMap<number, number>,
+): readonly ModSlot[] {
+  if (drive.size === 0) return slots
+  return slots.map(s => {
+    const dDepth = drive.get(driveAt(s.id, 'depth')) ?? 0
+    const dRate = drive.get(driveAt(s.id, 'rate')) ?? 0
+    if (dDepth === 0 && dRate === 0) return s
+    return {
+      ...s,
+      // Clamped to the driven knob's own range, so a wire deep enough to push
+      // depth past 1 parks there rather than inverting the wobble — the same
+      // bargain a control row makes with a slider already at its end.
+      depth: Math.min(1, Math.max(0, s.depth + dDepth)),
+      // Floors at 0 rather than at the row's minimum: a wire is allowed to stop
+      // an LFO dead, and a negative rate would walk the phase backwards past the
+      // wrap `sample` detects a completed cycle with.
+      rateHz: Math.max(0, s.rateHz + dRate),
+    }
+  })
 }
 
 export class ModState {

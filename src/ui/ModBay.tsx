@@ -1,9 +1,14 @@
+import { useState } from 'react'
+
 import { PASS_THROUGH } from '../signal/modstate'
-import { sliderFor } from './controls'
 import { cx } from './cx'
 import { SYNC_DIVISIONS } from './midi'
 import styles from './ModBay.module.css'
+import { ModRowEditor } from './ModRowEditor'
 import {
+  bayKeyFor,
+  isBayKey,
+  targetLabel,
   DEFAULT_DUTY,
   DEFAULT_STAB,
   DUTY_MAX,
@@ -25,7 +30,8 @@ import { Slider } from './Slider'
 import { TempoRow } from './TempoRow'
 import ui from './ui.module.css'
 
-import type { ControlKey } from '../controls'
+import type { BayField, ModTarget } from '../controls'
+import type { UiSlot } from './modSlots'
 import type { Tempo } from './useTempo'
 
 // The stab gate: the one thing in this section that is not a slot. It drives the
@@ -198,7 +204,7 @@ function FarEnd(props: {
 function SlotHead(props: {
   // 1-based, as the bay numbers its slots.
   n: number
-  target: ControlKey
+  target: ModTarget
   // The stages that will actually open right now. A branch with nothing patched
   // into it opens onto nothing, and a look carried in from a preset or a link
   // can hold a routing into one — so this is a live question, not a property of
@@ -207,13 +213,16 @@ function SlotHead(props: {
   onOpenGroup: (stage: string, group: string) => void
   onRemove: () => void
 }) {
-  const def = sliderFor(props.target)
-  const group = groupOf(props.target)
+  // A wire onto another wire names a knob in this same bay, so there is no
+  // module to open and no ambiguity to resolve: "slot 3 depth" is already the
+  // whole address, and the row it names is a few lines up or down this list.
+  const group = isBayKey(props.target) ? undefined : groupOf(props.target)
   const stage = group === undefined ? null : stageOf(group)
+  const name = targetLabel(props.target)
   // "control — module", the same pair the dropdown's options carried: the
   // control name alone is ambiguous across 273 of them, and the module is also
   // the thing the button opens.
-  const label = group === undefined ? def.label : `${def.label} — ${group.name}`
+  const label = group === undefined ? name : `${name} — ${group.name}`
   return (
     <div className={styles.slotHead}>
       <span className={styles.tag} title={`mod slot ${props.n}`}>
@@ -239,7 +248,7 @@ function SlotHead(props: {
       )}
       <button
         className={styles.remove}
-        title={`stop modulating ${def.label} and hand slot ${props.n} back`}
+        title={`stop modulating ${name} and hand slot ${props.n} back`}
         aria-label={`unpatch slot ${props.n}`}
         onClick={props.onRemove}
       >
@@ -247,6 +256,91 @@ function SlotHead(props: {
       </button>
     </div>
   )
+}
+
+// One of a routing's own two knobs, wired so a second routing can be clipped
+// onto it (modSlots.ts › BAY_TARGETS).
+//
+// The same row a control gets, with the same ⋮ ∿ and the same editor under it —
+// which is the whole argument for the bay's knobs living in the control key
+// space. A wire onto a wire is not a second kind of patch to learn: it is
+// claimed where it lands, exactly like every other one, and the routing that
+// results appears as its own numbered slot in this list with rows of its own.
+//
+// Both ends read the same way. This row wears ∿ because something is driving
+// it; the driver's own head, a few lines up or down, says `driving slot 3
+// depth`.
+function BayKnob(props: { i: number; slot: UiSlot; field: BayField }) {
+  const { bpm, setSlot, cycleSlotSync, modFor, setSlotForKey, setSlotOn } =
+    useModSlotsApi()
+  const [modOpen, setModOpen] = useState(false)
+  const key = bayKeyFor(props.i, props.field)
+  const driver = modFor(key)
+  const routed = driver !== null
+  const s = props.slot
+  const rate = props.field === 'rate'
+  return (
+    <Slider
+      label={rate ? 'rate' : 'depth (of slider range)'}
+      unit={rate ? 'Hz' : ''}
+      min={rate ? RATE_MIN : 0}
+      max={rate ? RATE_MAX : 1}
+      step={rate ? 0.02 : 0.01}
+      // Tempo's business while ♩ is set; the dialed Hz stays put underneath and
+      // comes back when the lock cycles off.
+      value={rate ? slotRate(s, bpm) : s.depth}
+      defaultValue={rate ? EMPTY_SLOT.rateHz : EMPTY_SLOT.depth}
+      help={
+        rate
+          ? "How fast this slot's LFO cycles, in Hz. Slow rates drift the target control the way a warming-up circuit does; fast ones buzz it per-frame. Lock it to the beat with ♩ in the ⋮ menu, or clip another slot onto it with ∿ — a rate being walked by a second LFO is an oscillator that speeds up and slows down instead of keeping time."
+          : 'How far the modulation swings the target, as a fraction of that control’s own slider range. The resting slider position stays the centre, so presets and saved looks still hold the look. Clip another slot onto this with ∿ and the wobble comes and goes on its own: leave this at 0 and the second one brings it in from nothing, which is the difference between a fault that is running and one that keeps happening.'
+      }
+      sync={
+        rate
+          ? {
+              label:
+                s.syncDiv === undefined
+                  ? null
+                  : SYNC_DIVISIONS[s.syncDiv].label,
+              live: bpm !== null,
+              onCycle: () => cycleSlotSync(props.i),
+            }
+          : undefined
+      }
+      mod={{
+        routed,
+        on: driver?.on === true,
+        open: modOpen,
+        onToggleOn: () => {
+          if (driver !== null) setSlotOn(key, !driver.on)
+        },
+        onToggle: () => {
+          // Claim on open, the same as a control row: the first press moves
+          // something rather than handing over an empty form.
+          if (!routed) setSlotForKey(key, DRIVER_ROUTING)
+          setModOpen(!modOpen)
+        },
+      }}
+      modEditor={
+        modOpen ? (
+          <ModRowEditor controlKey={key} onDone={() => setModOpen(false)} />
+        ) : undefined
+      }
+      onChange={v => setSlot(props.i, rate ? { rateHz: v } : { depth: v })}
+    />
+  )
+}
+
+// What a wire onto another wire patches in when it is first claimed, and it is
+// deliberately not what a control row claims. This one is not moving the
+// picture — it is deciding how much the routing under it moves — so it wants a
+// slow aimless drift rather than a legible cycle: at 0.08 Hz a walk takes about
+// twelve seconds to change its mind, which is the rate at which a fault reads
+// as coming and going rather than as stuttering.
+const DRIVER_ROUTING = {
+  source: 'walk' as const,
+  rateHz: 0.08,
+  depth: 0.5,
 }
 
 // The whole bay, one entry per patched slot. State, persistence and the push to
@@ -274,8 +368,7 @@ export function ModBay(props: {
   openStages: ReadonlySet<string>
   onOpenGroup: (stage: string, group: string) => void
 }) {
-  const { slots, bpm, setSlot, setSlotForKey, cycleSlotSync, fire } =
-    useModSlotsApi()
+  const { slots, setSlot, setSlotForKey, fire } = useModSlotsApi()
   // Slot number and slot in one, because the number is the slot's identity —
   // the engine's phase is keyed by position, so filtering the empties out must
   // not renumber the ones that are left.
@@ -345,27 +438,7 @@ export function ModBay(props: {
             onChange={source => setSlot(i, { source })}
           />
           {PASS_THROUGH.has(s.source) ? null : (
-            <Slider
-              label="rate"
-              unit="Hz"
-              min={RATE_MIN}
-              max={RATE_MAX}
-              step={0.02}
-              // Tempo's business while ♩ is set; the dialed Hz stays put
-              // underneath and comes back when the lock cycles off.
-              value={slotRate(s, bpm)}
-              defaultValue={EMPTY_SLOT.rateHz}
-              help="How fast this slot's LFO cycles, in Hz. Slow rates drift the target control the way a warming-up circuit does; fast ones buzz it per-frame. Lock it to the beat with ♩ in the ⋮ menu."
-              sync={{
-                label:
-                  s.syncDiv === undefined
-                    ? null
-                    : SYNC_DIVISIONS[s.syncDiv].label,
-                live: bpm !== null,
-                onCycle: () => cycleSlotSync(i),
-              }}
-              onChange={v => setSlot(i, { rateHz: v })}
-            />
+            <BayKnob i={i} slot={s} field="rate" />
           )}
           {/* The only control in the bay you play rather than set. It has to be
               next to the rate, because the rate is this envelope's decay and the
@@ -385,17 +458,7 @@ export function ModBay(props: {
               ⚡ fire
             </button>
           ) : null}
-          <Slider
-            label="depth (of slider range)"
-            unit=""
-            min={0}
-            max={1}
-            step={0.01}
-            value={s.depth}
-            defaultValue={EMPTY_SLOT.depth}
-            help="How far the modulation swings the target, as a fraction of that control's own slider range. The resting slider position stays the centre, so presets and saved looks still hold the look."
-            onChange={v => setSlot(i, { depth: v })}
-          />
+          <BayKnob i={i} slot={s} field="depth" />
           {/* Per slot, because the master amount above is all of them at once
               and "off, except that one" is the shape a set actually wants.
               Everything the slot is patched with survives it — the same switch

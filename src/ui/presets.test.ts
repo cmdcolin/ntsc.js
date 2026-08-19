@@ -15,6 +15,8 @@ import {
   rollControls,
 } from './presets'
 
+import type { ControlKey } from '../controls'
+
 // `useMix.applyPreset` reads an empty patch as "this click is the reset" and
 // wipes the bay and the stab gate on it. A second preset written with an empty
 // patch would silently become a second reset button.
@@ -163,7 +165,13 @@ describe('blendMod', () => {
     expect(moving.length).toBeGreaterThan(0)
     for (const p of moving) {
       for (const m of p.mod ?? []) {
-        expect(SLIDER_BY_KEY.has(m.target), `${p.name}: ${m.target}`).toBe(true)
+        // A slider, not one of the bay's own knobs: a wire onto another wire
+        // names a slot by position, and an authored look has no say in which
+        // position a reader's bay puts it in.
+        expect(
+          SLIDER_BY_KEY.has(m.target as ControlKey),
+          `${p.name}: ${m.target}`,
+        ).toBe(true)
         expect(modSource(m.source), `${p.name}: ${m.source}`).not.toBe(null)
         expect(m.depth, `${p.name} depth`).toBeGreaterThan(0)
         expect(m.depth, `${p.name} depth`).toBeLessThanOrEqual(1)

@@ -9,10 +9,16 @@
 
 import { CONTROL_KEYS, DEFAULT_CONTROLS } from '../controls'
 import { clamp } from '../math'
-import { SLIDER_BY_KEY } from './controls'
+import { SLIDER_BY_KEY, sliderFor } from './controls'
 import { SYNC_DIVISIONS } from './midi'
 
-import type { ControlKey, Controls, ModSlot } from '../controls'
+import type {
+  BayField,
+  BayKey,
+  Controls,
+  ModSlot,
+  ModTarget,
+} from '../controls'
 import type { ModSource } from '../signal/modstate'
 import type { StabPlan } from '../signal/stab'
 
@@ -26,7 +32,7 @@ export const N_SLOTS = 8
 // slider at apply time, so a routing stored in localStorage or pasted in a link
 // can't pin a range that has since been retuned.
 export interface ModRouting {
-  target: ControlKey
+  target: ModTarget
   source: ModSource
   rateHz: number
   depth: number
@@ -43,7 +49,7 @@ export interface ModRouting {
 // A slot as the panel holds it: same fields, plus the off state. Position is
 // identity — see normalizeSlots.
 export interface UiSlot {
-  target: ControlKey | '' // '' = slot off
+  target: ModTarget | '' // '' = slot off
   source: ModSource
   rateHz: number
   depth: number
@@ -92,6 +98,107 @@ export const MOD_SOURCES: { value: ModSource; label: string }[] = [
 
 export const RATE_MIN = 0.02
 export const RATE_MAX = 10
+
+// A wire landed on another wire.
+//
+// Every other target in this app is a knob on the rig — a bias, a delay, a
+// supply. These eight-times-two are the knobs on the *hand*: how far a routing
+// swings and how fast it runs, driven by a second routing. What it buys is the
+// thing a single layer of modulation cannot do, which is stop: an LFO at a
+// fixed depth is a machine, and an LFO whose depth is being walked by a slow
+// random walk comes and goes like a fault that has not made its mind up.
+//
+// A depth wire is the one to reach for first. It costs nothing when the driven
+// slot rests at zero — the wobble is simply absent until the driver brings it
+// in — which is why `toEngineSlots` keeps a zero-depth routing alive when
+// something is driving it, where it drops every other one.
+//
+// Ranges are the driven knob's own: depth is the [0,1] fraction its row shows,
+// rate the [RATE_MIN, RATE_MAX] Hz its row shows. So `depth` on a wire means
+// the same thing here as everywhere else — a fraction of the target's span.
+export interface BayTargetDef {
+  key: BayKey
+  slot: number
+  field: BayField
+  label: string
+  min: number
+  max: number
+}
+
+// The keys themselves, written out rather than built, so a key is a literal
+// from the moment it exists: composing one from `slot + 1` would need an
+// assertion at every site to get back into the union, and an assertion is
+// exactly the thing that would let `bayDepth9` through.
+const DEPTH_KEYS = [
+  'bayDepth1',
+  'bayDepth2',
+  'bayDepth3',
+  'bayDepth4',
+  'bayDepth5',
+  'bayDepth6',
+  'bayDepth7',
+  'bayDepth8',
+] as const
+const RATE_KEYS = [
+  'bayRate1',
+  'bayRate2',
+  'bayRate3',
+  'bayRate4',
+  'bayRate5',
+  'bayRate6',
+  'bayRate7',
+  'bayRate8',
+] as const
+
+export const bayKeyFor = (slot: number, field: BayField): BayKey =>
+  field === 'depth' ? DEPTH_KEYS[slot] : RATE_KEYS[slot]
+
+export const BAY_TARGETS: readonly BayTargetDef[] = DEPTH_KEYS.flatMap(
+  (depthKey, i) => [
+    {
+      key: depthKey,
+      slot: i,
+      field: 'depth' as const,
+      label: `slot ${i + 1} depth`,
+      min: 0,
+      max: 1,
+    },
+    {
+      key: RATE_KEYS[i],
+      slot: i,
+      field: 'rate' as const,
+      label: `slot ${i + 1} rate`,
+      min: RATE_MIN,
+      max: RATE_MAX,
+    },
+  ],
+)
+
+// Keyed by plain string, so asking whether an untrusted one is in here needs no
+// assertion — which is the whole job of the guard below.
+const BAY_BY_KEY: ReadonlyMap<string, BayTargetDef> = new Map(
+  BAY_TARGETS.map(d => [d.key, d]),
+)
+
+export const isBayKey = (t: string): t is BayKey => BAY_BY_KEY.has(t)
+
+// Throws on a key that is not one, the same shape `sliderFor` has and for the
+// same reason: every caller has already established that it holds one, so a
+// missing entry is a bug rather than a state to handle.
+export function bayDef(key: BayKey): BayTargetDef {
+  const def = BAY_BY_KEY.get(key)
+  if (def === undefined) throw new Error(`no bay knob for ${key}`)
+  return def
+}
+
+export const bayDefFor = (t: ModTarget): BayTargetDef | undefined =>
+  isBayKey(t) ? bayDef(t) : undefined
+
+// What a routing is driving, named the way the bay names it. Every reader of a
+// slot's target has to be able to say this — the strip, the slot head, the
+// "who is holding the slots" note — and only some targets are sliders.
+export const targetLabel = (t: ModTarget): string =>
+  isBayKey(t) ? bayDef(t).label : sliderFor(t).label
 
 // The stab gate as the panel holds it (see signal/stab.ts for the mechanism).
 //
@@ -334,11 +441,11 @@ export function readStab(raw: unknown): Stab {
 // The schema lookups, written to hand back the typed value rather than to
 // assert one: a link and a localStorage entry are both untrusted strings, and
 // "is this in the table" is the only honest way to find out what they name.
-export function modTarget(v: unknown): ControlKey | null {
+export function modTarget(v: unknown): ModTarget | null {
   for (const key of SLIDER_BY_KEY.keys()) {
     if (key === v) return key
   }
-  return null
+  return typeof v === 'string' && isBayKey(v) ? v : null
 }
 
 export function modSource(v: unknown): ModSource | null {
@@ -443,11 +550,47 @@ export function toEngineSlots(
   master = 1,
   bpm: number | null = null,
 ): ModSlot[] {
+  // Which slots have a wire on one of their own knobs, so a routing resting at
+  // zero depth is kept rather than dropped: its depth is about to be driven,
+  // and dropping it would mean the driver had nothing to bring in. A rate wire
+  // does not save a slot — a routing at zero depth is silent however fast it
+  // runs — so only the depth wires count here.
+  const driven = new Set(
+    slots.flatMap(s => {
+      const def = s.target === '' || !s.on ? undefined : bayDefFor(s.target)
+      return def === undefined ||
+        def.field !== 'depth' ||
+        s.depth * master === 0
+        ? []
+        : [def.slot]
+    }),
+  )
   return slots.flatMap((s, id): ModSlot[] => {
-    const def =
-      s.target === '' || !s.on ? undefined : SLIDER_BY_KEY.get(s.target)
+    if (s.target === '' || !s.on) return []
     const depth = s.depth * master
-    return def === undefined || depth === 0
+    const bay = bayDefFor(s.target)
+    if (bay !== undefined) {
+      // A wire onto its own slot would be a routing driving how far it swings
+      // by how far it swings. One frame of lag makes that stable rather than
+      // circular, so it is refused for being unreadable rather than unsafe:
+      // nothing on the row could say what the number under your finger meant.
+      return depth === 0 || bay.slot === id
+        ? []
+        : [
+            {
+              id,
+              source: s.source,
+              rateHz: slotRate(s, bpm),
+              depth,
+              target: bay.key,
+              bay: { slot: bay.slot, field: bay.field },
+              min: bay.min,
+              max: bay.max,
+            },
+          ]
+    }
+    const def = isBayKey(s.target) ? undefined : SLIDER_BY_KEY.get(s.target)
+    return def === undefined || (depth === 0 && !driven.has(id))
       ? []
       : [
           {
@@ -518,17 +661,40 @@ export function routingsToSlots(mod: readonly ModRouting[]): UiSlot[] {
 // for), so a link carries the routing and the browser that threw the switch is
 // the one that remembers it — see loadSlots.
 export function slotsToRoutings(slots: readonly UiSlot[]): ModRouting[] {
-  return slots.flatMap((s): ModRouting[] =>
-    s.target === '' || s.depth === 0
-      ? []
-      : [
-          {
-            target: s.target,
-            source: s.source,
-            rateHz: s.rateHz,
-            depth: s.depth,
-            ...(s.syncDiv === undefined ? {} : { syncDiv: s.syncDiv }),
-          },
-        ],
+  // A wire onto another wire names its target by position, and this list is
+  // compacted — so an empty slot above the driven one would leave the link
+  // pointing at whatever slid up into its place. Positions are worked out
+  // first, then every bay target is rewritten to the position it will land on.
+  const keptDepth = new Set(
+    slots.flatMap(s => {
+      const def =
+        s.target === '' || s.depth === 0 ? undefined : bayDefFor(s.target)
+      return def === undefined || def.field !== 'depth' ? [] : [def.slot]
+    }),
   )
+  const keep = slots.map(
+    (s, i) => s.target !== '' && (s.depth > 0 || keptDepth.has(i)),
+  )
+  const at = new Map<number, number>()
+  keep.forEach((k, i) => {
+    if (k) at.set(i, at.size)
+  })
+  return slots.flatMap((s, i): ModRouting[] => {
+    if (!keep[i] || s.target === '') return []
+    const bay = bayDefFor(s.target)
+    // A wire whose driven routing did not survive the compaction is dropped
+    // with it: the alternative is a link that arrives pointing at an empty
+    // slot, which reads as a wobble that does nothing.
+    const moved = bay === undefined ? undefined : at.get(bay.slot)
+    if (bay !== undefined && moved === undefined) return []
+    return [
+      {
+        target: bay === undefined ? s.target : bayKeyFor(moved!, bay.field),
+        source: s.source,
+        rateHz: s.rateHz,
+        depth: s.depth,
+        ...(s.syncDiv === undefined ? {} : { syncDiv: s.syncDiv }),
+      },
+    ]
+  })
 }

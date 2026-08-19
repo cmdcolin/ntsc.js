@@ -26,12 +26,14 @@ const args = (patch: Partial<RollBayArgs> = {}): RollBayArgs => ({
 })
 
 // The routings a roll produced, with the empty target narrowed away — every
-// claim below is about a slot that got patched, and `target` is a ControlKey
-// once it has.
+// claim below is about a slot that got patched, and a roll only ever patches
+// controls, never the bay's own knobs (see rollBay).
 const patched = (
   slots: readonly UiSlot[],
 ): (UiSlot & { target: ControlKey })[] =>
-  slots.flatMap(s => (s.target === '' ? [] : [{ ...s, target: s.target }]))
+  slots.flatMap(s =>
+    s.target === '' ? [] : [{ ...s, target: s.target as ControlKey }],
+  )
 
 // Every roll of a given amount, over enough seeds that a one-in-a-hundred draw
 // shows up. Cheaper than a property-test runner and it reads as what it is: the

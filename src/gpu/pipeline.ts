@@ -34,7 +34,7 @@ import {
 import { Glide } from '../signal/glide'
 import { LineState } from '../signal/linestate'
 import { MixState } from '../signal/mixstate'
-import { ModState } from '../signal/modstate'
+import { driveAt, driveSlots, ModState } from '../signal/modstate'
 import { valueNoise } from '../signal/noise'
 import { RfState } from '../signal/rfstate'
 import { StabGate } from '../signal/stab'
@@ -285,6 +285,11 @@ export class Engine implements EngineApi {
   // and travels in presets and links like every other fault.
   private strobeGate = new StrobeGate()
   private modSlots: ModSlot[] = []
+  // Last frame's wire-on-wire drive, keyed `slot * 2 + (depth ? 0 : 1)`. A Map
+  // rather than an array so the engine needs no constant for how many slots the
+  // panel is offering, and cleared rather than rebuilt so a patched bay costs
+  // no allocation a frame.
+  private bayDrive = new Map<number, number>()
   // The bay's layer over the board (savedBoard.ts › Overlay) — reused frame to
   // frame, because a patched bay runs on *every* frame, where the stab below
   // only lands on the clean ones.
@@ -1935,6 +1940,7 @@ export class Engine implements EngineApi {
     this.mixState = new MixState(this.rand)
     this.tapeState = new TapeState(this.rand)
     this.modState = new ModState()
+    this.bayDrive.clear()
     this.rfState = new RfState()
     this.synthState = new SynthState()
     this.strobeGate = new StrobeGate()
@@ -2098,12 +2104,27 @@ export class Engine implements EngineApi {
   // routing exists rather than only on a gated one, which is what made the
   // allocation per frame worth taking out.
   private applyMod(): () => void {
+    // A wire landed on another wire's depth or rate, resolved from *last*
+    // frame's driver value. Keyed by the driven slot's id.
+    //
+    // One frame of lag rather than an ordering pass, and the lag is the design
+    // rather than a shortcut. Sorting the bay so drivers run first would leave
+    // a cycle to refuse, and refusing one means a patch the panel has to
+    // explain — where at 60 Hz a cycle is simply two wires arguing, which is
+    // the whole point of a patch bay on a bent circuit. The cost is that a
+    // driven depth is 16 ms behind its driver, which is a sixtieth of a cycle
+    // on the fastest LFO the bay offers and invisible on the slow drifts this
+    // is for. Bender's trigger bus takes the same trade for the same reason.
+    const eff = driveSlots(this.modSlots, this.bayDrive)
+    // Emptied only after `driveSlots` has read it: what is in here on the
+    // way in is last frame's, and what goes in below is next frame's.
+    this.bayDrive.clear()
     // Advanced every frame, bay or no bay: with nothing patched this returns an
     // empty list, and the only work it does is letting an unclaimed trigger
     // expire (see ModState.update) instead of it queueing up for whenever a
     // routing next appears.
     const vals = this.modState.update(
-      this.modSlots,
+      eff,
       this.audioState.level,
       this.audioState.hit,
       // The bay's random walk and its sample-hold, off the engine's dice rather
@@ -2112,13 +2133,23 @@ export class Engine implements EngineApi {
       this.rand,
     )
     this.modLayer.begin()
-    if (this.modSlots.length === 0) return NOOP
+    if (eff.length === 0) return NOOP
     // Save-then-write in one pass, including where two routings drive the same
     // control — the second stacks on the first by design, and SavedBoard restores
     // backwards so the resting value is still the one that lands.
-    for (let i = 0; i < this.modSlots.length; i++) {
-      const s = this.modSlots[i]
-      const v = this.controls[s.target] + s.depth * (s.max - s.min) * vals[i]
+    for (let i = 0; i < eff.length; i++) {
+      const s = eff[i]
+      const swing = s.depth * (s.max - s.min) * vals[i]
+      if (s.bay !== undefined) {
+        // Onto the bay rather than onto the board: nothing here reaches a
+        // uniform this frame, so there is nothing for the mod layer to save and
+        // put back. Several wires onto one knob sum, the same way several
+        // routings onto one control stack.
+        const at = driveAt(s.bay.slot, s.bay.field)
+        this.bayDrive.set(at, (this.bayDrive.get(at) ?? 0) + swing)
+        continue
+      }
+      const v = this.controls[s.target] + swing
       this.modLayer.write(s.target, clamp(v, s.min, s.max))
     }
     return this.modLayer.seal()

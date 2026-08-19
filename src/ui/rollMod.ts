@@ -22,7 +22,7 @@
 import { DEFAULT_CONTROLS } from '../controls'
 import { clamp } from '../math'
 import { NEEDS } from './controls'
-import { EMPTY_SLOT, N_SLOTS, RATE_MAX, RATE_MIN } from './modSlots'
+import { isBayKey, EMPTY_SLOT, N_SLOTS, RATE_MAX, RATE_MIN } from './modSlots'
 import { MUTATE_AMOUNTS, ROLL_NEVER_STARTS } from './mutate'
 import { PRESETS } from './presets'
 
@@ -107,8 +107,13 @@ const AUDIO_SOURCES: readonly (readonly [ModSource, number])[] = [
 export const AUTHORED_DEPTH: ReadonlyMap<ControlKey, number> = new Map(
   PRESETS.flatMap(p => p.mod ?? []).reduce<[ControlKey, number][]>(
     (acc, m: ModRouting) => {
-      const at = acc.find(([k]) => k === m.target)
-      if (at === undefined) acc.push([m.target, m.depth])
+      // Wires onto the bay's own knobs pass straight through: this map is a
+      // statement about how much wobble a *control* wants, and a slot's depth
+      // is not one of those.
+      if (isBayKey(m.target)) return acc
+      const target = m.target
+      const at = acc.find(([k]) => k === target)
+      if (at === undefined) acc.push([target, m.depth])
       else at[1] = Math.max(at[1], m.depth)
       return acc
     },
