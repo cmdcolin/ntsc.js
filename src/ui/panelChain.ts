@@ -176,6 +176,12 @@ export function panelChain(o: {
   // Whether anything is patched into each of the two things that can be.
   bOn: boolean
   soundOn: boolean
+  // What is standing in each box that has a picker, captioned under its name on
+  // the map (patched.ts). Keyed by stage name, and empty for every stage that is
+  // not one of the three — the caller builds it as a `Partial<Record<
+  // PickerStage, …>>`, which is the same list `stageTop` is keyed by, so a box
+  // captioned here and a box with a picker cannot come apart.
+  patched: Readonly<Record<string, string | undefined>>
   // Opens one group inside one stage: what a stage's `• N` jumps to.
   onOpenGroup: (stage: string, group: string) => void
   // The boxes wired to nothing, in the order they sit on their own row. Under a
@@ -230,7 +236,10 @@ export function panelChain(o: {
     const miss = groups.length === 0
     // Built off the full set when it is a miss, so the count on the box is the
     // stage's own rather than the matched subset's zero.
-    const n = node(phase.name, phase.blurb, miss ? [...phase.groups] : groups)
+    const n = {
+      ...node(phase.name, phase.blurb, miss ? [...phase.groups] : groups),
+      patched: o.patched[phase.name],
+    }
     const shown = miss ? dimmed(n) : n
     return phase.name === MIX_STAGE && !o.bOn ? inert(shown) : shown
   })
@@ -254,7 +263,10 @@ export function panelChain(o: {
     ...BRANCHES.map((b): BranchNode => {
       const groups = matching(b.groups)
       const miss = groups.length === 0
-      const n = node(b.name, b.blurb, miss ? [...b.groups] : groups)
+      const n = {
+        ...node(b.name, b.blurb, miss ? [...b.groups] : groups),
+        patched: o.patched[b.name],
+      }
       const shown = miss ? dimmed(n) : n
       const wiring = { join: b.join, under: b.under, dir: b.dir }
       return {

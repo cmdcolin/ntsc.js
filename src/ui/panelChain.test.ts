@@ -50,6 +50,7 @@ const chain = (
     bOn?: boolean
     soundOn?: boolean
     controls?: Controls
+    patched?: Record<string, string | undefined>
   } = {},
 ) =>
   panelChain({
@@ -59,6 +60,7 @@ const chain = (
     bOn: over.bOn ?? true,
     soundOn: over.soundOn ?? true,
     onOpenGroup: () => {},
+    patched: over.patched ?? {},
     free,
   })
 

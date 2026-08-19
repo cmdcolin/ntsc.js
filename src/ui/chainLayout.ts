@@ -139,6 +139,40 @@ export const runLabelWidth = (s: string) =>
 export const boxWidth = (name: string) =>
   Math.max(MIN_BOX, name.length * CHAR + PAD)
 
+// A caption's cost per character: 7px mixed case against the label's 9px caps
+// (.mapSub), with the same doubling of m and w that a run's label needs — a
+// caption is a filename as often as it is a word, so the spread between 'iiii'
+// and 'wwww' is real rather than theoretical.
+//
+// Measured off the rendered map in Firefox: 'Color bars' comes out at 3.20 units
+// a character and 'Minnie th…', which is most of the wide glyphs there are, at
+// 3.60. This is that worst case *before* the doubling, so the estimate keeps
+// about a tenth in hand on real text. Held tighter than CHAR is, and for the
+// opposite reason: a box is sized from CHAR, so a generous estimate there buys
+// padding, while a caption is cut to fit a box that is already placed — every
+// unit of slack here is a character of someone's filename that goes missing.
+const SUB_CHAR = 3.6
+const subWidth = (s: string) =>
+  (s.length + (s.toLowerCase().match(WIDE)?.length ?? 0)) * SUB_CHAR
+
+// The caption cut down to what its box holds. **It never widens the box**: the
+// row is laid out off the stage names, and a source called
+// `sunset-final-final2.mp4` would otherwise walk the head of the chain halfway
+// across the map every time someone loaded one. So the box is the budget and
+// the caption is what fits in it, with an ellipsis where the rest went.
+//
+// Returns undefined rather than a bare '…' when even one character will not go,
+// which is a box too narrow to be captioned at all — nothing is a better answer
+// there than a dot that looks like a fault.
+export function fitSub(text: string, boxW: number): string | undefined {
+  const room = boxW - PAD
+  if (subWidth(text) <= room) return text
+  const ell = subWidth('…')
+  let cut = text.length - 1
+  while (cut > 0 && subWidth(text.slice(0, cut)) + ell > room) cut -= 1
+  return cut === 0 ? undefined : `${text.slice(0, cut).trimEnd()}…`
+}
+
 // The three feedback returns, which are different loops around different parts
 // of the chain — not one arrow drawn three times, and not three arrows landing
 // on one box either. That is what the drawing used to say, because a 'Feedback'

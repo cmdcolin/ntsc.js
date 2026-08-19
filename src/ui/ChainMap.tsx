@@ -4,6 +4,7 @@ import {
   branchArrow,
   branchPath,
   chainLayout,
+  fitSub,
   FREE_Y,
   freeRow,
   H,
@@ -51,6 +52,12 @@ export interface ChainStage {
   // What the count counts, where "controls off stock" is the wrong noun for it —
   // see MapBox.touchedSay. Only the modulation bay sets it.
   touchedSay?: string
+  // What is standing in this stage, captioned under its name — the three boxes
+  // with a picker, and only while something is in them (patched.ts). A stage of
+  // the rig has nothing to say here: there is no picker for "the receiver", and
+  // a caption on a box that cannot hold anything would make the two kinds of box
+  // read alike.
+  patched?: string
   // Nothing patched into this stage, which leaves its *controls* with nothing to
   // act on: drawn dashed, and it wears no amber however far off stock those
   // controls sit. True of a branch with no input picked, and of Mix, whose every
@@ -355,6 +362,12 @@ function Node(props: {
   const { stage } = props
   const off = stage.off === true
   const dim = stage.dim === true
+  // Cut to the box rather than sized against it: see fitSub. An inert box has
+  // no caption to cut — nothing is patched in, which is what the dashes say.
+  const sub =
+    stage.patched === undefined || off
+      ? undefined
+      : fitSub(stage.patched, props.boxW)
   // Only where a click can close a stage is this box a disclosure — see `folds`.
   const fold = props.folds && stage.opens
   return (
@@ -399,12 +412,28 @@ function Node(props: {
       <text
         className={styles.mapLabel}
         x={props.x}
-        y={props.y}
+        // A captioned box sets its name off centre to make room; the other five
+        // are one line in the middle of a chip and stay there. The pair rides
+        // 4 above and 6 below the centre rather than splitting the box evenly:
+        // the caption is 7px to the name's 9, and optical centring puts the
+        // heavier line nearer the middle.
+        y={sub === undefined ? props.y : props.y - 4}
         textAnchor="middle"
         dominantBaseline="central"
       >
         {stage.name}
       </text>
+      {sub === undefined ? null : (
+        <text
+          className={styles.mapSub}
+          x={props.x}
+          y={props.y + 6}
+          textAnchor="middle"
+          dominantBaseline="central"
+        >
+          {sub}
+        </text>
+      )}
     </MapBox>
   )
 }

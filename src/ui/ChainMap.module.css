@@ -249,3 +249,26 @@
      the word instead of pressing the stage */
   user-select: none;
 }
+/* What is standing in a box that has a picker, captioned under its name. Three
+   boxes wear one — the two sources and the sound — and the register is the whole
+   reason it does not turn the map into a wall of text: 7px mixed case under 9px
+   caps, at --fg3, so the row still reads as six names with something written
+   under three of them rather than as twelve labels.
+
+   Not currentColor, for the same reason .mapLoopLabel is not: the caption is
+   subordinate to the name at every state, and following the state would put it
+   in amber beside a name in amber and double the mark. */
+.mapSub {
+  fill: var(--fg3);
+  font-size: 7px;
+  letter-spacing: 0.01em;
+  user-select: none;
+}
+/* The two states where following the box *is* the point: an open stage owns its
+   whole chip, and a dimmed one has left the conversation entirely. */
+.mapNodeOn .mapSub {
+  fill: var(--accent);
+}
+.mapNodeDim .mapSub {
+  fill: currentColor;
+}

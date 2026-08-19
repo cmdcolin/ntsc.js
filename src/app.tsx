@@ -65,6 +65,7 @@ import { parseMorph } from './ui/morph'
 import { MotionStrip } from './ui/MotionStrip'
 import { paletteActions } from './ui/paletteActions'
 import { panelChain } from './ui/panelChain'
+import { slotPatched, soundPatched } from './ui/patched'
 import { matchPreset, presetControls, presetLabelFor } from './ui/presets'
 import { PresetsSection } from './ui/PresetsSection'
 import { sameList } from './ui/sameList'
@@ -880,6 +881,15 @@ export function App() {
     mixer: controls.cfbMix > 0,
     tape: controls.tapeMix > 0,
   }
+  // What is standing in each of the three boxes with a picker, for the caption
+  // under its name on the map (patched.ts). Keyed by `PickerStage`, the same
+  // list `stageTop` below is keyed by: a fourth picker added to one and not the
+  // other is a compile error rather than a box whose caption is a guess.
+  const patched: Partial<Record<PickerStage, string>> = {
+    [SOURCE_A_STAGE]: slotPatched(eng.a),
+    [SOURCE_B_STAGE]: slotPatched(eng.b),
+    [SOUND_STAGE]: soundPatched(audio.mode, audio.name),
+  }
   // Which stages something outside the map can jump to. Not read off the chain
   // below: a live filter drops stages from the map, and a caption in "This look"
   // is still a way back to the module it came from.
@@ -895,6 +905,7 @@ export function App() {
     isRouted,
     bOn,
     soundOn,
+    patched,
     onOpenGroup: nav.openAt,
     free: [
       {

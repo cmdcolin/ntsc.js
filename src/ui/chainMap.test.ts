@@ -6,6 +6,7 @@ import {
   BRANCH_Y,
   branchArrow,
   chainLayout,
+  fitSub,
   FREE_Y,
   freeRow,
   GAP,
@@ -485,5 +486,51 @@ describe('the free row', () => {
   it('sits clear of the branch row and inside the height', () => {
     expect(FREE_Y - BOX_H / 2).toBeGreaterThan(BRANCH_Y + BOX_H / 2)
     expect(FREE_Y + BOX_H / 2).toBeLessThanOrEqual(H)
+  })
+})
+
+// The caption under a source box, which is the one label here whose text the
+// user supplies: a filename is any length, and the box it goes in was sized by
+// the stage's own name before anyone loaded anything. So the test is not that
+// the words are right — it is that no word can push the drawing around.
+describe('a box’s caption', () => {
+  const A = boxWidth(SOURCE_A_STAGE)
+
+  it('leaves a short one alone', () => {
+    expect(fitSub('Color bars', A)).toBe('Color bars')
+  })
+
+  it('cuts a long one down to the box rather than widening it', () => {
+    const long = 'sunset-final-final2-CONVERTED.mp4'
+    const cut = fitSub(long, A)
+    expect(cut?.endsWith('…')).toBe(true)
+    expect(cut?.length).toBeLessThan(long.length)
+  })
+
+  // The one that matters: whatever comes back has to fit what the row was laid
+  // out for. Widths are estimated (SUB_CHAR), so this measures the estimate
+  // against itself — the same contract runLabelWidth is held to.
+  it('never comes back wider than its box', () => {
+    const names = [
+      'Color bars',
+      'Microphone',
+      'Screen / window…',
+      'wwwwwwwwwwwwwwwwwwww.mov',
+      'a-clip-from-the-archive-1957.mp4',
+    ]
+    for (const box of [MIX_STAGE, SOURCE_A_STAGE, SOUND_STAGE]) {
+      const w = boxWidth(box)
+      for (const name of names) {
+        const cut = fitSub(name, w)
+        if (cut !== undefined)
+          expect(fitSub(cut, w), `${box}/${name}`).toBe(cut)
+      }
+    }
+  })
+
+  // A box too narrow to say anything says nothing, rather than drawing a lone
+  // ellipsis that reads as a fault in the rig.
+  it('gives up rather than drawing a bare ellipsis', () => {
+    expect(fitSub('Color bars', 10)).toBeUndefined()
   })
 })
