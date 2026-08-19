@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { ControlSlider } from './ControlGroup'
-import { sliderMatches, useFilterQuery } from './filter'
+import { filterActive, sliderMatches, useFilter } from './filter'
 import styles from './LookSection.module.css'
 import { useModSlotsApi } from './ModSlotsContext'
 import { groupOf, stageOf } from './placement'
@@ -56,7 +56,7 @@ export function LookSection(props: {
   onOpenGroup: (stage: string, group: string) => void
 }) {
   const [all, setAll] = useState(false)
-  const query = useFilterQuery()
+  const filter = useFilter()
   const mod = useModSlotsApi()
   // Membership is sticky, and that is not a nicety: a row leaving the list the
   // instant it reaches its default would unmount the range input *mid-drag*,
@@ -76,16 +76,15 @@ export function LookSection(props: {
   if (stale) setHeld(props.sliders)
   const list = stale ? props.sliders : held
 
-  const matched =
-    query === ''
-      ? list
-      : list.filter(s => sliderMatches(s, query, mod.modFor(s.key) !== null))
+  const matched = filterActive(filter)
+    ? list.filter(s => sliderMatches(s, filter, mod.modFor(s.key) !== null))
+    : list
   const rest = matched.length - CAP
   const shown = all ? matched : matched.slice(0, CAP)
   // Under a query the section is a result list like any other, and a header
   // over nothing is a dead end in one — so the empty header is for the resting
   // panel only, where it is what keeps the first edit from moving anything.
-  if (matched.length === 0 && query !== '') return null
+  if (matched.length === 0 && filterActive(filter)) return null
   return (
     <Section
       title="This look"

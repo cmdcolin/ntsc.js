@@ -224,6 +224,26 @@
 .filter:focus {
   border-color: var(--fg4);
 }
+/* The motion filter, sitting in the box as a token rather than as text. It
+   wears the mod green because that is the system it belongs to — the same green
+   the strip's count and every row's ∿ wear — and it carries its own × because a
+   filter set by a button somewhere else has to be removable from where it shows
+   up. Held to its own width so the text beside it keeps the rest of the row. */
+.filterChip {
+  composes: bare from './ui/ui.module.css';
+  flex-shrink: 0;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--mod) 18%, transparent);
+  color: var(--mod);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.filterChip:hover {
+  background: color-mix(in srgb, var(--mod) 30%, transparent);
+}
+
 /* Clears the query and hands the row back to the wordmark. Escape does both
    too (useShortcuts), but the × is the only one of the two that is visible. */
 .filterClear {

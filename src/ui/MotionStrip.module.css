@@ -74,6 +74,18 @@
 .count:hover {
   color: var(--mod);
 }
+/* Pressed, and it stays pressed: the panel is narrowed for as long as this is
+   lit, and the count is the only thing on screen that says which of the two
+   things narrowing it did — the box beside it holds the words. Hover included,
+   or the `:hover` above (one class more specific) would give the lit state back
+   its resting weight under the very pointer about to release it. */
+.countOn,
+.countOn:hover {
+  color: var(--mod);
+  background: color-mix(in srgb, var(--mod) 16%, transparent);
+  border-radius: 3px;
+  padding: 0 4px;
+}
 
 /* the ⚟ that puts this fader on a knob — same three states as a control row's,
    so the strip reads as one of them rather than as a different kind of thing */

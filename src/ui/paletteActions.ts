@@ -1,5 +1,4 @@
 import { DECK_STAGE, MOD_STAGE } from './controls'
-import { MOVING_QUERY } from './filter'
 
 import type { PaletteAction } from './CommandPalette'
 import type { MutateAmount } from './mutate'
@@ -119,10 +118,11 @@ export function paletteActions(o: {
   onFullscreen: () => void
   onBench: () => void
   onPopout: () => void
-  // The doors. `onFilter` is also how the one entry that can see a routing
-  // answers: the palette indexes controls by their static definition, so it can
-  // no more see one than the filter could, and it hands the question over.
-  onFilter: (query: string) => void
+  // The doors. `onShowMoving` is the one entry that can see a routing: the
+  // palette indexes controls by their static definition, so it can no more see
+  // one than the text filter could, and it hands the question over.
+  onFilter: (text: string) => void
+  onShowMoving: () => void
   onOpenStage: (name: string) => void
   onDiagram: () => void
   onAdvanced: () => void
@@ -271,8 +271,8 @@ export function paletteActions(o: {
     },
     {
       name: 'show what is moving',
-      blurb: 'filter the panel down to the controls the bay is driving',
-      run: () => o.onFilter(MOVING_QUERY),
+      blurb: 'narrow the panel down to the controls the bay is driving',
+      run: o.onShowMoving,
     },
     {
       name: 'copy link',

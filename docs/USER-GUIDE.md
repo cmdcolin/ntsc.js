@@ -91,6 +91,12 @@ The filter box narrows the panel; `ctrl+k` opens a palette over presets,
 controls and actions at once. Both search the help text, so you can hunt an
 artifact without knowing which knob makes it.
 
+The **∿** on the modulation strip is the second half of the filter and a switch
+rather than a word: it narrows the panel to the controls the bay is driving,
+which nothing else marks, since a routing leaves the resting value alone. It
+stays pressed until you press it again, it shows in the box as a **∿ moving**
+token, and it narrows whatever text is already up rather than replacing it.
+
 ## Making it move
 
 **∿ on any control row** sets that control wobbling — LFO, random walk, noise,
@@ -99,10 +105,11 @@ envelope you strike by hand or from a MIDI note. Depth is a fraction of the
 control's range, and the slider stays put as the centre the motion happens
 around, which is why a preset or a link still holds the look.
 
-Once anything moves, a **motion** strip appears with one amount over every
-routing, and a freeze. The top of **MODULATION** is the tempo: type or tap a
-BPM, then lock any rate to it. MIDI clock takes over whenever something sends it
-— see [MIDI.md](MIDI.md).
+Once anything moves, a **modulation** strip appears with one amount over every
+routing, a freeze, and the **∿** count that filters the panel down to what is
+running. The top of **MODULATION** is the tempo: type or tap a BPM, then lock
+any rate to it. MIDI clock takes over whenever something sends it — see
+[MIDI.md](MIDI.md).
 
 **stabs** flip the board back to clean for a few tens of milliseconds at a time,
 so the look pokes into a clean picture instead of running flat out. Phosphor,

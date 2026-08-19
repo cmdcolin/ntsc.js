@@ -2,32 +2,55 @@ import { createContext, use } from 'react'
 
 import type { Group, SliderDef } from './controls'
 
-// The live control filter, lowercased and trimmed. Read from the tree: it
-// reaches rows, groups and the sections holding them, and threading it by hand
-// left Favorites filtering nothing while everything else filtered.
-export const FilterContext = createContext('')
+// What the panel is being asked for. Two fields because they are two questions:
+// free text asks "what is this called, or what does it do", and the motion mode
+// asks "what is the bay driving". They narrow together — moving rows whose prose
+// says "ghost" is askable — where the single string this used to be made them
+// alternatives, spelled the mode as a token nobody can type, and left the ✕
+// unable to tell a mode from a search.
+export interface Filter {
+  // Lowercased and trimmed; '' for none.
+  text: string
+  // Narrowed to what the bay is driving.
+  moving: boolean
+}
 
-export const useFilterQuery = () => use(FilterContext)
+export const NO_FILTER: Filter = { text: '', moving: false }
 
-// The one question a static slider def cannot answer: is this control moving?
-// A routing never touches the resting value, so a modulated row is
-// indistinguishable from an untouched one by every other signal the panel has —
-// which left "show me what is wobbling" unaskable while the bay could hold eight
-// of them, scattered across six stages.
+// Whether anything is narrowing the panel at all. The panel keys a lot off this
+// — the box stays open, the presets and the catalog stand down, the map expands
+// — and every one of those questions is about the filter as a whole rather than
+// about the text in it.
+export const filterActive = (f: Filter) => f.text !== '' || f.moving
+
+// The live filter, read from the tree: it reaches rows, groups and the sections
+// holding them, and threading it by hand left Favorites filtering nothing while
+// everything else filtered.
+export const FilterContext = createContext<Filter>(NO_FILTER)
+
+export const useFilter = () => use(FilterContext)
+
+// The mark every routed row wears, and the one string in the box that means the
+// mode rather than a search. It stays because it can be pasted and because a
+// link or a note can carry it; nothing types it.
 //
-// `∿` is what the row's own button is marked, and what the motion strip's count
-// puts in the box; the words are there because nobody types `∿`. They union with
-// the text match rather than replacing it, so searching "lfo" still finds the
-// prose that mentions one.
-export const MOVING_QUERY = '∿'
-const MOVING_WORDS: readonly string[] = [
-  MOVING_QUERY,
-  'moving',
-  'modulated',
-  'motion',
-  'lfo',
-]
-export const isMovingQuery = (query: string) => MOVING_WORDS.includes(query)
+// "moving", "modulated", "motion" and "lfo" used to mean it too, and now mean
+// themselves again. They were standing in for a control that did not exist —
+// there was no other way to ask — and each of them cost the prose that uses the
+// word: typing "lfo" stopped finding the help text explaining what an LFO does
+// here. The strip's ∿ button and the palette's "show what is moving" are the
+// mode now, so the words go back to being words.
+export const MOVING_MARK = '∿'
+
+export const isMovingMark = (text: string) => text === MOVING_MARK
+
+// What the box and the toggle read as together. A pasted ∿ empties the text
+// rather than riding alongside it: left in both it would narrow to routed rows
+// *and* to rows whose prose contains the glyph, which is none of them.
+export const readFilter = (raw: string, moving: boolean): Filter => {
+  const text = raw.trim().toLowerCase()
+  return isMovingMark(text) ? { text: '', moving: true } : { text, moving }
+}
 
 // Whether a control is driven by the bay. Passed in rather than read from a
 // context here: this module is pure, and the bay lives in a context of its own
@@ -38,37 +61,43 @@ const NONE_ROUTED: IsRouted = () => false
 
 // Match help text too, not just labels: users hunt by artifact ("rainbow",
 // "ghost", "comb"), and the mechanism prose is where those words live.
-export const sliderMatches = (s: SliderDef, query: string, routed = false) =>
-  (routed && isMovingQuery(query)) ||
-  s.label.toLowerCase().includes(query) ||
-  s.help.toLowerCase().includes(query)
+const textMatches = (s: SliderDef, text: string) =>
+  s.label.toLowerCase().includes(text) || s.help.toLowerCase().includes(text)
 
-// The rows a group has to show for a query. A name hit takes the whole group,
-// as a heading always has — except for the motion query, where taking a stage
-// whole would bury the two rows that are actually moving in the sixteen that
-// are not.
+// Both halves narrow, and either can be the only one asked. A routing never
+// touches the resting value, so a driven row is indistinguishable from an
+// untouched one by every other signal the panel has — which left "show me what
+// is wobbling" unaskable while the bay could hold eight of them, scattered
+// across six stages.
+export const sliderMatches = (s: SliderDef, f: Filter, routed = false) =>
+  (!f.moving || routed) && (f.text === '' || textMatches(s, f.text))
+
+// The rows a group has to show. A name hit takes the whole group, as a heading
+// always has — except under the motion mode, where taking a stage whole would
+// bury the two rows that are actually moving in the sixteen that are not.
 export const matchedSliders = (
   group: Group,
-  query: string,
+  f: Filter,
   isRouted: IsRouted = NONE_ROUTED,
 ): SliderDef[] =>
-  query === '' ||
-  (!isMovingQuery(query) && group.name.toLowerCase().includes(query))
+  !filterActive(f)
     ? group.sliders
-    : group.sliders.filter(s => sliderMatches(s, query, isRouted(s.key)))
+    : !f.moving && group.name.toLowerCase().includes(f.text)
+      ? group.sliders
+      : group.sliders.filter(s => sliderMatches(s, f, isRouted(s.key)))
 
 // Whether a group has anything to show — the same rule its rows are picked by,
 // as data, so a stage drops off the spine without building its sections first
-// and the two can never disagree about what a query means.
+// and the two can never disagree about what a filter means.
 export const groupMatches = (
   group: Group,
-  query: string,
+  f: Filter,
   isRouted: IsRouted = NONE_ROUTED,
-) => matchedSliders(group, query, isRouted).length > 0
+) => matchedSliders(group, f, isRouted).length > 0
 
-// Whether a box wired to nothing survives a query. Name, blurb or one of the
-// words it declares, which is the same rule a slider follows (label or help) —
-// so "matches the prose too" means one thing across the whole panel.
+// Whether a box wired to nothing survives. Name, blurb or one of the words it
+// declares, which is the same rule a slider follows (label or help) — so
+// "matches the prose too" means one thing across the whole panel.
 //
 // It takes the shape rather than a FreeStage so this module stays the pure one:
 // panelChain imports from here, and the box that owns the type lives there.
@@ -91,16 +120,16 @@ export const groupMatches = (
 // controls that have no other home, which is exactly what it used to do.
 export const freeMatches = (
   box: { name: string; blurb: string; keywords?: readonly string[] },
-  query: string,
+  f: Filter,
 ) => {
-  // The motion query is left to the rows it was built for. `∿` answers "show me
+  // The motion mode is left to the rows it was built for. It answers "show me
   // what is wobbling", and the whole bay dropped on top of that answer would
   // bury the two rows that are actually moving under the surface that lists
   // them — the same reason matchedSliders refuses to take a group whole for it.
-  if (box.keywords === undefined || isMovingQuery(query)) return false
+  if (box.keywords === undefined || f.moving) return false
   return (
-    box.name.toLowerCase().includes(query) ||
-    box.blurb.toLowerCase().includes(query) ||
-    box.keywords.some(k => k.includes(query))
+    box.name.toLowerCase().includes(f.text) ||
+    box.blurb.toLowerCase().includes(f.text) ||
+    box.keywords.some(k => k.includes(f.text))
   )
 }

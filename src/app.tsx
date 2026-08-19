@@ -47,8 +47,9 @@ import { barCut, deckLoad } from './ui/deck'
 import { FatalScreen } from './ui/FatalScreen'
 import {
   FilterContext,
-  MOVING_QUERY,
-  isMovingQuery,
+  filterActive,
+  isMovingMark,
+  readFilter,
   sliderMatches,
 } from './ui/filter'
 import { FpsMonitor } from './ui/FpsMonitor'
@@ -277,11 +278,41 @@ export function App() {
   const [boxZoom, setBoxZoom] = useState(true)
   const [barHidden, setBarHidden] = usePersistedFlag(BAR_HIDDEN_STORE)
   const [filter, setFilter] = useState('')
+  // The other half of the filter, and a mode rather than a word: which controls
+  // the bay is driving is a question the box cannot hold, because a routing
+  // leaves the resting value alone and there is nothing to type. It rode in the
+  // box as `∿` until now, which made the two alternatives — you could ask for
+  // moving rows or for "ghost", never both — and left the ✕ clearing a mode it
+  // could not tell from a search.
+  const [movingOnly, setMovingOnly] = useState(false)
   // Whether the masthead is showing the filter box rather than the wordmark.
   // Held open by a live query as well as by the ⌕, so the box can't disappear
   // out from under a filter that is still narrowing the panel — which is what
   // a bare `searchOpen` did the moment anything else took focus.
   const [searchOpen, setSearchOpen] = useState(false)
+  // The three ways the filter moves from outside the box. Together here because
+  // each has to speak for both halves of it: a mode the ✕ leaves standing is a
+  // panel still narrowed by something with nothing on screen explaining it.
+  const clearFilter = () => {
+    setFilter('')
+    setMovingOnly(false)
+  }
+  // A jump — the palette revealing a control, a door into a free box — asks for
+  // one named thing, so it drops the mode rather than intersecting with it.
+  // Landing on "nothing matches" because the bay happens not to be driving what
+  // you looked up is not an answer to what was asked.
+  const revealText = (text: string) => {
+    setFilter(text)
+    setMovingOnly(false)
+  }
+  // One switch wherever it is pressed, and taking a pasted ∿ back out of the box
+  // is part of switching off: with the mark still in it the mode reads straight
+  // back off the text, and the button that just released it looks broken.
+  const toggleMoving = () => {
+    const marked = isMovingMark(filter.trim())
+    if (marked) setFilter('')
+    setMovingOnly(!(movingOnly || marked))
+  }
   const nav = usePanelNav()
   const { favorites, toggleFavorite } = useFavorites()
   // The modulation bay, owned here so the panel, the rows and the mix all see
@@ -658,11 +689,12 @@ export function App() {
     onEscape: () => {
       const mode =
         filter !== '' ||
+        movingOnly ||
         searchOpen ||
         armed !== null ||
         armedNote !== null ||
         learn !== null
-      setFilter('')
+      clearFilter()
       setSearchOpen(false)
       disarm()
       stopLearn()
@@ -766,15 +798,16 @@ export function App() {
     onFullscreen: toggleFullscreen,
     onBench: toggleBench,
     onPopout: () => openPopout(benchOn),
-    onFilter: setFilter,
+    onFilter: revealText,
+    onShowMoving: () => setMovingOnly(true),
     onOpenStage: nav.jumpPhase,
     onDiagram: () => setShowDiagram(true),
     onAdvanced: () => setShowAdvanced(true),
     onAbout: () => setShowAbout(true),
   })
 
-  const query = filter.trim().toLowerCase()
-  const filtering = query !== ''
+  const query = readFilter(filter, movingOnly)
+  const filtering = filterActive(query)
   // A query set from anywhere else — the ∿ reveal, a palette jump — opens the
   // box too, so the panel is never filtered by something with nothing on screen
   // saying so and no way to clear it.
@@ -849,7 +882,7 @@ export function App() {
   // control groups.
   const chain = panelChain({
     controls,
-    query,
+    filter: query,
     isRouted,
     bOn,
     soundOn,
@@ -1063,6 +1096,22 @@ export function App() {
         ) : null}
         {searching ? (
           <div className={styles.filterBox}>
+            {/* The mode, standing in the box beside the words rather than
+                pretending to be one of them. It is where a filter you did not
+                type has to appear: pressing ∿ on the strip narrows the whole
+                panel, and before this the only trace of it was a glyph in the
+                text — which said something had happened without saying that the
+                button was what said it, and could not be taken off without
+                clearing a search you had also typed. */}
+            {query.moving ? (
+              <button
+                className={styles.filterChip}
+                title="showing only what the bay is driving — click to drop it"
+                onClick={toggleMoving}
+              >
+                ∿ moving ×
+              </button>
+            ) : null}
             <input
               className={styles.filter}
               type="search"
@@ -1074,7 +1123,7 @@ export function App() {
               // whatever you had just clicked, four times a second.
               autoFocus
               placeholder="rainbow, ghost, tear…"
-              title="matches names and descriptions, so artifact words work: rainbow, ghost, dot crawl, tear, roll… — and “moving” (or ∿) for whatever the bay is driving"
+              title="matches names and descriptions, so artifact words work: rainbow, ghost, dot crawl, tear, roll… — the ∿ on the modulation row narrows whatever is up here to the controls the bay is driving"
               value={filter}
               onChange={e => setFilter(e.target.value)}
             />
@@ -1083,7 +1132,7 @@ export function App() {
               title="clear the filter (esc)"
               aria-label="clear the filter"
               onClick={() => {
-                setFilter('')
+                clearFilter()
                 setSearchOpen(false)
               }}
             >
@@ -1281,7 +1330,7 @@ export function App() {
           not because it deserves the position — it is a trim on a feature most
           sessions never open, so it now draws itself as a row rather than as
           the green card that outranked the whole spine below it. */}
-      <MotionStrip onReveal={() => setFilter(MOVING_QUERY)} />
+      <MotionStrip moving={query.moving} onToggleMoving={toggleMoving} />
       <SignalPath
         nodes={chain.nodes}
         branches={chain.branches}
@@ -1300,8 +1349,10 @@ export function App() {
       />
       {!filtering || anyResult ? null : (
         <div className={ui.hint}>
-          {isMovingQuery(query)
-            ? 'nothing is moving — press ∿ on any control row to set it wobbling'
+          {query.moving
+            ? query.text === ''
+              ? 'nothing is moving — press ∿ on any control row to set it wobbling'
+              : `nothing moving matches “${query.text}” — drop the ∿ to search the whole panel`
             : // A query can land on controls that exist and cannot act, which is
               // not the same answer as no match at all: "bass" is seven routings
               // in Sound, and what is missing is the input, not the control.
@@ -1665,7 +1716,7 @@ export function App() {
           onApplyPreset={mix.applyPreset}
           onMixStart={mix.startMix}
           onWriteControl={writeControl}
-          onRevealControl={setFilter}
+          onRevealControl={revealText}
           onClose={() => setShowPalette(false)}
         />
       ) : null}

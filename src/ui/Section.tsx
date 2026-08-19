@@ -1,7 +1,7 @@
 import { createContext, use, useState } from 'react'
 
 import { cx } from './cx'
-import { useFilterQuery } from './filter'
+import { filterActive, useFilter } from './filter'
 import styles from './Section.module.css'
 import { readRecord, writeJSON } from './storage'
 
@@ -90,12 +90,12 @@ export function Section(props: {
 }) {
   const nested = use(NestedContext)
   const accordion = use(AccordionContext)
-  const query = useFilterQuery()
+  const filter = useFilter()
   const [selfOpen, setSelfOpen] = useState(
     () => getOpenMap()[props.title] ?? props.defaultOpen ?? true,
   )
   const open = accordion === null ? selfOpen : accordion.openId === props.title
-  const shown = (props.openOnFilter === true && query !== '') || open
+  const shown = (props.openOnFilter === true && filterActive(filter)) || open
   const toggle = () => {
     if (accordion === null) {
       setSelfOpen(!selfOpen)

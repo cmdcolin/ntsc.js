@@ -22,11 +22,16 @@ import { useHold } from './useHold'
 // it to scale, and a permanent dead slider above the filter box would be the
 // panel's most prominent control doing nothing.
 export function MotionStrip(props: {
-  // Puts the motion query in the filter box, which is the only way to see the
-  // driven rows together: they are scattered down six stages, and a routing
-  // leaves the resting value alone, so nothing else in the panel marks them
-  // from outside the row.
-  onReveal: () => void
+  // The panel's motion mode, which this button is the switch for. Seeing the
+  // driven rows together is the only way to see them at all: they are scattered
+  // down six stages, and a routing leaves the resting value alone, so nothing
+  // else in the panel marks them from outside the row.
+  //
+  // A pressed state rather than a fire-and-forget, because the mode outlives the
+  // press — it used to leave a glyph in the search box as its only trace, which
+  // said what had happened but not that this button was what said it.
+  moving: boolean
+  onToggleMoving: () => void
 }) {
   const { slots, master, setMaster, stab, stabHz } = useModSlotsApi()
   const api = useControlsApi()
@@ -111,7 +116,8 @@ export function MotionStrip(props: {
         onChange={e => setMaster(Number(e.target.value))}
       />
       <button
-        className={styles.count}
+        className={cx(styles.count, props.moving && styles.countOn)}
+        aria-pressed={props.moving}
         title={[
           driven.length === 0 ? 'nothing is moving' : driven.join(', '),
           !gated
@@ -122,11 +128,13 @@ export function MotionStrip(props: {
                 ? `the whole board, flipping against a held look ${rate}× a second`
                 : `the whole look, stabbed in ${rate}× a second`,
           stilled.length === 0 ? '' : `held still: ${stilled.join(', ')}`,
-          'click to filter the panel down to them',
+          props.moving
+            ? 'showing only these — click to show the whole panel again'
+            : 'click to narrow the panel down to them',
         ]
           .filter(s => s !== '')
           .join(' — ')}
-        onClick={props.onReveal}
+        onClick={props.onToggleMoving}
       >
         {/* The gate's rate rather than a glyph for it. `N∿` reads as a count
             because ∿ is the mark every routed row wears, and there is no second

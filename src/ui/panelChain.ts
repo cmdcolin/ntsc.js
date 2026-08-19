@@ -17,11 +17,11 @@ import {
   VIEW_JOIN,
   VIEW_STAGE,
 } from './controls'
-import { freeMatches, groupMatches } from './filter'
+import { filterActive, freeMatches, groupMatches } from './filter'
 
 import type { Controls } from '../controls'
 import type { Group } from './controls'
-import type { IsRouted } from './filter'
+import type { Filter, IsRouted } from './filter'
 import type { BranchNode, LoopNode, PathNode } from './SignalPath'
 import type { ReactNode } from 'react'
 
@@ -170,8 +170,8 @@ const BRANCHES: readonly {
 
 export function panelChain(o: {
   controls: Controls
-  // The live filter, lowercased and trimmed — '' for none.
-  query: string
+  // The live filter, as the panel is asking it: text, motion mode, or both.
+  filter: Filter
   isRouted: IsRouted
   // Whether anything is patched into each of the two things that can be.
   bOn: boolean
@@ -193,7 +193,7 @@ export function panelChain(o: {
 }): PanelChain {
   const { controls } = o
   const matching = (groups: readonly Group[]) =>
-    groups.filter(g => groupMatches(g, o.query, o.isRouted))
+    groups.filter(g => groupMatches(g, o.filter, o.isRouted))
 
   // Roll the per-group touched state up to the stage, so the chain reads as a
   // status map — you see which stages you're in without opening any. The count
@@ -280,7 +280,7 @@ export function panelChain(o: {
       // `dimmed` would take the body with it, and these two *are* their bodies.
       // Blanking the groups of a box that has none is the whole of what it does
       // here, so the flag is set on its own.
-      return o.query === '' || freeMatches(f, o.query)
+      return !filterActive(o.filter) || freeMatches(f, o.filter)
         ? box
         : { ...box, dim: true }
     }),

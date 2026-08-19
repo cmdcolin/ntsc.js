@@ -46,6 +46,7 @@ const free: FreeStage[] = [
 const chain = (
   over: {
     query?: string
+    moving?: boolean
     bOn?: boolean
     soundOn?: boolean
     controls?: Controls
@@ -53,7 +54,7 @@ const chain = (
 ) =>
   panelChain({
     controls: over.controls ?? DEFAULT_CONTROLS,
-    query: over.query ?? '',
+    filter: { text: over.query ?? '', moving: over.moving ?? false },
     isRouted: () => false,
     bOn: over.bOn ?? true,
     soundOn: over.soundOn ?? true,
@@ -134,12 +135,15 @@ describe('the boxes on the map', () => {
       expect(lit(chain({ query: q }).branches)).not.toContain(DECK_STAGE)
   })
 
-  // `∿` asks which rows are wobbling. The bay is where routings are read as a
-  // set, but dropped on top of that answer it would bury the two rows that are
-  // actually moving under the surface that lists them.
-  it('leaves the free boxes out of the motion query', () => {
-    for (const q of ['∿', 'moving', 'lfo']) {
-      expect(lit(chain({ query: q }).branches)).not.toContain(MOD_STAGE)
+  // The motion mode asks which rows are wobbling. The bay is where routings are
+  // read as a set, but dropped on top of that answer it would bury the two rows
+  // that are actually moving under the surface that lists them — with or without
+  // text narrowing it further.
+  it('leaves the free boxes out of the motion mode', () => {
+    for (const text of ['', 'strobe']) {
+      expect(lit(chain({ query: text, moving: true }).branches)).not.toContain(
+        MOD_STAGE,
+      )
     }
   })
 

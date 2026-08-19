@@ -9,7 +9,7 @@ import {
   useControlsApi,
   useControlValue,
 } from './ControlsContext'
-import { matchedSliders, useFilterQuery } from './filter'
+import { filterActive, matchedSliders, useFilter } from './filter'
 import { DiceIcon } from './icons'
 import { MagnifierFrame } from './MagnifierFrame'
 import { SYNCABLE_KEYS } from './midi'
@@ -342,15 +342,16 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   const { group } = props
   const { writeControl, mutateGroup, resetGroup } = useControlsApi()
   const mod = useModSlotsApi()
-  const query = useFilterQuery()
+  const filter = useFilter()
   // A live filter drops the miniature, so a search can reach the sliders it
   // stands in for.
   const [showFramed, setShowFramed] = useState(false)
   const [showFine, setShowFine] = useState(false)
-  const frame =
-    query === '' ? FRAMES.find(f => f.group === group.name) : undefined
+  const frame = filterActive(filter)
+    ? undefined
+    : FRAMES.find(f => f.group === group.name)
 
-  const matched = matchedSliders(group, query, key => mod.modFor(key) !== null)
+  const matched = matchedSliders(group, filter, key => mod.modFor(key) !== null)
   const unframed =
     frame === undefined || showFramed
       ? matched
@@ -363,10 +364,10 @@ export function ControlGroup(props: { group: Group; defaultOpen?: boolean }) {
   // between is the difference between React skipping every row in the group and
   // rebuilding it.
   const fine = sameList(
-    query === '' ? unframed.filter(s => s.fine === true) : [],
+    filterActive(filter) ? [] : unframed.filter(s => s.fine === true),
   )
   const shown = sameList(
-    query === '' ? unframed.filter(s => s.fine !== true) : unframed,
+    filterActive(filter) ? unframed : unframed.filter(s => s.fine !== true),
   )
   // Every row actually on screen, which is what the gate scan below counts: a
   // banner is a summary of the notes it replaces, so a trim folded behind the
