@@ -8,6 +8,25 @@ https://cmdcolin.github.io/ntsc.js/
 
 [![A photo dubbed to VHS: rainbow chroma noise banding across the frame, torn lines, and the picture bending through a tracking band](img/screenshot.jpg)](https://cmdcolinphotos.s3.amazonaws.com/phosphene/demo-v2.mp4)
 
+## The signal path
+
+Everything else in the app hangs off this chain. The app builds a real NTSC
+composite waveform out of the picture, damages the waveform, and then decodes it
+back with a receiver that gets it slightly wrong — so dot crawl, rainbows,
+tearing and hue drift fall out of the mechanism instead of being painted on top.
+It is also why two faults compound rather than stack: both are acting on the same
+signal.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/pipeline-simple-dark.svg">
+  <img alt="Signal path — overview: Source → Encoder → Channel → Receiver → Display, with a composite feedback loop from Channel back to Encoder and an image feedback loop from Display back to Source" src="docs/img/pipeline-simple-light.svg">
+</picture>
+
+The dashed loops are feedback: Channel back into Encoder is a hardware mixer
+eating its own output, and Display back into Source is a camera pointed at its
+own monitor. Details in [How it works](docs/HOW-IT-WORKS.md), fault by fault in
+[Effects](docs/EFFECTS.md).
+
 ## Features
 
 - True composite signal emulation in WebGPU compute shaders. This is the headline feature!
