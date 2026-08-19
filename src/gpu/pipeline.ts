@@ -3,6 +3,7 @@ import { Listeners } from '../listeners'
 import { clamp, clamp01, wrap } from '../math'
 import { rngFor } from '../rng'
 import { AudioState } from '../signal/audiostate'
+import { ClipContact, clipPointAt } from '../signal/clip'
 import {
   ACTIVE_HEIGHT,
   ACTIVE_WIDTH,
@@ -323,6 +324,14 @@ export class Engine implements EngineApi {
   // bay and the stab beside it, and for the same reason: it is applied and
   // undone inside one frame, so it never reaches what React renders from.
   private readonly fault = new Fault()
+  // The paperclip: a hand shorting a point inside the set, several times a
+  // second, for as long as the metal is down (signal/clip.ts). Same shape as
+  // the fault above and the same reason for living on the engine — it is
+  // applied and undone inside one frame, so React never sees it.
+  private readonly clip = new ClipContact()
+  private readonly clipLayer = new Overlay(this.controls, FILTER_KEYS, () => {
+    this.filtersDirty = true
+  })
   private readonly faultLayer = new Overlay(this.controls, FILTER_KEYS, () => {
     this.filtersDirty = true
   })
@@ -2179,6 +2188,45 @@ export class Engine implements EngineApi {
     return this.faultLayer.seal()
   }
 
+  // One frame of the paperclip (signal/clip.ts): the controls its contact point
+  // names, carried from wherever they rest toward the short by how much metal is
+  // touching this frame.
+  //
+  // Lerped from the live value for the same reason the fault above is, and the
+  // reason is stronger here because a clip repeats: a bite has to land on the
+  // board as it is *now*, so a look being morphed or wobbled under the hand
+  // keeps moving between contacts instead of being snapped back to whatever it
+  // was when the first bite landed.
+  //
+  // Under the fault rather than over it. A transition is what hides a cut and
+  // has to land on every frame it covers; a clip is something happening to the
+  // set, which is exactly the sort of thing a transition is entitled to
+  // overrule for the few frames it owns.
+  private applyClip(): () => void {
+    const step = this.clip.step(
+      {
+        hz: this.controls.clipHz,
+        bite: this.controls.clipBite,
+        dwellMs: this.controls.clipDwellMs,
+        chatter: this.controls.clipChatter,
+        point: clipPointAt(this.controls.clipPoint),
+      },
+      // The engine's dice, not `Math.random`: when the contacts land is the
+      // whole character of this, so a take asked for again has to bite in the
+      // same places.
+      this.rand,
+    )
+    this.clipLayer.begin()
+    if (step === null) return NOOP
+    for (const k of CONTROL_KEYS) {
+      const to = step.peak[k]
+      if (to === undefined) continue
+      const from = this.controls[k]
+      this.clipLayer.write(k, from + (to - from) * step.depth)
+    }
+    return this.clipLayer.seal()
+  }
+
   // Bent-crystal LO phase error keeps growing frame over frame; advance by
   // exactly one raster of samples so the shader's per-sample ramp is
   // continuous across the frame boundary.
@@ -2258,6 +2306,8 @@ export class Engine implements EngineApi {
     // bay. A transition is what hides a cut, so it has to land on every frame it
     // covers — including the clean ones a stab gate is holding at stock, which
     // is the one layer that would otherwise swallow it.
+    // Under the fault, over the stab — see applyClip.
+    const restoreClip = this.applyClip()
     const restoreFault = this.applyFault()
     try {
       this.simAcc = Math.min(this.simAcc + this.controls.timeScale, 1)
@@ -2269,6 +2319,7 @@ export class Engine implements EngineApi {
       }
     } finally {
       restoreFault()
+      restoreClip()
       restoreStab()
       restoreMod()
     }

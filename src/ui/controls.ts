@@ -2385,6 +2385,70 @@ export const GROUPS: Group[] = [
     ],
   },
   {
+    // The one group here that is not a setting on the rig: it is a hand on it.
+    // Every other control says what the set is like; these five say what
+    // somebody is repeatedly doing to it, which is why the rate is the first
+    // row and 0 means the hand is off the board.
+    name: 'Paperclip',
+    place: 'Receiver',
+    sliders: [
+      {
+        key: 'clipHz',
+        label: 'contacts',
+        min: 0,
+        max: 12,
+        step: 0.1,
+        redline: [0, 6],
+        unit: '/s',
+        help: 'How often the metal touches the board, on average, per second. 0 is off — the hand is not on it. On average is the point: the gaps between contacts are drawn fresh each time rather than counted off a clock, so two land together and then nothing happens for a second. A rate here reads as somebody working at the board; the same figure on the stab gate reads as a machine.',
+      },
+      {
+        key: 'clipPoint',
+        label: 'contact point',
+        min: 0,
+        max: 4,
+        step: 1,
+        unit: '',
+        choices: [
+          'sync separator',
+          'vertical oscillator',
+          'EHT / beam supply',
+          'chroma demodulator',
+          'video output stage',
+        ],
+        help: 'Which point inside the set the clip is bridging. Each one shorts a different circuit, so each one damages the picture in a different domain: **sync separator** takes away where the line starts, so the picture tears and takes hue with it; **vertical oscillator** collapses the scan toward a band and lets it spring back, with the picture decoded correctly throughout; **EHT / beam supply** droops the high-tension rail so the raster swells and the beam limiter hauls the drive down after it, late; **chroma demodulator** shorts the reference network, so the decoder stops trusting the burst and its two axes stop being 90° apart — hue shears without the picture moving at all; **video output stage** runs the guns out of headroom and stops the level loop catching it.',
+      },
+      {
+        key: 'clipBite',
+        label: 'bite',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: 'How far the short goes while the metal is down — a fingertip resting on a pin against a paperclip laid flat across it. The controls the point names travel this far toward the shorted state and back, from wherever they are resting, so a look already leaning that way has less distance to go and a bite lands softer on it.',
+      },
+      {
+        key: 'clipDwellMs',
+        label: 'dwell',
+        min: 8,
+        max: 800,
+        step: 4,
+        redline: [8, 250],
+        unit: 'ms',
+        help: "How long one contact lasts. Only that: how fast the damage arrives and clears is the receiver's business, not the clip's — a bite lands over two or three frames and takes five or six to let go, whether the metal was down for one frame or for half a second, because what is decaying is the flywheel finding sync again and the level loop finding the tip. Under about 40ms the contact is gone before the picture has finished reacting, so a short dwell is a flick that never reaches the full bite.",
+      },
+      {
+        key: 'clipChatter',
+        label: 'chatter',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: '',
+        help: "How much the contact breaks up while it is down. Bare metal on a pin does not sit still — it bounces and scrapes, and each break takes the contact clean off rather than softening it. What stops that reading as a one-frame stutter is the set's own recovery: it takes five or six frames to let go of a short, so a single bounce inside a long contact dips the damage rather than cancelling it, and it takes a run of them to clear it entirely. Wound right up the clip is barely touching at all.",
+      },
+    ],
+  },
+  {
     // Not 'Audio': the stage this hangs off is the sound arriving, and a group
     // of the same name inside it stacked two headers saying one word. These are
     // the routings — where that sound is patched into the receiver.

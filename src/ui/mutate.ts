@@ -69,7 +69,14 @@ export function mutateAmountFor(e: {
 // patch modulation onto a control it may not start) and the preset roll
 // (`rollControls`), which used to be the hole in it — random look picked the
 // strobed tube on 3% of presses and started one anyway.
-export const ROLL_NEVER_STARTS = new Set<ControlKey>(['strobeHz'])
+//
+// `clipHz` is here on the same argument rather than by analogy. A paperclip on
+// the video output stage is a full-field brightening a few times a second, and
+// the two points either side of it take the picture out and put it back at the
+// same rate — which is the strobe's shape arriving by a different mechanism, in
+// the same band, and it would land on a roll that never asked for a hand on the
+// board at all.
+export const ROLL_NEVER_STARTS = new Set<ControlKey>(['strobeHz', 'clipHz'])
 
 // Nudge every control by a random fraction of its own slider *travel* — the
 // bender's hand brushing all the pots at once. Jittering *around* the current

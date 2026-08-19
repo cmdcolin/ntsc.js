@@ -58,6 +58,15 @@ export const DEFAULT_CONTROLS = {
   hvRing: 0.5, // supply damping: 0 smooth droop .. 1 ringing / chaotic
   abl: 0, // beam limiter: 0 generous flyback .. 1 undersized and underdamped (pumps)
   hDetuneHz: 0, // horizontal oscillator detune off nominal line rate
+  // A paperclip held against a point inside the set (signal/clip.ts). None of
+  // these five reach a shader: the contact drives *other* controls toward the
+  // short its point implies, so what a bite does is whatever those mechanisms
+  // already do. Off at rate 0, which is the hand not being on the board.
+  clipHz: 0, // contacts a second, on average — the gaps are a hand's, not a clock's
+  clipPoint: 0, // index into CLIP_POINTS: sync, vertical, supply, chroma, video
+  clipBite: 0.7, // how far the short goes while the metal is down
+  clipDwellMs: 90, // how long one contact lasts
+  clipChatter: 0.35, // how much bare metal on a pin breaks up while it is down
   // audio patched at the yoke, one sample per line
   audioGain: 1, // input trim after auto-normalization
   audioBendUs: 0, // audio waveform straight into horizontal displacement
