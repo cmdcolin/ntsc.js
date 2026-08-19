@@ -2,6 +2,19 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.28.7](https://github.com/cmdcolin/ntsc.js/compare/v0.28.6...v0.28.7) - 2026-08-19
+
+### Fixes
+- *(ui)* [`b41df87`](https://github.com/cmdcolin/ntsc.js/commit/b41df87427c269f1ffadfac1d0d7ba194fc73568) set the free chips at the map's size, not the panel's
+
+### Refactor
+- *(ui)* [`379ed22`](https://github.com/cmdcolin/ntsc.js/commit/379ed2223c3757a075783d20b10d0507fc473371) the motion filter is a mode, not a magic query string
+
+### Documentation
+- [`91196d5`](https://github.com/cmdcolin/ntsc.js/commit/91196d5a19037fcfa05d5162448bf254761ffdbe) lead the readme with the signal path diagram
+- [`1328146`](https://github.com/cmdcolin/ntsc.js/commit/13281467bd510b34a2f6fbbf21008cc0639abfff) show the sidebar's own signal path map in the readme
+- [`16990d2`](https://github.com/cmdcolin/ntsc.js/commit/16990d21e24660b777a32367335e62a39f45b481) document shift+i and ctrl+y in the keyboard table
+
 ## [0.28.6](https://github.com/cmdcolin/ntsc.js/compare/v0.28.4...v0.28.6) - 2026-08-19
 
 ### Refactor
