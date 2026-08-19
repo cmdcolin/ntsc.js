@@ -24,7 +24,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/build-guide.mjs",
+    "build": "tsc -b && vite build && node scripts/gen-effects.mjs --check && node scripts/build-guide.mjs",
     "preview": "vite preview",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
@@ -56,9 +56,6 @@
     "*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}": [
       "oxlint --fix --no-error-on-unmatched-pattern",
       "oxfmt"
-    ],
-    "src/{ui/controls.ts,sources/modes.ts}": [
-      "node scripts/gen-effects.mjs && git add docs/EFFECTS.md"
     ]
   },
   "dependencies": {

@@ -1107,7 +1107,10 @@ the other GPU" wants answering without a rebuild.
   the gating, tiling, tiering and packing the frame budget is made of
 - [`FEATURES.md`](FEATURES.md) — the map of what it can break, stage by stage
 - [`EFFECTS.md`](EFFECTS.md) — every control, **generated** by
-  `scripts/gen-effects.mjs`; edit `src/ui/controls.ts` and run `pnpm effects`
+  `scripts/gen-effects.mjs`. Edit `src/ui/controls.ts`, not the page, then run
+  `pnpm effects`. `pnpm build` runs `--check` and fails on a stale copy, so CI
+  catches a forgotten regeneration; a pre-commit hook cannot, because
+  lint-staged only stages the files its own patterns matched
 - [`EDITOR.md`](EDITOR.md) — the strip, glitch transitions, and the export an
   editor can conform: design for work not yet built
 - [`adr/`](adr/) — the decisions where the obvious thing is wrong for a
