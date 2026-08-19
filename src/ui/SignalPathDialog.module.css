@@ -205,3 +205,24 @@
   color: var(--edit);
   font-size: var(--fs-sm);
 }
+
+/* What is standing in a box that has a picker, captioned under its name. Three
+   boxes wear one, and the register is what keeps a twelve-box drawing from
+   reading as twenty-four labels: 8.5px mixed case under 11px caps, at --fg3.
+   The miniature sets the same pair at 7 against 9 (ChainMap.module.css). */
+.sub {
+  fill: var(--fg3);
+  font-size: 8.5px;
+  letter-spacing: 0.01em;
+  user-select: none;
+}
+.nodeOn .sub,
+.nodeTouched .sub {
+  fill: currentColor;
+}
+/* And in the legend, where it is whole rather than cut to a box — leading the
+   sentence, in the drawing's own reading order: the stage, what is in it, then
+   what the stage does. */
+.legendHolds {
+  color: var(--fg3);
+}

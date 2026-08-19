@@ -375,6 +375,8 @@ function Node(props: {
       name={stage.name}
       blurb={stage.blurb}
       offHint={stage.offHint ?? stage.blurb}
+      // The whole of it, not the caption `sub` cut down to the box.
+      patched={off ? undefined : stage.patched}
       off={off}
       opens={stage.opens}
       touched={stage.touched}

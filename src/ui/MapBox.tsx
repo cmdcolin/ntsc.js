@@ -91,6 +91,12 @@ export function MapBox(props: {
   // finished clause because only the caller knows whether the gate is in the
   // count (see bayLoad). Absent, both drawings say "N off stock" as before.
   touchedSay?: string
+  // What is standing in this box, on the three that can hold something. Both
+  // drawings caption it under the name in their own type, and it is said here
+  // so the sentence a reader hears is the one a reader sees: the stage, what is
+  // in it, then what the stage does. Never the truncated caption — the drawing
+  // cuts its own text to its own boxes, and a screen reader has no box.
+  patched?: string
   // What the miniature adds on the end when a press will fold the stage back up
   // again. The only part of the hover text the two drawings genuinely differ on,
   // and the card passes nothing because it has no fold to describe.
@@ -106,7 +112,10 @@ export function MapBox(props: {
   // reaching it". What follows is the part that differs: an inert box is
   // announced by what it is *for*, which is picking the input it is missing,
   // rather than by the blurb of controls that cannot act yet.
-  const said = `${props.name} — ${off ? props.offHint : props.blurb}`
+  // An inert box says nothing here: `patched` is undefined whenever nothing is
+  // in it, and the hint it carries instead is about that emptiness.
+  const holds = props.patched === undefined ? '' : ` — ${props.patched}`
+  const said = `${props.name}${holds} — ${off ? props.offHint : props.blurb}`
   // The hover text is that same sentence with the counts on it, and an inert box
   // has no counts worth reading — nothing in it is reaching the picture, which
   // is the whole of what its hint says.

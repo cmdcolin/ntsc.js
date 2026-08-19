@@ -1723,6 +1723,7 @@ export function App() {
           live={loopsLive}
           bOn={bOn}
           soundOn={soundOn}
+          patched={patched}
           mod={bay}
           deck={deck}
           onOpen={nav.openAt}

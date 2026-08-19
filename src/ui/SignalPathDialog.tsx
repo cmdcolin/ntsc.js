@@ -23,6 +23,7 @@ import {
 import { cx } from './cx'
 import { Dialog } from './Dialog'
 import { MapBox, MapRun } from './MapBox'
+import { fitCaption } from './patched'
 import styles from './SignalPathDialog.module.css'
 import ui from './ui.module.css'
 
@@ -68,6 +69,15 @@ const BRANCH_Y = 128
 // a box opens the stage, and that lives in MapBox for both.
 const FREE_Y = 164
 const BOX_H = 22
+// What a caption costs per character here, for the cut `fitCaption` makes. The
+// miniature measured 3.6 at 7px (chainLayout's SUB_CHAR) and this card sets the
+// same text at 8.5 against an 11px label, so the estimate scales with the type.
+// A box on this drawing is 92 units against the miniature's 50, so a name that
+// was cut to two words there arrives whole here — which is the card doing what
+// the card is for.
+const SUB_CHAR = 4.4
+// Both sides together, as the miniature's PAD is.
+const SUB_PAD = 10
 const HEAD = 3
 const TURN = 5
 
@@ -328,6 +338,10 @@ export function SignalPathDialog(props: {
   // The same question for the other branch: no audio input picked, so the box
   // is drawn and inert rather than absent.
   soundOn: boolean
+  // What is standing in each box that has a picker, captioned under its name
+  // (patched.ts). The same record the miniature draws from, so the two drawings
+  // cannot name the same source two ways.
+  patched: Readonly<Record<string, string | undefined>>
   onOpen: (stage: string, group: string) => void
   onClose: () => void
 }) {
@@ -374,6 +388,12 @@ export function SignalPathDialog(props: {
   // miniature was the same drawing answering twice, which is what it did until
   // this stopped being written out per drawing.
   const opens = (box: Box) => !dead(box) || PICKER_STAGES.has(box.stage)
+  // The box that *is* a picker stage carries the caption; the feed beside it
+  // narrows to a group inside that same stage and is not where anything is
+  // patched in. Nothing on an inert box, which is already saying the opposite
+  // in dashes.
+  const holds = (box: Box): string | undefined =>
+    box.group === undefined && !dead(box) ? props.patched[box.stage] : undefined
 
   return (
     <Dialog title="the signal path" size="diagram" onClose={onClose}>
@@ -520,12 +540,18 @@ export function SignalPathDialog(props: {
           const y = rowY(box.row)
           const n = touchedIn(box)
           const off = dead(box)
+          const held = holds(box)
+          const sub =
+            held === undefined
+              ? undefined
+              : fitCaption(held, BOX_W - SUB_PAD, SUB_CHAR)
           return (
             <MapBox
               key={box.label}
               name={box.label}
               blurb={box.what}
               offHint={deadHint(box)}
+              patched={held}
               off={off}
               opens={opens(box)}
               touched={n}
@@ -557,12 +583,26 @@ export function SignalPathDialog(props: {
               <text
                 className={styles.label}
                 x={colX(box.col)}
-                y={y}
+                // Set off centre only where there is a caption to make room
+                // for; every other box on the drawing is one line in the middle
+                // of a chip and stays there.
+                y={sub === undefined ? y : y - 4.5}
                 textAnchor="middle"
                 dominantBaseline="central"
               >
                 {box.label}
               </text>
+              {sub === undefined ? null : (
+                <text
+                  className={styles.sub}
+                  x={colX(box.col)}
+                  y={y + 6.5}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                >
+                  {sub}
+                </text>
+              )}
             </MapBox>
           )
         })}
@@ -583,6 +623,16 @@ export function SignalPathDialog(props: {
               >
                 <span className={styles.legendName}>{box.label}</span>
                 <span className={styles.legendWhat}>
+                  {/* Whole here, where the row is html and wraps, rather than
+                      cut to a box as the drawing has to cut it — the one place
+                      a long filename can be read in full. Inside the sentence
+                      rather than in a column of its own: a column between the
+                      name and the blurb would start two of the twelve sentences
+                      further right than the other ten, and the point of the
+                      name holding its width is that the sentences line up. */}
+                  {holds(box) === undefined ? null : (
+                    <span className={styles.legendHolds}>{holds(box)} — </span>
+                  )}
                   {off ? deadHint(box) : box.what}
                 </span>
                 {n > 0 && !off ? (

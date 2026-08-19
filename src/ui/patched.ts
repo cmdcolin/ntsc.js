@@ -25,7 +25,13 @@ const head = (desc: string): string => desc.split(' — ')[0] ?? desc
 // Nothing at all comes back empty rather than as "off". A box with nothing in it
 // is already drawn dashed and already carries OFF_HINT, and a caption repeating
 // that is ink spent on the one state the drawing says loudest.
-export const slotPatched = (slot: AnySlotView): string | undefined =>
+// Takes the two fields it reads rather than the slot whole, which is the one
+// place that is the safer shape: a formatter handed one slot cannot pair A's
+// mode with B's name, and `Pick` lets a test name a source without building
+// thirty fields of engine around it.
+export const slotPatched = (
+  slot: Pick<AnySlotView, 'mode' | 'name'>,
+): string | undefined =>
   slot.mode === 'none'
     ? undefined
     : slot.name === ''
@@ -40,3 +46,37 @@ export const soundPatched = (
   name: string,
 ): string | undefined =>
   mode === 'off' ? undefined : name === '' ? head(AUDIO_DESC[mode]) : name
+
+// A caption cut to the box it goes in. **It never widens one**: both drawings
+// lay their rows out off the stage names, so a source called
+// `sunset-final-final2.mp4` would otherwise walk the head of the chain across
+// the picture every time someone loaded one. The box is the budget and the
+// caption is what fits, with an ellipsis where the rest went.
+//
+// The rule lives here and the numbers come from the caller, which is the split
+// MapBox makes for a press: what the two drawings must agree on is one copy,
+// and the geometry stays with each drawing. The miniature is 7px text in a
+// 50-unit box and the card is 8.5px in 92, so neither `room` nor `perChar` is a
+// fact this file could know.
+//
+// `perChar` carries a doubling of m and w on top, for the reason a run's label
+// does: a caption is a filename as often as it is a word, so the spread between
+// 'iiii' and 'wwww' is real rather than theoretical.
+//
+// Returns undefined rather than a bare '…' when not one character will go —
+// a box too narrow to be captioned at all, where nothing is a better answer
+// than a dot that reads as a fault in the rig.
+const WIDE = /[mw]/g
+export function fitCaption(
+  text: string,
+  room: number,
+  perChar: number,
+): string | undefined {
+  const width = (s: string) =>
+    (s.length + (s.toLowerCase().match(WIDE)?.length ?? 0)) * perChar
+  if (width(text) <= room) return text
+  const ell = width('…')
+  let cut = text.length - 1
+  while (cut > 0 && width(text.slice(0, cut)) + ell > room) cut -= 1
+  return cut === 0 ? undefined : `${text.slice(0, cut).trimEnd()}…`
+}

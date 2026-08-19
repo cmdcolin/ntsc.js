@@ -6,6 +6,7 @@ import {
   MIXER_LOOP_STAGE,
   SOURCE_A_STAGE,
 } from './controls'
+import { fitCaption } from './patched'
 
 import type { LoopPlace } from './controls'
 
@@ -152,26 +153,12 @@ export const boxWidth = (name: string) =>
 // padding, while a caption is cut to fit a box that is already placed — every
 // unit of slack here is a character of someone's filename that goes missing.
 const SUB_CHAR = 3.6
-const subWidth = (s: string) =>
-  (s.length + (s.toLowerCase().match(WIDE)?.length ?? 0)) * SUB_CHAR
 
-// The caption cut down to what its box holds. **It never widens the box**: the
-// row is laid out off the stage names, and a source called
-// `sunset-final-final2.mp4` would otherwise walk the head of the chain halfway
-// across the map every time someone loaded one. So the box is the budget and
-// the caption is what fits in it, with an ellipsis where the rest went.
-//
-// Returns undefined rather than a bare '…' when even one character will not go,
-// which is a box too narrow to be captioned at all — nothing is a better answer
-// there than a dot that looks like a fault.
-export function fitSub(text: string, boxW: number): string | undefined {
-  const room = boxW - PAD
-  if (subWidth(text) <= room) return text
-  const ell = subWidth('…')
-  let cut = text.length - 1
-  while (cut > 0 && subWidth(text.slice(0, cut)) + ell > room) cut -= 1
-  return cut === 0 ? undefined : `${text.slice(0, cut).trimEnd()}…`
-}
+// A caption cut to this map's boxes. The cutting is `fitCaption` (patched.ts),
+// which the card shares; what is the miniature's own is the two numbers — its
+// box padding and the size its captions are set at.
+export const fitSub = (text: string, boxW: number) =>
+  fitCaption(text, boxW - PAD, SUB_CHAR)
 
 // The three feedback returns, which are different loops around different parts
 // of the chain — not one arrow drawn three times, and not three arrows landing
