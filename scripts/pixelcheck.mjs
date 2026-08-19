@@ -113,7 +113,7 @@ async function probes(url) {
 // The dbg=2 view draws a whole line's composite across the active width and
 // maps IRE by (v + 40) / 140, so sync tip (-40) is 0 and blanking (0) is ~73.
 // SYNC_LEN 67 of SAMPLES_PER_LINE 910 puts the horizontal sync interval in the
-// leftmost 7.4% — see src/signal/constants.ts, which BAR_X above is pinned to
+// leftmost 7.4% — see src/core/signal/constants.ts, which BAR_X above is pinned to
 // the same way.
 const SYNC_FRAC = 67 / 910
 // Below this a sample is still at sync level rather than lifted toward

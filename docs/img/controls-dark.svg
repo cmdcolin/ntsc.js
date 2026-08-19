@@ -11,19 +11,19 @@
 <!-- def -->
 <g id="node1" class="node">
 <title>def</title>
-<path fill="#2f5138" stroke="#ffffff" stroke-opacity="0.149020" d="M202.8,-163.53C202.8,-163.53 93.75,-163.53 93.75,-163.53 87.75,-163.53 81.75,-157.53 81.75,-151.53 81.75,-151.53 81.75,-86.12 81.75,-86.12 81.75,-80.12 87.75,-74.12 93.75,-74.12 93.75,-74.12 202.8,-74.12 202.8,-74.12 208.8,-74.12 214.8,-80.12 214.8,-86.12 214.8,-86.12 214.8,-151.53 214.8,-151.53 214.8,-157.53 208.8,-163.53 202.8,-163.53"/>
-<text xml:space="preserve" text-anchor="start" x="96.15" y="-143" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">PARAM_DEFS</text>
-<text xml:space="preserve" text-anchor="start" x="96.15" y="-131.75" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">src/gpu/prelude.ts</text>
-<text xml:space="preserve" text-anchor="start" x="96.15" y="-107.5" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">the GPU&#45;side field.</text>
-<text xml:space="preserve" text-anchor="start" x="96.15" y="-96.25" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">field order here IS the</text>
-<text xml:space="preserve" text-anchor="start" x="96.15" y="-85" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">GPU memory layout</text>
+<path fill="#2f5138" stroke="#ffffff" stroke-opacity="0.149020" d="M205.42,-163.53C205.42,-163.53 91.12,-163.53 91.12,-163.53 85.12,-163.53 79.12,-157.53 79.12,-151.53 79.12,-151.53 79.12,-86.12 79.12,-86.12 79.12,-80.12 85.12,-74.12 91.12,-74.12 91.12,-74.12 205.42,-74.12 205.42,-74.12 211.42,-74.12 217.42,-80.12 217.42,-86.12 217.42,-86.12 217.42,-151.53 217.42,-151.53 217.42,-157.53 211.42,-163.53 205.42,-163.53"/>
+<text xml:space="preserve" text-anchor="start" x="93.52" y="-143" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">PARAM_DEFS</text>
+<text xml:space="preserve" text-anchor="start" x="93.52" y="-131.75" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">src/core/gpu/prelude.ts</text>
+<text xml:space="preserve" text-anchor="start" x="93.52" y="-107.5" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">the GPU&#45;side field.</text>
+<text xml:space="preserve" text-anchor="start" x="93.52" y="-96.25" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">field order here IS the</text>
+<text xml:space="preserve" text-anchor="start" x="93.52" y="-85" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">GPU memory layout</text>
 </g>
 <!-- ctl -->
 <g id="node2" class="node">
 <title>ctl</title>
 <path fill="#25334d" stroke="#ffffff" stroke-opacity="0.149020" d="M461.85,-163.53C461.85,-163.53 344.55,-163.53 344.55,-163.53 338.55,-163.53 332.55,-157.53 332.55,-151.53 332.55,-151.53 332.55,-86.12 332.55,-86.12 332.55,-80.12 338.55,-74.12 344.55,-74.12 344.55,-74.12 461.85,-74.12 461.85,-74.12 467.85,-74.12 473.85,-80.12 473.85,-86.12 473.85,-86.12 473.85,-151.53 473.85,-151.53 473.85,-157.53 467.85,-163.53 461.85,-163.53"/>
 <text xml:space="preserve" text-anchor="start" x="346.95" y="-143" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">DEFAULT_CONTROLS</text>
-<text xml:space="preserve" text-anchor="start" x="346.95" y="-131.75" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">src/controls.ts</text>
+<text xml:space="preserve" text-anchor="start" x="346.95" y="-131.75" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">src/core/controls.ts</text>
 <text xml:space="preserve" text-anchor="start" x="346.95" y="-107.5" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">the user&#45;facing value,</text>
 <text xml:space="preserve" text-anchor="start" x="346.95" y="-96.25" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">in physical units</text>
 <text xml:space="preserve" text-anchor="start" x="346.95" y="-85" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">(µs, Hz, IRE)</text>
@@ -31,15 +31,15 @@
 <!-- def&#45;&gt;ctl -->
 <g id="edge1" class="edge">
 <title>def&#45;&gt;ctl</title>
-<path fill="none" stroke="#8b95a5" d="M215.07,-118.83C247.42,-118.83 286.71,-118.83 320.92,-118.83"/>
-<polygon fill="#8b95a5" stroke="#8b95a5" points="320.8,-122.33 330.8,-118.83 320.8,-115.33 320.8,-122.33"/>
+<path fill="none" stroke="#8b95a5" d="M217.72,-118.83C249.66,-118.83 287.9,-118.83 321.27,-118.83"/>
+<polygon fill="#8b95a5" stroke="#8b95a5" points="320.87,-122.33 330.87,-118.83 320.87,-115.33 320.87,-122.33"/>
 </g>
 <!-- uni -->
 <g id="node3" class="node">
 <title>uni</title>
 <path fill="#5a2f34" stroke="#ffffff" stroke-opacity="0.149020" d="M645.9,-157.91C645.9,-157.91 521.85,-157.91 521.85,-157.91 515.85,-157.91 509.85,-151.91 509.85,-145.91 509.85,-145.91 509.85,-91.75 509.85,-91.75 509.85,-85.75 515.85,-79.75 521.85,-79.75 521.85,-79.75 645.9,-79.75 645.9,-79.75 651.9,-79.75 657.9,-85.75 657.9,-91.75 657.9,-91.75 657.9,-145.91 657.9,-145.91 657.9,-151.91 651.9,-157.91 645.9,-157.91"/>
 <text xml:space="preserve" text-anchor="start" x="524.25" y="-137.38" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">uniformValues()</text>
-<text xml:space="preserve" text-anchor="start" x="524.25" y="-126.13" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">src/gpu/pipeline.ts</text>
+<text xml:space="preserve" text-anchor="start" x="524.25" y="-126.13" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">src/core/gpu/pipeline.ts</text>
 <text xml:space="preserve" text-anchor="start" x="524.25" y="-101.88" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">convert units, fold in</text>
 <text xml:space="preserve" text-anchor="start" x="524.25" y="-90.63" font-family="Helvetica,Arial,sans-serif" font-size="11.00" fill="#e8ebf1">any per&#45;frame CPU state</text>
 </g>

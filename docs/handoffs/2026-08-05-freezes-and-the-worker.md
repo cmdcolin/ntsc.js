@@ -331,11 +331,11 @@ Several of these invalidated a result before being caught. Full versions live in
 
 | area                          | file                                      |
 | ----------------------------- | ----------------------------------------- |
-| adapter choice, `?gpu=`       | `src/gpu/context.ts`                      |
-| backpressure, hang honesty    | `src/gpu/renderloop.ts`                   |
-| worker/main environment split | `src/gpu/env.ts`                          |
-| video element → bitmap        | `src/gpu/videopump.ts`                    |
-| bitmap → texture              | `src/gpu/sources.ts`                      |
+| adapter choice, `?gpu=`       | `src/core/gpu/context.ts`                      |
+| backpressure, hang honesty    | `src/core/gpu/renderloop.ts`                   |
+| worker/main environment split | `src/core/gpu/env.ts`                          |
+| video element → bitmap        | `src/core/gpu/videopump.ts`                    |
+| bitmap → texture              | `src/core/gpu/sources.ts`                      |
 | hang → rebuild, fault kinds   | `src/ui/useEngine.ts`, `rebuildPolicy.ts` |
 | GPU runtime-PM vs a live tab  | `scripts/gpusleep.mjs`                    |
 

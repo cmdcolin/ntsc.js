@@ -12,9 +12,9 @@ Investigated and declined — the full findings are in
 order of how fast each one kills it.
 
 **There is no "the shaders" to port.** The WGSL is about a third of the
-simulator. Against it sit `src/signal/`'s per-frame CPU state — the line, mix,
+simulator. Against it sit `src/core/signal/`'s per-frame CPU state — the line, mix,
 tape, RF, synth and audio state, and a FIR bank rebuilt whenever one of the
-filter controls moves — plus `src/gpu/`'s pass graph, uniform packing and
+filter controls moves — plus `src/core/gpu/`'s pass graph, uniform packing and
 buffers that hold state rather than scratch. Lifting the shaders alone lifts
 nothing that runs.
 

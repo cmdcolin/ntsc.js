@@ -1,9 +1,9 @@
 // ntsc.js signal path — mirrors the pass order in docs/ARCHITECTURE.md
-// ("Pass order") and src/gpu/pipeline.ts: prePasses -> loopPasses x dubGens
+// ("Pass order") and src/core/gpu/pipeline.ts: prePasses -> loopPasses x dubGens
 // -> postPasses -> present.
 //
 // The `passes` attribute on each node names the pass(es) it stands for, and
-// src/gpu/pipeline-graph.test.ts asserts that set equals the passes the engine
+// src/core/gpu/pipeline-graph.test.ts asserts that set equals the passes the engine
 // actually builds — so a pass added to the pipeline and forgotten here fails
 // the test rather than quietly rotting.
 //

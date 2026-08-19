@@ -17,9 +17,33 @@ modelling the mechanism that causes the artifact over drawing the artifact. The
 payoff is that mechanisms interact for free, which is where the interesting
 output comes from.
 
+## The layout
+
+`src/core/` is the simulator; the rest of `src/` is the instrument built on it.
+Core holds the pass graph and its WGSL (`core/gpu/`), the per-frame CPU state
+that feeds them (`core/signal/`), the control schema every layer shares
+(`core/controls.ts`), and the three utilities both halves use. Around it,
+`src/ui/` is the panel and the React that drives one, `src/sources/` is where
+pictures come from, and `src/vote/` is the labelling tool that builds a
+preference dataset out of the engine.
+
+**Nothing under `core/` imports the app.** An engine runs against a canvas and a
+`Controls` object, which is why `src/vote/` can stand up its own engines without
+touching a line of the panel. An oxlint override on `src/core/**` fails the
+build on an import reaching back out — to `ui/`, `sources/`, `vote/`, React or
+firebase, and type-only imports count. Where core needs a shape the app owns,
+core declares the shape and the app satisfies it: `core/gpu/videopump.ts` does
+that for `Relay`, `PullOpener` and `FramePull`, so the pump names what it
+depends on instead of naming who builds it.
+
+The boundary is a directory, not a package. Core has no build of its own, the
+app imports its source, HMR crosses the line freely, and the doc tests read core
+files by path. Making it a workspace package is a separate decision, and what
+would make one worth taking is somebody outside this repo wanting to install it.
+
 ## The raster
 
-Everything hangs off `src/signal/constants.ts`:
+Everything hangs off `src/core/signal/constants.ts`:
 
 | quantity         | value                           |
 | ---------------- | ------------------------------- |
@@ -43,7 +67,7 @@ authenticity gap.
 
 ## Pass order
 
-One frame, driven by `Engine.render()` in `src/gpu/pipeline.ts`:
+One frame, driven by `Engine.render()` in `src/core/gpu/pipeline.ts`:
 
 ```
 prePasses    compose → encodeYuv → encodeComposite → [feedA] → [composeB → encodeYuvB → encodeChromaB → encodeCompositeB → feedB → mixB] → [fbComposite] → [tapePlay → tapeRec]
@@ -52,7 +76,7 @@ postPasses   [enhancer] → [buzzTap] → syncMeasure → sync → lineAnalyze �
 present      render pass to the swap chain
 ```
 
-That block is not decoration: `src/gpu/pipeline-graph.test.ts` parses the three
+That block is not decoration: `src/core/gpu/pipeline-graph.test.ts` parses the three
 arrays out of `pipeline.ts` and fails if this order, or which names are
 bracketed, no longer matches. `docs/graphviz/pipeline.dot` draws the same order
 with the buffers on the arrows and is held to the same list:
@@ -180,7 +204,7 @@ fault through `timing[]` will spin hue that should have stayed put.
 
 ## Params are generated, not hand-written
 
-`PARAM_DEFS` in `src/gpu/prelude.ts` is the single source of truth for the
+`PARAM_DEFS` in `src/core/gpu/prelude.ts` is the single source of truth for the
 uniform struct: **field order there is the GPU memory layout**. It generates
 both the WGSL `Params` struct and a typed `Record` that `packParams` consumes.
 Adding a param to `PARAM_DEFS` without supplying it in `Engine.uniformValues()`
@@ -191,14 +215,14 @@ Adding a control end to end touches five files, and only the last is optional:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="img/controls-dark.svg">
-  <img alt="Adding a control end to end: PARAM_DEFS in src/gpu/prelude.ts declares the GPU-side field, and field order there is the GPU memory layout; DEFAULT_CONTROLS in src/controls.ts holds the user-facing value in physical units; uniformValues() in src/gpu/pipeline.ts converts units and folds in per-frame CPU state; GROUPS in src/ui/controls.ts adds the slider; optionally a preset in src/ui/presets.ts. A field in PARAM_DEFS that uniformValues() does not supply is a TypeScript error, which guards against a uniform that silently reads zero." src="img/controls-light.svg">
+  <img alt="Adding a control end to end: PARAM_DEFS in src/core/gpu/prelude.ts declares the GPU-side field, and field order there is the GPU memory layout; DEFAULT_CONTROLS in src/core/controls.ts holds the user-facing value in physical units; uniformValues() in src/core/gpu/pipeline.ts converts units and folds in per-frame CPU state; GROUPS in src/ui/controls.ts adds the slider; optionally a preset in src/ui/presets.ts. A field in PARAM_DEFS that uniformValues() does not supply is a TypeScript error, which guards against a uniform that silently reads zero." src="img/controls-light.svg">
 </picture>
 
 `PARAM_DEFS` has to come first — the type error it raises is what points you at
 the remaining steps.
 
 CPU-side per-frame state (`LineState`, `MixState`, `AudioState`) lives in
-`src/signal/` and is either uploaded as a buffer or folded into uniforms.
+`src/core/signal/` and is either uploaded as a buffer or folded into uniforms.
 
 ## Direct-manipulation miniatures
 
@@ -436,7 +460,7 @@ depth, because it drives everything at once. It runs immediately **after**
 `applyMod` and restores immediately before it, so a clean frame is clean
 including whatever the LFOs were doing to it. Three things it has to get right:
 
-- **`STOCK_HOLD` (`src/controls.ts`) is held back.** The engine cannot read the
+- **`STOCK_HOLD` (`src/core/controls.ts`) is held back.** The engine cannot read the
   panel's `VIEW_KEYS`, so it carries its own copy of the same five keys, and
   `ui/controls.test.ts` asserts the two match. Without it the gate yanks the
   magnifier and rechooses the frame lock several times a second — which
@@ -475,7 +499,7 @@ Two things here are architecture rather than procedure; the harnesses, the traps
 they have hit and the performance protocol are all in
 [`DEVELOPMENT.md`](DEVELOPMENT.md).
 
-- **WGSL is validated statically.** `src/gpu/shaders.test.ts` prepends the real
+- **WGSL is validated statically.** `src/core/gpu/shaders.test.ts` prepends the real
   prelude to every `.wgsl` and runs it through naga, because WGSL is otherwise
   only compiled inside the browser and a typo would survive until runtime.
   Optional locally, enforced under CI.

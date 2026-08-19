@@ -213,7 +213,7 @@ per frame has a rule about them:
 
 ## Uniforms are generated, packed once, and copied on the GPU timeline
 
-`PARAM_DEFS` in `src/gpu/prelude.ts` is the single source of truth for the
+`PARAM_DEFS` in `src/core/gpu/prelude.ts` is the single source of truth for the
 `Params` struct, and **field order there is the GPU memory layout**. It
 generates the WGSL struct and a typed `Record` that `packParams` consumes, so a
 field added without being supplied in `uniformValues()` is a TypeScript error

@@ -30,7 +30,7 @@ import puppeteer from 'puppeteer-core'
 // The app arm carries `gpubudget=ignore` so that what it measures is the browser
 // and never the app's own gate: a tab that has destroyed a presenting device is
 // declined its next one and shown a screen offering a new tab instead (see
-// outOfGpuBudget in src/gpu/context.ts). A page that never asks for a device cannot
+// outOfGpuBudget in src/core/gpu/context.ts). A page that never asks for a device cannot
 // demonstrate anything about devices, and this harness's whole job is to ask.
 // Belt and braces now — the gate no longer counts creations, and this arm destroys
 // nothing — but the flag is what keeps the measurement independent of app policy.

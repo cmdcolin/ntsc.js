@@ -37,7 +37,7 @@ _file_.
 ## Decision
 
 **Everything that rolls takes a trailing `rand` argument defaulting to
-`Math.random`.** The generator lives in `src/rng.ts` (`rngFor`, mulberry32) and
+`Math.random`.** The generator lives in `src/core/rng.ts` (`rngFor`, mulberry32) and
 the convention is one line: a caller that has a seed passes it, and a caller
 that does not keeps the behaviour it had. `mutate`, `randomPresetMix`,
 `ModState`, `LineState`, `MixState`, `TapeState`, `Wow`, `StickSlip` and both

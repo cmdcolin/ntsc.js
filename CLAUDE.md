@@ -55,9 +55,9 @@ What follows for anyone working here:
   devices.
 - **HMR is the cheap path.** A hot update recreates the engine, but the engine
   hands its device on alive (`destroy({keepDevice: true})`) and the successor
-  adopts it from the stash in `gpu/context.ts`, so an editing session costs one
+  adopts it from the stash in `core/gpu/context.ts`, so an editing session costs one
   device however many saves it takes — the stash lives on `globalThis` precisely
-  so that editing `gpu/context.ts` itself does not throw it away with the
+  so that editing `core/gpu/context.ts` itself does not throw it away with the
   module. Disabling HMR is the wrong instinct.
 - **`?gpudestroy=1` puts the destroy back**, for re-measuring the fault against
   a new browser build. It will kill the tab. `?gpubudget=ignore` switches off
