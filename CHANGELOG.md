@@ -2,6 +2,24 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.28.9](https://github.com/cmdcolin/ntsc.js/compare/v0.28.8...v0.28.9) - 2026-08-19
+
+### Features
+- *(ui)* [`375667e`](https://github.com/cmdcolin/ntsc.js/commit/375667ec925f308a6b0eee3ba156a18224c063e6) the boxes with a picker say what is standing in them
+- *(ui)* [`bcd632a`](https://github.com/cmdcolin/ntsc.js/commit/bcd632aeeb6409ddf03cc49a66a445eec31d93c8) the diagram card captions its picker boxes too
+- *(ui)* [`180f60d`](https://github.com/cmdcolin/ntsc.js/commit/180f60db41b5fca1630efa6e725012c262ed5d2e) a wire can land on another wire's depth or rate
+- *(sync)* [`8521ae3`](https://github.com/cmdcolin/ntsc.js/commit/8521ae3478791f4fab5e2eace61e9357858e237f) a paperclip held against a point inside the set
+
+### Documentation
+- [`afedbec`](https://github.com/cmdcolin/ntsc.js/commit/afedbeca3c162dcc7ad75ba11e85414be69db3a2) generate EFFECTS.md from the control table, split the prose into FEATURES.md
+- [`a05c6d0`](https://github.com/cmdcolin/ntsc.js/commit/a05c6d0bc7d560e9ca3b7b7567a3d7516a52867f) pull the feedback-loop prose from LOOP_STAGES
+
+### Tests
+- [`466c02e`](https://github.com/cmdcolin/ntsc.js/commit/466c02ee94b21c3f670f74602c4c836f2b115c22) pin the user guide's countable claims to their constants
+
+### Chores
+- [`6605cea`](https://github.com/cmdcolin/ntsc.js/commit/6605ceaf86d82b9fa1e2bad832112d0ecc1f4692) gate the generated page in build, not in a pre-commit hook
+
 ## [0.28.8](https://github.com/cmdcolin/ntsc.js/compare/v0.28.7...v0.28.8) - 2026-08-19
 
 ### Fixes
