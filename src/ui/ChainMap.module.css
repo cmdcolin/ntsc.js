@@ -229,10 +229,11 @@
 }
 /* svg user units, which are px at the sidebar's width. 9 rather than 8: the box
    under it is 22 units now instead of 16, and 8px caps in a 22-unit box is a
-   label rattling around in a target. */
+   label rattling around in a target. The free chips under the map read the same
+   token, so a box and a chip are set at one size. */
 .mapLabel {
   fill: currentColor;
-  font-size: 9px;
+  font-size: var(--fs-map);
   letter-spacing: 0.02em;
   text-transform: uppercase;
   /* the box is the target, and a drag that starts on a label should not select

@@ -55,24 +55,37 @@
   gap: 6px;
   margin: 6px 0 2px;
 }
-/* Sized like the boxes above it and set like the panel, which is the pairing
-   that says "same kind of thing, not on the drawing": a chip's face is the map's
-   own --ctl-face, and its outline is the dotted one the free boxes used to wear
-   inside the svg. 26px tall, against the 24 a box on the map now gets. */
+/* Sized like the boxes above it, which is what says "same kind of thing, not on
+   the drawing": a chip's face is the map's own --ctl-face, and its outline is
+   the dotted one the free boxes used to wear inside the svg.
+
+   Set at the map's own --fs-map rather than the panel's, because the difference
+   was visible: a chip at --fs-sm with 0.1em tracking put MODULATION at 107px
+   against SOURCE A's 61, so the widest, heaviest thing in the figure was the one
+   box that isn't on the signal path. Same size and same tracking as .mapLabel,
+   and 24px tall against the box's 22. */
 .freeChip {
   composes: bare from './ui.module.css';
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 26px;
+  min-height: 24px;
   padding: 0 9px;
   border: 1px dotted var(--border);
   border-radius: 4px;
   background: var(--ctl-face);
   color: var(--fg2);
-  font-size: var(--fs-sm);
-  letter-spacing: 0.1em;
+  font-size: var(--fs-map);
+  letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+/* The map is capped at 420px there, so its labels are drawn at 420/304 of a
+   user unit and a chip left at --fs-map would be the thing that looks wrong.
+   Same ratio, applied to the chip. */
+@container panel (min-width: 540px) {
+  .freeChip {
+    font-size: calc(var(--fs-map) * 420 / 304);
+  }
 }
 .freeChip:hover:not(:disabled) {
   border-color: var(--border-hover);
