@@ -1507,6 +1507,50 @@ export const PRESETS: PresetDef[] = [
       trackPos: 0.04,
       noiseIre: 3,
     },
+    // Colorizer phase rather than anything in the picture: rotating all three
+    // phase shifts together slides the palette round the wheel without moving
+    // a single edge, so the bars stay exactly where the oscillator put them
+    // and only which four colours survive the rails changes. Slow, and short
+    // of a full turn — a wire that carousels the whole wheel reads as a demo
+    // of the colorizer rather than as a set drifting.
+    mod: [{ target: 'synthHueDeg', source: 'sine', rateHz: 0.04, depth: 0.35 }],
+  },
+  {
+    name: 'outOfHeadroom',
+    displayName: 'out of headroom',
+    group: 'Past the redline',
+    blurb:
+      'Two controls and nothing else: colour driven nine times up, into output amplifiers that simply hit their rails. Every hue on screen slides to whichever corner of the RGB cube it reached first, and the picture comes back in primaries it was never carrying. The mechanism on its own, to lay over whatever is already on the board.',
+    patch: {
+      // Deliberately bare. Everything else that reads as this look — bars,
+      // hash, a phosphor — is a separate mechanism that happens to sit well
+      // with it, and bundling any of them here would stop this being the one
+      // thing you can drag partway into another patch to find out what the
+      // rails alone are doing to it.
+      chromaGain: 9,
+      matrixClip: 1,
+    },
+  },
+  {
+    name: 'soundAtTheRails',
+    displayName: 'sound at the rails',
+    group: 'Past the redline',
+    blurb:
+      'The audio patched straight into the video input under output stages with no headroom left, so loud passages land on the burst and the whole frame snaps between primaries on the beat. The waveform is on the deflection and the demodulator reference as well, drawing itself into the geometry and the hue one sample per scan line. Enable the microphone under Audio.',
+    patch: {
+      chromaGain: 6,
+      matrixClip: 1,
+      // Hot enough to reach the burst and the sync tips, which is the whole
+      // reason this is the audio routing that pairs with the rails: it moves
+      // the colour reference rather than the picture, so what the beat does is
+      // re-decide which corner every hue clips to.
+      audioIre: 90,
+      audioHueDeg: 60,
+      audioBendUs: 30,
+      audioGain: 4,
+      phosphor: 0.6,
+      noiseIre: 2,
+    },
   },
   {
     name: 'lightThatStays',
