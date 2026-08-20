@@ -1470,6 +1470,45 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'chromaRails',
+    displayName: 'chroma rails',
+    group: 'Past the redline',
+    blurb:
+      'Colour driven six times past the knob’s top into output stages with no headroom left, under a colorized pulse laid over the picture. The guns hit their rails one at a time, so every hue on screen slides to whichever corner of the cube it reached first and the picture comes back in four colours it was never carrying.',
+    patch: {
+      // The two together are the look; either alone is not it. Gain past 1
+      // with the matrix fitting back into gamut (matrixClip 0) just makes
+      // vivid colour, and the hard rails do nothing to a picture whose chroma
+      // never reaches them — so the palette only collapses to primaries
+      // when the overdrive and the clipping are both on.
+      chromaGain: 6,
+      matrixClip: 1,
+      // Twenty-one cycles down the frame rather than twenty: an exact multiple
+      // stands still and reads as a texture somebody drew, and the whole point
+      // is that nobody drew it. The odd hertz makes the stack creep.
+      synthOver: 0.55,
+      synthAHz: 638,
+      synthShape: 3,
+      synthLevel: 2.2,
+      // The colorizer is what puts the bars on the wheel; without it they are
+      // grey and clip to white, and white is the one thing this palette has
+      // none of.
+      synthColor: 0.8,
+      synthHueDeg: 40,
+      // A comb rather than the stock trap, which is the one place this patch
+      // asks for a better receiver instead of a worse one. A colorized pulse
+      // hands the encoder more chroma sideband than the notch can tell from
+      // detail, so on trap every bar comes back shredded into line-rate hash
+      // and the flat blocks the clipping is supposed to produce never appear.
+      combMode: 2,
+      crtSat: 2,
+      // A mistrack stripe up at the top edge, where a head switch would sit.
+      trackAmt: 0.3,
+      trackPos: 0.04,
+      noiseIre: 3,
+    },
+  },
+  {
     name: 'lightThatStays',
     displayName: 'light that stays',
     group: 'Past the redline',
