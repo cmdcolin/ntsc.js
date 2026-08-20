@@ -152,6 +152,7 @@ describe('session params', () => {
       text: 'BE KIND\nREWIND',
       crawl: false,
       boil: false,
+      garble: false,
     })
     expect(p.cardb).toBe(null)
   })
@@ -161,6 +162,7 @@ describe('session params', () => {
       text: TELETYPE_DEFAULT.text,
       crawl: true,
       boil: false,
+      garble: false,
     })
   })
 
@@ -169,6 +171,16 @@ describe('session params', () => {
       text: TELETYPE_DEFAULT.text,
       crawl: false,
       boil: true,
+      garble: false,
+    })
+  })
+
+  it('takes ?garble on its own as the stock card, on a bad wire', () => {
+    expect(parseSessionParams('?src=teletype&garble').card).toEqual({
+      text: TELETYPE_DEFAULT.text,
+      crawl: false,
+      boil: false,
+      garble: true,
     })
   })
 
@@ -202,8 +214,8 @@ const state = (over: Partial<SessionState> = {}): SessionState => ({
   sourceBMode: 'bars',
   ytUrlA: '',
   ytUrlB: '',
-  teletypeA: { text: '', crawl: false, boil: false },
-  teletypeB: { text: '', crawl: false, boil: false },
+  teletypeA: { text: '', crawl: false, boil: false, garble: false },
+  teletypeB: { text: '', crawl: false, boil: false, garble: false },
   speedA: SPEED_DEFAULT,
   speedB: SPEED_DEFAULT,
   reverb: REVERB_DEFAULT,
@@ -277,7 +289,12 @@ describe('session round trip', () => {
   })
 
   it('returns a teletype card, mode and words and motion together', () => {
-    const card = { text: 'BE KIND\nREWIND', crawl: true, boil: true }
+    const card = {
+      text: 'BE KIND\nREWIND',
+      crawl: true,
+      boil: true,
+      garble: true,
+    }
     const back = roundTrip(state({ sourceMode: 'teletype', teletypeA: card }))
     expect(back.src).toBe('teletype')
     expect(back.card).toEqual(card)
@@ -291,7 +308,7 @@ describe('session round trip', () => {
     const back = roundTrip(
       state({
         sourceMode: 'bars',
-        teletypeA: { text: 'HI', crawl: true, boil: true },
+        teletypeA: { text: 'HI', crawl: true, boil: true, garble: true },
       }),
     )
     expect(back.card).toBe(null)

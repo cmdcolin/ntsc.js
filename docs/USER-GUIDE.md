@@ -44,7 +44,10 @@ sound on SOUND.
   flat colour.
 - **Teletype…** prints what you type onto a dot-matrix card; **draw** paints on
   the same page. Try the dither shades — dot crawl and chroma bleed feed on
-  dither.
+  dither. Three switches keep the card from sitting still, which matters because
+  a still card gives still artifacts: **crawl** rolls it up the frame, **boil**
+  redraws it by an unsteady hand, and **garble** receives it over a wire bad
+  enough to keep misspelling it.
 - **B** is a second source, deliberately not genlocked, so it beats and tears
   against A. Its controls are in **Mix**.
 - **♪** is audio in, and does nothing until you turn up a knob in **Sound**.

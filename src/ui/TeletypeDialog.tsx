@@ -33,16 +33,18 @@ export function TeletypeDialog(props: {
   const [text, setText] = useState(props.initial.text)
   const [crawl, setCrawl] = useState(props.initial.crawl)
   const [boil, setBoil] = useState(props.initial.boil)
+  const [garble, setGarble] = useState(props.initial.garble)
   const box = useRef<HTMLTextAreaElement>(null)
   // Snapshots of the text, one per stroke. A ref rather than state: nothing
   // renders from it, and it has to survive the switch between the two modes.
   const undo = useRef<string[]>([])
 
   const edit = (next: Partial<TeletypeCard>) => {
-    const card = { text, crawl, boil, ...next }
+    const card = { text, crawl, boil, garble, ...next }
     setText(card.text)
     setCrawl(card.crawl)
     setBoil(card.boil)
+    setGarble(card.garble)
     props.onLive(card)
   }
   const snapshot = () => {
@@ -117,7 +119,7 @@ export function TeletypeDialog(props: {
       <form
         onSubmit={e => {
           e.preventDefault()
-          props.onSubmit({ text, crawl, boil })
+          props.onSubmit({ text, crawl, boil, garble })
         }}
       >
         {mode === 'type' ? (
@@ -141,7 +143,7 @@ export function TeletypeDialog(props: {
               onKeyDown={e => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault()
-                  props.onSubmit({ text, crawl, boil })
+                  props.onSubmit({ text, crawl, boil, garble })
                 }
               }}
               data-autofocus
@@ -196,6 +198,20 @@ export function TeletypeDialog(props: {
             onChange={e => edit({ boil: e.target.checked })}
           />
           boil — redraw it by an unsteady hand, so the strokes crawl
+        </label>
+        {/* Teletext arrived as characters in the vertical blanking, seven bits
+            and a parity bit each, with nothing to ask for a resend: a bit that
+            arrived wrong stayed wrong until the row came round again. Holes
+            where parity caught it, wrong letters where it didn't, and blocks
+            for the rest of a row whose control code took the hit. */}
+        <label className={dlg.check}>
+          <input
+            type="checkbox"
+            checked={garble}
+            onChange={e => edit({ garble: e.target.checked })}
+          />
+          garble — receive it over a bad wire, so the page keeps misspelling
+          itself
         </label>
         <div className={dlg.cardRow}>
           <div>

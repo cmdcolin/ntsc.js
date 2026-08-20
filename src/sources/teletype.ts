@@ -68,19 +68,22 @@ export const clampCardText = (text: string): string =>
   Array.from(text).slice(0, TELETYPE_MAX).join('')
 
 // A card as its owner set it: what it says, whether it rolls up the frame
-// instead of sitting still, and whether it is redrawn by an unsteady hand. One
-// value rather than three loose fields, because every layer between the dialog
-// and the query string has to carry it whole.
+// instead of sitting still, whether it is redrawn by an unsteady hand, and
+// whether it arrives over a wire bad enough to misspell it. One value rather
+// than four loose fields, because every layer between the dialog and the query
+// string has to carry it whole.
 export interface TeletypeCard {
   text: string
   crawl: boolean
   boil: boolean
+  garble: boolean
 }
 
 export const TELETYPE_DEFAULT: TeletypeCard = {
   text: 'PLEASE STAND BY',
   crawl: false,
   boil: false,
+  garble: false,
 }
 
 // A monospace stack rather than `monospace` alone: the generic maps to
@@ -371,6 +374,126 @@ export function boilOffsets(
   return out
 }
 
+// Garble: the page as it comes off a signal the decoder is barely holding.
+//
+// A teletext page is not a picture, it is characters — sent in the vertical
+// blanking a packet at a time, forty bytes to a row, seven bits and an odd
+// parity bit to a byte. Nothing is retransmitted on request. A byte that
+// arrives wrong is displayed wrong, and stays wrong until the magazine comes
+// round to that row again and overwrites it, which is why a page off a weak
+// aerial is never fuzzy the way a picture is: it is *misspelt*, and it holds
+// each mistake for the better part of a second before healing a row at a time
+// while the next row breaks.
+//
+// So a hit lands on the byte and not on the glyph, and the three things that
+// can come of it are the three things you actually saw on a bad page:
+//
+//   - One bit flips, parity fails, and the decoder throws the character away
+//     and leaves a hole. Most of a garble is holes, because a marginal feed
+//     makes single-bit errors far more often than double ones.
+//   - Two bits flip, parity passes, and the character the flipped bits name
+//     prints instead. Near-misses rather than noise — the wrong letter is
+//     always a letter or two away from the right one.
+//   - A flip carries the code under 0x20, where the *control* codes live, and
+//     a control code owns the rest of its row: 0x11-0x17 put the row into the
+//     mosaic set, where the code that drew a letter draws a block. One hit,
+//     and the back half of the line is graphics.
+//
+// The rate is the one number here that is taste rather than mechanism. A feed
+// bad enough to show this on a fifteen-character card would be dropping whole
+// rows; this is set to what makes a short card visibly unwell, and the split
+// between holes and wrong characters is even rather than the ten-to-one a real
+// bit error rate gives, because the wrong character is the half that reads as
+// *received* rather than as missing.
+const GARBLE_RATE = 0.07
+// Ticks a row keeps its damage for, and how far apart consecutive rows sit in
+// that cycle. Coprime, so every row in a page is at a different point of its
+// own refresh and the page never heals all at once — one row clearing while
+// its neighbour breaks is the whole texture of a page fighting a weak signal.
+const ROW_TICKS = 3
+const ROW_SKEW = 2
+
+function garbleHash(col: number, row: number, epoch: number): number {
+  let h =
+    Math.imul(col | 0, 0x2545f491) ^
+    Math.imul(row | 0, 0x9e3779b1) ^
+    Math.imul(epoch | 0, 0x85ebca6b)
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d)
+  h ^= h >>> 15
+  return h >>> 0
+}
+
+// The 2x3 blocks a graphics code draws, and the code that draws a given 2x3.
+// Six blocks in a seven-bit code, and they are not contiguous: bit 5 is the
+// one that says "this half of the set is graphics" and carries no block of its
+// own, so the sixth block is up at bit 6. That gap is why the capitals at
+// 0x40-0x5F survive in a graphics row — a garbled row keeps its letters and
+// turns everything around them into blocks.
+export const patternRows = (code: number): string[] => {
+  const bit = (n: number) => (code >> n) & 1
+  return [`${bit(0)}${bit(1)}`, `${bit(2)}${bit(3)}`, `${bit(4)}${bit(6)}`]
+}
+
+export const graphicsCode = (rows: string[]): number => {
+  const bit = (r: number, c: number) => (rows[r][c] === '1' ? 1 : 0)
+  return (
+    0x20 |
+    bit(0, 0) |
+    (bit(0, 1) << 1) |
+    (bit(1, 0) << 2) |
+    (bit(1, 1) << 3) |
+    (bit(2, 0) << 4) |
+    (bit(2, 1) << 6)
+  )
+}
+
+// One received page: the cells as they came out of the decoder on tick
+// `phase`. Every row comes back exactly as long as it went in — the card sizes
+// itself to its widest row, and a garble that could add or drop a cell would
+// resize the block and shove a crawl off its period every time a bit flipped.
+//
+// Exported for the tests, like boilOffsets and for the same reason: this is
+// the whole mechanism, it is arithmetic over character codes, and node can
+// check every one of them without a canvas.
+export function garbleRows(page: string[][], phase: number): string[][] {
+  return page.map((row, r) => {
+    const epoch = Math.floor((phase + r * ROW_SKEW) / ROW_TICKS)
+    // Set the row is in, which a hit on a control code can change part way
+    // along it — so this is carried left to right and never reset per cell.
+    let graphics = false
+    return row.map((ch, c) => {
+      // What the transmission would have carried for this cell. A drawn
+      // mosaic is a graphics code rather than the code point Unicode files it
+      // under, so a hit on a drawing moves one block, not one astral digit.
+      const mosaic = sextantRows(ch)
+      const drawn = mosaic !== null && ch !== ' '
+      const code =
+        mosaic === null ? (ch.codePointAt(0) ?? 0x20) : graphicsCode(mosaic)
+      const h = garbleHash(c, r, epoch)
+      let out = code
+      if (h >>> 20 < GARBLE_RATE * 0x1000) {
+        // The shades and the quadrants have no seven-bit code — they are the
+        // palette's, not the transmission's — so there is nothing to flip and
+        // a hit can only take the cell out.
+        if (code > 0x7e) return ' '
+        if (((h >>> 8) & 1) === 0) return ' '
+        const first = (h >>> 4) % 7
+        const other = (h >>> 12) % 6
+        out = code ^ (1 << first) ^ (1 << (other >= first ? other + 1 : other))
+      }
+      if (out < 0x20 || out === 0x7f) {
+        if (out >= 0x10 && out <= 0x17) graphics = true
+        else if (out <= 0x07) graphics = false
+        return ' '
+      }
+      if (out > 0x7e) return String.fromCharCode(out)
+      if ((graphics || drawn) && (out < 0x40 || out >= 0x60))
+        return mosaicChar(patternRows(out))
+      return String.fromCharCode(out)
+    })
+  })
+}
+
 export const makeTeletypeCard = (): OffscreenCanvas =>
   new OffscreenCanvas(CARD_W, CARD_H)
 
@@ -504,20 +627,23 @@ const CRAWL_GAP_ROWS = 2
 // asking for a canvas measured in tens of thousands of pixels.
 const CRAWL_MAX_ROWS = 250
 
-// `boilPhase` null is a still hand. Anything else is which redraw this is — the
-// dimensions come out identical either way (the offsets move dots inside the
-// grid, they do not resize it), which is what lets a boiling card be rebuilt
-// every tick without the block changing size or the crawl changing period.
+// `boilPhase` null is a still hand, `garblePhase` null a clean feed. Anything
+// else is which redraw this is — the dimensions come out identical either way
+// (the offsets move dots inside the grid and a garble swaps a cell for a cell,
+// neither resizes anything), which is what lets a card be rebuilt every tick
+// without the block changing size or the crawl changing period.
 export function buildTeletype(
   text: string,
   crawl = false,
   boilPhase: number | null = null,
+  garblePhase: number | null = null,
 ): TeletypeBuild {
   // A cell holds one character, whatever it took to write it down: a glyph
   // outside the BMP is one cell, not two half-surrogates rendered as tofu.
-  const rows = wrapText(text, MAX_COLS)
+  const page = wrapText(text, MAX_COLS)
     .slice(0, crawl ? CRAWL_MAX_ROWS : MAX_ROWS)
     .map(line => Array.from(line))
+  const rows = garblePhase === null ? page : garbleRows(page, garblePhase)
   const widest = rows.reduce((n, r) => Math.max(n, r.length), 0)
   // One spare column for the cursor, so a line that fills the row still has
   // somewhere to put it.

@@ -1,7 +1,8 @@
 // What makes a teletype a teletype: the card is redrawn a few times a second
-// with one more chunk of the text on it, and then — if the card is set to crawl
-// or to boil — it keeps going, rolling the block up the frame and/or redrawing
-// it with an unsteady hand, for as long as the slot holds it.
+// with one more chunk of the text on it, and then — if the card is set to
+// crawl, to boil or to garble — it keeps going, rolling the block up the frame,
+// redrawing it with an unsteady hand and/or letting a bad feed misspell it, for
+// as long as the slot holds it.
 //
 // All of them are timers rather than anything in the chain because that is all
 // they are: the *source* changes, not the signal path, exactly as it would if
@@ -48,6 +49,13 @@ const CRAWL_PX_PER_S = 70
 // sixty, which is what keeps a boiling card as cheap as a rolling one.
 const BOIL_HZ = 8
 
+// The feed. This is the tick a garbled row is measured in rather than a redraw
+// rate — a row holds its damage for ROW_TICKS of these — so four a second puts
+// a mistake on the page for about three quarters of a second, which is long
+// enough to read the wrong word before it heals. A page that re-rolled every
+// frame would be static on letterforms rather than a signal being lost.
+const GARBLE_HZ = 4
+
 // `reveal` is what makes this a teletype rather than a caption: the card prints
 // a character at a time. It is off for an edit to a card that is already up —
 // retyping a word should change the word, not send the whole card back to the
@@ -68,7 +76,7 @@ export function printCard(
     if (timer !== null) clearInterval(timer)
     timer = null
   }
-  // A crawl or a boil is never finished, so the handle stays live until the
+  // A card that moves is never finished, so the handle stays live until the
   // slot is retired; a still card drops it once the last character has landed.
   slot.typer.current = { stop }
 
@@ -83,22 +91,25 @@ export function printCard(
   // clock says it is, not a minute behind. The hand is on the same clock for the
   // same reason, and on its own slower division of it.
   const animate = () => {
-    let phase = card.boil ? 0 : null
-    let build = buildTeletype(card.text, card.crawl, phase)
+    let boil = card.boil ? 0 : null
+    let garble = card.garble ? 0 : null
+    let build = buildTeletype(card.text, card.crawl, boil, garble)
     const start = performance.now()
     let last = start
     let offset = 0
     timer = setInterval(
       () => {
         const now = performance.now()
-        if (phase !== null) {
-          const next = Math.floor(((now - start) / 1000) * BOIL_HZ)
-          if (next !== phase) {
-            phase = next
-            // The rebuild is the boil. Dimensions come back identical, so a
-            // rolling card keeps its period and its size across redraws.
-            build = buildTeletype(card.text, card.crawl, phase)
-          }
+        const at = (hz: number) => Math.floor(((now - start) / 1000) * hz)
+        const nextBoil = boil === null ? null : at(BOIL_HZ)
+        const nextGarble = garble === null ? null : at(GARBLE_HZ)
+        if (nextBoil !== boil || nextGarble !== garble) {
+          boil = nextBoil
+          garble = nextGarble
+          // The rebuild is the hand and the feed both. Dimensions come back
+          // identical, so a rolling card keeps its period and its size across
+          // redraws.
+          build = buildTeletype(card.text, card.crawl, boil, garble)
         }
         if (card.crawl) {
           offset =
@@ -113,8 +124,12 @@ export function printCard(
       },
       // A rolling card is presenting motion and wants a video source's rate
       // whether or not it also boils; a still one only ever changes when the
-      // hand does.
-      1000 / (card.crawl ? CRAWL_HZ : BOIL_HZ),
+      // hand or the feed does, and if both are on it ticks for the faster of
+      // them and rebuilds only when one of the two phases has moved.
+      1000 /
+        (card.crawl
+          ? CRAWL_HZ
+          : Math.max(card.boil ? BOIL_HZ : 0, card.garble ? GARBLE_HZ : 0)),
     )
   }
 
@@ -123,7 +138,7 @@ export function printCard(
   // vertical squeeze a mid-reveal redraw would have applied.
   const settle = () => {
     stop()
-    if (card.crawl || card.boil) {
+    if (card.crawl || card.boil || card.garble) {
       animate()
     } else {
       drawBuild(canvas, buildTeletype(card.text))

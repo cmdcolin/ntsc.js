@@ -93,11 +93,12 @@ export interface SessionParams {
   vurl: string | null
   yt: string | null
   ytb: string | null
-  // Each slot's teletype card: what it reads, whether it rolls, and whether an
-  // unsteady hand redraws it. The text is clamped to the length the dialog
-  // allows — a link is untrusted input, and the reveal prints it a chunk at a
-  // time, so an unbounded string would be an unbounded animation. `?crawl` or
-  // `?boil` alone is a card too: the stock words, moving.
+  // Each slot's teletype card: what it reads, whether it rolls, whether an
+  // unsteady hand redraws it and whether a bad feed misspells it. The text is
+  // clamped to the length the dialog allows — a link is untrusted input, and
+  // the reveal prints it a chunk at a time, so an unbounded string would be an
+  // unbounded animation. `?crawl`, `?boil` or `?garble` alone is a card too:
+  // the stock words, moving.
   card: TeletypeCard | null
   cardb: TeletypeCard | null
   vapor: { speedA: number; speedB: number; reverb: number; dry: number }
@@ -203,15 +204,18 @@ export function parseSessionParams(search: string): SessionParams {
     textKey: string,
     crawlKey: string,
     boilKey: string,
+    garbleKey: string,
   ): TeletypeCard | null => {
     const raw = q.get(textKey)
     const crawl = q.has(crawlKey)
     const boil = q.has(boilKey)
-    if (raw === null && !crawl && !boil) return null
+    const garble = q.has(garbleKey)
+    if (raw === null && !crawl && !boil && !garble) return null
     return {
       text: raw === null ? TELETYPE_DEFAULT.text : clampCardText(raw),
       crawl,
       boil,
+      garble,
     }
   }
 
@@ -238,8 +242,8 @@ export function parseSessionParams(search: string): SessionParams {
     vurl: q.get('vurl'),
     yt: q.get('yt'),
     ytb: q.get('ytb'),
-    card: card('text', 'crawl', 'boil'),
-    cardb: card('textb', 'crawlb', 'boilb'),
+    card: card('text', 'crawl', 'boil', 'garble'),
+    cardb: card('textb', 'crawlb', 'boilb', 'garbleb'),
     vapor: {
       speedA: num('speeda', SPEED_DEFAULT),
       speedB: num('speedb', SPEED_DEFAULT),
@@ -357,8 +361,8 @@ export function writeSessionParams(
     state.ytUrlB,
   )
   // The card rides alongside ?src=teletype rather than instead of it: the mode
-  // is what the slot is showing; the text, the crawl and the boil are only how
-  // it reads.
+  // is what the slot is showing; the text, the crawl, the boil and the garble
+  // are only how it reads.
   const cardA = state.sourceMode === 'teletype'
   const cardB = state.sourceBMode === 'teletype'
   put('text', cardA && state.teletypeA.text !== '', state.teletypeA.text)
@@ -367,6 +371,8 @@ export function writeSessionParams(
   put('crawlb', cardB && state.teletypeB.crawl, '1')
   put('boil', cardA && state.teletypeA.boil, '1')
   put('boilb', cardB && state.teletypeB.boil, '1')
+  put('garble', cardA && state.teletypeA.garble, '1')
+  put('garbleb', cardB && state.teletypeB.garble, '1')
   put('speeda', state.speedA !== SPEED_DEFAULT, short(state.speedA))
   put('speedb', state.speedB !== SPEED_DEFAULT, short(state.speedB))
   put('cuea', state.cueA !== null, formatCue(state.cueA))

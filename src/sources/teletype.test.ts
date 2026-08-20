@@ -8,8 +8,11 @@ import {
   boilOffsets,
   cellsToText,
   clampCardText,
+  garbleRows,
+  graphicsCode,
   mosaicChar,
   mosaicRows,
+  patternRows,
   sextantRows,
   textToCells,
   wrapText,
@@ -289,6 +292,126 @@ describe('boilOffsets', () => {
       for (let c = 0; c < COLS; c++) distinct.add(at(o, c, r).join(','))
     }
     expect(distinct.size).toBeGreaterThan(3)
+  })
+})
+
+describe('garbleRows', () => {
+  const page = (ch: string, rows = 24, cols = 40): string[][] =>
+    Array.from({ length: rows }, () => Array.from(ch.repeat(cols)))
+  const flat = (p: string[][]): string => p.map(row => row.join('')).join('\n')
+  const damage = (before: string[][], after: string[][]): number => {
+    let n = 0
+    before.forEach((row, r) =>
+      row.forEach((ch, c) => {
+        if (after[r][c] !== ch) n++
+      }),
+    )
+    return n
+  }
+
+  it('reads a graphics code back as the blocks it draws', () => {
+    // Six blocks in a seven-bit code with a gap in the middle of it. Wrong by
+    // one bit and a garbled row draws the right shapes in the wrong places,
+    // which is exactly the kind of thing only arithmetic catches.
+    for (const rows of patterns()) {
+      const code = graphicsCode(rows)
+      expect(patternRows(code)).toEqual(rows)
+      expect(code >= 0x20 && code <= 0x7f).toBe(true)
+      expect(code >= 0x40 && code < 0x60).toBe(false)
+    }
+  })
+
+  it('hands back every row at exactly the length it took', () => {
+    // The card sizes itself to its widest row. A garble that added or dropped
+    // a cell would resize the block, and a crawling one would change period,
+    // every time a bit flipped.
+    const before = page('X')
+    const after = garbleRows(before, 7)
+    expect(after.map(row => row.length)).toEqual(before.map(row => row.length))
+  })
+
+  it('draws only characters the card has a glyph for', () => {
+    // A flip lands the code anywhere in seven bits, and a third of that range
+    // is control codes. One reaching the grid would print as tofu or as
+    // nothing at all rather than as the hole or the block it stands for.
+    for (let phase = 0; phase < 12; phase++) {
+      for (const row of garbleRows(page('e'), phase)) {
+        for (const ch of row) {
+          const code = ch.codePointAt(0) ?? 0
+          const drawable =
+            (code >= 0x20 && code <= 0x7e) || mosaicRows(ch) !== null
+          expect(drawable).toBe(true)
+        }
+      }
+    }
+  })
+
+  it('misspells a page rather than replacing it', () => {
+    // Wrong in a few cells is a page fighting a signal; wrong everywhere is
+    // noise with a font. Both ends are worth pinning: the rate is the one
+    // number in here that was picked by eye.
+    const clean = page('X')
+    for (let phase = 0; phase < 8; phase++) {
+      const hit = damage(clean, garbleRows(clean, phase))
+      expect(hit / (24 * 40)).toBeGreaterThan(0.02)
+      expect(hit / (24 * 40)).toBeLessThan(0.15)
+    }
+  })
+
+  it('gives the same tick the same page every time', () => {
+    // The grid is rebuilt from the phase on every timer tick and again on
+    // every re-print. A tick that garbled differently the second time would
+    // re-roll at the timer's rate rather than at the feed's.
+    expect(flat(garbleRows(page('X'), 5))).toBe(flat(garbleRows(page('X'), 5)))
+  })
+
+  it('does not break and heal the whole page at once', () => {
+    // Rows are overwritten one pass of the magazine at a time, so a tick
+    // clears some rows and leaves the rest sitting on their mistakes. A page
+    // that re-rolled every row together would strobe.
+    const clean = page('X')
+    for (let phase = 0; phase < 8; phase++) {
+      const before = garbleRows(clean, phase)
+      const after = garbleRows(clean, phase + 1)
+      const moved = before.filter(
+        (row, r) => row.join('') !== after[r].join(''),
+      )
+      expect(moved.length).toBeGreaterThan(0)
+      expect(moved.length).toBeLessThan(before.length)
+    }
+  })
+
+  it('takes a row into graphics when a hit lands on a control code', () => {
+    // The catastrophe worth having: one flipped bit under 0x20 puts the rest
+    // of the row into the mosaic set, where the code that drew a digit draws a
+    // block. Rare per cell, so this looks across a page and a few ticks.
+    let runs = 0
+    for (let phase = 0; phase < 12; phase++) {
+      for (const row of garbleRows(page('0'), phase)) {
+        const blocks = row.filter(ch => mosaicRows(ch) !== null).length
+        if (blocks >= 3) runs++
+      }
+    }
+    expect(runs).toBeGreaterThan(0)
+  })
+
+  it('leaves the capitals standing in a graphics row', () => {
+    // 0x40-0x5F holds the same letters in both halves of the set — the gap the
+    // sixth block sits either side of — so a row that has gone to graphics
+    // keeps its capitals and turns everything around them into blocks. Which
+    // is why a garbled page reads as words in a field of rubble rather than as
+    // rubble. Held against a page of digits, where the same rows go solid.
+    const worst = (ch: string): number => {
+      let most = 0
+      for (let phase = 0; phase < 12; phase++) {
+        for (const row of garbleRows(page(ch), phase)) {
+          most = Math.max(most, row.filter(c => mosaicRows(c) !== null).length)
+        }
+      }
+      return most
+    }
+    expect(worst('X')).toBeLessThan(5)
+    expect(worst('0')).toBeGreaterThan(20)
   })
 })
 
