@@ -2,6 +2,17 @@
 
 All notable changes to ntsc.js are documented here.
 
+## [0.28.11](https://github.com/cmdcolin/ntsc.js/compare/v0.28.10...v0.28.11) - 2026-08-20
+
+### Features
+- *(ui)* [`89d15fa`](https://github.com/cmdcolin/ntsc.js/commit/89d15fa8f0ac96bb7b279cc1696f8d918c142425) a preset for colour driven past the output stage's rails
+- *(ui)* [`9b517ce`](https://github.com/cmdcolin/ntsc.js/commit/9b517ce05edc1eef73fa2e5548663921442debdc) a teletype card can arrive over a wire bad enough to misspell it
+- *(ui)* [`c537602`](https://github.com/cmdcolin/ntsc.js/commit/c5376027d7807ed34cd191913d4d901c6ff3f49d) a garbled card can deliver a line to the wrong row
+- *(ui)* [`d14d4ff`](https://github.com/cmdcolin/ntsc.js/commit/d14d4ffb996e9028eb4a42cb75c44154a2551041) isolate the output-stage rails, and put the sound through them
+
+### Documentation
+- [`200e6cb`](https://github.com/cmdcolin/ntsc.js/commit/200e6cb162a8ca1286ae3553e3815587f8d71adc) the card's timer now carries three animations, not two
+
 ## [0.28.10](https://github.com/cmdcolin/ntsc.js/compare/v0.28.9...v0.28.10) - 2026-08-19
 
 ### Fixes
