@@ -395,6 +395,34 @@ describe('garbleRows', () => {
     expect(runs).toBeGreaterThan(0)
   })
 
+  it('lands a row at the wrong address, and never an odd distance away', () => {
+    // The row a packet says it is comes off a five-bit address, so a line that
+    // arrives in the wrong place has moved by one, two, four, eight or sixteen
+    // rows and never by three. Read as the character each line is mostly made
+    // of: the cells take their own hits, and a couple of them wrong does not
+    // change whose row this is.
+    const lettered = Array.from({ length: 24 }, (_line, r) =>
+      Array.from(String.fromCharCode(65 + r).repeat(40)),
+    )
+    const mostly = (row: string[]): string => {
+      const seen = new Map<string, number>()
+      for (const ch of row) seen.set(ch, (seen.get(ch) ?? 0) + 1)
+      return [...seen].toSorted((a, b) => b[1] - a[1])[0][0]
+    }
+    let displaced = 0
+    for (let phase = 0; phase < 60; phase++) {
+      garbleRows(lettered, phase).forEach((row, r) => {
+        const from = mostly(row).charCodeAt(0) - 65
+        if (from === r) return
+        expect(from).toBeGreaterThanOrEqual(0)
+        expect(from).toBeLessThan(lettered.length)
+        expect(Math.log2(Math.abs(from - r)) % 1).toBe(0)
+        displaced++
+      })
+    }
+    expect(displaced).toBeGreaterThan(0)
+  })
+
   it('leaves the capitals standing in a graphics row', () => {
     // 0x40-0x5F holds the same letters in both halves of the set — the gap the
     // sixth block sits either side of — so a row that has gone to graphics

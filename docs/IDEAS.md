@@ -163,6 +163,25 @@ that. Rough payoff order:
   protected B summed against a clean A makes the receiver's `agc` pump against a
   signal whose sync is fine.
 
+## The teletype card's wire (follow-ons to `garble`)
+
+The card can be received badly (`sources/teletype.ts` › `garbleRows`): holes
+where parity caught a bit, wrong characters where it didn't, blocks for the rest
+of a row whose control code took the hit, and the odd line delivered to the
+wrong address. What is left is a dial and two attributes.
+
+- **A strength, not a switch.** The rate is one constant picked by eye.
+  `?garble=0.8` would carry a strength without breaking the flag — `q.has` is
+  true whatever the value — but the dialog would grow its first slider, and
+  every other thing a card carries is a checkbox. Worth doing when someone
+  reaches for it, not before.
+- **The two control codes the card has no attribute for.** A hit on a colour
+  code turned the rest of a row red; a hit on double height doubled a row and
+  ate the line under it. Both are famous garbles and neither is reachable here:
+  this card is one bit deep and white on black, and rendering them means
+  carrying attributes per row through `dotGrid`. Double height is the cheaper of
+  the two and the one you saw more often.
+
 ## Chroma key follow-ons
 
 The keyer shipped in `mix_b.wgsl` on both mix paths, slicing `uvfB` — B's chroma

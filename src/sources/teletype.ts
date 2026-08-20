@@ -398,6 +398,12 @@ export function boilOffsets(
 //     a control code owns the rest of its row: 0x11-0x17 put the row into the
 //     mosaic set, where the code that drew a letter draws a block. One hit,
 //     and the back half of the line is graphics.
+//   - The hit lands not on the text but on the *address* the packet carries,
+//     and a whole row is delivered to the wrong line of the page: one line
+//     printed twice, somewhere else left holding what it had. The address is
+//     five bits, so a row never moves by an arbitrary distance — it moves by
+//     one, two, four, eight or sixteen rows, and a packet addressed off the
+//     end of the page is simply lost.
 //
 // The rate is the one number here that is taste rather than mechanism. A feed
 // bad enough to show this on a fifteen-character card would be dropping whole
@@ -412,6 +418,12 @@ const GARBLE_RATE = 0.07
 // its neighbour breaks is the whole texture of a page fighting a weak signal.
 const ROW_TICKS = 3
 const ROW_SKEW = 2
+// Packets whose row address takes the hit instead of their text. Rare next to
+// the character rate, because the address is the one field a real service
+// protected — Hamming coded, so it takes more than a bit to break — and
+// because a line landing in the wrong place is loud: at anything like the
+// character rate the page would read as shuffled rather than as received.
+const ADDRESS_RATE = 1 / 30
 
 function garbleHash(col: number, row: number, epoch: number): number {
   let h =
@@ -458,10 +470,26 @@ export const graphicsCode = (rows: string[]): number => {
 export function garbleRows(page: string[][], phase: number): string[][] {
   return page.map((row, r) => {
     const epoch = Math.floor((phase + r * ROW_SKEW) / ROW_TICKS)
+    // Whose bytes this line is holding. Off a column the cells cannot reach,
+    // so a mis-addressed row and the characters in it are independent rolls
+    // rather than the same one read twice.
+    const addr = garbleHash(MAX_COLS + 8, r, epoch)
+    const step = 1 << ((addr >>> 4) % 5)
+    const from = ((addr >>> 8) & 1) === 0 ? r - step : r + step
+    // A packet addressed off the end of the page is lost, and a line nothing
+    // arrived for keeps what it had — which on a card that is not being
+    // retyped is its own text, so the loss is invisible and only the landing
+    // shows. Cut to this line's own length either way: the transmission is
+    // forty cells wide whatever the text is, and a row that came back longer
+    // than it went would resize the card.
+    const sent =
+      addr >>> 20 < ADDRESS_RATE * 0x1000 && from >= 0 && from < page.length
+        ? Array.from({ length: row.length }, (_cell, c) => page[from][c] ?? ' ')
+        : row
     // Set the row is in, which a hit on a control code can change part way
     // along it — so this is carried left to right and never reset per cell.
     let graphics = false
-    return row.map((ch, c) => {
+    return sent.map((ch, c) => {
       // What the transmission would have carried for this cell. A drawn
       // mosaic is a graphics code rather than the code point Unicode files it
       // under, so a hit on a drawing moves one block, not one astral digit.
