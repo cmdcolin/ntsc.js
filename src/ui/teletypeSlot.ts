@@ -80,10 +80,10 @@ export function printCard(
   // slot is retired; a still card drops it once the last character has landed.
   slot.typer.current = { stop }
 
-  // Whichever of the two animations the card asked for, on one timer. One
-  // rather than two because a card can do both at once, and two intervals
-  // drawing into the same canvas would race — each would present the other's
-  // half-finished frame at whatever rate it happened to fire.
+  // Whichever of the three animations the card asked for, on one timer. One
+  // rather than three because a card can do all of them at once, and separate
+  // intervals drawing into the same canvas would race — each would present the
+  // others' half-finished frame at whatever rate it happened to fire.
   //
   // The roll advances by elapsed time rather than by a fixed step per tick: a
   // browser clamps timers to 1 Hz in a tab it isn't painting, and a card that
