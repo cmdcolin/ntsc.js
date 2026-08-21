@@ -2,8 +2,18 @@
 // vertical hold. Line tearing, head-switch bend, and vertical rolling all
 // emerge from sync pulses being genuinely hard to find in the mangled
 // waveform. The waveform itself is scanned in parallel by sync_measure; this
-// single thread only runs the line-to-line recurrences over those
-// measurements.
+// pass only runs the line-to-line recurrences over those measurements.
+//
+// Two lanes, in two waves. The horizontal flywheel and the deflection sag are
+// both serial walks down the raster, and they are independent of each other:
+// the sag reads what the oscillator settled on this frame and last frame's
+// beam-limiter drive, neither of which the flywheel walk touches. A workgroup
+// of 128 puts lane 0 and lane 64 in different waves, which the scheduler runs
+// side by side — one lane walking both loops in turn is latency on a single
+// lane, and this halves it whenever the sag is on. Both lanes read the
+// carried state before the barrier, because lane 0 rewrites it on its way
+// out and lane 64 must never see that. Same arithmetic in the same order, so
+// the output is bit-identical.
 //
 // timing[0..524]      per-line horizontal offset the deflection actually used
 // timing[V_PHASE]     vertical oscillator phase error, lines (persistent, signed)
@@ -40,9 +50,10 @@ fn wrapLines(v: f32) -> f32 {
   return v - n * floor(v / n + 0.5);
 }
 
-@compute @workgroup_size(1, 1, 1)
-fn main() {
-  var pll = timing[PLL_STATE];
+const SAG_LANE = 64u;
+
+@compute @workgroup_size(128, 1, 1)
+fn main(@builtin(local_invocation_id) lid: vec3u) {
   var vroll = timing[V_PHASE];
 
   // vertical sync check: broad pulses should sit at sync level mid-line
@@ -92,24 +103,43 @@ fn main() {
   if (ablHeld < 0.05) {
     ablHeld = 1.0;
   }
+  var pll = timing[PLL_STATE];
+  var lockAge = timing[LOCK_AGE];
+  var agc = timing[AGC_GAIN];
+  var ablG = timing[ABL_GAIN];
+  var ablV = timing[ABL_VEL];
+  var irisG = timing[IRIS_GAIN];
+  var irisV = timing[IRIS_VEL];
+  workgroupBarrier();
 
-  if (P.hvSag != 0.0) {
-    let ring = clamp(P.hvRing, 0.0, 1.0);
-    let w = mix(0.35, 0.08, ring); // tank frequency, rad/line
-    let damp = mix(0.55, 0.015, ring); // loss per line
-    let roll = i32(floor(vroll));
-    var sag = 0.0;
-    var vel = 0.0;
-    for (var ry = 0u; ry < NLINES; ry = ry + 1u) {
-      // beam current plus whatever audio is patched in: the tank cannot tell
-      // them apart, so a bass transient rings the geometry exactly like a
-      // bright band does
-      let load = (measure[wrapRow(i32(ry) + roll)].z * ablHeld - 50.0) / 50.0
-        + P.audioLoad * audio[ry];
-      vel = vel + w * (load - sag) - damp * vel;
-      sag = clamp(sag + w * vel, -3.0, 3.0);
-      timing[SAG_BASE + ry] = sag;
+  if (lid.x == SAG_LANE) {
+    if (P.hvSag != 0.0) {
+      let ring = clamp(P.hvRing, 0.0, 1.0);
+      let w = mix(0.35, 0.08, ring); // tank frequency, rad/line
+      let damp = mix(0.55, 0.015, ring); // loss per line
+      let roll = i32(floor(vroll));
+      var sag = 0.0;
+      var vel = 0.0;
+      for (var ry = 0u; ry < NLINES; ry = ry + 1u) {
+        // the roll offset is within half a frame either way, so one
+        // conditional step lands the same row wrapRow's two divisions would
+        var r = i32(ry) + roll;
+        r = select(r, r + i32(NLINES), r < 0);
+        r = select(r, r - i32(NLINES), r >= i32(NLINES));
+        // beam current plus whatever audio is patched in: the tank cannot tell
+        // them apart, so a bass transient rings the geometry exactly like a
+        // bright band does
+        let load = (measure[u32(r)].z * ablHeld - 50.0) / 50.0
+          + P.audioLoad * audio[ry];
+        vel = vel + w * (load - sag) - damp * vel;
+        sag = clamp(sag + w * vel, -3.0, 3.0);
+        timing[SAG_BASE + ry] = sag;
+      }
     }
+    return;
+  }
+  if (lid.x != 0u) {
+    return;
   }
 
   var depthSum = 0.0;
@@ -119,7 +149,6 @@ fn main() {
   // How long the separator has gone without a real edge, carried across
   // frames: a flywheel keeps an unlocked oscillator honest for a while, but
   // not forever, and the decay below is scaled by this.
-  var lockAge = timing[LOCK_AGE];
   for (var row = 0u; row < NLINES; row = row + 1u) {
     // Vertical retrace hammers the sync separator: serrations and equalizing
     // pulses run at twice line rate right through the blanking interval, so the
@@ -175,7 +204,6 @@ fn main() {
     timing[row] = pll;
   }
 
-  var agc = timing[AGC_GAIN];
   if (agc < 0.05) {
     agc = 1.0;
   }
@@ -207,8 +235,6 @@ fn main() {
   // Hz — a rhythm set by nothing on screen. Feed either feedback loop and the
   // drive term is inside the loop, so the servo and the loop beat against
   // each other instead of settling.
-  var ablG = timing[ABL_GAIN];
-  var ablV = timing[ABL_VEL];
   if (ablG < 0.05) {
     ablG = 1.0;
   }
@@ -235,8 +261,6 @@ fn main() {
   // clamps, the loop starves, the iris reopens, and round again. Its natural
   // frequency is deliberately unequal to the beam limiter's, so when both hunt
   // the two rhythms beat.
-  var irisG = timing[IRIS_GAIN];
-  var irisV = timing[IRIS_VEL];
   if (irisG < 0.05) {
     irisG = 1.0;
   }
