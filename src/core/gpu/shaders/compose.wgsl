@@ -89,7 +89,9 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let rel = mat2x2f(c, s, -s, c) * rel0;
   let fuv = rel / max(P.fbZoom, 0.05) / asp + vec2f(0.5) + vec2f(P.fbShiftX, P.fbShiftY);
 
-  let inside = all(fuv >= vec2f(0.0)) && all(fuv <= vec2f(1.0));
+  // The camera only runs while it is patched in: at fbMix 0 the gather below
+  // was seven texture taps a pixel for a value mix() then multiplied by zero.
+  let inside = P.fbMix > 0.0 && all(fuv >= vec2f(0.0)) && all(fuv <= vec2f(1.0));
   var fb = vec3f(0.0);
   if (inside) {
     // Auto-iris: the exposure the camera's own metering servo picked, one
