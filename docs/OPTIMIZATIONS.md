@@ -62,6 +62,12 @@ Its first pass over the stock frame, 2026-08-21 on the WX 3200, GPU ms:
 | feedback camera gathered only while patched in    | compose         | 0.124  | 0.071 | 1.82 → 1.77 |
 | halation tiered to 8 taps below `crtHalation` 0.2 | crtFace         | 0.45   | 0.33  | 1.77 → 1.66 |
 
+Confirmed in the app the way this page asks: Firefox Nightly, `perf.mjs`, 6 ×
+120 stepped frames, base and patched interleaved over two rounds — stock went
+**4.17 → 2.88 ms/frame** best-of, both rounds within 0.02 ms and no batch
+disturbed. That is more than the profiler's 0.63 ms of GPU time, which says the
+7.6 MB buffer round trip cost the browser's queue more than it cost the card.
+
 The first three are bit-exact against the previous shader (`--dump` and
 `cmp.ts`: max 0 on the composite, the decoded frame and the CRT face, at stock
 and with each path engaged); the fourth is the bloom bargain again, measured
