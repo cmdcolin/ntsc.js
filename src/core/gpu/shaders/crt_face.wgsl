@@ -21,6 +21,7 @@
 // P22 glass scatter is red-dominant, so bloom haze and the black-level glow
 // both warm toward amber.
 const WARM = vec3f(1.0, 0.62, 0.38);
+const HALO_TIER = 0.2;
 
 // Beam transfer: how gun drive becomes emitted phosphor light. Cutoff makes the
 // background true black (drive below the knee emits nothing), gamma is the gun's
@@ -279,8 +280,14 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   var halo = vec3f(0.0);
   if (P.crtHalation > 0.0) {
     let rh = 15.0 * (1.0 + P.crtHaloKey * luma(center));
-    for (var i = 0u; i < 16u; i = i + 1u) {
-      halo = halo + bright(textureSampleLevel(srcTex, samp, uv + DISK16[i].xy * rh / dim, 0.0).rgb, 0.35);
+    if (P.crtHalation <= HALO_TIER) {
+      for (var i = 0u; i < 8u; i = i + 1u) {
+        halo = halo + bright(textureSampleLevel(srcTex, samp, uv + DISK8[i].xy * rh / dim, 0.0).rgb, 0.35) * 2.0;
+      }
+    } else {
+      for (var i = 0u; i < 16u; i = i + 1u) {
+        halo = halo + bright(textureSampleLevel(srcTex, samp, uv + DISK16[i].xy * rh / dim, 0.0).rgb, 0.35);
+      }
     }
   }
   col = gamutFit(direct);
