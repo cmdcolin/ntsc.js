@@ -51,7 +51,6 @@ import decodeSrc from './shaders/decode.wgsl?raw'
 import encodeChromaBSrc from './shaders/encode_chroma_b.wgsl?raw'
 import encodeCompositeSrc from './shaders/encode_composite.wgsl?raw'
 import encodeCompositeBSrc from './shaders/encode_composite_b.wgsl?raw'
-import encodeYuvSrc from './shaders/encode_yuv.wgsl?raw'
 import enhancerSrc from './shaders/enhancer.wgsl?raw'
 import fbCompositeSrc from './shaders/fb_composite.wgsl?raw'
 import feedSrc from './shaders/feed.wgsl?raw'
@@ -334,7 +333,6 @@ export class Engine implements EngineApi {
   private feedParamsB: GPUBuffer
   private feedScratch = new ArrayBuffer(PARAM_BYTES)
   private filterBuf: GPUBuffer
-  private yuvBBuf: GPUBuffer
   private uvfBBuf: GPUBuffer
   private compA: GPUBuffer
   private compB: GPUBuffer
@@ -452,7 +450,6 @@ export class Engine implements EngineApi {
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | extra,
       })
     this.filterBuf = storage(NUM_SECTIONS * FILTER_STRIDE * 4)
-    this.yuvBBuf = storage(N * 16)
     // B's encoder-filtered chroma, one vec2f per sample (encode_chroma_b)
     this.uvfBBuf = storage(N * 8)
     this.compA = storage(N * 4, GPUBufferUsage.COPY_SRC)
@@ -532,7 +529,6 @@ export class Engine implements EngineApi {
       })
     this.composePl = compute(composeSrc)
     const composeBPl = compute(composeBSrc)
-    const encodeYuvPl = compute(encodeYuvSrc)
     const encodeChromaBPl = compute(encodeChromaBSrc)
     const encodeCompositePl = compute(encodeCompositeSrc)
     const encodeCompositeBPl = compute(encodeCompositeBSrc)
@@ -610,7 +606,6 @@ export class Engine implements EngineApi {
     const perLine = [Math.ceil(SAMPLES_PER_LINE / 64), LINES] as const
     // the record head writes a packed f16 pair per thread (see tape_rec)
     const perLineW = [Math.ceil(SAMPLES_PER_LINE / 2 / 64), LINES] as const
-    const perPixel = [Math.ceil(ACTIVE_WIDTH / 64), ACTIVE_HEIGHT] as const
     // the tiled-FIR passes run TILE_WG-wide workgroups (see prelude)
     const perLineT = [Math.ceil(SAMPLES_PER_LINE / TILE_WG), LINES] as const
     const perPixelT = [
@@ -691,18 +686,11 @@ export class Engine implements EngineApi {
         () => bChainOn() && this.sources.srcNoiseB > 0 && c.bPause === 0,
       ),
       pass(
-        'encodeYuvB',
-        encodeYuvPl,
-        [this.sources.viewB(), this.linearSamp, { buffer: this.yuvBBuf }],
-        perPixel,
-        bChainOn,
-      ),
-      pass(
         'encodeChromaB',
         encodeChromaBPl,
         [
           { buffer: this.filterBuf },
-          { buffer: this.yuvBBuf },
+          this.sources.viewB(),
           { buffer: this.uvfBBuf },
         ],
         perPixelT,
@@ -716,7 +704,7 @@ export class Engine implements EngineApi {
         encodeCompositeBPl,
         [
           { buffer: this.paramsBuf },
-          { buffer: this.yuvBBuf },
+          this.sources.viewB(),
           { buffer: this.uvfBBuf },
           { buffer: this.bCompBuf },
         ],
@@ -739,7 +727,7 @@ export class Engine implements EngineApi {
         mixBPl,
         [
           { buffer: this.paramsBuf },
-          { buffer: this.yuvBBuf },
+          this.sources.viewB(),
           { buffer: this.uvfBBuf },
           { buffer: this.compA },
           { buffer: this.bCompBuf },
@@ -809,7 +797,7 @@ export class Engine implements EngineApi {
       this.encodeCompositeBPass.bg,
       bindGroup(encodeCompositeBPl, [
         { buffer: this.paramsBuf },
-        { buffer: this.yuvBBuf },
+        this.sources.viewB(),
         { buffer: this.uvfBBuf },
         { buffer: this.compB },
       ]),
@@ -1387,7 +1375,6 @@ export class Engine implements EngineApi {
       this.feedParamsA,
       this.feedParamsB,
       this.filterBuf,
-      this.yuvBBuf,
       this.uvfBBuf,
       this.compA,
       this.compB,

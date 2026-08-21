@@ -380,9 +380,8 @@ on the dev box's WX 3200, against a 3.3 ms always-on floor):
   radius) rather than restructuring the sampling.
 - **`tapePlay` with many heads** (~2 ms on eight-head lap).
 - **Per-source feed snow** ~0.9 ms per engaged feed.
-- The true-waveform B chain
-  (`encodeYuvB → encodeChromaB → encodeCompositeB → mixB`) totals ~0.9 ms
-  engaged and dispatches nothing idle.
+- The true-waveform B chain (`encodeChromaB → encodeCompositeB → mixB`) totals
+  ~0.9 ms engaged and dispatches nothing idle.
 
 The keyer, the synth and the strobe (e273959) were measured after the fact, at
 920x800 on the same box, best-of interleaved runs. All three are behind uniform

@@ -11,18 +11,16 @@
 // its own, writing a vec4 per sample (7.6 MB a frame) that only this pass
 // read one dispatch later; the texel is a quarter the bytes and is already
 // what the staging loop wanted. Worth 0.23 ms of a 2.29 ms stock frame on the
-// dev box (scripts/gpuprof). Source B keeps encode_yuv: three consumers read
-// its yuv. Zero outside active picture, which is what the blanking samples of
-// the old buffer held.
+// dev box (scripts/gpuprof); B's encoders read their texture the same way.
+// Zero outside active picture, which is what the blanking samples of the old
+// buffer held.
 fn yuvAt(s: i32, row: u32) -> vec3f {
   let x = s - i32(ACTIVE_START);
   let y = i32(row) - i32(ACTIVE_TOP);
   if (x < 0 || x >= i32(ACTIVE_W) || y < 0 || y >= i32(ACTIVE_H)) {
     return vec3f(0.0);
   }
-  let rgb = textureLoad(inputTex, vec2i(x, y), 0).rgb;
-  let luma = dot(rgb, vec3f(0.299, 0.587, 0.114));
-  return vec3f(luma, 0.492 * (rgb.b - luma), 0.877 * (rgb.r - luma));
+  return yuvOf(textureLoad(inputTex, vec2i(x, y), 0).rgb);
 }
 
 var<workgroup> tileUV: array<vec2f, TILE>;

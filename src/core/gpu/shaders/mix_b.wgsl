@@ -16,7 +16,7 @@
 //   B's detune/roll/skew and ring mod do not apply on this path.
 
 @group(0) @binding(0) var<uniform> P: Params;
-@group(0) @binding(1) var<storage, read> yuvB: array<vec4f>;
+@group(0) @binding(1) var inputTexB: texture_2d<f32>;
 @group(0) @binding(2) var<storage, read> uvfB: array<vec2f>;
 @group(0) @binding(3) var<storage, read_write> comp: array<f32>;
 @group(0) @binding(4) var<storage, read> bComp: array<f32>;
@@ -27,7 +27,14 @@
 // regenerates inside the keyed shape.
 @group(0) @binding(5) var<storage, read> loopBus: array<f32>;
 
-// B re-encoded on the house carrier: chroma from yuvB[bIdx] modulated onto the
+// B's luma at a raster index inside its active picture, off the texel.
+fn lumaBAt(idx: u32) -> f32 {
+  let x = i32(idx % SPL) - i32(ACTIVE_START);
+  let y = i32(idx / SPL) - i32(ACTIVE_TOP);
+  return luma(textureLoad(inputTexB, vec2i(x, y), 0).rgb);
+}
+
+// B re-encoded on the house carrier: chroma at bIdx modulated onto the
 // A-locked subcarrier at output sample houseN (B's proc-amp hue trim only). This
 // is the genlocked path — used by the clean dissolve and the PiP DVE — so B
 // dot-crawls like real video but does not beat or roll. The encoder chroma
@@ -36,7 +43,7 @@
 // storage taps per consumer sample.
 fn encodeBHouse(houseN: u32, bIdx: u32) -> f32 {
   let uv = uvfB[bIdx];
-  return activeComposite(yuvB[bIdx].x, uv.x, uv.y, carrierRot(houseN, P.frame, P.bHue), P.bVidGain, P.bInv);
+  return activeComposite(lumaBAt(bIdx), uv.x, uv.y, carrierRot(houseN, P.frame, P.bHue), P.bVidGain, P.bInv);
 }
 
 // A chroma keyer across the mixer: B's backing colour cut away so A shows
@@ -275,7 +282,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
       // solid). Negative key inverts which side is kept.
       var kg = 1.0;
       if (P.pipKey != 0.0) {
-        var g = smoothstep(P.pipKeyLevel - P.pipKeySoft, P.pipKeyLevel + P.pipKeySoft, yuvB[bnp].x);
+        var g = smoothstep(P.pipKeyLevel - P.pipKeySoft, P.pipKeyLevel + P.pipKeySoft, lumaBAt(bnp));
         if (P.pipKey < 0.0) {
           g = 1.0 - g;
         }

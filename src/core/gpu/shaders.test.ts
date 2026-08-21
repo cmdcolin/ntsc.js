@@ -19,7 +19,6 @@ import decode from './shaders/decode.wgsl?raw'
 import encodeChromaB from './shaders/encode_chroma_b.wgsl?raw'
 import encodeComposite from './shaders/encode_composite.wgsl?raw'
 import encodeCompositeB from './shaders/encode_composite_b.wgsl?raw'
-import encodeYuv from './shaders/encode_yuv.wgsl?raw'
 import enhancer from './shaders/enhancer.wgsl?raw'
 import fbComposite from './shaders/fb_composite.wgsl?raw'
 import feed from './shaders/feed.wgsl?raw'
@@ -52,7 +51,6 @@ const SHADERS: Record<string, string> = {
   encode_chroma_b: encodeChromaB,
   encode_composite: encodeComposite,
   encode_composite_b: encodeCompositeB,
-  encode_yuv: encodeYuv,
   enhancer,
   fb_composite: fbComposite,
   feed,

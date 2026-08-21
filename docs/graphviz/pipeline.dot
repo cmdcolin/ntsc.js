@@ -66,8 +66,6 @@ digraph ntsc_js {
                 label="feedA — A's own deck, cable & head-end\npause · scramble · termination · snow · polarity\n525 lines × 910 samples"];
     composeB   [passes="composeB" fillcolor="@ENC2@" style="rounded,filled,dashed"
                 label="composeB\n754 × 480 px, 8×8 tiles"];
-    encodeYuvB [passes="encodeYuvB" fillcolor="@ENC2@" style="rounded,filled,dashed"
-                label="encodeYuvB\n754 × 480 px"];
     encodeChromaB [passes="encodeChromaB" fillcolor="@ENC2@" style="rounded,filled,dashed"
                 label="encodeChromaB\nB chroma bandlimit, precomputed\n754 × 480 px"];
     encodeCompB [passes="encodeCompositeB" fillcolor="@ENC2@" style="rounded,filled,dashed"
@@ -146,10 +144,9 @@ digraph ntsc_js {
   encodeComp -> feedA [label="  compB — feed engaged\l"];
   feedA -> mixB [label="  compA"];
   srcB -> composeB;
-  composeB -> encodeYuvB [label="  texB"];
-  encodeYuvB -> encodeChromaB [label="  yuvB"];
-  encodeYuvB -> mixB [label="  yuvB"];
-  encodeYuvB -> encodeCompB [label="  yuvB"];
+  composeB -> encodeChromaB [label="  texB"];
+  composeB -> mixB [label="  texB"];
+  composeB -> encodeCompB [label="  texB"];
   encodeChromaB -> encodeCompB [label="  uvfB"];
   encodeChromaB -> mixB [label="  uvfB"];
   encodeCompB -> mixB [label="  bComp"];

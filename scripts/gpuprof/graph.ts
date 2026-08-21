@@ -155,7 +155,6 @@ export class Graph {
     this.lineParamsBuf = storage(LINE_PARAM_BYTES)
     this.audioBuf = storage(LINES * 4)
     this.compA = storage(N * 4, GPUBufferUsage.COPY_SRC)
-    const yuvBBuf = storage(N * 16)
     const uvfBBuf = storage(N * 8)
     const compB = storage(N * 4)
     const bCompBuf = storage(N * 4)
@@ -280,16 +279,13 @@ export class Graph {
         when: () => false,
       },
       {
-        label: 'encodeYuvB',
-        shader: 'encode_yuv',
-        variants: one({ inputTex: srcTexB.createView(), samp, yuv: yuvBBuf }),
-        dispatch: perPixel,
-        when: bChainOn,
-      },
-      {
         label: 'encodeChromaB',
         shader: 'encode_chroma_b',
-        variants: one({ filters, yuvB: yuvBBuf, uvfB: uvfBBuf }),
+        variants: one({
+          filters,
+          inputTex: srcTexB.createView(),
+          uvfB: uvfBBuf,
+        }),
         dispatch: perPixelT,
         when: bChainOn,
       },
@@ -297,8 +293,18 @@ export class Graph {
         label: 'encodeCompositeB',
         shader: 'encode_composite_b',
         variants: {
-          main: { P, yuvB: yuvBBuf, uvfB: uvfBBuf, outB: bCompBuf },
-          feed: { P, yuvB: yuvBBuf, uvfB: uvfBBuf, outB: compB },
+          main: {
+            P,
+            inputTex: srcTexB.createView(),
+            uvfB: uvfBBuf,
+            outB: bCompBuf,
+          },
+          feed: {
+            P,
+            inputTex: srcTexB.createView(),
+            uvfB: uvfBBuf,
+            outB: compB,
+          },
         },
         pick: () => (bFeedOn(c, this.bEnabled) ? 'feed' : 'main'),
         dispatch: perLine,
@@ -316,7 +322,7 @@ export class Graph {
         shader: 'mix_b',
         variants: one({
           P,
-          yuvB: yuvBBuf,
+          inputTexB: srcTexB.createView(),
           uvfB: uvfBBuf,
           comp: this.compA,
           bComp: bCompBuf,

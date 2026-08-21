@@ -8,7 +8,7 @@
 // against the house clock.
 
 @group(0) @binding(0) var<uniform> P: Params;
-@group(0) @binding(1) var<storage, read> yuvB: array<vec4f>;
+@group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<storage, read> uvfB: array<vec2f>;
 @group(0) @binding(3) var<storage, read_write> outB: array<f32>;
 
@@ -34,7 +34,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   var b = slot.value;
   if (slot.picture) {
     let uv = uvfB[n];
-    b = activeComposite(yuvB[n].x, uv.x, uv.y, carrierRot(n, P.frame, delta), P.bVidGain, P.bInv);
+    let rgb = textureLoad(inputTex, vec2i(i32(s - ACTIVE_START), i32(row - ACTIVE_TOP)), 0).rgb;
+    b = activeComposite(luma(rgb), uv.x, uv.y, carrierRot(n, P.frame, delta), P.bVidGain, P.bInv);
   }
   outB[n] = b;
 }

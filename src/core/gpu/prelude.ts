@@ -662,6 +662,14 @@ fn luma(c: vec3f) -> f32 {
   return dot(c, vec3f(0.299, 0.587, 0.114));
 }
 
+// RGB -> YUV baseband, the encoder's matrix. Read straight off a source texel
+// by each encoder pass; there is no yuv buffer between a picture and its
+// composite any more (docs/OPTIMIZATIONS.md).
+fn yuvOf(rgb: vec3f) -> vec3f {
+  let y = luma(rgb);
+  return vec3f(y, 0.492 * (rgb.b - y), 0.877 * (rgb.r - y));
+}
+
 // Gamut limit by desaturation. A hard per-channel clamp on an out-of-gamut
 // colour only clips the overflowing channel, which rotates hue toward the
 // remaining primaries — saturated content goes duller and wrong at the clipping

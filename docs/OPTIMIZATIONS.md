@@ -4,7 +4,7 @@ Why the render path looks the way it does. [`ARCHITECTURE.md`](ARCHITECTURE.md)
 draws the path itself, and [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md) is the one-page
 version of what a pass is.
 
-One frame is 477,750 f32 samples (910 × 525) through up to twenty-four compute
+One frame is 477,750 f32 samples (910 × 525) through up to twenty-three compute
 dispatches, sixty times a second, and six of those passes are FIR filters 33 to
 55 taps wide. That budget is the reason for everything below. On the dev box's
 WX 3200 every built-in preset lands **3.3–5.4 ms** against a 3.3 ms always-on
@@ -117,10 +117,10 @@ uniform multiply by zero.
 What that is worth, measured against the parent revision with two dev servers
 alternating: the chroma keyer, the video synth and the blanking strobe together
 land **4.52 ms on both sides at stock** — no separable difference at all. The
-true-waveform B chain (`encodeYuvB → encodeChromaB → encodeCompositeB → mixB`)
-totals ~0.9 ms engaged and dispatches nothing idle. The intercarrier-buzz
-readback is gated on the buzz being audible, so a listener who never touches it
-pays neither the copy nor the map.
+true-waveform B chain (`encodeChromaB → encodeCompositeB → mixB`) totals ~0.9 ms
+engaged and dispatches nothing idle. The intercarrier-buzz readback is gated on
+the buzz being audible, so a listener who never touches it pays neither the copy
+nor the map.
 
 Gating inside a shader gets the same treatment when a pass is already running.
 `crt_face`'s bloom and halation used to share one gate and one loop body, so
@@ -136,8 +136,9 @@ pass. `encode_yuv` wrote a vec4 per sample (7.6 MB a frame) that
 `encode_composite` read one dispatch later; the texel it came from is a quarter
 the bytes and already what the FIR's staging loop wanted, so `encodeComposite`
 now reads the picture itself — 0.35 ms of a 2.29 ms stock frame for the pass and
-the read it fed, bit-exact. Source B keeps `encode_yuv`, because three consumers
-read its yuv.
+the read it fed, bit-exact. Source B's three consumers (`encodeChromaB`,
+`encodeCompositeB`, `mixB`) read B's texel the same way, so `encode_yuv.wgsl` is
+gone altogether.
 
 The cost of this design is that a gate can be forgotten. `feedgates.spec.ts`
 exists because a per-source fault whose gate does not know about it dispatches

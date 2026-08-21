@@ -7,8 +7,17 @@
 // consumers see bit-identical values.
 
 @group(0) @binding(0) var<storage, read> filters: array<f32>;
-@group(0) @binding(1) var<storage, read> yuvB: array<vec4f>;
+@group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<storage, read_write> uvfB: array<vec2f>;
+
+// B's picture read straight off its texel, as encode_composite does for A;
+// zero outside the active picture, where the old yuv buffer held zeros.
+fn uvAt(x: i32, y: u32) -> vec2f {
+  if (x < 0 || x >= i32(ACTIVE_W)) {
+    return vec2f(0.0);
+  }
+  return yuvOf(textureLoad(inputTex, vec2i(x, i32(y)), 0).rgb).yz;
+}
 
 var<workgroup> tileUV: array<vec2f, TILE>;
 
@@ -21,9 +30,9 @@ fn main(
   // Every consumer keys off the active region before reading, so the dispatch
   // covers only active rows and columns; the rest of uvfB stays zero.
   let row = ACTIVE_TOP + wid.y;
-  let base = i32(row * SPL + ACTIVE_START + wid.x * TILE_WG) - i32(HALO);
+  let base = i32(wid.x * TILE_WG) - i32(HALO);
   for (var i = lid.x; i < TILE; i = i + TILE_WG) {
-    tileUV[i] = yuvB[clampIdx(base + i32(i))].yz;
+    tileUV[i] = uvAt(base + i32(i), wid.y);
   }
   workgroupBarrier();
 
