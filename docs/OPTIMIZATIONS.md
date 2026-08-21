@@ -74,6 +74,44 @@ and with each path engaged); the fourth is the bloom bargain again, measured
 below. Every one is of the form _do less_ — a pass not dispatched, a buffer not
 written, a gather not run, a fetch not made — which is the rule above holding.
 
+A second pass, the same day, went after the looks rather than the floor. A sweep
+of every preset (`gpuprof --preset=` in a loop) ranked the hot passes; each fix
+below is bit-exact except where it says otherwise.
+
+| change                                                                              | look                      | pass     | before | after |
+| ----------------------------------------------------------------------------------- | ------------------------- | -------- | ------ | ----- |
+| B's three encoders read its texel; `encode_yuv.wgsl` deleted                        | dirtyMix + PiP            | frame    | 2.80   | 2.32  |
+| colour-under tile staged behind the Y/C delay (was 55 storage taps, a deviate each) | colourLate + chroma noise | channel  | 2.99   | 0.62  |
+| FM fold's decay tabled per workgroup                                                | fmFold                    | channel  | 1.43   | 1.23  |
+| flywheel and HV sag walked in two waves                                             | fullCollapse              | sync     | 0.31   | 0.14  |
+| head layout designed once per workgroup                                             | eightHeadLap              | tapePlay | 1.44   | 1.29  |
+| gun cutoff + gamma applied where decode writes the screen (not exact)               | lightThatStays            | crtFace  | 1.75   | 0.74  |
+|                                                                                     | misconverged              | crtFace  | 1.43   | 0.67  |
+|                                                                                     | nightMonitor              | crtFace  | 1.39   | 0.59  |
+| saturation applied to each gather's result, not each tap                            | stock                     | crtFace  | 0.36   | 0.32  |
+
+The gamma one is the trade. `crt_face` was running the beam transfer per tap —
+three `pow` a tap across spot, bloom and halation, a millisecond a frame on a
+look with all of them up. `decode` now applies cutoff and gamma as it writes
+`outTex`, sRGB-encoded while they are active so the byte keeps fine steps where
+gamma pushes the light (an `rgba8unorm-srgb` view decodes it back for free; an
+`rgba16float` store was tried first and halved the sampler's rate, giving back
+most of the win). Stock is bit-exact. Gamma looks change at hard edges, where a
+tap between two pixels now interpolates light rather than drive, and
+scan-velocity modulation keys on light: lightThatStays mean 0.13/255 with 0.9%
+of pixels off by more than one level, misconverged mean 0.43 concentrated in the
+SVM notch — invisible at 1×, and a millisecond.
+
+Two arms from that pass were reverted, and both are worth knowing. Spreading the
+per-line serial passes (`enhancer`, `buzz_tap`, `sync_measure`) one lane to a
+workgroup, so the scheduler could interleave 525 of them across every SIMD, was
+**twice as slow** — the wave64 lockstep had been issuing those loads efficiently
+and workgroup launch dominated. And tabling the FM fold's per-source threshold
+noise alongside its decay cost 0.2 ms at stock, where none of it runs; a padding
+array of the same size cost nothing, so it is not shared memory. The compiler
+does something with that table the profiler can see and the source cannot, and
+the hash stays per tap.
+
 The one that did not pay is the instructive one. `sync.wgsl` was staged into
 workgroup memory on the theory that a single lane walking 525 lines against
 storage was paying a dependent global load per line: 0.174 → 0.166 ms, bit exact
@@ -168,7 +206,7 @@ accumulator to scratch for the sake of up to three iterations.
 
 ## Workgroup memory does four different jobs here
 
-Nine shaders stage something in `var<workgroup>` before they barrier, and it is
+Ten shaders stage something in `var<workgroup>` before they barrier, and it is
 worth knowing which of four things each one is doing, because the reason decides
 what may change.
 
@@ -215,6 +253,10 @@ Hoisting into workgroup memory sets one trap, and it is a correctness trap
 rather than a performance one: **the predicate sits ahead of the bounds
 return**, since every invocation in the workgroup has to reach the barrier and
 910 samples do not divide by 64.
+
+`tape_play` tables its head layout the same way — where each head sits is a
+`pow` and a modulo per head, and it was paying them at every sample — and
+`channel` tables the FM fold's 31-tap decay.
 
 `crt_face`'s disk taps are the same move made at compile time: golden-angle
 direction × radius plus the beam gaussian weight, tabulated as constants.
@@ -361,11 +403,13 @@ and the pass reads a texel — bit-exact, 0.115 ms.
 
 ## The one serial pass
 
-`sync.wgsl` is `workgroup_size(1,1,1)`: a single thread running two
-525-iteration loops, the PLL flywheel and the HV sag. It has to be serial — each
-line's value depends on the previous line's — and `sync_measure` already scanned
-the waveform in parallel, so this thread only runs the recurrences over those
-measurements.
+`sync.wgsl` runs two 525-iteration loops, the PLL flywheel and the HV sag, each
+on a single lane. They have to be serial — each line's value depends on the
+previous line's — and `sync_measure` already scanned the waveform in parallel,
+so these lanes only run the recurrences over those measurements. The two are
+independent of each other, so a workgroup of 128 puts them in different waves
+and the scheduler runs them side by side: 0.31 → 0.14 ms on a look with the sag
+up, stock unchanged.
 
 It is latency on one thread rather than GPU throughput, and it measures fine at
 60 fps, but it is the one pass in the app that cannot scale. A third per-line

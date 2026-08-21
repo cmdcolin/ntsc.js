@@ -312,12 +312,12 @@ while the async path measured far slower — see DEVELOPMENT.md.
 
 Almost everything is comfortably parallel. Two exceptions:
 
-- **`sync.wgsl` is `workgroup_size(1,1,1)`** — a single thread running two
-  525-iteration loops (the PLL flywheel and the HV sag). It must be serial: each
-  line's value depends on the previous line's. It is latency on one thread
-  rather than GPU throughput, and it measures fine at 60 fps, but it is the one
-  pass that cannot scale. Another per-line recurrence should be a parallel
-  prefix-scan instead of a third loop here.
+- **`sync.wgsl` is two lanes in two waves** — the PLL flywheel and the HV sag
+  are each a 525-iteration loop on one lane, and they run side by side. They
+  must be serial: each line's value depends on the previous line's. It is
+  latency on a lane rather than GPU throughput, and it measures fine at 60 fps,
+  but it is the one pass that cannot scale. Another per-line recurrence should
+  be a parallel prefix-scan instead of a third loop here.
 - **`decode` stages a shared tile per row.** A workgroup covers 64 pixels of one
   raster row and stages a contiguous span with a 32-sample halo, so the demod
   FIR reads workgroup memory. Consequence: horizontal offsets must be
