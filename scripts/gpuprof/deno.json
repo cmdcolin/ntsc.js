@@ -1,0 +1,4 @@
+{
+  "unstable": ["sloppy-imports", "webgpu"],
+  "lint": { "rules": { "exclude": ["no-sloppy-imports"] } }
+}
