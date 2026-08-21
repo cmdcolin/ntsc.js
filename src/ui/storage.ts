@@ -147,10 +147,28 @@ export function writeJSONSoon(key: string, value: unknown, ms = 300) {
   )
 }
 
+// What a stored flag says, or `fallback` where nothing is stored.
+//
+// `fallback` is not a nicety: most of these are opt-in and start off, but a flag
+// that switches off behaviour the app has always had has to start *on*, or
+// shipping it silently changes the app for everyone who has never opened the
+// switch. Absent and '0' have to stay different answers for that, which is why
+// this reads the raw string instead of comparing against '1'.
+//
+// Exported for the readers outside React — the one that matters is the reload
+// switch, written by a toggle in the Advanced dialog and read once at boot by
+// `useEngine`, in two files that would otherwise agree only by convention (see
+// fileStash's `reopensOnLoad`). Sharing the reader is what makes them agree by
+// construction instead.
+export function storedFlag(key: string, fallback: boolean): boolean {
+  const raw = readStored(key)
+  return raw === null ? fallback : raw === '1'
+}
+
 // A boolean flag persisted across reloads (stored as '1'/'0'). The setter writes
 // through, so a toggle survives a refresh without any extra effect wiring.
-export function usePersistedFlag(key: string) {
-  const [on, setOn] = useState(() => readStored(key) === '1')
+export function usePersistedFlag(key: string, fallback = false) {
+  const [on, setOn] = useState(() => storedFlag(key, fallback))
   const set = (next: boolean) => {
     setOn(next)
     writeString(key, next ? '1' : '0')

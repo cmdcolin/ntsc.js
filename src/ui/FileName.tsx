@@ -6,9 +6,9 @@ import type { PoolOrigin } from '../sources/pools'
 import type { ReactNode } from 'react'
 
 // Caption under a loaded file/URL source. Clicking it re-fires the source
-// handler, reopening the file picker (or URL dialog) — the native <select>
-// can't re-emit onChange for the already-selected option, so re-picking the
-// same source lives here.
+// handler, reopening the file picker (or URL dialog) — the shortest way back to
+// the door this slot came through, without going up to the picker and finding
+// the option again.
 // The same caption, for a file last session held that the reload could not
 // reopen on its own: the browser remembers it as a handle on the user's disk,
 // and re-granting read access has to come from a gesture.
@@ -33,9 +33,10 @@ export function ReopenFile({
 
 // `action` names what the click does, because it is not always "change": a
 // Commons channel rolls another file out of the same pool and the clip shelf
-// reopens, in both cases with the option left exactly where it is. The <select>
-// can't re-emit onChange for an option that is already selected, so this caption
-// is the only way back to any of them.
+// reopens, in both cases with the option left exactly where it is. The picker
+// above reaches all three as well (MenuRow.tsx fires on every pick, the option
+// already lit included); this is the same door one click nearer, under the name
+// of the thing it would replace.
 //
 // The default is read off `props` rather than written into the destructure. A
 // default inside a destructured parameter is an AssignmentPattern, which the

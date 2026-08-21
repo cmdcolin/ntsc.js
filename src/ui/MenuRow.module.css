@@ -1,0 +1,106 @@
+/* The source pickers' row (MenuRow.tsx): the A/B/♪ tag, and a menu where the
+   panel's settings rows have a <select>. It wears SelectRow's own row and tag
+   classes rather than restating them — the 19px indent of the caption under it
+   is that tag's width plus this row's gap, and the three only line up while
+   they are one set of numbers. */
+.row {
+  composes: inputRow from './SelectRow.module.css';
+}
+.tag {
+  composes: tag from './SelectRow.module.css';
+}
+
+/* The trigger stands where a native select stood, so it draws the box the UA
+   was drawing for that one (ui.module.css's .select says why it draws nothing
+   itself). One line and ellipsised: the option labels are sentences, the panel
+   is 332px, and the select clipped them at exactly the same place. */
+.trigger {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ctl-face);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--ctl-radius);
+  padding: 3px 6px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.trigger:hover {
+  border-color: var(--border-hover);
+}
+.caret {
+  flex-shrink: 0;
+  color: var(--fg4);
+  font-size: var(--fs-xs);
+}
+
+/* Scrolls rather than growing past the picture: A's list is twenty entries and
+   the stage it opens from is only as tall as the frame beside it. The height
+   here is the floor the list is drawn at before it is measured — MenuRow's
+   `fitList` replaces it with the room actually left under the row, which is the
+   only number that survives the panel being scrolled. */
+.list {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: min(60vh, 420px);
+}
+
+.head {
+  padding: 5px 6px 1px;
+  color: var(--fg4);
+  font-size: var(--fs-sm);
+}
+
+.item {
+  composes: bare from './ui.module.css';
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  border-radius: 3px;
+  padding: 4px 6px;
+  color: var(--fg);
+  text-align: left;
+  font-size: var(--fs-sm);
+}
+.item:hover {
+  background: var(--ctl-bg-hover);
+}
+/* What is on now. Lit rather than filled: the row is still a thing to press —
+   pressing it is how you re-open the file it names — and a solid block would
+   read as the one row that is spent. */
+.itemOn {
+  color: var(--accent);
+}
+
+/* The trigger's label and a row's, which have the same job: take the width that
+   is left and give the tail to the ellipsis rather than to the layout. */
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One character in a fixed column, so every label starts on the same line down
+   the left edge whether or not it is the one that is on. */
+.mark {
+  flex-shrink: 0;
+  width: 10px;
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+/* Touch: the same fingertip height the shelf's menu takes. */
+@media (pointer: coarse) {
+  .item {
+    padding: 9px 6px;
+  }
+}

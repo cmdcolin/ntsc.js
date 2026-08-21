@@ -34,7 +34,13 @@ import {
   wrapCostMs,
   tapCue,
 } from './cue'
-import { clearStash, readStash, stashClip, stashFile } from './fileStash'
+import {
+  clearStash,
+  readStash,
+  reopensOnLoad,
+  stashClip,
+  stashFile,
+} from './fileStash'
 import { formatBytes, reason } from './format'
 import { openPullFromUrl } from './framePull'
 import { canPickHandle, pickHandle } from './fsAccess'
@@ -165,16 +171,22 @@ type SlotSource =
 interface Playhead {
   time: number
   duration: number
+  // Whether the element is stopped. Read off the element beside the position
+  // rather than mirrored from the button that stopped it, because the element
+  // is what decides: a blocked `play()` leaves a deck the panel would otherwise
+  // draw as rolling, and this poll is what corrects it a tenth of a second
+  // later.
+  paused: boolean
 }
-const NO_CLIP: Playhead = { time: 0, duration: 0 }
+const NO_CLIP: Playhead = { time: 0, duration: 0, paused: true }
 
 const readPlayhead = (el: HTMLVideoElement | null): Playhead =>
   el === null || !Number.isFinite(el.duration) || el.duration === 0
     ? NO_CLIP
-    : { time: el.currentTime, duration: el.duration }
+    : { time: el.currentTime, duration: el.duration, paused: el.paused }
 
 const samePlayhead = (a: Playhead, b: Playhead): boolean =>
-  a.time === b.time && a.duration === b.duration
+  a.time === b.time && a.duration === b.duration && a.paused === b.paused
 
 // Tries per rebuild, and the wait between them. requestAdapter can fail outright
 // in the moments after a driver reset — the GPU stack is still coming back — so
@@ -696,6 +708,41 @@ export function useEngine() {
     v.currentTime = time
     setTransport(p => ({ ...p, [key]: { ...p[key], time } }))
   }
+
+  // Stop the clip on a deck where it stands, or roll it on again. The element's
+  // own transport and nothing else: the cue, the loop and the position all
+  // survive, and the bar above the button still seeks — which is what makes this
+  // the pair to `jump` rather than to the deck's `pause` control, whose business
+  // is the picture and not the tape (ui/Scrub.tsx › PlayRow).
+  //
+  // The readout is written here as well as polled, so the glyph turns under the
+  // finger instead of waiting out the tick. It is a guess and the poll is the
+  // authority: `play()` can be refused outright by an autoplay policy, and the
+  // next tick puts the button back where the element actually is.
+  const togglePlayOn = (key: StashSlot) => {
+    const v = (key === 'a' ? videoRef : videoBRef).current
+    if (v === null) return
+    const paused = !v.paused
+    if (paused) v.pause()
+    else void v.play().catch(() => debugLog('DEBUG play refused'))
+    setTransport(p => ({ ...p, [key]: { ...p[key], paused } }))
+  }
+
+  // Take the source off a deck: the element is retired, and last session's stash
+  // goes with it so a reload does not put it back.
+  //
+  // It is a source change like any other, which is why it is one line rather
+  // than a teardown of its own — `selectOn` already stops the slot, drops the
+  // stash, clears the cue and cancels whatever was in flight for that deck, and
+  // a second path doing four of those five is how the fifth gets forgotten.
+  //
+  // What each deck falls back to is the app's existing answer to "the feed
+  // went", arrived at where a share is ended from the browser's own bar: A shows
+  // snow, which is what a set with nothing on its input shows, and B goes off,
+  // because B is optional by nature and summing static into the composite would
+  // be a bigger change to the look than letting go of a source asks for.
+  const ejectOn = (key: StashSlot) =>
+    key === 'a' ? selectOn('a', 'tv static') : selectOn('b', 'none')
 
   // Write a cue through to both the render loop and the panel. One place, because
   // a cue that reached the ref but not the engine is a loop the buttons claim is
@@ -2016,10 +2063,17 @@ export function useEngine() {
       params.yt !== null
     const linkNamesB =
       params.srcb !== null || params.iurlb !== null || params.ytb !== null
+    // …unless the user has said not to (Advanced › on reload). Off, neither
+    // branch runs: the deck stays on whatever the link or the defaults put
+    // there, and the stash entry is left alone so switching back on picks it up
+    // again. Read at the moment of the boot rather than passed in, because that
+    // is the only moment it is asked — a mid-session change is a statement about
+    // the *next* load and must not reach back into this one.
+    const reopen = reopensOnLoad()
     if (linkNamesA) dropFile('a')
-    else reopenStashed('a')
+    else if (reopen) reopenStashed('a')
     if (linkNamesB) dropFile('b')
-    else reopenStashed('b')
+    else if (reopen) reopenStashed('b')
     debugLog('DEBUG engine ready')
   }
 
@@ -2470,6 +2524,9 @@ export function useEngine() {
       time: transport.a.time,
       duration: transport.a.duration,
       seek: t => seekOut('a', t),
+      playing: live.a === 'clip' ? !transport.a.paused : null,
+      togglePlay: () => togglePlayOn('a'),
+      eject: () => ejectOn('a'),
       cue: cue.a,
       tapCue: () => tapCueOn('a'),
       retrigger: () => retriggerOn('a'),
@@ -2497,6 +2554,9 @@ export function useEngine() {
       time: transport.b.time,
       duration: transport.b.duration,
       seek: t => seekOut('b', t),
+      playing: live.b === 'clip' ? !transport.b.paused : null,
+      togglePlay: () => togglePlayOn('b'),
+      eject: () => ejectOn('b'),
       cue: cue.b,
       tapCue: () => tapCueOn('b'),
       retrigger: () => retriggerOn('b'),

@@ -1,7 +1,7 @@
 import { isPoolMode } from '../sources/pools'
 import { FileName, PickCaption, ReopenFile } from './FileName'
-import { CueRow, Scrub } from './Scrub'
-import { SelectRow } from './SelectRow'
+import { MenuRow } from './MenuRow'
+import { CueRow, PlayRow, Scrub } from './Scrub'
 import { Slider } from './Slider'
 import { TeletypeRow } from './TeletypeRow'
 import ui from './ui.module.css'
@@ -152,7 +152,7 @@ export function SourceSlot<T extends SourceMode | SourceBMode>(props: {
   const cueKeys = CUE_KEYS[slot.key]
   return (
     <>
-      <SelectRow
+      <MenuRow
         tag={slot.tag}
         title={props.title}
         value={slot.mode}
@@ -168,8 +168,8 @@ export function SourceSlot<T extends SourceMode | SourceBMode>(props: {
       ) : null}
       {/* The shelf gets a caption that is also a menu, so changing clip does not
           go through the dialog (ClipPicker.tsx). Everything else re-fires the
-          source handler, which is the only way back to a picker the <select>
-          cannot re-emit for. */}
+          source handler — the shorter way back to the picker it names, now that
+          re-picking the option itself opens it too (MenuRow.tsx). */}
       {slot.mode === 'library' ? (
         props.clipPicker(extra)
       ) : namedMode(slot.mode) ? (
@@ -181,6 +181,23 @@ export function SourceSlot<T extends SourceMode | SourceBMode>(props: {
         />
       ) : null}
       <ReopenFile name={slot.pendingFile} onReopen={() => slot.reopenFile()} />
+      {/* Only for a deck that is actually holding something: a pattern or a
+          text card is switched by picking another one, and an eject over one
+          would be a button whose whole meaning is "pick a different option
+          above". `live` is the fact that answers this — it is 'clip' or
+          'stream' exactly when there is an element to stop. */}
+      {slot.live === 'none' ? null : (
+        <PlayRow
+          playing={slot.playing}
+          onPlayPause={slot.togglePlay}
+          onEject={slot.eject}
+          ejectTitle={
+            slot.key === 'a'
+              ? 'take this off deck A — the input goes to snow, and a reload will not put it back'
+              : 'take this off deck B — B goes off, and a reload will not put it back'
+          }
+        />
+      )}
       {slot.duration === 0 ? null : (
         <>
           <Scrub

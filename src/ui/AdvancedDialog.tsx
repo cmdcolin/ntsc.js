@@ -1,6 +1,7 @@
 import { cx } from './cx'
 import { Dialog } from './Dialog'
 import dlg from './dialog.module.css'
+import { REOPEN_KEY } from './fileStash'
 import {
   FRAME_LOCK_LABEL,
   FRAME_LOCK_LABELS,
@@ -10,6 +11,7 @@ import { HelpProse } from './HelpProse'
 import { SelectRow } from './SelectRow'
 import { SIGNAL_TAPS, tapFor } from './signalTap'
 import { Slider } from './Slider'
+import { usePersistedFlag } from './storage'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
 import ui from './ui.module.css'
 
@@ -40,6 +42,10 @@ export function AdvancedDialog(props: {
   onEnableMidi: () => void
   onClose: () => void
 }) {
+  // The one setting on this card the app owns rather than the panel: nothing
+  // else reads it while the session runs — `useEngine` asks the store once, at
+  // boot — so lifting it to app.tsx would be a state hoisted for no reader.
+  const [reopen, setReopen] = usePersistedFlag(REOPEN_KEY, true)
   return (
     <Dialog title="Advanced" size="form" onClose={props.onClose}>
       <Slider
@@ -118,6 +124,28 @@ export function AdvancedDialog(props: {
           The same picker sits in the panel's View group, and \`?dbg=\` in the
           URL sets it at load. The ☰ menu has no tap row — its trigger only
           badges whichever tap is live, so a replaced picture always says so.`}
+      />
+      <div className={dlg.subhead}>on reload</div>
+      <ToggleButtonGroup
+        label="what a reload puts on the decks"
+        options={['reopen last source', 'start empty']}
+        value={reopen ? 0 : 1}
+        onChange={v => setReopen(v === 0)}
+      />
+      <HelpProse
+        className={ui.dim}
+        style={{ margin: '4px 0 12px' }}
+        text={`Whether refreshing the page puts each deck back on the clip it
+          was holding. On is how the app has always come back, and it is the
+          right answer for a set you are building; **start empty** is the right
+          one for a machine other people sit down at.
+
+          - It only decides whether the app *asks*. Switched off, the decks
+            still remember — turning it back on picks last session's clips up
+            again.
+          - **⏏ eject** under a deck is the other half: that one forgets, so the
+            clip does not come back whichever way this is set.
+          - A link that names its own source always wins over both.`}
       />
       <div className={dlg.subhead}>MIDI control</div>
       {props.midiStatus === 'idle' ? (

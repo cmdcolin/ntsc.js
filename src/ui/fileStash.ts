@@ -27,7 +27,7 @@
 import { openClipById } from './clipLibrary'
 import { grantRead, isPickedFile } from './fsAccess'
 import { idbDelete, idbGet, idbPut } from './idb'
-import { readRecord, removeStored, writeJSON } from './storage'
+import { readRecord, removeStored, storedFlag, writeJSON } from './storage'
 
 import type { PoolRef } from '../sources/pools'
 import type { PickedFileHandle } from './fsAccess'
@@ -84,6 +84,25 @@ const NONE: Meta = { name: '', type: '', kind: 'copy', id: '' }
 
 const metaKey = (slot: StashSlot) => `ntsc.js.stash.${slot}`
 const copyName = (slot: StashSlot) => `source-${slot}`
+
+// Whether a reload puts each deck back on what it was holding, which is a
+// setting rather than a fact about the stash — hence the separate key, and hence
+// the default: absent means yes, the way the app has always behaved.
+//
+// The switch is a preference and the stash is evidence, so turning it off must
+// not throw the evidence away. A load with this off simply does not ask
+// (`useEngine`'s boot), leaves both slots' entries where they are, and turning
+// it back on picks last session's clips up again — where clearing them would
+// make the switch a one-way door with no warning on it. Ejecting a deck is the
+// gesture that means "and forget this one".
+//
+// The toggle that writes it is in the Advanced dialog and the read is here, so
+// both go through `storedFlag`: with two spellings of "absent means yes" the two
+// files could drift into an app that reopens clips under a switch reading "start
+// empty", and nothing would fail.
+export const REOPEN_KEY = 'ntsc.js.reopen'
+
+export const reopensOnLoad = (): boolean => storedFlag(REOPEN_KEY, true)
 
 const opfsRoot = () => navigator.storage.getDirectory()
 

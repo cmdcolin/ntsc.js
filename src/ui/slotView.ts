@@ -69,6 +69,15 @@ export interface SlotView<T extends SourceMode | SourceBMode> {
   time: number
   duration: number
   seek: (time: number) => void
+  // Whether the clip on this deck is rolling, or null for a source with no
+  // timeline to hold — a pattern, a still, a webcam, a share. Three states
+  // rather than a boolean because the button is absent in the third, and a
+  // `false` there would draw a ▶ over a webcam that is already live.
+  playing: boolean | null
+  togglePlay: () => void
+  // Take the source off this deck. Last session's stash goes with it, so the
+  // reload does not put back a clip you have finished with — see `ejectOn`.
+  eject: () => void
 
   // The cue point and the three things a hand does to one: tap it (mark, close
   // the loop, re-arm), stab back to it, drop it. Marked on the clip's own

@@ -31,7 +31,10 @@ Click a preset to jump to it; drag it sideways to blend it part-way in.
 ## Sources
 
 Pick each source at the head of its stage: **A** on SOURCE A, **B** on SOURCE B,
-sound on SOUND.
+sound on SOUND. Each picker is a menu rather than a dropdown, so picking the
+entry you are already on opens it again — **File…** a second time is how you
+swap one video for another, and a public archive a second time rolls another
+file.
 
 - **A** takes bars, sweep, snow, the bundled photo, a file, a shared screen, or
   a webcam — an RCA capture dongle is how real gear gets in.
@@ -55,6 +58,19 @@ sound on SOUND.
 Anything with a timeline gets a **cue** button: press to mark, again to loop, a
 third time to drop it. **⇤** stabs back to the cue without waiting for the lap.
 `i` and `o` do the same from the keyboard, `shift` puts them on B.
+
+A deck holding a clip or a live feed gets two buttons above its seek bar. **❚❚**
+stops that deck's tape where it stands and **▶** rolls it on again — the bar
+still seeks while it is held, and the cue and the loop survive. The **A pause**
+slider down in Source A is a different machine entirely: that one freezes the
+picture and lets the tape run on underneath, servo damage and mistrack stripe
+and all. **⏏ eject** takes the source off the deck — A falls back to snow, B
+goes off, and the clip is forgotten rather than reopened next time.
+
+A reload otherwise puts each deck back on whatever it was last holding. Switch
+that off in **☰ › advanced settings › on reload** for a machine other people
+sit down at; the decks still remember either way, so switching it back on picks
+last session's clips up again.
 
 ## Working down the chain
 

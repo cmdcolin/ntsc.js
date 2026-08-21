@@ -1,37 +1,26 @@
 import styles from './SelectRow.module.css'
 import ui from './ui.module.css'
 
-// Hoisted out of SelectRow so the banded and unbanded branches below render the
-// same option, rather than each spelling out a three-line <option>.
-const Option = (props: { value: string; label: string }) => (
-  <option value={props.value}>{props.label}</option>
-)
-
-// A leading tag glyph plus a full-width dropdown — the panel's standard picker
-// row. Generic over the option values so callers get their own key type back
-// instead of a bare string to re-validate.
+// A leading tag glyph plus a full-width dropdown — the panel's picker row for a
+// list of plain values. Generic over the option values so callers get their own
+// key type back instead of a bare string to re-validate.
+//
+// **The source pickers are not this**, and the split is the point rather than an
+// accident of history: a `<select>` cannot re-emit `change` for the option
+// already chosen, and half of what a source picker offers is a door rather than
+// a value — File…, Clips…, Browse…, the archives — where re-picking is the
+// ordinary gesture. Those rows are MenuRow, which fires on every pick. What is
+// left here is the settings lists (the signal tap, the MIDI ports, a look's
+// slot), where every option is a value and picking the one already picked means
+// nothing, so the native widget is the better one: the OS draws it, a phone
+// gives it a wheel, and it costs this file nine lines.
 export function SelectRow<T extends string>(props: {
   tag: string
   title: string
   value: T
-  // A `group` on an option puts it under that heading, and every option after it
-  // carrying the same one joins it. So a banded list is expressed by ordering the
-  // array — the same way the options' own order is already the display order —
-  // and a caller with nothing to band passes no `group` and gets the flat list it
-  // always got. Nothing but the source pickers bands anything today.
-  options: readonly { value: T; label: string; group?: string | null }[]
+  options: readonly { value: T; label: string }[]
   onChange: (value: T) => void
 }) {
-  // Consecutive runs of one heading. Built rather than grouped by key so an
-  // option can never be lifted out of the order the caller chose.
-  const bands: { group: string | null; options: typeof props.options }[] = []
-  for (const o of props.options) {
-    const group = o.group ?? null
-    const last = bands.at(-1)
-    if (last !== undefined && last.group === group)
-      last.options = [...last.options, o]
-    else bands.push({ group, options: [o] })
-  }
   return (
     <div className={styles.inputRow}>
       <span className={styles.tag} title={props.title}>
@@ -45,17 +34,11 @@ export function SelectRow<T extends string>(props: {
           if (picked !== undefined) props.onChange(picked.value)
         }}
       >
-        {bands.map(band =>
-          band.group === null ? (
-            band.options.map(o => <Option key={o.value} {...o} />)
-          ) : (
-            <optgroup key={band.group} label={band.group}>
-              {band.options.map(o => (
-                <Option key={o.value} {...o} />
-              ))}
-            </optgroup>
-          ),
-        )}
+        {props.options.map(o => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
       </select>
     </div>
   )

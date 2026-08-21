@@ -1,7 +1,7 @@
 import { FileName } from './FileName'
+import { MenuRow } from './MenuRow'
 import { Meter } from './Meter'
 import { Scrub } from './Scrub'
-import { SelectRow } from './SelectRow'
 import { Slider } from './Slider'
 import ui from './ui.module.css'
 import { DRY_DEFAULT, REVERB_DEFAULT } from './urlParams'
@@ -56,7 +56,7 @@ export function AudioInput(props: {
   const live = props.mode === 'off' ? null : props.audioState
   return (
     <>
-      <SelectRow
+      <MenuRow
         tag="♪"
         title="audio in, driving sync and deflection"
         value={props.mode}

@@ -57,6 +57,7 @@ import { CrosshairIcon } from './ui/icons'
 import { LookBar } from './ui/LookBar'
 import { LookSection } from './ui/LookSection'
 import { MediaBrowserDialog } from './ui/MediaBrowserDialog'
+import { MenuRow } from './ui/MenuRow'
 import { MidiSection } from './ui/MidiSection'
 import { ModBay } from './ui/ModBay'
 import { bayLoad, slotsToRoutings } from './ui/modSlots'
@@ -72,7 +73,6 @@ import { profileAtSlot, suggestProfileName } from './ui/profileModel'
 import { sameList } from './ui/sameList'
 import { SavedProfiles } from './ui/SavedProfiles'
 import { Section } from './ui/Section'
-import { SelectRow } from './ui/SelectRow'
 import { SignalPath } from './ui/SignalPath'
 import { SignalPathDialog } from './ui/SignalPathDialog'
 import { SignalTapContext } from './ui/SignalTapContext'
@@ -982,7 +982,7 @@ export function App() {
         pick={pickCaption(eng.a)}
       >
         {eng.a.mode === 'webcam' && eng.videoDevices.length > 1 ? (
-          <SelectRow
+          <MenuRow
             tag="◉"
             title="capture device"
             value={eng.webcamDeviceId}

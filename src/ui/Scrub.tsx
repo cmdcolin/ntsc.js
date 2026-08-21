@@ -156,3 +156,56 @@ export function CueRow(props: {
     </div>
   )
 }
+
+// The two buttons that are about the source itself rather than about a position
+// in it: hold the clip where it is, or take it off the deck altogether.
+//
+// It sits above the bar and the cue row sits below, because that is the
+// division — this row says what is on the deck and whether it is rolling, and
+// everything under the bar is about *where in it* you are. Both wear the cue
+// row's own shape, so the block under a slot reads as one transport rather than
+// as three rows that happen to be adjacent.
+//
+// **Holding a clip here is not the deck's `pause` control**, which is a row in
+// Source A and is a fault rather than a transport: that one freezes the
+// *picture* while the tape runs on under it, servo damage and mistrack stripe
+// and all (gpu/videopump.ts › `pump`). This one stops the tape. A clip held here
+// keeps its cue, its loop and its place, and the bar above still seeks.
+export function PlayRow(props: {
+  // Whether the clip is rolling, or null for a source with no timeline to hold
+  // — a webcam, a share — where the only button that means anything is eject.
+  playing: boolean | null
+  onPlayPause: () => void
+  onEject: () => void
+  // What ejecting leaves behind, which is the one thing about it the glyph
+  // cannot show and the one thing that differs by deck: A falls back to snow,
+  // B goes off.
+  ejectTitle: string
+}) {
+  const { playing } = props
+  return (
+    <div className={styles.cueRow}>
+      {playing === null ? null : (
+        <button
+          className={cx(styles.cueBtn, styles.cueStab)}
+          title={
+            playing
+              ? 'hold the clip where it is — this deck stops, the rest of the simulation runs on'
+              : 'roll the clip on from where it stopped'
+          }
+          aria-label={playing ? 'pause' : 'play'}
+          onClick={props.onPlayPause}
+        >
+          {playing ? '❚❚' : '▶'}
+        </button>
+      )}
+      <button
+        className={styles.cueBtn}
+        title={props.ejectTitle}
+        onClick={props.onEject}
+      >
+        ⏏ eject
+      </button>
+    </div>
+  )
+}
