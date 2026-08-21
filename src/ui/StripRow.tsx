@@ -2,7 +2,7 @@ import { useState, useSyncExternalStore } from 'react'
 
 import { cx } from './cx'
 import { MORPH_LABEL_CHARS, MORPH_LABELS } from './morph'
-import { PROFILE_NAME_MAX } from './savedProfiles'
+import { PROFILE_NAME_MAX } from './profileModel'
 import {
   derivedLabel,
   holdLabel,

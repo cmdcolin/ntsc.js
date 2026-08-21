@@ -1,9 +1,9 @@
-import { readProfiles } from './savedProfiles'
+import { readProfiles } from './profileModel'
 import { readStored, removeStored, writeString } from './storage'
 
 import type { RatingRecord } from '../labels'
 import type { CandidateRecord, VoteRecord } from '../vote/votes'
-import type { SavedProfile } from './savedProfiles'
+import type { SavedProfile } from './profileModel'
 import type { FirebaseApp } from 'firebase/app'
 import type { Auth, User } from 'firebase/auth'
 import type { Firestore } from 'firebase/firestore/lite'

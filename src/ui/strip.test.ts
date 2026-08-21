@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { MORPH_SECONDS } from './morph'
-import { PROFILE_NAME_MAX } from './savedProfiles'
+import { PROFILE_NAME_MAX } from './profileModel'
 import {
   CLIP_HOLD,
   DEFAULT_HOLD,

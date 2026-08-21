@@ -8,7 +8,7 @@ import {
   deckLoad,
   takeAt,
   wipeEngaged,
-} from './deck'
+} from './deckModel'
 
 import type { Controls } from '../core/controls'
 

@@ -1,8 +1,8 @@
 import { use } from 'react'
 
 import { ControlStoreContext, useControlsApi } from './ControlsContext'
-import { barCut } from './deck'
 import styles from './Deck.module.css'
+import { barCut } from './deckModel'
 import { TRANSITIONS, faultPlan } from './transitions'
 
 // The shelf of named transitions, under the lever they replace.

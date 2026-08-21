@@ -6,12 +6,12 @@ import {
   PROFILE_NAME_MAX,
   PROFILE_SLOTS,
   cleanProfileName,
-} from './savedProfiles'
+} from './profileModel'
 import styles from './SavedProfiles.module.css'
 import ui from './ui.module.css'
 
 import type { CloudUser } from './cloud'
-import type { SavedProfile } from './savedProfiles'
+import type { SavedProfile } from './profileModel'
 import type { CloudStatus, ProfileFlash } from './useSavedProfiles'
 
 // The profile library, and the account it lives on: one button in the

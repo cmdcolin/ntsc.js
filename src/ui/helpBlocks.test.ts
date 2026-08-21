@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { GROUPS } from './controls'
-import { helpBlocks } from './helpProse'
+import { helpBlocks } from './helpBlocks'
 
 // The parser behind every control blurb. It is worth pinning because the copy
 // it reads is authored as an indented template literal inside an object

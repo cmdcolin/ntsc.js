@@ -6,6 +6,7 @@ import {
   useControlsApi,
 } from './ControlsContext'
 import { cx } from './cx'
+import styles from './Deck.module.css'
 import {
   B_ON_AIR,
   TAKE_SECONDS,
@@ -15,8 +16,7 @@ import {
   barThrow,
   takeAt,
   wipeEngaged,
-} from './deck'
-import styles from './Deck.module.css'
+} from './deckModel'
 import { useGrabRect } from './useGrabRect'
 
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'

@@ -8,10 +8,10 @@ import {
   wasSignedIn,
   watchAuth,
 } from './cloud'
-import { removeProfile, upsertProfile } from './savedProfiles'
+import { removeProfile, upsertProfile } from './profileModel'
 
 import type { CloudUser } from './cloud'
-import type { SavedProfile } from './savedProfiles'
+import type { SavedProfile } from './profileModel'
 
 // The profile library: who is signed in, what they have saved, and the verbs over
 // it. Firestore is the only store — nothing is written to this device — so

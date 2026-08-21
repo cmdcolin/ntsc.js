@@ -1,5 +1,5 @@
 import { cx } from './cx'
-import { helpBlocks } from './helpProse'
+import { helpBlocks } from './helpBlocks'
 import styles from './HelpProse.module.css'
 
 import type { CSSProperties, ReactNode } from 'react'

@@ -9,7 +9,7 @@ import {
   removeProfile,
   suggestProfileName,
   upsertProfile,
-} from './savedProfiles'
+} from './profileModel'
 
 const p = (name: string, query = 'set=') => ({ name, query })
 

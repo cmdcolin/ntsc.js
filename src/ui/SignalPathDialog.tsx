@@ -29,7 +29,7 @@ import ui from './ui.module.css'
 
 import type { Controls } from '../core/controls'
 import type { LoopsLive } from './controls'
-import type { DeckLoad } from './deck'
+import type { DeckLoad } from './deckModel'
 import type { BayLoad } from './modSlots'
 
 // The path drawn at a size that can carry it. The sidebar's miniature has room
