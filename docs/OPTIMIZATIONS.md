@@ -102,6 +102,11 @@ scan-velocity modulation keys on light: lightThatStays mean 0.13/255 with 0.9%
 of pixels off by more than one level, misconverged mean 0.43 concentrated in the
 SVM notch — invisible at 1×, and a millisecond.
 
+Confirmed in Firefox Nightly the same way as the first pass, `perf.mjs` best-of
+over five batches, base and patched back to back: stock 2.88 → 2.50 ms/frame,
+lightThatStays 4.18 → 2.57, colourLate 3.03 → 2.56, dirtyMix 2.94 → 2.59,
+fullCollapse 4.18 → 2.82.
+
 Two arms from that pass were reverted, and both are worth knowing. Spreading the
 per-line serial passes (`enhancer`, `buzz_tap`, `sync_measure`) one lane to a
 workgroup, so the scheduler could interleave 525 of them across every SIMD, was
