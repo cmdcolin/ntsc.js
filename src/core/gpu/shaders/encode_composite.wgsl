@@ -4,8 +4,26 @@
 
 @group(0) @binding(0) var<uniform> P: Params;
 @group(0) @binding(1) var<storage, read> filters: array<f32>;
-@group(0) @binding(2) var<storage, read> yuv: array<vec4f>;
+@group(0) @binding(2) var inputTex: texture_2d<f32>;
 @group(0) @binding(3) var<storage, read_write> comp: array<f32>;
+
+// RGB -> YUV read straight off the picture into the tile. This was a pass of
+// its own, writing a vec4 per sample (7.6 MB a frame) that only this pass
+// read one dispatch later; the texel is a quarter the bytes and is already
+// what the staging loop wanted. Worth 0.23 ms of a 2.29 ms stock frame on the
+// dev box (scripts/gpuprof). Source B keeps encode_yuv: three consumers read
+// its yuv. Zero outside active picture, which is what the blanking samples of
+// the old buffer held.
+fn yuvAt(s: i32, row: u32) -> vec3f {
+  let x = s - i32(ACTIVE_START);
+  let y = i32(row) - i32(ACTIVE_TOP);
+  if (x < 0 || x >= i32(ACTIVE_W) || y < 0 || y >= i32(ACTIVE_H)) {
+    return vec3f(0.0);
+  }
+  let rgb = textureLoad(inputTex, vec2i(x, y), 0).rgb;
+  let luma = dot(rgb, vec3f(0.299, 0.587, 0.114));
+  return vec3f(luma, 0.492 * (rgb.b - luma), 0.877 * (rgb.r - luma));
+}
 
 var<workgroup> tileUV: array<vec2f, TILE>;
 
@@ -16,9 +34,9 @@ fn main(
   @builtin(workgroup_id) wid: vec3u,
 ) {
   let row = wid.y;
-  let base = i32(row * SPL + wid.x * TILE_WG) - i32(HALO);
+  let base = i32(wid.x * TILE_WG) - i32(HALO);
   for (var i = lid.x; i < TILE; i = i + TILE_WG) {
-    tileUV[i] = yuv[clampIdx(base + i32(i))].yz;
+    tileUV[i] = yuvAt(base + i32(i), row).yz;
   }
   workgroupBarrier();
 
@@ -40,7 +58,7 @@ fn main(
     for (var k = 0u; k < m; k = k + 1u) {
       uv = uv + filters[SEC_ENC_CHROMA * FILTER_STRIDE + k] * (tileUV[c + k - m] + tileUV[c + m - k]);
     }
-    out = activeComposite(yuv[n].x, uv.x, uv.y, carrier(n, P.frame), 1.0, P.invert);
+    out = activeComposite(yuvAt(i32(s), row).x, uv.x, uv.y, carrier(n, P.frame), 1.0, P.invert);
   }
 
   // What broadcasters actually parked in the vertical interval: test and

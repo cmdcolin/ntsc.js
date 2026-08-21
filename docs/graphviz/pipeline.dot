@@ -60,8 +60,6 @@ digraph ntsc_js {
     style="rounded,filled"; fillcolor="@ENCBG@"; color="@ENCLN@";
     compose    [passes="compose" fillcolor="@ENC2@"
                 label="compose\n+ feedback camera\n754 × 480 px, 8×8 tiles"];
-    encodeYuv  [passes="encodeYuv" fillcolor="@ENC2@"
-                label="encodeYuv\nRGB → YUV\n754 × 480 px"];
     encodeComp [passes="encodeComposite" fillcolor="@ENC1@"
                 label="encodeComposite\nY + chroma modulated on Fsc\nsync · burst · blanking\n525 lines × 910 samples"];
     feedA      [passes="feedA" fillcolor="@ENC2@" style="rounded,filled,dashed"
@@ -142,8 +140,7 @@ digraph ntsc_js {
 
   // ---- signal flow ---------------------------------------------------------
   srcA -> compose;
-  compose -> encodeYuv [label="  frameTex"];
-  encodeYuv -> encodeComp [label="  yuv"];
+  compose -> encodeComp [label="  frameTex"];
   encodeComp -> mixB [label="  compA"];
   // engaged feeds sit in line: the encoder detours through the compB scratch
   encodeComp -> feedA [label="  compB — feed engaged\l"];

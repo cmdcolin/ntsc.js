@@ -154,7 +154,6 @@ export class Graph {
     this.lineParamsBuf = storage(LINE_PARAM_BYTES)
     this.audioBuf = storage(LINES * 4)
     this.compA = storage(N * 4, GPUBufferUsage.COPY_SRC)
-    const yuvBuf = storage(N * 16)
     const yuvBBuf = storage(N * 16)
     const uvfBBuf = storage(N * 8)
     const compB = storage(N * 4)
@@ -237,17 +236,16 @@ export class Graph {
         dispatch: perTile,
       },
       {
-        label: 'encodeYuv',
-        shader: 'encode_yuv',
-        variants: one({ inputTex: inputTex.createView(), samp, yuv: yuvBuf }),
-        dispatch: perPixel,
-      },
-      {
         label: 'encodeComposite',
         shader: 'encode_composite',
         variants: {
-          main: { P, filters, yuv: yuvBuf, comp: this.compA },
-          feed: { P, filters, yuv: yuvBuf, comp: compB },
+          main: {
+            P,
+            filters,
+            inputTex: inputTex.createView(),
+            comp: this.compA,
+          },
+          feed: { P, filters, inputTex: inputTex.createView(), comp: compB },
         },
         pick: () => (aFeedOn(c) ? 'feed' : 'main'),
         dispatch: perLineT,

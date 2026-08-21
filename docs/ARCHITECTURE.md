@@ -70,7 +70,7 @@ authenticity gap.
 One frame, driven by `Engine.render()` in `src/core/gpu/pipeline.ts`:
 
 ```
-prePasses    compose → encodeYuv → encodeComposite → [feedA] → [composeB → encodeYuvB → encodeChromaB → encodeCompositeB → feedB → mixB] → [fbComposite] → [tapePlay → tapeRec]
+prePasses    compose → encodeComposite → [feedA] → [composeB → encodeYuvB → encodeChromaB → encodeCompositeB → feedB → mixB] → [fbComposite] → [tapePlay → tapeRec]
 loopPasses   chromaExtract → [underDown] → channel → timebase     (× dubGens, ≤ 4)
 postPasses   [enhancer] → [buzzTap] → syncMeasure → sync → lineAnalyze → decode → crtFace → [storePrev]
 present      render pass to the swap chain
@@ -83,7 +83,7 @@ with the buffers on the arrows and is held to the same list:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="img/pipeline-dark.svg">
-  <img alt="Signal path pass by pass. Source A and B feed the encoder (compose, encodeYuv, encodeComposite, composeB, encodeYuvB, mixB), then fbComposite, then the channel block (chromaExtract, underDown, channel, timebase) which repeats once per tape dub, then the outboard enhancer, then the receiver (syncMeasure, sync, lineAnalyze, decode), then crtFace and present. storePrev feeds the composite loop back into fbComposite one frame later; crtFace feeds the camera loop back into compose." src="img/pipeline-light.svg">
+  <img alt="Signal path pass by pass. Source A and B feed the encoder (compose, encodeComposite, composeB, encodeYuvB, mixB), then fbComposite, then the channel block (chromaExtract, underDown, channel, timebase) which repeats once per tape dub, then the outboard enhancer, then the receiver (syncMeasure, sync, lineAnalyze, decode), then crtFace and present. storePrev feeds the composite loop back into fbComposite one frame later; crtFace feeds the camera loop back into compose." src="img/pipeline-light.svg">
 </picture>
 
 Bracketed passes are gated by a `when()` predicate on the controls, so an idle

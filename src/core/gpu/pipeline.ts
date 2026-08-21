@@ -333,7 +333,6 @@ export class Engine implements EngineApi {
   private feedParamsB: GPUBuffer
   private feedScratch = new ArrayBuffer(PARAM_BYTES)
   private filterBuf: GPUBuffer
-  private yuvBuf: GPUBuffer
   private yuvBBuf: GPUBuffer
   private uvfBBuf: GPUBuffer
   private compA: GPUBuffer
@@ -451,7 +450,6 @@ export class Engine implements EngineApi {
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | extra,
       })
     this.filterBuf = storage(NUM_SECTIONS * FILTER_STRIDE * 4)
-    this.yuvBuf = storage(N * 16)
     this.yuvBBuf = storage(N * 16)
     // B's encoder-filtered chroma, one vec2f per sample (encode_chroma_b)
     this.uvfBBuf = storage(N * 8)
@@ -639,18 +637,12 @@ export class Engine implements EngineApi {
     this.prePasses = [
       this.composePass,
       pass(
-        'encodeYuv',
-        encodeYuvPl,
-        [this.inputTex.createView(), this.linearSamp, { buffer: this.yuvBuf }],
-        perPixel,
-      ),
-      pass(
         'encodeComposite',
         encodeCompositePl,
         [
           { buffer: this.paramsBuf },
           { buffer: this.filterBuf },
-          { buffer: this.yuvBuf },
+          this.inputTex.createView(),
           { buffer: this.compA },
         ],
         perLineT,
@@ -788,7 +780,7 @@ export class Engine implements EngineApi {
       bindGroup(encodeCompositePl, [
         { buffer: this.paramsBuf },
         { buffer: this.filterBuf },
-        { buffer: this.yuvBuf },
+        this.inputTex.createView(),
         { buffer: this.compB },
       ]),
     ]
@@ -1374,7 +1366,6 @@ export class Engine implements EngineApi {
       this.feedParamsA,
       this.feedParamsB,
       this.filterBuf,
-      this.yuvBuf,
       this.yuvBBuf,
       this.uvfBBuf,
       this.compA,
