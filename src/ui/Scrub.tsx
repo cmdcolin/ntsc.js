@@ -173,16 +173,21 @@ export function CueRow(props: {
 // keeps its cue, its loop and its place, and the bar above still seeks.
 export function PlayRow(props: {
   // Whether the clip is rolling, or null for a source with no timeline to hold
-  // — a webcam, a share — where the only button that means anything is eject.
+  // — a pattern, a still, a webcam, a share — where the only button that means
+  // anything is eject.
   playing: boolean | null
   onPlayPause: () => void
-  onEject: () => void
+  // Null for a deck that is already empty, where there is nothing to take off
+  // it. Both buttons are absent rather than dead: a disabled pair under a deck
+  // showing snow is two dead controls saying what the picture already says.
+  onEject: (() => void) | null
   // What ejecting leaves behind, which is the one thing about it the glyph
   // cannot show and the one thing that differs by deck: A falls back to snow,
   // B goes off.
   ejectTitle: string
 }) {
-  const { playing } = props
+  const { playing, onEject } = props
+  if (playing === null && onEject === null) return null
   return (
     <div className={styles.cueRow}>
       {playing === null ? null : (
@@ -199,13 +204,15 @@ export function PlayRow(props: {
           {playing ? '❚❚' : '▶'}
         </button>
       )}
-      <button
-        className={styles.cueBtn}
-        title={props.ejectTitle}
-        onClick={props.onEject}
-      >
-        ⏏ eject
-      </button>
+      {onEject === null ? null : (
+        <button
+          className={styles.cueBtn}
+          title={props.ejectTitle}
+          onClick={onEject}
+        >
+          ⏏ eject
+        </button>
+      )}
     </div>
   )
 }

@@ -181,23 +181,22 @@ export function SourceSlot<T extends SourceMode | SourceBMode>(props: {
         />
       ) : null}
       <ReopenFile name={slot.pendingFile} onReopen={() => slot.reopenFile()} />
-      {/* Only for a deck that is actually holding something: a pattern or a
-          text card is switched by picking another one, and an eject over one
-          would be a button whose whole meaning is "pick a different option
-          above". `live` is the fact that answers this — it is 'clip' or
-          'stream' exactly when there is an element to stop. */}
-      {slot.live === 'none' ? null : (
-        <PlayRow
-          playing={slot.playing}
-          onPlayPause={slot.togglePlay}
-          onEject={slot.eject}
-          ejectTitle={
-            slot.key === 'a'
-              ? 'take this off deck A — the input goes to snow, and a reload will not put it back'
-              : 'take this off deck B — B goes off, and a reload will not put it back'
-          }
-        />
-      )}
+      {/* Whether either button has anything to do is the slot's own answer, not
+          this component's: `playing` is null with no timeline to hold and
+          `eject` is null on a deck that is already empty, and PlayRow draws
+          nothing when both are. A test pattern is as much a thing to be rid of
+          as a clip is, so nothing here asks what *kind* of source is on. */}
+      <PlayRow
+        playing={slot.playing}
+        onPlayPause={slot.togglePlay}
+        onEject={slot.eject}
+        ejectTitle={
+          slot.key === 'a'
+            ? 'clear deck A — the input goes to snow, and a reload will not bring this back'
+            : 'clear deck B — B stops summing, and a reload will not bring this back'
+        }
+      />
+
       {slot.duration === 0 ? null : (
         <>
           <Scrub

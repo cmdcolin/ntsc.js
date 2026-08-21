@@ -59,13 +59,16 @@ Anything with a timeline gets a **cue** button: press to mark, again to loop, a
 third time to drop it. **⇤** stabs back to the cue without waiting for the lap.
 `i` and `o` do the same from the keyboard, `shift` puts them on B.
 
-A deck holding a clip or a live feed gets two buttons above its seek bar. **❚❚**
-stops that deck's tape where it stands and **▶** rolls it on again — the bar
-still seeks while it is held, and the cue and the loop survive. The **A pause**
-slider down in Source A is a different machine entirely: that one freezes the
-picture and lets the tape run on underneath, servo damage and mistrack stripe
-and all. **⏏ eject** takes the source off the deck — A falls back to snow, B
-goes off, and the clip is forgotten rather than reopened next time.
+**⏏ eject** clears a deck, whatever is standing in it — a clip, a camera, a test
+pattern, a text card. A falls back to snow and B stops summing, and what was
+there is forgotten rather than reopened next time. The button is there until the
+deck is already empty, and then it is not.
+
+A deck holding a clip gets **❚❚** beside it: that stops the deck's tape where it
+stands, and **▶** rolls it on again. The bar still seeks while it is held, and
+the cue and the loop survive. The **A pause** slider down in Source A is a
+different machine entirely — that one freezes the picture and lets the tape run
+on underneath, servo damage and mistrack stripe and all.
 
 A reload otherwise puts each deck back on whatever it was last holding. Switch
 that off in **☰ › advanced settings › on reload** for a machine other people

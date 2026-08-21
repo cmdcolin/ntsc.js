@@ -728,21 +728,34 @@ export function useEngine() {
     setTransport(p => ({ ...p, [key]: { ...p[key], paused } }))
   }
 
-  // Take the source off a deck: the element is retired, and last session's stash
-  // goes with it so a reload does not put it back.
+  // What an empty deck is on. Written once because it is the same fact answered
+  // from both ends — what eject leaves behind, and what makes the button
+  // pointless because the deck is already there — and two spellings of it would
+  // be a button that ejects a deck into the state it is already in.
   //
-  // It is a source change like any other, which is why it is one line rather
-  // than a teardown of its own — `selectOn` already stops the slot, drops the
-  // stash, clears the cue and cancels whatever was in flight for that deck, and
-  // a second path doing four of those five is how the fifth gets forgotten.
+  // It is the app's existing answer to "the feed went", arrived at where a share
+  // is ended from the browser's own bar. A shows snow, which is what a set with
+  // nothing on its input shows and the clearest thing this app has to say; B
+  // goes off outright, because B is optional by nature and summing static into
+  // the composite would be a bigger change to the look than letting go of a
+  // source asks for.
+  const EMPTY_ON = { a: 'tv static', b: 'none' } as const
+
+  // Take the source off a deck, whatever kind of source it is — a clip, a share,
+  // a test pattern, a text card. **What is on the deck is not the question**;
+  // the question is whether the deck is already empty, which is why this is a
+  // mode test rather than the `live` test it started as. `live` says whether
+  // there is an `<video>` element behind the picture, and gating on it made
+  // eject appear over a rolling clip and vanish over the colour bars that
+  // replaced it — a button that comes and goes by the kind of thing on the deck
+  // rather than by whether there is anything to do.
   //
-  // What each deck falls back to is the app's existing answer to "the feed
-  // went", arrived at where a share is ended from the browser's own bar: A shows
-  // snow, which is what a set with nothing on its input shows, and B goes off,
-  // because B is optional by nature and summing static into the composite would
-  // be a bigger change to the look than letting go of a source asks for.
+  // Ejecting is a source change like any other, which is why it is one line
+  // rather than a teardown of its own: `selectOn` already stops the slot, drops
+  // the stash, clears the cue and cancels whatever was in flight for that deck,
+  // and a second path doing four of those five is how the fifth gets forgotten.
   const ejectOn = (key: StashSlot) =>
-    key === 'a' ? selectOn('a', 'tv static') : selectOn('b', 'none')
+    key === 'a' ? selectOn('a', EMPTY_ON.a) : selectOn('b', EMPTY_ON.b)
 
   // Write a cue through to both the render loop and the panel. One place, because
   // a cue that reached the ref but not the engine is a loop the buttons claim is
@@ -2526,7 +2539,7 @@ export function useEngine() {
       seek: t => seekOut('a', t),
       playing: live.a === 'clip' ? !transport.a.paused : null,
       togglePlay: () => togglePlayOn('a'),
-      eject: () => ejectOn('a'),
+      eject: sourceMode.a === EMPTY_ON.a ? null : () => ejectOn('a'),
       cue: cue.a,
       tapCue: () => tapCueOn('a'),
       retrigger: () => retriggerOn('a'),
@@ -2556,7 +2569,7 @@ export function useEngine() {
       seek: t => seekOut('b', t),
       playing: live.b === 'clip' ? !transport.b.paused : null,
       togglePlay: () => togglePlayOn('b'),
-      eject: () => ejectOn('b'),
+      eject: sourceMode.b === EMPTY_ON.b ? null : () => ejectOn('b'),
       cue: cue.b,
       tapCue: () => tapCueOn('b'),
       retrigger: () => retriggerOn('b'),

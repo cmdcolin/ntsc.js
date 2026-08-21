@@ -75,9 +75,15 @@ export interface SlotView<T extends SourceMode | SourceBMode> {
   // `false` there would draw a ▶ over a webcam that is already live.
   playing: boolean | null
   togglePlay: () => void
-  // Take the source off this deck. Last session's stash goes with it, so the
-  // reload does not put back a clip you have finished with — see `ejectOn`.
-  eject: () => void
+  // Take the source off this deck — any source, not only a clip: a test pattern
+  // and a text card are things to be rid of too. Last session's stash goes with
+  // it, so the reload does not put back something you have finished with.
+  //
+  // Null when the deck is already empty (A on snow, B off), which is the same
+  // three-state shape `playing` has and for the same reason: the button is
+  // absent rather than dead, because a deck that is already off has nothing for
+  // it to do. See `ejectOn`.
+  eject: (() => void) | null
 
   // The cue point and the three things a hand does to one: tap it (mark, close
   // the loop, re-arm), stab back to it, drop it. Marked on the clip's own
