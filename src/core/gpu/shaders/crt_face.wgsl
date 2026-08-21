@@ -26,10 +26,12 @@ const HALO_TIER = 0.2;
 // Beam transfer. The gun's cutoff and gamma are already in the texture —
 // decode applies them as it writes the screen (prelude gunTransfer), so no
 // tap below pays a pow for them. Saturation is applied around luma *after*
-// the transfer so vivid mids survive without posterizing, and it stays here,
-// per tap: it can leave 0..1, which the 8-bit store would clip before bloom
-// ever saw the excursion. Identity at sat 1, so presets that don't set it
-// are untouched. The params are uniform, so the branch is free.
+// the transfer so vivid mids survive without posterizing, and it stays here:
+// it can leave 0..1, which the 8-bit store would clip before bloom ever saw
+// the excursion. It is linear in the colour, and so is every gather, so it is
+// applied once to each gather's result rather than to each tap — the same
+// light to within float rounding, and no branch in the tap loops. Identity at
+// sat 1, so presets that don't set it are untouched.
 fn beam(c: vec3f) -> vec3f {
   if (P.crtSat == 1.0) {
     return c;
@@ -81,9 +83,8 @@ const DISK16 = array<vec3f, 16>(
 // over-threshold colour, hue preserved: only the part of a pixel brighter than
 // t contributes light to its neighbours.
 fn bright(c: vec3f, t: f32) -> vec3f {
-  let b = beam(c);
-  let l = luma(b);
-  return b * max(l - t, 0.0) / max(l, 1e-3);
+  let l = luma(c);
+  return c * max(l - t, 0.0) / max(l, 1e-3);
 }
 
 // One gun's direct emission: the beam-spot integral around a landing point.
@@ -93,30 +94,30 @@ fn bright(c: vec3f, t: f32) -> vec3f {
 // count still scales with the spot: a sub-pixel gaussian reaching the glass
 // through the bilinear sampler is fully captured by a few taps.
 fn spotAt(uv: vec2f, dim: vec2f) -> vec3f {
-  var acc = beam(textureSampleLevel(srcTex, samp, uv, 0.0).rgb);
+  var acc = textureSampleLevel(srcTex, samp, uv, 0.0).rgb;
   var w = 1.0;
   if (P.crtSpot > 0.0) {
     if (P.crtSpot <= 0.8) {
       for (var i = 0u; i < 4u; i = i + 1u) {
         let t = DISK4[i];
-        acc = acc + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
+        acc = acc + textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb * t.z;
         w = w + t.z;
       }
     } else if (P.crtSpot <= 2.0) {
       for (var i = 0u; i < 8u; i = i + 1u) {
         let t = DISK8[i];
-        acc = acc + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
+        acc = acc + textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb * t.z;
         w = w + t.z;
       }
     } else {
       for (var i = 0u; i < 16u; i = i + 1u) {
         let t = DISK16[i];
-        acc = acc + beam(textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb) * t.z;
+        acc = acc + textureSampleLevel(srcTex, samp, uv + t.xy * P.crtSpot / dim, 0.0).rgb * t.z;
         w = w + t.z;
       }
     }
   }
-  return acc / w;
+  return beam(acc / w);
 }
 
 @compute @workgroup_size(8, 8, 1)
@@ -279,6 +280,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
       }
     }
   }
+  bloom = beam(bloom);
   col = gamutFit(direct);
 
   // Granular deposit: the coating is a layer of crystallites, not a uniform
