@@ -97,14 +97,13 @@ var<workgroup> tileNs: array<f32, TILE_WG + 2u>;
 // envelope is |a + n| with n complex, so it needs two independent
 // band-limited deviate fields. Only staged while rfSnow is on.
 var<workgroup> tileNq: array<f32, TILE_WG + 2u>;
-// The FM fold's window, staged. Its decay is exp(-d / streak) for d = 0..30,
-// the same 31 numbers at every sample; and its threshold noise is keyed to the
-// SOURCE sample, so the 31 outputs whose tails cross one source sample were
-// each re-hashing it. One table of each per workgroup instead: slot j of
-// fmTh is the threshold at global index n0 - FM_SPAN + j.
+// The FM fold's decay, exp(-d / streak) for d = 0..30: the same 31 numbers at
+// every sample, so one thread each per workgroup instead of 31 exp a sample.
+// The fold's per-source threshold noise was tabled the same way and measured
+// 0.2 ms slower at stock, where none of it runs; whatever the compiler makes
+// of that table, it stays a hash per tap.
 const FM_SPAN = 30u;
 var<workgroup> fmDecay: array<f32, FM_SPAN + 1u>;
-var<workgroup> fmTh: array<f32, TILE_WG + FM_SPAN>;
 
 @compute @workgroup_size(TILE_WG, 1, 1)
 fn main(
@@ -119,7 +118,7 @@ fn main(
     tileLc[i] = comp[ci] - chroma[ci];
   }
   // The chroma path's group delay (ycDelay) is one offset for the whole
-  // dispatch, so the colour-under tile is simply staged that far back and the
+  // dispatch, so the colour-under tile is staged that far back and the
   // up-conversion below reads shared memory whatever the mistrim is. It used
   // to fall back to storage — 55 taps, each drawing its own Gaussian deviate —
   // the moment the delay was non-zero.
@@ -134,16 +133,8 @@ fn main(
       tileUn[i] = underAt(clampIdx(base - ycd + i32(i)));
     }
   }
-  if (P.fmOverdev > 0.0) {
-    let ceilIre = mix(240.0, 112.0, P.fmOverdev);
-    let fseed = pcg(P.frame * 48271u + P.gen * 2246822519u + 0x0f37u);
-    let n0 = row * SPL + wid.x * TILE_WG;
-    for (var j = lid.x; j < TILE_WG + FM_SPAN; j = j + TILE_WG) {
-      fmTh[j] = ceilIre + 9.0 * (rand01((n0 - FM_SPAN + j) ^ fseed) - 0.5);
-    }
-    if (lid.x <= FM_SPAN) {
-      fmDecay[lid.x] = exp(-f32(lid.x) / P.fmStreak);
-    }
+  if (P.fmOverdev > 0.0 && lid.x <= FM_SPAN) {
+    fmDecay[lid.x] = exp(-f32(lid.x) / P.fmStreak);
   }
   if (P.noiseSigma > 0.0 || P.rfSnow > 0.0) {
     let ns = pcg(P.frame * 2654435761u + P.gen * 2246822519u);
@@ -207,6 +198,7 @@ fn main(
     // flat 100 IRE and it is only the emphasized *transient* that can
     // overrun it. At full knob a 10 IRE edge is enough to fold; flat fields
     // of any brightness never do.
+    let ceilIre = mix(240.0, 112.0, P.fmOverdev);
     let fseed = pcg(P.frame * 48271u + P.gen * 2246822519u + 0x0f37u);
     var streak = 0.0;
     for (var d = 0u; d <= FM_SPAN; d = d + 1u) {
@@ -214,7 +206,8 @@ fn main(
       let e = tileLc[cl - d] + 1.3 * (tileLc[cl - d] - tileLc[cl - d - 2u]);
       // threshold noise keyed to the *source* sample, so one edge's fold is
       // one decision per frame however many outputs its tail crosses
-      streak = streak + max(e - fmTh[lid.x + FM_SPAN - d], 0.0) * fmDecay[d];
+      let th = ceilIre + 9.0 * (rand01((n - d) ^ fseed) - 0.5);
+      streak = streak + max(e - th, 0.0) * fmDecay[d];
     }
     if (streak > 0.0) {
       // the fold bottoms out at the deviation floor, not at sync level, so
