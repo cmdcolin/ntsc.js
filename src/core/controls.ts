@@ -9,6 +9,13 @@ import type { ModWave } from './signal/modstate'
 export const DEFAULT_CONTROLS = {
   // source conditioning
   deint: 0, // bob-deinterlace source A (0 off, 1 on) — kills capture-card field combing
+  // the deck source A's file was digitised off, if any: what the capture card
+  // was handed, already in the file before this chain touches it
+  capLumaMHz: 0, // luma band the file carries (0 = not through a capture)
+  capChromaMHz: 0, // chroma band: color-under's, a fraction of luma's (0 = full)
+  capYcDelayNs: 0, // chroma late (+) or early (-) behind luma in the file
+  capNoiseIre: 0, // luma grain the file carries, IRE rms
+  capChromaNoiseIre: 0, // chroma-carrier noise, IRE rms, through the chroma band
   // the generated no-signal sources (TV static, blank tape), as statistics of
   // the path the noise arrived through rather than as two fixed looks
   srcNoiseBwMHz: 4.2, // bandwidth of that path: sets the grain's correlation length

@@ -26,6 +26,12 @@ termination fault, polarity flips, S-video miswired into composite. Cable
 scrambling, Macrovision AGC pulses and colorstripe are the interesting corner —
 they work by playing the receiver's own AGC and burst circuits against it.
 
+Source A can also arrive as a file that was already a tape: a capture group
+models the deck it was digitised off — luma and chroma bands, Y/C delay, grain
+and the colour-under carrier's blotchy noise — before the chain encodes it, so
+the tape damage downstream lands on a picture that was a tape to begin with. Off
+by default, and free while it is.
+
 Each input also has its own deck and cable ahead of the mixer, so a fault can
 hit one source alone. Knock out one input's sync and the receiver locks to the
 other, and the geometry snaps between two pictures.

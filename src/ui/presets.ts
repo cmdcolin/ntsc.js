@@ -75,6 +75,21 @@ export const PRESETS: PresetDef[] = [
     },
   },
   {
+    name: 'tapeCapture',
+    displayName: 'tape capture',
+    group: 'Tape wear',
+    blurb:
+      'A file digitised off a home deck, played through a clean chain: the softness, smeared colour and blotchy chroma were in the source before anything here touched it.',
+    patch: {
+      deint: 1,
+      capLumaMHz: 3,
+      capChromaMHz: 0.5,
+      capYcDelayNs: 150,
+      capNoiseIre: 2.5,
+      capChromaNoiseIre: 10,
+    },
+  },
+  {
     name: 'protectedTape',
     displayName: 'protected tape',
     group: 'Tape wear',

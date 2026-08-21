@@ -7,6 +7,7 @@ import { clamp01 } from '../math'
 import {
   ACTIVE_WIDTH,
   F_H,
+  IRE_VIDEO_RANGE,
   LINES,
   SAMPLE_RATE,
   SAMPLES_PER_LINE,
@@ -35,6 +36,12 @@ export const impulseStorm = (t: number): number => {
 export const noiseGrainPx = (bwMHz: number): number =>
   ((SAMPLE_RATE / (2 * Math.max(bwMHz, 0.05) * 1e6)) * ACTIVE_WIDTH) /
   SAMPLES_PER_LINE
+
+// The Gaussian whose half-power point sits at a band edge, as a sigma in
+// composite samples: exp(-2 pi^2 sigma^2 f^2) = 1/sqrt(2) at f = B gives
+// sigma = 0.1325 / B. Capped where the gather's radius would stop paying.
+export const bandSigmaPx = (bwMHz: number): number =>
+  bwMHz > 0 ? Math.min((0.1325 * SAMPLE_RATE) / (bwMHz * 1e6), 8) : 0
 
 // Output weights for the two arms of the noise floor's spectrum (channel.wgsl):
 // a 1-2-1 lowpass and a first difference over the same three deviates. Because
@@ -88,6 +95,11 @@ export function uniformValues(c: Controls, env: UniformEnv) {
     srcFrame: env.srcFrame,
     invert: c.invert,
     deint: c.deint,
+    capLumaSigma: bandSigmaPx(c.capLumaMHz),
+    capChromaSigma: bandSigmaPx(c.capChromaMHz),
+    capYcDelay: c.capYcDelayNs * 1e-9 * SAMPLE_RATE,
+    capNoise: c.capNoiseIre / IRE_VIDEO_RANGE,
+    capChromaNoise: c.capChromaNoiseIre / IRE_VIDEO_RANGE,
     synthShape: c.synthShape,
     synthMix: c.synthMix,
     synthLevel: c.synthLevel,

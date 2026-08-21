@@ -55,6 +55,14 @@ export const PARAM_DEFS = [
   ['srcFrame', 'u32'],
   ['invert', 'f32'], // source A polarity flip: negate composite (0.5 = solarized)
   ['deint', 'f32'], // bob-deinterlace source A: rebuild from one field, killing capture combing
+  // What source A's file already carried in from the deck it was captured off:
+  // the bands as Gaussian sigmas in active samples (0 = not through a capture),
+  // chroma's lag in samples, and the two paths' noise as fractions of white.
+  ['capLumaSigma', 'f32'],
+  ['capChromaSigma', 'f32'],
+  ['capYcDelay', 'f32'],
+  ['capNoise', 'f32'],
+  ['capChromaNoise', 'f32'],
   // Video synth: a bench oscillator patched into a slot instead of a picture
   // (mode 3 of the same srcNoise selector). Each oscillator's phase is carried
   // as cycles at frame start plus its walk per line and per sample, rather than

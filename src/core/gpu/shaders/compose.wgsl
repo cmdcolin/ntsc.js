@@ -13,6 +13,93 @@
 @group(0) @binding(4) var inputTex: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(5) var<storage, read> timing: array<f32>;
 
+// The slot's picture as the file holds it. Bob-deinterlace: a capture card
+// weaves NTSC's two time-staggered fields into one raster, so motion combs.
+// Rebuild the whole frame from the even field alone by interpolating between
+// its lines — combing gone, at half the vertical resolution (authentic 240p).
+// Landing the linear sampler on exact even-line centers keeps each field line
+// clean; only the vertical fill lerps.
+fn pick(suv: vec2f) -> vec3f {
+  if (P.deint < 0.5) {
+    return textureSampleLevel(srcTex, samp, suv, 0.0).rgb;
+  }
+  let sh = f32(textureDimensions(srcTex).y);
+  let sy = suv.y * sh - 0.5;
+  let e = floor(sy * 0.5) * 2.0;
+  let f = clamp((sy - e) * 0.5, 0.0, 1.0);
+  let a = textureSampleLevel(srcTex, samp, vec2f(suv.x, (e + 0.5) / sh), 0.0).rgb;
+  let b = textureSampleLevel(srcTex, samp, vec2f(suv.x, (e + 2.5) / sh), 0.0).rgb;
+  return mix(a, b, f);
+}
+
+// The I and Q axes as RGB directions, both zero under luma()'s weights, so
+// carrier noise lands as a hue and saturation error and never as brightness.
+const I_DIR = vec3f(0.956, -0.272, -1.106);
+const Q_DIR = vec3f(0.621, -0.647, 1.703);
+
+fn gaussW(d: f32, sigma: f32) -> f32 {
+  return exp(-0.5 * d * d / (sigma * sigma));
+}
+
+// A file digitised off a tape carries the deck's Y/C output through the
+// capture card: luma through the FM path's band, chroma through color-under's
+// far narrower one and a little late behind it, each with its own path's noise.
+// Horizontal only, as the tape's losses are; the vertical half of a capture is
+// the bob in pick(). All of it is in the file before this chain encodes it,
+// which is the whole point: the tape damage downstream lands on a picture that
+// was already a tape.
+//
+// Each band is a Gaussian gather of at most nine taps: past sigma = 1 the taps
+// spread out with it rather than multiplying, the sampler's bilinear fill
+// covering the gaps, so the narrowest band costs what a wide one does. The
+// chroma carrier's noise had to come back through that same narrow band, which
+// is why it arrives as blotches rather than speckle: it is drawn on a lattice
+// of the band's correlation length — a half-cycle of B, which is 3.8 sigma —
+// instead of under the sparse taps, where it would have come out per-pixel
+// again. Per line and seeded on the deck's frame,
+// so the blotches streak along the sweep and a paused deck holds its grain with
+// its picture. `sx` is one active sample in source uv.
+fn tapSpan(sigma: f32) -> vec2f {
+  if (sigma <= 1.0) {
+    return vec2f(ceil(sigma * 3.0), 1.0);
+  }
+  return vec2f(4.0, sigma * 0.75);
+}
+
+fn capture(suv: vec2f, sx: f32, xy: vec2u) -> vec3f {
+  let seed = P.srcFrame * 2654435761u + xy.y * 40961u;
+  let ls = tapSpan(P.capLumaSigma);
+  let lsig = max(P.capLumaSigma, 1e-3);
+  var y = 0.0;
+  var wy = 0.0;
+  for (var d = -ls.x; d <= ls.x; d += 1.0) {
+    let w = gaussW(d * ls.y, lsig);
+    y += luma(pick(suv + vec2f(d * ls.y * sx, 0.0))) * w;
+    wy += w;
+  }
+  let cs = tapSpan(P.capChromaSigma);
+  let csig = max(P.capChromaSigma, 1e-3);
+  var c = vec3f(0.0);
+  var wc = 0.0;
+  for (var d = -cs.x; d <= cs.x; d += 1.0) {
+    let w = gaussW(d * cs.y, csig);
+    let p = pick(suv + vec2f((d * cs.y - P.capYcDelay) * sx, 0.0));
+    c += (p - vec3f(luma(p))) * w;
+    wc += w;
+  }
+  let cell = f32(xy.x) / max(1.0, 3.8 * P.capChromaSigma);
+  let i = u32(floor(cell));
+  let s0 = pcg(seed + i * 613u);
+  let s1 = pcg(seed + (i + 1u) * 613u);
+  let n = mix(
+    vec2f(gauss(s0), gauss(s0 ^ 0x68E31DA4u)),
+    vec2f(gauss(s1), gauss(s1 ^ 0x68E31DA4u)),
+    smoothstep(0.0, 1.0, fract(cell)),
+  );
+  let grain = gauss(pcg(seed + xy.x * 613u + 0x9E3779B9u)) * P.capNoise;
+  return vec3f(y / wy + grain) + c / wc + (n.x * I_DIR + n.y * Q_DIR) * P.capChromaNoise;
+}
+
 // lens defocus: center tap + 6-point ring at the focus radius
 fn cam(uv: vec2f) -> vec3f {
   let r = vec2f(P.fbFocus / f32(ACTIVE_W), P.fbFocus / f32(ACTIVE_H));
@@ -38,20 +125,14 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   } else {
     suv.y = 0.5 + (uv.y - 0.5) * (P.srcAspect / disp);
   }
-  var src = textureSampleLevel(srcTex, samp, suv, 0.0).rgb;
-  // Bob-deinterlace: a capture card weaves NTSC's two time-staggered fields
-  // into one raster, so motion combs. Rebuild the whole frame from the even
-  // field alone by interpolating between its lines — combing gone, at half the
-  // vertical resolution (authentic 240p). Landing the linear sampler on exact
-  // even-line centers keeps each field line clean; only the vertical fill lerps.
-  if (P.deint > 0.5) {
-    let sh = f32(textureDimensions(srcTex).y);
-    let sy = suv.y * sh - 0.5;
-    let e = floor(sy * 0.5) * 2.0;
-    let f = clamp((sy - e) * 0.5, 0.0, 1.0);
-    let a = textureSampleLevel(srcTex, samp, vec2f(suv.x, (e + 0.5) / sh), 0.0).rgb;
-    let b = textureSampleLevel(srcTex, samp, vec2f(suv.x, (e + 2.5) / sh), 0.0).rgb;
-    src = mix(a, b, f);
+  let captured = P.capLumaSigma > 0.0 || P.capChromaSigma > 0.0 || P.capYcDelay != 0.0
+    || P.capNoise > 0.0 || P.capChromaNoise > 0.0;
+  var src: vec3f;
+  if (P.srcNoise < 0.5 && captured) {
+    let sx = select(1.0, disp / P.srcAspect, P.srcAspect > disp) / f32(ACTIVE_W);
+    src = capture(suv, sx, gid.xy);
+  } else {
+    src = pick(suv);
   }
   if (P.srcNoise > 2.5) {
     // A signal generator on the bench, not a deck: it free-runs whether or not
