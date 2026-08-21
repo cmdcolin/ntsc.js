@@ -135,6 +135,10 @@ async function dump(g: Graph, path: string): Promise<void> {
     size: bytesPerRow * ACTIVE_HEIGHT,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   })
+  const faceRead = d.createBuffer({
+    size: bytesPerRow * ACTIVE_HEIGHT,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+  })
   const enc = d.createCommandEncoder()
   enc.copyBufferToBuffer(g.compA, 0, compRead, 0, n * 4)
   enc.copyTextureToBuffer(
@@ -142,23 +146,39 @@ async function dump(g: Graph, path: string): Promise<void> {
     { buffer: texRead, bytesPerRow },
     [ACTIVE_WIDTH, ACTIVE_HEIGHT],
   )
+  enc.copyTextureToBuffer(
+    { texture: g.faceTex },
+    { buffer: faceRead, bytesPerRow },
+    [ACTIVE_WIDTH, ACTIVE_HEIGHT],
+  )
   d.queue.submit([enc.finish()])
   await compRead.mapAsync(GPUMapMode.READ)
   await texRead.mapAsync(GPUMapMode.READ)
+  await faceRead.mapAsync(GPUMapMode.READ)
   await Deno.writeFile(
     `${path}.comp.f32`,
     new Uint8Array(compRead.getMappedRange()),
   )
-  const rows = new Uint8Array(texRead.getMappedRange())
-  const out = new Uint8Array(ACTIVE_WIDTH * ACTIVE_HEIGHT * 4)
-  for (let y = 0; y < ACTIVE_HEIGHT; y++)
-    out.set(
-      rows.subarray(y * bytesPerRow, y * bytesPerRow + ACTIVE_WIDTH * 4),
-      y * ACTIVE_WIDTH * 4,
-    )
-  await Deno.writeFile(`${path}.out.rgba`, out)
+  const unpad = (rows: Uint8Array): Uint8Array => {
+    const out = new Uint8Array(ACTIVE_WIDTH * ACTIVE_HEIGHT * 4)
+    for (let y = 0; y < ACTIVE_HEIGHT; y++)
+      out.set(
+        rows.subarray(y * bytesPerRow, y * bytesPerRow + ACTIVE_WIDTH * 4),
+        y * ACTIVE_WIDTH * 4,
+      )
+    return out
+  }
+  await Deno.writeFile(
+    `${path}.out.rgba`,
+    unpad(new Uint8Array(texRead.getMappedRange())),
+  )
+  await Deno.writeFile(
+    `${path}.face.rgba`,
+    unpad(new Uint8Array(faceRead.getMappedRange())),
+  )
   compRead.unmap()
   texRead.unmap()
+  faceRead.unmap()
 }
 
 async function main(): Promise<void> {

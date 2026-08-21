@@ -55,6 +55,7 @@ import encodeYuvSrc from './shaders/encode_yuv.wgsl?raw'
 import enhancerSrc from './shaders/enhancer.wgsl?raw'
 import fbCompositeSrc from './shaders/fb_composite.wgsl?raw'
 import feedSrc from './shaders/feed.wgsl?raw'
+import grainBakeSrc from './shaders/grain_bake.wgsl?raw'
 import lineAnalyzeSrc from './shaders/line_analyze.wgsl?raw'
 import mixBSrc from './shaders/mix_b.wgsl?raw'
 import presentSrc from './shaders/present.wgsl?raw'
@@ -387,6 +388,7 @@ export class Engine implements EngineApi {
   // The decoded frame rendered as a glowing CRT face (bloom/halation/glow).
   // Both the display and the feedback camera sample this, not the raw signal.
   private faceTex: GPUTexture
+  private grainTex: GPUTexture
   private linearSamp: GPUSampler
 
   // The signal chain, as data: pre-chain (source assembly, dirty mix, loop
@@ -621,6 +623,24 @@ export class Engine implements EngineApi {
       Math.ceil(ACTIVE_HEIGHT / 8),
     ] as const
     const perRow = [Math.ceil(LINES / 64), 1] as const
+    // The phosphor grain is fixed to the glass, so it is baked once here and
+    // read as a texel from then on (grain_bake.wgsl). Outside the pass arrays
+    // like the video blit: it is not part of a frame.
+    this.grainTex = d.createTexture({
+      size: [ACTIVE_WIDTH, ACTIVE_HEIGHT],
+      format: 'r32float',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+    })
+    {
+      const grainBakePl = compute(grainBakeSrc)
+      const enc = d.createCommandEncoder()
+      const cp = enc.beginComputePass()
+      cp.setPipeline(grainBakePl)
+      cp.setBindGroup(0, bindGroup(grainBakePl, [this.grainTex.createView()]))
+      cp.dispatchWorkgroups(perTile[0], perTile[1])
+      cp.end()
+      d.queue.submit([enc.finish()])
+    }
     const c = this.controls
     // What mixB can actually change, and so what the whole source-B chain is
     // dispatched for; see feedgates.ts, which holds it alongside the two
@@ -942,6 +962,7 @@ export class Engine implements EngineApi {
           this.linearSamp,
           this.faceTex.createView(),
           { buffer: this.timingBuf },
+          this.grainTex.createView(),
         ],
         perTile,
       ),
@@ -1395,7 +1416,7 @@ export class Engine implements EngineApi {
   }
 
   private allTexs(): GPUTexture[] {
-    return [this.inputTex, this.outTex, this.faceTex]
+    return [this.inputTex, this.outTex, this.faceTex, this.grainTex]
   }
 
   // Idempotent, and deliberately keyed off its own flag rather than

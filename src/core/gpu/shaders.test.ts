@@ -23,6 +23,7 @@ import encodeYuv from './shaders/encode_yuv.wgsl?raw'
 import enhancer from './shaders/enhancer.wgsl?raw'
 import fbComposite from './shaders/fb_composite.wgsl?raw'
 import feed from './shaders/feed.wgsl?raw'
+import grainBake from './shaders/grain_bake.wgsl?raw'
 import lineAnalyze from './shaders/line_analyze.wgsl?raw'
 import mixB from './shaders/mix_b.wgsl?raw'
 import present from './shaders/present.wgsl?raw'
@@ -55,6 +56,7 @@ const SHADERS: Record<string, string> = {
   enhancer,
   fb_composite: fbComposite,
   feed,
+  grain_bake: grainBake,
   line_analyze: lineAnalyze,
   mix_b: mixB,
   present,

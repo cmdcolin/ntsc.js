@@ -14,6 +14,9 @@
 @group(0) @binding(2) var samp: sampler;
 @group(0) @binding(3) var faceTex: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(4) var<storage, read> timing: array<f32>;
+// The deposit's mottle, baked once by grain_bake.wgsl: fixed to the glass, so
+// hashing it per frame was sixteen hashes a pixel for the same sixteen values.
+@group(0) @binding(5) var grainTex: texture_2d<f32>;
 
 // P22 glass scatter is red-dominant, so bloom haze and the black-level glow
 // both warm toward amber.
@@ -90,27 +93,6 @@ fn bright(c: vec3f, t: f32) -> vec3f {
   let b = beam(c);
   let l = luma(b);
   return b * max(l - t, 0.0) / max(l, 1e-3);
-}
-
-// Static value noise on a lattice of GRAIN_PX cells: hash the four surrounding
-// cells and smoothstep between them, so the mottling is blobby rather than
-// per-pixel sparkle. Two octaves because a real deposit is clumpy at more than
-// one scale. Lives in active-picture space, i.e. on the glass — it does not
-// crawl with the picture, and the zoom magnifies it.
-const GRAIN_PX = 2.3;
-fn cellHash(c: vec2u) -> f32 {
-  return rand01(pcg(c.x ^ pcg(c.y * 2654435761u)));
-}
-fn valueNoise(p: vec2f) -> f32 {
-  let i = vec2u(floor(p));
-  let f = fract(p);
-  let w = f * f * (3.0 - 2.0 * f);
-  let a = mix(cellHash(i), cellHash(i + vec2u(1u, 0u)), w.x);
-  let b = mix(cellHash(i + vec2u(0u, 1u)), cellHash(i + vec2u(1u, 1u)), w.x);
-  return mix(a, b, w.y);
-}
-fn grain(p: vec2f) -> f32 {
-  return 0.62 * valueNoise(p / GRAIN_PX) + 0.38 * valueNoise(p / (GRAIN_PX * 0.37) + vec2f(31.7, 11.3));
 }
 
 // One gun's direct emission: the beam-spot integral around a landing point.
@@ -311,7 +293,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // grains on its way through the glass and comes out smooth.
   if (P.crtGrain > 0.0) {
     let l = luma(col);
-    col = col * (1.0 + P.crtGrain * (grain(vec2f(gid.xy)) - 0.5) * 4.0 * l * (1.0 - l));
+    col = col * (1.0 + P.crtGrain * (textureLoad(grainTex, vec2i(gid.xy), 0).r - 0.5) * 4.0 * l * (1.0 - l));
   }
 
   col = col + P.crtBloom * bloom / 16.0 + P.crtHalation * luma(halo / 16.0) * WARM;

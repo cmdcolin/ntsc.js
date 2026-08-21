@@ -95,6 +95,7 @@ export class Graph {
 
   readonly compA: GPUBuffer
   readonly outTex: GPUTexture
+  readonly faceTex: GPUTexture
   private readonly paramsBuf: GPUBuffer
   private readonly genParamsBuf: GPUBuffer
   private readonly genLineParamsBuf: GPUBuffer
@@ -184,6 +185,12 @@ export class Graph {
     const inputTex = tex()
     this.outTex = tex()
     const faceTex = tex()
+    this.faceTex = faceTex
+    const grainTex = d.createTexture({
+      size: [ACTIVE_WIDTH, ACTIVE_HEIGHT],
+      format: 'r32float',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+    })
     const samp = d.createSampler({ magFilter: 'linear', minFilter: 'linear' })
     const upload = (t: GPUTexture, px: Uint8Array<ArrayBuffer>) =>
       d.queue.writeTexture(
@@ -221,6 +228,14 @@ export class Graph {
     const tapeOn = c.tapeMix !== 0 || tapeRecording(c)
     const tape = tapeOn ? storage(TAPE_FRAMES * N * 2) : null
 
+    this.setup = [
+      {
+        label: 'grainBake',
+        shader: 'grain_bake',
+        variants: one({ grainTex: grainTex.createView() }),
+        dispatch: perTile,
+      },
+    ]
     this.pre = [
       {
         label: 'compose',
@@ -463,6 +478,7 @@ export class Graph {
           samp,
           faceTex: faceTex.createView(),
           timing: timingBuf,
+          grainTex: grainTex.createView(),
         }),
         dispatch: perTile,
       },
@@ -482,6 +498,7 @@ export class Graph {
     ]
   }
 
+  private setup: PassDef[] = []
   private pre: PassDef[] = []
   private loop: PassDef[] = []
   private post: PassDef[] = []
@@ -494,6 +511,15 @@ export class Graph {
     g.loopPasses = await build(g.loop)
     g.postPasses = await build(g.post)
     g.passes.push(...g.prePasses, ...g.loopPasses, ...g.postPasses)
+    const enc = device.createCommandEncoder()
+    for (const p of await build(g.setup)) {
+      const cp = enc.beginComputePass()
+      cp.setPipeline(p.pl)
+      cp.setBindGroup(0, p.bgs.main)
+      cp.dispatchWorkgroups(p.x, p.y)
+      cp.end()
+    }
+    device.queue.submit([enc.finish()])
     return g
   }
 
