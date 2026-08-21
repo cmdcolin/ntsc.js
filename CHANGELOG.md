@@ -2,16 +2,18 @@
 
 All notable changes to ntsc.js are documented here.
 
-## [0.29.0](https://github.com/cmdcolin/ntsc.js/compare/v0.28.11...v0.29.0) - 2026-08-21
+## [0.29.1](https://github.com/cmdcolin/ntsc.js/compare/v0.29.0...v0.29.1) - 2026-08-21
+
+### Features
+- *(ui)* [`3ace6d8`](https://github.com/cmdcolin/ntsc.js/commit/3ace6d8209d4cdd43ebffddfcbbc12036ee15e12) fetch any yt-dlp URL, report the wait, and shelve what lands
+
+## [0.29.0](https://github.com/cmdcolin/ntsc.js/compare/v0.28.12...v0.29.0) - 2026-08-21
 
 ### Features
 - *(gpu)* [`45bda89`](https://github.com/cmdcolin/ntsc.js/commit/45bda89b9009bd1e907aa10e2e7e40a1500e7d53) headless per-pass GPU profiler on Deno, with WGSL binding reflection
 - *(ui)* [`9970075`](https://github.com/cmdcolin/ntsc.js/commit/9970075627e17bb9a840219de874dd37c2ed7d3e) pick, hold and eject a source from the slot's own row
 - *(ui)* [`b9b408f`](https://github.com/cmdcolin/ntsc.js/commit/b9b408ffc5068af47ff82edee37120ab257796a6) eject any source off a deck, not only a clip
 - *(signal)* [`5711d66`](https://github.com/cmdcolin/ntsc.js/commit/5711d66d49b7b0f4d6be1a3116565284dd5d90e3) model the deck a source file was captured off, ahead of the chain
-
-### Fixes
-- *(audio)* [`ff8dd5e`](https://github.com/cmdcolin/ntsc.js/commit/ff8dd5e02c6cfae3a6a49fe47308ba60c87ce6dc) upload the waveform even while the input is off
 
 ### Performance
 - *(gpu)* [`0ceaab8`](https://github.com/cmdcolin/ntsc.js/commit/0ceaab80208e3b8dd02067b81e0e640e90ac1594) fold the RGB->YUV pass into encodeComposite for source A
@@ -27,7 +29,6 @@ All notable changes to ntsc.js are documented here.
 - *(gpu)* [`da83d5e`](https://github.com/cmdcolin/ntsc.js/commit/da83d5e2d7443f4866714e11d4db52cfadc2ef0c) saturate each gather's result once instead of every tap
 
 ### Refactor
-- *(ui)* [`d863849`](https://github.com/cmdcolin/ntsc.js/commit/d86384952d352d6cf4b6ac808c32cb834e4bb76c) name the model modules apart from their components
 - *(gpu)* [`b4e8130`](https://github.com/cmdcolin/ntsc.js/commit/b4e8130fb6679ea1e1e8481641939d53055ff535) lift uniform packing and the filter-bank design out of Engine
 
 ### Documentation
@@ -39,6 +40,14 @@ All notable changes to ntsc.js are documented here.
 
 ### Other Changes
 - [`a0d3e4d`](https://github.com/cmdcolin/ntsc.js/commit/a0d3e4d97a92487423a548fe77557572532b3296) Another sample
+
+## [0.28.12](https://github.com/cmdcolin/ntsc.js/compare/v0.28.11...v0.28.12) - 2026-08-21
+
+### Fixes
+- *(audio)* [`ff8dd5e`](https://github.com/cmdcolin/ntsc.js/commit/ff8dd5e02c6cfae3a6a49fe47308ba60c87ce6dc) upload the waveform even while the input is off
+
+### Refactor
+- *(ui)* [`d863849`](https://github.com/cmdcolin/ntsc.js/commit/d86384952d352d6cf4b6ac808c32cb834e4bb76c) name the model modules apart from their components
 
 ## [0.28.11](https://github.com/cmdcolin/ntsc.js/compare/v0.28.10...v0.28.11) - 2026-08-20
 
@@ -1152,65 +1161,6 @@ All notable changes to ntsc.js are documented here.
 ## [0.3.0](https://github.com/cmdcolin/ntsc.js/compare/v0.2.1...v0.3.0) - 2026-08-01
 
 ### Features
-- [`9d022f0`](https://github.com/cmdcolin/ntsc.js/commit/9d022f09f9b1855ff1b97c9c81d24ab26f48dd19) Re-pick a loaded source by clicking its filename caption
-
-### Fixes
-- [`1558f33`](https://github.com/cmdcolin/ntsc.js/commit/1558f33cd6755e37ffc866aa68c0a7f1329af6ae) Cap custom source resolution so large pictures/videos don't freeze
-
-### Refactor
-- [`0453eb9`](https://github.com/cmdcolin/ntsc.js/commit/0453eb983de3955691689766ad2cd84200bf0ed2) Rename to ntscsynth; add a waveform logo, mark, and favicon
-- [`31ce519`](https://github.com/cmdcolin/ntsc.js/commit/31ce5199ea3e0d140efcb015f12739385f1c1451) Default to bGain 0.16 with source B on bars
-
-### Documentation
-- [`f179170`](https://github.com/cmdcolin/ntsc.js/commit/f179170fea242eecc18a276ef4cf30b1969f0e2e) Document the miniature pattern; drop the swept-wipe pulse animation
-
-### Chores
-- [`c4d7e1f`](https://github.com/cmdcolin/ntsc.js/commit/c4d7e1fbae4007d878930cd110526470058f1706) Bump deps
-
-## [0.2.1](https://github.com/cmdcolin/ntsc.js/compare/v0.2.0...v0.2.1) - 2026-07-22
-
-### Features
-- [`001cfec`](https://github.com/cmdcolin/ntsc.js/commit/001cfec9e9b8b04564178c53fcbce45a855dd468) Direct-manipulation miniatures for the PiP inset and A/B wipe
-- [`fe47b88`](https://github.com/cmdcolin/ntsc.js/commit/fe47b88d15c202401fba585156974c918bcc18c3) Miniature follow-ups: shared math with tests, soft edges, slider toggle
-- [`1fbd75f`](https://github.com/cmdcolin/ntsc.js/commit/1fbd75f7a841d8ca983c54a120bebcc2bcd9569a) Dramatic s-video miswire, stuck tape preset, slow-mo URL example
-
-## [0.2.0](https://github.com/cmdcolin/ntsc.js/compare/v0.1.2...v0.2.0) - 2026-07-22
-
-### Features
-- [`0681be2`](https://github.com/cmdcolin/ntsc.js/commit/0681be2c8111466d454f3f18f95205ebece761ce) Add signed A-gain fader to the A/B summing bus
-- [`30f4b10`](https://github.com/cmdcolin/ntsc.js/commit/30f4b10c5bfbc7983c708dfa43eb03d1cfb7cdcc) Surface gated controls, artifact search, and preset blurbs
-- [`aedbe30`](https://github.com/cmdcolin/ntsc.js/commit/aedbe30ea0b01027ab03eae50d0d0a8f70e3f553) VHS shuttle picture search, slow-motion time scale, effects listing
-
-### Fixes
-- [`3d2a20a`](https://github.com/cmdcolin/ntsc.js/commit/3d2a20ada2be1861cd9ec03835443b46ce80c842) Grab the still inside a frame so Chrome captures pixels
-- [`f990f3a`](https://github.com/cmdcolin/ntsc.js/commit/f990f3ae27d60938f75c07fcb763d4043bdb93e6) Harden localStorage reads and scope Popover to its own document
-
-### Refactor
-- [`3f22d7d`](https://github.com/cmdcolin/ntsc.js/commit/3f22d7d3aa348789f04995f52d37958b40606c2f) Drop version-number guesses from WebGPU-unavailable copy
-- [`dc68e19`](https://github.com/cmdcolin/ntsc.js/commit/dc68e19374397c01c9544a9d9452f238dd531296) Extract shared UI primitives, move to CSS var theming, add capture popover
-- [`ccfd307`](https://github.com/cmdcolin/ntsc.js/commit/ccfd307d61cf9cd16cb529d47470376b8b30f5ce) Decompose App into focused hooks; add Dialog a11y and helper tests
-- [`0ed4f47`](https://github.com/cmdcolin/ntsc.js/commit/0ed4f47532ba026465318c441f3d246fa2ecabc5) Render discrete controls as toggle groups, not sliders
-- [`63be364`](https://github.com/cmdcolin/ntsc.js/commit/63be364d7cab2df8c006fa76db603da5657971e7) Rebuild Dialog on the native <dialog> element
-- [`2b326a9`](https://github.com/cmdcolin/ntsc.js/commit/2b326a90dfdc9f33f6708fcfa25aad8b1fbd3929) Group inert banners, hover help, surprise me, live signal taps
-
-### Documentation
-- [`3c13cf3`](https://github.com/cmdcolin/ntsc.js/commit/3c13cf36a00f9a808680392227f178af94c97adc) Clarify WebGPU processing in README for JS readers
-
-### Chores
-- [`77cf3bb`](https://github.com/cmdcolin/ntsc.js/commit/77cf3bba77d7c91eaae48b99e2aa3afce59f6a94) Prettier config
-- [`7d66d64`](https://github.com/cmdcolin/ntsc.js/commit/7d66d64ce1b42b0d9923a8b2d386fc23683505b3) Bump deps
-
-## [0.1.2](https://github.com/cmdcolin/ntsc.js/compare/v0.1.1...v0.1.2) - 2026-07-21
-
-### Features
-- [`1d2f36f`](https://github.com/cmdcolin/ntsc.js/commit/1d2f36fa3874bd03876813596617faf927f26eb3) Add a lightbulb icon to the presets hint
-
-### Fixes
-- [`272be4b`](https://github.com/cmdcolin/ntsc.js/commit/272be4b07f234633f4961a0c19da57f5fe3675d1) Match letter shortcuts case-insensitively
-
-## [0.1.1](https://github.com/cmdcolin/ntsc.js/releases/tag/v0.1.1) - 2026-07-21
-
-### Features
 - [`5a9fc45`](https://github.com/cmdcolin/ntsc.js/commit/5a9fc4595f77672479d27a0b93db2976ca80a3e4) NTSC signal-path simulator: dirty mixing, mixer-loop feedback, camera model, RF/AGC
 - [`abe72cb`](https://github.com/cmdcolin/ntsc.js/commit/abe72cbd419c711c6fb4915cc6282691a40a54be) Mixer wipes, B-bus proc amp, frame-store strobe/trails
 - [`a9e13ba`](https://github.com/cmdcolin/ntsc.js/commit/a9e13bad3e85ac263e529b790b25f4025302e008) WebGPU-unavailable error screen, resource cleanup, GitHub Pages deploy
@@ -1256,6 +1206,14 @@ All notable changes to ntsc.js are documented here.
 - [`2104b23`](https://github.com/cmdcolin/ntsc.js/commit/2104b233cf1a38c587b10fcf1e9d8394be1beaa3) Add MIDI auto-map and learn-in-order bulk binding
 - [`4a5c875`](https://github.com/cmdcolin/ntsc.js/commit/4a5c875dec78050ac4f4fa48bc152259a129a270) Add Favorites pinning and place-based panel groups; wire vaporwave meter
 - [`edb9e85`](https://github.com/cmdcolin/ntsc.js/commit/edb9e85bfe53d5247f078ff5f113ac55a7930ae4) Add build-stamped version and a color-bars sidebar logo
+- [`1d2f36f`](https://github.com/cmdcolin/ntsc.js/commit/1d2f36fa3874bd03876813596617faf927f26eb3) Add a lightbulb icon to the presets hint
+- [`0681be2`](https://github.com/cmdcolin/ntsc.js/commit/0681be2c8111466d454f3f18f95205ebece761ce) Add signed A-gain fader to the A/B summing bus
+- [`30f4b10`](https://github.com/cmdcolin/ntsc.js/commit/30f4b10c5bfbc7983c708dfa43eb03d1cfb7cdcc) Surface gated controls, artifact search, and preset blurbs
+- [`aedbe30`](https://github.com/cmdcolin/ntsc.js/commit/aedbe30ea0b01027ab03eae50d0d0a8f70e3f553) VHS shuttle picture search, slow-motion time scale, effects listing
+- [`001cfec`](https://github.com/cmdcolin/ntsc.js/commit/001cfec9e9b8b04564178c53fcbce45a855dd468) Direct-manipulation miniatures for the PiP inset and A/B wipe
+- [`fe47b88`](https://github.com/cmdcolin/ntsc.js/commit/fe47b88d15c202401fba585156974c918bcc18c3) Miniature follow-ups: shared math with tests, soft edges, slider toggle
+- [`1fbd75f`](https://github.com/cmdcolin/ntsc.js/commit/1fbd75f7a841d8ca983c54a120bebcc2bcd9569a) Dramatic s-video miswire, stuck tape preset, slow-mo URL example
+- [`9d022f0`](https://github.com/cmdcolin/ntsc.js/commit/9d022f09f9b1855ff1b97c9c81d24ab26f48dd19) Re-pick a loaded source by clicking its filename caption
 
 ### Fixes
 - [`78c67f2`](https://github.com/cmdcolin/ntsc.js/commit/78c67f2fb9060ba807f3273689fa476ad85acc92) Fix source-select UI bugs; parse dbg param once
@@ -1267,6 +1225,10 @@ All notable changes to ntsc.js are documented here.
 - [`761eae5`](https://github.com/cmdcolin/ntsc.js/commit/761eae56bc1f7f43e3279bc73d3d14d3010c27d5) Keep the render loop alive across rAF suspension, GPU hangs, and reloads
 - [`b866f5a`](https://github.com/cmdcolin/ntsc.js/commit/b866f5a25cfe9d3071d8894dd01c86f3fc03ab64) Correct what the compiler bail-outs actually risk
 - [`201911d`](https://github.com/cmdcolin/ntsc.js/commit/201911d3b7fd40dbe5eecbd2cd68eba267b74170) Keep useCallback on the MIDI write path
+- [`272be4b`](https://github.com/cmdcolin/ntsc.js/commit/272be4b07f234633f4961a0c19da57f5fe3675d1) Match letter shortcuts case-insensitively
+- [`3d2a20a`](https://github.com/cmdcolin/ntsc.js/commit/3d2a20ada2be1861cd9ec03835443b46ce80c842) Grab the still inside a frame so Chrome captures pixels
+- [`f990f3a`](https://github.com/cmdcolin/ntsc.js/commit/f990f3ae27d60938f75c07fcb763d4043bdb93e6) Harden localStorage reads and scope Popover to its own document
+- [`1558f33`](https://github.com/cmdcolin/ntsc.js/commit/1558f33cd6755e37ffc866aa68c0a7f1329af6ae) Cap custom source resolution so large pictures/videos don't freeze
 
 ### Performance
 - [`6fc572b`](https://github.com/cmdcolin/ntsc.js/commit/6fc572b702fc83bb45963bd765dc9566342e248d) Const-fold FIR tap counts; shared-memory tiling for convolution passes
@@ -1296,6 +1258,14 @@ All notable changes to ntsc.js are documented here.
 - [`99b8602`](https://github.com/cmdcolin/ntsc.js/commit/99b86028c302ec69441f99631876c31eea861d6f) Make YouTube a source-mode selector with a URL dialog for A and B
 - [`a6811fb`](https://github.com/cmdcolin/ntsc.js/commit/a6811fbb1ee453888e706cec1aac9afe6ba78c57) Reclaim panel vertical space; make the spine a status map
 - [`d0f2206`](https://github.com/cmdcolin/ntsc.js/commit/d0f2206956af5a8b51f976138cfdd1803eeb75c3) Dedupe NTSC composite assembly into shared prelude helpers
+- [`3f22d7d`](https://github.com/cmdcolin/ntsc.js/commit/3f22d7d3aa348789f04995f52d37958b40606c2f) Drop version-number guesses from WebGPU-unavailable copy
+- [`dc68e19`](https://github.com/cmdcolin/ntsc.js/commit/dc68e19374397c01c9544a9d9452f238dd531296) Extract shared UI primitives, move to CSS var theming, add capture popover
+- [`ccfd307`](https://github.com/cmdcolin/ntsc.js/commit/ccfd307d61cf9cd16cb529d47470376b8b30f5ce) Decompose App into focused hooks; add Dialog a11y and helper tests
+- [`0ed4f47`](https://github.com/cmdcolin/ntsc.js/commit/0ed4f47532ba026465318c441f3d246fa2ecabc5) Render discrete controls as toggle groups, not sliders
+- [`63be364`](https://github.com/cmdcolin/ntsc.js/commit/63be364d7cab2df8c006fa76db603da5657971e7) Rebuild Dialog on the native <dialog> element
+- [`2b326a9`](https://github.com/cmdcolin/ntsc.js/commit/2b326a90dfdc9f33f6708fcfa25aad8b1fbd3929) Group inert banners, hover help, surprise me, live signal taps
+- [`0453eb9`](https://github.com/cmdcolin/ntsc.js/commit/0453eb983de3955691689766ad2cd84200bf0ed2) Rename to ntscsynth; add a waveform logo, mark, and favicon
+- [`31ce519`](https://github.com/cmdcolin/ntsc.js/commit/31ce5199ea3e0d140efcb015f12739385f1c1451) Default to bGain 0.16 with source B on bars
 
 ### Documentation
 - [`a787853`](https://github.com/cmdcolin/ntsc.js/commit/a787853f1b326a9fdeb2a380ddf9dfa75cb04905) Trim README, note it was written with Fable
@@ -1313,6 +1283,8 @@ All notable changes to ntsc.js are documented here.
 - [`01a87ed`](https://github.com/cmdcolin/ntsc.js/commit/01a87ed9aaf036559eb7527e869a4444d806d2bb) Summary
 - [`941dcd6`](https://github.com/cmdcolin/ntsc.js/commit/941dcd640fb888dc10a9b808469d26ad0ea7afa2) Record that the preset-mix recipe is deliberately not persisted
 - [`e61324d`](https://github.com/cmdcolin/ntsc.js/commit/e61324de0541d3379d303ceb4b2f9b33183f7088) Spell out the drag-to-partially-apply gesture in the preset hint
+- [`3c13cf3`](https://github.com/cmdcolin/ntsc.js/commit/3c13cf36a00f9a808680392227f178af94c97adc) Clarify WebGPU processing in README for JS readers
+- [`f179170`](https://github.com/cmdcolin/ntsc.js/commit/f179170fea242eecc18a276ef4cf30b1969f0e2e) Document the miniature pattern; drop the swept-wipe pulse animation
 
 ### Style
 - [`b05fa95`](https://github.com/cmdcolin/ntsc.js/commit/b05fa955fa453414125681f91b863487637f5020) Box sidebar section headers so the collapse caret is clearly associated
@@ -1332,4 +1304,7 @@ All notable changes to ntsc.js are documented here.
 - [`19c4b76`](https://github.com/cmdcolin/ntsc.js/commit/19c4b764dfd16e5a8c0bf14b92ca75ae07fe7bb2) Rm silly philosophy :)
 - [`6816d78`](https://github.com/cmdcolin/ntsc.js/commit/6816d78eede0a13c81627f85459987b59ba08115) Use fb-bloom for OG and add GitHub social-preview image
 - [`8accd40`](https://github.com/cmdcolin/ntsc.js/commit/8accd409ecf0d3721a9de1317783a626d5795c87) clips.mjs: output mp4 directly for review
+- [`77cf3bb`](https://github.com/cmdcolin/ntsc.js/commit/77cf3bba77d7c91eaae48b99e2aa3afce59f6a94) Prettier config
+- [`7d66d64`](https://github.com/cmdcolin/ntsc.js/commit/7d66d64ce1b42b0d9923a8b2d386fc23683505b3) Bump deps
+- [`c4d7e1f`](https://github.com/cmdcolin/ntsc.js/commit/c4d7e1fbae4007d878930cd110526470058f1706) Bump deps
 
