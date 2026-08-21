@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { clipLabel } from '../sources/clipUrl'
+import { WHOLE_CLIP, rangeLabel } from '../sources/ytdlp'
 import {
   NO_ACCESS,
   accessLibrary,
   addPickedFiles,
   addPickedFolder,
   adoptLocalFiles,
+  clipFetch,
   clipRef,
   hasPick,
+  keepFetched,
   keepPick,
   learnSeconds,
   loadLibrary,
@@ -29,10 +33,11 @@ import type { StashSlot } from './fileStash'
 //
 // It is its own hook rather than more of useEngine because none of it is the
 // engine's business — the library is a list of names until the moment one is
-// clicked. Two things cross into the engine and both are passed in: `load`, the
-// File a disk clip opens to, and `show`, the name a kept roll resolves by. That
-// second crossing is the whole difference between the two halves of the shelf,
-// and it is one argument wide.
+// clicked. Three things cross into the engine and all three are passed in:
+// `load`, the File a disk clip opens to; `show`, the name a kept roll resolves
+// by; and `fetch`, the URL a yt-dlp clip is pulled from again. Each crossing is
+// one argument wide, and which of the three a row takes is the whole difference
+// between the three kinds of shelf entry.
 
 // What was picked, said once. Counts rather than prose because all four numbers
 // can be non-zero at once — a re-pick of a folder on Firefox typically re-links
@@ -60,6 +65,7 @@ export function useClipLibrary(
   open: boolean,
   load: (slot: StashSlot, file: File, clip: Clip) => void,
   show: (slot: StashSlot, ref: PoolRef) => void,
+  fetch: (slot: StashSlot, url: string, secs: number) => void,
 ) {
   // Read once, from localStorage: the list is what the shelf *is*, and it costs
   // nothing to have on hand whether the dialog is open or not.
@@ -157,9 +163,15 @@ export function useClipLibrary(
   // answer on the slot.
   const play = (clip: Clip, slot: StashSlot) => {
     const ref = clipRef(clip)
+    const fetched = clipFetch(clip)
     if (ref !== null) {
       setNote('')
       show(slot, ref)
+      return
+    }
+    if (fetched !== null) {
+      setNote('')
+      fetch(slot, fetched.url, fetched.secs)
       return
     }
     const how = access.clips.get(clip.id)
@@ -256,6 +268,26 @@ export function useClipLibrary(
     setLib(keepPick(lib, ref, label))
   }
 
+  // A URL that fetched, onto the shelf. Called by the fetch dialog when the clip
+  // is actually up rather than when it is asked for, so a mistyped address
+  // leaves no row behind — and idempotent, so re-fetching one that is already
+  // there is the no-op it looks like.
+  const fetched = (url: string, secs: number) => {
+    setNote('')
+    // The range is in the row's name because it is in its identity: the same
+    // film trimmed and whole are two entries, and two rows reading `bunny`
+    // would be two rows nobody could tell apart.
+    const label = clipLabel(url)
+    setLib(
+      keepFetched(
+        lib,
+        url,
+        secs,
+        secs === WHOLE_CLIP ? label : `${label} · ${rangeLabel(secs)}`,
+      ),
+    )
+  }
+
   const forgetClip = (clip: Clip) => {
     removeClip(lib, clip.id).then(setLib, (e: unknown) => setNote(reason(e)))
   }
@@ -284,6 +316,7 @@ export function useClipLibrary(
     measure,
     keep,
     kept: (ref: PoolRef) => hasPick(lib, ref),
+    fetched,
     forgetClip,
     forgetFolder,
   }

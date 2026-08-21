@@ -466,6 +466,7 @@ export function App() {
       eng.b.mode === 'library',
     eng.loadClip,
     (slot, ref) => eng.showRef(slot, ref, 'library'),
+    (slot, url, secs) => eng.loadYtUrl(slot, url, secs),
   )
 
   // The slot each of the two editing dialogs was opened for, resolved once here
@@ -1639,7 +1640,9 @@ export function App() {
       {youTubeSlot === null ? null : (
         <YouTubeDialog
           slot={youTubeSlot.key}
-          onSubmit={youTubeSlot.loadYouTube}
+          onSubmit={(url, secs) =>
+            youTubeSlot.loadYouTube(url, secs, () => clips.fetched(url, secs))
+          }
           onClose={eng.prompt.dismiss}
         />
       )}

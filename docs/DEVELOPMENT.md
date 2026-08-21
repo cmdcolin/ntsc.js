@@ -939,33 +939,80 @@ it; 390px does not, and both faults the redesign fixed were invisible on a
 laptop: a nav row that wrapped three deep and stuck there, and a two-column
 table crushed to two words a line.
 
-## YouTube source (dev server only)
+## Video URL source (dev server only)
 
-The **YouTube…** source fetches `/yt?url=…`, a Vite middleware
+The **Video URL…** source fetches `/yt?url=…`, a Vite middleware
 ([`vite-plugin-ytdlp.ts`](../vite-plugin-ytdlp.ts)) that shells out to `yt-dlp`
-and serves the clip back as an mp4. It's `apply: 'serve'`, so it exists under
-`pnpm dev` only — the deployed build has no server to shell out from, and the
-option does nothing there.
+and serves the clip back. It's `apply: 'serve'`, so it exists under `pnpm dev`
+only — the deployed build has no server to shell out from, and the option does
+nothing there.
+
+Any site `yt-dlp` has an extractor for works, not YouTube alone; the guard on
+the endpoint is the scheme (`http:`/`https:`), which keeps it from being pointed
+at a local path or handed something that reads as a flag. The reply is served
+under the type of the file `yt-dlp` actually wrote, since a generic extractor
+can hand back webm as easily as mp4.
 
 Setup is just the binaries on `PATH`:
 
 ```
 yt-dlp --version    # pipx install yt-dlp, or your package manager
-ffmpeg -version     # only needed when no single-file mp4 exists at 720p
+ffmpeg -version     # only needed for sites that publish video and audio apart
 ```
 
-Clips are capped at 720p (the chain downscales to 480 lines anyway) and cached
-in `$TMPDIR/ntsc.js-yt` keyed by URL, so a reload replays instantly. The first
-load takes as long as the download; failures come back as the yt-dlp error.
+Clips are capped at 480 lines, which is what the chain downscales to anyway, and
+the selector asks for h264 before av1 (the picture is decoded every frame, and
+h264 is hardware everywhere) and for a single file carrying its own audio before
+a merge. On Big Buck Bunny that is 38 MB and one merge, against 102 MB and a
+merge for the 720p this used to pull; where a progressive format still exists it
+is one file and no ffmpeg pass at all.
+
+Downloads are cached in `$TMPDIR/ntsc.js-yt`, keyed by URL, format selector
+_and_ range, so a reload replays instantly and changing any of the three
+refetches rather than serving back what the last one settled on. The first load
+takes as long as the download; failures come back as the yt-dlp error.
+
+### The wait says how it is going
+
+`/yt/progress?url=…` is a server-sent event stream carrying
+`{loaded, total, stage}` off yt-dlp's own `--progress-template` lines. The app
+opens it beside the fetch it has just started and closes it when that settles
+(`src/sources/ytdlp.ts`), so the caption counts bytes —
+`yt-dlp: bunny — 12.6 MB of 38.5 MB` — in the same words the archive.org
+download uses. A merge is the one stage with no bytes to report, and says
+`merging…` instead: ffmpeg is reading two files that have already arrived.
+
+### Ranges are slower per second, and offered anyway
+
+The dialog can ask for the front of a clip instead of all of it, which reaches
+yt-dlp as `--download-sections`. It is worth knowing which way round the cost
+runs before reaching for it: a range makes yt-dlp cut with ffmpeg over the
+site's streaming ladder rather than pull the format straight, and measured on
+the same clip that is **39s for the first minute against 18.7s for the whole 38
+MB file**. So nothing asks for a range by default; it pays off on a two-hour
+film and costs on everything shorter, which is what the line under the dialog
+says.
+
+### A fetched clip goes on the shelf
+
+A URL that loads is added to the clip library as a third kind of entry beside
+disk clips and kept rolls (`at: 'ytdlp'`), under its own **fetched with yt-dlp**
+heading. It keeps the address rather than the bytes — the same trade a kept roll
+makes — so clicking the row fetches it again, which is instant while the bridge
+still has the download. The range is part of the entry's identity and travels
+inside `ref` (`sources/ytdlp.ts` packs it), so the same film trimmed and whole
+are two rows, exactly as they are two files in the cache. Rows are added when
+the clip is actually up rather than when it is asked for, so a mistyped address
+leaves nothing behind.
 
 ## The public archives (the one live dependency)
 
 Two sources are fetched from somebody else's server at pick time: **Random
 Commons** searches `commons.wikimedia.org/w/api.php` and **Random archive.org**
 searches `archive.org/advancedsearch.php`, both anonymously — no proxy and no
-dev middleware, so unlike YouTube above these work in the deployed build.
-**Browse…** is the same two APIs asked a different question: ranked rather than
-random, so an arbitrary phrase is worth typing.
+dev middleware, so unlike the yt-dlp bridge above these work in the deployed
+build. **Browse…** is the same two APIs asked a different question: ranked
+rather than random, so an arbitrary phrase is worth typing.
 
 The layering is worth knowing before changing any of it:
 

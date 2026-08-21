@@ -5,8 +5,10 @@ import {
   EMPTY_LIBRARY,
   KEPT_LIMIT,
   addClips,
+  addFetched,
   addFolder,
   addPick,
+  clipFetch,
   clipKey,
   clipRef,
   dropClip,
@@ -785,5 +787,97 @@ describe('the kept rolls have a bound of their own', () => {
 
   it('is well under the shelf-wide bound, which is about files on disk', () => {
     expect(KEPT_LIMIT).toBeLessThan(CLIP_LIMIT)
+  })
+})
+
+// The third kind of shelf entry: a URL yt-dlp fetched. It is the kept roll's
+// shape with a different door — no bytes, no grant, and an identity that is
+// asked for again rather than reopened.
+describe('addFetched', () => {
+  const clip = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ'
+  const other = 'https://vimeo.com/76979871'
+
+  it('keeps a fetched clip with no bytes and no folder', () => {
+    const lib = addFetched(EMPTY_LIBRARY, clip, 0, 'bunny').lib
+    expect(lib.clips[0].at).toBe('ytdlp')
+    expect(lib.clips[0].folder).toBe('')
+    expect(lib.clips[0].size).toBe(0)
+    expect(clipFetch(lib.clips[0])).toEqual({ url: clip, secs: 0 })
+  })
+
+  it('recognises what it already holds', () => {
+    const once = addFetched(EMPTY_LIBRARY, clip, 0, 'bunny').lib
+    const twice = addFetched(once, clip, 0, 'bunny')
+    expect(twice.lib.clips).toHaveLength(1)
+    expect(twice.clip.id).toBe(once.clips[0].id)
+  })
+
+  // Two different files, so two rows: the whole thing is not the front of it.
+  it('keeps a trimmed clip apart from the whole one', () => {
+    const lib = addFetched(
+      addFetched(EMPTY_LIBRARY, clip, 0, 'bunny').lib,
+      clip,
+      180,
+      'bunny · first 3 minutes',
+    ).lib
+    expect(lib.clips).toHaveLength(2)
+    expect(lib.clips.map(c => clipFetch(c)?.secs)).toEqual([180, 0])
+  })
+
+  it('puts the newest at the top', () => {
+    const lib = addFetched(
+      addFetched(EMPTY_LIBRARY, clip, 0, 'bunny').lib,
+      other,
+      0,
+      'vimeo',
+    ).lib
+    expect(clipFetch(lib.clips[0])?.url).toBe(other)
+  })
+
+  // `clipRef` is what decides whether a row is asked of an archive, and a
+  // fetched clip is not: it would be handed a url where a title belongs.
+  it('is never mistaken for a kept roll', () => {
+    const lib = addFetched(EMPTY_LIBRARY, clip, 0, 'bunny').lib
+    expect(clipRef(lib.clips[0])).toBeNull()
+  })
+
+  it('is under its own heading, after the archives', () => {
+    let lib = shelf([{ name: 'rips', files: ['a.mp4'] }])
+    lib = addPick(lib, bust, 'Agrippa').lib
+    lib = addFetched(lib, clip, 0, 'bunny').lib
+    expect(libraryGroups(lib).map(g => g.id)).toEqual([
+      lib.folders[0].id,
+      'commons',
+      'ytdlp',
+    ])
+  })
+
+  it('narrows on the tool that fetched it, the way a roll does on its archive', () => {
+    const lib = addFetched(
+      addPick(EMPTY_LIBRARY, bust, 'Agrippa').lib,
+      clip,
+      0,
+      'bunny',
+    ).lib
+    expect(filterLibrary(lib, 'yt-dlp').clips.map(c => c.name)).toEqual([
+      'bunny',
+    ])
+  })
+
+  it('survives the round trip through storage', () => {
+    const lib = addFetched(EMPTY_LIBRARY, clip, 180, 'bunny').lib
+    const back = readLibrary(JSON.parse(JSON.stringify(lib)))
+    expect(clipFetch(back.clips[0])).toEqual({ url: clip, secs: 180 })
+  })
+
+  it("shares the kept rolls' bound, since neither costs anything on disk", () => {
+    let lib = EMPTY_LIBRARY
+    for (let i = 0; i < KEPT_LIMIT + 5; i++) {
+      lib = addFetched(lib, `https://example.com/${i}.mp4`, 0, `clip ${i}`).lib
+    }
+    expect(lib.clips).toHaveLength(KEPT_LIMIT)
+    expect(clipFetch(lib.clips[0])?.url).toBe(
+      `https://example.com/${KEPT_LIMIT + 4}.mp4`,
+    )
   })
 })

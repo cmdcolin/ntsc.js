@@ -39,6 +39,7 @@
 // IndexedDB and the pickers, in the same split savedProfiles.ts/cloud.ts uses.
 
 import { ORIGIN_LABEL, refKey, sameRef } from '../sources/pools'
+import { packClipRef, unpackClipRef } from '../sources/ytdlp'
 import {
   grantRead,
   hasRead,
@@ -61,7 +62,13 @@ import type {
 
 // Where a clip's bytes come from, and the only field that decides how clicking
 // its row opens it.
-type ClipAt = 'disk' | PoolOrigin
+//
+// `ytdlp` is the third kind and the easiest of the three, for the reason the
+// remote entries are easy: it stores what it was asked for rather than what came
+// back. A URL typed into the fetch dialog re-fetches from the same URL, the dev
+// bridge still has the file, and there is no handle, no grant and no re-link —
+// see `sources/ytdlp.ts` for why the range travels inside `ref` with it.
+type ClipAt = 'disk' | PoolOrigin | 'ytdlp'
 
 // One clip on the shelf.
 export interface Clip {
@@ -103,13 +110,19 @@ export interface Clip {
 // A remote clip, as the thing that can be asked for again. Null for a clip on
 // disk, which is the check every caller makes before reaching for a File.
 export const clipRef = (clip: Clip): PoolRef | null =>
-  clip.at === 'disk'
+  clip.at === 'disk' || clip.at === 'ytdlp'
     ? null
     : {
         origin: clip.at,
         title: clip.ref,
         kind: clip.kind === 'image' ? 'photo' : 'video',
       }
+
+// A fetched clip, as the thing that can be asked for again: the URL and how much
+// of it. Null for everything else, and the check the shelf's click makes before
+// reaching for a File or an archive.
+export const clipFetch = (clip: Clip): { url: string; secs: number } | null =>
+  clip.at === 'ytdlp' ? unpackClipRef(clip.ref) : null
 
 export interface ClipFolder {
   id: string
@@ -131,6 +144,12 @@ export const EMPTY_LIBRARY: Library = { clips: [], folders: [], seq: 0 }
 // entry is a row, a stored record and a permission to resolve, and a home
 // directory picked by mistake would otherwise be tens of thousands of each.
 export const CLIP_LIMIT = 500
+
+// What the fetched half of the shelf is called, in the one voice the app uses
+// for it: the tool that gets them, because the sites they come from are the
+// whole of what yt-dlp knows and naming one of them would be naming the wrong
+// thing.
+export const YTDLP_LABEL = 'yt-dlp'
 
 // And a separate, smaller bound on the kept rolls, with a different rule: the
 // oldest goes rather than the newest being refused.
@@ -161,11 +180,13 @@ export const clipKey = (clip: {
   at: ClipAt
   ref: string
 }): string =>
-  clip.at !== 'disk'
-    ? refKey({ origin: clip.at, title: clip.ref })
-    : clip.folder === ''
-      ? `\n${clip.name}\n${clip.size}`
-      : `${clip.folder}\n${clip.name}`
+  clip.at === 'ytdlp'
+    ? `ytdlp\n${clip.ref}`
+    : clip.at !== 'disk'
+      ? refKey({ origin: clip.at, title: clip.ref })
+      : clip.folder === ''
+        ? `\n${clip.name}\n${clip.size}`
+        : `${clip.folder}\n${clip.name}`
 
 // Add what is not already on the shelf. `added` pairs each new clip with its
 // index in `incoming`, since the caller holds the handle or the File that goes
@@ -253,6 +274,32 @@ export function addPick(
   // Newest first among the remote entries, because a star is a thing you do to
   // what is on screen right now and the one you just kept is the one you are
   // about to want. Disk clips keep their order, which is their folder's.
+  return { lib: { ...lib, clips: capKept([clip, ...lib.clips]), seq }, clip }
+}
+
+// A fetched clip onto the shelf, which is the same gesture as starring a roll:
+// what it keeps is the address and the range, and the bytes stay where they are.
+// Idempotent for the same reason — loading the same URL twice is an ordinary
+// thing to do and must not shelve it twice — and the same film trimmed and whole
+// are two entries, because they are two different files to fetch.
+export function addFetched(
+  lib: Library,
+  url: string,
+  secs: number,
+  label: string,
+): { lib: Library; clip: Clip } {
+  const draft = {
+    name: label,
+    folder: '',
+    size: 0,
+    at: 'ytdlp' as const,
+    ref: packClipRef(url, secs),
+  }
+  const key = clipKey(draft)
+  const existing = lib.clips.find(c => clipKey(c) === key)
+  if (existing !== undefined) return { lib, clip: existing }
+  const seq = lib.seq + 1
+  const clip: Clip = { id: `c${seq}`, ...draft, kind: 'video', seconds: 0 }
   return { lib: { ...lib, clips: capKept([clip, ...lib.clips]), seq }, clip }
 }
 
@@ -399,6 +446,14 @@ export function libraryGroups(lib: Library): ClipGroup[] {
         clips: kept,
       })
   }
+  const fetched = lib.clips.filter(c => c.at === 'ytdlp')
+  if (fetched.length > 0)
+    groups.push({
+      id: 'ytdlp',
+      label: `fetched with ${YTDLP_LABEL}`,
+      folder: null,
+      clips: fetched,
+    })
   return groups.filter(g => g.clips.length > 0)
 }
 
@@ -433,7 +488,9 @@ export function filterLibrary(lib: Library, query: string): Library {
     const where =
       c.at === 'disk'
         ? (folderNames.get(c.folder) ?? '')
-        : ORIGIN_LABEL[c.at].toLowerCase()
+        : c.at === 'ytdlp'
+          ? YTDLP_LABEL
+          : ORIGIN_LABEL[c.at].toLowerCase()
     const hay = `${where} ${c.name.toLowerCase()}`
     return terms.every(t => hay.includes(t))
   })
@@ -520,7 +577,9 @@ function readClip(raw: unknown): Clip | undefined {
   const at = 'at' in raw ? raw.at : undefined
   const ref = 'ref' in raw ? raw.ref : ''
   const where: ClipAt | undefined =
-    at === 'disk' || at === 'commons' || at === 'archive' ? at : undefined
+    at === 'disk' || at === 'commons' || at === 'archive' || at === 'ytdlp'
+      ? at
+      : undefined
   // No fallback and no rejection: an entry written before this field existed is
   // an ordinary shelf entry that nobody has measured, which is the same state a
   // fresh one is in. Finite and positive or nothing, for `RowClip.seconds`'
@@ -898,6 +957,19 @@ export function keepPick(lib: Library, ref: PoolRef, label: string): Library {
   const next = hasPick(lib, ref)
     ? dropPick(lib, ref)
     : addPick(lib, ref, label).lib
+  saveLibrary(next)
+  return next
+}
+
+// The fetch dialog's write-through, beside `keepPick` and for its reason: the
+// clip is up and the tab could close a second later.
+export function keepFetched(
+  lib: Library,
+  url: string,
+  secs: number,
+  label: string,
+): Library {
+  const next = addFetched(lib, url, secs, label).lib
   saveLibrary(next)
   return next
 }

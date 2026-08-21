@@ -54,7 +54,11 @@ export interface SlotView<T extends SourceMode | SourceBMode> {
   loadTeletype: (patch: Partial<TeletypeCard>) => void
 
   ytUrl: string
-  loadYouTube: (url: string) => void
+  // Fetch a URL with yt-dlp onto this slot. `secs` is `WHOLE_CLIP` or the front
+  // of it, and `onLoaded` fires only once the clip is actually up — which is
+  // what puts it on the shelf, so a URL that turns out to be a typo leaves no
+  // row behind (sources/ytdlp.ts).
+  loadYouTube: (url: string, secs: number, onLoaded: () => void) => void
 
   // Last session's file, waiting on a click to re-grant read; '' when there is
   // nothing waiting.

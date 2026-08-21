@@ -682,7 +682,7 @@ export function derivedLabel(row: Row): string {
   const q = new URLSearchParams(row.session)
   const url = q.get('vurl') ?? q.get('iurl')
   if (url !== null) return urlName(url)
-  if (q.get('yt') !== null) return 'YouTube'
+  if (q.get('yt') !== null) return 'yt-dlp'
   const src = q.get('src')
   if (src === null) {
     // A row that names no source is not a broken row: it is a look change over

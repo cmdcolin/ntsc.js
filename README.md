@@ -73,8 +73,9 @@ pnpm install
 pnpm dev
 ```
 
-Fun bonus: If you are running this locally, it adds a **YouTube…** source that
-works with yt-dlp and lets you video mix with youtube videos on the fly.
+Fun bonus: If you are running this locally, it adds a **Video URL…** source that
+works with yt-dlp and lets you video mix with YouTube — or anything else yt-dlp
+can fetch — on the fly.
 
 ## FAQ
 
@@ -128,4 +129,5 @@ composite video cables together in my basement and posting tumblr gifs.
 - Camera feedback + static
   https://cmdcolin.github.io/ntsc.js/?set=chromaGain%3A1.3%2ChvSagUs%3A2.1%2ChvRing%3A0.61%2Cabl%3A0.24%2ClumaMHz%3A3.2%2ClumaPeak%3A2.4%2CnoiseIre%3A2.5%2Cagc%3A0.18%2CcolorUnderMix%3A1%2CfmOverdev%3A0.72%2CfmStreakUs%3A0.45%2CfbMix%3A0.9%2CfbGain%3A1.059%2CfbFocus%3A0%2CfbVign%3A0.73%2CfbBlack%3A0%2CfbKnee%3A0.42%2CcrtBloom%3A0.23%2CcrtZoomX%3A0.7143%2CcrtZoomY%3A0.314&mod=vFreqHz%3Asmooth%3A0.08%3A0.0049%2CfbGain%3Asmooth%3A0.24%3A0.06&src=vhs+static
 
-- Chaos black and white feedback https://cmdcolin.github.io/ntsc.js/?set=invert%3A1%2CdemodMHz%3A0.8%2CchromaGain%3A1.21%2CnoiseIre%3A2%2CrfAdjacent%3A0.7%2CrfMistuneMHz%3A0.2%2Cagc%3A0.5%2CfbMix%3A1%2CcrtCutoff%3A0.05%2CcrtGamma%3A1.6%2CcrtSat%3A1.17%2CcrtBloom%3A0.37%2CcrtHalation%3A0.3%2CcrtGlow%3A0.17%2CcfbGain%3A-0.57%2CcfbLines%3A-1%2CcfbRing%3A0.21%2CbGain%3A-1.22%2CbRing%3A0.42%2CbLineHz%3A2.02%2CbDetuneHz%3A3000%2CbInv%3A0.5&mod=tapeLoopMm%3Asmooth%3A0.05%3A0.0151&srcb=tv+static
+- Chaos black and white feedback
+  https://cmdcolin.github.io/ntsc.js/?set=invert%3A1%2CdemodMHz%3A0.8%2CchromaGain%3A1.21%2CnoiseIre%3A2%2CrfAdjacent%3A0.7%2CrfMistuneMHz%3A0.2%2Cagc%3A0.5%2CfbMix%3A1%2CcrtCutoff%3A0.05%2CcrtGamma%3A1.6%2CcrtSat%3A1.17%2CcrtBloom%3A0.37%2CcrtHalation%3A0.3%2CcrtGlow%3A0.17%2CcfbGain%3A-0.57%2CcfbLines%3A-1%2CcfbRing%3A0.21%2CbGain%3A-1.22%2CbRing%3A0.42%2CbLineHz%3A2.02%2CbDetuneHz%3A3000%2CbInv%3A0.5&mod=tapeLoopMm%3Asmooth%3A0.05%3A0.0151&srcb=tv+static

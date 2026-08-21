@@ -12,6 +12,7 @@ import { Engine } from '../core/gpu/pipeline'
 import { MAX_SRC_EDGE } from '../core/gpu/sources'
 import { reportPreviousTrace, trace } from '../core/gpu/trace'
 import { clipUrl, isClipId } from '../sources/clips'
+import { clipLabel } from '../sources/clipUrl'
 import { smpteBars, sweep } from '../sources/pattern'
 import {
   MODE_ORIGIN,
@@ -23,7 +24,7 @@ import {
   rollPool,
 } from '../sources/pools'
 import { TELETYPE_DEFAULT } from '../sources/teletype'
-import { ytId } from '../sources/youtube'
+import { WHOLE_CLIP, fetchClipUrl, watchClipUrl } from '../sources/ytdlp'
 import { backingStoreSize } from './canvasSize'
 import { openClipById } from './clipLibrary'
 import {
@@ -126,15 +127,6 @@ const loadImage = (url: string): Promise<ImageBitmap> =>
   fetch(url)
     .then(r => r.blob())
     .then(decodeImage)
-
-// Fetch a YouTube clip as a blob through the dev yt-dlp bridge
-// (vite-plugin-ytdlp). On failure the endpoint returns the yt-dlp error text.
-const fetchYouTube = (url: string): Promise<Blob> =>
-  fetch(`/yt?url=${encodeURIComponent(url)}`).then(r =>
-    r.ok
-      ? r.blob()
-      : r.text().then(t => Promise.reject(new Error(t || `${r.status}`))),
-  )
 
 // Backing out of a browser permission surface — the screen picker's Cancel, a
 // dismissed camera prompt. The user made a choice and it was "no", so there is
@@ -289,20 +281,24 @@ const keepFile = (
 // metadata read that chose the rendition knows how big it is, so the wait can
 // announce its own length rather than reveal it. `total` is 0 only when
 // nothing upstream would say, and then bytes-so-far still beats an ellipsis.
+// Three readings, because the first call is the announcement and has no
+// progress to report yet: the size alone, then bytes against it, and just bytes
+// where the transfer would not say how many there are in total.
+//
+// Shared with the yt-dlp download below, which waits the same way for the same
+// reason — the whole file before a frame — and so should read the same way.
+const fetchingBytes = (loaded: number, total: number): string =>
+  loaded === 0 && total > 0
+    ? formatBytes(total)
+    : total === 0
+      ? formatBytes(loaded)
+      : `${formatBytes(loaded)} of ${formatBytes(total)}`
+
 const downloading =
   (slot: VideoSlot, fresh: () => boolean): OnProgress =>
   (loaded, total) => {
     if (!fresh()) return
-    // Three readings, because the first call is the announcement and has no
-    // progress to report yet: the size alone, then bytes against it, and just
-    // bytes where the transfer would not say how many there are in total.
-    slot.setName(
-      loaded === 0 && total > 0
-        ? `fetching… ${formatBytes(total)}`
-        : total === 0
-          ? `fetching… ${formatBytes(loaded)}`
-          : `fetching… ${formatBytes(loaded)} of ${formatBytes(total)}`,
-    )
+    slot.setName(`fetching… ${fetchingBytes(loaded, total)}`)
   }
 
 // One deck's half of a paired `{a, b}` state, written without disturbing the
@@ -1688,27 +1684,50 @@ export function useEngine() {
   const downloadYouTube = (
     slot: VideoSlot,
     url: string,
+    secs: number,
     fresh: () => boolean,
+    onLoaded: () => void,
     onFail: () => void,
   ) => {
+    const label = clipLabel(url)
     slot.setYtUrl(url)
-    slot.setName(`youtube: ${ytId(url)} — downloading…`)
-    fetchYouTube(url).then(
-      blob => {
-        // Nothing is allocated for a stale reply: the object url is made here
-        // rather than before the check precisely so a dropped download is
-        // dropped whole, and the blob goes with the reference.
-        if (!fresh()) return
-        playUrl(slot, URL.createObjectURL(blob))
-        slot.setName(`youtube: ${ytId(url)}`)
-      },
-      (e: unknown) => {
-        if (!fresh()) return
-        setError(`youtube: ${reason(e)}`)
-        slot.setName('')
-        onFail()
-      },
-    )
+    slot.setName(`yt-dlp: ${label} — fetching…`)
+    // The bridge reports what yt-dlp is doing while it does it, which is what
+    // turns the longest wait in the app from an ellipsis into a number. The
+    // merge is the one step with no bytes to count: ffmpeg is reading two files
+    // that have already arrived.
+    const stopWatching = watchClipUrl(url, secs, at => {
+      if (fresh())
+        slot.setName(
+          `yt-dlp: ${label} — ${at.merging ? 'merging…' : fetchingBytes(at.loaded, at.total)}`,
+        )
+    })
+    fetchClipUrl(url, secs)
+      .finally(stopWatching)
+      .then(
+        blob => {
+          // Nothing is allocated for a stale reply: the object url is made here
+          // rather than before the check precisely so a dropped download is
+          // dropped whole, and the blob goes with the reference.
+          if (!fresh()) return
+          playUrl(slot, URL.createObjectURL(blob))
+          slot.setName(`yt-dlp: ${label}`)
+          onLoaded()
+        },
+        (e: unknown) => {
+          if (!fresh()) return
+          setError(`yt-dlp: ${reason(e)}`)
+          slot.setName('')
+          onFail()
+        },
+      )
+  }
+
+  // The shelf's half of the same verb: a fetched clip clicked on the shelf is
+  // the URL it was kept as, fetched again. Nothing is added back to the shelf
+  // from here — it is already on it, which is where the click came from.
+  const loadYtUrl = (key: StashSlot, url: string, secs: number) => {
+    loadYouTubeOn(key, url, secs)
   }
 
   // The teletype dialog's commit: put the deck on teletype and print the card.
@@ -1887,18 +1906,30 @@ export function useEngine() {
   // stays on whatever it had, since it is still patched to something, while B
   // goes off — an optional input that could not fetch its clip has nothing to
   // sum, and leaving it enabled would mix a dead slot into the composite.
-  const loadYouTubeOn = (key: StashSlot, url: string) => {
+  const loadYouTubeOn = (
+    key: StashSlot,
+    url: string,
+    secs: number,
+    onLoaded: () => void = () => {},
+  ) => {
     const current = engineRef.current
     const trimmed = url.trim()
     if (current && trimmed !== '') {
       setError('')
       const fresh = commitOn(key, 'youtube')
-      downloadYouTube(slotOf(key), trimmed, fresh, () => {
-        if (key === 'b') {
-          setSourceMode(m => ({ ...m, b: 'none' }))
-          current.setSourceBEnabled(false)
-        }
-      })
+      downloadYouTube(
+        slotOf(key),
+        trimmed,
+        secs,
+        fresh,
+        () => onLoaded(),
+        () => {
+          if (key === 'b') {
+            setSourceMode(m => ({ ...m, b: 'none' }))
+            current.setSourceBEnabled(false)
+          }
+        },
+      )
     }
   }
 
@@ -2056,8 +2087,8 @@ export function useEngine() {
     setSpeed(restored)
     setReverb(params.vapor.reverb)
     setDry(params.vapor.dry)
-    if (params.yt !== null) loadYouTubeOn('a', params.yt)
-    if (params.ytb !== null) loadYouTubeOn('b', params.ytb)
+    if (params.yt !== null) loadYouTubeOn('a', params.yt, WHOLE_CLIP)
+    if (params.ytb !== null) loadYouTubeOn('b', params.ytb, WHOLE_CLIP)
     // Boot only, and the reason `opts` exists at all. What follows is a question
     // about *last session's* file — reopen it, or let the link's own source
     // replace it — and mid-set there is no such question: a row that names no
@@ -2553,7 +2584,7 @@ export function useEngine() {
       retype: p => retypeOn('a', p),
       loadTeletype: p => loadTeletypeOn('a', p),
       ytUrl: ytUrl.a,
-      loadYouTube: u => loadYouTubeOn('a', u),
+      loadYouTube: (u, secs, onLoaded) => loadYouTubeOn('a', u, secs, onLoaded),
       pendingFile: pending.a === null ? '' : pending.a.name,
       reopenFile: reopenFileA,
       onFile: f => takeFileOn('a', f),
@@ -2583,7 +2614,7 @@ export function useEngine() {
       retype: p => retypeOn('b', p),
       loadTeletype: p => loadTeletypeOn('b', p),
       ytUrl: ytUrl.b,
-      loadYouTube: u => loadYouTubeOn('b', u),
+      loadYouTube: (u, secs, onLoaded) => loadYouTubeOn('b', u, secs, onLoaded),
       pendingFile: pending.b === null ? '' : pending.b.name,
       reopenFile: reopenFileB,
       onFile: f => takeFileOn('b', f),
@@ -2611,6 +2642,9 @@ export function useEngine() {
     // the library lives in useClipLibrary, which the engine has no business
     // knowing about (the File that comes back is the whole of the crossing).
     loadClip,
+    // And the one way in from a *url*, which is what the shelf's fetched clips
+    // hand over: the same fetch the dialog makes, minus the typing.
+    loadYtUrl,
     // And the one way in from a *name*, which is what both the shelf's kept
     // rolls and the media browser hand over. Its second argument is which
     // picker entry the slot lands on, since the caption reopens whatever the

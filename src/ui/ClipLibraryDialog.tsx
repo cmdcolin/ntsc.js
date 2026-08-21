@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { ORIGIN_LABEL, poolPageUrl } from '../sources/pools'
 import {
   FILTER_FROM,
+  YTDLP_LABEL,
+  clipFetch,
   clipRef,
   filterLibrary,
   libraryGroups,
@@ -61,6 +63,7 @@ function ClipRow(props: {
   onAddRow: ((clip: Clip) => void) | undefined
 }) {
   const { clip, slot } = props
+  const fetched = clipFetch(clip)
   // Undefined is "not resolved yet", which reads as ready: the shelf opens
   // before IndexedDB answers, and a row that flashed ⊘ on the way to being
   // fine would be lying for exactly as long as anyone looks at it. A kept roll
@@ -126,9 +129,11 @@ function ClipRow(props: {
       <button
         className={styles.rowBtn}
         title={
-          remote === null
-            ? `take ${clip.name} off the shelf — the file itself is untouched`
-            : `take ${clip.name} off the shelf — it stays on ${ORIGIN_LABEL[remote.origin]}`
+          remote !== null
+            ? `take ${clip.name} off the shelf — it stays on ${ORIGIN_LABEL[remote.origin]}`
+            : fetched !== null
+              ? `take ${clip.name} off the shelf — the clip stays where ${YTDLP_LABEL} got it`
+              : `take ${clip.name} off the shelf — the file itself is untouched`
         }
         aria-label={`remove ${clip.name}`}
         onClick={() => props.onForget(clip)}
@@ -222,7 +227,8 @@ export function ClipLibraryDialog(props: {
   // closing paragraphs: they say different things about what survives a reload,
   // and neither is true of the other half.
   const disk = props.lib.clips.filter(c => c.at === 'disk').length
-  const kept = props.lib.clips.length - disk
+  const fetched = props.lib.clips.filter(c => clipFetch(c) !== null).length
+  const kept = props.lib.clips.length - disk - fetched
   // Pulled off the props object rather than read as `props.filesRef` at the
   // <input>: a ref read during render marks the whole props object as ref-ish
   // to the React Compiler, which then drops this component's memoization
@@ -344,6 +350,20 @@ export function ClipLibraryDialog(props: {
           nothing on disk and comes back on its own next session — playing one
           asks the archive for it again, at whatever size this app wants today.
           Kept in this browser: a shared link carries the look, not the shelf.
+        </div>
+      )}
+
+      {/* The third half of the shelf, and the one with a condition on it: a
+          fetched clip is a URL, and the thing that turns a URL back into
+          footage is the dev server's yt-dlp bridge. It still has the download
+          it made, so a row clicked twice costs one fetch — but a build with no
+          bridge behind it has nowhere to ask. */}
+      {fetched === 0 ? null : (
+        <div className={ui.hint}>
+          a fetched clip is its address, so playing one asks {YTDLP_LABEL} for
+          it again — instantly while the dev server still has the download, and
+          not at all in a build without the bridge. A trimmed clip and the whole
+          of the same clip are two rows, because they are two different files.
         </div>
       )}
 

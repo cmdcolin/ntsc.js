@@ -68,7 +68,7 @@ export const SOURCE_DESC: Record<SourceMode | SourceBMode, string> = {
   teletype: 'Teletype… — type your own text card',
   file: 'File… — open an image or video',
   library: 'Clips… — your own shelf, kept between sessions',
-  youtube: 'YouTube… — fetch a URL via yt-dlp',
+  youtube: 'Video URL… — fetch any yt-dlp site',
   webcam: 'Webcam / USB device — camera or RCA capture',
   screen: 'Screen / window… — share a window or a tab',
 }
