@@ -37,7 +37,7 @@ export function Dialog(props: {
       ref={ref}
       className={dlg.modal}
       aria-labelledby={titleId}
-      onCancel={onClose}
+      onCancel={() => onClose()}
       onClick={e => {
         if (e.target === ref.current) onClose()
       }}

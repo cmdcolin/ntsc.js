@@ -2436,8 +2436,11 @@ export class Engine implements EngineApi {
       0,
       this.lineState.update(lineControls, this.frame),
     )
-    if (this.audioState.active)
-      d.queue.writeBuffer(this.audioBuf, 0, this.audioState.update(c.audioGain))
+    // Unconditional: disconnect() zeroes AudioState's waveform, but skipping
+    // the upload while the input is off leaves the last frame's samples in
+    // audioBuf, and audioBend/audioHue go on reading them — a bend and a hue
+    // shift frozen into the picture after the audio is gone.
+    d.queue.writeBuffer(this.audioBuf, 0, this.audioState.update(c.audioGain))
     // Each extra dub generation is an independent playback pass: its own gen
     // seed (decorrelating noise and dropouts) and a fresh time-base/phase
     // walk, staged now and copied over the live buffers between generations.
