@@ -1,14 +1,12 @@
 import { CONTROL_KEYS, DEFAULT_CONTROLS, STOCK_HOLD } from '../controls'
 import { Listeners } from '../listeners'
-import { clamp, clamp01, wrap } from '../math'
+import { clamp, wrap } from '../math'
 import { rngFor } from '../rng'
 import { AudioState } from '../signal/audiostate'
 import { ClipContact, clipPointAt } from '../signal/clip'
 import {
   ACTIVE_HEIGHT,
   ACTIVE_WIDTH,
-  FSC,
-  F_H,
   LINES,
   SAMPLES_PER_LINE,
   SAMPLE_RATE,
@@ -16,22 +14,7 @@ import {
 } from '../signal/constants'
 import { advanceCrossings } from '../signal/crossings'
 import { Fault } from '../signal/fault'
-import {
-  FILTER_STRIDE,
-  NUM_SECTIONS,
-  SEC_CHROMA_BP,
-  SEC_DEMOD,
-  SEC_ENC_CHROMA,
-  SEC_LUMA,
-  SEC_UNDER,
-  TAPS,
-  bandpass,
-  lowpass,
-  lowpassCausal,
-  lowpassPeaked,
-  mixTaps,
-  packFilterBank,
-} from '../signal/filters'
+import { FILTER_STRIDE, NUM_SECTIONS } from '../signal/filters'
 import { Glide } from '../signal/glide'
 import { LineState } from '../signal/linestate'
 import { MixState } from '../signal/mixstate'
@@ -46,6 +29,7 @@ import { BuzzRead } from './buzzread'
 import { gpuPowerFromSearch, initGpu, releaseGpu } from './context'
 import { debugOn, pageSearch } from './env'
 import { aFeedOn, bFeedOn, bOn, bWaveOn, FEEDS } from './feedgates'
+import { designFilterBank } from './filterbank'
 import { AutoLock } from './framelock'
 import {
   GEN_OFFSET,
@@ -82,6 +66,7 @@ import tapeRecSrc from './shaders/tape_rec.wgsl?raw'
 import timebaseSrc from './shaders/timebase.wgsl?raw'
 import underDownSrc from './shaders/under_down.wgsl?raw'
 import { Sources } from './sources'
+import { loRadPerSample, uniformValues } from './uniforms'
 import { VideoPump } from './videopump'
 
 import type { ControlKey, Controls, FrameStats, ModSlot } from '../controls'
@@ -105,41 +90,6 @@ const MAX_GENS = 4
 // frameLock's last choice: pick the divisor from the loop's own cadence —
 // the state machine that does the picking lives in framelock.ts.
 const LOCK_AUTO = 4
-
-// Bent-crystal demod LO: how fast a detuned 3.58 MHz oscillator's phase error
-// grows, per composite sample.
-const loRadPerSample = (detuneKHz: number): number =>
-  (2 * Math.PI * detuneKHz * 1e3) / SAMPLE_RATE
-
-// Impulse interference arrives in storms, not rain: trains of hits with real
-// quiet between flurries. A bursty aperiodic envelope on the random-hit rate —
-// rectified-and-squared so the quiet stretches are genuinely silent — and
-// deterministic in the frame count, so harness runs stay reproducible.
-const impulseStorm = (t: number): number => {
-  const e = Math.max(0, 0.4 + 1.3 * valueNoise(t * 0.6, 5))
-  return e * e * (1 + 0.4 * valueNoise(t * 2.7, 9))
-}
-
-// The correlation length a bandwidth implies, in active pixels: a path that
-// stops at B Hz cannot change faster than one half-cycle of B, and the source
-// raster is 754 px across the 910 samples of a line.
-const noiseGrainPx = (bwMHz: number): number =>
-  ((SAMPLE_RATE / (2 * Math.max(bwMHz, 0.05) * 1e6)) * ACTIVE_WIDTH) /
-  SAMPLES_PER_LINE
-
-// Output weights for the two arms of the noise floor's spectrum (channel.wgsl):
-// a 1-2-1 lowpass and a first difference over the same three deviates. Because
-// they share taps they are correlated, so holding the floor's level constant
-// across the tilt needs the covariance and not just the weights — with unit
-// deviates, corr(sum, difference) = 1 / (2 * sqrt(3)). Without this the mid
-// positions of the knob are audibly (visibly) quieter than either end, and the
-// tilt would read as a noise-amount control with a side effect.
-const RHO = 1 / (2 * Math.sqrt(3))
-const noiseTiltWeights = (tilt: number): [number, number] => {
-  const t = clamp01(tilt)
-  const norm = 1 / Math.sqrt((1 - t) ** 2 + t ** 2 + 2 * t * (1 - t) * RHO)
-  return [(1 - t) * norm, t * norm]
-}
 
 // Frames between telling React where a morph has got to. See `glideNotify`.
 const GLIDE_NOTIFY = 6
@@ -1519,32 +1469,11 @@ export class Engine implements EngineApi {
   }
 
   private rebuildFilters(): void {
-    const c = this.controls
-    const bank = packFilterBank(
-      new Map([
-        [SEC_ENC_CHROMA, lowpass(c.encChromaMHz * 1e6, TAPS.encChroma)],
-        [
-          SEC_DEMOD,
-          mixTaps(
-            lowpass(c.demodMHz * 1e6, TAPS.demod),
-            lowpassCausal(c.demodMHz * 1e6, TAPS.demod),
-            c.chromaTail,
-          ),
-        ],
-        [
-          SEC_LUMA,
-          lowpassPeaked(
-            c.lumaMHz * 1e6,
-            c.lumaPeak,
-            c.lumaMHz * 0.75e6,
-            TAPS.luma,
-          ),
-        ],
-        [SEC_CHROMA_BP, bandpass(FSC, 0.6e6, TAPS.chromaBp)],
-        [SEC_UNDER, lowpass(1.2e6, TAPS.under)],
-      ]),
+    this.gpu.device.queue.writeBuffer(
+      this.filterBuf,
+      0,
+      designFilterBank(this.controls),
     )
-    this.gpu.device.queue.writeBuffer(this.filterBuf, 0, bank)
     this.filtersDirty = false
   }
 
@@ -1592,237 +1521,28 @@ export class Engine implements EngineApi {
 
   private uniformValues() {
     const c = this.controls
-    const [noiseLoW, noiseHiW] = noiseTiltWeights(c.noiseTilt)
-    return {
+    return uniformValues(c, {
       frame: this.frame,
-      gen: 0,
       canvasW: this.canvas.width,
       canvasH: this.canvas.height,
       srcAspect: this.sources.srcAspect,
       srcNoise: this.sources.srcNoise,
       srcNoiseB: this.sources.srcNoiseB,
-      srcNoiseGrain: noiseGrainPx(c.srcNoiseBwMHz),
-      srcNoiseLine: c.srcNoiseLine,
-      srcNoiseLevel: c.srcNoiseLevel,
-      srcNoiseHold: 60 / Math.max(c.srcNoiseHz, 0.5),
       srcFrame: this.tapeFrame.a,
-      invert: c.invert,
-      deint: c.deint,
-      synthShape: c.synthShape,
-      synthMix: c.synthMix,
-      synthLevel: c.synthLevel,
-      synthColor: c.synthColor,
-      synthHue: (c.synthHueDeg * Math.PI) / 180,
-      synthOver: c.synthOver,
-      // Authored in Hz per unit luma, converted to the same cycles-per-sample
-      // the oscillator's own walk is in — the FM input adds to that walk, so the
-      // two have to arrive in the same units.
-      synthFm: c.synthFm / SAMPLE_RATE,
       // Wall clock, not the frame counter: a strobe you count along with has to
       // be that rate under a frame lock and on a 144 Hz panel (signal/strobe.ts).
       beamBlank: this.strobeGate.step(
         { hz: c.strobeHz, ms: c.strobeMs },
         this.now(),
       ),
-      chromaGain: c.chromaGain,
-      burstLock: c.burstLock,
-      tint: (c.tintDeg * Math.PI) / 180,
-      demodAxis: (c.demodAxisDeg * Math.PI) / 180,
-      matrixClip: c.matrixClip,
-      scDetunePhase: this.scPhase,
-      scDetunePerSample: loRadPerSample(c.scDetuneKHz),
-      killThresh: c.killThresh,
-      accLines: c.accLagLines,
-      svideoBleed: c.svideoBleed,
-      combMode: c.combMode,
-      hHold: c.hHold,
-      vHold: c.vHold,
-      // beat between the free-running v-osc and the incoming field rate: a
-      // slower oscillator retraces late, so the raster start creeps down the
-      // source and the picture climbs
-      vRollRate:
-        LINES * (60 / (c.vFreqHz - c.audioRoll * this.audioState.hit) - 1),
-      syncBend: c.syncBendUs * 1e-6 * SAMPLE_RATE,
-      bendAmt: c.bendUs * 1e-6 * SAMPLE_RATE,
-      bendShape: c.bendShape,
-      bendPeriod: c.bendPeriod,
-      vSize: c.vSize,
-      hvSag:
-        (c.hvSagUs + c.audioSagUs * this.audioState.hit) * 1e-6 * SAMPLE_RATE,
-      hvRing: c.hvRing,
-      // beat between the free-running H-osc and the incoming line rate, in
-      // samples of phase gained per line
-      hRate:
-        SAMPLES_PER_LINE *
-        (F_H / (F_H + c.hDetuneHz + c.audioTear * this.audioState.level) - 1),
-      audioBend: c.audioBendUs * 1e-6 * SAMPLE_RATE,
-      audioLoad: c.audioLoad,
-      audioIre: c.audioIre,
-      audioHue: (c.audioHueDeg * Math.PI) / 180,
-      noiseSigma: c.noiseIre,
-      noiseLoW,
-      noiseHiW,
-      impulseRate: c.impulseRate * impulseStorm(this.frame / 60),
-      impulseIre: c.impulseIre,
+      scPhase: this.scPhase,
+      audioHit: this.audioState.hit,
+      audioLevel: this.audioState.level,
       impulseTrainPos: this.impulseTrainPos,
       impulseTrainStep: this.impulseTrainStep,
-      impulseMains: c.impulseMains,
-      strikeRate: c.strikeRate,
-      ghostDelay: c.ghostDelayUs * 1e-6 * SAMPLE_RATE,
-      ghostGain: c.ghostGain,
-      humAmp: c.humAmp,
-      humMod: c.humMod,
-      colorUnderMix: c.colorUnderMix,
-      chromaNoise: c.chromaNoiseIre,
-      dropoutRate: c.dropoutRate,
-      dropoutLen: c.dropoutLenUs * 1e-6 * SAMPLE_RATE,
-      dropoutComp: c.dropoutComp,
-      headSwitchNoise: c.headSwitchNoise,
-      headClog: c.headClog,
-      // whole samples: the shader indexes with it, and sub-sample trims are
-      // below what a delay-line mistrim resolves anyway
-      ycDelay: Math.round(c.ycDelayNs * 1e-9 * SAMPLE_RATE),
-      diffGain: c.diffGain,
-      diffPhase: (c.diffPhaseDeg * Math.PI) / 180,
-      fmOverdev: c.fmOverdev,
-      fmStreak: Math.max(c.fmStreakUs * 1e-6 * SAMPLE_RATE, 1),
-      polarityFlip: c.polarityFlip,
-      termination: c.termination,
-      chromaPinOnly: c.chromaPinOnly,
-      connectorGlitch: c.connectorGlitch,
-      connectorMode: c.connectorMode,
-      scramble: c.scramble,
-      scrambleMode: c.scrambleMode,
-      mvAgcIre: 160 * c.macrovision,
-      mvStripe: (c.mvStripeDeg * Math.PI) / 180,
-      vbi: c.vbi,
-      enhClampOff: c.enhClampUs * 1e-6 * SAMPLE_RATE,
-      // RC leak per sample from the coupling time constant; 0 us is the
-      // DC-coupled box, which never lets the level move at all.
-      enhDroop:
-        c.enhDroopUs > 0
-          ? 1 - Math.exp(-1 / (c.enhDroopUs * 1e-6 * SAMPLE_RATE))
-          : 0,
-      enhPeakFc: (c.enhPeakMHz * 1e6) / SAMPLE_RATE,
-      // Pole radius: 0.85 rings for a handful of samples, 1.0 rings forever,
-      // and above it the stage is regenerative and climbs to the rails.
-      enhPeakR: 0.85 + 0.2 * c.enhPeakQ,
-      enhPeakBoost: c.enhPeakBoost,
-      enhSync: c.enhSync,
-      enhSlice: c.enhSliceIre,
-      fbMix: c.fbMix,
-      fbZoom: c.fbZoom,
-      fbRotate: (c.fbRotateDeg * Math.PI) / 180,
-      fbShiftX: c.fbShiftX,
-      fbShiftY: c.fbShiftY,
-      fbGain: c.fbGain,
-      fbFocus: c.fbFocus,
-      fbVign: c.fbVign,
-      fbBlack: c.fbBlack,
-      fbKnee: c.fbKnee,
-      fbIris: c.fbIris,
-      crtCutoff: c.crtCutoff,
-      crtGamma: c.crtGamma,
-      crtSat: c.crtSat,
-      crtSpot: c.crtSpot,
-      crtGrain: c.crtGrain,
-      crtBloom: c.crtBloom,
-      crtHalation: c.crtHalation,
-      crtGlow: c.crtGlow,
-      crtHaloKey: c.crtHaloKey,
-      crtSvm: c.crtSvm,
-      crtSvmWidth: c.crtSvmWidth,
-      crtConverge: c.crtConverge,
-      crtPurity: c.crtPurity,
-      crtPurityX: c.crtPurityX,
-      crtPurityY: c.crtPurityY,
-      crtPuritySize: c.crtPuritySize,
-      aGain: c.aGain,
-      bGain: c.bGain,
-      bRing: c.bRing,
-      bHue: (c.bHueDeg * Math.PI) / 180,
-      bVidGain: c.bVidGain,
-      bInv: c.bInv,
-      // No deck is paused on the program bus — a held deck is a fault on one
-      // source's feed, and packFeed overwrites these with that deck's state.
-      bPause: 0,
-      bPauseBar: 0,
-      bGenlock: c.bGenlock,
-      wipeMode: c.wipeMode,
-      wipeSoft: c.wipeSoft,
-      pipMix: c.pipMix,
-      pipX: c.pipX,
-      pipY: c.pipY,
-      pipW: c.pipW,
-      pipH: c.pipH,
-      pipBorder: c.pipBorder,
-      pipSoft: c.pipSoft,
-      pipKey: c.pipKey,
-      pipKeyLevel: c.pipKeyLevel,
-      pipKeySoft: c.pipKeySoft,
-      bKey: c.bKey,
-      bKeyHue: (c.bKeyHueDeg * Math.PI) / 180,
-      bKeyAccept: (c.bKeyAcceptDeg * Math.PI) / 180,
-      bKeyClip: c.bKeyClip,
-      bKeySoft: c.bKeySoft,
-      bKeySpill: c.bKeySpill,
-      bKeyDelay: c.bKeyDelayUs * 1e-6 * SAMPLE_RATE,
-      bKeyFill: c.bKeyFill,
-      bKeyMatteY: c.bKeyMatteY,
-      bKeyMatteHue: (c.bKeyMatteHueDeg * Math.PI) / 180,
-      bKeyMatteSat: c.bKeyMatteSat,
-      trackAmt: c.trackAmt,
-      trackPos: c.trackPos,
-      shuttleBars: c.shuttleX - 1,
       shuttlePhase: this.shuttlePhase,
-      cfbMix: c.cfbMix,
-      cfbGain: c.cfbGain,
-      cfbDelay: c.cfbDelayUs * 1e-6 * SAMPLE_RATE,
-      cfbLines: c.cfbLines,
-      cfbKey: c.cfbKey,
-      cfbKeyLevel: c.cfbKeyLevel,
-      cfbKeySoft: c.cfbKeySoft,
-      cfbTrail: c.cfbTrail,
-      cfbFilterFc: (c.cfbFilterMHz * 1e6) / SAMPLE_RATE,
-      cfbFilterQ: c.cfbFilterQ,
-      cfbFilterBoost: c.cfbFilterBoost,
-      cfbServo: c.cfbServoUs * 1e-6 * SAMPLE_RATE,
-      cfbRing: c.cfbRing,
-      tapeMix: c.tapeMix,
-      tapeGain: c.tapeGain,
-      tapeHfLoss: c.tapeHfLoss,
-      tapeNoise: c.tapeNoiseIre,
-      tapeWear: c.tapeWear,
-      tapeSplice: c.tapeSplice,
-      tapeHeads: c.tapeHeads,
-      tapeHeadSpread: c.tapeHeadSpread,
-      tapeColourFrame: c.tapeColourFrame,
-      // Mistuning frees the sound carrier from its trap, so the buzz the
-      // soundIre knob dials in deliberately arrives uninvited — same term,
-      // two causes on one wire.
-      soundIre: c.soundIre + 15 * Math.max(c.rfMistuneMHz, 0) ** 1.5,
-      rfSoften: clamp01(-c.rfMistuneMHz),
-      rfIntermod: 0.22 * Math.max(c.rfMistuneMHz, 0),
-      rfAdjIre: 18 * c.rfAdjacent,
-      rfSnow: c.rfSnow,
-      ingressIre: 11 * c.ingress,
-      agc: c.agc,
-      abl: c.abl,
-      chromaCoarse: c.chromaCoarse,
-      scanBeam: c.scanBeam,
-      scanBloom: c.scanBloom,
-      phosphor: c.phosphor,
-      phosphorMode: c.phosphorMode,
-      phosphorSkew: c.phosphorSkew,
-      phosphorBleed: c.phosphorBleed,
-      crtSharp: c.crtSharp,
-      maskAmt: c.maskAmt,
-      maskPitch: c.maskPitch,
-      crtZoom: c.crtZoom,
-      crtZoomX: c.crtZoomX,
-      crtZoomY: c.crtZoomY,
       dbgView: this.dbgView,
-    }
+    })
   }
 
   // Re-arm the render loop after a transition (fullscreen exit, tab re-shown)
