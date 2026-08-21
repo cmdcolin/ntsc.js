@@ -23,28 +23,19 @@
 const WARM = vec3f(1.0, 0.62, 0.38);
 const HALO_TIER = 0.2;
 
-// Beam transfer: how gun drive becomes emitted phosphor light. Cutoff makes the
-// background true black (drive below the knee emits nothing), gamma is the gun's
-// luminance response (highlights bloom, shadows recede), saturation is applied
-// around luma *after* the transfer so vivid mids survive without posterizing.
-// Identity at cutoff=0, gamma=1, sat=1, so presets that don't set it are
-// untouched.
+// Beam transfer. The gun's cutoff and gamma are already in the texture —
+// decode applies them as it writes the screen (prelude gunTransfer), so no
+// tap below pays a pow for them. Saturation is applied around luma *after*
+// the transfer so vivid mids survive without posterizing, and it stays here,
+// per tap: it can leave 0..1, which the 8-bit store would clip before bloom
+// ever saw the excursion. Identity at sat 1, so presets that don't set it
+// are untouched. The params are uniform, so the branch is free.
 fn beam(c: vec3f) -> vec3f {
-  // Every tap below goes through this, so a stock gun is worth branching
-  // around entirely: texture values are already in [0,1], so cutoff 0 /
-  // gamma 1 / sat 1 is exactly the identity. The params are uniform, so the
-  // branch is free.
-  if (P.crtCutoff <= 0.0 && P.crtGamma == 1.0 && P.crtSat == 1.0) {
+  if (P.crtSat == 1.0) {
     return c;
   }
-  var d = max(c - vec3f(P.crtCutoff), vec3f(0.0)) / max(1.0 - P.crtCutoff, 1e-3);
-  if (P.crtGamma != 1.0) {
-    d = pow(d, vec3f(P.crtGamma));
-  }
-  let l = luma(d);
-  return mix(vec3f(l), d, P.crtSat);
+  return mix(vec3f(luma(c)), c, P.crtSat);
 }
-
 // Golden-angle disk taps, hoisted to tables: xy is direction times radius
 // fraction, z the beam gaussian weight exp(-2 r^2). Computing these in the tap
 // loop cost cos/sin/sqrt/exp per tap — ~64 transcendentals per pixel, the
@@ -88,8 +79,7 @@ const DISK16 = array<vec3f, 16>(
 );
 
 // over-threshold colour, hue preserved: only the part of a pixel brighter than
-// t contributes light to its neighbours. Taps go through the beam transfer so
-// bloom spreads gamma-expanded cores, not raw decoder voltages.
+// t contributes light to its neighbours.
 fn bright(c: vec3f, t: f32) -> vec3f {
   let b = beam(c);
   let l = luma(b);
@@ -141,14 +131,13 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   // rolling or settling picture glides instead of stepping line by line.
   // Identity when locked — the oscillator phase rests at exactly 0.
   let uv = (vec2f(gid.xy) + vec2f(0.5, 0.5 + fract(timing[V_PHASE]))) / dim;
-  // Beam transfer → saturate → gamut-fit is the emissive stage: put it here so
-  // the feedback camera photographs phosphor light, not decoder voltages.
+  // Saturate → gamut-fit is the rest of the emissive stage: put it here so the
+  // feedback camera photographs phosphor light, not decoder voltages.
   let center = beam(textureSampleLevel(srcTex, samp, uv, 0.0).rgb);
   var col = gamutFit(center);
 
   // Identity copy when the light behaviour is disabled: keeps a clean signal
-  // clean and skips the tap work. (The beam transfer above still ran, but it is
-  // identity unless a preset set cutoff/gamma/sat.)
+  // clean and skips the tap work.
   // Every mechanism below has to appear in this sum, or turning one on alone
   // would take the identity path and read as a dead control. The three faults
   // take abs() because their controls are signed: crossed guns and a reversed

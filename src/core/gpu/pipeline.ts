@@ -125,10 +125,14 @@ const byLabel = (passes: Pass[], label: string): Pass => {
   return p
 }
 
-const texDesc = (usage: number): GPUTextureDescriptor => ({
+const texDesc = (
+  usage: number,
+  viewFormats: GPUTextureFormat[] = [],
+): GPUTextureDescriptor => ({
   size: [ACTIVE_WIDTH, ACTIVE_HEIGHT],
   format: 'rgba8unorm',
   usage,
+  viewFormats,
 })
 
 interface EngineOptions {
@@ -366,6 +370,8 @@ export class Engine implements EngineApi {
   private encodeCompositeBPass: Pass
   private encodeCompositeBBgs: [GPUBindGroup, GPUBindGroup]
   private decodePass: Pass
+  private crtFacePass: Pass
+  private crtFaceBgs: GPUBindGroup[]
   private decodeBgs: [GPUBindGroup, GPUBindGroup]
 
   // The two input slots: staging, capping, aspect and the noise generators all
@@ -496,16 +502,21 @@ export class Engine implements EngineApi {
     // whose `loadOp` is the clear. `faceTex` is the one that genuinely carries
     // state — the feedback camera photographs last frame's glass — and the
     // other two are cleared with it rather than reasoned about.
-    const stateTex = (): GPUTexture =>
+    const stateTex = (viewFormats?: GPUTextureFormat[]): GPUTexture =>
       d.createTexture(
         texDesc(
           GPUTextureUsage.TEXTURE_BINDING |
             GPUTextureUsage.STORAGE_BINDING |
             GPUTextureUsage.RENDER_ATTACHMENT,
+          viewFormats,
         ),
       )
     this.inputTex = stateTex()
-    this.outTex = stateTex()
+    // The decoded screen carries the gun's cutoff and gamma sRGB-encoded while
+    // they are active (decode.wgsl), and crtFace reads it through the sRGB
+    // view so the sampler decodes it: the gathers then pay no pow per tap and
+    // the byte keeps fine steps in the dark, where gamma puts the light.
+    this.outTex = stateTex(['rgba8unorm-srgb'])
     this.faceTex = stateTex()
     this.linearSamp = d.createSampler({
       magFilter: 'linear',
@@ -977,6 +988,23 @@ export class Engine implements EngineApi {
           return c.cfbMix !== 0 && this.frame % period === 0
         },
       ),
+    ]
+    // Plain view while the gun transfer is off, sRGB view while it is on —
+    // the same predicate decode encodes by (prelude gunOn).
+    this.crtFacePass = byLabel(this.postPasses, 'crtFace')
+    this.crtFaceBgs = [
+      this.crtFacePass.bg,
+      bindGroup(crtFacePl, [
+        { buffer: this.paramsBuf },
+        this.outTex.createView({
+          format: 'rgba8unorm-srgb',
+          usage: GPUTextureUsage.TEXTURE_BINDING,
+        }),
+        this.linearSamp,
+        this.faceTex.createView(),
+        { buffer: this.timingBuf },
+        this.grainTex.createView(),
+      ]),
     ]
     this.presentBg = d.createBindGroup({
       layout: this.presentPl.getBindGroupLayout(0),
@@ -2249,6 +2277,8 @@ export class Engine implements EngineApi {
     // One decode dispatch per rendered frame, so frame parity is what alternates
     // the phosphor state buffers.
     this.decodePass.bg = this.decodeBgs[this.frame % 2]
+    this.crtFacePass.bg =
+      this.crtFaceBgs[c.crtCutoff > 0 || c.crtGamma !== 1 ? 1 : 0]
     for (const p of this.postPasses) run(p)
     const buzz = this.buzzDrive()
     if (buzz > 0) this.buzzRead.copy(enc, this.buzzBuf)

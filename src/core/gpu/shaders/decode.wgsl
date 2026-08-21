@@ -574,5 +574,12 @@ fn main(
       shown = v;
     }
   }
+  // The gun's cutoff and gamma, applied as the screen is written (prelude):
+  // crt_face then gathers emitted light and pays no pow per tap. While the
+  // transfer is active the byte is sRGB-encoded and crt_face reads the
+  // texture through an sRGB view, which decodes it back on the way in.
+  if (gunOn(P.crtCutoff, P.crtGamma)) {
+    shown = srgbEncode(gunTransfer(shown, P.crtCutoff, P.crtGamma));
+  }
   textureStore(outTex, vec2i(gid.xy), vec4f(shown, 1.0));
 }

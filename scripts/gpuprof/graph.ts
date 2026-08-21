@@ -169,10 +169,11 @@ export class Graph {
       storage(ACTIVE_WIDTH * ACTIVE_HEIGHT * 8),
       storage(ACTIVE_WIDTH * ACTIVE_HEIGHT * 8),
     ]
-    const tex = () =>
+    const tex = (viewFormats: GPUTextureFormat[] = []) =>
       d.createTexture({
         size: [ACTIVE_WIDTH, ACTIVE_HEIGHT],
         format: 'rgba8unorm',
+        viewFormats,
         usage:
           GPUTextureUsage.TEXTURE_BINDING |
           GPUTextureUsage.STORAGE_BINDING |
@@ -182,7 +183,7 @@ export class Graph {
     const srcTexA = tex()
     const srcTexB = tex()
     const inputTex = tex()
-    this.outTex = tex()
+    this.outTex = tex(['rgba8unorm-srgb'])
     const faceTex = tex()
     this.faceTex = faceTex
     const grainTex = d.createTexture({
@@ -478,14 +479,28 @@ export class Graph {
       {
         label: 'crtFace',
         shader: 'crt_face',
-        variants: one({
-          P,
-          srcTex: this.outTex.createView(),
-          samp,
-          faceTex: faceTex.createView(),
-          timing: timingBuf,
-          grainTex: grainTex.createView(),
-        }),
+        variants: {
+          plain: {
+            P,
+            srcTex: this.outTex.createView(),
+            samp,
+            faceTex: faceTex.createView(),
+            timing: timingBuf,
+            grainTex: grainTex.createView(),
+          },
+          srgb: {
+            P,
+            srcTex: this.outTex.createView({
+              format: 'rgba8unorm-srgb',
+              usage: GPUTextureUsage.TEXTURE_BINDING,
+            }),
+            samp,
+            faceTex: faceTex.createView(),
+            timing: timingBuf,
+            grainTex: grainTex.createView(),
+          },
+        },
+        pick: () => (c.crtCutoff > 0 || c.crtGamma !== 1 ? 'srgb' : 'plain'),
         dispatch: perTile,
       },
       {

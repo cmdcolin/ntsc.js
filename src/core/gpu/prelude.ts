@@ -662,6 +662,40 @@ fn luma(c: vec3f) -> f32 {
   return dot(c, vec3f(0.299, 0.587, 0.114));
 }
 
+// The gun's transfer: cutoff makes the background true black (drive below
+// the knee emits nothing) and gamma is the gun's luminance response
+// (highlights bloom, shadows recede). Applied once, where decode writes the
+// screen, so crt_face's gathers read emitted light and pay no pow per tap —
+// three a tap across some fifty taps was a millisecond a frame on a look with
+// gamma, spot, bloom and halation all up. Identity at cutoff 0, gamma 1. The
+// saturation stage stays in crt_face: it can leave 0..1, which an 8-bit store
+// would clip, and it is a dot and a mix, not a transcendental.
+// Whether the gun transfer is doing anything; when it is, decode stores the
+// screen sRGB-encoded and crt_face samples it through an sRGB view, so the
+// 8-bit texture keeps its steps fine where gamma has pushed the light down.
+// Stock stays a plain byte of drive, bit for bit.
+fn gunOn(cutoff: f32, gamma: f32) -> bool {
+  return cutoff > 0.0 || gamma != 1.0;
+}
+
+// The sRGB transfer, the inverse of what an rgba8unorm-srgb view decodes.
+fn srgbEncode(c: vec3f) -> vec3f {
+  let lo = c * 12.92;
+  let hi = 1.055 * pow(max(c, vec3f(0.0)), vec3f(1.0 / 2.4)) - 0.055;
+  return clamp(select(hi, lo, c <= vec3f(0.0031308)), vec3f(0.0), vec3f(1.0));
+}
+
+fn gunTransfer(c: vec3f, cutoff: f32, gamma: f32) -> vec3f {
+  if (cutoff <= 0.0 && gamma == 1.0) {
+    return c;
+  }
+  let d = max(c - vec3f(cutoff), vec3f(0.0)) / max(1.0 - cutoff, 1e-3);
+  if (gamma != 1.0) {
+    return pow(d, vec3f(gamma));
+  }
+  return d;
+}
+
 // RGB -> YUV baseband, the encoder's matrix. Read straight off a source texel
 // by each encoder pass; there is no yuv buffer between a picture and its
 // composite any more (docs/OPTIMIZATIONS.md).
