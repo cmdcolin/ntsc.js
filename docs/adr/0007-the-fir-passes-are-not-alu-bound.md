@@ -98,3 +98,29 @@ workgroup or across the build (hoisting, tabulating).
 
 The techniques this rule produced, and what each of them measured, are in
 [`../OPTIMIZATIONS.md`](../OPTIMIZATIONS.md).
+
+## Addendum, 2026-08-21 — the arms can be recorded now, and one of them moved
+
+`scripts/gpuprof` times every pass on the GPU's own counter, headless, under
+Deno's wgpu on the same card (`DEVELOPMENT.md` › _Measuring performance_). It
+resolves a tenth of a millisecond per pass, where the batch harness measured
+whole frames through a bimodal ~0.8 ms of neighbour noise. Re-measured with it,
+the third arm above was never flat:
+
+```
+crt_face, stock, WX 3200            grain hashed per frame   grain baked once
+  pass GPU time                            0.568 ms             0.453 ms
+  CRT face vs previous shader                  —                 max 0/255
+```
+
+The verdict holds where it was drawn. The two FIR arms were arithmetic inside
+tap loops that have idle issue slots; `crt_face` is a per-pixel pass with no
+such slack, and sixteen hashes a pixel were its cost. "Ablate first" is
+unchanged — what changed is that the ablation is now a two-second command with a
+per-pass answer, and it should be the first thing run, not the last.
+
+One more number from the same afternoon belongs here because it is the rule in
+the other direction. `sync.wgsl`'s single lane was staged into workgroup memory
+on the theory that its 525-line walk was paying a global load per line: 0.174 →
+0.166 ms, and a prefetch did nothing more. The pass is bound by one lane's issue
+latency on a dependent recurrence, and memory was never it.

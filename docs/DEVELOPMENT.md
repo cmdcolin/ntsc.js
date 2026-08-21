@@ -282,9 +282,33 @@ find:
 ## Measuring performance
 
 ```
+pnpm gpuprof                                   # stock: GPU time per pass, headless
+pnpm gpuprof --preset=<name> --set=k=v,k=v     # a look
+pnpm gpuprof --ablate=<pass>                   # the ablation upper bound
+pnpm gpuprof --dump=<path> ; pnpm gpuprof:cmp <a> <b>   # is an arm pixel-exact?
 node scripts/perf.mjs <url> <label> [batches] [framesPerBatch]
 node scripts/perf.mjs <url> <label> --ablate   # per-pass cost attribution
 ```
+
+**Per-pass GPU time first, headless.** `scripts/gpuprof` stands the compute
+graph up under Deno, whose WebGPU is wgpu — the implementation under Firefox
+Nightly's — on the same card, and times every pass with timestamp queries. No
+window, no rAF, nothing to steal the screen, and the number is the GPU's own
+counter around each pass rather than wall time around a frame, so it resolves a
+tenth of a millisecond the batch harness cannot. It is not the `?prof` profiler
+that was retired: that one read CPU-side clocks and charged the queue's backlog
+to whichever pass ran first, where these are begin/end counters the GPU writes
+inside each pass. Two things to know. wgpu hands the counters back as raw ticks
+(40 ns on the WX 3200), so the run calibrates the tick from the GPU clock's own
+frame period against wall time and prints it on its second line; `--tick=` pins
+it. And it is a model of the engine's graph rather than the engine:
+`pipeline.ts` stays the authority, `gpuprof/graph.ts` mirrors it by the binding
+names each shader declares (`core/gpu/reflect.ts`), and a binding left
+unsupplied throws at construction. Four stock-frame wins came out of its first
+afternoon (`OPTIMIZATIONS.md` › _What per-pass timestamps found_), one of them
+on a change the batch harness had measured as flat. Live frame rate is still
+what the user sees, so confirm a win in Firefox with `perf.mjs` once — and only
+once, it takes the screen.
 
 Best-of wall-clock over batched `vf.step()` runs — the methodology that replaced
 the `?prof` timestamp profiler, which mis-attributed queue backlog to whichever

@@ -41,6 +41,42 @@ from reading the shader, which is why it is
 the record carries what the three arms did not preserve, and what to measure
 before trying a fourth.
 
+The third of those has since been re-measured and landed. Per-pass GPU
+timestamps (`pnpm gpuprof`, below) put the grain hashing at 0.115 ms of a 2.29
+ms stock frame — a tenth of a millisecond that whole-frame wall clock in Firefox
+could not separate from its own bimodal noise. The verdict stands where it was
+drawn, inside the FIR loops; `crt_face` is a per-pixel ALU pass, and there the
+arithmetic was the cost. The ADR carries the addendum.
+
+## What per-pass timestamps found
+
+`scripts/gpuprof` (see `DEVELOPMENT.md` › _Measuring performance_) times each
+pass on the GPU's own counter, headless, on the same wgpu Firefox Nightly runs.
+Its first pass over the stock frame, 2026-08-21 on the WX 3200, GPU ms:
+
+| change                                            | pass            | before | after | frame       |
+| ------------------------------------------------- | --------------- | ------ | ----- | ----------- |
+| RGB→YUV folded into `encodeComposite` (source A)  | encodeYuv       | 0.23   | —     | 2.29 → 1.94 |
+|                                                   | encodeComposite | 0.22   | 0.16  |             |
+| phosphor grain baked once (`grain_bake.wgsl`)     | crtFace         | 0.57   | 0.45  | 1.94 → 1.82 |
+| feedback camera gathered only while patched in    | compose         | 0.124  | 0.071 | 1.82 → 1.77 |
+| halation tiered to 8 taps below `crtHalation` 0.2 | crtFace         | 0.45   | 0.33  | 1.77 → 1.66 |
+
+The first three are bit-exact against the previous shader (`--dump` and
+`cmp.ts`: max 0 on the composite, the decoded frame and the CRT face, at stock
+and with each path engaged); the fourth is the bloom bargain again, measured
+below. Every one is of the form _do less_ — a pass not dispatched, a buffer not
+written, a gather not run, a fetch not made — which is the rule above holding.
+
+The one that did not pay is the instructive one. `sync.wgsl` was staged into
+workgroup memory on the theory that a single lane walking 525 lines against
+storage was paying a dependent global load per line: 0.174 → 0.166 ms, bit exact
+and not worth the shared memory. Prefetching the next line's measurement ahead
+of the update did nothing either. That pass is bound by the issue latency of one
+lane running a dependent recurrence, about 300 ns a line, and no arrangement of
+its memory changes that — only fewer instructions on the serial path would, or a
+recurrence that admits a scan, which the clamp in the flywheel does not.
+
 The same rule caught a startup one before it was written. The `Engine`
 constructor makes a couple of dozen blocking `createComputePipeline` calls,
 which looks like an obvious `createComputePipelineAsync` job. Timed in place
@@ -85,7 +121,17 @@ Gating inside a shader gets the same treatment when a pass is already running.
 either control being up ran both radii — a look with bloom up and halation down
 paid a sixteen-tap gather over a 15-pixel disk for a result immediately
 multiplied by zero. Splitting them into a loop each, gated separately, is worth
-0.12 ms of a 4.87 ms frame.
+0.12 ms of a 4.87 ms frame. `compose` had the same shape with the feedback
+camera: the seven-tap lens gather, the vignette and the sensor curve ran for
+every pixel and were mixed in at `fbMix` 0 — gated, 0.124 → 0.071 ms at stock.
+
+The largest single one was a pass that only existed to hand a buffer to the next
+pass. `encode_yuv` wrote a vec4 per sample (7.6 MB a frame) that
+`encode_composite` read one dispatch later; the texel it came from is a quarter
+the bytes and already what the FIR's staging loop wanted, so `encodeComposite`
+now reads the picture itself — 0.35 ms of a 2.29 ms stock frame for the pass and
+the read it fed, bit-exact. Source B keeps `encode_yuv`, because three consumers
+read its yuv.
 
 The cost of this design is that a gate can be forgotten. `feedgates.spec.ts`
 exists because a per-source fault whose gate does not know about it dispatches
@@ -290,8 +336,21 @@ and each tiers on whatever decides visibility for it:
   every preset sits at 0.6 or below; the two that lean on bloom keep the full
   disk. Worth 0.083 ms.
 
-Both thresholds are hard steps, so sweeping the control through one pops the
-result by that difference. That is the bargain, stated where the step is.
+- **Halation tiers on strength too**, below `crtHalation` 0.2: eight taps on the
+  15 px disk instead of sixteen. Against the full disk the face differs by at
+  most 4/255 at the 0.15 default with 0.23% of pixels off by more than one
+  level, 6/255 at the tier edge, and the amplified diff is a faint band along
+  hard edges with no pattern in flat picture. Every authored preset sits at 0.3
+  or above and keeps the full disk. Worth 0.12 ms — the single largest cost left
+  in `crt_face` at stock.
+
+All three thresholds are hard steps, so sweeping the control through one pops
+the result by that difference. That is the bargain, stated where the step is.
+
+`crt_face`'s grain is the other kind of saving: the mottle is fixed to the
+glass, so sixteen hashes a pixel were reproducing the same field every frame.
+`grain_bake.wgsl` writes it once at engine construction into an r32float texture
+and the pass reads a texel — bit-exact, 0.115 ms.
 
 ## The one serial pass
 
@@ -304,6 +363,12 @@ measurements.
 It is latency on one thread rather than GPU throughput, and it measures fine at
 60 fps, but it is the one pass in the app that cannot scale. A third per-line
 recurrence should be a parallel prefix scan rather than another loop here.
+
+Which latency is now known: the lane's own. Staging the measurements into
+workgroup memory and prefetching the next line both measured within 5% of the
+plain loop (0.17 ms at stock), so the cost is a single lane issuing a dependent
+recurrence at roughly 300 ns a line, not the memory it reads. Shortening the
+serial path is the only lever.
 
 ## The one readback, and it never waits
 
@@ -458,8 +523,8 @@ staging for the reason above.
 
 What this page owns is the other direction: what has already been measured and
 is **not** worth revisiting without new hardware or a new browser build — the
-three ALU micro-optimizations at the top, 256-wide FIR workgroups, and
-asynchronous pipeline creation.
+two FIR-side micro-optimizations at the top, 256-wide FIR workgroups,
+asynchronous pipeline creation, and rearranging `sync.wgsl`'s memory.
 
 One constraint rather than an idea, since nothing is asking for it yet: a third
 per-line recurrence wants a parallel prefix scan, not a third loop in the one

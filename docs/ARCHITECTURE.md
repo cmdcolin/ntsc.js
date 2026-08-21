@@ -76,9 +76,9 @@ postPasses   [enhancer] → [buzzTap] → syncMeasure → sync → lineAnalyze �
 present      render pass to the swap chain
 ```
 
-That block is not decoration: `src/core/gpu/pipeline-graph.test.ts` parses
-the three arrays out of `pipeline.ts` and fails if this order, or which names
-are bracketed, no longer matches. `docs/graphviz/pipeline.dot` draws the same order
+That block is not decoration: `src/core/gpu/pipeline-graph.test.ts` parses the
+three arrays out of `pipeline.ts` and fails if this order, or which names are
+bracketed, no longer matches. `docs/graphviz/pipeline.dot` draws the same order
 with the buffers on the arrows and is held to the same list:
 
 <picture>
@@ -91,13 +91,15 @@ feature costs nothing. `loopPasses` runs once per tape-dub generation, with
 per-generation params copied over the live buffers in between so each pass gets
 its own noise and time-base walk.
 
-One dispatch sits deliberately outside those arrays, because it is not the
-signal path: the direct video blit (`blit_ext.wgsl`), which is input staging —
-where the device has `importExternalTexture` (Chrome, feature-detected), a
-slot's fresh video frame is sampled straight off the browser's decoder into the
-slot texture at the top of the frame, replacing the bitmap path's per-frame CPU
-decode/resize/upload. Firefox has no such API and stays on `VideoPump`'s bitmap
-path unchanged.
+Two dispatches sit deliberately outside those arrays, because they are not the
+signal path. The grain bake (`grain_bake.wgsl`) runs once at engine
+construction: the phosphor mottle is fixed to the glass, so `crtFace` reads it
+as a texel instead of hashing it per frame. The other is the direct video blit
+(`blit_ext.wgsl`), which is input staging — where the device has
+`importExternalTexture` (Chrome, feature-detected), a slot's fresh video frame
+is sampled straight off the browser's decoder into the slot texture at the top
+of the frame, replacing the bitmap path's per-frame CPU decode/resize/upload.
+Firefox has no such API and stays on `VideoPump`'s bitmap path unchanged.
 
 The split matters: **encode** builds the waveform, **channel/timebase** damage
 it, **enhancer/sync/decode** is the receiver trying to make sense of the damage.
@@ -460,9 +462,8 @@ depth, because it drives everything at once. It runs immediately **after**
 `applyMod` and restores immediately before it, so a clean frame is clean
 including whatever the LFOs were doing to it. Three things it has to get right:
 
-- **`STOCK_HOLD` (`src/core/controls.ts`) is held back.** The engine cannot
-  read the panel's `VIEW_KEYS`, so it carries its own copy of the same five
-  keys, and
+- **`STOCK_HOLD` (`src/core/controls.ts`) is held back.** The engine cannot read
+  the panel's `VIEW_KEYS`, so it carries its own copy of the same five keys, and
   `ui/controls.test.ts` asserts the two match. Without it the gate yanks the
   magnifier and rechooses the frame lock several times a second — which
   hold-to-compare gets away with because it happens once, under your finger.
@@ -500,11 +501,10 @@ Two things here are architecture rather than procedure; the harnesses, the traps
 they have hit and the performance protocol are all in
 [`DEVELOPMENT.md`](DEVELOPMENT.md).
 
-- **WGSL is validated statically.** `src/core/gpu/shaders.test.ts` prepends
-  the real prelude to every `.wgsl` and runs it through naga, because WGSL is
-  otherwise
-  only compiled inside the browser and a typo would survive until runtime.
-  Optional locally, enforced under CI.
+- **WGSL is validated statically.** `src/core/gpu/shaders.test.ts` prepends the
+  real prelude to every `.wgsl` and runs it through naga, because WGSL is
+  otherwise only compiled inside the browser and a typo would survive until
+  runtime. Optional locally, enforced under CI.
 - **A session is configurable entirely from the URL.** The engine is exposed as
   `window.vf`, and `?iurl=`, `?iurlb=`, `?preset=`, `?set=` and `?dbg=` mean a
   harness never has to click the UI. That is why the harnesses are as short as
