@@ -279,6 +279,21 @@ Two things to respect when adding another:
 Drags write through `writeControls` (one `applyControls`), so a gesture that
 moves four controls is one notify, not four.
 
+The **minor-adjustment card** is the third surface onto a control that is not
+its own row, and it keeps the same contract. `vernier: true` on a `SliderDef`
+gives the row a hover card holding a second track that spans one `step` of the
+control, in hundredths of it (`vernier.ts`, `Vernier` in `Slider.tsx`). Nothing
+is stored for it: the card splits the value that is already there into the notch
+of the step grid it is nearest plus a remainder, so a trimmed control is one
+number like any other and a preset, a link or a MIDI knob writes it without
+knowing the card exists. Two things this leans on — a control's `step` is what
+the row's shared readout column and its curve are both sized off, so the extra
+two digits are printed on the card (`formatFine`) and never in the column; and
+`snapToStep` rounds a half up, which is why the remainder runs [-50, +49] and no
+value sits on a tie the card's thumb would jump across mid-drag. Take one where
+a control's step is a floor the mechanism can see past — the camera loop's
+geometry — rather than wherever a finer number might be nice.
+
 Nothing in a miniature may run per frame — no `rAF`, no transitions or
 animations that recalc style each tick. The panel shares a main thread with a 60
 fps canvas, and a decorative pulse measured 7 ms of style recalc per 3 s for

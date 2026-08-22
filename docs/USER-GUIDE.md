@@ -98,6 +98,15 @@ reverts, **⋮** is the wiring (pin, start an LFO, learn a MIDI knob), and
 **?** on any slider explains the fault it models rather than what you'll see.
 The look is emergent, so the cause is what tells you how two controls combine.
 
+Rest on the camera loop's **zoom**, **rotate**, **shift** or **gain** and a
+**minor adjustment** card drops under the row: the same knob with one step of it
+spread across the whole track, so a drag there moves in hundredths of what the
+row above can step to. That is the resolution the loop's geometry is actually
+read at — a thousandth of zoom is the difference between a spiral that unwinds
+over a second and one that unwinds over ten — and the card is where the value is
+printed that far in. The row keeps reading its own step, and stays the thing a
+preset, a link or a MIDI knob writes.
+
 The loops are the exception to working left to right: they take the picture off
 the end and put it back at the front, compounding everything else. Here's a
 camera aimed a hair off-axis from its monitor, over a tape dropping out

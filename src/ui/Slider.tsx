@@ -2,7 +2,12 @@ import { createContext, use, useId, useState } from 'react'
 
 import { snapToStep } from './controls'
 import { cx } from './cx'
-import { choicesFitTrack, formatValue, readingChars } from './format'
+import {
+  choicesFitTrack,
+  formatFine,
+  formatValue,
+  readingChars,
+} from './format'
 import { HelpProse } from './HelpProse'
 import { MenuItem, Popover } from './Popover'
 import popoverStyles from './Popover.module.css'
@@ -10,6 +15,7 @@ import styles from './Slider.module.css'
 import { SliderHelpDialog } from './SliderHelpDialog'
 import { ToggleButtonGroup } from './ToggleButtonGroup'
 import { fromTravel, toTravel, TRAVEL_STEP } from './travel'
+import { atCents, CENT_MAX, CENT_MIN, centsOf, notchOf } from './vernier'
 
 import type { SliderDef } from './controls'
 import type { CurveName } from './travel'
@@ -210,6 +216,83 @@ function RowMenu(props: {
   )
 }
 
+// Where a cent sits on the card's own track, and the fill from the notch out to
+// it — the same reading the row's own track gives against stock, one
+// magnification further in.
+//
+// Out here rather than in the component because the React Compiler's codegen
+// trips over a `Math` call on a value derived from an object argument (the
+// `centsOf(props, …)` below), and a bailout costs the component its memoization
+// with nothing but `pnpm compiler` to say so.
+const centPct = (c: number) => ((c - CENT_MIN) / (CENT_MAX - CENT_MIN)) * 100
+
+const centFill = (cents: number) => ({
+  '--lo': `${centPct(cents < 0 ? cents : 0)}%`,
+  '--hi': `${centPct(cents < 0 ? 0 : cents)}%`,
+  '--def': `${centPct(0)}%`,
+})
+
+// The minor-adjustment card: the last two digits of the same number.
+//
+// Revealed under the row on hover rather than given a row of its own, because
+// it is not a second control. There is one value; this is a magnified view of
+// where it sits between two notches of its own step grid, and a permanent row
+// would double the height of the group while giving one number two readouts and
+// two ↺ to disagree over. What it costs instead is the space under the row
+// while the pointer is there, which is why it waits a beat before appearing
+// (see .vernier) — travelling down a stack of rows should not deal a card at
+// every one on the way past.
+//
+// Its whole width is one step of the control above, so a pixel here is worth
+// about a third of a cent where a pixel up there is worth a whole step.
+function Vernier(props: {
+  label: string
+  min: number
+  max: number
+  step: number
+  unit: string
+  value: number
+  disabled: boolean
+  onChange: (v: number) => void
+}) {
+  const cents = centsOf(props, props.value)
+  const fill: CSSProperties & Record<'--lo' | '--hi' | '--def', string> =
+    centFill(cents)
+  return (
+    <div className={styles.vernier}>
+      <span className={styles.vernierHead}>
+        <span>minor adjustment</span>
+        {/* The reading the row cannot give: two places further in, which is
+            exactly what a hundredth of the step is worth. */}
+        <span className={styles.vernierExact}>
+          {`${formatFine(props.value, props.step)}${props.unit}`}
+        </span>
+      </span>
+      <span className={styles.vernierBody}>
+        <input
+          type="range"
+          className={styles.vernierRange}
+          style={fill}
+          min={CENT_MIN}
+          max={CENT_MAX}
+          step={1}
+          value={cents}
+          disabled={props.disabled}
+          aria-label={`${props.label}, minor adjustment`}
+          aria-valuetext={`${cents} hundredths of a step`}
+          onDoubleClick={() => props.onChange(notchOf(props, props.value))}
+          onChange={e =>
+            props.onChange(atCents(props, props.value, Number(e.target.value)))
+          }
+        />
+        <span className={styles.vernierCents}>
+          {`${cents > 0 ? '+' : ''}${cents}¢`}
+        </span>
+      </span>
+    </div>
+  )
+}
+
 export function Slider(props: {
   label: string
   unit: string
@@ -257,6 +340,9 @@ export function Slider(props: {
   }
   // The editor itself, rendered by the caller under the row.
   modEditor?: ReactNode
+  // Offer the minor-adjustment card under the row: this control's step is a
+  // floor the mechanism can see past. See vernier.ts.
+  vernier?: true
 }) {
   const inputId = useId()
   const [showHelp, setShowHelp] = useState(false)
@@ -579,6 +665,23 @@ export function Slider(props: {
           inert — needs {needs.hint} · click to set
         </button>
       ) : null}
+      {/* Not while the ? card is up: both hang off the same edge of the same
+          row, and the one the pointer asked for wins. */}
+      {props.vernier !== true ||
+      choices !== undefined ||
+      hoverHelp ||
+      showHelp ? null : (
+        <Vernier
+          label={props.label}
+          min={props.min}
+          max={props.max}
+          step={props.step}
+          unit={props.unit}
+          value={props.value}
+          disabled={locked}
+          onChange={props.onChange}
+        />
+      )}
       {props.modEditor}
       {hoverHelp && !showHelp && help !== undefined ? (
         <div className={styles.helpPop}>

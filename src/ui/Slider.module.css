@@ -346,3 +346,82 @@ button.badge {
 .needs:hover {
   color: var(--edit-hi);
 }
+
+/* The minor-adjustment card, hanging off the bottom edge of the row it belongs
+   to. Same geometry as .helpPop above — an overlay rather than a row, so
+   revealing one does not reflow the group under the pointer that asked for it —
+   but this one takes clicks, because the point of it is the track inside.
+
+   Shown after a beat of hover rather than at once: the card covers the row
+   below, and travelling down a stack of sliders should not deal one at every
+   row on the way past. The delay is on the *show* only — no transition in the
+   resting state, so leaving the row hides it immediately.
+
+   Keyboard focus and a live drag skip the wait. The drag case is what
+   :has(:active) is for: a pointer that slips a few px off the row mid-drag
+   drops :hover, and a card that vanished under the thumb would end the drag it
+   was holding. */
+.vernier {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 2px;
+  visibility: hidden;
+  max-width: 34rem;
+  background: #1a1a22;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px 6px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
+}
+.slider:hover .vernier {
+  visibility: visible;
+  transition: visibility 0s linear 260ms;
+}
+.slider:focus-within .vernier,
+.slider:has(:active) .vernier {
+  visibility: visible;
+}
+.vernierHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+/* The one place the value is printed to the cent. Its own colour, because it is
+   the same number the row above is showing and the digits that differ are the
+   whole reason the card is open. */
+.vernierExact {
+  color: var(--fg);
+  white-space: nowrap;
+}
+.vernierBody {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vernierRange {
+  composes: track from './ui.module.css';
+  --thumb-size: 10px;
+  flex: 1;
+  min-width: 0;
+  height: 12px;
+  display: block;
+}
+.vernierRange:disabled {
+  opacity: 0.45;
+}
+/* Fixed at the widest reading it can hold (-50¢), for the reason the row's own
+   readout is: a number that resized its own box would move the track it sits
+   beside while a drag was under way. */
+.vernierCents {
+  width: 4ch;
+  text-align: right;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}

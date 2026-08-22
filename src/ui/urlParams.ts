@@ -300,9 +300,15 @@ export interface SessionState {
   cueB: Cue | null
 }
 
-// The value a link records for a control: 4 decimals is lossless, since the
-// finest slider step in the schema is 0.001.
-const short = (v: number): string => String(+v.toFixed(4))
+// The value a link records for a control: 6 decimals, which is what
+// `snapToStep` rounds to and therefore the finest thing a control can hold.
+//
+// It was 4 — lossless while the finest slider step in the schema was 0.001 —
+// and the vernier card (vernier.ts) went a hundredth of a step past that, so a
+// link written off a trimmed loop rounded the trim away and read back as a
+// different picture. Nothing else grows: `+v.toFixed(6)` drops the trailing
+// zeros, so every value that fitted in 4 places still writes as itself.
+const short = (v: number): string => String(+v.toFixed(6))
 
 // Rewrite the managed keys from live state, leaving every other param alone —
 // the loader also reads iurl, iurlb, vurl, preset and debug, and a URL-loaded

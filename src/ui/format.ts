@@ -1,8 +1,21 @@
+// How many decimals a step is worth reading to. Named rather than inlined
+// because two readings are taken off it: the row's own, and the vernier card's
+// two places further in.
+const placesFor = (step: number) => (step < 0.01 ? 3 : step < 1 ? 2 : 0)
+
 // A control's value rounded to a sensible number of decimals for its step:
 // finer steps show more places. Shared by the slider readout and its help card
 // so both round identically (they differ only in how they append the unit).
 export const formatValue = (value: number, step: number) =>
-  value.toFixed(step < 0.01 ? 3 : step < 1 ? 2 : 0)
+  value.toFixed(placesFor(step))
+
+// The same value read to the cent — two places further, which is exactly what a
+// hundredth of the step is worth. Only the vernier card prints this: the row's
+// own readout is a shared column sized off `step` (see Rack), and widening it
+// by two digits on every row in a group would be the whole cost of the card
+// paid by rows that never open one.
+export const formatFine = (value: number, step: number) =>
+  value.toFixed(placesFor(step) + 2)
 
 // The widest reading a control can ever produce, in characters — its longer
 // endpoint plus its unit.

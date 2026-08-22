@@ -54,6 +54,14 @@ export interface SliderDef {
   // other control turns on. The group tucks these behind a "fine tweaks"
   // disclosure so the rows that make the picture stay in reach. Absent = shown.
   fine?: true
+  // Offer the minor-adjustment card: a second track, revealed under the row on
+  // hover, that moves the value in hundredths of `step` (vernier.ts). For the
+  // controls where the row's own resolution is a floor rather than a limit of
+  // the mechanism — the loop's geometry, where a notch of track near stock is
+  // one step and the offsets worth hunting are smaller than one. Nothing about
+  // the row changes: the step, the curve and the shared readout column are all
+  // as they were, and the card is what carries the extra digits.
+  vernier?: true
 }
 
 // The signal-path stages, in the order the panel's spine is browsed. A group
@@ -673,6 +681,7 @@ export const GROUPS: Group[] = [
         curve: 'unity',
         redline: [0.7, 1.6],
         unit: 'x',
+        vernier: true,
         help: 'How much bigger or smaller the camera frames the screen each time around. Above 1 detail flows outward and tunnels form; below 1 it collapses inward. The distance from 1 sets how fast the loop marches, and tiny offsets are usually the most interesting.',
       },
       {
@@ -684,6 +693,7 @@ export const GROUPS: Group[] = [
         curve: 'zero',
         redline: [-30, 30],
         unit: 'deg',
+        vernier: true,
         help: 'Camera tilt on the loop. Each pass rotates the image again, so structures spiral instead of expanding straight out. Combines with zoom into the classic logarithmic-spiral feedback. A hundredth of a degree is a visible difference in how fast the spiral winds, which is why the track is fine around zero and coarse out at the ends.',
       },
       {
@@ -696,6 +706,7 @@ export const GROUPS: Group[] = [
         redline: [-0.3, 0.3],
         unit: '',
         fine: true,
+        vernier: true,
         help: 'Camera aim off-centre horizontally. Moves where the feedback fixed point sits, which is what decides where the tunnel mouth or spiral core lands on screen.',
       },
       {
@@ -708,6 +719,7 @@ export const GROUPS: Group[] = [
         redline: [-0.3, 0.3],
         unit: '',
         fine: true,
+        vernier: true,
         help: 'Camera aim off-centre vertically. Same as shift x on the other axis — together they steer the centre of the loop.',
       },
       {
@@ -720,6 +732,7 @@ export const GROUPS: Group[] = [
         redline: [0.5, 1.5],
         unit: 'x',
         fine: true,
+        vernier: true,
         help: 'Camera exposure on the loop. Below 1 each pass is dimmer than the last and structures fade out; above 1 they build until they clip. Unity is the knife edge where patterns persist indefinitely.',
       },
       {

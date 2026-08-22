@@ -72,6 +72,7 @@ export function ControlSlider(props: {
       choices={s.choices}
       curve={s.curve}
       redline={s.redline}
+      vernier={s.vernier}
       help={s.help}
       needs={unmet ? needsNote(need, api) : undefined}
       favorite={{
